@@ -1,12 +1,12 @@
 # Evaluación crítica de la propuesta
 
-Fecha: 24 de septiembre de 2026. Referencias: PRD v1, proforma HTML y Propuesta.pdf, páginas 1–15.
+Fecha: 24 de septiembre de 2026; revisión del 26 de septiembre. Referencias: PRD v1, proforma HTML y Propuesta.pdf, páginas 1–15.
 
 ## Dictamen
 
 La propuesta tiene una dirección útil: reunir recursos, planificación y trazabilidad, con interfaces centradas en tareas. El monolito modular encaja con procesos que comparten información y necesitan aprobar reservas e inventario de forma consistente.
 
-La mayor dificultad no está en dibujar pantallas o desplegar Next.js: está en definir qué significa disponibilidad, qué operaciones puede realizar cada institución y cómo impedir que dos usuarios comprometan el mismo recurso.
+La mayor dificultad está en definir qué significa disponibilidad, qué operaciones puede realizar cada cliente y cómo impedir que dos usuarios comprometan el mismo recurso. El stack recomendado es React/Vite con una API Node, según el documento de arquitectura.
 
 Con tu prioridad de vender paquetes desde el inicio, conviene validar primero dos productos completos sobre un núcleo común: **Inventario de reactivos** y **Gestión de equipos**. Después se integra el flujo de prácticas. Eso cambia la lectura del PRD: la práctica es el centro de la operación integrada, pero no una dependencia obligatoria de todo el producto.
 
@@ -14,7 +14,7 @@ Con tu prioridad de vender paquetes desde el inicio, conviene validar primero do
 
 | Idea original y referencia | Evaluación | Propuesta |
 |---|---|---|
-| Una plataforma, módulos contratables; proforma §1–4 | Conservar | Un código común, datos aislados por institución y derechos de uso comprobados en servidor |
+| Una plataforma, módulos contratables; proforma §1–4 | Conservar | Un código común, datos aislados por espacio de trabajo y derechos de uso comprobados en servidor |
 | Práctica como objeto central; PRD §1 y PDF p.14 | Conservar para la operación integrada | Inventarios independientes siguen siendo productos completos |
 | MVP con cronograma, prácticas después; PRD §8 y §13 | Hay una dependencia sin resolver | Laboratorios puede crear reservas directas; Prácticas crea reservas vinculadas en el mismo calendario |
 | El sistema siempre encuentra una alternativa; PDF p.5 | No se puede garantizar | Mostrar opciones cuando existan y explicar por qué una solicitud no puede aprobarse |
@@ -26,7 +26,7 @@ Con tu prioridad de vender paquetes desde el inicio, conviene validar primero do
 | Disponible/reservado/en uso/mantenimiento; PRD §6 | Mezcla estado físico y ocupación temporal | Separar condición, agenda y custodia; calcular disponibilidad para el intervalo consultado |
 | Alternativas en otros laboratorios; PDF p.5 y p.12 | Existencia no implica acceso ni traslado inmediato | Consultar autorización, estado, ubicación y tiempo de traslado; transferencia con recepción |
 | Alertas en etapa 3; proforma §3 | Algunas son necesarias antes | Caducidad, stock insuficiente y averías desde el módulo operativo; indicadores avanzados después |
-| Activar/desactivar por cliente; proforma §4 | Falta ciclo de salida | Bloquear nuevas operaciones, resolver pendientes y conservar consulta e historial |
+| Activar/desactivar por cliente; proforma §4 | Falta ciclo de salida | Bloquear nuevas operaciones, resolver pendientes y conservar consulta durante el acceso autorizado; disponer datos al terminar según instrucciones y obligaciones |
 | El técnico puede modificar; PRD §7 | Puede cambiar lo que el docente aceptó | Versionar la solicitud; cambios de recursos/fecha necesitan nueva validación y aceptación definida |
 | Trazabilidad «perfecta»; PDF p.13 | La calidad depende también de la captura | Historial verificable, correcciones compensatorias y responsables; medir registros faltantes |
 
@@ -39,7 +39,7 @@ Con tu prioridad de vender paquetes desde el inicio, conviene validar primero do
 | Inventario institucional | 1 + 2 + 3 | Ambos inventarios y búsqueda por ubicación | Primera oferta; composición de los anteriores |
 | Agenda y prácticas | 1 + 4 + 5 | Solicitud, reserva de espacio, aprobación, preparación y cierre | Segunda entrega comercial |
 | Operación integrada | Anterior + recursos contratados | Reserva, entrega, consumo y devolución vinculados | Crece con módulos 2, 3 y 6 |
-| Prevención y gestión | 7 y/o 8 con dependencias | Mantenimiento planificado e indicadores | Después de validar la operación |
+| Prevención y gestión | 7 y/o 8 con dependencias | Mantenimiento, indicadores y alertas avanzadas con resúmenes/escalamiento | Después de validar la operación |
 
 Gestión de equipos inicial no prometerá reservas futuras ni mantenimiento preventivo completo. Cada paquete debe describir lo que ya funciona. La configuración comercial permite combinaciones; no se crean aplicaciones diferentes ni ramas de código para cada cliente.
 
@@ -56,6 +56,8 @@ La licencia de US$ 1.200/año equivale a US$ 100/mes **de ingreso**, del que tam
 Antes de reutilizar esos precios, definir: usuarios/laboratorios/almacenamiento incluidos, migraciones, horas y horario de soporte, tiempos de respuesta, exportación al terminar, periodo de consulta y qué se factura como cambio. La incorporación de un cliente al SaaS y el desarrollo de un módulo nuevo son trabajos distintos y deben presupuestarse como tales.
 
 No se propone introducir facturación automática ni pasarela de pagos ahora. Una configuración administrativa auditada de contratos y módulos basta para las primeras instituciones.
+
+La revisión distingue tres asuntos: las etapas de la proforma son comerciales y no equivalen a las fases de desarrollo; M8 conserva alertas avanzadas, aunque los avisos indispensables estén incluidos en cada módulo; US$ 100/mes es un precio por justificar con costos compartidos y soporte acotado, no necesariamente inviable para varios clientes. El usuario confirmó que la proforma era conceptual. [Producto y paquetes](09_producto_y_paquetes.md) sustituye su alcance: inventarios en F2, Agenda/Prácticas en F3. Ver [registro de revisión](07_decisiones_revision.md).
 
 ## ReactiLab: aprovechar experiencia sin heredar defectos
 

@@ -1,19 +1,19 @@
 # Dominio y modelo de datos
 
-Fecha: 24 de septiembre de 2026.
+Fecha: 24 de septiembre de 2026; revisión del 26 de septiembre.
 Estado: diseño propuesto; las reglas indicadas como «por validar» todavía requieren acuerdo con los clientes piloto.
 Prioridad: vender distintos paquetes desde la primera oferta. Reactivos y Equipos funcionan por separado sobre Core.
 Las prácticas son el centro de la operación cuando ese módulo está contratado; no son una dependencia del inventario.
 
 ## 1. Decisiones que ordenan el modelo
 
-- Un cliente es una organización o tenant. Sedes, departamentos y laboratorios pertenecen a ella.
+- El titular jurídico, el contrato y el espacio de trabajo o tenant son entidades distintas. Se eligen espacios independientes con un propietario transferible por espacio; las licencias y los datos no pertenecen a su identidad personal.
 - Una persona puede pertenecer a varias organizaciones con permisos diferentes.
 - Ubicación física no equivale a laboratorio programable: Core administra ubicaciones; Laboratorios añade capacidad y agenda.
 - Producto, lote, envase, saldo, reserva y movimiento son conceptos distintos.
 - Plantilla de práctica, versión publicada y ejecución en una fecha son registros distintos.
 - La condición física de un equipo se separa de su reserva, bloqueo temporal y custodia.
-- Los movimientos y decisiones confirmados se corrigen con nuevos registros; no se reescribe su historia.
+- Los movimientos y decisiones confirmados se corrigen con nuevos registros durante la operación ordinaria. La supresión o anonimización autorizada sigue un procedimiento separado de protección de datos; inmutabilidad no significa retención perpetua.
 - El inventario y la agenda son capacidades internas compartidas, no módulos comerciales adicionales.
 - Todos los módulos pertenecen al mismo monolito y release. La licencia controla uso, no instalaciones distintas por cliente.
 - Las migraciones SQL versionadas son la única autoridad del esquema. No mantener un segundo esquema generado por un ORM.
@@ -25,21 +25,32 @@ Esto no impide transacciones entre módulos: el caso de uso coordina sus servici
 
 | Esquema | Propietario / alcance | Primera implementación |
 |---|---|---|
-| `core` | Organizaciones, personas, ubicaciones, permisos, licencias, documentos, incidencias mínimas y auditoría | F1 |
+| `core` | Espacios, personas, ubicaciones, permisos, derechos de uso, documentos y auditoría | F1 |
 | `inventory` | Catálogo cuantificable, lotes, saldos, movimientos y traslado mínimo; después reservas y transferencias ampliadas | F2; ampliaciones F3–F4 |
 | `reagents` | Datos químicos y documentos de reactivos, módulo 2 | F2 |
 | `equipment` | Activos, condición y responsables, módulo 3 | F2 |
+| `incidents` | Contexto, responsables y seguimiento mínimo de incidencias; capacidad compartida | F2 |
 | `laboratories` | Capacidad, horarios y reglas de espacios, módulo 4 | F3 |
 | `scheduling` | Reservas de espacios y activos; motor interno de conflictos | F3 |
 | `practices` | Plantillas, ejecuciones, aprobación, preparación y cierre, módulo 5 | F3 |
 | `materials` | Consumibles, reutilizables, préstamos y devoluciones, módulo 6 | F4 |
 | `maintenance` | Planes y órdenes, módulo 7 | F5 |
-| `analytics` | Consultas/proyecciones e indicadores avanzados, módulo 8 | F5 |
-| `platform` | Outbox, idempotencia, trabajos e importaciones | F1; ampliar según cada entrega |
+| `analytics` | Indicadores, alertas configurables avanzadas, resúmenes y escalamiento, módulo 8 | F5 |
+| `platform` | Administración del SaaS, titulares/contratos, outbox, trabajos, cuotas y procedimientos de salida | F1; ampliar según cada entrega |
 
 F2 entrega al menos dos configuraciones probadas: Core + Reactivos y Core + Equipos, en organizaciones distintas.
 Las reservas se diseñan ahora para evitar cambios incompatibles, pero no bloquean la primera oferta de inventario.
 En F2 «disponibilidad» de equipos significa condición actual utilizable; la disponibilidad futura por horario llega en F3.
+
+### Frontera de cliente y contratación
+
+Decisión confirmada: derechos por espacio de trabajo, sin licencias por unidad interna. Un titular jurídico puede tener varios espacios y contratos. Dos departamentos con contratación y operación independientes disponen de espacios separados bajo el mismo titular. Dentro de un espacio se pueden gestionar varios laboratorios mediante permisos por ubicación.
+
+Dos espacios no comparten existencias, reservas, miembros ni informes, aunque tengan el mismo titular o usuario. Una futura fusión exige migración y conciliación; no basta cambiar un ID. Dos facturas no determinan por sí solas dos tenants: la independencia operativa sí define el límite elegido. Compartir inventario entre espacios o contratar módulos distintos por unidad quedan fuera del alcance inicial.
+
+`core.organizations` conserva el nombre SQL por continuidad, pero representa el espacio de trabajo. Las unidades administrativas y ubicaciones físicas son conceptos diferentes; una unidad puede gestionar varias ubicaciones. Añadir `core.org_units` al introducir permisos por unidad administrativa, sin sustituir el árbol físico de ubicaciones.
+
+Las tablas descritas son el modelo objetivo por fases. F1 no crea las de todas las fases futuras. `support_grants` se difiere; `return_batches` empieza en F3; los envases individuales se incorporan solo si la operación los requiere, con ajuste de alcance si son indispensables para el primer cliente.
 
 ## 3. Convenciones de todas las tablas
 
@@ -52,7 +63,7 @@ En F2 «disponibilidad» de equipos significa condición actual utilizable; la d
 - Códigos de laboratorio, producto y activo únicos dentro del tenant. Nombres, CAS y lotes de proveedor no son claves únicas.
 - Estados como texto con `CHECK` y transiciones controladas; no dejar estados libres en JSON.
 - `version` entero para detectar modificaciones concurrentes de solicitudes y configuraciones editables.
-- Archivar catálogos con `archived_at`; desactivar membresías con `status`. No borrar información referenciada por operaciones.
+- Archivar catálogos con `archived_at`; desactivar membresías con `status`. El rol operativo no borra información histórica referenciada. La retención y disposición autorizada se rigen por [ciclo del cliente y datos](08_ciclo_cliente_y_datos.md).
 - JSONB para instantáneas, configuración acotada y metadatos; relaciones, cantidades y permisos permanecen normalizados.
 - Las tablas globales de identidad, permisos, módulos y unidades son excepciones explícitas a `tenant_id`.
 - Las fechas de caducidad pueden ser `date`; la política institucional define hasta qué momento permiten uso.
@@ -61,43 +72,74 @@ En F2 «disponibilidad» de equipos significa condición actual utilizable; la d
 
 | Tabla | Campos y relaciones principales |
 |---|---|
-| `core.organizations` | `id`, `code`, `name`, `timezone`, `status`; zona IANA, no un desplazamiento horario fijo |
+| `core.organizations` | Espacio: `id`, `customer_account_id`, `owner_membership_id`, `code`, `name`, `timezone`, `status`, motivo y fechas de cierre; zona IANA |
 | `core.identities` | `id`, `provider`, `provider_subject`, datos mínimos; único `(provider,provider_subject)` |
 | `core.memberships` | `id`, `tenant_id`, `identity_id`, `status`; único `(tenant_id,identity_id)` |
-| `core.invitations` | Email normalizado, hash de token, expiración, invitador, roles/alcances propuestos y estado; canje único con identidad verificada |
-| `core.principals` | Actor institucional: `kind` humano/servicio/soporte; membresía, código de servicio o concesión de soporte según tipo |
-| `core.support_grants` | Identidad del operador del proveedor, aprobador institucional, permisos, alcance, vencimiento y revocación |
+| `core.invitations` | `tenant_id`, email destinatario, hash de token, expiración, invitador, roles/alcances propuestos y estado; canje único con identidad verificada; lote opcional al incorporar invitaciones CSV en F3 |
+| `core.principals` | Actor institucional: humano o servicio en MVP; membresía o código de servicio según tipo; soporte como ampliación posterior |
+| `core.support_grants` | Diferido: identidad del operador, aprobador del espacio, permisos, alcance, vencimiento y revocación |
 | `core.permissions`, `core.roles`, `core.role_permissions` | Catálogo global de códigos de permiso; roles institucionales y relaciones con permisos |
-| `core.role_assignments` | `principal_id`, `role_id`, `scope_kind`, `location_id` opcional; organización o ámbito de ubicación |
+| `core.role_assignments` | `principal_id`, `role_id`, `scope_kind`, `location_id` opcional, vigencia; organización o ámbito de ubicación |
 | `core.locations` | `id`, `parent_id`, `code`, `name`, `kind`, `status`; sede, edificio, sala, almacén, custodia o tránsito |
 | `core.tenant_settings` | Políticas validadas y versionadas; evitar una colección ilimitada de ajustes arbitrarios |
 | `core.documents` | `id`, `storage_key`, nombre, MIME, tamaño, hash, actor, clasificación y estado de carga |
-| `core.incidents` | `id`, `location_id`, reportante, gravedad, descripción, estado, fecha y responsable |
+| `core.branding` | Espacio, nombre visible, logo como documento/versionado, datos autorizados de encabezado; sin URL externa arbitraria |
 | `core.audit_events` | Actor, tenant, acción, entidad, momento, correlación, motivo y cambios relevantes |
+
+| Tabla de administración SaaS | Campos y límites |
+|---|---|
+| `platform.customer_accounts` | Titular jurídico/contratante y contacto; datos mínimos necesarios, visibles al operador autorizado |
+| `platform.contracts` | Titular, espacio, vigencia, paquete, límites, estado y referencia contractual; no sustituye el documento legal |
+| `platform.operator_accounts` | Identidad global, estado y capacidades del operador; independiente de membresías institucionales |
+| `platform.operator_audit_events` | Actor, acción administrativa, espacio afectado, motivo y cambios de metadatos; sin copiar contenido de inventarios |
+| `platform.tenant_limits`, `usage_reservations` | Cupos y reservas de almacenamiento/cargas/trabajos; comprobación y liberación atómicas |
+| `platform.data_disposition_cases`, `disposition_tasks` | Instrucción del responsable, alcance, plazo aplicable, excepciones, repositorio, estado y evidencia |
+
+Estas tablas de control tienen políticas propias: un usuario de un espacio no puede enumerar otros titulares o contratos. Todo registro que afecta a un espacio conserva su referencia; lo global no usa un tenant ficticio. La consola cambia contratos y derechos mediante comandos auditados, sin autorización general sobre datos operativos.
 
 Los vínculos a documentos/incidencias son tablas con FKs reales del módulo correspondiente, por ejemplo `equipment.incident_links`.
 Evitar un campo genérico `resource_type/resource_id` sin integridad referencial para relacionar operaciones críticas.
 Las membresías históricas permanecen aunque el usuario pierda acceso. Conservar autoría no concede permiso vigente.
 
 Todo campo de autoría operativa (`actor_id`, creador, reportante, ejecutor) referencia `(tenant_id, principal_id)` con FK compuesta.
-El principal humano referencia la membresía del mismo tenant; el de servicio tiene capacidades y alcance explícitos; el de soporte referencia una concesión temporal del mismo tenant. Un `CHECK` impide mezclar clases. La identidad global autentica, pero no demuestra pertenencia institucional.
+El principal humano referencia la membresía del mismo tenant; el de servicio tiene capacidades y alcance explícitos. El futuro principal de soporte requerirá una concesión temporal del mismo tenant; no se habilita en F1. Un `CHECK` impide mezclar clases. La identidad global autentica, pero no demuestra pertenencia institucional.
 Custodios, docentes y prestatarios humanos internos referencian membresías mediante FK compuesta; las bajas no eliminan esas referencias. Prestatarios externos quedan pendientes de alcance en F4.
 En trabajos iniciados por personas se conservan por separado `requested_by_principal_id` y `executed_by_principal_id`. El operador del proveedor no obtiene acceso al dominio por gestionar una licencia.
 
 Permisos iniciales: consultar, crear, editar catálogo, ajustar stock, aprobar, preparar, cerrar, transferir, recibir y administrar acceso.
-Roles iniciales sugeridos: administrador institucional, coordinador, técnico y docente; el rol estudiante queda para una necesidad validada.
+Propiedad singular del espacio y plantillas iniciales: administrador y técnico; docente y tesista se habilitan con sus casos de uso en F3. Coordinador es una posible plantilla adicional de permisos, no una jerarquía obligatoria. El propietario se deriva de `owner_membership_id`, no de un rol editable.
 Asignar un rol no convierte a su titular en administrador de todos los laboratorios.
 La herencia de ámbitos usa la jerarquía de ubicaciones; mover una ubicación exige revisar el cambio de alcance de permisos.
 Consultar inventario institucional puede permitirse sin autorizar salidas de otro laboratorio.
 Transferir requiere permiso en origen; recibir requiere permiso en destino.
-Autorizar la propia solicitud: deshabilitado por defecto propuesto, pendiente de confirmar con cada institución.
-Las invitaciones y asignaciones no pueden otorgar permisos o alcances que el administrador no esté autorizado a delegar. Una invitación no crea una membresía activa hasta verificar su destinatario y canjearla transaccionalmente.
+Autorizar la propia solicitud: deshabilitado por defecto, incluso para propietario/administrador; una excepción institucional requiere política explícita y trazabilidad.
+Las invitaciones y asignaciones no pueden otorgar permisos o alcances que el administrador no esté autorizado a delegar. Separar permisos delegables de permisos ejecutables: nombrar a un técnico no exige que el propietario pueda ajustar stock. Una invitación no crea una membresía activa hasta verificar su destinatario y canjearla transaccionalmente.
+
+### Propiedad y alta del espacio
+
+- `owner_membership_id` es la única autoridad de propiedad. FK compuesta `(id, owner_membership_id) → core.memberships(tenant_id,id)`; nunca puede apuntar a otro espacio.
+- Estados del espacio: `provisioning`, `trial`, `active`, `suspended`, `closing`, `terminated`. Durante `provisioning` puede no existir propietario y no hay operación del dominio. Pasar a `trial`/`active` exige propietario humano con membresía activa; un `CHECK` cubre nulabilidad y el comando transaccional comprueba vigencia.
+- Preparar espacio, paquete e invitación es idempotente. Después de verificar la identidad externa, el canje crea membresía/principal, asigna propiedad y habilita el espacio en una transacción. Auth y correo ocurren fuera del commit SQL y admiten reintentos, sin dejar un espacio activo huérfano.
+- La transferencia requiere reautenticación del propietario actual, aceptación del sucesor y membresía activa del mismo espacio. Bloquear la fila del espacio serializa transferencias, revocaciones y cambios de propiedad. Registrar las funciones que conserva el anterior propietario; no borrar su autoría.
+- La baja, salida o desactivación ordinaria del propietario vigente exige transferir primero. Si no está disponible, recuperación verificada mediante representación institucional, credencial operadora reforzada y auditoría; no da al proveedor acceso implícito al inventario.
+- La propiedad no acredita por sí sola representación legal, ni autorización para ordenar una purga total. Una solicitud de derechos inicia el procedimiento de [disposición](08_ciclo_cliente_y_datos.md), incluyendo relevo cuando proceda; no se deniega por una FK o por falta de sucesor.
+
+### Docentes y tesistas en F3
+
+Ambos son solicitantes con membresías normales y permisos por espacio; la condición de tesista no es permanente ni global en Auth. Una autorización de participación registra alcance, vigencia y responsable académico en `practices.participations`, con FKs del mismo tenant. El tesista solicita y acepta propuestas; el patrocinio académico no sustituye aprobación técnica.
+
+La actividad distingue docencia e investigación. Para docencia se captura asignatura/grupo cuando aplique; para investigación, título de proyecto y responsable. Evitar campos de curso obligatorios para una tesis. Una baja del responsable o vencimiento de participación bloquea nuevas solicitudes y exige reasignar pendientes; no elimina reservas ni custodias históricas. Las pruebas cubren vencimiento mientras existe una entrega pendiente.
+
+Separar `requestable_catalog.read` y permisos de solicitud propia de los de administración del inventario. La API fija el solicitante a partir de su membresía, salvo permiso explícito para actuar en nombre de otro con ambos actores registrados. El catálogo docente expone solo recursos solicitables y campos necesarios; las consultas y cambios de actividades propias verifican pertenencia además del tenant. Ver un horario ocupado no da acceso a los datos de otro solicitante.
+
+Invitaciones masivas reutilizan `core.invitations`, con vista previa, deduplicación y correo en trabajos limitados. Revalidar destinatario, estado del espacio, invitación y delegación antes del canje. Una cuenta Auth existente recibe membresía, no una segunda cuenta por institución. El dominio del email nunca concede acceso por sí solo. No se publican búsquedas de identidades o pertenencias ajenas al espacio; [documento 10](10_acceso_institucional_y_docentes.md) describe el flujo completo.
 
 ## 5. RLS y contexto de cada operación
 
 Toda operación del dominio entra por la API Node/Fastify, que usa SQL parametrizado mediante `pg`.
 Supabase Auth autentica a la persona; la API verifica el token y resuelve identidad, membresía y organización activa.
 El tenant que envía el navegador es una selección a validar, nunca una prueba de pertenencia.
+El `organization_id` de la API selecciona el espacio cuyo identificador se guarda como `tenant_id` en SQL; no se mantienen dos identificadores de aislamiento independientes.
 
 Flujo de cada transacción:
 
@@ -107,17 +149,19 @@ Flujo de cada transacción:
 4. Verificar principal autorizado, membresía activa si es humano, permisos, ámbito y clase de acción permitida por el módulo dentro de la transacción.
 5. Ejecutar consultas y comandos; confirmar o revertir y devolver la conexión al pool.
 
-RLS aplica filtros de tenant y principal autorizado en lectura (`USING`) y escritura (`WITH CHECK`). Para humanos exige membresía activa; para soporte, concesión vigente; para servicios, principal habilitado, capacidad y rol SQL ejecutor admitidos.
+RLS aplica filtros de tenant y principal autorizado en lectura (`USING`) y escritura (`WITH CHECK`). Para humanos exige membresía activa; para servicios, principal habilitado, capacidad y rol SQL ejecutor admitidos. El principal de soporte permanece deshabilitado hasta implementar su concesión y pruebas completas.
 Las políticas de membresía permiten comprobar la membresía propia sin referencias recursivas entre políticas.
 La API además valida permisos de la acción, ámbito y transición; RLS no sustituye el workflow del dominio.
 El rol de migraciones es distinto y no se utiliza para atender peticiones. El navegador no recibe credenciales SQL ni `service_role`.
 Los esquemas del dominio no se exponen para lectura ni escritura mediante la Data API de Supabase.
 El worker usa tenant y actor de servicio explícitos y mínimos permisos; cada trabajo abre su propia transacción.
-La API deriva el principal del token y la membresía/concesión, nunca de un actor de servicio enviado por el navegador. La conexión de worker no puede seleccionar libremente una identidad humana para saltarse sus límites.
+La API deriva el principal del token y la membresía; la ampliación de soporte añadirá la concesión. Nunca acepta un actor de servicio enviado por el navegador. La conexión de worker no puede seleccionar libremente una identidad humana para saltarse sus límites.
 Un dispatcher necesita descubrir trabajos antes de fijar tenant: usar una función estrecha `platform.claim_jobs(limit)` con `SECURITY DEFINER`, `search_path` fijo, SQL estático y dueño limitado a tablas de cola. Revocar ejecución a `PUBLIC`; concederla solo al rol de dispatcher. Reclama únicamente tipos permitidos y devuelve ID, tenant y concesión temporal, sin leer datos del dominio. El ejecutor usa después su rol limitado y contexto institucional. La función no concede `BYPASSRLS` general ni permite consultas arbitrarias.
 Importaciones/exportaciones pedidas por usuarios revalidan al solicitante antes de ejecutar y antes de publicar el resultado; avisos de hechos confirmados usan una política de servicio. Revocar al usuario no deshace movimientos confirmados, pero sí puede impedir nuevas exportaciones.
 Los enlaces temporales a Storage solo se emiten después de autorizar el documento; los buckets institucionales son privados.
 No guardar secretos, tokens o archivos completos dentro de auditoría.
+
+Los rechazos previos a autorización y los errores revertidos van a un registro de seguridad separado y minimizado. La auditoría de éxito se confirma con la operación; una transacción revertida no debe dejar un movimiento exitoso ficticio. El log de error no usa la misma transacción que acaba de revertirse.
 
 RLS omite normalmente propietarios y roles con `BYPASSRLS`; habilitarla sin revisar el rol SQL no ofrece el aislamiento esperado.
 Referencia: [políticas de seguridad por fila de PostgreSQL](https://www.postgresql.org/docs/current/ddl-rowsecurity.html).
@@ -145,18 +189,26 @@ Estados operativos propuestos: `disabled` → `enabled` → `draining` → `read
 | Resolver entrega, cancelar reserva, recibir devolución o conciliar pendiente existente | Sí | Sí, acotado al pendiente y sus dependencias históricas | No; reabrir cierre de pendientes con autorización si se descubre uno |
 | Consulta, documento histórico y exportación | Sí | Sí | Sí, dentro del periodo de conservación/acceso pactado |
 
-Todas las celdas siguen requiriendo identidad activa, permiso y alcance. La continuidad comercial no permite a un usuario revocado entrar; la suspensión por seguridad es independiente. La expiración bloquea nuevas operaciones aunque el scheduler todavía no haya actualizado la etiqueta a `draining`. Core mantiene identidad, consulta y resolución durante la salida contractual.
+Todas las celdas siguen requiriendo identidad activa, permiso, alcance y acceso del espacio permitido. La continuidad comercial no permite a un usuario revocado entrar; la suspensión por seguridad es independiente. La expiración bloquea nuevas operaciones aunque la etiqueta siga en `enabled`; cambiar a `draining` será un comando administrativo en el MVP. Core mantiene consulta y resolución solo durante una prestación de salida autorizada, no indefinidamente después del fin del encargo.
 
 - Activar: validar dependencias, registrar concesión y habilitar acciones en API.
 - Desactivar: cerrar admisión de operaciones nuevas y permitir devolver, finalizar, cancelar y corregir operaciones abiertas.
 - Pasar a consulta: verificar que no quedan préstamos, reservas o custodias sin resolver.
-- Mantener referencias históricas, documentos y exportación autorizada; no borrar tablas ni datos.
+- Apagar un módulo mantiene referencias, documentos y exportación durante la relación autorizada. La finalización del encargo activa el procedimiento de disposición; nunca se borra una tabla compartida para retirar un tenant.
 - No desactivar una dependencia dejando módulos dependientes admitiendo nuevas operaciones.
 - Las transacciones críticas toman bloqueo compartido del entitlement; los cambios de estado toman bloqueo exclusivo.
-- La política exacta tras vencimiento, periodo de gracia y exportación requiere acuerdo comercial; no codificar suspensión destructiva.
+- Vencimiento de licencia, fin del encargo y disposición son eventos distintos. No prometer un periodo de gracia de retención que contradiga la norma aplicable; ver el documento 08.
 
 Pruebas desde F1: aislamiento entre tenants, acceso directo a endpoints de módulos apagados, dependencias y revocación de permisos.
 En F2 probar expresamente clientes con combinaciones distintas; el catálogo completo desplegado no concede derechos de uso.
+
+### Ciclo del espacio y sus datos
+
+`provisioning → trial/active → closing → terminated`, con `suspended` como estado reversible con motivo. `provisioning` espera la aceptación del propietario; una prueba también tiene responsable, finalidad y fecha de salida. Usar datos sintéticos hasta acordar el tratamiento de datos reales. `closing` permite preparar exportación y resolver pendientes dentro de una prestación autorizada. `terminated` cierra el acceso operativo y ejecuta las instrucciones de devolución/eliminación.
+
+El proceso de disposición mantiene su estado separado: `pending | exporting | deletion_pending | deleting | retained_exception | completed`. Registrar la fecha real del fin del encargo, instrucciones y plazo normativo aplicable. No marcar `completed` hasta verificar todos los repositorios incluidos y documentar las excepciones. La definición completa, fuentes y plazos están en [ciclo del cliente y datos](08_ciclo_cliente_y_datos.md).
+
+Eliminar un espacio no elimina automáticamente una identidad global que todavía tenga otros espacios o finalidades justificadas. La eliminación autorizada usa un rol/proceso específico, alcance acotado y evidencia, separado del CRUD diario. Las copias, adjuntos, exportaciones, texto libre y instantáneas también entran en el inventario de disposición.
 
 ## 7. Reactivos e inventario cuantificable
 
@@ -165,8 +217,8 @@ En F2 probar expresamente clientes con combinaciones distintas; el catálogo com
 | `inventory.items` | Tenant, código, nombre, `kind`, `base_unit`, `tracking_mode`, archivado; catálogo común de cantidades |
 | `reagents.products` | FK única al item, CAS opcional, concentración, pureza, estado físico, peligros; SDS mediante documentos versionados |
 | `inventory.lots` | Item, referencia de proveedor, marca/proveedor, recepción, caducidad, condición y datos de origen |
-| `inventory.containers` | Opcional: item/lote, código interno, apertura, caducidad tras apertura y estado; identifica el envase cuando `tracking_mode` lo requiere |
-| `inventory.return_batches` | Partida de retorno segregada, item/lote, posición y operación de origen, verificación y disposición; conserva procedencia |
+| `inventory.containers` | Ampliación condicionada: item/lote, código interno, apertura, caducidad tras apertura y estado; no obligatoria para F2 si el proceso trabaja por lote |
+| `inventory.return_batches` | Desde F3: partida de retorno segregada, item/lote, posición y operación de origen, verificación y disposición |
 | `inventory.positions` | Item, lote, envase opcional, partida de retorno opcional, ubicación, disposición, saldo físico, cantidad reservada y versión |
 | `inventory.operations` | Tipo, actor, motivo, fecha, correlación y referencia documental; cabecera de movimiento |
 | `inventory.entries` | Operación, posición, cantidad con signo y unidad base; asientos inmutables |
@@ -206,6 +258,7 @@ Las entradas no se actualizan ni eliminan con el rol operativo; los saldos son s
 Saldo no negativo y reserva entre cero y saldo son restricciones locales; las sumas entre filas se protegen mediante transacciones.
 Un conteo inferior a lo reservado registra discrepancia; aplicar el ajuste exige resolver/reasignar compromisos y marcar actividades afectadas.
 El saldo inicial de una importación se registra como operación de apertura.
+En F2 sin partidas de retorno no ofrecer un cierre químico ni reintegrar sobrantes como entrada ordinaria. Un cliente que exige caducidad por apertura/envase necesita esa ampliación antes de su puesta en producción.
 
 Una asignación pasa de `held` a `fulfilled` o `released`; entregas parciales registran cantidades resueltas sin perder la cantidad original.
 No añadir expiración automática de reservas confirmadas. Si se introducen retenciones temporales, necesitan otro tipo y vencimiento explícito.
@@ -218,6 +271,7 @@ Una cancelación posterior al despacho solo termina cuando tránsito queda conci
 |---|---|
 | `equipment.assets` | Código institucional, marca/modelo, serie, ubicación, responsable, condición y archivado |
 | `equipment.condition_changes` | Activo, condición anterior/nueva, actor, motivo e incidencia opcional |
+| `incidents.cases`, `incidents.actions` | Ubicación, reportante, gravedad, estado, responsable y acciones; vínculos a recursos mediante tablas tipadas |
 | `equipment.custodies` | Activo, receptor, entrega, devolución prevista/real y verificación; ampliar en F3 |
 | `materials.products` | Extensión del item: consumible/reutilizable y seguimiento por cantidad o unidad |
 | `materials.assets` | Unidades reutilizables identificables, código, producto, ubicación y condición |
@@ -254,12 +308,14 @@ Reservar capacidad futura compartida exige calcular la ocupación simultánea po
 | `scheduling.equipment_bookings` | FK a `equipment.assets`, intervalo, estado y tipo; uso y mantenimiento comparten protección contra conflictos |
 | `scheduling.material_bookings` | FK a `materials.assets`, intervalo, estado y tipo para unidades identificables; se añade en F4 |
 | `practices.templates`, `template_versions` | Plantilla, versión, instrucciones, datos académicos y publicación inmutable |
-| `practices.activities` | Versión de plantilla opcional, responsable, laboratorio, horario, estado y versión de concurrencia |
-| `practices.activity_revisions` | Instantánea de datos y requisitos presentada/aprobada; autor, fecha y motivo |
+| `practices.participations` | Solicitante, tipo de participación, ámbito, vigencia y responsable académico; membresías del mismo tenant; F3 |
+| `practices.activities` | Plantilla opcional, `kind` docencia/investigación, `requester_membership_id`, responsable académico, participación cuando aplique, laboratorio, horario, estado, revisiones vigente/pendiente y versión de concurrencia |
+| `practices.activity_revisions` | Instantánea y requisitos, autor, motivo, estado de revisión, decisión del solicitante y fechas de aceptación/vencimiento |
 | `practices.requirements` | Actividad, recurso tipado, cantidad, unidad y asignación aprobada; FKs reales |
 | `practices.decisions`, `state_changes` | Revisión, decisión, actor, motivo y transiciones |
 | `practices.booking_links`, `custody_locations` | FKs entre actividad, reserva y ubicación virtual de custodia |
 
+El solicitante y el responsable académico son referencias diferentes, aunque puedan coincidir para un docente. Aceptar propuestas corresponde al solicitante; el patrocinador no se convierte en dueño de la solicitud. Reasignar un responsable o solicitante requiere comando autorizado y trazabilidad, conservando autorías previas.
 Una versión publicada de plantilla no cambia; una ejecución preserva la versión y lo aprobado aunque el catálogo evolucione.
 No duplicar una práctica completa por cada impresión: generar el formato desde su revisión y versión.
 La agenda de Laboratorios admite reservas manuales sin Prácticas. Una reserva vinculada se edita desde la actividad.
@@ -275,13 +331,26 @@ Workflow propuesto:
 draft → submitted → scheduled → preparing → ready → running → closing → completed
             ├→ changes_requested → draft
             └→ rejected
-Antes o durante la ejecución: cancelación con resolución de recursos entregados.
+Antes o durante la ejecución → cancelled
+La cancelación puede conservar conciliación operativa pendiente.
+
+Revisión propuesta por el técnico:
+awaiting_requester_acceptance → accepted → approved
+                            ├→ declined
+                            └→ expired / withdrawn
 ```
 
 La validación automática produce resultados fechados, no requiere otro estado persistido.
 Aprobar confirma agenda y recursos y pasa a `scheduled` en la misma transacción; no dejar «aprobada pero sin reserva».
 Cambiar horario, laboratorio o cantidades aprobadas requiere revisión y nueva validación.
+`changes_requested` pide al solicitante (docente o tesista) corregir su solicitud. `awaiting_requester_acceptance` indica que el técnico ya propuso una versión sustancial distinta y espera su decisión; esa diferencia debe verse en el panel.
+El solicitante acepta o declina una revisión concreta; aceptar no reserva ni aprueba automáticamente. El técnico aprueba la revisión aceptada y valida recursos transaccionalmente. Un rechazo devuelve la propuesta a revisión sin alterar una aprobación anterior.
+Si la actividad ya está programada, la revisión pendiente no reemplaza la vigente: conservar sus reservas mientras se negocia, mostrar que la alternativa no está garantizada e impedir preparar/iniciar con una modificación sustancial pendiente hasta retirarla o resolverla. Al aprobar, liberar/reemplazar las reservas en la misma transacción; si hay conflicto, rollback conserva las anteriores.
+Vencer o retirar una propuesta notifica al responsable y conserva la reserva vigente. No cancelar ni liberar reservas silenciosamente por un timeout. Una actividad iniciada registra diferencias/incidencias; no negocia retrospectivamente una versión de lo ya ejecutado.
+`cancelled` describe la sesión académica; `reconciliation_status` pendiente/completa se deriva de reservas y custodias, o se mantiene transaccionalmente. Una cancelada con entregas pendientes permanece visible para el técnico y para el cierre de módulos.
 El usuario confirma consumos reales; «registrar diferencias» es ayuda de interfaz, no autorización de consumo silencioso.
+
+La impresión inicial usa una vista HTML autorizada con CSS de impresión y la función imprimir/guardar PDF del navegador. Incluye código, revisión, estado, fecha, encabezado y logo validado del espacio; identifica borradores y propuestas. Las emisiones formales conservan la revisión del contenido y branding usado. PDF generado en servidor, firmas y sellado temporal quedan fuera de ese primer alcance.
 
 ```mermaid
 erDiagram
@@ -303,7 +372,7 @@ erDiagram
 ## 10. Transacciones e invariantes de concurrencia
 
 **Aprobación y reserva.** Abrir transacción, autorizar y tomar entitlement compartido; bloquear actividad y posiciones/activos en orden estable.
-Comprobar versión, estado, horas, permisos, lotes elegibles y disponibilidad; crear reservas, aumentar cantidades reservadas y confirmar agenda.
+Comprobar versión, estado, horas, permisos del técnico sobre todos los ámbitos afectados, elegibilidad actual del solicitante, lotes y disponibilidad; crear reservas, aumentar cantidades reservadas y confirmar agenda. Revalidar membresía/participación y permiso de solicitud del docente/tesista, sin exigirle permisos de gestión de inventario. Una baja impide nuevos compromisos en su nombre; un técnico autorizado puede resolver obligaciones existentes o tramitar una reasignación auditada.
 Escribir decisión, estado, auditoría, idempotencia y outbox; confirmar todo o revertir todo. No reservar con procesos asíncronos.
 Dos solicitudes de 60 g sobre 100 g disponibles no pueden aprobarse ambas. La lectura previa de la pantalla es solo orientativa.
 
