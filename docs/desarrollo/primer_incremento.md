@@ -42,14 +42,17 @@ El parámetro `:workspaceId` selecciona el espacio y la membresía se verifica e
 | `GET /v1/me/workspaces` | Lista solo los espacios accesibles para la identidad actual |
 | `GET /v1/workspaces/:workspaceId/me` | Módulos habilitados y permisos efectivos, para armar menú y rutas |
 | `GET /v1/workspaces/:workspaceId/home` | Tarjetas de Inicio de los módulos visibles; en R-00, el resumen de Reactivos |
-| `GET /v1/workspaces/:workspaceId/reagents` | Lista paginada y filtrada por ámbito |
-| `POST /v1/workspaces/:workspaceId/reagents` | Crea el item y su detalle químico mínimo en una transacción (Administrador) |
-| `POST /v1/workspaces/:workspaceId/reagents/:reagentId/lots` | Crea un lote vinculado al item y al espacio correctos |
-| `GET /v1/workspaces/:workspaceId/inventory/positions` | Saldos autorizados por item y ubicación, paginados |
-| `POST /v1/workspaces/:workspaceId/inventory/receipts` | Ingreso: lote, ubicación, cantidad, unidad y referencia |
-| `POST /v1/workspaces/:workspaceId/inventory/issues` | Salida: posición, cantidad, unidad, motivo y destino |
-| `POST /v1/workspaces/:workspaceId/inventory/adjustments` | Ajuste con signo y motivo obligatorio (Administrador) |
-| `GET /v1/workspaces/:workspaceId/inventory/operations` | Historial paginado por recurso o ubicación autorizados |
+| `GET /v1/workspaces/:workspaceId/reagents/products` | Lista paginada y filtrada por ámbito |
+| `POST /v1/workspaces/:workspaceId/reagents/products` | Crea el item y su detalle químico mínimo en una transacción (Administrador) |
+| `POST /v1/workspaces/:workspaceId/reagents/products/:productId/lots` | Crea un lote vinculado al item y al espacio correctos |
+| `GET /v1/workspaces/:workspaceId/reagents/positions` | Saldos autorizados por item y ubicación, paginados |
+| `POST /v1/workspaces/:workspaceId/reagents/receipts` | Ingreso: lote, ubicación, cantidad, unidad y referencia |
+| `POST /v1/workspaces/:workspaceId/reagents/issues` | Salida: posición, cantidad, unidad, motivo y destino |
+| `POST /v1/workspaces/:workspaceId/reagents/adjustments` | Ajuste con signo y motivo obligatorio (Administrador) |
+| `GET /v1/workspaces/:workspaceId/reagents/operations` | Historial paginado por recurso o ubicación autorizados |
+
+- Todas las rutas pertenecen al módulo Reactivos y usan sus permisos (`reagents.*`).
+- La capacidad inventario no tiene rutas propias y rechaza un ítem cuyo `kind` no sea reactivo.
 
 - Las rutas de creación y de movimientos aceptan `Idempotency-Key`.
 - El servidor obtiene el actor y el espacio del contexto verificado; nunca usa un `actor_id` enviado por el cliente.
@@ -77,9 +80,9 @@ El parámetro `:workspaceId` selecciona el espacio y la membresía se verifica e
 ## Una transacción por comando
 
 1. Verificar el JWT por JWKS y validar la entrada. Tomar un `PoolClient` y abrir la transacción con el rol SQL de la API.
-2. Fijar el contexto local de principal y `workspace_id`. Pasar la función de admisión (estado del espacio, etapa y estado del módulo, clase de acción) y verificar membresía, permiso y ámbito. El rol no es dueño de tablas ni tiene `BYPASSRLS`.
+2. Fijar el contexto local de principal y `workspace_id`. Pasar la admisión de dos ejes: leer con bloqueo compartido el espacio, el derecho de Reactivos y la membresía, y decidir en esa misma consulta según la clase de acción. Verificar permiso y ámbito. El rol no es dueño de tablas ni tiene `BYPASSRLS`.
 3. Reclamar o recuperar la clave de idempotencia, acotada por espacio, actor y operación. Se compara un hash canónico de la entrada: si el contenido es distinto, la operación no se ejecuta.
-4. Comprobar item, lote, ubicación y unidad. Bloquear la posición y el derecho del módulo en orden estable. En salidas y ajustes negativos, leer y descontar el saldo dentro de la misma sección protegida.
+4. Comprobar item (incluido que su `kind` sea reactivo), lote, ubicación y unidad. Bloquear la posición; el derecho ya quedó bloqueado en el paso 2, siguiendo el orden fijo espacio → derecho → membresía → datos. En salidas y ajustes negativos, leer y descontar el saldo dentro de la misma sección protegida.
 5. Registrar operación, asientos, saldo, auditoría y resultado idempotente. Confirmar o revertir todo, sin correos ni llamadas externas dentro de la transacción.
 6. Liberar la conexión aunque haya error. Si se repite después de un timeout, devolver el resultado confirmado tras revalidar el acceso.
 
@@ -106,7 +109,11 @@ El comando contractual mínimo y los fixtures son solo de desarrollo: no existe 
    - El Operador registra ingresos y salidas, pero no ajustes ni productos del catálogo.
    - El Administrador hace todo lo anterior.
    - La revocación de la membresía se aplica en la siguiente petición.
-4. **Módulos y admisión.** C no ve Reactivos en el menú ni en el Inicio, y su API responde «módulo no disponible». La función de admisión cumple su tabla de verdad para operación nueva, pendientes y consulta.
+4. **Módulos y admisión.**
+   - C no ve Reactivos en el menú ni en el Inicio, y su API responde «módulo no disponible».
+   - La admisión cumple todas las combinaciones de sus dos ejes con las tres clases de acción, y deniega los estados desconocidos.
+   - Un ítem de fixture con otro `kind` se rechaza en las rutas de Reactivos.
+   - Un movimiento lanzado a la vez que la desactivación del módulo no queda confirmado después de ella.
 5. **Concurrencia.** Dos salidas de 60 g sobre 100 g desde dos conexiones: solo una confirma, la otra recibe stock insuficiente, y quedan 40 g con un solo movimiento exitoso.
 6. **Idempotencia.** Repetir un movimiento con la misma clave y contenido no añade asientos ni auditoría. Cambiar la cantidad con la misma clave se rechaza. También se prueban duplicados simultáneos.
 7. **Rollback.** Un fallo provocado antes del commit no deja movimiento, auditoría de éxito ni saldo parcial.

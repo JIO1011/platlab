@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlatLab · El plan en alto nivel</title>
+<style>
+:root{
+  --bg:#f5f6f9; --surface:#ffffff; --surface2:#eef1f6; --ink:#16202e; --muted:#586577; --line:#cbd2dc; --accent:#2457d6; --accent-ink:#ffffff;
+  --ok:#1f8a4c; --bad:#c2303f; --warn:#b7791f;
+  --blue-f:#e3edff; --blue-s:#3b6fe0; --violet-f:#ece6ff; --violet-s:#6d4fd6; --green-f:#dff5e8; --green-s:#2a9d5c;
+  --amber-f:#fdf0dc; --amber-s:#c7820f; --gray-f:#eef1f6; --gray-s:#8390a3; --rose-f:#fde6eb; --rose-s:#d2415f;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1117; --surface:#151b25; --surface2:#1b2330; --ink:#e6ebf2; --muted:#9ba7b8; --line:#2c3644; --accent:#6b9bff; --accent-ink:#0d1117;
+    --ok:#4cc27f; --bad:#f07a8c; --warn:#e3a73c;
+    --blue-f:#15284d; --blue-s:#6b9bff; --violet-f:#261d4a; --violet-s:#9c86ff; --green-f:#10301f; --green-s:#4cc27f;
+    --amber-f:#3a2a0d; --amber-s:#e3a73c; --gray-f:#1b2230; --gray-s:#7b889b; --rose-f:#3d1a24; --rose-s:#f07a93;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1117; --surface:#151b25; --surface2:#1b2330; --ink:#e6ebf2; --muted:#9ba7b8; --line:#2c3644; --accent:#6b9bff; --accent-ink:#0d1117;
+  --ok:#4cc27f; --bad:#f07a8c; --warn:#e3a73c;
+  --blue-f:#15284d; --blue-s:#6b9bff; --violet-f:#261d4a; --violet-s:#9c86ff; --green-f:#10301f; --green-s:#4cc27f;
+  --amber-f:#3a2a0d; --amber-s:#e3a73c; --gray-f:#1b2230; --gray-s:#7b889b; --rose-f:#3d1a24; --rose-s:#f07a93;
+}
+*{box-sizing:border-box}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
+h1{font-size:22px;margin:0 0 2px}
+.sub{color:var(--muted);margin:0;font-size:14px}
+.btn{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible,.tab:focus-visible,.chip:focus-visible,.step:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn[disabled]{opacity:.45;cursor:default}
+nav.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 16px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tab{font:inherit;font-size:14px;background:transparent;border:1px solid transparent;border-radius:8px;padding:7px 12px;color:var(--muted);cursor:pointer}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--surface);border-color:var(--line);color:var(--ink);font-weight:600;box-shadow:0 1px 0 var(--accent) inset}
+.view{display:none}
+.view.on{display:block}
+.lead{margin:0 0 12px;color:var(--muted);max-width:78ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+.scroll{overflow-x:auto}
+.scroll svg{min-width:640px}
+svg{display:block;width:100%;height:auto}
+svg text{font-family:inherit;fill:var(--ink)}
+.node{cursor:pointer}
+.node rect{fill:var(--f);stroke:var(--s);stroke-width:1.5}
+.node .lb{font-size:13px;font-weight:600}
+.node .sb{font-size:11px;fill:var(--muted)}
+.node.group rect{fill:none;stroke-dasharray:6 5;stroke-width:1.5}
+.node.group .lb{font-size:12px;fill:var(--muted);font-weight:600}
+.c-blue{--f:var(--blue-f);--s:var(--blue-s)} .c-violet{--f:var(--violet-f);--s:var(--violet-s)} .c-green{--f:var(--green-f);--s:var(--green-s)}
+.c-amber{--f:var(--amber-f);--s:var(--amber-s)} .c-gray{--f:var(--gray-f);--s:var(--gray-s)} .c-rose{--f:var(--rose-f);--s:var(--rose-s)}
+.node:hover rect,.node:focus-visible rect{stroke-width:2.6}
+.node:focus-visible{outline:none}
+.node.sel rect{stroke-width:3;filter:drop-shadow(0 0 4px var(--s))}
+.edge{fill:none;stroke:var(--muted);stroke-width:1.6}
+.edge.dashed{stroke-dasharray:5 4}
+.elabel{font-size:11px;fill:var(--muted);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.has-sel .node:not(.on):not(.sel){opacity:.3}
+.has-sel .edge:not(.hot){opacity:.15}
+.has-sel .elabel:not(.hot){opacity:.15}
+.edge.hot{stroke:var(--accent);stroke-width:2.6}
+.elabel.hot{fill:var(--accent);font-weight:600}
+.lane{fill:var(--surface2);stroke:var(--line)}
+.lanelabel{font-size:12px;font-weight:700;fill:var(--muted)}
+.detail{margin-top:12px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-height:92px}
+.detail h3{margin:0 0 4px;font-size:15px}
+.detail p{margin:0 0 8px}
+.detail .hint{color:var(--muted)}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:10px 2px 0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;border:1.5px solid;vertical-align:-2px;margin-right:5px}
+.legend .ln{display:inline-block;width:26px;border-top:2px solid var(--muted);vertical-align:middle;margin-right:5px}
+.legend .ln.d{border-top-style:dashed}
+/* gates */
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.seg .btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.chip{background:var(--surface);border:1px solid var(--line);border-left-width:4px;border-radius:8px;padding:8px 10px;font-size:13px;text-align:left;font:inherit;font-size:13px;color:var(--ink);cursor:default;transition:opacity .15s}
+.chip small{display:block;color:var(--muted);font-size:11px}
+.chip.g0{border-left-color:var(--blue-s)} .chip.g1{border-left-color:var(--green-s)} .chip.g2{border-left-color:var(--amber-s)}
+.chip.off{opacity:.3}
+/* stepper */
+.op{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:14px}
+@media (max-width:820px){.op{grid-template-columns:1fr}}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.step{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;font-size:13.5px;text-align:left;font-family:inherit;color:var(--ink);width:100%}
+.step .n{flex:none;width:24px;height:24px;border-radius:50%;background:var(--surface2);border:1px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:700}
+.step .w{display:block;font-size:11px;color:var(--muted)}
+.step.pending{opacity:.55}
+.step.done .n{background:var(--ok);border-color:var(--ok);color:#fff}
+.step.cur{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent)}
+.step.failed{border-color:var(--bad)} .step.failed .n{background:var(--bad);border-color:var(--bad);color:#fff}
+.step.skipped{opacity:.4;text-decoration:line-through}
+.step.replay .n{background:var(--warn);border-color:var(--warn);color:#fff}
+.ctrl{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+select{font:inherit;font-size:13px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px;max-width:100%}
+.banner{border-radius:10px;padding:10px 12px;font-size:14px;margin-top:10px;border:1px solid}
+.banner.ok{background:color-mix(in srgb,var(--ok) 14%,var(--surface));border-color:var(--ok)}
+.banner.bad{background:color-mix(in srgb,var(--bad) 14%,var(--surface));border-color:var(--bad)}
+.banner.warn{background:color-mix(in srgb,var(--warn) 14%,var(--surface));border-color:var(--warn)}
+.barriers{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:14px}
+.barrier{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px}
+.barrier b{display:block;margin-bottom:2px}
+/* road */
+.road{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.small .node .lb{font-size:12px}
+.ph{background:var(--surface);border:1px solid var(--line);border-top-width:4px;border-radius:10px;padding:10px 12px;cursor:pointer;font:inherit;text-align:left;color:var(--ink);min-width:150px;flex:1 1 150px;max-width:230px}
+.ph b{display:block;font-size:14px}.ph span{font-size:12px;color:var(--muted)}
+.ph:hover{border-color:var(--accent)}
+.ph.sel{box-shadow:0 0 0 2px var(--accent)}
+.ph.p0{border-top-color:var(--gray-s)}.ph.p1{border-top-color:var(--blue-s)}.ph.p3{border-top-color:var(--green-s)}.ph.p4{border-top-color:var(--amber-s)}.ph.p5{border-top-color:var(--violet-s)}
+.gate{flex:none;align-self:center;background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.gate.sel{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 40%,transparent)}
+.par{display:flex;flex-direction:column;gap:8px;flex:1 1 170px;max-width:230px}
+.par .ph{max-width:none;flex:0 0 auto}
+.band{font-size:12px;color:var(--muted);margin:0 0 6px}
+.detail ul{margin:4px 0 8px;padding-left:20px}
+.foot{margin-top:24px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);padding-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>PlatLab · el plan en alto nivel</h1>
+    <p class="sub">Cómo se construye, dónde corre y en qué orden. Revisión del plan: 30-09-2026. Todavía no hay código.</p>
+  </div>
+  <button class="btn" id="theme" type="button" aria-label="Cambiar tema claro u oscuro">Tema</button>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Vistas del plan">
+  <button class="tab" role="tab" data-v="panorama">1 · Panorama</button>
+  <button class="tab" role="tab" data-v="infra">2 · Infraestructura</button>
+  <button class="tab" role="tab" data-v="modulos">3 · Módulos</button>
+  <button class="tab" role="tab" data-v="operacion">4 · Una operación</button>
+  <button class="tab" role="tab" data-v="practica">5 · Flujo de una práctica</button>
+  <button class="tab" role="tab" data-v="ruta">6 · Hoja de ruta</button>
+</nav>
+
+<section class="view" id="v-panorama">
+  <p class="lead">Un solo producto y una sola base de datos. Cada cliente trabaja en un «espacio de trabajo» aislado, y los módulos se activan por contrato. Haz clic en cualquier componente para ver qué hace y con quién se conecta.</p>
+  <div class="card"><div class="scroll" id="d-panorama"></div>
+    <div class="detail" id="t-panorama"></div></div>
+  <div class="legend"><span><i style="background:var(--gray-f);border-color:var(--gray-s)"></i>Personas</span><span><i style="background:var(--blue-f);border-color:var(--blue-s)"></i>Interfaces</span><span><i style="background:var(--violet-f);border-color:var(--violet-s)"></i>Servidor (monolito)</span><span><i style="background:var(--green-f);border-color:var(--green-s)"></i>Datos y archivos</span><span><i style="background:var(--amber-f);border-color:var(--amber-s)"></i>Servicios externos</span></div>
+</section>
+
+<section class="view" id="v-infra">
+  <p class="lead">La infraestructura no se monta de golpe: entra cuando una puerta la exige. Elige una puerta y verás qué piezas existen en ese punto (acumulativo).</p>
+  <div class="seg" role="group" aria-label="Puerta">
+    <button class="btn" data-g="0" aria-pressed="true">G0 · demo sintética</button>
+    <button class="btn" data-g="1" aria-pressed="false">G1 · piloto con datos reales</button>
+    <button class="btn" data-g="2" aria-pressed="false">G2 · venta abierta</button>
+  </div>
+  <div class="card">
+    <div class="grid" id="gridInfra"></div>
+    <div class="detail" id="t-infra"></div>
+  </div>
+  <div class="legend"><span><i style="background:var(--blue-f);border-color:var(--blue-s)"></i>Llega en G0</span><span><i style="background:var(--green-f);border-color:var(--green-s)"></i>Llega en G1</span><span><i style="background:var(--amber-f);border-color:var(--amber-s)"></i>Llega en G2</span></div>
+</section>
+
+<section class="view" id="v-modulos">
+  <p class="lead">M1 (Núcleo) es obligatorio. Cada módulo es una rebanada vertical que se agrega sin tocar las tablas de otros. Haz clic en un módulo para resaltar de qué depende y con qué se integra.</p>
+  <div class="card"><div class="scroll" id="d-modulos"></div>
+    <div class="detail" id="t-modulos"></div></div>
+  <div class="legend">
+    <span><i style="background:var(--blue-f);border-color:var(--blue-s)"></i>F1a–F2</span><span><i style="background:var(--green-f);border-color:var(--green-s)"></i>F3</span><span><i style="background:var(--amber-f);border-color:var(--amber-s)"></i>F4</span><span><i style="background:var(--violet-f);border-color:var(--violet-s)"></i>F5</span>
+    <span><span class="ln"></span>requiere</span><span><span class="ln d"></span>integra o usa datos de</span>
+  </div>
+  <p class="lead" style="margin-top:12px">Además, cada módulo avanza por etapas: <b>development</b> (solo datos sintéticos) → <b>pilot</b> (tras su G0; contratos de piloto) → <b>general</b> (tras su G2; se vende en paquetes). Construir un módulo no lo pone a la venta.</p>
+</section>
+
+<section class="view" id="v-operacion">
+  <p class="lead">Todo comando de dominio sigue el mismo camino dentro de una sola transacción. Elige un caso y avanza paso a paso; haz clic en un paso para saltar a él.</p>
+  <div class="card">
+    <label for="scn" class="sub">Caso: </label>
+    <select id="scn"></select>
+    <div class="ctrl">
+      <button class="btn" id="prev" type="button">← Anterior</button>
+      <button class="btn primary" id="next" type="button">Siguiente →</button>
+      <button class="btn" id="reset" type="button">Reiniciar</button>
+    </div>
+    <div class="op">
+      <ol class="steps" id="steps"></ol>
+      <div>
+        <div class="detail" id="t-operacion" aria-live="polite"></div>
+        <div id="banner"></div>
+      </div>
+    </div>
+  </div>
+  <div class="barriers">
+    <div class="barrier"><b>1 · API</b>JWT, membresía, derecho del módulo, permiso y ámbito. El navegador no toca la base.</div>
+    <div class="barrier"><b>2 · Esquema</b><code>workspace_id</code> en cada tabla y FKs compuestas: no se puede referenciar otro espacio.</div>
+    <div class="barrier"><b>3 · RLS</b>El rol de la API no es dueño de tablas ni tiene <code>BYPASSRLS</code>; el contexto es local a la transacción.</div>
+    <div class="barrier"><b>4 · Periferia</b>Archivos, trabajos, exportaciones, caché y logs llevan el espacio.</div>
+  </div>
+</section>
+
+<section class="view" id="v-practica">
+  <p class="lead">El flujo central del producto (módulo Prácticas, fase F3): el docente propone desde una plantilla y el Administrador asigna sala y recursos. Validar no reserva nada; reservar, entregar y consumir son pasos distintos. Haz clic en un paso.</p>
+  <div class="card"><div class="scroll small" id="d-practica"></div>
+    <div class="detail" id="t-practica"></div></div>
+</section>
+
+<section class="view" id="v-ruta">
+  <p class="lead">El orden lo fijan las dependencias y la evidencia, no las fechas. Las puertas G0, G1 y G2 son los puntos de control; haz clic en una fase o puerta para ver su contenido.</p>
+  <div class="card">
+    <p class="band">En paralelo desde el inicio, con el laboratorio interesado</p>
+    <div class="road" id="road0" style="margin-bottom:14px"></div>
+    <p class="band">Camino principal</p>
+    <div class="road" id="road"></div>
+    <div class="detail" id="t-ruta"></div>
+  </div>
+</section>
+
+<p class="foot">Fuente: <code>docs/README.md</code>, <code>01_producto</code>, <code>02_arquitectura</code>, <code>04_roadmap</code> y <code>desarrollo/primer_incremento</code>. Si hay diferencias, mandan esos documentos: esta página es una vista resumida y no se sincroniza sola.</p>
+</div>
+
+<script>
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in (attrs || {})) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+/* ---------- Motor de diagramas ---------- */
+let uid = 0;
+function diagram(host, spec, detailEl) {
+  const id = 'm' + (++uid);
+  const svg = el('svg', { viewBox: `0 0 ${spec.w} ${spec.h}`, role: 'group', 'aria-label': spec.label });
+  const defs = el('defs', {}, svg);
+  const mk = el('marker', { id: id, viewBox: '0 0 10 10', refX: '9', refY: '5', markerWidth: '7', markerHeight: '7', orient: 'auto-start-reverse' }, defs);
+  el('path', { d: 'M0 0L10 5L0 10z', fill: 'context-stroke' }, mk);
+  if (spec.back) spec.back(svg);
+  const gEdges = el('g', {}, svg), gNodes = el('g', {}, svg);
+  const nodeEls = {}, edgeEls = [];
+  const byId = Object.fromEntries(spec.nodes.map(n => [n.id, n]));
+
+  // grupos primero (quedan al fondo)
+  const ordered = [...spec.nodes.filter(n => n.group), ...spec.nodes.filter(n => !n.group)];
+  ordered.forEach(n => {
+    const g = el('g', { class: `node c-${n.color || 'gray'}${n.group ? ' group' : ''}`, tabindex: 0, role: 'button', 'aria-label': n.label.replace(/\n/g, ' ') }, n.group ? gEdges : gNodes);
+    el('rect', { x: n.x, y: n.y, width: n.w, height: n.h, rx: n.group ? 14 : 9 }, g);
+    const L = n.label.split('\n'), S = n.sub ? n.sub.split('\n') : [];
+    if (n.group) {
+      [...L, ...S].forEach((t, i) => { const tx = el('text', { x: n.x + 16, y: n.y + 22 + i * 15, class: 'lb' }, g); tx.textContent = t; });
+    } else {
+      const total = L.length * 16 + S.length * 14;
+      let y = n.y + n.h / 2 - total / 2 + 12;
+      L.forEach(t => { const tx = el('text', { x: n.x + n.w / 2, y, 'text-anchor': 'middle', class: 'lb' }, g); tx.textContent = t; y += 16; });
+      y -= 1;
+      S.forEach(t => { const tx = el('text', { x: n.x + n.w / 2, y, 'text-anchor': 'middle', class: 'sb' }, g); tx.textContent = t; y += 14; });
+    }
+    g.addEventListener('click', ev => { ev.stopPropagation(); select(n.id); });
+    g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(n.id); } });
+    nodeEls[n.id] = g;
+  });
+  (spec.edges || []).forEach(e => {
+    const d = 'M' + e.pts.map(p => p.join(' ')).join(' L');
+    const p = el('path', { d, class: 'edge' + (e.dashed ? ' dashed' : ''), 'marker-end': `url(#${id})` }, gEdges);
+    let lb = null;
+    if (e.label) { lb = el('text', { x: e.lx, y: e.ly, class: 'elabel', 'text-anchor': e.anchor || 'middle' }, gEdges); lb.textContent = e.label; }
+    edgeEls.push({ e, p, lb });
+  });
+  svg.addEventListener('click', () => select(null));
+  host.appendChild(svg);
+
+  let cur = null;
+  function select(nid) {
+    if (nid === cur) nid = null;
+    cur = nid;
+    Object.values(nodeEls).forEach(g => g.classList.remove('sel', 'on'));
+    edgeEls.forEach(x => { x.p.classList.remove('hot'); x.lb && x.lb.classList.remove('hot'); });
+    svg.classList.toggle('has-sel', !!nid);
+    if (!nid) { detailEl.innerHTML = `<p class="hint">${spec.hint}</p>`; return; }
+    nodeEls[nid].classList.add('sel');
+    const rel = new Set();
+    edgeEls.forEach(x => {
+      if (x.e.a === nid || x.e.b === nid) {
+        x.p.classList.add('hot'); x.lb && x.lb.classList.add('hot');
+        rel.add(x.e.a === nid ? x.e.b : x.e.a);
+      }
+    });
+    rel.forEach(r => nodeEls[r] && nodeEls[r].classList.add('on'));
+    const n = byId[nid];
+    const related = [...rel].filter(r => byId[r]).map(r => `<span class="tag">${esc(byId[r].label.replace(/\n/g, ' '))}</span>`).join('');
+    detailEl.innerHTML = `<h3>${esc(n.label.replace(/\n/g, ' '))}</h3><p>${n.d}</p>` +
+      (n.tags ? `<div class="tags">${n.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>` : '') +
+      (related ? `<p style="margin:8px 0 4px" class="hint">Conectado con:</p><div class="tags">${related}</div>` : '');
+  }
+  detailEl.innerHTML = `<p class="hint">${spec.hint}</p>`;
+}
+
+/* ---------- 1 · Panorama ---------- */
+diagram($('#d-panorama'), {
+  w: 960, h: 565, label: 'Arquitectura general de PlatLab', hint: 'Haz clic en un componente.',
+  nodes: [
+    { id: 'users', x: 60, y: 20, w: 200, h: 50, color: 'gray', label: 'Usuarios de clientes', sub: 'Propietario · Admin · Operador · Docente', d: 'Personas de universidades o empresas. Cada una tiene una identidad y una membresía por espacio; cambia de espacio de forma explícita y la pantalla se limpia.' },
+    { id: 'staff', x: 700, y: 20, w: 200, h: 50, color: 'gray', label: 'Equipo PlatLab', sub: 'personal del proveedor', d: 'Personal del proveedor. Gestiona contratos, módulos y límites desde una consola separada. No ve inventarios de clientes por defecto.' },
+    { id: 'web', x: 60, y: 110, w: 200, h: 50, color: 'blue', label: 'apps/web', sub: 'React + Vite · Cloudflare', d: 'Aplicación de los clientes. Arma menú y rutas a partir de <code>/me</code> y compone el Inicio con <code>/home</code>. No tiene acceso directo a tablas.', tags: ['F1a'] },
+    { id: 'auth', x: 380, y: 110, w: 200, h: 50, color: 'green', label: 'Supabase Auth', sub: 'JWT asimétrico (JWKS)', d: 'Identidad y sesiones. La API verifica el JWT con JWKS (<code>jose</code>), sin secreto compartido. OAuth de Google y Microsoft llega en F3.' },
+    { id: 'console', x: 700, y: 110, w: 200, h: 50, color: 'blue', label: 'apps/console', sub: 'MFA exigido en la API', d: 'Consola del Equipo PlatLab, compilada aparte y en otro dominio. Cada ruta <code>/v1/console/*</code> exige JWT + <code>aal2</code> + cuenta de staff + permiso, y queda auditada.', tags: ['G1 · O-01'] },
+    { id: 'mono', group: true, x: 40, y: 205, w: 880, h: 215, color: 'violet', label: 'Monolito modular', sub: 'un repositorio · una versión · migraciones comunes', d: 'Un solo producto. Sin microservicios ni código por cliente. Un servicio solo se extrae ante una necesidad medida (escala, ciclo de entrega o aislamiento operativo).' },
+    { id: 'api', x: 385, y: 240, w: 190, h: 54, color: 'violet', label: 'API Fastify', sub: 'Render · un plugin por módulo', d: 'Autoriza cada operación (membresía, derecho, permiso, ámbito) y ejecuta comandos explícitos en una transacción. Expone REST con OpenAPI generado desde los contratos.' },
+    { id: 'worker', x: 620, y: 240, w: 200, h: 54, color: 'violet', label: 'Worker', sub: 'Render · mismo release que la API', d: 'Mismo código y versión que la API. Procesa avisos, importaciones y exportaciones fuera de la petición, leyendo el outbox que se escribió en el commit.', tags: ['G1 · T-07'] },
+    { id: 'core', x: 60, y: 330, w: 200, h: 54, color: 'violet', label: 'Core (M1)', sub: 'espacios · acceso · derechos', d: 'Espacios de trabajo, identidades, membresías, propietario, ubicaciones, roles con ámbito, derechos de módulo, auditoría e idempotencia. No importa módulos.' },
+    { id: 'mods', x: 300, y: 330, w: 220, h: 54, color: 'violet', label: 'Módulos M2–M8', sub: 'rebanadas verticales', d: 'Reactivos, Equipos, Laboratorios, Prácticas, Materiales, Mantenimiento y Analítica. Cada uno con manifiesto, esquema, API, pantallas y permisos propios.' },
+    { id: 'caps', x: 560, y: 330, w: 220, h: 54, color: 'violet', label: 'Capacidades', sub: 'inventario · agenda · incidencias', d: 'Funciones compartidas que no se venden solas y son dueñas de su esquema. Los módulos las usan mediante sus comandos, no escribiendo sus tablas.' },
+    { id: 'db', x: 40, y: 470, w: 150, h: 50, color: 'green', label: 'PostgreSQL', sub: 'Supabase · una BD', d: 'Una sola base compartida; cada fila institucional lleva <code>workspace_id</code>. Migraciones SQL como autoridad, FKs compuestas y RLS. Local en G0, Supabase Pro desde G1.' },
+    { id: 'r2', x: 225, y: 470, w: 150, h: 50, color: 'amber', label: 'Cloudflare R2', sub: 'copias cifradas', d: 'Copia diaria cifrada de base y archivos, en una cuenta separada, con manifiesto y checksums. La restauración aislada se ensaya antes del piloto.', tags: ['G1 · T-06'] },
+    { id: 'storage', x: 410, y: 470, w: 150, h: 50, color: 'green', label: 'Storage privado', sub: 'Supabase · URL firmadas', d: 'Documentos privados (SDS, adjuntos). La API autoriza y emite URL firmadas de corta duración; cada cambio crea una versión nueva.', tags: ['G1 · T-07'] },
+    { id: 'mail', x: 595, y: 470, w: 150, h: 50, color: 'amber', label: 'Resend', sub: 'correo y avisos', d: 'SMTP de Auth y avisos del Worker. Los efectos externos van por outbox y nunca antes del commit.', tags: ['G1 · T-03B'] },
+    { id: 'obs', x: 780, y: 470, w: 150, h: 50, color: 'amber', label: 'Better Stack', sub: 'errores · logs · alertas', d: 'Errores, logs, métricas y heartbeats. Alertas por API caída, pool agotado, outbox antigua, worker sin heartbeat o copia vencida.', tags: ['G1'] }
+  ],
+  edges: [
+    { a: 'users', b: 'web', pts: [[160, 70], [160, 108]] },
+    { a: 'staff', b: 'console', pts: [[800, 70], [800, 108]] },
+    { a: 'web', b: 'auth', pts: [[260, 135], [378, 135]], label: 'login', lx: 319, ly: 128 },
+    { a: 'console', b: 'auth', pts: [[700, 135], [582, 135]], label: 'login + MFA', lx: 641, ly: 128 },
+    { a: 'web', b: 'api', pts: [[160, 160], [160, 190], [430, 190], [430, 238]], label: 'JWT', lx: 295, ly: 184 },
+    { a: 'console', b: 'api', pts: [[800, 160], [800, 190], [530, 190], [530, 238]], label: 'JWT + MFA', lx: 665, ly: 184 },
+    { a: 'auth', b: 'api', pts: [[480, 160], [480, 238]], dashed: true, label: 'JWKS', lx: 488, ly: 178, anchor: 'start' },
+    { a: 'api', b: 'core', pts: [[430, 294], [430, 308], [160, 308], [160, 328]] },
+    { a: 'api', b: 'mods', pts: [[470, 294], [470, 316], [410, 316], [410, 328]] },
+    { a: 'mods', b: 'caps', pts: [[520, 357], [558, 357]] },
+    { a: 'worker', b: 'mods', pts: [[720, 294], [720, 312], [500, 312], [500, 328]], dashed: true, label: 'outbox', lx: 640, ly: 306 },
+    { a: 'mono', b: 'db', pts: [[115, 420], [115, 468]], label: 'SQL + RLS', lx: 123, ly: 449, anchor: 'start' },
+    { a: 'mono', b: 'storage', pts: [[485, 420], [485, 468]], label: 'URL firmadas', lx: 493, ly: 449, anchor: 'start' },
+    { a: 'mono', b: 'mail', pts: [[670, 420], [670, 468]], label: 'tras el commit', lx: 678, ly: 449, anchor: 'start' },
+    { a: 'mono', b: 'obs', pts: [[855, 420], [855, 468]], label: 'logs', lx: 863, ly: 449, anchor: 'start' },
+    { a: 'db', b: 'r2', pts: [[190, 495], [223, 495]] }
+  ]
+}, $('#t-panorama'));
+
+/* ---------- 3 · Módulos ---------- */
+const mk = (id, x, y, w, color, label, sub, d, tags) => ({ id, x, y, w, h: 56, color, label, sub, d, tags });
+diagram($('#d-modulos'), {
+  w: 960, h: 470, label: 'Módulos y dependencias', hint: 'Haz clic en un módulo.',
+  nodes: [
+    mk('M1', 380, 20, 200, 'blue', 'M1 Núcleo', 'espacio · personas · control', 'Miembros, invitaciones, roles y ámbitos, ubicaciones, suscripción, documentos, auditoría y avisos. Obligatorio en todo espacio. Todos los demás módulos lo requieren (directa o indirectamente).', ['F1a', 'Paquetes: todos']),
+    mk('M3', 40, 140, 170, 'blue', 'M3 Equipos', 'activos y su condición', 'Tipos de equipo, ficha (marca, modelo, serie, ubicación, responsable), condición, traslado trazado, custodia, incidencias e historial. Requiere M1.', ['F2', 'Paquete: Activos de laboratorio']),
+    mk('M2', 260, 140, 170, 'blue', 'M2 Reactivos', 'qué hay, dónde y en qué estado', 'Catálogo químico, lotes, ingresos, salidas, ajustes, traslados, cuarentena, custodia, caducidad y mínimos; fiscalizados y su reporte. Su primer recorrido (R-00) abre el proyecto. Requiere M1.', ['R-00 en F1a', 'F2', 'Paquete: Inventario químico']),
+    mk('M4', 500, 140, 170, 'green', 'M4 Laboratorios', 'espacios físicos y agenda', 'Capacidad, responsable, horarios y cierres; reservas directas sin conflictos (exclusión GiST); tiempos de preparación y limpieza. Requiere M1.', ['F3', 'Paquete: Agenda de laboratorios']),
+    mk('M6', 740, 140, 170, 'amber', 'M6 Materiales', 'consumibles y reutilizables', 'Existencias, préstamos, devoluciones parciales, daños, pérdidas y transferencias. Requiere M1. Un mínimo se adelanta a F3 si la práctica real (P-04) entrega y recibe material.', ['F4', 'Paquete: Materiales y préstamos']),
+    mk('M7', 40, 270, 170, 'violet', 'M7 Mantenimiento', 'continuidad de equipos', 'Planes preventivos, órdenes correctivas, bloqueo de agenda, liberación con resultado y próximo mantenimiento. Requiere M1 + M3.', ['F5']),
+    mk('M5', 500, 270, 200, 'green', 'M5 Prácticas y Solicitudes', 'operación central', 'Plantillas, solicitudes de docencia e investigación, revisión, aprobación condicionada, preparación, ejecución, cierre e impresión. Requiere M1 + M4. Verifica recursos de M2, M3 y M6 solo si están habilitados; si no, aparecen «no verificados».', ['F3', 'Paquete: Prácticas e investigación']),
+    mk('M8', 380, 390, 200, 'violet', 'M8 Analítica y Alertas', 'M1 + un módulo operativo', 'Indicadores con periodo y fórmula, alertas configurables, resúmenes, escalamiento y reportes. Los avisos esenciales (caducidad, mínimos, averías) ya viven en cada módulo; M8 añade el análisis avanzado.', ['F5'])
+  ],
+  edges: [
+    { a: 'M3', b: 'M1', pts: [[125, 140], [125, 100], [420, 100], [420, 78]] },
+    { a: 'M2', b: 'M1', pts: [[345, 140], [345, 108], [460, 108], [460, 78]] },
+    { a: 'M4', b: 'M1', pts: [[585, 140], [585, 108], [500, 108], [500, 78]] },
+    { a: 'M6', b: 'M1', pts: [[825, 140], [825, 100], [540, 100], [540, 78]] },
+    { a: 'M7', b: 'M3', pts: [[90, 270], [90, 198]] },
+    { a: 'M5', b: 'M4', pts: [[585, 270], [585, 198]] },
+    { a: 'M5', b: 'M2', pts: [[520, 270], [520, 236], [400, 236], [400, 198]], dashed: true },
+    { a: 'M5', b: 'M3', pts: [[540, 270], [540, 248], [180, 248], [180, 198]], dashed: true },
+    { a: 'M5', b: 'M6', pts: [[660, 270], [660, 248], [800, 248], [800, 198]], dashed: true },
+    { a: 'M8', b: 'M7', pts: [[380, 418], [125, 418], [125, 328]], dashed: true },
+    { a: 'M8', b: 'M5', pts: [[580, 418], [640, 418], [640, 328]], dashed: true }
+  ]
+}, $('#t-modulos'));
+
+/* ---------- 5 · Flujo de una práctica ---------- */
+const LX = [172, 317, 462, 607, 752, 897], LY = [80, 200, 320, 440], NW = 118, NH = 56;
+const pn = (id, c, l, color, label, d, tags) => ({ id, x: LX[c] - NW / 2, y: LY[l] - NH / 2, w: NW, h: NH, color, label, d, tags });
+const lanes = [['Docente /\nTesista', 'blue'], ['Sistema', 'violet'], ['Administrador', 'green'], ['Operador', 'amber']];
+diagram($('#d-practica'), {
+  w: 1000, h: 520, label: 'Flujo de una práctica con carriles por rol', hint: 'Haz clic en un paso.',
+  back(svg) {
+    lanes.forEach((ln, i) => {
+      el('rect', { x: 8, y: 20 + i * 120, width: 984, height: 120, class: 'lane', rx: 8 }, svg);
+      ln[0].split('\n').forEach((t, k) => { const tx = el('text', { x: 18, y: 76 + i * 120 + k * 15, class: 'lanelabel' }, svg); tx.textContent = t; });
+    });
+  },
+  nodes: [
+    pn('A', 0, 0, 'blue', 'Elige plantilla\ny recursos', 'Elige plantilla, fecha o franja y agrega reactivos y materiales del catálogo solicitable; los equipos se piden por tipo (uno concreto, solo con justificación). Si algo no existe, agrega una línea «no catalogada». No elige la sala definitiva.'),
+    pn('B', 1, 1, 'violet', 'Valida cada\nlínea', 'Marca cada línea como disponible, insuficiente o en conflicto, o no existente/no verificado. Validar no reserva nada: lo que se ve es orientativo y la confirmación vuelve a validar.'),
+    pn('C', 2, 2, 'green', 'Revisa y asigna\nsala y recursos', 'Bandeja con las excepciones primero. Asigna sala (con sugerencias), lotes y el equipo concreto de cada tipo; resuelve faltantes con traslado, preparación, mover un equipo o cambiar sala u hora.'),
+    pn('D', 3, 2, 'green', 'Decide', 'Aprobar, proponer ajuste, o pedir cambios / rechazar (siempre con motivo). Las solicitudes sin excepciones se pueden confirmar en lote, con un resultado por solicitud. No hay autoconfirmación sin revisión humana.'),
+    pn('D2', 3, 0, 'blue', 'Acepta o declina\nla propuesta', 'Si el Administrador cambia fecha, cantidades, sustitutos o condiciones, el solicitante acepta o declina esa revisión concreta (ADR 0007). Aceptar confirma solo si todo sigue disponible. Reubicar a una sala equivalente solo se avisa.'),
+    pn('D1', 4, 1, 'violet', 'Reserva todo\n(1 transacción)', 'Aprobar y reservar ocurren juntos: si un recurso ya no está, nada se confirma. Dos aprobaciones incompatibles nunca se confirman a la vez (exclusión GiST en agenda, bloqueo de filas en saldos).'),
+    pn('E', 4, 3, 'amber', 'Prepara y entrega\na custodia', 'Prepara los recursos, los entrega a custodia, marca la actividad como lista y la inicia. Lo entregado sigue siendo existencia institucional hasta consumirse.'),
+    pn('F', 5, 3, 'amber', 'Ejecuta y cierra', 'Al cerrar registra el consumo real, la devolución verificada y las incidencias. Ejemplo: 20 g entregados, 17 consumidos y 3 devueltos conservan su procedencia.'),
+    pn('G', 5, 1, 'violet', 'Actualiza stock,\nagenda e historial', 'El sistema concilia inventario, agenda e historial. Lo que no se concilia queda visible como pendiente; no se borra nada.')
+  ],
+  edges: [
+    { a: 'A', b: 'B', pts: [[231, 80], [317, 80], [317, 170]] },
+    { a: 'B', b: 'C', pts: [[317, 230], [317, 320], [401, 320]] },
+    { a: 'C', b: 'D', pts: [[521, 320], [546, 320]] },
+    { a: 'D', b: 'D2', pts: [[607, 290], [607, 110]], label: 'Proponer ajuste', lx: 601, ly: 200, anchor: 'end' },
+    { a: 'D', b: 'D1', pts: [[666, 320], [725, 320], [725, 230]], label: 'Aprobar', lx: 697, ly: 313 },
+    { a: 'D2', b: 'D1', pts: [[666, 80], [725, 80], [725, 170]], label: 'Acepta', lx: 697, ly: 73 },
+    { a: 'D', b: 'A', pts: [[607, 350], [607, 486], [172, 486], [172, 110]], dashed: true, label: 'Pedir cambios o rechazar (con motivo)', lx: 390, ly: 480 },
+    { a: 'D1', b: 'E', pts: [[770, 230], [770, 410]] },
+    { a: 'E', b: 'F', pts: [[811, 440], [836, 440]] },
+    { a: 'F', b: 'G', pts: [[897, 410], [897, 230]] }
+  ]
+}, $('#t-practica'));
+
+/* ---------- 2 · Infraestructura por puertas ---------- */
+const INFRA = [
+  [0, 'PostgreSQL local', 'Supabase CLI; migraciones SQL y pgTAP'],
+  [0, 'API + web en local', 'Fastify y React con datos sintéticos'],
+  [0, 'Tres espacios sintéticos', 'A y B con Reactivos; C sin él'],
+  [0, 'CI', 'Tipos, compilación, pgTAP, pruebas de API y concurrencia'],
+  [0, 'Demo publicada (opcional)', 'Cloudflare + Render si se quiere mostrar'],
+  [1, 'Supabase Pro + staging', 'Proyecto separado; los previews nunca apuntan a producción'],
+  [1, 'Render: API y Worker', 'Mismo release; conexión a PostgreSQL decidida en S-01'],
+  [1, 'Cloudflare: app y console', 'app.<dominio> y console.<dominio> separados'],
+  [1, 'Storage privado', 'Documentos con URL firmadas'],
+  [1, 'Resend', 'Correo real: invitaciones, recuperación, avisos'],
+  [1, 'R2 + copias', 'Copia diaria cifrada y restauración aislada ensayada'],
+  [1, 'Better Stack', 'Errores, logs, métricas y heartbeats'],
+  [1, 'Contrato de encargo', 'Datos reales: LOPDP, proveedores y procedimientos de salida'],
+  [2, 'Incorporación repetible', 'Importación y conciliación con el responsable'],
+  [2, 'Soporte documentado', 'Procedimientos y responsables'],
+  [2, 'Capacidad y costos medidos', 'Con el escenario de carga acordado'],
+  [2, 'Salida completa probada', 'Reactivos, Equipos y combinado, con archivos'],
+  [2, 'Transferencia de propiedad', 'En la interfaz, con concurrencia y revocación probadas']
+];
+const GATES = [
+  ['G0 · demo sintética', 'Permite mostrar el módulo y habilitarlo en contratos de piloto (etapa <b>pilot</b>). Evidencia: demo sintética con aislamiento, permisos, cantidades exactas, auditoría, idempotencia y concurrencia probadas. Se corre en local; publicar la demo es opcional.'],
+  ['G1 · datos reales (por espacio)', 'Permite usar datos reales en ese espacio y alcance. Dos pasos: (1) autorizar la carga controlada, demostrando con datos sintéticos que funcionan datos, seguridad, identidad, contrato, cuotas, consola, propiedad, recuperación y salida; (2) importar, conciliar y que el responsable acepte el inventario. La infraestructura de producción entra aquí.'],
+  ['G2 · venta abierta (por módulo)', 'Lleva el módulo a etapa <b>general</b>: puede venderse en paquetes publicados. Evidencia: G1 del módulo en al menos un cliente, incorporación repetible, soporte documentado, capacidad y costos medidos. Para la oferta inicial, además, las tres combinaciones validadas y la transferencia de propiedad.']
+];
+(function () {
+  const grid = $('#gridInfra'), det = $('#t-infra');
+  grid.innerHTML = INFRA.map(([g, t, s]) => `<div class="chip g${g}" data-g="${g}"><b>${esc(t)}</b><small>${esc(s)}</small></div>`).join('');
+  function set(g) {
+    document.querySelectorAll('[data-g]').forEach(b => { if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String(+b.dataset.g === g)); });
+    grid.querySelectorAll('.chip').forEach(c => c.classList.toggle('off', +c.dataset.g > g));
+    det.innerHTML = `<h3>${GATES[g][0]}</h3><p>${GATES[g][1]}</p>`;
+  }
+  document.querySelectorAll('.seg [data-g]').forEach(b => b.addEventListener('click', () => set(+b.dataset.g)));
+  set(0);
+})();
+
+/* ---------- 4 · Una operación ---------- */
+const STEPS = [
+  ['Verificar identidad y validar entrada', 'API', 'Se verifica el JWT con JWKS (sin secreto compartido) y se valida la entrada. El <code>workspaceId</code> de la URL solo selecciona el espacio: no autoriza.', 'Identidad inválida o datos inválidos.'],
+  ['Abrir una transacción', 'API → PostgreSQL', 'Se toma un único <code>PoolClient</code> y se abre la transacción con el rol de la API, que no es dueño de tablas ni tiene <code>BYPASSRLS</code>. Nunca se usa <code>pool.query</code> a mitad.', 'Error transitorio: se reintenta con la misma clave.'],
+  ['Fijar el contexto local', 'PostgreSQL', '<code>set_config(…, true)</code> deja actor y espacio solo dentro de esta transacción; por eso una conexión reutilizada no filtra contexto entre peticiones.', 'Sin contexto, las políticas RLS no devuelven nada.'],
+  ['Admisión y autorización', 'API + PostgreSQL', 'Una sola función comprueba etapa del módulo, derecho vigente, estado del espacio y del módulo, clase de acción, permiso y ámbito. Es una tabla de verdad probada.', 'ACCESS_DENIED o módulo no disponible.'],
+  ['Reclamar la clave de idempotencia', 'PostgreSQL', 'Se reclama la <code>Idempotency-Key</code> (por espacio, actor y operación) y se compara un hash del contenido: misma clave y contenido devuelve el resultado guardado; contenido distinto se rechaza.', 'Clave reutilizada con otro contenido.'],
+  ['Bloquear y descontar el saldo', 'PostgreSQL', 'Se bloquea la posición y el derecho del módulo en orden estable, y se lee y descuenta el saldo dentro de la misma sección protegida. Cantidades como <code>numeric</code>, nunca <code>number</code>.', 'INSUFFICIENT_STOCK si no alcanza.'],
+  ['Escribir todo junto', 'PostgreSQL', 'Operación, asientos del libro de movimientos, saldo, auditoría, resultado idempotente y outbox se escriben en la misma transacción.', 'Cualquier fallo revierte todo.'],
+  ['COMMIT', 'PostgreSQL', 'Todo se confirma o no queda nada. Un movimiento confirmado no se edita ni se borra; se corrige con otro movimiento.', 'Si falla el commit, nada queda escrito.'],
+  ['Después del commit: Worker', 'Worker + Resend', 'El Worker lee el outbox y envía correos, avisos o exportaciones. Nunca hay llamadas externas dentro de la transacción.', 'El trabajo se reintenta; el negocio ya está confirmado.']
+];
+const SCN = [
+  { k: 'ok', t: 'El Operador registra una salida de 20 g', end: 9, kind: 'ok', msg: 'Éxito: movimiento, saldo y auditoría quedaron confirmados juntos; el aviso sale después.' },
+  { k: 'perm', t: 'El Operador intenta ajustar −0,5 g', end: 4, kind: 'bad', fail: 4, msg: 'Rechazado con ACCESS_DENIED: el ajuste es del Administrador. La transacción se revierte y no queda movimiento, auditoría de éxito ni saldo parcial.' },
+  { k: 'stock', t: 'Segunda salida de 60 g sobre 100 g (concurrente)', end: 6, kind: 'bad', fail: 6, msg: 'La primera salida confirmó 60 g; la segunda recibe INSUFFICIENT_STOCK. Quedan 40 g y un solo movimiento exitoso; la segunda se revierte completa.' },
+  { k: 'dup', t: 'Reintento tras un timeout (misma clave y contenido)', end: 5, kind: 'warn', replay: 5, msg: 'Se devuelve el resultado ya confirmado, tras revalidar el acceso. No se añaden asientos ni auditoría nuevos.' }
+];
+(function () {
+  const sel = $('#scn'), list = $('#steps'), det = $('#t-operacion'), ban = $('#banner');
+  sel.innerHTML = SCN.map((s, i) => `<option value="${i}">${esc(s.t)}</option>`).join('');
+  let si = 0, p = 0;
+  function state(i) { // i 0-based
+    const s = SCN[si];
+    if (i >= s.end) return 'skipped';
+    if (i < p - 1) return 'done';
+    if (i === p - 1) {
+      if (s.fail === i + 1) return 'failed';
+      if (s.replay === i + 1) return 'replay';
+      return 'cur';
+    }
+    return 'pending';
+  }
+  function render() {
+    const s = SCN[si];
+    list.innerHTML = STEPS.map((st, i) => {
+      const cls = state(i);
+      const mark = cls === 'failed' ? '✕' : cls === 'done' ? '✓' : cls === 'replay' ? '↺' : i + 1;
+      return `<li><button class="step ${cls}" data-i="${i}" type="button"><span class="n">${mark}</span><span><b>${esc(st[0])}</b><span class="w">${esc(st[1])}</span></span></button></li>`;
+    }).join('');
+    list.querySelectorAll('.step').forEach(b => b.addEventListener('click', () => { const i = +b.dataset.i; if (i < s.end) { p = i + 1; render(); } }));
+    if (p === 0) det.innerHTML = '<p class="hint">Pulsa «Siguiente» para empezar.</p>';
+    else {
+      const st = STEPS[p - 1];
+      let extra = '';
+      if (s.fail === p) extra = `<p style="color:var(--bad)"><b>Aquí falla:</b> ${esc(st[3])}</p>`;
+      else if (s.replay === p) extra = `<p style="color:var(--warn)"><b>Aquí termina:</b> ya existe un resultado para esa clave; se devuelve sin repetir el trabajo.</p>`;
+      else extra = `<p class="hint">Si falla: ${esc(st[3])}</p>`;
+      det.innerHTML = `<h3>${p}. ${esc(st[0])}</h3><div class="tags" style="margin-bottom:8px"><span class="tag">${esc(st[1])}</span></div><p>${st[2]}</p>${extra}`;
+    }
+    ban.innerHTML = p >= s.end ? `<div class="banner ${s.kind}">${esc(s.msg)}</div>` : '';
+    $('#prev').disabled = p === 0;
+    $('#next').disabled = p >= s.end;
+  }
+  $('#next').addEventListener('click', () => { if (p < SCN[si].end) { p++; render(); } });
+  $('#prev').addEventListener('click', () => { if (p > 0) { p--; render(); } });
+  $('#reset').addEventListener('click', () => { p = 0; render(); });
+  sel.addEventListener('change', () => { si = +sel.value; p = 0; render(); });
+  render();
+})();
+
+/* ---------- 6 · Hoja de ruta ---------- */
+const PH = {
+  F0: { c: 'p0', n: 'F0', s: 'Proceso real del laboratorio', g: 'Su proceso real documentado y validado por su responsable.', b: ['Observar entradas y salidas de reactivos e incidencias de equipos', 'REG-01: perfil de sustancias fiscalizadas con el responsable (calificación, sitios, cupos, formato del reporte)', 'Definir los espacios del piloto y medir la conectividad desde Ecuador', 'P-04: analizar una práctica representativa; decide si Materiales mínimo se adelanta a F3'], d: 'No bloquea G0. Avanza en paralelo a la demo.' },
+  F1a: { c: 'p1', n: 'F1a + R-00', s: 'Core mínimo + primer recorrido', g: 'Ver su flujo de reactivos funcionando con datos de prueba.', b: ['T-01 monorepo, CI y prueba de humo de pg + PgTyped', 'T-02/03 espacios, identidades, roles con ámbito, RLS y FKs compuestas', 'T-04/05 manifiestos con etapa, función de admisión, transacción, auditoría e idempotencia', 'R-00 catálogo, lote, ingreso, salida y ajuste; Inicio y tablero'], d: 'Es lo que se programa ahora (siguiente paso: T-01).' },
+  G0: { gate: true, n: 'G0', g: 'Demo sintética de Reactivos. Pasa a etapa pilot.', b: ['Ingreso 100 g, salida 20 g y ajuste −0,5 g dejan 79,5 g', 'A y B aíslan sus datos; C no ve el módulo', 'Dos salidas de 60 g sobre 100 g: una sola confirma', 'Idempotencia, rollback y pool sin fuga de contexto probados'], d: 'Ninguna verificación se marca aprobada solo por estar escrita.' },
+  F1b: { c: 'p1', n: 'F1b', s: 'Operación del SaaS', g: 'Plataforma lista para recibir sus datos con garantías.', b: ['Spike de proveedores y ambientes (S-01)', 'Alta real, invitación del propietario y consola con MFA', 'Paquetes y contratos aplicados de forma atómica; cuotas', 'Documentos privados, outbox, worker y observabilidad', 'Copias con restauración aislada y traspaso de propiedad'], d: 'Va antes de G1 y en paralelo con F2. Quedan fuera pasarela de pago, roles personalizados y suplantación.' },
+  F2: { c: 'p1', n: 'F2', s: 'Reactivos y Equipos reales', g: 'Inventario real conciliado y reporte de fiscalizados revisable.', b: ['Reactivos: importación y conciliación, conteos, cuarentena, caducidad, SDS, traslados', 'Fiscalizados (REG-02): custodia, retornos y reporte del periodo', 'Equipos: tipos, activos, condición, traslados, documentos e incidencias', 'Común: Inicio por paquete, búsqueda, exportación y desactivación con pendientes'], d: 'Reactivos y Equipos utilizables por separado y juntos.' },
+  G1: { gate: true, n: 'G1', g: 'Datos reales en un espacio y alcance.', b: ['Paso 1: autorizar la carga controlada (garantías demostradas con datos sintéticos)', 'Paso 2: importar, conciliar y aceptación del responsable', 'Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1'], d: 'Cada módulo nuevo repite las verificaciones afectadas antes de usar datos reales.' },
+  F3: { c: 'p3', n: 'F3', s: 'Laboratorios, agenda y Prácticas', g: 'Una práctica completa: solicitud, preparación, consumo y devolución.', b: ['Laboratorios y agenda sin conflictos', 'Plantillas, invitaciones por CSV, OAuth de Google y Microsoft', 'Solicitud → revisión → aprobación condicionada, reubicación y confirmación en lote', 'Preparación, cierre, tablero del Operador e impresión HTML', 'Materiales mínimo si P-04 lo exige'], d: 'Integra los inventarios ya publicados.' },
+  F4: { c: 'p4', n: 'F4', s: 'Materiales y préstamos', g: 'Material y préstamos controlados de punta a punta.', b: ['Consumibles y reutilizables', 'Préstamos con devoluciones parciales, daños, pérdidas y transferencias', 'Si vuelven 8 de 10 unidades, quedan 2 pendientes; una devolución dañada no aumenta lo disponible'], d: 'Depende del Core; Prácticas solo para integrarse.' },
+  F5: { c: 'p5', n: 'F5', s: 'Mantenimiento y Analítica', g: 'Equipos con mantenimiento al día y alertas preventivas.', b: ['Planes, órdenes, bloqueos de agenda y liberación con resultado', 'Indicadores con fuente y fórmula, alertas y resúmenes'], d: 'M7 necesita Equipos; M8 necesita datos operativos suficientes.' },
+  G2: { gate: true, n: 'G2', g: 'Venta abierta, módulo por módulo.', b: ['G1 del módulo en al menos un cliente', 'Incorporación repetible y soporte documentado', 'Capacidad y costos medidos; salida completa probada', 'Oferta inicial: además, las tres combinaciones y la transferencia de propiedad en la interfaz'], d: 'El módulo pasa a etapa general y entra en paquetes publicados.' }
+};
+(function () {
+  const det = $('#t-ruta');
+  function card(k, extraCls) {
+    const p = PH[k];
+    return p.gate
+      ? `<button class="gate" data-k="${k}" type="button" title="${esc(p.g)}">${p.n}</button>`
+      : `<button class="ph ${p.c} ${extraCls || ''}" data-k="${k}" type="button"><b>${p.n}</b><span>${esc(p.s)}</span></button>`;
+  }
+  $('#road0').innerHTML = card('F0');
+  $('#road').innerHTML = card('F1a') + card('G0') + `<div class="par">${card('F1b')}${card('F2')}</div>` + card('G1') + card('F3') + card('F4') + card('F5') + card('G2');
+  function show(k) {
+    document.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('sel', b.dataset.k === k));
+    const p = PH[k];
+    det.innerHTML = `<h3>${esc(p.n)}${p.s ? ' · ' + esc(p.s) : ''}</h3><p><b>${p.gate ? 'Qué permite' : 'Resultado para el laboratorio'}:</b> ${esc(p.g)}</p><ul>${p.b.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="hint">${esc(p.d)}</p>`;
+  }
+  document.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => show(b.dataset.k)));
+  det.innerHTML = '<p class="hint">Haz clic en una fase o una puerta.</p>';
+})();
+
+/* ---------- Pestañas y tema ---------- */
+(function () {
+  const tabs = [...document.querySelectorAll('.tab')];
+  function go(v) {
+    if (!document.getElementById('v-' + v)) v = 'panorama';
+    tabs.forEach(t => { const on = t.dataset.v === v; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; });
+    document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+    try { history.replaceState(null, '', '#' + v); } catch (e) {}
+  }
+  tabs.forEach(t => t.addEventListener('click', () => go(t.dataset.v)));
+  go(location.hash.slice(1));
+  const root = document.documentElement, btn = $('#theme');
+  try { const s = localStorage.getItem('plat-theme'); if (s) root.dataset.theme = s; } catch (e) {}
+  btn.addEventListener('click', () => {
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+    try { localStorage.setItem('plat-theme', root.dataset.theme); } catch (e) {}
+  });
+})();
+</script>
+</body>
+</html>

@@ -28,7 +28,7 @@ SaaS modular para gestionar laboratorios de varias instituciones: reactivos, equ
 9. Las sustancias fiscalizadas son obligatorias desde el piloto del laboratorio interesado, que avanza por entregas.
 10. Stack: React + Vite, Node 24 + Fastify, `pg` + PgTyped, Supabase (PostgreSQL, Auth, Storage), Cloudflare y Render.
 11. Tres puertas: G0 demo sintética, G1 piloto con datos reales y G2 venta abierta.
-12. Cada módulo avanza por etapas (desarrollo → piloto → general) y solo se vende en etapa general. Una única tabla de admisión separa operaciones nuevas, resolución de pendientes y consulta.
+12. Cada módulo avanza por etapas (desarrollo → piloto → general) y solo se vende en etapa general. Una sola función de admisión, con dos ejes (espacio y módulo), gana lo más restrictivo y lee bajo bloqueo; separa operaciones nuevas, resolución de pendientes y consulta. Las capacidades compartidas se autorizan según el módulo dueño del recurso.
 13. No se fijan fechas, horas ni presupuestos contractuales sin evidencia.
 
 ## Mapa de documentos

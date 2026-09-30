@@ -30,7 +30,12 @@ Actúa como experto senior en desarrollo de software full-stack,arquitectura, in
 
 - Monolito modular con producto y migraciones comunes. Nombres canónicos: `core.workspaces`, `workspace_id` y `/v1/workspaces/:workspaceId`; en la interfaz, «Espacio de trabajo». Titular jurídico y propietario son conceptos diferentes.
 - Cada módulo es una rebanada vertical con manifiesto en `packages/modules`. Se agrega siguiendo el contrato de 02 §4 y no modifica tablas de otros módulos. Cada esquema tiene un único propietario técnico: un módulo o una capacidad.
-- Etapas y admisión (ADR 0009): cada módulo avanza `development → pilot → general`. Una sola función de admisión separa operación nueva, resolución de pendientes y consulta/exportación; se prueba como tabla de verdad (02 §6).
+- **Etapas y admisión (ADR 0009, 02 §6).**
+  - Cada módulo avanza `development → pilot → general`.
+  - Una sola función de admisión evalúa dos ejes, espacio y módulo, y admite solo lo que ambos permiten. Los estados desconocidos se deniegan.
+  - La admisión separa operación nueva, resolución de pendientes y consulta/exportación, y se prueba con todas las combinaciones.
+  - Lee espacio, derecho y membresía con bloqueo compartido en la misma consulta con la que decide. El orden de bloqueo es fijo: espacio → derecho → membresía → datos.
+- **Capacidades compartidas (inventario, agenda, incidencias).** No comparten derechos: cada operación se autoriza contra el módulo dueño del recurso. Se exponen con rutas y permisos de ese módulo (`/reagents/issues`, `reagents.issue.create`), nunca con rutas `/inventory/*`.
 - La API autoriza todas las operaciones de dominio: membresía, derecho del módulo, permiso y ámbito se comprueban en el servidor. RLS y FKs compuestas añaden aislamiento. El navegador no tiene CRUD directo al dominio.
 - SQL parametrizado con `pg` + PgTyped. Una conexión y una transacción para autorización, contexto local, negocio, auditoría e idempotencia. El runtime no es dueño de tablas ni tiene `BYPASSRLS`. Las migraciones SQL son la autoridad.
 - Cantidades exactas: `numeric` y cadenas decimales, nunca aritmética de cantidades con `number`. Movimiento confirmado y saldo se guardan juntos. Nadie borra registros de negocio: se archiva, se cancela o se compensa.
@@ -55,7 +60,8 @@ Decidido el 30-09-2026:
 - «Operador» es el rol del laboratorio.
 - Solo PlatLab activa o desactiva módulos por contrato.
 - Documentación compacta en `docs/`.
-- Etapas de módulo y tabla de admisión (ADR 0009).
+- Etapas de módulo y admisión de dos ejes bajo bloqueo (ADR 0009).
+- Rutas y permisos por módulo para las capacidades compartidas.
 - RPO de 24 h aceptado durante las pruebas y el piloto.
 - Materiales en F3 según una práctica real (P-04).
 - Equipos solicitados por tipo.

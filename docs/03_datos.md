@@ -43,10 +43,11 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 | `analytics` | Módulo Analítica | Indicadores y alertas avanzadas | F5 |
 
 - Solo el propietario técnico escribe en su esquema.
-- Una capacidad no se contrata: está disponible cuando algún módulo habilitado la usa.
+- Una capacidad no se contrata: su código existe para los módulos que la usan.
   - Inventario: Reactivos, Materiales y Prácticas.
   - Agenda: Equipos, Laboratorios, Prácticas, Materiales y Mantenimiento.
   - Incidencias: Equipos y los módulos que reportan.
+- Compartir una capacidad no comparte derechos. Cada operación se autoriza contra el módulo dueño del recurso (`inventory.items.kind`), con rutas y permisos de ese módulo ([02 §4](02_arquitectura.md#4-contrato-de-módulo)). Tener Materiales no habilita Reactivos.
 
 ## 3. Core, acceso y plataforma
 
@@ -225,7 +226,9 @@ Cuatro capas:
 Casos:
 
 - Fuga entre dos espacios que tienen el mismo módulo habilitado, FK cruzada, módulo apagado y membresía revocada.
-- Cada fila de la tabla de admisión con sus tres clases de acción ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
+- Todas las combinaciones de los dos ejes de admisión con sus tres clases de acción, y la denegación de estados desconocidos ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
+- Un ítem de un módulo no se puede operar desde la ruta de otro módulo.
+- Un movimiento y una desactivación, suspensión o revocación simultáneos: no queda ningún movimiento nuevo confirmado después del cambio de estado.
 - Dos reservas o dos salidas simultáneas, cierre repetido y devolución parcial.
 - Transferencia parcial, cancelación con custodia y equipo averiado con reservas.
 - Worker repetido y fallo antes o después del commit.

@@ -61,7 +61,7 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 
 - Monorepo y CI, con una prueba de humo de `pg` + PgTyped antes de extender el dominio: decimales como cadena, fechas y transacción con contexto local.
 - Espacios, identidades, membresías, propietario, ubicaciones y roles con ámbito.
-- Manifiestos con etapa y función de admisión con su tabla de verdad.
+- Manifiestos con etapa, rutas y permisos por módulo, y una función de admisión de dos ejes que lee bajo bloqueo compartido.
 - RLS, FKs compuestas y roles SQL; JWT por JWKS.
 - Derechos mínimos vía `apply_contract_revision`, también en los fixtures.
 - Auditoría e idempotencia.
@@ -115,7 +115,9 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 **G0:**
 
 - A y B, ambos con Reactivos, permanecen aislados; C, sin Reactivos, no ve el módulo.
-- La función de admisión cumple toda su tabla de verdad.
+- La admisión cumple todas las combinaciones de sus dos ejes y deniega los estados desconocidos.
+- Un ítem no se opera desde la ruta de otro módulo.
+- Un movimiento y una desactivación simultáneos no dejan un movimiento nuevo después de la desactivación.
 - Un propietario sin rol operativo no registra salidas.
 - El Operador registra salidas pero no ajusta; el Administrador sí ajusta.
 - Dos salidas de 60 g sobre 100 g dejan 40 g y un solo movimiento.
@@ -150,14 +152,14 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | T-01 | Monorepo y CI | Compilación, fronteras, migraciones y tipos reproducibles; prueba de humo de `pg` + PgTyped | T-00 |
 | T-02 | Core y roles SQL | Dos espacios, propietario, ubicaciones y restricciones | T-01 |
 | T-03 | Identidad y acceso mínimo | Auth local, propietario válido, roles fijos, ámbito y revocación probados | T-02 |
-| T-04 | Derechos, etapas y registro de módulos | Manifiestos con etapa, comando de aplicación de revisión, función de admisión con su tabla de verdad y denegación por módulo; los fixtures usan el comando | T-03 |
-| T-05 | Transacciones, auditoría e idempotencia | Misma conexión, rollback y reintentos | T-03 |
+| T-04 | Derechos, etapas y registro de módulos | Manifiestos con etapa; rutas y permisos por módulo; comando de aplicación de revisión; admisión de dos ejes con denegación por defecto y todas sus combinaciones probadas; los fixtures usan el comando | T-03 |
+| T-05 | Transacciones, auditoría e idempotencia | Misma conexión, rollback y reintentos; admisión bajo bloqueo compartido con orden fijo; movimiento contra desactivación simultánea | T-03 |
 | R-00 | Primer recorrido de Reactivos | Catálogo, lote, ingreso, salida y ajuste; Inicio y tablero; pruebas de concurrencia | T-04, T-05 |
 | V-00 | G0 de Reactivos | Demo sintética y evidencias del primer incremento; Reactivos pasa a etapa `pilot` | R-00 |
 | S-01 | Spike de proveedores | Región, conectividad, modo de conexión a PostgreSQL, SMTP, respaldo, observabilidad y costos verificados | T-01 |
 | T-03B | Identidad productiva y propiedad asistida | Invitaciones, recuperación y relevo ensayados, sin cuentas huérfanas | T-03, S-01 |
 | T-07 | Archivos, outbox y worker | Documentos privados, reintentos, concesiones y autorización de trabajos | T-05 |
-| O-01 | Consola del Equipo PlatLab | Aplicación separada, MFA en la API, contratos, derechos y límites auditados | T-04, T-05, T-03B |
+| O-01 | Consola del Equipo PlatLab | Aplicación separada, MFA en la API, contratos, derechos y límites auditados; los cambios de estado respetan el orden de bloqueo de la admisión | T-04, T-05, T-03B |
 | Q-01 | Cuotas y control de abuso | Reservas exactas en PostgreSQL, límites HTTP en memoria y reparto de trabajos | T-04, T-07 |
 | DP-01 | Datos reales y salida | Acuerdos, proveedores y procedimientos revisados; retención por repositorio | T-00 |
 | R-01 | Reactivos para el piloto | Ampliaciones de R-00 que exige el alcance pactado | R-00, P-02, T-07 |

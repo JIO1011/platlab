@@ -86,7 +86,7 @@ defineModule({
   name: 'Reactivos',
   requires: ['core'],          // dependencias obligatorias
   integrates: ['practices'],   // integraciones opcionales
-  permissions: ['reagents.catalog.read', 'inventory.issue.create', 'inventory.adjust.create' /* … */],
+  permissions: ['reagents.catalog.read', 'reagents.issue.create', 'reagents.adjust.create' /* … */],
   roleGrants: { admin: [/* … */], operator: [/* … */], teacher: ['reagents.requestable.read'] },
   nav: [{ path: 'reactivos', label: 'Reactivos', permission: 'reagents.catalog.read' }],
   homeCard: { permission: 'reagents.catalog.read' },  // el servidor aporta su resumen a /home
@@ -95,6 +95,8 @@ defineModule({
 ```
 
 Los nombres de permisos del ejemplo son ilustrativos; el catálogo definitivo se fija al implementar cada módulo.
+
+**Rutas y permisos por módulo.** Las operaciones de una capacidad se exponen solo bajo el módulo dueño del recurso. Por ejemplo, `/reagents/issues` hoy y `/materials/issues` cuando exista M6, cada una con permisos del módulo (`reagents.issue.create`). La capacidad inventario no tiene rutas propias y rechaza un ítem cuyo `kind` no pertenece al módulo que la invoca. Compartir una capacidad nunca comparte derechos: tener Materiales no permite operar Reactivos.
 
 Para agregar un módulo:
 
@@ -124,8 +126,8 @@ Cada comando sigue estos pasos:
 1. Verificar el JWT y validar la entrada.
 2. Tomar un `PoolClient` y abrir la transacción con el rol de la API.
 3. Fijar actor y espacio con `set_config(..., true)`.
-4. Comprobar membresía, estado del espacio, módulo, permiso y ámbito, y reclamar la clave de idempotencia.
-5. Bloquear en orden estable y escribir negocio, auditoría, idempotencia y outbox. Confirmar o revertir todo.
+4. Pasar la admisión leyendo con bloqueo compartido el espacio, el derecho del módulo dueño del recurso y la membresía (§6). Comprobar permiso y ámbito, y reclamar la clave de idempotencia.
+5. Bloquear los datos del dominio en orden estable y escribir negocio, auditoría, idempotencia y outbox. Confirmar o revertir todo.
 
 Nunca se usa `pool.query` a mitad de una transacción.
 
@@ -157,28 +159,52 @@ Separan tres cosas: que el código exista, que pueda usarse con datos reales y q
 - `apply_contract_revision` rechaza un módulo cuya etapa no corresponde a ese tipo de contrato, y el runtime lo vuelve a comprobar.
 - La etapa no reemplaza la admisión de datos reales del espacio (`synthetic → controlled_loading → operational`, puerta G1).
 
-### Tabla de admisión
+### Admisión: dos ejes
 
-Cada comando declara su clase de acción. Una sola función decide la admisión y se prueba como tabla de verdad.
+Cada comando declara su clase de acción: operación nueva, resolver pendientes, o consultar y exportar. Una sola función evalúa dos ejes independientes y admite solo lo que **ambos** permiten, así que siempre gana lo más restrictivo. Cualquier estado no listado se deniega.
 
-| Situación | Operación nueva | Resolver pendientes | Consultar y exportar |
+| Eje espacio (`core.workspaces.status`) | Operación nueva | Resolver pendientes | Consultar y exportar |
 |---|:-:|:-:|:-:|
-| Módulo `enabled` con derecho vigente | ✔ | ✔ | ✔ |
-| Derecho vencido, dentro del periodo de cierre pactado | — | ✔ | ✔ |
-| Módulo `draining` | — | ✔ | ✔ |
-| Módulo `read_only` | — | Solo reabriendo el cierre con autorización | ✔ |
-| Espacio `suspended` por motivo comercial | — | ✔ | ✔ |
-| Espacio `suspended` por seguridad | — | — | Solo por canal seguro al representante autorizado |
-| Espacio `closing` | — | ✔ | ✔, incluida la exportación final |
-| Espacio `provisioning` o `terminated` | — | — | — |
+| `trial`, `active` | ✔ | ✔ | ✔ |
+| `suspended` por motivo comercial | — | ✔ | ✔ |
+| `closing` | — | ✔ | ✔, incluida la exportación final |
+| `suspended` por seguridad | — | — | Solo exportación, por canal seguro al representante autorizado |
+| `provisioning`, `terminated` | — | — | — |
 
-Reglas de la tabla:
+| Eje módulo (derecho, estado y etapa) | Operación nueva | Resolver pendientes | Consultar y exportar |
+|---|:-:|:-:|:-:|
+| `enabled`, con derecho vigente y etapa admitida | ✔ | ✔ | ✔ |
+| Derecho vencido dentro del periodo de cierre pactado, o `draining` | — | ✔ | ✔ |
+| Derecho vencido fuera del periodo de cierre, o `read_only` | — | — | ✔, hasta que termine el acceso pactado |
+| `disabled`, sin derecho o etapa no admitida | — | — | — |
 
-- Toda celda exige además identidad válida, membresía vigente, permiso y ámbito. La continuidad comercial nunca devuelve el acceso a un usuario revocado.
-- En `terminated` solo actúa el procedimiento de disposición ([§11](#11-datos-reales-y-salida-del-cliente)).
-- El contrato fija la duración del periodo de cierre y el alcance de la suspensión comercial; no se inventan plazos.
-- La expiración bloquea operaciones nuevas en cada petición, aunque el estado siga en `enabled`.
-- Retirar una suspensión devuelve el estado previo permitido por el contrato y la vigencia; no convierte una prueba en contrato activo. Una purga completada no se revierte.
+Ejemplos:
+
+- Espacio suspendido por motivo comercial + módulo `enabled` → resolver pendientes y consultar.
+- Espacio suspendido por seguridad + cualquier módulo → solo exportación segura.
+
+Reglas:
+
+- **Módulo evaluado.** Es el dueño del recurso, no la capacidad. Una salida de un ítem de Reactivos usa el eje de Reactivos aunque la solicite Prácticas; así se pueden cerrar custodias existentes mientras Reactivos admita resolver pendientes.
+- **Otras comprobaciones.** Además de los dos ejes se exigen identidad válida, membresía vigente, permiso y ámbito. La continuidad comercial nunca devuelve el acceso a un usuario revocado.
+- **La expiración** bloquea operaciones nuevas en cada petición, aunque el estado siga en `enabled`.
+- **Fin del periodo de cierre.** Los pendientes que queden se entregan documentados en la exportación. Reabrir el cierre exige una autorización explícita.
+- **`terminated`:** solo actúa el procedimiento de disposición ([§11](#11-datos-reales-y-salida-del-cliente)).
+- **Plazos.** El contrato fija la duración del periodo de cierre y el alcance de la suspensión comercial; no se inventan.
+- **Suspensiones.** Retirar una suspensión devuelve el estado previo permitido por el contrato y la vigencia; no convierte una prueba en contrato activo. Una purga completada no se revierte.
+- **Pruebas.** Se prueban todas las combinaciones de ambos ejes con las tres clases de acción, y también que los valores desconocidos se denieguen.
+
+### Admisión bajo bloqueo
+
+- La función lee el espacio, el derecho del módulo y la membresía con bloqueo compartido (`FOR SHARE`), en la misma consulta con la que decide y dentro de la transacción del comando. Así la decisión sigue vigente hasta el commit.
+- Los cambios de estado modifican esas filas, así que esperan a que terminen las operaciones en curso; las siguientes ya ven el estado nuevo. Esto aplica a:
+  - suspender o cerrar un espacio;
+  - desactivar un módulo o pasarlo a consulta;
+  - aplicar un contrato;
+  - revocar una membresía o cambiar sus roles (esto último también actualiza la fila de membresía).
+- El orden de bloqueo es fijo, igual en comandos y en cambios de estado, para evitar interbloqueos: espacio → derecho → membresía → datos del dominio.
+- Si hay un cambio de estado en curso, la operación espera como máximo la espera de bloqueo de §12 y responde un conflicto transitorio.
+- Prueba: un movimiento y una desactivación simultáneos nunca dejan confirmado un movimiento nuevo posterior a la desactivación.
 
 Reglas generales:
 

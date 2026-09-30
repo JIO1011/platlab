@@ -35,7 +35,7 @@ Motivo: un solo código para todos los clientes y un aislamiento verificable.
   2. Bloquea y valida las dependencias.
   3. Proyecta `core.workspace_entitlements` y `platform.workspace_limits` en una sola transacción auditada.
 - El comando también valida que la etapa de cada módulo corresponda al tipo de contrato ([ADR 0009](#adr-0009)).
-- El runtime solo lee derechos y límites efectivos. La expiración bloquea operaciones nuevas en cada petición; resolver pendientes y consultar siguen la tabla de admisión ([ADR 0009](#adr-0009)).
+- El runtime solo lee derechos y límites efectivos. La expiración bloquea operaciones nuevas en cada petición; resolver pendientes y consultar siguen la admisión por dos ejes ([ADR 0009](#adr-0009)).
 - El estado operativo del módulo es independiente del derecho. Reducir una cuota bloquea el consumo nuevo, pero no borra datos.
 - Sin motor de cobros ni suscripciones solapadas en el MVP.
 
@@ -132,13 +132,18 @@ La matriz está en [01 §5](01_producto.md#5-actores-y-roles).
   - `pilot`: además en espacios con contrato de piloto; se alcanza tras el G0 del módulo.
   - `general`: en cualquier paquete publicado; se alcanza tras el G2 del módulo.
 - **Contratos.** `apply_contract_revision` rechaza un módulo cuya etapa no corresponde al tipo de contrato, y el runtime lo vuelve a comprobar. La admisión de datos reales del espacio (G1) sigue siendo un control aparte.
-- **Admisión.** Cada comando declara su clase de acción: operación nueva, resolución de pendientes o consulta y exportación. Una sola función decide según la situación del módulo y del espacio y se prueba como tabla de verdad ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
+- **Admisión.** Cada comando declara su clase de acción: operación nueva, resolución de pendientes, o consulta y exportación. Una sola función evalúa dos ejes independientes, espacio y módulo, y admite solo lo que ambos permiten. Cualquier estado no listado se deniega. Se prueban todas las combinaciones ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
+- **Módulo del recurso.** La admisión y el permiso se evalúan contra el módulo dueño del recurso, no contra la capacidad compartida. Las operaciones se exponen con rutas y permisos de ese módulo.
+- **Bloqueo.** La admisión lee espacio, derecho y membresía con bloqueo compartido en la misma consulta con la que decide. Los cambios de estado modifican esas filas y esperan a las operaciones en curso. El orden de bloqueo es fijo: espacio → derecho → membresía → datos.
 - **Plazos.** El contrato fija la duración del periodo de cierre y el alcance de la suspensión comercial; no se inventan plazos.
 
 Motivo:
 
 - La demo y el piloto necesitan usar módulos antes de venderlos, sin abrirlos a todos los clientes.
 - Las obligaciones abiertas (devoluciones, custodias) deben poder resolverse aunque venza el contrato.
+- Una decisión de autorización no puede quedar obsoleta por un cambio de estado concurrente.
+
+Cambio del 30-09-2026: la tabla única pasa a dos ejes con denegación por defecto, con rutas por módulo y admisión bajo bloqueo.
 
 ## Pendientes
 
