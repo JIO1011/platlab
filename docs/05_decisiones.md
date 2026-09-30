@@ -12,6 +12,7 @@ Revisión: 30 de septiembre de 2026. Registro resumido de decisiones de arquitec
 | [0006](#adr-0006) | SQL tipado y pruebas | Aceptado el 28-09-2026 |
 | [0007](#adr-0007) | Asignación y aprobación condicionada | Aceptado el 29-09-2026; actor actualizado el 30-09-2026 |
 | [0008](#adr-0008) | Roles y actores | Aceptado el 30-09-2026; la matriz detallada se valida en P-03 |
+| [0009](#adr-0009) | Etapas de módulo y admisión de operaciones | Aceptado el 30-09-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -33,11 +34,14 @@ Motivo: un solo código para todos los clientes y un aislamiento verificable.
   1. Verifica staff, MFA, versión e idempotencia.
   2. Bloquea y valida las dependencias.
   3. Proyecta `core.workspace_entitlements` y `platform.workspace_limits` en una sola transacción auditada.
-- El runtime solo lee derechos y límites efectivos. La expiración se valida en cada operación.
+- El comando también valida que la etapa de cada módulo corresponda al tipo de contrato ([ADR 0009](#adr-0009)).
+- El runtime solo lee derechos y límites efectivos. La expiración bloquea operaciones nuevas en cada petición; resolver pendientes y consultar siguen la tabla de admisión ([ADR 0009](#adr-0009)).
 - El estado operativo del módulo es independiente del derecho. Reducir una cuota bloquea el consumo nuevo, pero no borra datos.
 - Sin motor de cobros ni suscripciones solapadas en el MVP.
 
 Motivo: una sola autoridad evita contradicciones entre contrato, paquete y permisos.
+
+Cambio del 30-09-2026: se aclara el efecto de la expiración, que la versión compacta había dejado ambiguo.
 
 <a id="adr-0003"></a>
 ## ADR 0003 — Refresco y protección de tráfico
@@ -68,6 +72,7 @@ Cambio del 30-09-2026: el «operador del SaaS» pasa a llamarse «Equipo PlatLab
 - El encargo lo acepta un representante autorizado; no se presume que el propietario lo sea.
 - La retención de las copias se fija por repositorio antes de G1; ni 7 ni 30 días se dan por cumplimiento. La eliminación comunicada y el fin del encargo tienen términos propios (3 y 5 días), que se validan con asesoría.
 - Un registro minimizado de supresiones se vuelve a aplicar antes de abrir una restauración.
+- Recuperación: el usuario acepta el 30-09-2026 un RPO de 24 h durante las pruebas y el piloto. Se recomienda que el laboratorio conserve su registro actual durante el piloto para poder reconstruir. Operar con PlatLab como único registro exige PITR ([02 §12](02_arquitectura.md#12-parámetros-iniciales)).
 - Tres caminos privilegiados:
   - La consola.
   - La automatización.
@@ -97,7 +102,8 @@ Motivo: el proveedor sí puede acceder por la infraestructura; ese acceso se con
 - Cambiar fecha o franja, cantidades, sustitutos o condiciones exige una revisión preaprobada con vencimiento. Si el solicitante la acepta, el servidor revalida y confirma en una transacción.
 - Si al aceptar hay un conflicto, la actividad queda en `accepted_pending_review` sin reservas parciales (savepoint). Un error técnico revierte todo.
 - La reubicación equivalente (misma fecha o franja, recursos y condiciones) se hace con un comando auditado y notificado, sin nueva aceptación.
-- El sistema nunca aprueba por su cuenta.
+- El sistema nunca aprueba por su cuenta. La confirmación en lote ejecuta cada solicitud en su propia transacción e informa el resultado de cada una; un conflicto no bloquea a las demás.
+- Los equipos se solicitan por tipo y características, y el Administrador asigna el activo concreto. Pedir un activo específico exige una justificación.
 
 Cambio del 30-09-2026: quien revisa pasa de «técnico» a Administrador; preparar y entregar corresponde al Operador.
 
@@ -118,20 +124,39 @@ Motivo:
 
 La matriz está en [01 §5](01_producto.md#5-actores-y-roles).
 
+<a id="adr-0009"></a>
+## ADR 0009 — Etapas de módulo y admisión de operaciones
+
+- **Etapas.** Cada módulo declara en su manifiesto una etapa: `development → pilot → general`.
+  - `development`: solo en ambientes con datos sintéticos.
+  - `pilot`: además en espacios con contrato de piloto; se alcanza tras el G0 del módulo.
+  - `general`: en cualquier paquete publicado; se alcanza tras el G2 del módulo.
+- **Contratos.** `apply_contract_revision` rechaza un módulo cuya etapa no corresponde al tipo de contrato, y el runtime lo vuelve a comprobar. La admisión de datos reales del espacio (G1) sigue siendo un control aparte.
+- **Admisión.** Cada comando declara su clase de acción: operación nueva, resolución de pendientes o consulta y exportación. Una sola función decide según la situación del módulo y del espacio y se prueba como tabla de verdad ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
+- **Plazos.** El contrato fija la duración del periodo de cierre y el alcance de la suspensión comercial; no se inventan plazos.
+
+Motivo:
+
+- La demo y el piloto necesitan usar módulos antes de venderlos, sin abrirlos a todos los clientes.
+- Las obligaciones abiertas (devoluciones, custodias) deben poder resolverse aunque venza el contrato.
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |
 |---|---|---|
 | Fiscalizados | Sustancias, concentraciones, cupos, sitios, custodia, formato vigente del reporte y si las salidas reguladas requieren aprobación | REG-01 (F0) |
+| Espacios del piloto | ¿Una o varias unidades operan el inventario? ¿La calificación abarca varias? | F0, con REG-01 |
 | Envases | ¿Trazabilidad por envase y apertura, o por lote? | Antes de migrar reactivos |
-| Preparación de soluciones | ¿Solo se registra el consumo de insumos o también se inventaría la solución preparada con su trazabilidad? | REG-01 y P-04 |
-| Equipos en solicitudes | ¿El docente pide un tipo de equipo o un activo concreto? | P-04 |
-| Confirmación rápida | ¿Se confirman en lote las solicitudes sin excepciones? La autoconfirmación sin revisión exige una decisión nueva | P-04, con evidencia del piloto |
+| Soluciones preparadas | El diseño ya está decidido (03 §4). Falta saber si el laboratorio almacena soluciones y si siguen siendo fiscalizadas | REG-01 |
+| Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
+| Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
 | Reglas de Prácticas | Anticipación, cancelaciones, salas exclusivas, devoluciones químicas y quién declara el consumo al cerrar | P-04, antes de F3 |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
 | Etiquetas y QR | ¿Etiquetas con QR y escaneo con cámara, como en ReactiLab? | P-03 |
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
+| Conexión a PostgreSQL | ¿Conexión directa con el complemento IPv4 o Supavisor en modo sesión? | S-01 |
 | Conectividad | Cortes reales y procedimiento de continuidad | F0 |
-| Precio | Tarifa por espacio con costos, soporte y margen | Antes de G2 |
+| Modelo comercial | Recomendado: licencia anual por espacio y paquete + incorporación única + desarrollos a medida aparte ([01 §4](01_producto.md#4-paquetes)). Pendiente de confirmar por el usuario | Antes de cotizar |
+| Precio | Tarifa por espacio con costos medidos, soporte y margen | Antes de cotizar; S-01 aporta los costos |
 | Código de ReactiLab | Titularidad y licencia: el README dice MIT y los términos dicen software propietario | Antes de copiar componentes |

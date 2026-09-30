@@ -6,26 +6,33 @@ Contexto confirmado: hay un laboratorio interesado en los ocho módulos. Acepta 
 
 ## 1. Fases
 
-| Fase | Resultado verificable | Depende de |
-|---|---|---|
-| F0 | Casos, muestras y reglas del laboratorio; perfil fiscalizado (REG-01) | Decisiones registradas; avanza en paralelo a la demo |
-| F1a + R-00 | Core mínimo y primer recorrido de Reactivos | Modelo y un caso sintético |
-| F1b | Operación del SaaS: alta real, consola, cuotas, recuperación y salida | F1a; en paralelo con F2 |
-| F2 | Reactivos y Equipos utilizables por separado y juntos | Las partes de F1a/F1b que use cada entrega |
-| F3 | Laboratorios, agenda, docentes, estudiantes y Prácticas | Core y agenda; integra los inventarios publicados |
-| F4 | Materiales, préstamos y transferencias ampliadas | Core; Prácticas solo para integrarse |
-| F5 | Mantenimiento, indicadores y alertas avanzadas | Equipos para M7; datos operativos suficientes para M8 |
+| Fase | Resultado verificable | Resultado para el laboratorio | Depende de |
+|---|---|---|---|
+| F0 | Casos, muestras y reglas del laboratorio; perfil fiscalizado (REG-01) | Su proceso real documentado y validado por su responsable | Decisiones registradas; avanza en paralelo a la demo |
+| F1a + R-00 | Core mínimo y primer recorrido de Reactivos | Ver su flujo de reactivos funcionando con datos de prueba | Modelo y un caso sintético |
+| F1b | Operación del SaaS: alta real, consola, cuotas, recuperación y salida | Plataforma lista para recibir sus datos con garantías | F1a; en paralelo con F2 |
+| F2 | Reactivos y Equipos utilizables por separado y juntos | Inventario real conciliado y reporte de fiscalizados revisable | Las partes de F1a/F1b que use cada entrega |
+| F3 | Laboratorios, agenda, docentes, estudiantes y Prácticas | Una práctica completa: solicitud, preparación, consumo y devolución | Core y agenda; integra los inventarios publicados |
+| F4 | Materiales, préstamos y transferencias ampliadas | Material y préstamos controlados de punta a punta | Core; Prácticas solo para integrarse |
+| F5 | Mantenimiento, indicadores y alertas avanzadas | Equipos con mantenimiento al día y alertas preventivas | Equipos para M7; datos operativos suficientes para M8 |
 
 - R-00 es el primer tramo de Reactivos, no un módulo aparte.
 - El orden de desarrollo no crea dependencias comerciales nuevas.
+- Si P-04 lo exige, un Materiales mínimo se adelanta a F3 (§3).
+- Terminar una fase no pone su módulo a la venta: eso lo marca su etapa (§2).
 
 ## 2. Puertas
 
+G0 y G2 se aplican a cada módulo y fijan su etapa ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)). G1 se aplica a cada espacio y alcance.
+
 | Puerta | Qué permite | Evidencia mínima |
 |---|---|---|
-| G0 Demo sintética | Mostrar el producto y recoger comentarios | F1a + R-00: dos espacios aislados, roles y módulos efectivos, cantidades exactas, auditoría, idempotencia y concurrencia probadas ([primer incremento](desarrollo/primer_incremento.md)) |
-| G1 Piloto con datos reales | Incorporar clientes seleccionados, también en prueba gratuita | En dos pasos, descritos debajo |
-| G2 Venta abierta | Vender Reactivos, Equipos y ambos | G1, tres combinaciones validadas, incorporación repetible, transferencia de propiedad en la interfaz, soporte documentado, capacidad y costos medidos |
+| G0 del módulo — demo sintética | Etapa `pilot`: mostrarlo y habilitarlo en contratos de piloto | Demo sintética de sus flujos, con aislamiento, permisos, cantidades exactas, auditoría, idempotencia y concurrencia probadas. Para Reactivos: el [primer incremento](desarrollo/primer_incremento.md) |
+| G1 de un espacio — datos reales | Usar datos reales en ese espacio y alcance, también en una prueba gratuita | En dos pasos, descritos debajo |
+| G2 del módulo — venta abierta | Etapa `general`: venderlo en paquetes publicados | G1 del módulo en al menos un cliente, incorporación repetible, soporte documentado, capacidad y costos medidos |
+
+- **G2 de la oferta inicial** (Reactivos, Equipos y ambos) exige además las tres combinaciones validadas y la transferencia de propiedad en la interfaz.
+- **Módulos posteriores (M4–M8):** cada uno define sus criterios de G0 y G2 al iniciar su fase.
 
 Los dos pasos de G1:
 
@@ -43,14 +50,18 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 - REG-01 con el responsable:
   - Sustancias y concentraciones, calificación, sitios y cupos.
   - Custodia, retorno y formato vigente del reporte.
-  - Si varios espacios comparten calificación.
+  - Si almacena soluciones preparadas y si estas siguen siendo fiscalizadas.
+  - Si la calificación abarca varias unidades.
+- Definir los espacios del piloto: uno por cada operación que comparte inventario. Si la calificación abarca varias unidades, resolver la consolidación antes de fijar esa división.
+- Confirmar que el laboratorio conserva su registro actual durante el piloto, como fuente de reconstrucción si hay que restaurar una copia ([02 §12](02_arquitectura.md#12-parámetros-iniciales)).
 - Medir la conectividad desde Ecuador.
-- Concretar el colaborador para Prácticas (P-04).
+- P-04: concretar el colaborador para Prácticas y analizar una práctica representativa. Si usa material que se entrega y se devuelve, se adelanta a F3 un Materiales mínimo: consumibles y reutilizables por cantidad, con entrega y devolución verificadas.
 
 **F1a + R-00.** Detalle en el [primer incremento](desarrollo/primer_incremento.md).
 
-- Monorepo y CI.
+- Monorepo y CI, con una prueba de humo de `pg` + PgTyped antes de extender el dominio: decimales como cadena, fechas y transacción con contexto local.
 - Espacios, identidades, membresías, propietario, ubicaciones y roles con ámbito.
+- Manifiestos con etapa y función de admisión con su tabla de verdad.
 - RLS, FKs compuestas y roles SQL; JWT por JWKS.
 - Derechos mínimos vía `apply_contract_revision`, también en los fixtures.
 - Auditoría e idempotencia.
@@ -59,7 +70,7 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 
 **F1b, antes de G1.** Quedan fuera la pasarela de pago, los roles personalizados y la suplantación de usuarios.
 
-- Spike de proveedores y ambientes.
+- Spike de proveedores y ambientes, incluida la conexión a PostgreSQL desde Render ([02 §9](02_arquitectura.md#9-infraestructura-y-ambientes)).
 - Alta en `provisioning`, con invitación y aceptación del propietario por correo real.
 - Consola del Equipo PlatLab con MFA exigido en la API.
 - Paquetes y contratos con aplicación atómica.
@@ -76,8 +87,9 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
   - Ajuste y conteo; cuarentena, caducidad y mínimos.
   - Motivos y destinos; SDS privada; traslados.
   - Envases, si el cliente los exige.
+  - Preparaciones, si REG-01 confirma que el laboratorio almacena soluciones.
 - Fiscalizados: REG-02, con custodia y retornos si el laboratorio entrega a docentes.
-- Equipos: activos, condición, traslado, custodio, importación, documentos e incidencias.
+- Equipos: tipos de equipo, activos, condición, traslado, custodio, importación, documentos e incidencias.
 - Común: Inicio por paquete, búsqueda, marca, exportación y desactivación con pendientes.
 
 **F3.**
@@ -86,7 +98,9 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 - Plantillas y actividades de docencia e investigación.
 - Invitaciones por CSV y OAuth de Google y Microsoft.
 - Solicitud desde plantilla, revisión del Administrador, aprobación condicionada y reubicación.
+- Confirmación en lote, con un resultado por solicitud.
 - Preparación, cierre y cancelación; tablero del Operador.
+- Materiales mínimo, si P-04 lo exige.
 - Impresión HTML con la marca del espacio.
 
 **F4.** Consumibles y reutilizables, préstamos con devoluciones parciales, daños, pérdidas y transferencias.
@@ -100,7 +114,8 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 
 **G0:**
 
-- A y B permanecen aislados.
+- A y B, ambos con Reactivos, permanecen aislados; C, sin Reactivos, no ve el módulo.
+- La función de admisión cumple toda su tabla de verdad.
 - Un propietario sin rol operativo no registra salidas.
 - El Operador registra salidas pero no ajusta; el Administrador sí ajusta.
 - Dos salidas de 60 g sobre 100 g dejan 40 g y un solo movimiento.
@@ -132,14 +147,14 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | P-02 | Muestras y conectividad | Caso sintético para G0; perfil real para G1 | P-01 |
 | REG-01 | Perfil fiscalizado del piloto | El responsable valida sustancias, autorización, sitios, cupos, hechos, formato vigente y consolidación | P-01 |
 | P-03 | Prototipo y tareas por rol | Comentarios observados, matriz de roles validada y cambios de UX | P-01 |
-| T-01 | Monorepo y CI | Compilación, fronteras, migraciones y tipos reproducibles | T-00 |
+| T-01 | Monorepo y CI | Compilación, fronteras, migraciones y tipos reproducibles; prueba de humo de `pg` + PgTyped | T-00 |
 | T-02 | Core y roles SQL | Dos espacios, propietario, ubicaciones y restricciones | T-01 |
 | T-03 | Identidad y acceso mínimo | Auth local, propietario válido, roles fijos, ámbito y revocación probados | T-02 |
-| T-04 | Derechos y registro de módulos | Manifiestos, comando de aplicación de revisión y denegación por módulo; los fixtures usan el comando | T-03 |
+| T-04 | Derechos, etapas y registro de módulos | Manifiestos con etapa, comando de aplicación de revisión, función de admisión con su tabla de verdad y denegación por módulo; los fixtures usan el comando | T-03 |
 | T-05 | Transacciones, auditoría e idempotencia | Misma conexión, rollback y reintentos | T-03 |
 | R-00 | Primer recorrido de Reactivos | Catálogo, lote, ingreso, salida y ajuste; Inicio y tablero; pruebas de concurrencia | T-04, T-05 |
-| V-00 | G0 | Demo sintética y evidencias del primer incremento | R-00 |
-| S-01 | Spike de proveedores | Región, conectividad, SMTP, respaldo, observabilidad y costos verificados | T-01 |
+| V-00 | G0 de Reactivos | Demo sintética y evidencias del primer incremento; Reactivos pasa a etapa `pilot` | R-00 |
+| S-01 | Spike de proveedores | Región, conectividad, modo de conexión a PostgreSQL, SMTP, respaldo, observabilidad y costos verificados | T-01 |
 | T-03B | Identidad productiva y propiedad asistida | Invitaciones, recuperación y relevo ensayados, sin cuentas huérfanas | T-03, S-01 |
 | T-07 | Archivos, outbox y worker | Documentos privados, reintentos, concesiones y autorización de trabajos | T-05 |
 | O-01 | Consola del Equipo PlatLab | Aplicación separada, MFA en la API, contratos, derechos y límites auditados | T-04, T-05, T-03B |
@@ -147,15 +162,16 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | DP-01 | Datos reales y salida | Acuerdos, proveedores y procedimientos revisados; retención por repositorio | T-00 |
 | R-01 | Reactivos para el piloto | Ampliaciones de R-00 que exige el alcance pactado | R-00, P-02, T-07 |
 | REG-02 | Trazabilidad y reporte fiscalizado | Perfil implementado, custodia y retorno si aplica, periodo conciliado y exportación revisada | REG-01, R-01, T-07 |
-| E-01 | Equipos e incidencias | Activos, condición, traslados e historial; `incidents` separado de Core | T-04, T-05, T-07, P-02 |
+| E-01 | Equipos e incidencias | Tipos de equipo, activos, condición, traslados e historial; `incidents` separado de Core | T-04, T-05, T-07, P-02 |
 | I-01 | Importación conciliada | Lotes reiniciables e idempotentes por módulo | Q-01 y R-01 o E-01 |
 | X-00 | Salida del primer módulo | Exportación, documentos, supresión y otros espacios intactos, incluidos los datos regulatorios | DP-01, T-07, R-01 o E-01; REG-02 para este cliente |
 | T-06 | Recuperación del alcance piloto | Base, archivos y configuración recuperados; supresiones respetadas | S-01, T-07, DP-01, R-01 o E-01; REG-02 para este cliente |
 | V-P01 | G1 del primer alcance | Garantías comprobadas antes de la carga real; inventario conciliado y aceptado antes de operar | T-03B, O-01, Q-01, X-00, T-06, P-03, REG-02; I-01 si hay importación |
-| P-04 | Colaborador de Prácticas | Flujos y decisiones revisados con el responsable académico y técnico | P-01; durante F2 |
+| P-04 | Colaborador de Prácticas | Flujos revisados con el responsable académico y técnico; práctica representativa analizada y decisión sobre Materiales mínimo | P-01; durante F2 |
 | O-02 | Transferencia de propiedad en la interfaz | Aceptación, concurrencia y revocación probadas | T-03B, O-01 |
 | X-01 | Salida de toda la oferta | Reactivos, Equipos y combinado, con archivos | X-00, R-01, E-01 |
-| V-01 | G2 | Combinaciones, importación, incorporación, soporte, carga, costos y salida completos | V-P01, R-01, E-01, I-01, X-01, O-02 |
+| V-01 | G2 de la oferta inicial | Combinaciones, importación, incorporación, soporte, carga, costos y salida completos; Reactivos y Equipos pasan a etapa `general` | V-P01, R-01, E-01, I-01, X-01, O-02 |
+| V-Mx | G0 y G2 de cada módulo posterior (M4–M8) | Criterios propios, definidos al iniciar su fase | Su fase; el G1 de su alcance para G2 |
 
 - Para el cliente confirmado, R-01 y REG-02 son obligatorias.
 - T-01 puede empezar mientras se recogen muestras.

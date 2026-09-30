@@ -8,7 +8,7 @@ Revisión: 30 de septiembre de 2026. Especificación para desarrollar F1a + R-00
 2. En el tablero de Reactivos crea un reactivo y un lote.
 3. Un Operador registra un ingreso de 100 g y una salida de 20 g, y ve 80 g con ambos movimientos y sus responsables.
 4. El Operador no puede ajustar. El Administrador registra un ajuste de −0,5 g por conteo, con motivo, y quedan 79,5 g.
-5. Otro espacio no puede consultar ni modificar esos datos, y si no tiene Reactivos habilitado, no ve el módulo.
+5. El espacio B, que también usa Reactivos, no puede consultar ni modificar esos datos. El espacio C, sin Reactivos, no ve el módulo.
 
 El recorrido demuestra el producto visible y las invariantes que permitirán ampliarlo: aislamiento, roles, módulos efectivos, ledger exacto, auditoría, idempotencia y concurrencia.
 
@@ -16,7 +16,11 @@ No incluye agenda, solicitudes docentes, archivos, importación, facturación, a
 
 ## Datos y reglas mínimas
 
-- **Espacios.** Dos espacios sintéticos, A (con Reactivos) y B (sin Reactivos). Cada uno tiene propietario válido y ubicaciones propias. Una misma identidad pertenece a ambos con roles distintos.
+- **Espacios.** Tres espacios sintéticos, cada uno con propietario válido:
+  - A y B tienen Reactivos, con reactivos, lotes y ubicaciones propios, para probar el aislamiento con datos en ambos lados.
+  - C no tiene Reactivos, para probar por separado la barrera de módulo.
+  - Una misma identidad pertenece a A y a B con roles distintos.
+- **Etapa del módulo.** Reactivos está en `development`, que solo se admite en este ambiente sintético ([02 §6](../02_arquitectura.md#6-autorización-etapas-y-admisión)).
 - **Roles de la demo.** Propietario sin rol operativo, Administrador y Operador, con la matriz de [01 §5](../01_producto.md#5-actores-y-roles). Docente y Estudiante llegan en F3.
 - **Catálogo.** Código único por espacio, nombre, tipo reactivo y unidad base. Un lote pertenece a un reactivo del mismo espacio; si la caducidad o la referencia del proveedor se desconocen, quedan como desconocidas.
 - **Posición.** Representa lote, ubicación y disposición. En este incremento no hay envases, retornos, reservas ni conversiones de unidades.
@@ -73,7 +77,7 @@ El parámetro `:workspaceId` selecciona el espacio y la membresía se verifica e
 ## Una transacción por comando
 
 1. Verificar el JWT por JWKS y validar la entrada. Tomar un `PoolClient` y abrir la transacción con el rol SQL de la API.
-2. Fijar el contexto local de principal y `workspace_id`. Verificar membresía, estado del espacio, módulo, acción y ámbito; el rol no es dueño de tablas ni tiene `BYPASSRLS`.
+2. Fijar el contexto local de principal y `workspace_id`. Pasar la función de admisión (estado del espacio, etapa y estado del módulo, clase de acción) y verificar membresía, permiso y ámbito. El rol no es dueño de tablas ni tiene `BYPASSRLS`.
 3. Reclamar o recuperar la clave de idempotencia, acotada por espacio, actor y operación. Se compara un hash canónico de la entrada: si el contenido es distinto, la operación no se ejecuta.
 4. Comprobar item, lote, ubicación y unidad. Bloquear la posición y el derecho del módulo en orden estable. En salidas y ajustes negativos, leer y descontar el saldo dentro de la misma sección protegida.
 5. Registrar operación, asientos, saldo, auditoría y resultado idempotente. Confirmar o revertir todo, sin correos ni llamadas externas dentro de la transacción.
@@ -85,9 +89,9 @@ Los repositorios reciben el mismo `PoolClient`. Se usa `pg` + PgTyped y no se co
 
 | Paso | Backlog | Entregable revisable |
 |---|---|---|
-| 1 | T-01 | Monorepo pnpm, API y web mínimas, PostgreSQL local, migraciones, generación de tipos y pipeline de CI |
+| 1 | T-01 | Monorepo pnpm, API y web mínimas, PostgreSQL local, migraciones, generación de tipos y pipeline de CI; prueba de humo de `pg` + PgTyped (decimales como cadena, fechas y transacción con contexto local) |
 | 2 | T-02 / T-03 | Dos espacios, miembros, propietario, roles fijos con ámbito, ubicaciones, sesión local y contexto SQL; políticas y FKs probadas |
-| 3 | T-04 / T-05 | Manifiesto de Reactivos, derechos aplicados desde una revisión contractual mínima, `/me` y `/home`, transacción compartida, auditoría e idempotencia; fixtures reproducibles |
+| 3 | T-04 / T-05 | Manifiesto de Reactivos con su etapa, derechos aplicados desde una revisión contractual mínima, función de admisión, `/me` y `/home`, transacción compartida, auditoría e idempotencia; fixtures reproducibles |
 | 4 | R-00 | Catálogo, lote, ingreso, salida y ajuste por API, con saldo e historial; pruebas de conflicto y rollback |
 | 5 | R-00 / V-00 | Inicio y tablero utilizables, evidencia de G0 y comentarios sobre la demo |
 
@@ -96,13 +100,13 @@ El comando contractual mínimo y los fixtures son solo de desarrollo: no existe 
 ## Evidencia para cerrar G0
 
 1. **Recorrido visible.** Ingreso de 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g; el historial y los actores coinciden.
-2. **Aislamiento.** Un miembro de A no ve ni usa IDs de B. Pertenecer a ambos no permite usar una ubicación o un lote de B en un comando de A.
+2. **Aislamiento.** A y B tienen datos propios de Reactivos. Un miembro de A no ve ni usa IDs de B. Pertenecer a ambos no permite usar una ubicación o un lote de B en un comando de A.
 3. **Roles.**
    - El propietario sin rol operativo no registra movimientos.
    - El Operador registra ingresos y salidas, pero no ajustes ni productos del catálogo.
    - El Administrador hace todo lo anterior.
    - La revocación de la membresía se aplica en la siguiente petición.
-4. **Módulos.** B no ve Reactivos en el menú ni en el Inicio, y su API responde «módulo no disponible».
+4. **Módulos y admisión.** C no ve Reactivos en el menú ni en el Inicio, y su API responde «módulo no disponible». La función de admisión cumple su tabla de verdad para operación nueva, pendientes y consulta.
 5. **Concurrencia.** Dos salidas de 60 g sobre 100 g desde dos conexiones: solo una confirma, la otra recibe stock insuficiente, y quedan 40 g con un solo movimiento exitoso.
 6. **Idempotencia.** Repetir un movimiento con la misma clave y contenido no añade asientos ni auditoría. Cambiar la cantidad con la misma clave se rechaza. También se prueban duplicados simultáneos.
 7. **Rollback.** Un fallo provocado antes del commit no deja movimiento, auditoría de éxito ni saldo parcial.

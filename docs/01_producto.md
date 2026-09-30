@@ -37,30 +37,33 @@ Titular (universidad o empresa) ──contrata──► Espacio A ──► ubic
 
 M1 es obligatorio. Cada módulo se contrata por espacio y funciona con sus dependencias. Una integración se activa cuando ambos módulos están habilitados.
 
-| Módulo | Qué resuelve | Operaciones principales | Requiere | Fase |
+| Módulo | Qué resuelve | Operaciones principales | Requiere | Se construye en |
 |---|---|---|---|---|
 | M1 Núcleo | Espacio, personas y control | Miembros, invitaciones, roles y ámbitos, ubicaciones, suscripción, documentos, auditoría y avisos | — | F1a |
 | M2 Reactivos | Qué hay, dónde y en qué estado | Catálogo químico (CAS, concentración, peligros, SDS), lotes, ingresos, salidas, ajustes, traslados, cuarentena y bajas; custodia y retorno; caducidad y mínimos; fiscalizados y su reporte | M1 | R-00 en F1a; F2 |
-| M3 Equipos | Activos y su condición | Ficha (marca, modelo, serie, ubicación, responsable, documentos), condición, traslado trazado, custodia, incidencias e historial | M1 | F2 |
+| M3 Equipos | Activos y su condición | Tipos de equipo; ficha (marca, modelo, serie, ubicación, responsable, documentos), condición, traslado trazado, custodia, incidencias e historial | M1 | F2 |
 | M4 Laboratorios | Espacios físicos y agenda | Capacidad, responsable, horarios y cierres; reservas directas sin conflictos; tiempos de preparación y limpieza | M1 | F3 |
 | M5 Prácticas y Solicitudes | Operación central integrada | Plantillas, solicitudes de docencia e investigación, revisión, aprobación condicionada, preparación, ejecución, cierre e impresión | M1 + M4 | F3 |
-| M6 Materiales y Préstamos | Consumibles y reutilizables | Existencias, préstamos, devoluciones parciales, daños, pérdidas y transferencias | M1 | F4 |
+| M6 Materiales y Préstamos | Consumibles y reutilizables | Existencias, préstamos, devoluciones parciales, daños, pérdidas y transferencias | M1 | F4; un mínimo en F3 si P-04 lo exige |
 | M7 Mantenimiento | Continuidad de equipos | Planes preventivos, órdenes correctivas, bloqueo de agenda, liberación con resultado y próximo mantenimiento | M1 + M3 | F5 |
 | M8 Analítica y Alertas | Prevención y decisiones | Indicadores con periodo y fórmula, alertas configurables, resúmenes, escalamiento y reportes | M1 + un módulo operativo | F5 |
+
+Construir un módulo no lo pone a la venta. Cada módulo avanza por etapas: desarrollo → piloto → general. Solo en etapa general entra en los paquetes publicados ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
 
 Capacidades compartidas, que no se venden por separado: inventario (M2 y M6), agenda y conflictos (M3–M7), incidencias, documentos, auditoría, avisos, importación y exportación.
 
 Reglas entre módulos:
 
 - M5 solo verifica recursos de módulos habilitados. Sin M2, M3 o M6, esos recursos aparecen como «no verificados»: no hay stock, reserva ni consumo automático.
+- Si P-04 muestra que una práctica usa material que se entrega y se devuelve, se adelanta a F3 un Materiales mínimo para cerrar ese circuito.
 - Los avisos esenciales (caducidad, stock mínimo, averías y pendientes) pertenecen a cada módulo. M8 añade el análisis avanzado.
 - Un módulo nuevo se agrega con el [contrato de módulo](02_arquitectura.md#4-contrato-de-módulo) sin modificar los existentes.
 
 ## 4. Paquetes
 
-Un paquete es una combinación del registro de módulos; no crea versiones del código. Solo se vende lo que superó su puerta en el [roadmap](04_roadmap.md).
+Un paquete es una combinación del registro de módulos; no crea versiones del código. Se vende cuando todos sus módulos están en etapa general (su G2 en el [roadmap](04_roadmap.md)).
 
-| Oferta | Módulos | Disponible desde |
+| Oferta | Módulos | Se construye en |
 |---|---|---|
 | Inventario químico | M1 + M2 | F2 |
 | Activos de laboratorio | M1 + M3 | F2 |
@@ -71,11 +74,12 @@ Un paquete es una combinación del registro de módulos; no crea versiones del c
 | Mantenimiento | M7 sobre M1 + M3 | F5 |
 | Analítica avanzada | M8 sobre un paquete operativo | F5 |
 
-Modelo comercial recomendado:
+Modelo comercial recomendado, pendiente de que lo confirme el usuario:
 
-- Suscripción por espacio y paquete, con límites de uso y soporte descritos.
-- Incorporación y migración presupuestadas aparte.
-- Los precios de la proforma no están validados; recalcularlos con infraestructura, soporte, mantenimiento, contingencia y margen.
+- **Licencia anual por espacio y paquete.** Es una suscripción que para universidades se factura como licencia anual. Incluye hosting, copias, soporte acordado y actualizaciones, con límites de uso descritos. Ampliar el servicio significa cambiar de paquete.
+- **Incorporación única**, presupuestada según el trabajo real: configuración, migración y limpieza de datos, capacitación.
+- **Desarrollos a medida**, cotizados aparte. Nunca se vuelve a cobrar un módulo que ya existe.
+- **Precios:** los de la proforma no están validados. Se recalculan con infraestructura atribuible, soporte comprometido, mantenimiento, contingencia y margen.
 - Sin pasarela de pago en el MVP.
 
 ## 5. Actores y roles
@@ -138,6 +142,7 @@ La lista exacta de permisos vive en el manifiesto de cada módulo ([02 §4](02_a
 | Traslado | Operador | Origen → tránsito → destino, con recepción y diferencias |
 | Cuarentena, bloqueo o baja | Administrador | Aísla o retira un lote o una posición con motivo |
 | Entrega a custodia y retorno | Operador | Lo entregado sigue en la existencia institucional; el retorno queda segregado hasta verificarlo |
+| Preparación de soluciones | Operador | Si la solución se guarda, consume los insumos y crea un lote del producto preparado con su trazabilidad. Si se usa de inmediato, solo registra el consumo |
 
 Cantidades:
 
@@ -151,9 +156,9 @@ Fiscalizados: cada producto regulado tiene perfil, autorizaciones, sitios y cupo
 
 ### 6.2 Solicitud y práctica (M5 con M4 y los inventarios habilitados)
 
-1. **Docente o Estudiante.** Elige una plantilla, la fecha o franja y las condiciones. Agrega reactivos, materiales y equipos del catálogo solicitable; si algo no existe, agrega una línea «no catalogada». No elige la sala definitiva.
+1. **Docente o Estudiante.** Elige una plantilla, la fecha o franja y las condiciones. Agrega reactivos y materiales del catálogo solicitable, y equipos por tipo y características (un equipo concreto solo con justificación). Si algo no existe, agrega una línea «no catalogada». No elige la sala definitiva.
 2. **Sistema.** Valida cada línea: ✔ disponible, ⚠ insuficiente o en conflicto, ✖ no existe o no verificado. Validar no reserva nada.
-3. **Administrador.** Revisa su bandeja con las excepciones primero. Asigna la sala, con sugerencias del sistema, y los lotes y equipos. Resuelve los faltantes: traslado desde otro laboratorio, preparación, mover un equipo o cambiar sala u hora. Luego decide:
+3. **Administrador.** Revisa su bandeja con las excepciones primero. Asigna la sala, con sugerencias del sistema, los lotes y el equipo concreto de cada tipo pedido. Resuelve los faltantes: traslado desde otro laboratorio, preparación, mover un equipo o cambiar sala u hora. Luego decide:
    - **Aprobar.** Si respeta lo solicitado, confirma y reserva todo en una transacción.
    - **Proponer ajuste.** Si cambia fecha, cantidades, sustitutos o condiciones, el solicitante acepta o declina esa revisión. Aceptar confirma solo si todo sigue disponible ([ADR 0007](05_decisiones.md#adr-0007)).
    - **Pedir cambios o rechazar**, siempre con motivo.
@@ -165,7 +170,7 @@ Estados: borrador → enviada → programada → en preparación → lista → e
 Casos especiales:
 
 - El Administrador puede reubicar a una sala equivalente con aviso al solicitante, sin pedir otra aceptación.
-- Las solicitudes sin excepciones aparecen como «listas para confirmar» y se aprueban en un paso.
+- Las solicitudes sin excepciones aparecen como «listas para confirmar». Se aprueban en un paso, una a una o en lote; en el lote cada solicitud se confirma por separado y se informa su resultado.
 - La autoconfirmación sin revisión humana no está en el alcance.
 
 ### 6.3 Equipos (M3, M7)

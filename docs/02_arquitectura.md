@@ -74,7 +74,7 @@ dependency-cruiser verifica en CI:
 - `domain` no importa HTTP ni infraestructura.
 - Los frontends no importan código del servidor y `web` no importa `console`.
 
-Cada tabla la escribe solo su módulo propietario. Un caso de uso puede coordinar varios módulos dentro de la misma transacción.
+Cada esquema tiene un único propietario técnico, que es el único que escribe sus tablas ([03 §2](03_datos.md#2-esquemas)). Ese propietario es un módulo o una capacidad (inventario, agenda o incidencias). Los módulos usan una capacidad a través de sus comandos. Un caso de uso puede coordinar varios módulos y capacidades dentro de la misma transacción.
 
 ## 4. Contrato de módulo
 
@@ -90,7 +90,7 @@ defineModule({
   roleGrants: { admin: [/* … */], operator: [/* … */], teacher: ['reagents.requestable.read'] },
   nav: [{ path: 'reactivos', label: 'Reactivos', permission: 'reagents.catalog.read' }],
   homeCard: { permission: 'reagents.catalog.read' },  // el servidor aporta su resumen a /home
-  published: false,            // true al superar su puerta
+  stage: 'development',        // development → pilot → general (§6)
 });
 ```
 
@@ -106,7 +106,7 @@ Para agregar un módulo:
 6. Crear la web en `features/<código>`: rutas diferidas, tablero del módulo y tarjeta de Inicio.
 7. Cubrir exportación, importación y disposición de sus datos.
 8. Crear una versión de paquete en la consola para venderlo; se habilita por contrato ([ADR 0002](05_decisiones.md#adr-0002)).
-9. Marcar `published: true` cuando pase su puerta ([04](04_roadmap.md)).
+9. Avanzar su etapa cuando supere la puerta correspondiente: pasa a `pilot` tras su G0 y a `general` tras su G2 ([04 §2](04_roadmap.md#2-puertas)).
 
 Un módulo nuevo no modifica tablas de otros módulos. Se integra por su interfaz pública o por eventos de outbox.
 
@@ -136,24 +136,55 @@ Pruebas obligatorias:
 - Módulo apagado.
 - Pool reutilizado sin fuga de contexto.
 
-## 6. Autorización y activación de módulos
+## 6. Autorización, etapas y admisión
 
-Una operación nueva exige **módulo publicado + derecho vigente + estado operativo + dependencias + permiso + ámbito + reglas del recurso**.
+Una operación nueva exige **etapa del módulo admitida + derecho vigente + estado operativo + dependencias + permiso + ámbito + reglas del recurso**.
 
 - **Roles.** Catálogo fijo y versionado en código, sincronizado a SQL por migración, con asignaciones por espacio y ámbito ([01 §5](01_producto.md#5-actores-y-roles)). No hay editor de roles personalizados.
 - **Derechos.** Solo el comando `apply_contract_revision` del Equipo PlatLab los crea o cambia, junto con los límites, en una transacción auditada.
-- **Estados del módulo:** `disabled → enabled → draining → read_only`.
+- **Estados del módulo en un espacio:** `disabled → enabled → draining → read_only`. Reactivar desde consulta es un comando administrativo.
 
-| Acción | `enabled` | `draining` | `read_only` |
+### Etapas del módulo
+
+Separan tres cosas: que el código exista, que pueda usarse con datos reales y que pueda venderse. La etapa se declara en el manifiesto y se sincroniza a `core.module_definitions`.
+
+| Etapa | Dónde puede habilitarse | Cómo se alcanza |
+|---|---|---|
+| `development` | Solo en ambientes con datos sintéticos: local, staging y demo | Código integrado con sus pruebas |
+| `pilot` | Además, en espacios con contrato de piloto | G0 del módulo |
+| `general` | En cualquier versión de paquete publicada | G2 del módulo |
+
+- `apply_contract_revision` rechaza un módulo cuya etapa no corresponde a ese tipo de contrato, y el runtime lo vuelve a comprobar.
+- La etapa no reemplaza la admisión de datos reales del espacio (`synthetic → controlled_loading → operational`, puerta G1).
+
+### Tabla de admisión
+
+Cada comando declara su clase de acción. Una sola función decide la admisión y se prueba como tabla de verdad.
+
+| Situación | Operación nueva | Resolver pendientes | Consultar y exportar |
 |---|:-:|:-:|:-:|
-| Nuevas operaciones y compromisos | ✔ | — | — |
-| Resolver pendientes: entregas, devoluciones y reservas | ✔ | ✔ | — |
-| Consultar y exportar el historial | ✔ | ✔ | ✔ |
+| Módulo `enabled` con derecho vigente | ✔ | ✔ | ✔ |
+| Derecho vencido, dentro del periodo de cierre pactado | — | ✔ | ✔ |
+| Módulo `draining` | — | ✔ | ✔ |
+| Módulo `read_only` | — | Solo reabriendo el cierre con autorización | ✔ |
+| Espacio `suspended` por motivo comercial | — | ✔ | ✔ |
+| Espacio `suspended` por seguridad | — | — | Solo por canal seguro al representante autorizado |
+| Espacio `closing` | — | ✔ | ✔, incluida la exportación final |
+| Espacio `provisioning` o `terminated` | — | — | — |
 
-- La expiración del contrato bloquea operaciones nuevas en cada petición, aunque el estado siga en `enabled`.
+Reglas de la tabla:
+
+- Toda celda exige además identidad válida, membresía vigente, permiso y ámbito. La continuidad comercial nunca devuelve el acceso a un usuario revocado.
+- En `terminated` solo actúa el procedimiento de disposición ([§11](#11-datos-reales-y-salida-del-cliente)).
+- El contrato fija la duración del periodo de cierre y el alcance de la suspensión comercial; no se inventan plazos.
+- La expiración bloquea operaciones nuevas en cada petición, aunque el estado siga en `enabled`.
+- Retirar una suspensión devuelve el estado previo permitido por el contrato y la vigencia; no convierte una prueba en contrato activo. Una purga completada no se revierte.
+
+Reglas generales:
+
 - Desactivar un módulo nunca borra tablas.
-- No se puede apagar una dependencia mientras haya módulos dependientes activos.
-- Contrato, permiso del usuario y bandera de despliegue son controles distintos.
+- No se puede apagar una dependencia mientras haya módulos dependientes admitiendo operaciones nuevas.
+- Contrato, etapa, permiso del usuario y bandera de despliegue son controles distintos.
 
 ## 7. Comandos y consistencia
 
@@ -179,17 +210,31 @@ Una operación nueva exige **módulo publicado + derecho vigente + estado operat
 
 ## 9. Infraestructura y ambientes
 
-| Pieza | Servicio |
-|---|---|
-| `app.<dominio>` | Cloudflare Workers Static Assets (SPA) |
-| `console.<dominio>` | Compilación separada de `apps/console` |
-| `api.<dominio>` | Render Web Service para la API y Background Worker, con el mismo release |
-| Base, Auth y Storage | Supabase Pro |
-| Correo | Resend: SMTP de Auth y avisos del worker |
-| Respaldos externos | Cloudflare R2 en una cuenta separada, cifrados |
-| Observabilidad | Better Stack: errores, logs, métricas y heartbeats |
+La infraestructura se incorpora cuando la exige una puerta, no antes.
+
+| Pieza | Servicio | Entra en |
+|---|---|---|
+| `app.<dominio>` | Cloudflare Workers Static Assets, con `not_found_handling = "single-page-application"` | G0 si la demo se publica; G1 |
+| `console.<dominio>` | Compilación separada de `apps/console` | G1 (O-01) |
+| `api.<dominio>` | Render Web Service | G0 si la demo se publica; G1 |
+| Worker | Render Background Worker, mismo release que la API | G1 (T-07) |
+| Base y Auth | Supabase: local en G0, Pro desde G1 | G0 en local |
+| Storage | Supabase Storage privado | G1 (T-07) |
+| Correo | Resend: SMTP de Auth y avisos del worker | G1 (T-03B) |
+| Respaldos externos | Cloudflare R2 en una cuenta separada, cifrados | G1 (T-06) |
+| Observabilidad | Better Stack: errores, logs, métricas y heartbeats | G1 |
 
 - **Región candidata:** Render Virginia + Supabase `us-east-1`. Se confirma midiendo desde Ecuador en el spike S-01.
+- **Conexión a PostgreSQL.** Supabase ofrece tres vías:
+  - Conexión directa por IPv6, o por IPv4 con un complemento de pago.
+  - Supavisor en modo sesión, por IPv4.
+  - Supavisor en modo transacción, pensado para funciones efímeras.
+
+  Su documentación lista a Render entre los servicios solo IPv4. S-01 decide entre dos opciones:
+  - Conexión directa con el complemento IPv4: menor latencia.
+  - Supavisor en modo sesión: sin costo extra, pero con un salto de red más.
+
+  El modo transacción queda descartado porque no admite prepared statements. Mientras tanto, T-01 deja la capa de datos compatible con ambas opciones: el contexto se fija solo con `set_config(..., true)` y no se guarda estado de sesión. Fuentes: [conexiones](https://supabase.com/docs/guides/database/connecting-to-postgres) e [IPv4](https://supabase.com/docs/guides/platform/ipv4-address).
 - **Ambientes:**
   - Desarrollo: Supabase local y datos sintéticos.
   - Staging: proyecto separado.
@@ -220,8 +265,10 @@ Una operación nueva exige **módulo publicado + derecho vigente + estado operat
 - **Secretos y respuestas.** Los secretos se guardan por ambiente en los proveedores y en CI, nunca en Git ni en variables `VITE_*`. Las respuestas privadas llevan `Cache-Control: no-store` y CORS acepta solo orígenes exactos.
 - **Storage.** Es privado: la API autoriza y emite URL firmadas de corta duración. Cada cambio crea una versión nueva en vez de sobrescribir.
 - **Respaldos.**
-  - Supabase Pro cubre la base y los metadatos, no los bytes de los archivos.
+  - Supabase Pro hace una copia diaria y conserva 7 días. Incluye la base y los metadatos de los archivos, pero no los bytes de los archivos ni las contraseñas de roles propios, que se restablecen tras restaurar.
   - Se añade una copia diaria cifrada de base y archivos en R2, con manifiesto y checksums.
+  - Restaurar devuelve toda la base al momento de la copia. Lo registrado después se vuelve a ingresar desde otra fuente; con PITR la pérdida baja a unos minutos ([copias en Supabase](https://supabase.com/docs/guides/platform/backups)).
+  - Restaurar la base compartida afecta a todos los clientes. Para recuperar a uno solo, se restaura en una copia aislada y se extraen sus datos.
   - La restauración aislada se ensaya antes del piloto y después de forma periódica.
 - **Monitoreo.** Alertas por API caída, errores, pool agotado, consultas lentas, outbox antigua, worker sin heartbeat, tareas fallidas y copia vencida.
 
@@ -264,7 +311,7 @@ Son valores de arranque para pruebas. Se ajustan con mediciones y no son comprom
 | Logo del espacio | PNG, WebP o JPEG de hasta 2 MiB y 2048 × 2048 px |
 | Importación CSV | 10 MiB, 10 000 filas, en lotes de 500 |
 | Trabajos pesados | 1 simultáneo por espacio, 2 en total, 5 pendientes por espacio |
-| Recuperación objetivo | Piloto de inventario: RPO 24 h y RTO 8 h. Operación con prácticas: RPO ≤ 1 h y RTO 4 h, lo que exige PITR o equivalente |
+| Recuperación objetivo | Pruebas y piloto: RPO 24 h y RTO 8 h, aceptado por el usuario el 30-09-2026. Se recomienda que el laboratorio conserve su registro actual durante el piloto para reconstruir. Si PlatLab pasa a ser el único registro o se opera con prácticas: RPO ≤ 1 h y RTO 4 h, lo que exige PITR (en Supabase, pérdida máxima de unos 2 min, desde unos USD 100/mes más cómputo Small) |
 | Monitoreo | Disponibilidad cada minuto; alerta tras 3 heartbeats ausentes o una copia con más de 26 h |
 | Rendimiento objetivo | p95 < 1 s en consultas paginadas y < 2 s en comandos, con el escenario de carga acordado |
 | Cantidades | `numeric(24,9)` inicial |

@@ -28,7 +28,8 @@ SaaS modular para gestionar laboratorios de varias instituciones: reactivos, equ
 9. Las sustancias fiscalizadas son obligatorias desde el piloto del laboratorio interesado, que avanza por entregas.
 10. Stack: React + Vite, Node 24 + Fastify, `pg` + PgTyped, Supabase (PostgreSQL, Auth, Storage), Cloudflare y Render.
 11. Tres puertas: G0 demo sintética, G1 piloto con datos reales y G2 venta abierta.
-12. No se fijan fechas, horas ni presupuestos contractuales sin evidencia.
+12. Cada módulo avanza por etapas (desarrollo → piloto → general) y solo se vende en etapa general. Una única tabla de admisión separa operaciones nuevas, resolución de pendientes y consulta.
+13. No se fijan fechas, horas ni presupuestos contractuales sin evidencia.
 
 ## Mapa de documentos
 
@@ -53,6 +54,9 @@ Antecedentes: el [PRD](antecedentes/PRD_Plataforma_Gestion_Laboratorios.md), la 
 | Equipo PlatLab | Personal del proveedor; usa la consola y no ve datos de clientes por defecto |
 | Módulo | Unidad contratable (M1–M8 y futuras) con esquema, API, pantallas y permisos propios |
 | Derecho | Módulo habilitado para un espacio por contrato (`core.workspace_entitlements`) |
+| Etapa del módulo | `development`, `pilot` o `general`: dónde puede habilitarse un módulo y si puede venderse |
+| Capacidad | Funcionalidad compartida que no se vende sola (inventario, agenda, incidencias) y es dueña de su esquema |
+| RPO / PITR | Máximo de datos que se pueden perder al restaurar / restauración a cualquier punto en el tiempo |
 | Ámbito | Parte del árbol de ubicaciones donde aplica un rol |
 | Ubicación / laboratorio | Lugar físico del Core / ubicación con capacidad y agenda (M4) |
 | Movimiento | Asiento inmutable del inventario; el saldo es su proyección |

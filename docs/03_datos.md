@@ -5,7 +5,7 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 ## 1. Convenciones
 
 - **Identificadores y fechas:** UUID; `created_at` y `updated_at` como `timestamptz`.
-- **Aislamiento:** toda tabla institucional lleva `workspace_id NOT NULL`, `PRIMARY KEY (id)`, `UNIQUE (workspace_id, id)` y FKs compuestas que incluyen `workspace_id`. Solo los catálogos globales (módulos, permisos, roles y unidades) son excepción explícita.
+- **Aislamiento:** toda tabla de espacio lleva `workspace_id NOT NULL`, `PRIMARY KEY (id)`, `UNIQUE (workspace_id, id)` y FKs compuestas que incluyen `workspace_id`. Cada tabla pertenece a una de las clases de §1.1.
 - **Estados:** texto con `CHECK` y transiciones por comando; nunca estados libres en JSON.
 - **Concurrencia:** `version` entera para control optimista en registros editables.
 - **Nada se borra:** los catálogos se archivan con `archived_at` y las membresías se desactivan con `status`. El rol operativo no borra nada histórico.
@@ -16,24 +16,37 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 - **Índices:** empiezan por `workspace_id` y solo se crean cuando una consulta los justifica.
 - **Claves:** los códigos son únicos dentro del espacio. Nombres, CAS y lotes del proveedor no son claves.
 
+### 1.1 Clases de tablas
+
+| Clase | Tablas | `workspace_id` | Acceso | Eliminación |
+|---|---|---|---|---|
+| Catálogo global | `core.module_definitions`, `module_dependencies`, `permissions`, `roles`, `role_permissions` y unidades de medida | No | Solo lectura en el runtime; cambia por migración | No contiene datos de clientes |
+| Global de plataforma | `core.identities`, `platform.customer_accounts`, `staff_accounts`, `package_definitions`, `package_versions` | No | Consola del Equipo PlatLab con permiso, o la propia identidad; políticas propias | Procedimiento global: cerrar un espacio no borra una identidad que usa otros espacios |
+| Plataforma por espacio | `platform.contracts`, `contract_revisions`, `workspace_limits`, `usage_reservations`, `workspace_readiness`, `idempotency_records`, `outbox_events`, `jobs`, `job_runs`, `schedules`, `import_*`, `data_disposition_*` y `staff_audit_events` | Sí; en `staff_audit_events` el espacio afectado es opcional | Comandos del Equipo PlatLab o del runtime con contexto | Entra en la disposición del espacio, salvo excepción justificada |
+| Dominio del espacio | El resto de `core` y los esquemas de módulos y capacidades | Sí, con RLS | API con membresía | Solo mediante el procedimiento de disposición |
+
 ## 2. Esquemas
 
-| Esquema | Contenido | Fase |
-|---|---|---|
-| `core` | Espacios, identidades, membresías, principales, invitaciones, roles y asignaciones, ubicaciones, derechos de módulos, documentos, marca y auditoría | F1a |
-| `platform` | Titulares, paquetes, contratos, staff, límites, cuotas, admisión de datos, idempotencia, outbox, trabajos, importaciones y disposición | F1a–F1b |
-| `inventory` | Items, lotes, posiciones, operaciones y asientos, motivos, custodias, retornos, reservas y transferencias | R-00; F2–F4 |
-| `reagents` | Datos químicos y perfil fiscalizado | R-00; F2 + REG-02 |
-| `equipment` | Activos, condición, ubicación y custodias | F2 |
-| `incidents` | Casos y acciones | F2 |
-| `laboratories` | Capacidad, horarios y excepciones | F3 |
-| `scheduling` | Reservas de laboratorios, equipos y materiales | F3 |
-| `practices` | Plantillas, actividades, revisiones, decisiones y vínculos | F3 |
-| `materials` | Consumibles, reutilizables y préstamos | F4 |
-| `maintenance` | Planes y órdenes | F5 |
-| `analytics` | Indicadores y alertas avanzadas | F5 |
+| Esquema | Propietario técnico | Contenido | Fase |
+|---|---|---|---|
+| `core` | Core | Espacios, identidades, membresías, principales, invitaciones, roles y asignaciones, ubicaciones, derechos de módulos, documentos, marca y auditoría | F1a |
+| `platform` | Plataforma | Titulares, paquetes, contratos, staff, límites, cuotas, admisión de datos, idempotencia, outbox, trabajos, importaciones y disposición | F1a–F1b |
+| `inventory` | Capacidad inventario | Items, lotes, posiciones, operaciones y asientos, motivos, preparaciones, custodias, retornos, reservas y transferencias | R-00; F2–F4 |
+| `reagents` | Módulo Reactivos | Datos químicos y perfil fiscalizado | R-00; F2 + REG-02 |
+| `equipment` | Módulo Equipos | Tipos de equipo, activos, condición, ubicación y custodias | F2 |
+| `incidents` | Capacidad incidencias | Casos y acciones | F2 |
+| `laboratories` | Módulo Laboratorios | Capacidad, horarios y excepciones | F3 |
+| `scheduling` | Capacidad agenda | Reservas de laboratorios, equipos y materiales | F3 |
+| `practices` | Módulo Prácticas | Plantillas, actividades, revisiones, decisiones y vínculos | F3 |
+| `materials` | Módulo Materiales | Consumibles, reutilizables y préstamos | F4, o un mínimo en F3 si P-04 lo exige |
+| `maintenance` | Módulo Mantenimiento | Planes y órdenes | F5 |
+| `analytics` | Módulo Analítica | Indicadores y alertas avanzadas | F5 |
 
-Cada esquema tiene un módulo propietario, que es el único que escribe en él.
+- Solo el propietario técnico escribe en su esquema.
+- Una capacidad no se contrata: está disponible cuando algún módulo habilitado la usa.
+  - Inventario: Reactivos, Materiales y Prácticas.
+  - Agenda: Equipos, Laboratorios, Prácticas, Materiales y Mantenimiento.
+  - Incidencias: Equipos y los módulos que reportan.
 
 ## 3. Core, acceso y plataforma
 
@@ -85,6 +98,7 @@ Reglas:
 | `inventory.operations` | Cabecera del movimiento: tipo, actor, motivo, fecha, correlación y referencia |
 | `inventory.entries` | Asientos inmutables con signo por posición |
 | `inventory.reasons`, `destinations` | Listas de motivos (salida, ajuste, baja) y destinos que administra el laboratorio; desde R-01 |
+| `inventory.preparation_inputs` | Preparación: lote resultante y asientos de los insumos consumidos |
 | `inventory.custodies`, `custody_lines` | Entrega a un responsable y su conciliación |
 | `inventory.return_batches` | Retorno segregado hasta verificarlo o disponerlo |
 | `inventory.allocations` | Reservas: `held → fulfilled / released` |
@@ -103,6 +117,10 @@ Reglas:
 - **Retornos:** van a cuarentena hasta verificarse. Un sobrante manipulado nunca se suma al lote original.
 - **Conteos:** si el conteo queda por debajo de lo reservado, se registra la discrepancia y se resuelven los compromisos antes de ajustar.
 - **Importación:** el saldo inicial es una operación de apertura.
+- **Preparación de soluciones:**
+  - Si la solución se almacena o se reutiliza, una sola operación consume los insumos y crea un lote del producto preparado (un reactivo del catálogo con su concentración), con trazabilidad del insumo al lote.
+  - Si se usa de inmediato, solo se registra el consumo asociado a la actividad o a la custodia.
+  - Si una solución sigue siendo fiscalizada lo decide el responsable según la norma y la concentración (REG-01), nunca el sistema por defecto.
 - **Tipos:** un item no puede ser a la vez reactivo y material.
 
 ### Fiscalizados (REG-02, ajustado tras REG-01)
@@ -125,7 +143,8 @@ Reglas:
 
 | Tabla | Esencial |
 |---|---|
-| `equipment.assets` | Código, marca, modelo, serie, ubicación, responsable, condición y archivado |
+| `equipment.asset_types` | Tipo de equipo y características que se pueden solicitar |
+| `equipment.assets` | Tipo, código, marca, modelo, serie, ubicación, responsable, condición y archivado |
 | `equipment.condition_changes` | Condición anterior y nueva, actor, motivo e incidencia |
 | `equipment.location_changes` | Traslado trazado entre ubicaciones |
 | `equipment.custodies` | Entrega y devolución de un activo; solo una abierta por activo |
@@ -155,7 +174,7 @@ Reglas:
 | `practices.templates`, `template_versions` | Plantillas con versiones publicadas inmutables |
 | `practices.participations` | Estudiante: docente responsable, ámbito y vigencia |
 | `practices.activities` | Plantilla y versión, docencia o investigación, solicitante, horario solicitado y confirmado, sala asignada (nula hasta asignar), estado y versión |
-| `practices.requirements` | Recurso tipado con FK real o línea no catalogada; cantidad, unidad y asignación |
+| `practices.requirements` | Recurso tipado con FK real (reactivo, tipo de equipo, activo concreto con justificación o material) o línea no catalogada; cantidad, unidad y asignación |
 | `practices.activity_revisions`, `conditional_approvals` | Propuesta exacta del Administrador y su preaprobación con vencimiento |
 | `practices.decisions`, `state_changes` | Decisiones y transiciones con actor y motivo |
 | `practices.booking_links`, `custody_links` | Vínculos a reservas y custodias; no duplican movimientos |
@@ -172,6 +191,8 @@ Reglas:
 - **Cronograma:** es una consulta de las reservas; no existe una segunda matriz editable.
 - **Recurrencias:** se crean como ocurrencias individuales con conflictos explícitos.
 - **Línea no catalogada:** siempre es una excepción para el Administrador, que la vincula a un recurso o la rechaza.
+- **Equipos:** se solicitan por tipo y características; el Administrador asigna el activo concreto. Pedir un activo específico exige una justificación.
+- **Confirmación en lote:** cada solicitud se confirma en su propia transacción, con su clave de idempotencia. El lote informa el resultado de cada solicitud, y un conflicto no bloquea a las demás.
 
 ## 7. Transacciones críticas
 
@@ -203,7 +224,8 @@ Cuatro capas:
 
 Casos:
 
-- Fuga entre espacios, FK cruzada, módulo apagado y membresía revocada.
+- Fuga entre dos espacios que tienen el mismo módulo habilitado, FK cruzada, módulo apagado y membresía revocada.
+- Cada fila de la tabla de admisión con sus tres clases de acción ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
 - Dos reservas o dos salidas simultáneas, cierre repetido y devolución parcial.
 - Transferencia parcial, cancelación con custodia y equipo averiado con reservas.
 - Worker repetido y fallo antes o después del commit.

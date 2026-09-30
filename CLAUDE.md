@@ -29,7 +29,8 @@ Actúa como experto senior en desarrollo de software full-stack,arquitectura, in
 ## Invariantes para implementar
 
 - Monolito modular con producto y migraciones comunes. Nombres canónicos: `core.workspaces`, `workspace_id` y `/v1/workspaces/:workspaceId`; en la interfaz, «Espacio de trabajo». Titular jurídico y propietario son conceptos diferentes.
-- Cada módulo es una rebanada vertical con manifiesto en `packages/modules`. Se agrega siguiendo el contrato de 02 §4 y no modifica tablas de otros módulos.
+- Cada módulo es una rebanada vertical con manifiesto en `packages/modules`. Se agrega siguiendo el contrato de 02 §4 y no modifica tablas de otros módulos. Cada esquema tiene un único propietario técnico: un módulo o una capacidad.
+- Etapas y admisión (ADR 0009): cada módulo avanza `development → pilot → general`. Una sola función de admisión separa operación nueva, resolución de pendientes y consulta/exportación; se prueba como tabla de verdad (02 §6).
 - La API autoriza todas las operaciones de dominio: membresía, derecho del módulo, permiso y ámbito se comprueban en el servidor. RLS y FKs compuestas añaden aislamiento. El navegador no tiene CRUD directo al dominio.
 - SQL parametrizado con `pg` + PgTyped. Una conexión y una transacción para autorización, contexto local, negocio, auditoría e idempotencia. El runtime no es dueño de tablas ni tiene `BYPASSRLS`. Las migraciones SQL son la autoridad.
 - Cantidades exactas: `numeric` y cadenas decimales, nunca aritmética de cantidades con `number`. Movimiento confirmado y saldo se guardan juntos. Nadie borra registros de negocio: se archiva, se cancela o se compensa.
@@ -54,6 +55,13 @@ Decidido el 30-09-2026:
 - «Operador» es el rol del laboratorio.
 - Solo PlatLab activa o desactiva módulos por contrato.
 - Documentación compacta en `docs/`.
+- Etapas de módulo y tabla de admisión (ADR 0009).
+- RPO de 24 h aceptado durante las pruebas y el piloto.
+- Materiales en F3 según una práctica real (P-04).
+- Equipos solicitados por tipo.
+- Confirmación en lote con un resultado por solicitud.
+
+El modelo comercial sigue pendiente: la recomendación está en 01 §4 y debe confirmarla el usuario.
 
 No volver a preguntar estas decisiones.
 
