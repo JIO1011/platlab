@@ -1,9 +1,9 @@
 # Ciclo del cliente y protección de datos
 
-Fecha: 25 de septiembre de 2026; decisiones de producto actualizadas el 26 de septiembre.
+Fecha de revisión: 29 de septiembre de 2026.
 Estado: propuesta de diseño y revisión normativa; no acredita cumplimiento ni sustituye la validación jurídica del contrato y de la operación real.
-Este documento es la referencia del plan para cierre contractual, conservación, derechos y eliminación.
-Se complementa con [Dominio y datos](03_dominio_y_datos.md), [Infraestructura](04_infraestructura.md) y [Decisiones de la revisión](07_decisiones_revision.md).
+El [ADR-0005](../adr/0005_datos_reales_y_recuperacion.md) registra la decisión sobre datos reales y recuperación; este documento especifica sus procedimientos jurídicos y operativos.
+Se complementa con [Dominio y datos](03_dominio_y_datos.md), [Infraestructura](04_infraestructura.md) y las puertas de entrega del [roadmap](06_roadmap.md).
 
 ## 1. Evaluación de la observación
 
@@ -34,13 +34,13 @@ Las fuentes se enlazan junto a cada criterio y se recopilan al final para revisa
 
 ## 3. Entidad contratante, espacio y responsable
 
-Decisión confirmada: cada contratación institucional o departamental independiente dispone de un espacio aislado, con propietario y miembros propios. Una misma entidad jurídica puede agrupar varios espacios; renovar el contrato de un espacio no crea otro tenant.
+Decisión confirmada: cada contratación institucional o departamental independiente dispone de un espacio aislado, con propietario y miembros propios. Una misma entidad jurídica puede agrupar varios espacios; renovar el contrato de un espacio no crea otro espacio.
 La arquitectura distingue estos conceptos sin exigir consolas distintas ni un sistema de facturación completo:
 
 | Concepto | Significado |
 |---|---|
-| Entidad jurídica | Parte capaz de contratar y asumir obligaciones; puede ser la universidad, no necesariamente su departamento. |
-| Organización o tenant | Espacio con aislamiento de datos, administración, miembros y configuración propios. |
+| Entidad jurídica / titular comercial | Parte capaz de contratar y asumir obligaciones, registrada en `customer_accounts`; puede ser la universidad, no necesariamente su departamento. No equivale al titular de los datos personales. |
+| Espacio / workspace | Frontera de aislamiento, administración, miembros y configuración, registrada en `core.workspaces` e identificada mediante `workspace_id`. |
 | Contrato o suscripción | Alcance contratado, módulos, vigencia y condiciones económicas de un espacio. |
 | Propietario del espacio | Membresía única y transferible que gobierna el acceso y delega administración; no es titular de los datos personales ni representante jurídico por ese solo rol. |
 | Responsable del tratamiento | Quien determina fines y medios para un tratamiento concreto; debe identificarse contractualmente. |
@@ -64,6 +64,9 @@ Incluir asistencia en derechos, tratamiento de incidentes, acceso de soporte, su
 Identificar quién puede ordenar una exportación o eliminación en representación de la institución.
 El propietario y los administradores funcionales no se presumen representantes jurídicos ni autorizados para terminar el contrato u ordenar una purga total; esa facultad debe verificarse por separado. [LOPDP, art. 34](https://www.telecomunicaciones.gob.ec/wp-content/uploads/2023/11/LOPDP-LEXIS.pdf).
 
+Usar un contrato estándar revisado, también para pruebas con datos reales. Registrar versión y copia íntegra aceptada, fecha, entidad y espacios cubiertos, identidad del aceptante y evidencia de su facultad para representar a la institución. La invitación del propietario no sustituye esta aceptación. Si se formaliza fuera del alta, registrar la referencia y el documento correspondiente; no forzar una aceptación electrónica por alguien sin representación.
+Aceptar el encargo tampoco sustituye la base legitimadora del tratamiento institucional, la información a las personas ni las medidas técnicas comprobadas. G1 en el [roadmap](06_roadmap.md) exige cumplir esas garantías antes de autorizar carga real controlada y conciliar el inventario antes de habilitar operación.
+
 Inventariar Supabase, Render, Cloudflare, correo, observabilidad y cualquier servicio que reciba datos personales.
 Para cada uno, registrar servicio, finalidades, datos recibidos, ubicaciones, rol jurídico, subcontratación y condiciones de devolución/eliminación.
 No basta con indicar la región de PostgreSQL: archivos, correo, logs y copias pueden seguir rutas diferentes.
@@ -75,16 +78,19 @@ Si existe incompatibilidad, ajustar condiciones lícitas, proveedor o infraestru
 
 ## 5. Estados comerciales y acceso
 
-`core.organizations.status` representa el ciclo operativo del espacio, separado de los estados de módulos.
+`core.workspaces.status` representa el ciclo operativo del espacio, separado de los estados de módulos.
 
 | Estado | Acceso propuesto |
 |---|---|
 | `provisioning` | Alta incompleta: metadatos de contratación e invitación del propietario inicial; sin acceso al dominio ni carga de datos operativos. |
-| `trial` | Operación limitada por el paquete y las cuotas de prueba; usar datos sintéticos hasta completar las condiciones de tratamiento real. |
+| `trial` | Prueba comercial con paquete, cuotas y vencimiento explícitos. Admite datos reales mediante la incorporación controlada de G1; el estado comercial no acredita esa autorización. |
 | `active` | Operación según membresía, permisos, ámbito, cuotas y módulos vigentes. |
 | `suspended` | Restricción reversible con motivo registrado; su alcance depende de si es comercial, contractual o de seguridad. |
 | `closing` | Sin compromisos nuevos; conciliación, consultas y exportación autorizadas durante una transición documentada. |
 | `terminated` | Sin acceso operativo al dominio; solo procedimiento de disposición y actuaciones expresamente justificadas. |
+
+Separar la demo con datos operativos sintéticos del trial con inventario propio. La demo sirve para validar el producto antes de G1 y no ofrece importación de datos reales; las identidades de acceso y contactos que sí sean reales mantienen su tratamiento correspondiente. El trial real se incorpora de forma controlada, con encargo aceptado, proveedores y procedimientos verificados para los módulos publicados. No convertir un espacio de demostración en productivo conservando movimientos ficticios.
+Registrar por separado la aceptación comercial y la habilitación para datos reales: evidencia revisada, responsable y alcance. La admisión del alcance distingue `synthetic`, `controlled_loading` y `operational`; la API limita la etapa de carga a incorporación/conciliación autorizadas. Habilitar operación exige aceptación del inventario conciliado; una suscripción activa no omite esta comprobación. El permiso no depende solo de una casilla marcada por el cliente. Al vencer la prueba, avisar y ejecutar el procedimiento de continuidad o salida acordado, sin una gracia indefinida ni una purga sorpresiva.
 
 Transiciones habituales: `provisioning → trial/active`, `trial → active`, `trial/active → suspended`, `suspended → trial/active`, `trial/active/suspended → closing → terminated`. Reanudar recupera el estado previo permitido por el contrato y vigencia; retirar una suspensión no convierte una prueba en contratación activa.
 Pasar desde `provisioning` exige que el propietario invitado haya aceptado y tenga membresía activa del mismo espacio. El canje y la asignación se confirman atómicamente; reintentar el alta no crea espacios o propietarios duplicados. Correo y autenticación externa se coordinan con reintentos, sin suponer una transacción compartida con esos servicios.
@@ -99,7 +105,7 @@ No alterar esas fechas para aparentar cumplimiento ni prolongar artificialmente 
 Una suspensión de seguridad puede impedir también exportaciones; establecer un canal seguro para el representante autorizado.
 La suspensión por impago no constituye una orden de eliminación y no elimina el deber de atender derechos.
 
-La API comprueba el estado institucional en cada petición y el worker antes de nuevos efectos relevantes.
+La API comprueba el estado del espacio en cada petición y el worker antes de nuevos efectos relevantes.
 Un JWT válido no restaura permisos: se verifica membresía vigente y estado del espacio dentro del contexto autorizado.
 Revocar invitaciones, concesiones y trabajos pendientes según su finalidad; una notificación sobre un hecho confirmado puede requerir tratamiento distinto de una nueva exportación.
 Usar enlaces de descarga breves: suspender una membresía no necesariamente revoca un enlace firmado que ya fue emitido.
@@ -113,7 +119,7 @@ Registrar el resultado por repositorio y categoría: devuelto, eliminado, anonim
 Si se muestra la etiqueta `deleted`, reservarla para el alcance cuya eliminación efectiva quedó comprobada.
 
 El expediente incluye espacio, solicitante autorizado, instrucciones, alcance, fundamento, fechas límite, responsables y evidencias mínimas.
-Una excepción de conservación identifica datos concretos, base aplicable, acceso permitido, revisión y finalización; no retiene todo el tenant por comodidad.
+Una excepción de conservación identifica datos concretos, base aplicable, acceso permitido, revisión y finalización; no retiene todo el espacio por comodidad.
 Una reclamación o mandato puede impedir parte de una purga; registrar la limitación y continuar con el resto cuando corresponda.
 
 Secuencia propuesta para una salida programada:
@@ -147,7 +153,7 @@ Cuando proceda eliminar o anonimizar, revisar vínculos, documentos, texto libre
 Sustituir un nombre por un UUID enlazable es seudonimización, no garantiza anonimización.
 La evaluación de eliminación y anonimización sigue los supuestos, excepciones y requisitos aplicables. [LOPDP, arts. 15 y 18](https://www.telecomunicaciones.gob.ec/wp-content/uploads/2023/11/LOPDP-LEXIS.pdf) y [Resolución SPDP-SPD-2025-0030-R](https://spdp.gob.ec/wp-content/uploads/2025/08/0030-R.pdf).
 
-No borrar automáticamente la identidad global ni Supabase Auth por cerrar un tenant: puede seguir siendo necesaria para otros espacios.
+No borrar automáticamente la identidad global ni Supabase Auth por cerrar un espacio: puede seguir siendo necesaria para otros espacios.
 Separar la revocación de la membresía local, la eliminación de sus datos y la eventual supresión de la cuenta global.
 Resolver las FKs históricas mediante el procedimiento aprobado, preservando integridad y sin atribuir acciones a otra persona.
 Una obligación válida de conservación necesita alcance, fundamento y fecha de revisión; «para auditoría» no es una justificación suficiente por sí sola.
@@ -161,23 +167,38 @@ La eliminación por protección de datos usa un procedimiento privilegiado disti
 Esto también aplica a auditoría: inmutabilidad ante usuarios operativos no significa inmunidad a las obligaciones de eliminación.
 No añadir a una constancia los mismos datos personales que se pretende eliminar.
 
-El operador de licencias no obtiene acceso automático al contenido institucional.
+El operador de licencias no obtiene acceso automático al contenido institucional mediante la consola del SaaS.
 Separar permiso de administrar paquetes, permiso de ejecutar una exportación autorizada y permiso de disposición.
 Las ejecuciones destructivas verifican espacio, instrucciones, alcance, excepciones y credencial operadora reforzada antes de comenzar.
 Un trabajo de purga debe ser idempotente, reanudable y mostrar fallos parciales; no marcar éxito por el simple inicio de una cola.
 Conservar evidencia mínima del procedimiento con su propia política de acceso y retención.
 
+La administración de Supabase, las credenciales de migración y las copias pueden permitir acceso fuera de la API. RLS y la auditoría de la aplicación no convierten a esas personas o credenciales en incapaces de leer datos. Documentar estas rutas en el inventario de accesos y en las condiciones de tratamiento, separando:
+
+- Administración comercial de espacios, sin acceso implícito al dominio.
+- Automatizaciones de migración, respaldo y disposición, con credenciales distintas del runtime y ejecución registrada.
+- Intervención humana excepcional en producción, con cuenta nominativa, motivo, alcance, autorización, duración, evidencia y revisión posterior.
+
+Mantener una lista mínima de custodios y un procedimiento de recuperación; el número responde al equipo y a la continuidad requerida, no a un máximo contractual arbitrario de dos personas. Exigir MFA en las consolas interactivas, custodiar y rotar los secretos de acceso directo, revocar accesos al finalizar su necesidad y limitar la información extraída. Las migraciones rutinarias usan el pipeline; no se presentan como acceso de emergencia.
+
+Supabase permite exigir MFA de organización desde Pro, pero esta exigencia no bloquea los tokens personales de acceso ya emitidos: inventariarlos y limitar sus permisos y vigencia por separado. [MFA de organización](https://supabase.com/docs/guides/platform/mfa/org-mfa-enforcement).
+Los registros de auditoría de la plataforma y los roles por proyecto o de solo lectura requieren Team/Enterprise. El presupuesto Pro no acredita auditoría completa de acciones en el dashboard. [Auditoría de plataforma](https://supabase.com/docs/guides/security/platform-audit-logs) y [control de acceso](https://supabase.com/docs/guides/platform/access-control).
+Para G1, comprobar qué acciones cubren los registros disponibles, conservar la evidencia externa de intervenciones y documentar los huecos. Un ticket no sustituye el registro técnico de consultas. Si la trazabilidad exigida por el cliente supera lo comprobado, cambiar capacidad o procedimiento antes de habilitar sus datos; no asumir que la consola operadora registra actuaciones realizadas fuera de ella.
+
 ## 9. Copias, restauraciones y límite de los proveedores
 
-El plan original propone copias externas por 30 días. Es una hipótesis operativa, no una excepción legal a la eliminación.
-Las copias de PostgreSQL compartido, Storage, Auth y los servicios externos requieren verificación expresa antes del piloto.
-No afirmar que siete días de snapshots del proveedor o treinta días de R2 son automáticamente compatibles con cualquier solicitud o terminación.
+La retención se define y valida por repositorio antes de G1; se retira la cifra de 30 días como valor asumido para producción. Documentar finalidad, duración normal, mecanismo de supresión anticipada, capacidades del proveedor y evidencia de ejecución para PostgreSQL compartido, Storage, Auth, archivos externos y logs.
+Reducir R2 a siete días no demuestra cumplimiento. El supuesto de tres días para eliminación comunicada y el de cinco al finalizar el encargo son diferentes; no equiparar automáticamente términos hábiles, días naturales ni edad del snapshot. Calcular cada fecha límite según el procedimiento aplicable y su hecho inicial validado.
 No se identificó en las fuentes revisadas una excepción general para conservar toda copia solo por llamarla respaldo.
+
+Supabase Pro documenta siete días de copias diarias, pero esa duración no prueba eliminación selectiva de un espacio en cada copia. [Respaldos Supabase](https://supabase.com/docs/guides/platform/backups).
+Su DPA, sección 11, establece una retención de treinta días al terminar el acuerdo con Supabase; Schedule 3 contempla eliminación anterior mediante las funcionalidades del servicio. Confirmar cómo se ejecuta y acredita la eliminación en cada servicio y copia: cerrar un espacio de PlatLab no termina el proyecto compartido ni el contrato global del proveedor. No trasladar esa retención al contrato del cliente como excepción automática. [DPA Supabase](https://supabase.com/legal/customer-resources/data-processing-addendum).
 
 R2 puede servir como destino externo; cifrar objetos o impedir su borrado a la aplicación no demuestra que ya no sean recuperables.
 Mantener credenciales de backup separadas y privilegios mínimos. Evaluar cualquier bloqueo irrevocable de retención frente a las obligaciones de disposición.
 Comprobar si el proveedor permite eliminación selectiva, qué conserva tras borrar un objeto/proyecto y qué constancia puede entregar.
-No prometer borrado criptográfico por tenant sin demostrar que las claves y todas las copias relevantes quedan efectivamente inutilizables.
+La rotación normal y una supresión solicitada son mecanismos distintos: el segundo puede exigir eliminar o reemplazar copias antes de su vencimiento. En una copia global, comprobar el impacto sobre la recuperación del resto de espacios; segmentar archivos y exportaciones facilita su disposición, pero no resuelve por sí solo los snapshots compartidos.
+No prometer borrado criptográfico por espacio sin demostrar que las claves y todas las copias relevantes quedan efectivamente inutilizables.
 
 Diseñar un registro mínimo y protegido de eliminaciones que no dependa únicamente del snapshot restaurado.
 Antes de abrir una restauración a usuarios o integraciones, reaplicar disposiciones posteriores al backup y validar el resultado.
@@ -185,13 +206,14 @@ Así se evita reintroducir datos eliminados; este mecanismo no justifica por sí
 El registro también necesita minimización, acceso restringido y retención fundamentada; sus IDs podrían seguir siendo datos personales.
 Recuperar un solo cliente mediante una restauración aislada; nunca restaurar toda producción para deshacer una eliminación individual.
 
-El spike debe concluir con una matriz de capacidades, plazos y obligaciones por proveedor.
+El spike debe concluir con una matriz de capacidades, plazos y obligaciones por proveedor, aprobada como evidencia de G1.
 Una incompatibilidad no resuelta bloquea introducir datos reales bajo esas condiciones, aunque la aplicación funcione técnicamente.
 Las alternativas son cambiar capacidades o proveedor, segmentar cuando esté justificado o ajustar lícitamente el servicio acordado; no declarar cumplimiento sin evidencia.
+Esta verificación avanza en paralelo al desarrollo y a las demostraciones con datos operativos sintéticos; no exige detener ese trabajo hasta cerrar el contrato de producción.
 
 ## 10. Entrega mínima y comprobación
 
-Antes del piloto: contrato validado, inventario de proveedores, estados institucionales, canal de derechos y exportación por tenant.
+Para superar G1 —piloto con datos reales—: encargo revisado y aceptado por representante autorizado, inventario de proveedores, estados de acceso, canal de derechos y exportación por espacio, para el alcance publicado. Las condiciones completas de la puerta se mantienen en el [roadmap](06_roadmap.md).
 Incluir procedimiento operable de disposición y evidencias, aunque su ejecución inicial use herramientas internas sin una consola completa.
 Revisar retención por categorías: identidad/membresía, operación, documento, auditoría, logs, outbox, exportación, backup y facturación propia.
 Definir para cada categoría finalidad, responsable, plazo o criterio, excepción y acción final; no imponer un único plazo universal.
@@ -205,6 +227,8 @@ Ensayar al menos con datos sintéticos:
 - Reintento tras un fallo parcial de purga, sin duplicar efectos ni perder la evidencia.
 - Restauración de un backup anterior a una eliminación, reaplicándola antes de habilitar acceso.
 - Exportación y eliminación con comprobaciones de bytes y referencias, incluyendo copias externas aplicables.
+- Rechazo de carga real en una demo; habilitación de trial real con evidencias completas y salida al vencer.
+- Intervención excepcional de infraestructura con credencial distinta, alcance, motivo y evidencia; verificación de acciones que no registra la auditoría de la consola operadora.
 
 ## 11. Fuentes oficiales consultadas
 

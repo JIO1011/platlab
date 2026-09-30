@@ -1,6 +1,6 @@
 # Dominio y modelo de datos
 
-Fecha: 24 de septiembre de 2026; revisión del 26 de septiembre.
+Fecha: 24 de septiembre de 2026; revisión del 29 de septiembre. Este archivo define el modelo; las decisiones y sus motivos se registran en [ADRs](../adr/README.md).
 Estado: diseño propuesto; las reglas indicadas como «por validar» todavía requieren acuerdo con los clientes piloto.
 Prioridad: vender distintos paquetes desde la primera oferta. Reactivos y Equipos funcionan por separado sobre Core.
 Las prácticas son el centro de la operación cuando ese módulo está contratado; no son una dependencia del inventario.
@@ -26,8 +26,8 @@ Esto no impide transacciones entre módulos: el caso de uso coordina sus servici
 | Esquema | Propietario / alcance | Primera implementación |
 |---|---|---|
 | `core` | Espacios, personas, ubicaciones, permisos, derechos de uso, documentos y auditoría | F1 |
-| `inventory` | Catálogo cuantificable, lotes, saldos, movimientos y traslado mínimo; después reservas y transferencias ampliadas | F2; ampliaciones F3–F4 |
-| `reagents` | Datos químicos y documentos de reactivos, módulo 2 | F2 |
+| `inventory` | Catálogo, lotes, saldos, movimientos, custodia y retornos según el flujo; después reservas y transferencias ampliadas | R-00 en F1a; ampliar F2–F4 |
+| `reagents` | Datos químicos, documentos y perfil fiscalizado validado del módulo 2 | Mínimo R-00; completar F2 y REG-02 antes del piloto |
 | `equipment` | Activos, condición y responsables, módulo 3 | F2 |
 | `incidents` | Contexto, responsables y seguimiento mínimo de incidencias; capacidad compartida | F2 |
 | `laboratories` | Capacidad, horarios y reglas de espacios, módulo 4 | F3 |
@@ -48,40 +48,40 @@ Decisión confirmada: derechos por espacio de trabajo, sin licencias por unidad 
 
 Dos espacios no comparten existencias, reservas, miembros ni informes, aunque tengan el mismo titular o usuario. Una futura fusión exige migración y conciliación; no basta cambiar un ID. Dos facturas no determinan por sí solas dos tenants: la independencia operativa sí define el límite elegido. Compartir inventario entre espacios o contratar módulos distintos por unidad quedan fuera del alcance inicial.
 
-`core.organizations` conserva el nombre SQL por continuidad, pero representa el espacio de trabajo. Las unidades administrativas y ubicaciones físicas son conceptos diferentes; una unidad puede gestionar varias ubicaciones. Añadir `core.org_units` al introducir permisos por unidad administrativa, sin sustituir el árbol físico de ubicaciones.
+`core.workspaces` es el nombre canónico del espacio y `workspace_id` su referencia en tablas/API, según [ADR 0001](../adr/0001_espacios_y_acceso.md). Las unidades administrativas y ubicaciones físicas son conceptos diferentes; una unidad puede gestionar varias ubicaciones. No crear unidades administrativas en F1: documentar esta distinción en T-02 y añadir su modelo solo cuando exista un caso de uso.
 
-Las tablas descritas son el modelo objetivo por fases. F1 no crea las de todas las fases futuras. `support_grants` se difiere; `return_batches` empieza en F3; los envases individuales se incorporan solo si la operación los requiere, con ajuste de alcance si son indispensables para el primer cliente.
+Las tablas descritas son el modelo objetivo por fases. F1a no crea las de todas las fases futuras. `support_grants` se difiere; envases, custodia y `return_batches` se incorporan antes del piloto que los necesite. El requisito confirmado de fiscalizados obliga a resolver esos hechos en REG-01/REG-02, sin esperar a Prácticas si ya existen en la operación del laboratorio.
 
 ## 3. Convenciones de todas las tablas
 
 - UUID para identificadores; `created_at` y `updated_at` como `timestamptz` cuando corresponda.
-- Cada tabla institucional lleva `tenant_id NOT NULL`, FK a `core.organizations`.
-- Patrón: `PRIMARY KEY(id)` y `UNIQUE(tenant_id,id)`; las FKs institucionales incluyen siempre el tenant.
-- Ejemplo: `(tenant_id, location_id)` referencia `core.locations(tenant_id,id)`, nunca solamente `location_id`.
+- Cada tabla institucional lleva `workspace_id NOT NULL`, FK a `core.workspaces`.
+- Patrón: `PRIMARY KEY(id)` y `UNIQUE(workspace_id,id)`; las FKs institucionales incluyen siempre el tenant.
+- Ejemplo: `(workspace_id, location_id)` referencia `core.locations(workspace_id,id)`, nunca solamente `location_id`.
 - Toda FK que añada item, lote u otro discriminador requiere una clave única correspondiente en su destino; el modelo lógico debe convertirse en esas restricciones al escribir la migración.
-- Índices para las FKs y consultas habituales empezando por `tenant_id`; no añadir índices sin una consulta que los justifique.
+- Índices para las FKs y consultas habituales empezando por `workspace_id`; no añadir índices sin una consulta que los justifique.
 - Códigos de laboratorio, producto y activo únicos dentro del tenant. Nombres, CAS y lotes de proveedor no son claves únicas.
 - Estados como texto con `CHECK` y transiciones controladas; no dejar estados libres en JSON.
 - `version` entero para detectar modificaciones concurrentes de solicitudes y configuraciones editables.
 - Archivar catálogos con `archived_at`; desactivar membresías con `status`. El rol operativo no borra información histórica referenciada. La retención y disposición autorizada se rigen por [ciclo del cliente y datos](08_ciclo_cliente_y_datos.md).
 - JSONB para instantáneas, configuración acotada y metadatos; relaciones, cantidades y permisos permanecen normalizados.
-- Las tablas globales de identidad, permisos, módulos y unidades son excepciones explícitas a `tenant_id`.
+- Las tablas globales de identidad, permisos, módulos y unidades son excepciones explícitas a `workspace_id`.
 - Las fechas de caducidad pueden ser `date`; la política institucional define hasta qué momento permiten uso.
 
 ## 4. Core, identidad y autorización
 
 | Tabla | Campos y relaciones principales |
 |---|---|
-| `core.organizations` | Espacio: `id`, `customer_account_id`, `owner_membership_id`, `code`, `name`, `timezone`, `status`, motivo y fechas de cierre; zona IANA |
+| `core.workspaces` | Espacio: `id`, `customer_account_id`, `owner_membership_id`, `code`, `name`, `timezone`, `status`, motivo y fechas de cierre; zona IANA |
 | `core.identities` | `id`, `provider`, `provider_subject`, datos mínimos; único `(provider,provider_subject)` |
-| `core.memberships` | `id`, `tenant_id`, `identity_id`, `status`; único `(tenant_id,identity_id)` |
-| `core.invitations` | `tenant_id`, email destinatario, hash de token, expiración, invitador, roles/alcances propuestos y estado; canje único con identidad verificada; lote opcional al incorporar invitaciones CSV en F3 |
+| `core.memberships` | `id`, `workspace_id`, `identity_id`, `status`; único `(workspace_id,identity_id)` |
+| `core.invitations` | `workspace_id`, email destinatario, hash de token, expiración, invitador, roles/alcances propuestos y estado; canje único con identidad verificada; lote opcional al incorporar invitaciones CSV en F3 |
 | `core.principals` | Actor institucional: humano o servicio en MVP; membresía o código de servicio según tipo; soporte como ampliación posterior |
 | `core.support_grants` | Diferido: identidad del operador, aprobador del espacio, permisos, alcance, vencimiento y revocación |
-| `core.permissions`, `core.roles`, `core.role_permissions` | Catálogo global de códigos de permiso; roles institucionales y relaciones con permisos |
-| `core.role_assignments` | `principal_id`, `role_id`, `scope_kind`, `location_id` opcional, vigencia; organización o ámbito de ubicación |
+| `core.permissions`, `core.roles`, `core.role_permissions` | Catálogos globales de roles/permisos fijos, definidos en código y sincronizados por migración; no editables por el cliente |
+| `core.role_assignments` | `principal_id`, `role_id`, `scope_kind`, `location_id` opcional, vigencia; espacio de trabajo o ámbito de ubicación |
 | `core.locations` | `id`, `parent_id`, `code`, `name`, `kind`, `status`; sede, edificio, sala, almacén, custodia o tránsito |
-| `core.tenant_settings` | Políticas validadas y versionadas; evitar una colección ilimitada de ajustes arbitrarios |
+| `core.workspace_settings` | Políticas validadas y versionadas; evitar una colección ilimitada de ajustes arbitrarios |
 | `core.documents` | `id`, `storage_key`, nombre, MIME, tamaño, hash, actor, clasificación y estado de carga |
 | `core.branding` | Espacio, nombre visible, logo como documento/versionado, datos autorizados de encabezado; sin URL externa arbitraria |
 | `core.audit_events` | Actor, tenant, acción, entidad, momento, correlación, motivo y cambios relevantes |
@@ -89,19 +89,25 @@ Las tablas descritas son el modelo objetivo por fases. F1 no crea las de todas l
 | Tabla de administración SaaS | Campos y límites |
 |---|---|
 | `platform.customer_accounts` | Titular jurídico/contratante y contacto; datos mínimos necesarios, visibles al operador autorizado |
-| `platform.contracts` | Titular, espacio, vigencia, paquete, límites, estado y referencia contractual; no sustituye el documento legal |
+| `platform.package_definitions`, `package_versions` | Identidad del paquete y versiones inmutables con módulos/límites predeterminados y publicación |
+| `platform.contracts` | Titular, `workspace_id`, estado, revisión efectiva y referencia contractual; no sustituye el documento legal |
+| `platform.contract_revisions` | Contrato, espacio, versión de paquete, snapshot comercial, excepciones autorizadas, vigencia y estado de aplicación |
 | `platform.operator_accounts` | Identidad global, estado y capacidades del operador; independiente de membresías institucionales |
 | `platform.operator_audit_events` | Actor, acción administrativa, espacio afectado, motivo y cambios de metadatos; sin copiar contenido de inventarios |
-| `platform.tenant_limits`, `usage_reservations` | Cupos y reservas de almacenamiento/cargas/trabajos; comprobación y liberación atómicas |
+| `platform.workspace_limits` | Límites efectivos, `workspace_id`, `contract_id`, `contract_revision_id` y versión de aplicación; proyección operativa |
+| `platform.usage_reservations` | Consumo reservado de almacenamiento/cargas/trabajos; comprobación, confirmación y liberación atómicas |
+| `platform.workspace_readiness` | Desde F1b: espacio, alcance publicado, estado `synthetic/controlled_loading/operational`, evidencia, responsables y fechas de autorización de carga/operación; independiente de contrato y módulos |
 | `platform.data_disposition_cases`, `disposition_tasks` | Instrucción del responsable, alcance, plazo aplicable, excepciones, repositorio, estado y evidencia |
 
 Estas tablas de control tienen políticas propias: un usuario de un espacio no puede enumerar otros titulares o contratos. Todo registro que afecta a un espacio conserva su referencia; lo global no usa un tenant ficticio. La consola cambia contratos y derechos mediante comandos auditados, sin autorización general sobre datos operativos.
+
+Las FKs de contrato/revisión/derechos/límites incluyen `workspace_id`; una proyección de A no referencia contrato de B. `apply_contract_revision` es el único camino administrativo para aplicar cambios comerciales a derechos y límites, con misma versión, auditoría y transacción. El runtime lee esas dos proyecciones, no vuelve a interpretar paquete/contrato. El [ADR 0002](../adr/0002_contratos_y_derechos.md) define autoridad, vigencia futura y reparación de inconsistencias.
 
 Los vínculos a documentos/incidencias son tablas con FKs reales del módulo correspondiente, por ejemplo `equipment.incident_links`.
 Evitar un campo genérico `resource_type/resource_id` sin integridad referencial para relacionar operaciones críticas.
 Las membresías históricas permanecen aunque el usuario pierda acceso. Conservar autoría no concede permiso vigente.
 
-Todo campo de autoría operativa (`actor_id`, creador, reportante, ejecutor) referencia `(tenant_id, principal_id)` con FK compuesta.
+Todo campo de autoría operativa (`actor_id`, creador, reportante, ejecutor) referencia `(workspace_id, principal_id)` con FK compuesta.
 El principal humano referencia la membresía del mismo tenant; el de servicio tiene capacidades y alcance explícitos. El futuro principal de soporte requerirá una concesión temporal del mismo tenant; no se habilita en F1. Un `CHECK` impide mezclar clases. La identidad global autentica, pero no demuestra pertenencia institucional.
 Custodios, docentes y prestatarios humanos internos referencian membresías mediante FK compuesta; las bajas no eliminan esas referencias. Prestatarios externos quedan pendientes de alcance en F4.
 En trabajos iniciados por personas se conservan por separado `requested_by_principal_id` y `executed_by_principal_id`. El operador del proveedor no obtiene acceso al dominio por gestionar una licencia.
@@ -109,7 +115,7 @@ En trabajos iniciados por personas se conservan por separado `requested_by_princ
 Permisos iniciales: consultar, crear, editar catálogo, ajustar stock, aprobar, preparar, cerrar, transferir, recibir y administrar acceso.
 Propiedad singular del espacio y plantillas iniciales: administrador y técnico; docente y tesista se habilitan con sus casos de uso en F3. Coordinador es una posible plantilla adicional de permisos, no una jerarquía obligatoria. El propietario se deriva de `owner_membership_id`, no de un rol editable.
 Asignar un rol no convierte a su titular en administrador de todos los laboratorios.
-La herencia de ámbitos usa la jerarquía de ubicaciones; mover una ubicación exige revisar el cambio de alcance de permisos.
+La herencia de ámbitos usa `parent_id` y CTE recursivas; impedir ciclos, cambios entre espacios y cambios de autorización durante un movimiento concurrente del árbol. `ltree` queda condicionado a medición, según [ADR 0006](../adr/0006_sql_y_pruebas.md).
 Consultar inventario institucional puede permitirse sin autorizar salidas de otro laboratorio.
 Transferir requiere permiso en origen; recibir requiere permiso en destino.
 Autorizar la propia solicitud: deshabilitado por defecto, incluso para propietario/administrador; una excepción institucional requiere política explícita y trazabilidad.
@@ -117,7 +123,7 @@ Las invitaciones y asignaciones no pueden otorgar permisos o alcances que el adm
 
 ### Propiedad y alta del espacio
 
-- `owner_membership_id` es la única autoridad de propiedad. FK compuesta `(id, owner_membership_id) → core.memberships(tenant_id,id)`; nunca puede apuntar a otro espacio.
+- `owner_membership_id` es la única autoridad de propiedad. FK compuesta `(id, owner_membership_id) → core.memberships(workspace_id,id)`; nunca puede apuntar a otro espacio.
 - Estados del espacio: `provisioning`, `trial`, `active`, `suspended`, `closing`, `terminated`. Durante `provisioning` puede no existir propietario y no hay operación del dominio. Pasar a `trial`/`active` exige propietario humano con membresía activa; un `CHECK` cubre nulabilidad y el comando transaccional comprueba vigencia.
 - Preparar espacio, paquete e invitación es idempotente. Después de verificar la identidad externa, el canje crea membresía/principal, asigna propiedad y habilita el espacio en una transacción. Auth y correo ocurren fuera del commit SQL y admiten reintentos, sin dejar un espacio activo huérfano.
 - La transferencia requiere reautenticación del propietario actual, aceptación del sucesor y membresía activa del mismo espacio. Bloquear la fila del espacio serializa transferencias, revocaciones y cambios de propiedad. Registrar las funciones que conserva el anterior propietario; no borrar su autoría.
@@ -139,7 +145,7 @@ Invitaciones masivas reutilizan `core.invitations`, con vista previa, deduplicac
 Toda operación del dominio entra por la API Node/Fastify, que usa SQL parametrizado mediante `pg`.
 Supabase Auth autentica a la persona; la API verifica el token y resuelve identidad, membresía y organización activa.
 El tenant que envía el navegador es una selección a validar, nunca una prueba de pertenencia.
-El `organization_id` de la API selecciona el espacio cuyo identificador se guarda como `tenant_id` en SQL; no se mantienen dos identificadores de aislamiento independientes.
+El `workspace_id` de la API selecciona el espacio cuyo identificador se guarda como `workspace_id` en SQL; no se mantienen dos identificadores de aislamiento independientes.
 
 Flujo de cada transacción:
 
@@ -172,7 +178,7 @@ Referencia: [políticas de seguridad por fila de PostgreSQL](https://www.postgre
 |---|---|
 | `core.module_definitions` | Código estable, nombre y versión de definición; catálogo global |
 | `core.module_dependencies` | Módulo, dependencia obligatoria; las integraciones opcionales se definen aparte |
-| `core.tenant_entitlements` | Tenant, módulo, adquisición, vigencia, estado operativo, fecha y versión; único `(tenant_id,module_code)` |
+| `core.workspace_entitlements` | Espacio, módulo, vigencia efectiva, estado operativo, `contract_id`, `contract_revision_id` y versión de aplicación; único `(workspace_id,module_code)` |
 | `core.entitlement_changes` | Historial de activación, cambios, actor y motivo |
 
 Dependencias obligatorias: M2/M3/M4/M6 → M1; M5 → M1 + M4; M7 → M1 + M3; M8 → M1 + algún módulo operativo.
@@ -204,7 +210,7 @@ En F2 probar expresamente clientes con combinaciones distintas; el catálogo com
 
 ### Ciclo del espacio y sus datos
 
-`provisioning → trial/active → closing → terminated`, con `suspended` como estado reversible con motivo. `provisioning` espera la aceptación del propietario; una prueba también tiene responsable, finalidad y fecha de salida. Usar datos sintéticos hasta acordar el tratamiento de datos reales. `closing` permite preparar exportación y resolver pendientes dentro de una prestación autorizada. `terminated` cierra el acceso operativo y ejecuta las instrucciones de devolución/eliminación.
+`provisioning → trial/active → closing → terminated`, con `suspended` como estado reversible con motivo. `provisioning` espera la aceptación del propietario. Demo y trial son distintos: el trial admite carga real controlada tras la primera autorización de G1, con encargo y garantías verificadas; la operación se habilita después de conciliar y aceptar el inventario. No depende solo de una etiqueta comercial. `closing` permite preparar exportación y resolver pendientes dentro de una prestación autorizada. `terminated` cierra acceso operativo y ejecuta instrucciones de devolución/eliminación. [ADR 0005](../adr/0005_datos_reales_y_recuperacion.md).
 
 El proceso de disposición mantiene su estado separado: `pending | exporting | deletion_pending | deleting | retained_exception | completed`. Registrar la fecha real del fin del encargo, instrucciones y plazo normativo aplicable. No marcar `completed` hasta verificar todos los repositorios incluidos y documentar las excepciones. La definición completa, fuentes y plazos están en [ciclo del cliente y datos](08_ciclo_cliente_y_datos.md).
 
@@ -218,7 +224,8 @@ Eliminar un espacio no elimina automáticamente una identidad global que todaví
 | `reagents.products` | FK única al item, CAS opcional, concentración, pureza, estado físico, peligros; SDS mediante documentos versionados |
 | `inventory.lots` | Item, referencia de proveedor, marca/proveedor, recepción, caducidad, condición y datos de origen |
 | `inventory.containers` | Ampliación condicionada: item/lote, código interno, apertura, caducidad tras apertura y estado; no obligatoria para F2 si el proceso trabaja por lote |
-| `inventory.return_batches` | Desde F3: partida de retorno segregada, item/lote, posición y operación de origen, verificación y disposición |
+| `inventory.return_batches` | Partida de retorno segregada, item/lote, posición y operación de origen, verificación y disposición; REG-02 si el piloto devuelve sobrantes |
+| `inventory.custodies`, `custody_lines` | Entrega, responsable humano, posiciones/cantidades de origen/destino y conciliación; independientes de una actividad de Prácticas |
 | `inventory.positions` | Item, lote, envase opcional, partida de retorno opcional, ubicación, disposición, saldo físico, cantidad reservada y versión |
 | `inventory.operations` | Tipo, actor, motivo, fecha, correlación y referencia documental; cabecera de movimiento |
 | `inventory.entries` | Operación, posición, cantidad con signo y unidad base; asientos inmutables |
@@ -226,7 +233,7 @@ Eliminar un espacio no elimina automáticamente una identidad global que todaví
 | `inventory.transfers`, `transfer_lines` | Origen, destino, estado; item/lote, solicitado, despachado, recibido y diferencia |
 
 El lote se relaciona también con el item mediante FK compuesta; no se permite asignar a un producto el lote de otro.
-La clave única de posición es `(tenant_id,item_id,lot_id,container_id,return_batch_id,location_id,disposition)`, tratando nulos como iguales. FKs compuestas validan tenant, item y lote de envase/partida, además de ubicación.
+La clave única de posición es `(workspace_id,item_id,lot_id,container_id,return_batch_id,location_id,disposition)`, tratando nulos como iguales. FKs compuestas validan tenant, item y lote de envase/partida, además de ubicación.
 Cuando el item exige seguimiento por envase, cada posición debe identificarlo. No permitir saldo agregado sin envase y saldo por envase para las mismas existencias; cambiar de modo exige una conciliación/migración explícita. La entrega parcial preserva envase y origen aunque se registre en otra posición de custodia.
 El catálogo común no crea un constructor universal de recursos: cada tipo mantiene sus reglas y sus extensiones propias.
 Las extensiones de reactivo/material son únicas por item y validan su discriminador de tipo; no admitir el mismo item en ambos módulos.
@@ -264,6 +271,30 @@ Una asignación pasa de `held` a `fulfilled` o `released`; entregas parciales re
 No añadir expiración automática de reservas confirmadas. Si se introducen retenciones temporales, necesitan otro tipo y vencimiento explícito.
 Transferencias: `draft → approved → in_transit → partially_received → received`; puede omitirse el estado parcial si toda la recepción es conjunta.
 Una cancelación posterior al despacho solo termina cuando tránsito queda conciliado; recepción y devolución nunca superan lo pendiente.
+
+### Perfil de sustancias fiscalizadas del piloto
+
+El usuario confirma que el laboratorio cuenta con calificación, responsable y reportes actuales, y que este alcance es obligatorio desde el piloto. REG-01 verifica su evidencia y proceso; no se considera validado un formato concreto por esa confirmación. La función pertenece a Reactivos, no requiere Analítica avanzada.
+
+Modelo mínimo propuesto para REG-02, ajustado con esa evidencia antes de escribir sus migraciones:
+
+| Elemento | Datos y relaciones |
+|---|---|
+| `reagents.regulatory_profiles` | Producto/sustancia, código oficial, lista/jurisdicción/versión, concentración y tipo/unidad; clasificación revisada y evidencia |
+| `reagents.authorizations`, `authorized_sites` | Referencia de calificación, titular, vigencia, actividades, responsable y sitios vinculados a ubicaciones; workspace y FKs del mismo espacio |
+| `reagents.authorized_quotas` | Sustancia, autorización, periodo, unidad, cupo y modificaciones documentadas; criterio de utilización y alcance completo/parcial |
+| `reagents.regulated_operation_details` | FK al movimiento de inventario, tipo regulatorio/versionado, fecha del hecho y registro, documentos/contraparte cuando correspondan; no otro saldo editable |
+| `reagents.regulatory_reports`, `report_lines` | Periodo/perímetro, operaciones incluidas con FKs, saldos conciliados, versión de reglas/formato, revisor, exportación/hash y evidencia posterior de presentación |
+
+Cupo autorizado, existencia física y cuota comercial del SaaS son diferentes. No clasificar por CAS o nombre sin comprobar concentración y norma aplicable; no inventar valores ni equivalencias masa/volumen. Un envío interno a custodia no es consumo ni compra; el reporte deriva de hechos tipificados, no de todas las salidas del almacén sumadas indiscriminadamente.
+
+Si el piloto entrega a docentes y recibe sobrantes, `inventory.custodies` y partidas de retorno se implementan en F2 antes de G1. Un técnico registra responsable y entrega, consumo real, retorno, verificación o disposición. No requieren agenda ni una actividad de Prácticas; F3 añadirá vínculos tipados a esos mismos hechos. La cantidad devuelta/consumida/dispuesta no supera lo entregado y el saldo institucional conserva lo que sigue en custodia, tránsito o cuarentena.
+
+Un reporte pasa por borrador, revisión y exportación; presentación/constancia se registran solo con evidencia. Corregir un periodo preserva versión previa, motivo y conciliación; exportar no acredita envío ni aceptación oficial. La primera integración prepara el formato o documento de trabajo que el responsable valide para su proceso; no automatiza una presentación a SISALEM ni presupone API pública. El [manual oficial disponible de 2019](https://www.ministeriodegobierno.gob.ec/wp-content/uploads/2019/06/MANUAL-DE-USUARIO-SISALEM-Mayo2019.pdf) es referencia de descubrimiento, no garantía del formato vigente.
+
+Si la autorización/cupo cubre otros espacios o sistemas, marcar el perímetro parcial y comprobar consolidación con el responsable. No replicar el cupo completo en cada espacio ni afirmar control institucional global con datos parciales. Puede usarse consolidación asistida de exportaciones autorizadas si REG-01 demuestra su integridad; si el cliente exige control global automático, diseñarlo antes de G1. Compartir titular no concede acceso cruzado.
+
+REG-01 fija campos exigibles y acciones ante falta de evidencia: bloquear nuevas operaciones incompatibles cuando corresponda, pero permitir registrar una incidencia ya ocurrida con seguimiento. Las [pruebas de G1](06_roadmap.md) cubren conciliación del periodo, correcciones y consumo sin doble conteo. La calificación autoriza actividades concretas; PlatLab conserva evidencia y no la emite ni verifica en línea sin integración demostrada. [Trámite del Ministerio del Interior](https://www.gob.ec/mdi/tramites/aprobacion-calificacion-manejo-sustancias-catalogadas-sujetas-fiscalizacion).
 
 ## 8. Equipos, materiales e incidencias
 
@@ -309,13 +340,15 @@ Reservar capacidad futura compartida exige calcular la ocupación simultánea po
 | `scheduling.material_bookings` | FK a `materials.assets`, intervalo, estado y tipo para unidades identificables; se añade en F4 |
 | `practices.templates`, `template_versions` | Plantilla, versión, instrucciones, datos académicos y publicación inmutable |
 | `practices.participations` | Solicitante, tipo de participación, ámbito, vigencia y responsable académico; membresías del mismo tenant; F3 |
-| `practices.activities` | Plantilla opcional, `kind` docencia/investigación, `requester_membership_id`, responsable académico, participación cuando aplique, laboratorio, horario, estado, revisiones vigente/pendiente y versión de concurrencia |
-| `practices.activity_revisions` | Instantánea y requisitos, autor, motivo, estado de revisión, decisión del solicitante y fechas de aceptación/vencimiento |
+| `practices.activities` | Plantilla/versionada, `kind` docencia/investigación, solicitante, responsable/participación, horario solicitado y confirmado, laboratorio asignado por técnico (nullable hasta asignación), estado, revisiones y versión de concurrencia |
+| `practices.activity_revisions` | Requisitos solicitados y propuesta técnica exacta, laboratorio/horario propuestos, autor, motivo, estado y decisión del solicitante; instante y vigencia |
+| `practices.conditional_approvals` | Revisión exacta, principal técnico autorizante, ámbito, condiciones/política, vencimiento y revocación; no crea reservas |
 | `practices.requirements` | Actividad, recurso tipado, cantidad, unidad y asignación aprobada; FKs reales |
 | `practices.decisions`, `state_changes` | Revisión, decisión, actor, motivo y transiciones |
-| `practices.booking_links`, `custody_locations` | FKs entre actividad, reserva y ubicación virtual de custodia |
+| `practices.booking_links`, `custody_links` | FKs entre actividad, reservas y custodias de inventario del mismo espacio; no duplicar movimientos |
 
 El solicitante y el responsable académico son referencias diferentes, aunque puedan coincidir para un docente. Aceptar propuestas corresponde al solicitante; el patrocinador no se convierte en dueño de la solicitud. Reasignar un responsable o solicitante requiere comando autorizado y trazabilidad, conservando autorías previas.
+El docente propone desde una plantilla fecha/franja y equipos, materiales y reactivos; no fija el laboratorio definitivo. El sistema sugiere candidatos compatibles y el técnico asigna entre salas autorizadas del mismo workspace. Una petición docente que intente establecer la asignación técnica se rechaza. «Espacio físico» es sala/laboratorio; no es el workspace que aísla al cliente.
 Una versión publicada de plantilla no cambia; una ejecución preserva la versión y lo aprobado aunque el catálogo evolucione.
 No duplicar una práctica completa por cada impresión: generar el formato desde su revisión y versión.
 La agenda de Laboratorios admite reservas manuales sin Prácticas. Una reserva vinculada se edita desde la actividad.
@@ -327,6 +360,8 @@ Cada tabla de reservas de activos posee su propia exclusión por tenant/activo/i
 
 Workflow propuesto:
 
+El [ADR 0007](../adr/0007_aprobacion_condicionada.md), aceptado el 29 de septiembre, define la asignación técnica, aprobación condicionada y reubicación. La sugerencia automática no aprueba ni aparta recursos.
+
 ```text
 draft → submitted → scheduled → preparing → ready → running → closing → completed
             ├→ changes_requested → draft
@@ -334,17 +369,18 @@ draft → submitted → scheduled → preparing → ready → running → closin
 Antes o durante la ejecución → cancelled
 La cancelación puede conservar conciliación operativa pendiente.
 
-Revisión propuesta por el técnico:
-awaiting_requester_acceptance → accepted → approved
+Revisión preautorizada por el técnico:
+awaiting_requester_acceptance → approved (aceptación y reserva válidas)
+                            ├→ accepted_pending_review (excepción de confirmación)
                             ├→ declined
                             └→ expired / withdrawn
 ```
 
 La validación automática produce resultados fechados, no requiere otro estado persistido.
 Aprobar confirma agenda y recursos y pasa a `scheduled` en la misma transacción; no dejar «aprobada pero sin reserva».
-Cambiar horario, laboratorio o cantidades aprobadas requiere revisión y nueva validación.
+Cambiar horario o requisitos aprobados requiere revisión, aceptación y nueva validación. Una reubicación equivalente se admite por comando técnico auditado según las condiciones del ADR 0007; reemplaza reservas atómicamente y notifica.
 `changes_requested` pide al solicitante (docente o tesista) corregir su solicitud. `awaiting_requester_acceptance` indica que el técnico ya propuso una versión sustancial distinta y espera su decisión; esa diferencia debe verse en el panel.
-El solicitante acepta o declina una revisión concreta; aceptar no reserva ni aprueba automáticamente. El técnico aprueba la revisión aceptada y valida recursos transaccionalmente. Un rechazo devuelve la propuesta a revisión sin alterar una aprobación anterior.
+Al aceptar la revisión preautorizada, el servidor revalida autoridad técnica, elegibilidad del solicitante, condiciones y disponibilidad y confirma todo conjuntamente. Una excepción conserva aceptación pendiente de revisión solo mediante el camino transaccional explícito del ADR; un rollback completo no la guarda. Declinar no altera una aprobación anterior.
 Si la actividad ya está programada, la revisión pendiente no reemplaza la vigente: conservar sus reservas mientras se negocia, mostrar que la alternativa no está garantizada e impedir preparar/iniciar con una modificación sustancial pendiente hasta retirarla o resolverla. Al aprobar, liberar/reemplazar las reservas en la misma transacción; si hay conflicto, rollback conserva las anteriores.
 Vencer o retirar una propuesta notifica al responsable y conserva la reserva vigente. No cancelar ni liberar reservas silenciosamente por un timeout. Una actividad iniciada registra diferencias/incidencias; no negocia retrospectivamente una versión de lo ya ejecutado.
 `cancelled` describe la sesión académica; `reconciliation_status` pendiente/completa se deriva de reservas y custodias, o se mantiene transaccionalmente. Una cancelada con entregas pendientes permanece visible para el técnico y para el cierre de módulos.
@@ -354,13 +390,13 @@ La impresión inicial usa una vista HTML autorizada con CSS de impresión y la f
 
 ```mermaid
 erDiagram
-    ORGANIZATION ||--o{ MEMBERSHIP : autoriza
-    ORGANIZATION ||--o{ LOCATION : contiene
+    WORKSPACE ||--o{ MEMBERSHIP : autoriza
+    WORKSPACE ||--o{ LOCATION : contiene
     LOCATION ||--o| LAB : habilita_agenda
     LOCATION ||--o{ STOCK_POSITION : almacena
     ITEM ||--o{ LOT : identifica
     LOT ||--o{ STOCK_POSITION : distribuye
-    TEMPLATE_VERSION o|--o{ ACTIVITY : origina
+    TEMPLATE_VERSION ||--o{ ACTIVITY : origina
     LAB ||--o{ LAB_BOOKING : programa
     ACTIVITY o|--o| LAB_BOOKING : puede_originar
     ACTIVITY ||--o{ REQUIREMENT : requiere
@@ -395,7 +431,7 @@ Antes de despacho puede cancelarse; después debe resolverse mercancía en trán
 Una transferencia entre tenants no es una transferencia interna: queda fuera del alcance inicial.
 
 **Conflictos de agenda.** Restricción de exclusión GiST por tenant, laboratorio/activo e intervalo para reservas confirmadas, usando `btree_gist`.
-Ejemplo conceptual: `EXCLUDE USING gist (tenant_id WITH =, lab_id WITH =, period WITH &&) WHERE (status = 'confirmed')`.
+Ejemplo conceptual: `EXCLUDE USING gist (workspace_id WITH =, lab_id WITH =, period WITH &&) WHERE (status = 'confirmed')`.
 Los rangos deben ser finitos, no vacíos y coherentes con inicio/fin. Las reservas canceladas no bloquean.
 Una avería se registra como condición real aunque existan reservas; marca las afectadas para resolución sin impedir reportar el fallo.
 Fuente: [rangos y reservas sin solapamientos en PostgreSQL](https://www.postgresql.org/docs/current/rangetypes.html).

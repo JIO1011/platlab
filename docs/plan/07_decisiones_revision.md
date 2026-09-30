@@ -1,70 +1,54 @@
-# Revisión crítica y decisiones — 26 de septiembre de 2026
+# Revisión crítica y decisiones
 
-Estado: decisiones técnicas y respuestas del usuario incorporadas. Este documento responde al informe de revisión sin asumir que todas sus observaciones son correctas. Las tres consultas de negocio están resueltas; las validaciones operativas restantes tienen una fase asignada.
+Revisión: 29 de septiembre de 2026. Este archivo es el índice de evaluaciones; las decisiones técnicas viven en [ADRs](../adr/README.md). No repetir aquí parámetros, estados o matrices que ya tienen una fuente.
 
-## 1. Resultado de la evaluación
+## Observaciones del 28 de septiembre
 
-Se mantiene el monolito modular, TypeScript, frontend estático, API Node y PostgreSQL. La revisión mejora alcance, operación y límites comerciales; no aporta una razón suficiente para cambiar a microservicios ni autoalojar toda la plataforma.
-
-| Observación | Evaluación | Resolución |
+| Observación | Evaluación y resolución | Fuente |
 |---|---|---|
-| F1 y la primera oferta tienen plazos poco realistas | Aceptada la falta de sustento; tampoco se valida automáticamente la estimación alternativa | Se retiran las estimaciones previas. Por indicación del usuario, el plan usa dependencias, entregables y criterios de salida, sin fechas ni dedicación semanal supuestas |
-| Posponer soporte temporal, envases y retornos | Parcialmente aceptada | Diferir soporte interactivo; envases según necesidad; partidas de retorno en F3. No diferir aislamiento, atomicidad ni recuperación |
-| Automatizar `draining` es necesario desde F1 | No | Transición manual auditada; la API comprueba expiración y bloquea nuevas operaciones sin depender del scheduler |
-| Cliente equivale a institución | Demasiado ambiguo | Espacio independiente con propietario y equipo; una universidad puede tener varios espacios bajo el mismo titular jurídico |
-| M4 de la proforma contradice F3 | Aceptada; el usuario confirma que era conceptual | Mantener M4 en F3. El documento 09 sustituye el alcance comercial anterior |
-| M8 pierde las alertas | Inexacta | Conserva alertas avanzadas, resúmenes y escalamiento. Los avisos indispensables pertenecen al módulo operativo |
-| US$ 100/mes es inviable | No puede concluirse para todo escenario | Comparar costos repartidos entre clientes, uso y soporte; no prometer dedicado ni soporte ilimitado con ese precio |
-| No existe consola de operador | Estaba insinuada, faltaba especificación | `/ops`, API administrativa, operadores con MFA y permisos separados; implementación mínima en F1 |
-| “Nunca borrar” es incompatible con protección de datos | Aceptada como defecto de redacción/diseño | Inmutabilidad operativa y disposición autorizada son procedimientos distintos; nuevo documento 08 |
-| Falta aceptación del solicitante y cancelación explícita | Aceptada | Estado en la revisión pendiente, aceptación del docente/tesista, reserva vigente preservada y `cancelled` con conciliación independiente |
-| Se pierde Realtime al cerrar Data API | Inexacta | Broadcast privado sigue siendo posible; elegir polling visible cada 30 s al inicio |
-| Falta elegir servicios | Aceptada | Resend, R2 y Better Stack; región candidata Virginia/North Virginia, sujeta a prueba |
-| Faltan cuotas por cliente | Aceptada | Límites de frecuencia, almacenamiento y tareas; cuotas persistentes y reparto de trabajo, no solo contador local |
-| Falta réplica de lectura | No es un hueco del MVP | Considerarla solo con contención analítica medida; nunca como autoridad de disponibilidad |
-| Next.js aparece en evaluación | Era una comparación retórica que confundía | Texto corregido; recomendación sigue React/Vite + API Node |
-| Incidencias tiene dos propietarios | Aceptada | Capacidad y esquema `incidents`, introducidos en F2; no tablas de incidencias dentro de Core |
-| Impresión y logos indefinidos | Aceptada | Branding por espacio y HTML/CSS de impresión desde una revisión autorizada; PDF por navegador |
+| Nombres diferentes para el espacio | Aceptada: unificar SQL y API; la UI conserva el término español | [ADR 0001](../adr/0001_espacios_y_acceso.md) |
+| Polling agota 600 peticiones/minuto | Riesgo válido; 100 usuarios generan 200 con una consulta o 600 con tres. Separar lecturas/comandos y refresco por función | [ADR 0003](../adr/0003_refresco_y_limites.md) |
+| ETag y contador por espacio como solución | Parcial: 304 no reduce peticiones; diferir ETag y contador global hasta medir necesidad | [ADR 0003](../adr/0003_refresco_y_limites.md) |
+| Contratos, derechos y límites contradictorios | Aceptada la ambigüedad: paquete versionado, revisión contractual y aplicación atómica de proyecciones efectivas | [ADR 0002](../adr/0002_contratos_y_derechos.md) |
+| Rotar backups en siete días resuelve SPDP | Rechazada esa conclusión: no cubre automáticamente todos los supuestos ni copias del proveedor | [ADR 0005](../adr/0005_datos_reales_y_recuperacion.md) |
+| Trial solo sintético | La prohibición no era absoluta; ahora distinguir demo de trial real mediante G1 y aceptación válida del encargo | [ADR 0005](../adr/0005_datos_reales_y_recuperacion.md) |
+| T-02 parece exigir unidades administrativas | Corregido: evidencia conceptual, sin crear esa tabla en F1a | [Modelo](03_dominio_y_datos.md) |
+| El proveedor sí tiene acceso fuera de la consola | Aceptada: separar operadores, automatización e intervención privilegiada; no inventar límite obligatorio de dos personas | [ADR 0005](../adr/0005_datos_reales_y_recuperacion.md) |
+| Fecha de revisión de diseño desactualizada | Corregida al revisar el archivo; cada fecha refleja su revisión real | [Diseño](05_experiencia_y_diseno.md) |
+| F1 bloquea demasiado feedback | Aceptada: F1a + primer flujo de reactivos; F1b paralela a F2; puertas demo/piloto/venta | [Roadmap](06_roadmap.md) |
+| Google/Microsoft OAuth para docentes | Aceptada para F3; correo sigue disponible. OAuth no equivale a SAML ni concede membresía | [ADR 0004](../adr/0004_identidad_y_operacion.md) |
+| Aceptar invitación crea cuenta confirmada | Corregida: confirma al verificar/canjear el correo; no preconfirmar cuentas por CSV | [ADR 0004](../adr/0004_identidad_y_operacion.md) |
+| Aprobación técnica condicionada | Aceptada el 29: docente propone recursos; técnico asigna sala y preautoriza cambios; aceptación confirma solo si siguen válidos | [ADR 0007](../adr/0007_aprobacion_condicionada.md) |
+| Consola en dominio/build propios | Aceptada: apps/operator y API común con JWT, aal2, operador vigente y permiso; Access opcional | [ADR 0004](../adr/0004_identidad_y_operacion.md) |
+| Rate limiter en memoria y luego Key Value | Aceptada con precisión: Redis compatible para múltiples réplicas; Workers KV no sirve como contador estricto | [ADR 0003](../adr/0003_refresco_y_limites.md) |
+| Delegación de roles fija en código | Aceptada: catálogo y política versionados, asignaciones persistentes, sin editor universal | [ADR 0001](../adr/0001_espacios_y_acceso.md) |
+| Fiscalizados como diferenciador | Necesidad confirmada y obligatoria para el piloto; REG-01/REG-02 verifican trazabilidad y reporte vigente dentro de Reactivos | [Producto](09_producto_y_paquetes.md) |
+| Descuento por espacios del mismo titular | Hipótesis comercial razonable, condicionada a costos; un espacio institucional compartido puede ser legítimo | [Producto](09_producto_y_paquetes.md) |
+| Colaborador para Prácticas durante F2 | Aceptada como tarea de descubrimiento; no adelanta implícitamente el módulo completo | [Roadmap](06_roadmap.md) |
+| ADR y menos duplicación | Aceptada: fuentes por tema, este archivo como índice y CLAUDE como navegación | [Índice ADR](../adr/README.md) |
+| JWKS asimétricos | Aceptada desde F1a, con rotación y controles de token | [ADR 0004](../adr/0004_identidad_y_operacion.md) |
+| pgTAP / supabase test db | Aceptada junto a integración API y concurrencia real, no como sustituto de estas | [ADR 0006](../adr/0006_sql_y_pruebas.md) |
+| ltree para ubicaciones | Diferido: parent_id y CTE recursiva primero; medir antes de sumar otra representación | [ADR 0006](../adr/0006_sql_y_pruebas.md) |
+| Tipado SQL sin elegir | Resuelto: pg + PgTyped; migraciones SQL siguen siendo la autoridad | [ADR 0006](../adr/0006_sql_y_pruebas.md) |
 
-El [roadmap](06_roadmap.md) detalla secuencia y criterios. [Infraestructura](04_infraestructura.md) documenta proveedores y presupuesto. [Dominio](03_dominio_y_datos.md) define estados, cuotas y autoridades.
+## Decisiones anteriores que siguen vigentes
 
-## 2. Correcciones a la explicación de arquitectura
+El usuario confirmó espacios independientes con propietario transferible, administradores, operadores, docentes y tesistas; una universidad puede tener varios espacios. La proforma anterior era conceptual y puede reemplazarse. El plan debe tener dependencias y entregables, sin fechas ni capacidad semanal supuestas. No volver a preguntar estas tres decisiones.
 
-- «Una vez desplegado» significa un producto común, no una sola instancia para siempre. Existen ambientes y puede haber réplicas de API/worker con la misma versión y contratos compatibles.
-- API/worker son la vía ordinaria al dominio. Auth, Storage, migraciones, respaldos y procedimientos administrativos también necesitan accesos acotados a PostgreSQL.
-- Los archivos usan normalmente enlaces firmados directos. Descargas con revocación inmediata o verificaciones específicas pueden requerir paso por backend.
-- Las dependencias se controlan mediante inversión de puertos y límites de módulos. `dependency-cruiser` comprueba importaciones; no prueba integridad SQL ni transacciones.
-- Un rechazo puede ocurrir antes de abrir transacción. La auditoría de éxito se confirma con el negocio; los intentos fallidos requieren un log separado que sobreviva al rollback.
-- Región cercana reduce una fuente de latencia; no crea red privada entre Render y Supabase. La selección concreta debe medirse.
+La revisión anterior también incorporó consola, cuotas, proveedores, salida de datos, aceptación de cambios, cancelación explícita e impresión con marca. M8 conserva alertas avanzadas y cada módulo incluye sus avisos esenciales. Cerrar la Data API no elimina todas las opciones de tiempo real. Los ADR actuales reemplazan las formulaciones técnicas anteriores cuando lo indican.
 
-Referencias técnicas: [dependency-cruiser](https://github.com/sverweij/dependency-cruiser/blob/main/doc/rules-reference.md), [regiones Render](https://render.com/docs/regions), [Broadcast privado](https://supabase.com/docs/guides/realtime/broadcast).
+## Respuestas recibidas el 28–29 de septiembre
 
-## 3. Decisiones resueltas con el usuario
-
-| ID | Respuesta recibida | Decisión aplicada |
+| Pregunta | Estado | Impacto |
 |---|---|---|
-| D-01 | Espacios independientes, propietario que incorpora administradores/operadores, contemplar docentes/tesistas y vender a más universidades | Un propietario transferible por espacio, identidad compartida entre espacios y permisos por función; titular jurídico separado. Docentes/tesistas con flujos propios en F3 |
-| D-02 | La proforma solo era una idea; elegir la mejor solución para comercializar | Sustituir su alcance por la oferta del documento 09; inventarios en F2, Agenda/Prácticas en F3; originales conservados como antecedentes |
-| D-03 | La capacidad semanal y los plazos no son relevantes; se necesita un plan lógico | Fases por dependencias, resultados comprobables y puertas de salida; sin calendario ficticio |
+| Laboratorio interesado | Confirmado, interesado en todos los módulos | Producto completo como objetivo; no se reduce la oferta total al primer incremento |
+| Sustancias fiscalizadas desde el piloto | Confirmado, obligatorias | REG-01 y REG-02 son requisitos de G1 de este cliente |
+| Calificación, responsable y reportes actuales | Confirmado por el usuario | Verificar evidencias y formato con ese responsable; no inventar sus campos ni cupos |
+| Piloto por entregas | Aceptado | Inventarios y trazabilidad primero; Agenda/Prácticas después, conservando los ocho módulos como objetivo |
+| Aprobación condicionada y asignación | Aceptado con aclaración | El docente propone desde plantilla; el técnico asigna/reubica salas con sugerencias del sistema y controla cambios |
 
-La propiedad es gobierno de acceso, no titularidad personal de los datos ni licencia ligada a una cuenta. El propietario puede nombrar administradores y técnicos sin recibir automáticamente facultades de aprobación o ajuste. La universidad y el contrato continúan aunque cambie esa persona.
+Las preguntas de diseño consultadas están resueltas. Queda trabajo de validación, no una nueva elección de arquitectura: revisar reportes/calificación con el responsable, fijar los campos y reglas de REG-01, medir proveedores y comprobar recuperación/disposición. Cada tarea tiene una puerta en el roadmap; no impide comenzar el primer incremento sintético.
 
-Validaciones siguientes: muestras de inventario/envases en F0; conectividad, proveedores y recuperación en F1; precio y soporte de lanzamiento antes de publicar la oferta; políticas de cambios y participación académica antes de F3. El plan propone valores de partida cuando procede; estas validaciones no reabren las tres decisiones resueltas.
+## Cómo empezar
 
-## 4. Cómo resolver la diferencia comercial
-
-La proforma v2 se conserva como antecedente. [Producto y paquetes](09_producto_y_paquetes.md) es la definición comercial vigente del diseño; no reutilizar el HTML histórico como oferta actual.
-
-Primera oferta con inventario químico, equipos o ambos; Agenda y Prácticas como siguiente entrega. M8 se denomina **Analítica y alertas avanzadas**. Las alertas de caducidad, stock y averías se incluyen en los módulos que necesitan esos controles.
-
-Separar en la nueva oferta: desarrollo de producto todavía pendiente, incorporación/migración del cliente y servicio recurrente con límites. No cobrar implícitamente a cada nuevo cliente una reconstrucción del mismo módulo ni prometer soporte sin alcance.
-
-La infraestructura compartida presupuestada en la revisión es aproximadamente US$ 150–185/mes, sin trabajo humano ni PITR; no es un costo por cliente. Para evaluar una tarifa por espacio, usar número conservador de clientes y costo marginal: infraestructura asignada + soporte pactado + mantenimiento + contingencia + margen. El alcance comercial queda definido; la tarifa de venta requiere validar costos y condiciones de servicio, no escoger un número arbitrario.
-
-## 5. Protección de datos: cambio material
-
-El plan incorpora salida y exportación, disposición de datos por repositorio, identidades compartidas y compatibilidad de respaldos. El historial no se conserva para siempre por llamarse auditoría. La relación responsable/encargado y las instrucciones de salida deben quedar documentadas; los detalles y fuentes están en [ciclo del cliente y datos](08_ciclo_cliente_y_datos.md).
-
-La resolución SPDP de 2025 contempla términos específicos para actuaciones del encargado al recibir eliminación y al terminar la relación; no se sustituirán por una gracia comercial genérica. Validar la ejecución con proveedores y asesoría antes del piloto. [Resolución SPDP-SPD-2025-0030-R, arts. 23–24](https://spdp.gob.ec/wp-content/uploads/2025/08/0030-R.pdf).
-
-No se declara cumplimiento por elegir una región, cifrar copias o disponer de un botón de borrar. Tampoco se abandona la nube por anticipado: se verifica qué puede ejecutar cada proveedor y se ajusta la solución si aparece una incompatibilidad concreta.
+La especificación implementable es [primer incremento](../desarrollo/primer_incremento.md); el orden y las puertas viven en [roadmap](06_roadmap.md). No hace falta construir exportaciones de todos los módulos, una consola completa o automatización comercial antes de mostrar el flujo sintético. Antes de datos reales sí deben cumplirse las condiciones del alcance que se vaya a pilotar.

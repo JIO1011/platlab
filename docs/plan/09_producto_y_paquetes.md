@@ -1,6 +1,6 @@
 # Producto, espacios y paquetes
 
-Fecha: 26 de septiembre de 2026. Definición de producto basada en las respuestas del usuario. Sustituye el alcance comercial de la proforma conceptual; no es una cotización ni afirma que los módulos estén construidos.
+Fecha: revisión del 29 de septiembre de 2026. Definición de producto basada en las respuestas del usuario. Sustituye el alcance comercial de la proforma conceptual; no es una cotización ni afirma que los módulos estén construidos. Las puertas de disponibilidad comercial son las del [roadmap](06_roadmap.md).
 
 ## 1. Qué se vende
 
@@ -11,6 +11,8 @@ Una universidad puede contratar un espacio para varios laboratorios o varios esp
 Ejemplo: Química y Biología pertenecen a la misma universidad, pero contratan por separado. Cada departamento tiene espacio, propietario, equipo y módulos propios. Una docente puede pertenecer a ambos y cambiar de espacio; esa pertenencia no comparte existencias ni reservas. Si Química administra tres laboratorios, estos son ubicaciones dentro de su espacio, con permisos por ubicación.
 
 La licencia pertenece al espacio, no a la persona que lo creó. Cambiar de propietario no cambia los datos, el contrato ni el paquete. Compartir o fusionar inventarios entre espacios queda fuera del lanzamiento y requerirá un proyecto explícito de integración/migración.
+
+El modelo técnico de aislamiento tiene una sola autoridad en [ADR 0001](../adr/0001_espacios_y_acceso.md). Aquí se describe su oferta comercial, no un segundo modelo de autorización.
 
 ## 2. Quién usa el producto
 
@@ -50,7 +52,7 @@ Los avisos esenciales de caducidad, stock, averías y acciones pendientes están
 
 ## 4. Alta, ampliaciones y salida
 
-1. El operador registra titular, espacio, condiciones, paquete y límites; envía invitación al propietario. El espacio queda en `provisioning`.
+1. El operador registra titular, espacio y revisión contractual, y aplica paquete/derechos/límites mediante el comando del [ADR 0002](../adr/0002_contratos_y_derechos.md); envía invitación al propietario. El espacio queda en `provisioning`.
 2. El propietario verifica su identidad y acepta. El espacio pasa a prueba o activo, según las condiciones autorizadas; configura marca, ubicaciones y equipo.
 3. La incorporación valida/importa datos, comprueba saldos y permite operar el paquete contratado.
 4. El propietario o representante autorizado solicita ampliaciones. El proveedor aplica derechos, vigencia y límites; el cliente no se autoasigna licencias.
@@ -61,6 +63,8 @@ La administración de propiedad no equivale a representación jurídica. Cierre 
 ## 5. Cómo estructurar la oferta económica
 
 Recomendación: una suscripción por espacio y paquete, con límites de uso y soporte descritos; incorporación y migración presupuestadas por separado según calidad de los datos. La contratación puede ser mensual o anual sin alterar el modelo de módulos. No cobrar una reconstrucción del producto común a cada universidad.
+
+Evaluar descuento por volumen de espacios del mismo titular, con piso que cubra atención y operación de cada espacio. No fijar porcentaje sin validar costos. Una universidad puede reunir departamentos en un espacio si realmente comparten gobierno y operación: no tratarlo como abuso. Los límites transparentes de usuarios/almacenamiento/uso y el soporte pactado permiten cobrar el volumen; no forzar fronteras de datos para corregir un precio mal diseñado. Facturación conjunta no habilita consultas cruzadas.
 
 Separar tres conceptos: desarrollo de capacidades aún no disponibles, incorporación de un cliente y servicio recurrente. El servicio dedicado o en servidor del cliente es una modalidad adicional con costos y responsabilidades propios; no forma parte de la tarifa compartida estándar.
 
@@ -74,4 +78,14 @@ Primero completar la base común y probar dos clientes sintéticos aislados. Des
 
 Agregar después Agenda y Prácticas/Investigación usando el mismo inventario. Mantener como referencia visual el PDF, adaptando navegación, solicitudes y marca a los módulos y funciones realmente disponibles. [Experiencia y diseño](05_experiencia_y_diseno.md) describe esa evolución.
 
-El siguiente trabajo es F0 y el inicio de F1 del roadmap. No hace falta escoger una fecha ficticia ni construir todos los módulos para empezar a implementar; sí demostrar cada entrega antes de venderla como disponible.
+El siguiente trabajo es el [primer incremento](../desarrollo/primer_incremento.md), junto con descubrimiento F0. Una demo sintética, un piloto real acotado y la venta abierta son resultados diferentes: seguir las puertas del roadmap.
+
+## 7. Descubrimiento regulatorio y colaboración
+
+El piloto confirmado necesita sustancias fiscalizadas y el usuario confirma calificación, responsable y reportes actuales. F0 verifica su alcance y evidencia: sustancias/concentraciones, titular, sitios, cupos, unidades y consolidación. No se repite la pregunta de si es necesario. Los [detalles del modelo](03_dominio_y_datos.md#perfil-de-sustancias-fiscalizadas-del-piloto) y las tareas REG-01/REG-02 del roadmap gobiernan esta entrega; pertenece a Reactivos sin exigir M8.
+
+El reporte regulatorio es una oportunidad a validar, no una prestación ya incluida por tener un ledger. EPN describe consumo y reporte institucional a SISALEM; una calificación puede reunir unidades que PlatLab modele en espacios diferentes. Requerir exportaciones autorizadas y conciliación por el responsable, sin lectura cruzada automática por titular. [Proceso publicado por EPN](https://www.epn.edu.ec/academico/traspasos-masivos-y-asignacion-reasignacion-de-bienes-administrativo/).
+
+Obtener formato y reglas vigentes antes de implementar el reporte del piloto. El manual oficial disponible de 2019 describe carga TXT, por lo que no se presupone CSV ni API pública; no automatizar presentación ante la autoridad en el MVP. Validar campos, conciliación y aceptación del responsable antes de G1; un CSV genérico no demuestra resolver ese proceso. No confundir fiscalización con registros de medicamentos o normativa ambiental. [Manual SISALEM de referencia histórica](https://www.ministeriodegobierno.gob.ec/wp-content/uploads/2019/06/MANUAL-DE-USUARIO-SISALEM-Mayo2019.pdf).
+
+El laboratorio interesado quiere todos los módulos y acepta probar por entregas. Durante F2 concretar su participación como colaborador para Prácticas: observar solicitudes, preparación, cambios y cierre; validar con casos su asignación técnica y aprobación condicionada aceptadas por el usuario en el ADR 0007. Esto produce evidencia para F3, sin anunciar ese módulo como construido.

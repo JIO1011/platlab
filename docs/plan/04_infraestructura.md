@@ -1,6 +1,6 @@
 # Infraestructura y operación
 
-Fecha: 2026-09-26. Estado: diseño revisado; no hay infraestructura desplegada ni servicios contratados.
+Fecha: 2026-09-28. Estado: diseño revisado; no hay infraestructura desplegada ni servicios contratados. Valores de proveedores conservan su fecha de consulta y se verifican antes de contratar.
 
 ## 1. Decisión inicial
 
@@ -34,13 +34,14 @@ Un monolito modular puede tener dos procesos. El worker separa la ejecución len
 
 Solo API y worker realizan el acceso ordinario al dominio de la aplicación. Auth, Storage, migraciones, respaldos y administración también usan PostgreSQL con identidades separadas. El navegador usa Auth y archivos autorizados; no consulta directamente las tablas de negocio.
 
-La primera oferta atenderá **varios clientes con paquetes distintos**: Núcleo + Reactivos, Núcleo + Equipos y su combinación. Una producción compartida mantiene espacios independientes con `tenant_id` en SQL (`organization_id` en la API), propietario y equipo propios. Una universidad puede tener varios espacios; compartir titular no comparte datos. No crear un servidor por módulo. Un cliente dedicado usa el mismo producto y migraciones, con otra cotización. Agenda se incorpora en F3 según el [roadmap](06_roadmap.md).
+La primera oferta atenderá **varios clientes con paquetes distintos**: Núcleo + Reactivos, Núcleo + Equipos y su combinación. Una producción compartida mantiene espacios independientes, según [ADR 0001](../adr/0001_espacios_y_acceso.md). No crear un servidor por módulo. Un cliente dedicado usa el mismo producto y migraciones, con otra cotización. Las puertas de demo, piloto y venta están en el [roadmap](06_roadmap.md).
 
 Se recomienda nube. No existe un requisito offline confirmado: durante descubrimiento se evaluarán cortes y conectividad de los clientes, y se acordará el procedimiento de continuidad. Una operación offline con sincronización necesitaría otro alcance y otra arquitectura de conflictos.
 
 ## 2. Despliegue, regiones y red
 
 - `app.<dominio>`: SPA con fallback hacia `index.html` para rutas internas y archivos versionados por hash.
+- `ops.<dominio>`: frontend `apps/operator` compilado por separado. Comparte API con la aplicación institucional; `/v1/operator/*` exige autorización operadora y MFA en servidor según [ADR 0004](../adr/0004_identidad_y_operacion.md).
 - `api.<dominio>`: API Render con dominio propio y HTTPS. Cloudflare administra DNS; si se activa proxy, usar TLS estricto y excluir API de caché.
 - Candidata principal: **Render Virginia para API/worker + Supabase North Virginia `us-east-1`**. Medir desde Ecuador antes de confirmar. Si no cumple, comparar Ohio con Supabase `us-east-2` o cambiar el proveedor de cómputo. No elegir Supabase São Paulo dejando la API en EE. UU. sin medir el costo de cada ida y vuelta SQL.
 - Una instancia API y una instancia worker al inicio; esto no constituye alta disponibilidad completa. Si el contrato exige tolerar la caída de una instancia, presupuestar redundancia y verificar failover.
@@ -61,7 +62,7 @@ Preferir conexión directa si Render tiene conectividad IPv6 válida; si no, **S
 
 Contrato obligatorio de cada operación:
 
-1. Verificar firma, emisor, audiencia y vencimiento del JWT de Supabase; nunca confiar en decodificarlo solamente.
+1. Verificar JWT con claves asimétricas/JWKS y controles del [ADR 0004](../adr/0004_identidad_y_operacion.md); nunca confiar en decodificarlo solamente.
 2. Obtener un cliente del pool y abrir una transacción.
 3. Establecer actor y organización con `SET LOCAL` o `set_config(..., true)` parametrizado; contexto derivado de identidad validada y organización solicitada.
 4. Comprobar principal/membresía vigente, permiso, alcance y clase de acción admitida por el módulo antes de ejecutar el caso de uso. Nuevas operaciones requieren vigencia; resolución de pendientes y consulta siguen la matriz de continuidad de [dominio y datos](03_dominio_y_datos.md). Las políticas de membresía deben permitir verificar al propio actor sin abrir todas las membresías.
@@ -77,7 +78,7 @@ El worker usa un principal de servicio restringido y contexto por organización.
 
 ## 4. Documentos y secretos
 
-Buckets privados. La API comprueba permiso sobre el registro propietario antes de generar una URL de carga o descarga. Rutas internas: `<organization_id>/<document_id>/<version_id>`; el cliente no decide libremente el destino.
+Buckets privados. La API comprueba permiso sobre el registro propietario antes de generar una URL de carga o descarga. Rutas internas: `<workspace_id>/<document_id>/<version_id>`; el cliente no decide libremente el destino.
 
 Carga propuesta: autorizar → reservar cupo y crear registro pendiente → entregar URL firmada → subir → verificar tamaño/tipo real → confirmar consumo y marcar disponible. Los uploads pendientes consumen cupo para impedir sobrepasarlo con cargas paralelas; una limpieza recuperable elimina huérfanos y libera reservas vencidas. Cada reemplazo crea una versión con otra clave; no sobrescribir silenciosamente una SDS utilizada históricamente.
 
@@ -86,6 +87,8 @@ Las URL de descarga caducan en pocos minutos. Una URL emitida puede continuar v�
 Una clave secreta usada para firmar desde el servidor omite controles RLS de Storage: el adaptador debe comprobar explícitamente organización, permiso, objeto y finalidad. El navegador recibe la URL, nunca la clave. No habilitar acceso amplio a `storage.objects` para resolver un error de permisos. [Seguridad Storage](https://supabase.com/docs/guides/storage/security/access-control).
 
 Secretos separados por ambiente: credencial SQL API, credencial SQL worker, administración de Storage/Auth, correo, despliegue y respaldo. Guardarlos en los proveedores y en el almacén de secretos de CI; nunca en Git ni en variables `VITE_*`. API y worker de negocio no reciben credenciales del almacén de respaldo. MFA para cuentas operadoras, inventario de propietarios y procedimiento de rotación.
+
+Dashboard de Supabase, migraciones y copias son caminos privilegiados fuera de la API. Mantener custodios nominativos, intervención justificada y evidencia según [ADR 0005](../adr/0005_datos_reales_y_recuperacion.md). El presupuesto Pro no incluye automáticamente auditoría completa de plataforma ni roles limitados de planes superiores; validar cobertura antes de ofrecerla. No confundir MFA interactivo con protección de todos los tokens de automatización.
 
 ## 5. Tareas, correo y límites por cliente
 
@@ -109,17 +112,13 @@ Valores técnicos iniciales propuestos, configurables y sujetos a carga medida; 
 
 | Recurso | Punto de partida | Aplicación |
 |---|---|---|
-| API autenticada | 120 peticiones/minuto por actor y espacio; 600/minuto por espacio | Controles acumulativos después de validar membresía; responder `429` y `Retry-After` |
-| Tráfico sin identidad | 300 peticiones/minuto por IP al origen | Defensa inicial; ajustar para redes universitarias que comparten IP y probar el hostname directo |
 | Archivos de documentos | 20 MiB por archivo; 5 GiB por espacio | Cuota atómica que cuenta documentos y cargas pendientes; validar también bytes reales |
 | Importación CSV | 10 MiB y 10 000 filas; lotes de hasta 500 | Prevalidar antes de aplicar; lotes reiniciables e idempotentes con errores por fila |
 | Trabajo pesado | 1 simultáneo por espacio, máximo global 2; hasta 5 pendientes por espacio | Reclamar y reservar cupos en PostgreSQL; repartir turnos entre espacios, sin FIFO global que monopolice un cliente |
 | Consultas interactivas | `statement_timeout` inicial 5 s; espera de bloqueo 1 s | Responder conflicto o reintento controlado; consultas largas pasan al worker |
 | Consultas de worker | 30 s por lote y concesión renovable | Partir tareas; no una transacción de minutos para toda una importación |
 
-`@fastify/rate-limit` protege frecuencia por IP/actor; la clave de espacio se obtiene de una membresía comprobada, no solo de la URL. En una única API, el contador local es una defensa aproximada que se reinicia con el proceso. Las cuotas contractuales de bytes, miembros y trabajos se comprueban y reservan en PostgreSQL incluso con una sola instancia; excederlas devuelve `QUOTA_EXCEEDED`. El control de abuso se limita antes de hacer consultas costosas y no confía en cabeceras de proxy arbitrarias. [Plugin oficial](https://github.com/fastify/fastify-rate-limit).
-
-Antes de una segunda instancia API, implementar contador compartido por ventana corta `(espacio, clase de operación, ventana)` mediante UPSERT atómico y limpieza en PostgreSQL; comprobar también límites por actor. No llevar tráfico anónimo masivo a esos contadores. Medir contención, latencia y overhead: si falla el presupuesto de carga, adoptar un almacén externo como Redis antes de escalar. Un contador en memoria por réplica no es límite global. Los cupos de trabajo y almacenamiento siguen siendo transaccionales y compartidos en cualquier despliegue.
+La política de refresco y los presupuestos HTTP separados por lectura/comando tienen una única fuente en [ADR 0003](../adr/0003_refresco_y_limites.md): memoria con una API, Redis compatible antes de múltiples réplicas, sin contador HTTP por petición en PostgreSQL. Las cuotas exactas de bytes, puestos y trabajos permanecen transaccionales en PostgreSQL incluso con una sola instancia; excederlas devuelve `QUOTA_EXCEEDED`.
 
 ## 6. Ambientes y entregas
 
@@ -135,8 +134,8 @@ Versionar configuración de Cloudflare, Dockerfile y `render.yaml`; este último
 
 Pipeline de entrega:
 
-1. Tipado, lint, límites de dependencias con dependency-cruiser, pruebas de dominio y políticas RLS, migraciones sobre base vacía y sobre la versión anterior.
-2. Compilar SPA e imagen de API/worker con versiones bloqueadas; comprobar que el bundle no contiene secretos.
+1. Tipado/generación PgTyped, lint, dependency-cruiser, pgTAP con roles reales, integración/concurrencia y migraciones sobre base vacía y versión anterior, según [ADR 0006](../adr/0006_sql_y_pruebas.md).
+2. Compilar las SPA institucional/operadora y la imagen de API/worker con versiones bloqueadas; comprobar que los bundles no contienen secretos.
 3. Desplegar en staging y ejecutar un flujo completo de los módulos publicados: recepción/salida, incidencia de equipo, documento y tarea; añadir agenda al publicarla y preparación/cierre al incorporar Prácticas.
 4. Antes de producción, verificar copia recuperable y aplicar migraciones aditivas compatibles con la versión anterior.
 5. Desplegar API y worker del mismo release; tolerar temporalmente versiones contiguas durante la sustitución. Después publicar frontend compatible.
@@ -159,7 +158,7 @@ El segundo perfil necesita PITR o una estrategia adicional comprobada y copia fr
 
 Destino elegido: **Cloudflare R2 Standard**, en cuenta de respaldo separada de la aplicación y con administración restringida. Ejecutar el respaldo mediante un proceso programado aislado, con credenciales propias; no dentro del runtime de negocio. Diseño:
 
-- Copia diaria cifrada antes de salir al destino, con claves recuperables por un procedimiento separado. Rotación operativa candidata de 30 días durante el servicio, pendiente de validar con la política de datos; no significa conservar datos 30 días después de terminar el encargo.
+- Copia diaria cifrada antes de salir al destino, con claves recuperables por un procedimiento separado. Retención normal por repositorio y eliminación anticipada definidas antes de G1; no asumir ni 30 ni 7 días como cumplimiento. [ADR 0005](../adr/0005_datos_reales_y_recuperacion.md).
 - Exportación recuperable de datos, roles necesarios y configuración, incluyendo identidades Auth según el procedimiento admitido por Supabase. No asumir que una migración o un dump con exclusiones contiene todo. [Restauración con CLI](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore).
 - Copia independiente de los bytes de Storage, transfiriendo versiones nuevas y conservando las referenciadas por snapshots vigentes. Manifiesto con ruta, tamaño y checksum; una copia se marca completa solo si resuelve todos los documentos referenciados por el snapshot. No usar sincronización que propague automáticamente los borrados del origen.
 - Configuración de buckets, Auth, correo, DNS y secretos recuperable por un procedimiento aparte; no guardar secretos sin cifrar junto al dump.
