@@ -8,3 +8,7 @@ coverage/
 # Supabase local
 supabase/.branches/
 supabase/.temp/
+
+# Herramientas de agentes: solo local o descargable
+.claude/settings.local.json
+.claude/skills/impeccable/scripts/bin/
