@@ -1,6 +1,6 @@
 # 05 — Decisiones y pendientes
 
-Revisión: 30 de septiembre de 2026. Registro resumido de decisiones de arquitectura (ADR). Una decisión aceptada solo se reemplaza con otra que indique qué cambia. El texto completo anterior de los ADR 0001–0007 está en el commit `bc26fa8`.
+Revisión: 1 de octubre de 2026. Registro resumido de decisiones de arquitectura (ADR). Una decisión aceptada solo se reemplaza con otra que indique qué cambia. El texto completo anterior de los ADR 0001–0007 está en el commit `bc26fa8`.
 
 | ADR | Tema | Estado |
 |---|---|---|
@@ -12,7 +12,7 @@ Revisión: 30 de septiembre de 2026. Registro resumido de decisiones de arquitec
 | [0006](#adr-0006) | SQL tipado y pruebas | Aceptado el 28-09-2026 |
 | [0007](#adr-0007) | Asignación y aprobación condicionada | Aceptado el 29-09-2026; actor actualizado el 30-09-2026 |
 | [0008](#adr-0008) | Roles y actores | Aceptado el 30-09-2026; la matriz detallada se valida en P-03 |
-| [0009](#adr-0009) | Etapas de módulo y admisión de operaciones | Aceptado el 30-09-2026 |
+| [0009](#adr-0009) | Etapas de módulo y admisión de operaciones | Aceptado el 30-09-2026; marca de ambiente el 01-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -42,6 +42,11 @@ Motivo: un solo código para todos los clientes y un aislamiento verificable.
 Motivo: una sola autoridad evita contradicciones entre contrato, paquete y permisos.
 
 Cambio del 30-09-2026: se aclara el efecto de la expiración, que la versión compacta había dejado ambiguo.
+
+Alcance en F1a (01-10-2026), según el primer incremento:
+- El comando es una función SQL que solo ejecuta el rol de migraciones, desde fixtures y pruebas.
+- La revisión lista módulos con vigencia, periodo de cierre y acceso de consulta.
+- Llegan después: retirar módulos por revisión, la auditoría de staff y los límites (consola O-01), y los paquetes versionados (F1b).
 
 <a id="adr-0003"></a>
 ## ADR 0003 — Refresco y protección de tráfico
@@ -144,6 +149,8 @@ Motivo:
 - Una decisión de autorización no puede quedar obsoleta por un cambio de estado concurrente.
 
 Cambio del 30-09-2026: la tabla única pasa a dos ejes con denegación por defecto, con rutas por módulo y admisión bajo bloqueo.
+
+Cambio del 01-10-2026: el ambiente se marca en la base (`platform.environment`), que nace como datos reales. Solo el seed local o de CI y el aprovisionamiento de staging o demo lo marcan como sintético. Si se olvida marcarlo, un módulo en `development` se deniega: el error siempre cae del lado seguro. Un contrato de tipo `demo` solo se admite en un ambiente sintético.
 
 ## Pendientes
 

@@ -21,7 +21,7 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 | Clase | Tablas | `workspace_id` | Acceso | Eliminación |
 |---|---|---|---|---|
 | Catálogo global | `core.module_definitions`, `module_dependencies`, `permissions`, `roles`, `role_permissions` y unidades de medida | No | Solo lectura en el runtime; cambia por migración | No contiene datos de clientes |
-| Global de plataforma | `core.identities`, `platform.customer_accounts`, `staff_accounts`, `package_definitions`, `package_versions` | No | Consola del Equipo PlatLab con permiso, o la propia identidad; políticas propias | Procedimiento global: cerrar un espacio no borra una identidad que usa otros espacios |
+| Global de plataforma | `core.identities`, `platform.customer_accounts`, `environment`, `staff_accounts`, `package_definitions`, `package_versions` | No | Consola del Equipo PlatLab con permiso, o la propia identidad; políticas propias | Procedimiento global: cerrar un espacio no borra una identidad que usa otros espacios |
 | Plataforma por espacio | `platform.contracts`, `contract_revisions`, `workspace_limits`, `usage_reservations`, `workspace_readiness`, `idempotency_records`, `outbox_events`, `jobs`, `job_runs`, `schedules`, `import_*`, `data_disposition_*` y `staff_audit_events` | Sí; en `staff_audit_events` el espacio afectado es opcional | Comandos del Equipo PlatLab o del runtime con contexto | Entra en la disposición del espacio, salvo excepción justificada |
 | Dominio del espacio | El resto de `core` y los esquemas de módulos y capacidades | Sí, con RLS | API con membresía | Solo mediante el procedimiento de disposición |
 
@@ -67,7 +67,8 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 | `core.audit_events` | Actor, acción, entidad, correlación, motivo y cambios relevantes |
 | `platform.customer_accounts` | Titular jurídico y contacto |
 | `platform.package_definitions`, `package_versions` | Paquetes y sus versiones inmutables |
-| `platform.contracts`, `contract_revisions` | Contrato por espacio y revisiones con vigencia |
+| `platform.contracts`, `contract_revisions`, `contract_revision_modules` | Contrato por espacio y revisiones numeradas con tipo (`demo`, `pilot`, `standard`); cada módulo de la revisión lleva vigencia, periodo de cierre y acceso de consulta |
+| `platform.environment` | Marca única del ambiente: datos `real` (valor inicial) o `synthetic` ([ADR 0009](05_decisiones.md#adr-0009)) |
 | `platform.workspace_limits` | Límites efectivos proyectados por `apply_contract_revision` |
 | `platform.usage_reservations` | Cuotas de archivos y trabajos, reservadas y confirmadas de forma atómica |
 | `platform.staff_accounts`, `staff_audit_events` | Equipo PlatLab y su auditoría |

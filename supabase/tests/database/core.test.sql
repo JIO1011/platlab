@@ -65,10 +65,14 @@ set constraints all immediate;
 
 select tables_are('core',
   array['workspaces', 'identities', 'memberships', 'principals', 'roles', 'permissions',
-        'role_permissions', 'locations', 'role_assignments'],
-  'core contiene solo las tablas de T-02/T-03');
+        'role_permissions', 'locations', 'role_assignments', 'module_definitions',
+        'module_dependencies', 'workspace_entitlements', 'audit_events'],
+  'core contiene solo las tablas de T-02 a T-05');
 
-select tables_are('platform', array['customer_accounts'], 'platform contiene solo los titulares');
+select tables_are('platform',
+  array['customer_accounts', 'environment', 'contracts', 'contract_revisions',
+        'contract_revision_modules', 'idempotency_records'],
+  'platform contiene solo las tablas de T-02 a T-05');
 
 select is(
   (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -92,17 +96,22 @@ select ok(
     and not has_schema_privilege('authenticated', 'platform', 'USAGE'),
   'anon y authenticated no usan los esquemas core ni platform');
 
-select is(
-  (select count(*)::int from information_schema.role_table_grants
-    where grantee = 'platlab_api' and table_schema in ('core', 'platform')
-      and privilege_type <> 'SELECT'),
-  0, 'platlab_api no tiene INSERT, UPDATE de tabla, DELETE ni TRUNCATE en core ni platform');
+select set_eq(
+  $$ select table_schema::text || '.' || table_name::text || ' ' || privilege_type::text
+       from information_schema.role_table_grants
+      where grantee = 'platlab_api' and table_schema in ('core', 'platform')
+        and privilege_type <> 'SELECT' $$,
+  array['core.audit_events INSERT', 'platform.idempotency_records INSERT'],
+  'platlab_api solo inserta auditoría e idempotencia; sin UPDATE de tabla, DELETE ni TRUNCATE');
 
 select set_eq(
-  $$ select table_name::text || '.' || column_name::text from information_schema.column_privileges
-      where grantee = 'platlab_api' and table_schema = 'core' and privilege_type = 'UPDATE' $$,
-  array['workspaces.version', 'memberships.version'],
-  'platlab_api solo puede actualizar version de espacios y membresías (para FOR SHARE)');
+  $$ select table_schema::text || '.' || table_name::text || '.' || column_name::text
+       from information_schema.column_privileges
+      where grantee = 'platlab_api' and table_schema in ('core', 'platform')
+        and privilege_type = 'UPDATE' $$,
+  array['core.workspaces.version', 'core.memberships.version',
+        'core.workspace_entitlements.version', 'platform.idempotency_records.response'],
+  'platlab_api solo actualiza version (para FOR SHARE) y la respuesta idempotente');
 
 select ok(
   not has_table_privilege('platlab_api', 'platform.customer_accounts', 'SELECT'),

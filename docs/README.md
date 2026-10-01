@@ -1,6 +1,6 @@
 # PlatLab — hilo del proyecto
 
-Revisión: 1 de octubre de 2026. Estado: primer incremento en construcción (T-01 cerrado; T-02/T-03 verificados en local); sin infraestructura desplegada ni datos reales.
+Revisión: 1 de octubre de 2026. Estado: primer incremento en construcción (T-01 a T-03 cerrados; T-04/T-05 verificados en local); sin infraestructura desplegada ni datos reales.
 
 ## Qué es
 
@@ -11,8 +11,8 @@ SaaS modular para gestionar laboratorios de varias instituciones: reactivos, equ
 | Punto | Estado |
 |---|---|
 | Diseño | Cerrado para el primer incremento; decisiones en [05](05_decisiones.md) |
-| Hecho | T-01 (monorepo y CI) y T-02/T-03 (Core, RLS, JWT por JWKS, roles con ámbito); evidencias en [desarrollo/evidencias](desarrollo/evidencias/) |
-| Siguiente paso | T-04/T-05 del [primer incremento](desarrollo/primer_incremento.md): manifiestos y derechos, admisión de dos ejes, `/me` con módulos y `/home`, auditoría e idempotencia; después R-00 |
+| Hecho | T-01 (monorepo y CI), T-02/T-03 (Core, RLS, JWT por JWKS, roles con ámbito) y T-04/T-05 (derechos por contrato, admisión de dos ejes bajo bloqueo, `/me` y `/home`, auditoría e idempotencia); evidencias en [desarrollo/evidencias](desarrollo/evidencias/) |
+| Siguiente paso | R-00 del [primer incremento](desarrollo/primer_incremento.md): catálogo, lote, ingreso, salida y ajuste por API, con saldo e historial; después la interfaz (paso 5) |
 | Primera puerta | G0: demo sintética con dos espacios aislados ([roadmap](04_roadmap.md)) |
 | En paralelo | F0 con el laboratorio interesado: fiscalizados (REG-01) y prácticas (P-04) |
 

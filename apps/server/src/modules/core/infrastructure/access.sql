@@ -1,6 +1,6 @@
 /*
-  Acceso mínimo de T-03 (02 §5–§6). Cada consulta filtra el espacio de forma explícita;
-  RLS es la segunda barrera, no la única.
+  Acceso y admisión (02 §5–§6). Cada consulta filtra el espacio de forma explícita;
+  RLS es la segunda barrera, no la única. La decisión la toma siempre core.admission.
 */
 
 /* @name findIdentity */
@@ -19,14 +19,13 @@ FROM core.memberships AS m
 JOIN core.workspaces AS w ON w.id = m.workspace_id
 WHERE m.identity_id = :identityId!
   AND m.status = 'active'
-  AND w.status IN ('trial', 'active', 'suspended', 'closing')
+  AND cardinality(core.workspace_axis(w.status, w.suspension_reason)) > 0
 ORDER BY w.name, w.id;
 
-/* @name lockMembership */
--- Lee espacio y membresía con bloqueo compartido en la misma consulta que decide (02 §6),
--- en el orden fijo espacio → membresía. Una revocación o un cambio de estado esperan a que esta
--- transacción termine; si ya se confirmaron, la relectura de FOR SHARE excluye la fila.
--- T-04 la sustituye por la admisión de dos ejes, que añade el derecho del módulo.
+/* @name admitWorkspace */
+-- Rutas de Core: admisión con el eje espacio (Core no tiene derecho propio). Bloquea espacio y
+-- membresía con FOR SHARE en el orden fijo; una revocación o un cambio de estado esperan a que
+-- esta transacción termine y, si ya se confirmaron, la relectura excluye la fila o cambia la decisión.
 SELECT
   w.id AS workspace_id,
   w.code,
@@ -37,17 +36,88 @@ SELECT
   i.display_name,
   m.id AS membership_id,
   p.id AS principal_id,
-  (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS "is_owner!"
+  (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS "is_owner!",
+  core.workspace_axis(w.status, w.suspension_reason) AS "workspace_classes!",
+  core.admission(:actionClass!, core.workspace_axis(w.status, w.suspension_reason), core.action_classes()) AS "decision!"
 FROM core.workspaces AS w
 JOIN core.memberships AS m ON m.workspace_id = w.id
 JOIN core.identities AS i ON i.id = m.identity_id
 JOIN core.principals AS p ON p.workspace_id = m.workspace_id AND p.membership_id = m.id
 WHERE w.id = :workspaceId!
-  AND w.status IN ('trial', 'active', 'suspended', 'closing')
   AND m.status = 'active'
   AND i.provider = 'supabase'
   AND i.provider_subject = :subject!
 FOR SHARE OF w, m;
+
+/* @name admitModule */
+-- Operaciones de un módulo: lee espacio, derecho y membresía con FOR SHARE en la misma consulta
+-- que decide, en el orden fijo espacio → derecho → membresía (02 §6). Si un cambio de estado
+-- confirma mientras espera, PostgreSQL relee las filas y la decisión se recalcula con ellas.
+-- Sin derecho no devuelve filas: findMembershipClasses elige entonces el error.
+SELECT
+  w.id AS workspace_id,
+  w.code,
+  w.name,
+  w.status,
+  w.time_zone,
+  i.id AS identity_id,
+  i.display_name,
+  m.id AS membership_id,
+  p.id AS principal_id,
+  (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS "is_owner!",
+  core.workspace_axis(w.status, w.suspension_reason) AS "workspace_classes!",
+  core.admission(
+    :actionClass!,
+    core.workspace_axis(w.status, w.suspension_reason),
+    core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,
+                     md.stage, e.contract_kind, env.data_class, now())
+  ) AS "decision!"
+FROM core.workspaces AS w
+JOIN core.workspace_entitlements AS e ON e.workspace_id = w.id AND e.module_code = :moduleCode!
+JOIN core.module_definitions AS md ON md.code = e.module_code
+JOIN core.memberships AS m ON m.workspace_id = w.id
+JOIN core.identities AS i ON i.id = m.identity_id
+JOIN core.principals AS p ON p.workspace_id = m.workspace_id AND p.membership_id = m.id
+CROSS JOIN platform.environment AS env
+WHERE w.id = :workspaceId!
+  AND m.status = 'active'
+  AND i.provider = 'supabase'
+  AND i.provider_subject = :subject!
+FOR SHARE OF w, e, m;
+
+/* @name findMembershipClasses */
+-- Sin bloqueo: solo distingue «sin acceso» de «módulo no disponible» tras una denegación.
+SELECT core.workspace_axis(w.status, w.suspension_reason) AS "workspace_classes!"
+FROM core.workspaces AS w
+JOIN core.memberships AS m ON m.workspace_id = w.id
+JOIN core.identities AS i ON i.id = m.identity_id
+WHERE w.id = :workspaceId!
+  AND m.status = 'active'
+  AND i.provider = 'supabase'
+  AND i.provider_subject = :subject!;
+
+/* @name listModuleAccess */
+-- Clases que la misma función de admisión concede hoy en cada módulo con derecho, para /me y /home.
+SELECT
+  md.code,
+  md.name,
+  array(
+    SELECT c
+    FROM unnest(core.action_classes()) WITH ORDINALITY AS a (c, n)
+    WHERE core.admission(
+      c,
+      core.workspace_axis(w.status, w.suspension_reason),
+      core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,
+                       md.stage, e.contract_kind, env.data_class, now())
+    ) = 'admitted'
+    ORDER BY n
+  ) AS "access!"
+FROM core.workspace_entitlements AS e
+JOIN core.workspaces AS w ON w.id = e.workspace_id
+JOIN core.module_definitions AS md ON md.code = e.module_code
+CROSS JOIN platform.environment AS env
+WHERE e.workspace_id = :workspaceId!
+ORDER BY md.code;
 
 /* @name listPermissionCodes */
 SELECT DISTINCT rp.permission_code

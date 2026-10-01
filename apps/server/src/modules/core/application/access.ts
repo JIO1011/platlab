@@ -1,18 +1,22 @@
+import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
-import type { WorkspaceSummary } from '@platlab/contracts';
+import type { ActionClass, WorkspaceSummary } from '@platlab/contracts';
 import { visibleWorkspaceStatus } from '@platlab/contracts';
 import { setActor, setRequestScope } from '../../../platform/db/context.queries.js';
 import { withTransaction } from '../../../platform/db/transaction.js';
-import { accessDenied } from '../../../platform/errors.js';
+import { AppError, accessDenied } from '../../../platform/errors.js';
 import {
+  admitModule,
+  admitWorkspace,
   findIdentity,
+  findMembershipClasses,
   hasPermissionAt as hasPermissionAtQuery,
   listMyWorkspaces as listMyWorkspacesQuery,
   listPermissionCodes,
-  lockMembership,
+  type IAdmitWorkspaceResult,
 } from '../infrastructure/access.queries.js';
 
-/** Miembro verificado dentro de la transacción del caso de uso (02 §5). */
+/** Miembro admitido dentro de la transacción del caso de uso (02 §5). */
 export interface WorkspaceAccess {
   client: pg.PoolClient;
   workspace: {
@@ -27,20 +31,63 @@ export interface WorkspaceAccess {
   membershipId: string;
   principalId: string;
   isOwner: boolean;
+  /** Une la auditoría de todo lo que hace este caso de uso. */
+  correlationId: string;
+}
+
+interface AccessRequest {
+  subject: string;
+  workspaceId: string;
+  actionClass: ActionClass;
+}
+
+/** Traduce la decisión de core.admission; cualquier valor desconocido se deniega. */
+function rejection(decision: string): AppError {
+  switch (decision) {
+    case 'module_unavailable':
+      return new AppError('MODULE_UNAVAILABLE', 'Módulo no disponible');
+    case 'module_read_only':
+      return new AppError('MODULE_READ_ONLY', 'El módulo no admite esta acción en su estado actual');
+    case 'workspace_restricted':
+      return new AppError('WORKSPACE_RESTRICTED', 'El espacio no admite esta acción en su estado actual');
+    default:
+      return accessDenied();
+  }
+}
+
+/** Fija el actor solo después de la admisión y arma el contexto del caso de uso. */
+async function enter(client: pg.PoolClient, row: IAdmitWorkspaceResult): Promise<WorkspaceAccess> {
+  if (row.decision !== 'admitted') throw rejection(row.decision);
+  await setActor.run({ identityId: row.identity_id, principalId: row.principal_id }, client);
+  return {
+    client,
+    workspace: {
+      id: row.workspace_id,
+      code: row.code,
+      name: row.name,
+      status: visibleWorkspaceStatus.parse(row.status),
+      timeZone: row.time_zone,
+    },
+    identityId: row.identity_id,
+    displayName: row.display_name,
+    membershipId: row.membership_id,
+    principalId: row.principal_id,
+    isOwner: row.is_owner,
+    correlationId: randomUUID(),
+  };
 }
 
 /**
- * Abre la transacción del caso de uso con el miembro verificado (02 §5, pasos 2–4):
- * fija el contexto, lee espacio y membresía con FOR SHARE y solo entonces fija el actor.
- * La membresía se comprueba en cada petición, así que una revocación aplica en la siguiente.
- * Un espacio inexistente, ajeno o sin membresía activa recibe la misma denegación.
+ * Abre la transacción de una ruta de Core con el miembro admitido (02 §5, pasos 2–4): fija el
+ * contexto, lee espacio y membresía con FOR SHARE, decide con el eje espacio y solo entonces fija
+ * el actor. Un espacio inexistente, ajeno o sin membresía activa recibe la misma denegación.
  *
- * Invariante: es la única entrada a un espacio y `lockMembership` es la primera consulta tras
- * fijar el espacio de la URL. Nada se lee ni se escribe antes de verificar la membresía.
+ * Invariante: junto con withModuleAccess es la única entrada a un espacio, y la admisión es la
+ * primera consulta tras fijar el espacio de la URL.
  */
 export function withWorkspaceAccess<T>(
   pool: pg.Pool,
-  request: { subject: string; workspaceId: string },
+  request: AccessRequest,
   work: (access: WorkspaceAccess) => Promise<T>,
 ): Promise<T> {
   return withTransaction(pool, async (client) => {
@@ -48,30 +95,49 @@ export function withWorkspaceAccess<T>(
       { authSubject: request.subject, workspaceId: request.workspaceId },
       client,
     );
-    const [member] = await lockMembership.run(
-      { workspaceId: request.workspaceId, subject: request.subject },
+    const [row] = await admitWorkspace.run(
+      { workspaceId: request.workspaceId, subject: request.subject, actionClass: request.actionClass },
       client,
     );
-    if (!member) throw accessDenied();
-    await setActor.run(
-      { identityId: member.identity_id, principalId: member.principal_id },
+    if (!row) throw accessDenied();
+    return work(await enter(client, row));
+  });
+}
+
+/**
+ * Igual que withWorkspaceAccess, para una operación de un módulo: decide con los dos ejes y bloquea
+ * también el derecho del módulo dueño del recurso (02 §6, ADR 0009). Sin derecho, un miembro recibe
+ * «módulo no disponible» y quien no es miembro, la denegación de siempre.
+ */
+export function withModuleAccess<T>(
+  pool: pg.Pool,
+  request: AccessRequest & { moduleCode: string },
+  work: (access: WorkspaceAccess) => Promise<T>,
+): Promise<T> {
+  return withTransaction(pool, async (client) => {
+    await setRequestScope.run(
+      { authSubject: request.subject, workspaceId: request.workspaceId },
       client,
     );
-    return work({
-      client,
-      workspace: {
-        id: member.workspace_id,
-        code: member.code,
-        name: member.name,
-        status: visibleWorkspaceStatus.parse(member.status),
-        timeZone: member.time_zone,
+    const [row] = await admitModule.run(
+      {
+        workspaceId: request.workspaceId,
+        subject: request.subject,
+        moduleCode: request.moduleCode,
+        actionClass: request.actionClass,
       },
-      identityId: member.identity_id,
-      displayName: member.display_name,
-      membershipId: member.membership_id,
-      principalId: member.principal_id,
-      isOwner: member.is_owner,
-    });
+      client,
+    );
+    if (!row) {
+      const [member] = await findMembershipClasses.run(
+        { workspaceId: request.workspaceId, subject: request.subject },
+        client,
+      );
+      throw member && member.workspace_classes.length > 0
+        ? rejection('module_unavailable')
+        : accessDenied();
+    }
+    return work(await enter(client, row));
   });
 }
 
@@ -93,8 +159,8 @@ export function listMyWorkspaces(pool: pg.Pool, subject: string): Promise<Worksp
   });
 }
 
-/** Permisos vigentes del miembro en algún ámbito; sirven para componer la interfaz. */
-export async function listEffectivePermissions(access: WorkspaceAccess): Promise<string[]> {
+/** Permisos vigentes del miembro en algún ámbito, sin filtrar por módulo. */
+export async function listGrantedPermissions(access: WorkspaceAccess): Promise<string[]> {
   const rows = await listPermissionCodes.run(
     { workspaceId: access.workspace.id, principalId: access.principalId },
     access.client,

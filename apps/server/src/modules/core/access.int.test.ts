@@ -52,11 +52,11 @@ async function get(url: string, subject: string) {
 }
 
 const access = <T>(subject: string, workspaceId: string, work: Parameters<typeof withWorkspaceAccess<T>>[2]) =>
-  withWorkspaceAccess(pool, { subject, workspaceId }, work);
+  withWorkspaceAccess(pool, { subject, workspaceId, actionClass: 'read_export' }, work);
 
 beforeAll(async () => {
-  a = await seedWorkspace(admin);
-  b = await seedWorkspace(admin);
+  a = await seedWorkspace(admin, { modules: ['reagents'] });
+  b = await seedWorkspace(admin, { modules: ['reagents'] });
   provisioning = await seedWorkspace(admin, { status: 'provisioning' });
 
   siteA = await addLocation(admin, a.id, { kind: 'site' });
@@ -118,6 +118,14 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
     expect(body.workspace).toMatchObject({ id: a.id, code: a.code, timeZone: 'America/Guayaquil' });
     expect(body.member.isOwner).toBe(false);
     expect(body.permissions).toEqual([permission]);
+    expect(body.modules).toEqual([
+      {
+        code: 'reagents',
+        name: 'Reactivos',
+        access: ['new_operation', 'resolve_pending', 'read_export'],
+        nav: [{ path: 'reactivos', label: 'Reactivos' }],
+      },
+    ]);
   });
 
   it('el propietario sin rol operativo no recibe permisos operativos', async () => {

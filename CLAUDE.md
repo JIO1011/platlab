@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado del proyecto
 
-PlatLab es un SaaS modular para laboratorios. T-01 está implementado: monorepo pnpm (`apps/server`, `apps/web`, `packages/contracts`, `packages/modules`), Supabase local, PgTyped y CI. T-02/T-03 añaden Core (`core`, `platform`), RLS, JWT por JWKS, `GET /v1/me/workspaces` y `GET /v1/workspaces/:workspaceId/me`. No hay infraestructura desplegada.
+PlatLab es un SaaS modular para laboratorios. T-01 está implementado: monorepo pnpm (`apps/server`, `apps/web`, `packages/contracts`, `packages/modules`), Supabase local, PgTyped y CI. T-02/T-03 añaden Core (`core`, `platform`), RLS, JWT por JWKS y `GET /v1/me/workspaces`. T-04/T-05 añaden el registro de módulos, los derechos por `platform.apply_contract_revision`, la admisión de dos ejes (`core.admission`, con `withModuleAccess`), `/me` con módulos, `/home`, auditoría e idempotencia. No hay infraestructura desplegada.
 
 ## Comandos
 

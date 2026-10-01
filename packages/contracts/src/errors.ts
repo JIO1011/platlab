@@ -7,8 +7,13 @@ import { z } from 'zod';
 export const errorCodes = [
   'IDENTITY_INVALID',
   'ACCESS_DENIED',
+  // Admisión de dos ejes (02 §6): el módulo no admite nada, o un eje no admite esta clase de acción.
+  'MODULE_UNAVAILABLE',
+  'MODULE_READ_ONLY',
+  'WORKSPACE_RESTRICTED',
   'VALIDATION_FAILED',
   'NOT_FOUND',
+  'IDEMPOTENCY_KEY_REUSED',
   'TRANSIENT_CONFLICT',
   'INTERNAL',
 ] as const;

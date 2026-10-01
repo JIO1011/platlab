@@ -30,6 +30,7 @@ export interface Workspace {
 }
 
 type WorkspaceStatus = 'provisioning' | 'trial' | 'active';
+type ContractKind = 'demo' | 'pilot' | 'standard';
 
 export interface RoleGrant {
   role: string;
@@ -87,10 +88,86 @@ export async function addMember(
   return { identityId, subject, membershipId, principalId };
 }
 
+export interface ModuleGrant {
+  code: string;
+  validFrom?: string;
+  validUntil?: string | null;
+  closingUntil?: string | null;
+  readUntil?: string | null;
+}
+
+/**
+ * Habilita módulos como lo hará el Equipo PlatLab: una revisión nueva del contrato aplicada con
+ * platform.apply_contract_revision (T-04: los fixtures usan el comando). La revisión debe incluir
+ * todos los módulos que el espacio ya tiene, porque retirar uno todavía no se admite.
+ */
+export async function grantModules(
+  admin: pg.Pool,
+  workspaceId: string,
+  modules: ModuleGrant[],
+  kind: ContractKind = 'demo',
+): Promise<string> {
+  const contract = await admin.query<{ id: string }>(
+    `insert into platform.contracts (workspace_id) values ($1)
+     on conflict (workspace_id) do update set workspace_id = excluded.workspace_id
+     returning id`,
+    [workspaceId],
+  );
+  const contractId = contract.rows[0]!.id;
+  const revision = await admin.query<{ id: string }>(
+    `insert into platform.contract_revisions (workspace_id, contract_id, revision_number, kind)
+     select $1, $2, coalesce(max(revision_number), 0) + 1, $3
+       from platform.contract_revisions where contract_id = $2
+     returning id`,
+    [workspaceId, contractId, kind],
+  );
+  const revisionId = revision.rows[0]!.id;
+  for (const module of modules) {
+    await admin.query(
+      `insert into platform.contract_revision_modules
+         (workspace_id, revision_id, module_code, valid_from, valid_until, closing_until, read_until)
+       values ($1, $2, $3, coalesce($4::timestamptz, now() - interval '1 day'), $5, $6, $7)`,
+      [
+        workspaceId,
+        revisionId,
+        module.code,
+        module.validFrom ?? null,
+        module.validUntil ?? null,
+        module.closingUntil ?? null,
+        module.readUntil ?? null,
+      ],
+    );
+  }
+  await admin.query(`select platform.apply_contract_revision($1, 'fixtures')`, [revisionId]);
+  return revisionId;
+}
+
+export async function setModuleStatus(
+  admin: pg.Pool | pg.PoolClient,
+  workspaceId: string,
+  moduleCode: string,
+  status: 'disabled' | 'enabled' | 'draining' | 'read_only',
+): Promise<void> {
+  await admin.query(`select platform.set_module_status($1, $2, $3)`, [workspaceId, moduleCode, status]);
+}
+
+export async function setWorkspaceStatus(
+  admin: pg.Pool,
+  workspaceId: string,
+  status: string,
+  suspensionReason: 'commercial' | 'security' | null = null,
+): Promise<void> {
+  await admin.query(
+    `update core.workspaces set status = $2, suspension_reason = $3, version = version + 1
+      where id = $1`,
+    [workspaceId, status, suspensionReason],
+  );
+}
+
 /** Espacio con propietario sin rol operativo, como el de la demo (primer incremento). */
 export async function seedWorkspace(
   admin: pg.Pool,
-  options: { status?: WorkspaceStatus; ownerSubject?: string } = {},
+  options: { status?: WorkspaceStatus; ownerSubject?: string; modules?: string[] } = {},
 ): Promise<Workspace> {
   const code = `test-${uniqueSuffix()}`;
   const account = await admin.query<{ id: string }>(
@@ -111,6 +188,9 @@ export async function seedWorkspace(
     `update core.workspaces set owner_membership_id = $2, status = $3 where id = $1`,
     [id, owner.membershipId, options.status ?? 'active'],
   );
+  if (options.modules?.length) {
+    await grantModules(admin, id, options.modules.map((moduleCode) => ({ code: moduleCode })));
+  }
   return { id, code, owner };
 }
 

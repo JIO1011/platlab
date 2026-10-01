@@ -217,7 +217,7 @@ Reglas generales:
 - API REST con OpenAPI generado desde los contratos.
 - Comandos explícitos (`receipts`, `issues`, `adjustments`, `approve`, `accept-proposal`, `relocate`, `prepare`, `close`). Nunca un `PATCH` libre sobre estados o saldos.
 - Cada comando crítico admite `Idempotency-Key` y versión esperada.
-- Errores estables: `INSUFFICIENT_STOCK`, `SCHEDULE_CONFLICT`, `VERSION_CONFLICT`, `MODULE_READ_ONLY` y `QUOTA_EXCEEDED`.
+- Errores estables: `ACCESS_DENIED`, `MODULE_UNAVAILABLE`, `MODULE_READ_ONLY`, `WORKSPACE_RESTRICTED`, `IDEMPOTENCY_KEY_REUSED`, `INSUFFICIENT_STOCK`, `SCHEDULE_CONFLICT`, `VERSION_CONFLICT` y `QUOTA_EXCEEDED`. La admisión elige entre los cuatro primeros: sin acceso, módulo sin nada admitido, o un eje que no admite esa clase de acción.
 - Cantidades como cadenas decimales en JSON y `numeric` en SQL; nunca aritmética con `number`.
 - Lo que debe cumplirse junto se hace de forma síncrona: aprobar y reservar, entregar y mover stock.
 - Correo, exportaciones e indicadores se procesan después del commit mediante outbox.

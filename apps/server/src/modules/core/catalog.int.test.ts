@@ -1,7 +1,13 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { moduleRegistry, roleCodes } from '@platlab/modules';
 import { createPool } from '../../platform/db/pool.js';
-import { listPermissions, listRolePermissions, listRoles } from './infrastructure/catalog.queries.js';
+import {
+  listModuleDefinitions,
+  listModuleDependencies,
+  listPermissions,
+  listRolePermissions,
+  listRoles,
+} from './infrastructure/catalog.queries.js';
 
 /**
  * El catálogo fijo de SQL coincide con los manifiestos (02 §4 y §6). Si falla, falta la
@@ -16,6 +22,31 @@ const pool = createPool({
 
 afterAll(async () => {
   await pool.end();
+});
+
+describe('registro de módulos', () => {
+  it('cada manifiesto está registrado con su nombre y su etapa', async () => {
+    const rows = await listModuleDefinitions.run(undefined, pool);
+    const expected = moduleRegistry
+      .map((module) => ({ code: module.code, name: module.name, stage: module.stage }))
+      .sort((x, y) => x.code.localeCompare(y.code));
+    expect(rows).toEqual(expected);
+  });
+
+  it('las dependencias obligatorias coinciden con los manifiestos (Core es implícito)', async () => {
+    const rows = await listModuleDependencies.run(undefined, pool);
+    const expected = moduleRegistry
+      .flatMap((module) =>
+        (module.requires as readonly string[])
+          .filter((code) => code !== 'core')
+          .map((requires_code) => ({ module_code: module.code, requires_code })),
+      )
+      .sort(
+        (x, y) =>
+          x.module_code.localeCompare(y.module_code) || x.requires_code.localeCompare(y.requires_code),
+      );
+    expect(rows).toEqual(expected);
+  });
 });
 
 describe('catálogo de roles y permisos', () => {
