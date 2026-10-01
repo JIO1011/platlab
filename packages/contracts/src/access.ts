@@ -52,9 +52,18 @@ export const workspaceMeResponse = z.object({
   permissions: z.array(z.string()),
 });
 
-/** GET /v1/workspaces/:workspaceId/home: tarjetas de los módulos visibles; R-00 añade su resumen. */
+/**
+ * GET /v1/workspaces/:workspaceId/home: tarjetas de los módulos visibles. Cada módulo aporta
+ * contadores accionables con claves propias (01 §7); null si el módulo todavía no tiene resumen.
+ */
 export const homeResponse = z.object({
-  cards: z.array(z.object({ moduleCode: z.string(), name: z.string() })),
+  cards: z.array(
+    z.object({
+      moduleCode: z.string(),
+      name: z.string(),
+      summary: z.record(z.string(), z.number().int().nonnegative()).nullable(),
+    }),
+  ),
 });
 
 export type ActionClass = z.infer<typeof actionClass>;

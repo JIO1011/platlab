@@ -50,6 +50,20 @@ module.exports = {
       },
     },
     {
+      name: 'capabilities-no-modules',
+      severity: 'error',
+      comment: 'Una capacidad (inventario, agenda, incidencias) no depende de módulos de negocio; solo de Core.',
+      from: { path: '^apps/server/src/capabilities/' },
+      to: { path: '^apps/server/src/modules/(?!core/)' },
+    },
+    {
+      name: 'capabilities-public-interface',
+      severity: 'error',
+      comment: 'Los módulos usan una capacidad solo mediante su interfaz pública (index.ts).',
+      from: { path: '^apps/server/src/modules/' },
+      to: { path: '^apps/server/src/capabilities/[^/]+/(application|infrastructure)/' },
+    },
+    {
       name: 'contracts-no-runtime-deps',
       severity: 'error',
       comment: 'contracts no accede a la base ni al servidor.',

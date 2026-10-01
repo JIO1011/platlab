@@ -114,7 +114,9 @@ describe('/me y /home según los módulos del espacio', () => {
     const me = workspaceMeResponse.parse((await get(`/v1/workspaces/${a.id}/me`, adminA.subject)).json());
     expect(me.modules.map((module) => module.code)).toEqual(['reagents']);
     const home = homeResponse.parse((await get(`/v1/workspaces/${a.id}/home`, adminA.subject)).json());
-    expect(home.cards).toEqual([{ moduleCode: 'reagents', name: 'Reactivos' }]);
+    expect(home.cards).toEqual([
+      { moduleCode: 'reagents', name: 'Reactivos', summary: { products: 0, positionsWithStock: 0 } },
+    ]);
   });
 
   it('C, sin Reactivos, no lo ve en el menú ni en el Inicio aunque el rol tenga sus permisos', async () => {

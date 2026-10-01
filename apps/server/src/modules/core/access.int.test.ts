@@ -117,7 +117,14 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
     const body = workspaceMeResponse.parse(response.json());
     expect(body.workspace).toMatchObject({ id: a.id, code: a.code, timeZone: 'America/Guayaquil' });
     expect(body.member.isOwner).toBe(false);
-    expect(body.permissions).toEqual([permission]);
+    // Rol de Administrador en todo A: los permisos de Reactivos de su manifiesto (01 §5).
+    expect(body.permissions).toEqual([
+      'reagents.adjustment.create',
+      'reagents.catalog.manage',
+      'reagents.catalog.read',
+      'reagents.issue.create',
+      'reagents.receipt.create',
+    ]);
     expect(body.modules).toEqual([
       {
         code: 'reagents',

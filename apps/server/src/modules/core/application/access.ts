@@ -11,6 +11,8 @@ import {
   findIdentity,
   findMembershipClasses,
   hasPermissionAt as hasPermissionAtQuery,
+  hasWorkspacePermission as hasWorkspacePermissionQuery,
+  listPermissionScope,
   listMyWorkspaces as listMyWorkspacesQuery,
   listPermissionCodes,
   type IAdmitWorkspaceResult,
@@ -184,4 +186,38 @@ export async function hasPermissionAt(
     access.client,
   );
   return row?.allowed ?? false;
+}
+
+const permissionDenied = () => new AppError('ACCESS_DENIED', 'No tienes permiso para esta acción');
+
+/** Exige el permiso en algún ámbito: para consultas cuyo resultado se filtra después por ámbito. */
+export async function requirePermission(access: WorkspaceAccess, permission: string): Promise<void> {
+  if (!(await listGrantedPermissions(access)).includes(permission)) throw permissionDenied();
+}
+
+/** Exige el permiso con ámbito de todo el espacio: para lo que no pertenece a una ubicación. */
+export async function requireWorkspacePermission(access: WorkspaceAccess, permission: string): Promise<void> {
+  const [row] = await hasWorkspacePermissionQuery.run(
+    { workspaceId: access.workspace.id, principalId: access.principalId, permission },
+    access.client,
+  );
+  if (!row?.allowed) throw permissionDenied();
+}
+
+/** Exige el permiso en la ubicación de la operación (su ámbito o el de un ancestro). */
+export async function requirePermissionAt(
+  access: WorkspaceAccess,
+  permission: string,
+  locationId: string,
+): Promise<void> {
+  if (!(await hasPermissionAt(access, permission, locationId))) throw permissionDenied();
+}
+
+/** Ubicaciones donde aplica el permiso, con su descendencia; vacío si no lo tiene en ninguna. */
+export async function permissionScope(access: WorkspaceAccess, permission: string): Promise<string[]> {
+  const rows = await listPermissionScope.run(
+    { workspaceId: access.workspace.id, principalId: access.principalId, permission },
+    access.client,
+  );
+  return rows.map((row) => row.id);
 }

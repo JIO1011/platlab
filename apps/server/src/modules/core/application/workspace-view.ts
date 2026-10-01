@@ -40,14 +40,24 @@ export async function describeWorkspace(access: WorkspaceAccess): Promise<Worksp
   return { modules, permissions };
 }
 
+/** Resumen que cada módulo aporta a su tarjeta; Core no importa módulos, se los pasa la composición. */
+export type HomeSummaries = Record<string, (access: WorkspaceAccess) => Promise<Record<string, number>>>;
+
 /** Tarjetas de Inicio: módulos que se pueden consultar y cuyo permiso de tarjeta tiene el miembro. */
-export function homeCards(view: WorkspaceView): HomeResponse['cards'] {
-  return view.modules.flatMap((module) => {
+export async function homeCards(
+  access: WorkspaceAccess,
+  view: WorkspaceView,
+  summaries: HomeSummaries,
+): Promise<HomeResponse['cards']> {
+  const cards: HomeResponse['cards'] = [];
+  for (const module of view.modules) {
     const manifest = moduleRegistry.find((entry) => entry.code === module.code);
     const permission = manifest && 'homeCard' in manifest ? manifest.homeCard.permission : undefined;
     if (!permission || !module.access.includes('read_export') || !view.permissions.includes(permission)) {
-      return [];
+      continue;
     }
-    return [{ moduleCode: module.code, name: module.name }];
-  });
+    const summary = summaries[module.code];
+    cards.push({ moduleCode: module.code, name: module.name, summary: summary ? await summary(access) : null });
+  }
+  return cards;
 }

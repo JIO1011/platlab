@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import type { HealthResponse } from '@platlab/contracts';
 import { coreRoutes } from './modules/core/index.js';
+import { reagentsHomeSummary, reagentsRoutes } from './modules/reagents/index.js';
 import type { TokenVerifier } from './platform/auth/jwt.js';
 import { requireAuthentication } from './platform/http/auth.js';
 import { registerErrorHandling } from './platform/http/errors.js';
@@ -22,7 +23,8 @@ export function buildApp({ pool, verifyToken }: AppDependencies): FastifyInstanc
   app.register(
     async (v1) => {
       requireAuthentication(v1, verifyToken);
-      await v1.register(coreRoutes({ pool }));
+      await v1.register(coreRoutes({ pool, homeSummaries: { reagents: reagentsHomeSummary } }));
+      await v1.register(reagentsRoutes({ pool }), { prefix: '/workspaces/:workspaceId/reagents' });
     },
     { prefix: '/v1' },
   );
