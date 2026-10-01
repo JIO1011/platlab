@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalación reproducible
+        run: pnpm install --frozen-lockfile
+
+      - name: Tipos
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Fronteras del monolito
+        run: pnpm deps
+
+      - name: Pruebas unitarias
+        run: pnpm test
+
+      # Solo PostgreSQL local de Supabase; nunca un proyecto remoto.
+      - name: Base local desde cero (migraciones + seed)
+        run: pnpm db:start
+
+      - name: PgTyped sin diferencias
+        run: |
+          pnpm db:types
+          git diff --exit-code -- 'apps/server/src/**/*.queries.ts'
+
+      - name: pgTAP
+        run: pnpm test:db
+
+      - name: Integración con el rol de runtime
+        run: pnpm test:int
+
+      - name: Compilación de la web
+        run: pnpm --filter @platlab/web build

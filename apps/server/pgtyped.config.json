@@ -1,0 +1,17 @@
+{
+  "transforms": [
+    {
+      "mode": "sql",
+      "include": "**/*.sql",
+      "emitTemplate": "{{dir}}/{{name}}.queries.ts"
+    }
+  ],
+  "srcDir": "./src/",
+  "failOnError": true,
+  "camelCaseColumnNames": false,
+  "dbUrl": "postgres://postgres:postgres@127.0.0.1:54322/postgres",
+  "typesOverrides": {
+    "numeric": "string",
+    "date": "string"
+  }
+}

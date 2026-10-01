@@ -4,7 +4,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado del proyecto
 
-PlatLab es un SaaS modular para laboratorios. El repositorio contiene diseño y plan; todavía no hay código, package.json, comandos de build/lint/test ni infraestructura desplegada. Al implementar T-01, registrar aquí los comandos reales, incluido cómo ejecutar una prueba.
+PlatLab es un SaaS modular para laboratorios. T-01 está implementado: monorepo pnpm (`apps/server`, `apps/web`, `packages/contracts`, `packages/modules`), Supabase local, PgTyped y CI. No hay infraestructura desplegada.
+
+## Comandos
+
+Requisitos: Node 24 (`.nvmrc`), pnpm 11 y Docker en ejecución. La CLI de Supabase se instala como dependencia; se usa con `pnpm supabase …`.
+
+| Tarea | Comando |
+|---|---|
+| Instalar | `pnpm install --frozen-lockfile` |
+| Tipos / lint / fronteras | `pnpm typecheck` · `pnpm lint` · `pnpm deps` |
+| Pruebas unitarias | `pnpm test` |
+| Todo lo anterior | `pnpm check` |
+| Base local | `pnpm db:start` (arranca y aplica migraciones + `seed.sql`) · `pnpm db:reset` (desde cero) |
+| Regenerar tipos SQL | `pnpm db:types` (requiere base local; los `*.queries.ts` se confirman en git) |
+| pgTAP | `pnpm test:db` |
+| Integración (rol de runtime) | `pnpm test:int` (requiere base local) |
+| API / web en desarrollo | `pnpm --filter @platlab/server dev` · `pnpm --filter @platlab/web dev` |
+
+Una sola prueba: `pnpm --filter @platlab/server exec vitest run src/app.test.ts` o filtrar por nombre con `-t "texto"`. Un solo archivo pgTAP: `pnpm supabase test db supabase/tests/database/runtime_role.test.sql`.
+
+Notas:
+
+- **Versiones exactas fijadas.**
+  - TypeScript se queda en 5.9: PgTyped admite hasta 5 y typescript-eslint, hasta 6.0.
+  - Las dependencias respetan la antigüedad mínima de pnpm, así que no se añaden exclusiones para versiones recién publicadas.
+- **Credenciales.** `platlab_api` es el rol de runtime: sin superusuario ni `BYPASSRLS`. Su contraseña local (`platlab_api_local`) vive solo en `supabase/seed.sql`. Las migraciones no fijan credenciales.
 
 ## ROL
 Actúa como experto senior en desarrollo de software full-stack,arquitectura, infraestructura, base de datos, cloud (cloudflare, supabase), UI/UX, product manager, marketing, con visión estratégica y buenas prácticas. Analiza, evalúa y propone la mejor solución. Responde de manera resumida y en alto nivel.

@@ -1,0 +1,32 @@
+{
+  "name": "platlab",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "eslint .",
+    "deps": "depcruise apps packages --config .dependency-cruiser.cjs",
+    "db:start": "supabase db start",
+    "db:reset": "supabase db reset",
+    "db:types": "pnpm --filter @platlab/server db:types",
+    "test:db": "supabase test db",
+    "test": "pnpm -r test",
+    "test:int": "pnpm --filter @platlab/server test:int",
+    "check": "pnpm typecheck && pnpm lint && pnpm deps && pnpm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.0",
+    "dependency-cruiser": "18.4.0",
+    "eslint": "10.11.0",
+    "globals": "17.12.0",
+    "supabase": "2.118.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.0",
+    "vitest": "5.0.3"
+  }
+}
