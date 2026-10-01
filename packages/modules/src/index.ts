@@ -4,6 +4,7 @@ export {
   type ModuleStage,
   type NavEntry,
   type RoleCode,
+  roleCodes,
 } from './define-module.js';
 export { reagentsModule } from './reagents.js';
 

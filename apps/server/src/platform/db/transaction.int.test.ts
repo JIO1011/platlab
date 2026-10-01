@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, it } from 'vitest';
+import { setRequestScope } from './context.queries.js';
 import { createPool } from './pool.js';
 import { currentRole, sessionTimeouts, smokeArrays, smokeTypes } from './smoke.queries.js';
 import { withTransaction } from './transaction.js';
@@ -14,10 +15,7 @@ const connectionString =
 // Una sola conexión: obliga a reutilizarla entre transacciones.
 const pool = createPool({ connectionString, max: 1 });
 
-const contextA = {
-  workspaceId: '00000000-0000-0000-0000-00000000000a',
-  principalId: '00000000-0000-0000-0000-0000000000a1',
-};
+const workspaceA = 'a0000000-0000-4000-8000-00000000000a';
 
 afterAll(async () => {
   await pool.end();
@@ -30,7 +28,7 @@ describe('pg + PgTyped sobre la base local', () => {
   });
 
   it('devuelve numeric y date como cadenas exactas', async () => {
-    const [row] = await withTransaction(pool, contextA, (client) =>
+    const [row] = await withTransaction(pool, (client) =>
       smokeTypes.run({ amount: '79.5', day: '2026-10-01' }, client),
     );
     expect(row?.amount).toBe('79.500000000');
@@ -50,10 +48,11 @@ describe('pg + PgTyped sobre la base local', () => {
   });
 
   it('el contexto existe dentro de la transacción y no pasa a la siguiente', async () => {
-    const [inside] = await withTransaction(pool, contextA, (client) =>
-      smokeTypes.run({ amount: '0', day: '2026-10-01' }, client),
-    );
-    expect(inside?.workspace_id).toBe(contextA.workspaceId);
+    const [inside] = await withTransaction(pool, async (client) => {
+      await setRequestScope.run({ authSubject: '', workspaceId: workspaceA }, client);
+      return smokeTypes.run({ amount: '0', day: '2026-10-01' }, client);
+    });
+    expect(inside?.workspace_id).toBe(workspaceA);
 
     // Misma y única conexión del pool, fuera de cualquier transacción con contexto.
     const [after] = await smokeTypes.run({ amount: '0', day: '2026-10-01' }, pool);
@@ -62,7 +61,8 @@ describe('pg + PgTyped sobre la base local', () => {
 
   it('un error revierte la transacción, libera la conexión y no deja contexto', async () => {
     await expect(
-      withTransaction(pool, contextA, async () => {
+      withTransaction(pool, async (client) => {
+        await setRequestScope.run({ authSubject: '', workspaceId: workspaceA }, client);
         throw new Error('fallo provocado');
       }),
     ).rejects.toThrow('fallo provocado');

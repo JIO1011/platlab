@@ -12,3 +12,6 @@ supabase/.temp/
 # Herramientas de agentes: solo local o descargable
 .claude/settings.local.json
 .claude/skills/impeccable/scripts/bin/
+
+# Clave local de firma de Supabase Auth (ADR 0004): se genera con `pnpm db:keys`
+supabase/signing_keys.json

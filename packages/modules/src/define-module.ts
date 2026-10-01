@@ -1,8 +1,13 @@
 /** Etapa del módulo (ADR 0009, 02 §6). */
 export type ModuleStage = 'development' | 'pilot' | 'general';
 
-/** Roles del catálogo fijo que pueden recibir permisos (ADR 0008). */
-export type RoleCode = 'admin' | 'operator' | 'teacher' | 'student' | 'regulatory_officer';
+/**
+ * Roles del catálogo fijo que pueden recibir permisos (ADR 0008). Coinciden con `core.roles`;
+ * el propietario no es un rol.
+ */
+export const roleCodes = ['admin', 'operator', 'teacher', 'student', 'regulatory_officer'] as const;
+
+export type RoleCode = (typeof roleCodes)[number];
 
 export interface NavEntry {
   path: string;

@@ -36,8 +36,8 @@ jobs:
       - name: Pruebas unitarias
         run: pnpm test
 
-      # Solo PostgreSQL local de Supabase; nunca un proyecto remoto.
-      - name: Base local desde cero (migraciones + seed)
+      # Solo Supabase local (PostgreSQL + Auth con clave ES256 efímera); nunca un proyecto remoto.
+      - name: Base y Auth locales desde cero (migraciones + seed)
         run: pnpm db:start
 
       - name: PgTyped sin diferencias
@@ -48,7 +48,7 @@ jobs:
       - name: pgTAP
         run: pnpm test:db
 
-      - name: Integración con el rol de runtime
+      - name: Integración con el rol de runtime y Auth local
         run: pnpm test:int
 
       - name: Compilación de la web

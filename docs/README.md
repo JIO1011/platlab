@@ -1,6 +1,6 @@
 # PlatLab — hilo del proyecto
 
-Revisión: 30 de septiembre de 2026. Estado: diseño listo para construir; todavía no hay código, infraestructura ni datos reales.
+Revisión: 1 de octubre de 2026. Estado: primer incremento en construcción (T-01 cerrado; T-02/T-03 verificados en local); sin infraestructura desplegada ni datos reales.
 
 ## Qué es
 
@@ -11,7 +11,8 @@ SaaS modular para gestionar laboratorios de varias instituciones: reactivos, equ
 | Punto | Estado |
 |---|---|
 | Diseño | Cerrado para el primer incremento; decisiones en [05](05_decisiones.md) |
-| Siguiente paso | T-01 → R-00 del [primer incremento](desarrollo/primer_incremento.md): monorepo, Core, acceso, derechos y primer recorrido de Reactivos |
+| Hecho | T-01 (monorepo y CI) y T-02/T-03 (Core, RLS, JWT por JWKS, roles con ámbito); evidencias en [desarrollo/evidencias](desarrollo/evidencias/) |
+| Siguiente paso | T-04/T-05 del [primer incremento](desarrollo/primer_incremento.md): manifiestos y derechos, admisión de dos ejes, `/me` con módulos y `/home`, auditoría e idempotencia; después R-00 |
 | Primera puerta | G0: demo sintética con dos espacios aislados ([roadmap](04_roadmap.md)) |
 | En paralelo | F0 con el laboratorio interesado: fiscalizados (REG-01) y prácticas (P-04) |
 

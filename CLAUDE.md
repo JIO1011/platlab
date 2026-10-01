@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado del proyecto
 
-PlatLab es un SaaS modular para laboratorios. T-01 está implementado: monorepo pnpm (`apps/server`, `apps/web`, `packages/contracts`, `packages/modules`), Supabase local, PgTyped y CI. No hay infraestructura desplegada.
+PlatLab es un SaaS modular para laboratorios. T-01 está implementado: monorepo pnpm (`apps/server`, `apps/web`, `packages/contracts`, `packages/modules`), Supabase local, PgTyped y CI. T-02/T-03 añaden Core (`core`, `platform`), RLS, JWT por JWKS, `GET /v1/me/workspaces` y `GET /v1/workspaces/:workspaceId/me`. No hay infraestructura desplegada.
 
 ## Comandos
 
@@ -16,10 +16,10 @@ Requisitos: Node 24 (`.nvmrc`), pnpm 11 y Docker en ejecución. La CLI de Supaba
 | Tipos / lint / fronteras | `pnpm typecheck` · `pnpm lint` · `pnpm deps` |
 | Pruebas unitarias | `pnpm test` |
 | Todo lo anterior | `pnpm check` |
-| Base local | `pnpm db:start` (arranca y aplica migraciones + `seed.sql`) · `pnpm db:reset` (desde cero) |
+| Base y Auth locales | `pnpm db:start` (genera la clave ES256 con `pnpm db:keys` si falta, arranca PostgreSQL + Auth y aplica migraciones + `seed.sql`) · `pnpm db:reset` (desde cero) |
 | Regenerar tipos SQL | `pnpm db:types` (requiere base local; los `*.queries.ts` se confirman en git) |
 | pgTAP | `pnpm test:db` |
-| Integración (rol de runtime) | `pnpm test:int` (requiere base local) |
+| Integración (rol de runtime y Auth local) | `pnpm test:int` (requiere `pnpm db:start`) |
 | API / web en desarrollo | `pnpm --filter @platlab/server dev` · `pnpm --filter @platlab/web dev` |
 
 Una sola prueba: `pnpm --filter @platlab/server exec vitest run src/app.test.ts` o filtrar por nombre con `-t "texto"`. Un solo archivo pgTAP: `pnpm supabase test db supabase/tests/database/runtime_role.test.sql`.
@@ -30,6 +30,7 @@ Notas:
   - TypeScript se queda en 5.9: PgTyped admite hasta 5 y typescript-eslint, hasta 6.0.
   - Las dependencias respetan la antigüedad mínima de pnpm, así que no se añaden exclusiones para versiones recién publicadas.
 - **Credenciales.** `platlab_api` es el rol de runtime: sin superusuario ni `BYPASSRLS`. Su contraseña local (`platlab_api_local`) vive solo en `supabase/seed.sql`. Las migraciones no fijan credenciales.
+- **Auth local.** `supabase/signing_keys.json` es la clave con la que Auth local firma los JWT; cada máquina genera la suya y no se versiona. Para Studio y el resto de servicios, `pnpm supabase start` sin exclusiones.
 
 ## ROL
 Actúa como experto senior en desarrollo de software full-stack,arquitectura, infraestructura, base de datos, cloud (cloudflare, supabase), UI/UX, product manager, marketing, con visión estratégica y buenas prácticas. Analiza, evalúa y propone la mejor solución. Responde de manera resumida y en alto nivel.
