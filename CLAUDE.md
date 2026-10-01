@@ -13,7 +13,7 @@ Requisitos: Node 24 (`.nvmrc`), pnpm 11 y Docker en ejecución. La CLI de Supaba
 | Tarea | Comando |
 |---|---|
 | Instalar | `pnpm install --frozen-lockfile` |
-| Tipos / lint / fronteras | `pnpm typecheck` · `pnpm lint` · `pnpm deps` |
+| Tipos / lint / fronteras / código muerto | `pnpm typecheck` · `pnpm lint` · `pnpm deps` · `pnpm knip` |
 | Pruebas unitarias | `pnpm test` |
 | Todo lo anterior | `pnpm check` |
 | Base y Auth locales | `pnpm db:start` (genera la clave ES256 con `pnpm db:keys` si falta, arranca PostgreSQL + Auth y aplica migraciones + `seed.sql`) · `pnpm db:reset` (desde cero) |
@@ -30,6 +30,7 @@ Notas:
   - TypeScript se queda en 5.9: PgTyped admite hasta 5 y typescript-eslint, hasta 6.0.
   - Las dependencias respetan la antigüedad mínima de pnpm, así que no se añaden exclusiones para versiones recién publicadas.
 - **Credenciales.** `platlab_api` es el rol de runtime: sin superusuario ni `BYPASSRLS`. Su contraseña local (`platlab_api_local`) vive solo en `supabase/seed.sql`. Las migraciones no fijan credenciales.
+- **Knip** (`knip.json`). Ignora `.claude/` y los tipos que genera PgTyped, y no reporta las exportaciones de `modules/*/index.ts`, porque son interfaces públicas. Un hallazgo se elimina; no se silencia sin un motivo.
 - **Auth local.** `supabase/signing_keys.json` es la clave con la que Auth local firma los JWT; cada máquina genera la suya y no se versiona. Para Studio y el resto de servicios, `pnpm supabase start` sin exclusiones.
 
 ## ROL
@@ -39,6 +40,22 @@ Actúa como experto senior en desarrollo de software full-stack,arquitectura, in
 
 - context7 para documentación de librerías.
 - codebase-memory para analizar código local; hay una skill global.
+
+## Frontend (`apps/web`, `apps/console`, `packages/ui`)
+
+Empieza en el paso 5 del primer incremento. Antes de tocar código, se registra en `docs/05` el ADR 0010 (sistema de diseño). La dirección visual está en 01 «Dirección visual» y el stack, en 02 §2. Las skills viven en `.claude/skills/` y se usan sin esperar a que se pidan:
+
+| Momento | Skill |
+|---|---|
+| Antes de una pantalla o un flujo nuevo | `impeccable shape` (brief de UX confirmado por el usuario) |
+| Movimiento, gestos y hojas | `animate` + `apple-design` |
+| Avisos | `ask-sonner` |
+| Una pieza que el stack no resuelve | `pick-ui-library`; la documentación se consulta con context7 |
+| Antes de cerrar una entrega con UI | `impeccable audit`, `harden` y `polish`, más `review-animations`; después, `platlab-verify-increment` |
+
+- **Sin duplicar documentos.** `PRODUCT.md` y `DESIGN.md`, de `impeccable init` o `document`, solo enlazan a 01, 02 y al ADR 0010; no copian contenido.
+- **Detector automático.** Los hooks de `.claude/settings.json` ejecutan el detector de impeccable al editar archivos de UI.
+- **Reglas del dominio por encima de las de estilo.** Nada de UI optimista sobre el stock ni de «deshacer» en movimientos confirmados.
 
 ## Qué leer y qué documento manda
 

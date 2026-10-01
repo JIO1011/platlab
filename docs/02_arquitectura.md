@@ -41,7 +41,7 @@ flowchart TB
 | Datos | PostgreSQL de Supabase; `pg` + PgTyped; migraciones SQL en `supabase/migrations/` |
 | Identidad y archivos | Supabase Auth (JWT asimétrico) y Storage privado |
 | Tareas | Outbox y trabajos persistentes en PostgreSQL; pg-boss solo si hace falta |
-| Calidad | pnpm workspaces, ESLint, dependency-cruiser, Vitest, pgTAP (`supabase test db`), Playwright y CI |
+| Calidad | pnpm workspaces, ESLint, dependency-cruiser, Knip (código muerto), Vitest, pgTAP (`supabase test db`), Playwright y CI |
 
 Las versiones exactas y el lockfile se fijan al crear el proyecto (T-01), sin aceptar automáticamente versiones mayores futuras.
 

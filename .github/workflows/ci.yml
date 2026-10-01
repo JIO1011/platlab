@@ -33,6 +33,9 @@ jobs:
       - name: Fronteras del monolito
         run: pnpm deps
 
+      - name: Código muerto
+        run: pnpm knip
+
       - name: Pruebas unitarias
         run: pnpm test
 

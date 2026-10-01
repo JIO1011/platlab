@@ -1,6 +1,6 @@
 ---
 name: platlab-verify-increment
-description: Ejecuta las comprobaciones de un incremento de PlatLab (tipos, lint, fronteras, migraciones desde cero, PgTyped, pgTAP, pruebas de API, de concurrencia y Playwright), las cruza con la evidencia que exige su puerta (G0, G1…) y reporta qué pasó, qué falló y qué no se verificó, guardando el informe en docs/desarrollo/evidencias/. Úsala siempre que el usuario quiera saber si un incremento o tarea (T-01…T-07, R-00, V-00) está listo, pida «verifica», «corre las pruebas», «¿pasa G0?» o «¿podemos cerrar la tarea?», o antes de marcar como hecha una entrega del roadmap, aunque no nombre esta skill.
+description: Ejecuta las comprobaciones de un incremento de PlatLab (tipos, lint, fronteras, código muerto, migraciones desde cero, PgTyped, pgTAP, pruebas de API, de concurrencia, Playwright y revisión de UI), las cruza con la evidencia que exige su puerta (G0, G1…) y reporta qué pasó, qué falló y qué no se verificó, guardando el informe en docs/desarrollo/evidencias/. Úsala siempre que el usuario quiera saber si un incremento o tarea (T-01…T-07, R-00, V-00) está listo, pida «verifica», «corre las pruebas», «¿pasa G0?» o «¿podemos cerrar la tarea?», o antes de marcar como hecha una entrega del roadmap, aunque no nombre esta skill.
 ---
 
 # Verificar un incremento de PlatLab
