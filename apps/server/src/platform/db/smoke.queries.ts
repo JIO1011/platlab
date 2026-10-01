@@ -1,6 +1,8 @@
 /** Types generated for queries found in "src/platform/db/smoke.sql" */
 import { PreparedQuery } from '@pgtyped/runtime';
 
+export type stringArray = (string)[];
+
 /** 'SmokeTypes' parameters type */
 export interface ISmokeTypesParams {
   amount: string;
@@ -61,5 +63,61 @@ const currentRoleIR: any = {"usedParamSet":{},"params":[],"statement":"SELECT cu
  * ```
  */
 export const currentRole = new PreparedQuery<ICurrentRoleParams,ICurrentRoleResult>(currentRoleIR);
+
+
+/** 'SmokeArrays' parameters type */
+export type ISmokeArraysParams = void;
+
+/** 'SmokeArrays' return type */
+export interface ISmokeArraysResult {
+  amounts: stringArray | null;
+  days: stringArray | null;
+}
+
+/** 'SmokeArrays' query type */
+export interface ISmokeArraysQuery {
+  params: ISmokeArraysParams;
+  result: ISmokeArraysResult;
+}
+
+const smokeArraysIR: any = {"usedParamSet":{},"params":[],"statement":"SELECT\n  ARRAY['1.50', '79.500000001']::numeric(24, 9)[] AS amounts,\n  ARRAY['2026-10-01']::date[] AS days"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   ARRAY['1.50', '79.500000001']::numeric(24, 9)[] AS amounts,
+ *   ARRAY['2026-10-01']::date[] AS days
+ * ```
+ */
+export const smokeArrays = new PreparedQuery<ISmokeArraysParams,ISmokeArraysResult>(smokeArraysIR);
+
+
+/** 'SessionTimeouts' parameters type */
+export type ISessionTimeoutsParams = void;
+
+/** 'SessionTimeouts' return type */
+export interface ISessionTimeoutsResult {
+  lock_timeout: string | null;
+  statement_timeout: string | null;
+}
+
+/** 'SessionTimeouts' query type */
+export interface ISessionTimeoutsQuery {
+  params: ISessionTimeoutsParams;
+  result: ISessionTimeoutsResult;
+}
+
+const sessionTimeoutsIR: any = {"usedParamSet":{},"params":[],"statement":"SELECT\n  current_setting('statement_timeout') AS statement_timeout,\n  current_setting('lock_timeout') AS lock_timeout"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   current_setting('statement_timeout') AS statement_timeout,
+ *   current_setting('lock_timeout') AS lock_timeout
+ * ```
+ */
+export const sessionTimeouts = new PreparedQuery<ISessionTimeoutsParams,ISessionTimeoutsResult>(sessionTimeoutsIR);
 
 

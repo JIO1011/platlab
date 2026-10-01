@@ -156,7 +156,7 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | T-05 | Transacciones, auditoría e idempotencia | Misma conexión, rollback y reintentos; admisión bajo bloqueo compartido con orden fijo; movimiento contra desactivación simultánea | T-03 |
 | R-00 | Primer recorrido de Reactivos | Catálogo, lote, ingreso, salida y ajuste; Inicio y tablero; pruebas de concurrencia | T-04, T-05 |
 | V-00 | G0 de Reactivos | Demo sintética y evidencias del primer incremento; Reactivos pasa a etapa `pilot` | R-00 |
-| S-01 | Spike de proveedores | Región, conectividad, modo de conexión a PostgreSQL, SMTP, respaldo, observabilidad y costos verificados | T-01 |
+| S-01 | Spike de proveedores | Región, conectividad, modo de conexión a PostgreSQL, SMTP, respaldo, observabilidad y costos verificados; la credencial local de `seed.sql` no llega a ramas ni ambientes remotos | T-01 |
 | T-03B | Identidad productiva y propiedad asistida | Invitaciones, recuperación y relevo ensayados, sin cuentas huérfanas | T-03, S-01 |
 | T-07 | Archivos, outbox y worker | Documentos privados, reintentos, concesiones y autorización de trabajos | T-05 |
 | O-01 | Consola del Equipo PlatLab | Aplicación separada, MFA en la API, contratos, derechos y límites auditados; los cambios de estado respetan el orden de bloqueo de la admisión | T-04, T-05, T-03B |

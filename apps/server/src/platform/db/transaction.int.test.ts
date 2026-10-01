@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { createPool } from './pool.js';
-import { currentRole, smokeTypes } from './smoke.queries.js';
+import { currentRole, sessionTimeouts, smokeArrays, smokeTypes } from './smoke.queries.js';
 import { withTransaction } from './transaction.js';
 
 /**
@@ -36,6 +36,17 @@ describe('pg + PgTyped sobre la base local', () => {
     expect(row?.amount).toBe('79.500000000');
     expect(typeof row?.amount).toBe('string');
     expect(row?.day).toBe('2026-10-01');
+  });
+
+  it('devuelve arreglos de numeric y date como cadenas, sin perder precisión', async () => {
+    const [row] = await smokeArrays.run(undefined, pool);
+    expect(row?.amounts).toEqual(['1.500000000', '79.500000001']);
+    expect(row?.days).toEqual(['2026-10-01']);
+  });
+
+  it('aplica los tiempos máximos interactivos de 02 §12', async () => {
+    const [row] = await sessionTimeouts.run(undefined, pool);
+    expect(row).toEqual({ statement_timeout: '5s', lock_timeout: '1s' });
   });
 
   it('el contexto existe dentro de la transacción y no pasa a la siguiente', async () => {

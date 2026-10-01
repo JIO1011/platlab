@@ -17,6 +17,9 @@ export async function withTransaction<T>(
   work: (client: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
   const client = await pool.connect();
+  // Si el ROLLBACK falla, la conexión queda en estado desconocido: se destruye
+  // en lugar de devolverla al pool, y se conserva el error original.
+  let destroyConnection = false;
   try {
     await client.query('BEGIN');
     await setRequestContext.run(context, client);
@@ -24,9 +27,13 @@ export async function withTransaction<T>(
     await client.query('COMMIT');
     return result;
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      destroyConnection = true;
+    }
     throw error;
   } finally {
-    client.release();
+    client.release(destroyConnection);
   }
 }
