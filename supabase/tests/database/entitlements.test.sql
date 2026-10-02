@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(43);
+select plan(44);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -85,8 +85,8 @@ select ok(
 
 select results_eq(
   'select code, stage from core.module_definitions',
-  $$ values ('reagents'::text, 'development'::text) $$,
-  'Reactivos está registrado en etapa development');
+  $$ values ('reagents'::text, 'pilot'::text) $$,
+  'Reactivos está registrado en etapa pilot (V-00)');
 
 -- ---------------------------------------------------------------------------
 -- apply_contract_revision
@@ -152,7 +152,8 @@ select throws_ok(
      values ('a0000000-0000-4000-8000-00000000000a', 'a5000000-0000-4000-8000-000000000004', 'reagents', now(), now()) $$,
   '23514', null, 'un periodo de cierre exige una fecha de vencimiento');
 
--- Ambiente real: la etapa development y los contratos demo se rechazan.
+-- Ambiente real: los contratos demo, la etapa development y la etapa pilot en un contrato estándar
+-- se rechazan.
 update platform.environment set data_class = 'real';
 
 insert into platform.contract_revisions (id, workspace_id, contract_id, revision_number, kind) values
@@ -165,16 +166,29 @@ select throws_ok(
   '23514', 'Un contrato demo solo se aplica en un ambiente sintético',
   'en un ambiente real no se aplica un contrato demo');
 
+-- La regla de development se prueba con un módulo de prueba, solo dentro de esta transacción.
+insert into core.module_definitions (code, name, stage) values ('test_development', 'En desarrollo de prueba', 'development');
 delete from platform.contract_revision_modules where revision_id = 'b5000000-0000-4000-8000-000000000001';
 update platform.contract_revisions set kind = 'pilot' where id = 'b5000000-0000-4000-8000-000000000001';
+insert into platform.contract_revision_modules (workspace_id, revision_id, module_code, valid_from)
+values ('b0000000-0000-4000-8000-00000000000b', 'b5000000-0000-4000-8000-000000000001', 'test_development', now());
+
+select throws_like(
+  $$ select platform.apply_contract_revision('b5000000-0000-4000-8000-000000000001', 'pgtap') $$,
+  'Etapa no admitida%test_development (development)%',
+  'en un ambiente real ni un contrato de piloto habilita un módulo en development');
+
+delete from platform.contract_revision_modules where revision_id = 'b5000000-0000-4000-8000-000000000001';
+update platform.contract_revisions set kind = 'standard' where id = 'b5000000-0000-4000-8000-000000000001';
 insert into platform.contract_revision_modules (workspace_id, revision_id, module_code, valid_from)
 values ('b0000000-0000-4000-8000-00000000000b', 'b5000000-0000-4000-8000-000000000001', 'reagents', now());
 
 select throws_like(
   $$ select platform.apply_contract_revision('b5000000-0000-4000-8000-000000000001', 'pgtap') $$,
-  'Etapa no admitida%reagents (development)%',
-  'en un ambiente real ni un contrato de piloto habilita un módulo en development');
+  'Etapa no admitida para un contrato standard%reagents (pilot)%',
+  'en un ambiente real, Reactivos en pilot no entra en un contrato estándar hasta su G2');
 
+update platform.contract_revisions set kind = 'pilot' where id = 'b5000000-0000-4000-8000-000000000001';
 update platform.environment set data_class = 'synthetic';
 
 -- Dependencias: módulos de prueba solo dentro de esta transacción.

@@ -8,10 +8,12 @@ import { useSession } from './session';
 
 /** Las rutas privadas esperan a conocer la sesión y, sin ella, llevan al acceso. */
 function RequireSession() {
-  const { session, loading } = useSession();
+  const { session, loading, expired } = useSession();
   const location = useLocation();
   if (loading) return <PageLoading />;
-  if (!session) return <Navigate to="/acceso" replace state={{ from: location.pathname }} />;
+  if (!session) {
+    return <Navigate to={expired ? '/acceso?sesion=expirada' : '/acceso'} replace state={{ from: location.pathname }} />;
+  }
   return <Outlet />;
 }
 

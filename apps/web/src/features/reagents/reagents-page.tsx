@@ -76,7 +76,7 @@ export function ReagentsPage() {
   };
 
   const positionList = useMemo(() => positions.data?.pages.flatMap((page) => page.items) ?? [], [positions.data]);
-  // En el móvil, la primaria ocupa su fila y las secundarias van de dos en dos: si son impares,
+  // Por debajo de 1024 px (móvil y tableta), la primaria ocupa su fila y las secundarias van de dos en dos: si son impares,
   // la última toma la fila entera para no dejar un hueco.
   const secondaryActions = [
     { kind: 'product', label: 'Nuevo reactivo', icon: Plus, shown: allowed.product },
@@ -156,11 +156,11 @@ export function ReagentsPage() {
             </button>
           </p>
         </div>
-        <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap">
+        <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
           {visibleSecondary.map(({ kind, label, icon: Icon }, index) => (
             <Button
               key={kind}
-              className={cn(index === visibleSecondary.length - 1 && index % 2 === 0 && 'col-span-2 md:col-span-1')}
+              className={cn(index === visibleSecondary.length - 1 && index % 2 === 0 && 'col-span-2 lg:col-span-1')}
               onClick={() => sheets.open({ kind })}
             >
               <Icon aria-hidden />
@@ -168,7 +168,7 @@ export function ReagentsPage() {
             </Button>
           ))}
           {allowed.issue && positionList.length > 0 ? (
-            <Button variant="primary" className="order-first col-span-2 md:order-none" onClick={() => sheets.open({ kind: 'issue' })}>
+            <Button variant="primary" className="order-first col-span-2 lg:order-none" onClick={() => sheets.open({ kind: 'issue' })}>
               <ArrowUpFromLine aria-hidden />
               Registrar salida
             </Button>
@@ -302,10 +302,10 @@ function InventoryTable({
 
   return (
     <>
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <InventoryGrid products={products} byProduct={byProduct} allowed={allowed} onAction={onAction} />
       </div>
-      <div className="md:hidden">
+      <div className="lg:hidden">
         <InventoryList products={products} byProduct={byProduct} allowed={allowed} onAction={onAction} />
       </div>
     </>
@@ -344,12 +344,12 @@ function ProductActions({ product, allowed, onAction }: Omit<InventoryViewProps,
   return (
     <>
       {allowed.product ? (
-        <Button size="sm" variant="ghost" className="max-md:h-11" onClick={() => onAction({ kind: 'lot', productId: product.id })}>
+        <Button size="sm" variant="ghost" className="max-lg:h-11" onClick={() => onAction({ kind: 'lot', productId: product.id })}>
           Nuevo lote
         </Button>
       ) : null}
       {allowed.receipt ? (
-        <Button size="sm" variant="ghost" className="max-md:h-11" onClick={() => onAction({ kind: 'receipt', productId: product.id })}>
+        <Button size="sm" variant="ghost" className="max-lg:h-11" onClick={() => onAction({ kind: 'receipt', productId: product.id })}>
           Ingreso
         </Button>
       ) : null}
@@ -361,12 +361,12 @@ function PositionActions({ position, allowed, onAction }: Omit<InventoryViewProp
   return (
     <>
       {allowed.issue && position.balance !== '0' ? (
-        <Button size="sm" variant="ghost" className="max-md:h-11" onClick={() => onAction({ kind: 'issue', positionId: position.id })}>
+        <Button size="sm" variant="ghost" className="max-lg:h-11" onClick={() => onAction({ kind: 'issue', positionId: position.id })}>
           Salida
         </Button>
       ) : null}
       {allowed.adjustment ? (
-        <Button size="sm" variant="ghost" className="max-md:h-11" onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}>
+        <Button size="sm" variant="ghost" className="max-lg:h-11" onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}>
           Ajustar
         </Button>
       ) : null}
@@ -374,7 +374,7 @@ function PositionActions({ position, allowed, onAction }: Omit<InventoryViewProp
   );
 }
 
-/** En el móvil: el reactivo con su total y, debajo, sus lotes como filas con sangría. */
+/** Por debajo de 1024 px (móvil y tableta): el reactivo con su total y, debajo, sus lotes como filas con sangría. */
 function InventoryList({ products, byProduct, allowed, onAction }: InventoryViewProps) {
   return (
     <ul className="divide-y divide-line">
@@ -507,7 +507,7 @@ const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }
 const features = tableFeatures({});
 const helper = createColumnHelper<typeof features, Operation>();
 
-/** Historial: tabla en escritorio y filas de actividad en el móvil, sin desplazamiento lateral. */
+/** Historial: tabla en escritorio y filas de actividad por debajo de 1024 px, sin desplazamiento lateral. */
 function MovementsView({ operations, timeZone }: { operations: Operation[]; timeZone: string }) {
   if (operations.length === 0) {
     return (
@@ -520,10 +520,10 @@ function MovementsView({ operations, timeZone }: { operations: Operation[]; time
   }
   return (
     <>
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <MovementsTable operations={operations} timeZone={timeZone} />
       </div>
-      <ul className="divide-y divide-line md:hidden">
+      <ul className="divide-y divide-line lg:hidden">
         {operations.map((operation) => (
           <li key={operation.id} className="px-4 py-3.5">
             <ActivityRow

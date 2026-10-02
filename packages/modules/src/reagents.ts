@@ -2,8 +2,8 @@ import { defineModule } from './define-module.js';
 
 /**
  * Manifiesto de Reactivos. Los permisos siguen la matriz de 01 §5: el Operador registra ingresos
- * y salidas; el catálogo y los ajustes son del Administrador. El módulo permanece en `development`
- * hasta superar su G0 (04 §2).
+ * y salidas; el catálogo y los ajustes son del Administrador. Etapa `pilot` desde V-00, tras su G0
+ * (04 §2); pasará a `general` con su G2.
  */
 export const reagentsModule = defineModule({
   code: 'reagents',
@@ -29,5 +29,5 @@ export const reagentsModule = defineModule({
   },
   nav: [{ path: 'reactivos', label: 'Reactivos', permission: 'reagents.catalog.read' }],
   homeCard: { permission: 'reagents.catalog.read' },
-  stage: 'development',
+  stage: 'pilot',
 });

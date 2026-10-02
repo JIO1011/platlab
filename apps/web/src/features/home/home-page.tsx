@@ -118,7 +118,7 @@ function ModuleBlocks({ card }: { card: Card }) {
               <li key={counter.key}>
                 <Link
                   to={href}
-                  className="group flex h-full flex-col justify-end gap-2 rounded-panel px-3 py-2 transition-colors hover:bg-action-soft sm:px-5"
+                  className="group flex h-full flex-col justify-center gap-2 rounded-panel px-3 py-2 transition-colors hover:bg-action-soft sm:px-5"
                 >
                   <span className="text-metric-sm tabular-nums text-ink sm:text-metric">{value}</span>
                   <span className="text-sm text-ink-muted">{counter.label(value)}</span>

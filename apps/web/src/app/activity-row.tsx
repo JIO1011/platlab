@@ -32,23 +32,29 @@ export function ActivityRow({ type, title, detail, quantity, unit, occurredAt, a
       <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-ink-muted">
         <Icon className="size-[18px]" aria-hidden />
       </span>
+      {/* Cantidad y tipo acompañan a sus líneas en lugar de ocupar una columna propia. Por debajo de
+          1024 px, quién y cuándo bajan a su propia línea; el responsable siempre va antes que la
+          hora, para que un recorte nunca oculte quién movió el stock. */}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-ink">{title}</p>
-        {/* En el móvil, dónde y quién-cuándo en líneas propias: el responsable va primero para que
-            el recorte caiga sobre la hora, nunca sobre quién movió el stock. */}
-        <p className="truncate text-[13px] text-ink-muted sm:hidden">{detail}</p>
-        <p className="truncate text-[13px] text-ink-muted sm:hidden">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="truncate font-medium text-ink">{title}</p>
+          <Quantity value={quantity} unit={unit} signed className="shrink-0 font-semibold text-ink" />
+        </div>
+        <div className="flex items-baseline justify-between gap-3 text-[13px] text-ink-muted">
+          <p className="truncate">
+            {detail}
+            <span className="hidden lg:inline">
+              {actor ? ` · ${actor}` : ''}
+              {' · '}
+              {formatDateTime(occurredAt, timeZone)}
+            </span>
+          </p>
+          <span className="shrink-0 text-[12px]">{kind.label}</span>
+        </div>
+        <p className="truncate text-[13px] text-ink-muted lg:hidden">
           {actor ? `${actor} · ` : ''}
           {formatShortDateTime(occurredAt, timeZone)}
         </p>
-        <p className="hidden truncate text-[13px] text-ink-muted sm:block">
-          {detail} · {formatDateTime(occurredAt, timeZone)}
-          {actor ? ` · ${actor}` : ''}
-        </p>
-      </div>
-      <div className="shrink-0 text-right">
-        <Quantity value={quantity} unit={unit} signed className="block font-semibold text-ink" />
-        <span className="text-[12px] text-ink-muted">{kind.label}</span>
       </div>
     </div>
   );

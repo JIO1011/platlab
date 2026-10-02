@@ -197,3 +197,120 @@ test('en el móvil, el Inicio y el tablero se adaptan desde 360 px', async ({ br
   await expectAccessible(operator, 'hoja móvil');
   await capture(operator, 'mobile-sheet', false);
 });
+
+test('en tableta (820 px), Inicio y tablero conservan la barra lateral y usan listas sin desplazarse en horizontal', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test', { width: 820, height: 1180 });
+  await admin.getByRole('link', { name: /Laboratorio de Química/ }).click();
+  await expect(admin.getByRole('heading', { name: 'Actividad reciente' })).toBeVisible();
+  await expect(admin.getByRole('complementary')).toBeVisible();
+  expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expectAccessible(admin, 'inicio tableta');
+  await capture(admin, 'tablet-home');
+
+  await admin.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await expect(admin.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
+  await expect(admin.getByRole('button', { name: 'Registrar salida' })).toBeVisible();
+  expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  // Por debajo de 1024 px el inventario y el historial son listas: nada se corta dentro del panel.
+  await expect(admin.getByRole('table')).toHaveCount(0);
+  await expectAccessible(admin, 'tablero tableta');
+  await capture(admin, 'tablet');
+  await admin.getByRole('tab', { name: 'Movimientos' }).click();
+  await expect(admin.getByRole('listitem').first()).toBeVisible();
+  expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await capture(admin, 'tablet-movements');
+});
+
+/**
+ * Estados del paso 5 que antes solo se probaban por API. Stock insuficiente, sin permiso y sesión
+ * expirada usan la API real; consulta y error simulan solo la respuesta, porque cambiar el estado
+ * del módulo es del Equipo PlatLab y la decisión del servidor ya la prueba la integración.
+ */
+test('stock insuficiente: la salida se rechaza en el formulario y el saldo no cambia', async ({ browser }) => {
+  const operator = await signIn(browser, 'operador@demo.platlab.test');
+  await openReagents(operator, 'Laboratorio de Biología');
+  const ethanol = operator.getByRole('rowgroup').filter({ hasText: 'Etanol 96 %' });
+  await expect(ethanol.getByText('500 mL', { exact: true }).first()).toBeVisible();
+
+  await ethanol.getByRole('button', { name: 'Salida' }).first().click();
+  const issue = operator.getByRole('dialog', { name: 'Registrar salida' });
+  await issue.getByLabel('Cantidad').fill('100000');
+  await issue.getByLabel('Motivo').fill('Prueba de saldo insuficiente');
+  await issue.getByLabel('Destino').fill('Laboratorio 2');
+  await issue.getByRole('button', { name: 'Registrar salida' }).click();
+  await expect(issue.getByText('No hay saldo suficiente en esa ubicación.')).toBeVisible();
+  await expect(issue.getByLabel('Cantidad')).toHaveAttribute('aria-invalid', 'true');
+  await expectAccessible(operator, 'hoja con stock insuficiente');
+  await capture(operator, 'desktop-insufficient', false);
+
+  await operator.keyboard.press('Escape');
+  await expect(issue).toHaveCount(0);
+  await operator.reload();
+  await expect(ethanol.getByText('500 mL', { exact: true }).first()).toBeVisible();
+});
+
+test('sin permiso: la propietaria sin rol que abre Reactivos por URL ve «Sin permiso»', async ({ browser }) => {
+  const owner = await signIn(browser, 'propietaria@demo.platlab.test');
+  await expect(owner.getByText('No hay módulos para tu rol en este espacio')).toBeVisible();
+  await owner.goto(`${owner.url()}/reactivos`);
+  await expect(owner.getByRole('heading', { name: 'Sin permiso' })).toBeVisible();
+  await expect(owner.getByRole('button', { name: /Registrar/ })).toHaveCount(0);
+  await expectAccessible(owner, 'sin permiso');
+});
+
+test('modo consulta: sin operación nueva no hay acciones de registro, solo inventario e historial', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  // El servidor solo admite consultar y exportar (02 §6); se simula la respuesta de /me.
+  await admin.route('**/v1/workspaces/*/me', async (route) => {
+    const response = await route.fetch();
+    const me = (await response.json()) as { modules: Array<{ code: string; access: string[] }> };
+    me.modules = me.modules.map((module) => (module.code === 'reagents' ? { ...module, access: ['read_export'] } : module));
+    await route.fulfill({ response, json: me });
+  });
+  await admin.getByRole('link', { name: /Laboratorio de Química/ }).click();
+  await expect(admin.getByRole('link', { name: 'Abrir Reactivos' })).toBeVisible();
+  await expect(admin.getByRole('navigation', { name: /Acciones rápidas/ })).toHaveCount(0);
+
+  await admin.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await expect(admin.getByRole('status').filter({ hasText: 'Reactivos está en modo consulta' })).toBeVisible();
+  for (const name of ['Registrar salida', 'Registrar ingreso', 'Ajustar', 'Nuevo reactivo', 'Salida', 'Ingreso', 'Nuevo lote']) {
+    await expect(admin.getByRole('button', { name, exact: true })).toHaveCount(0);
+  }
+  await admin.getByRole('tab', { name: 'Movimientos' }).click();
+  await expect(admin.getByRole('row').nth(1)).toBeVisible();
+  await expectAccessible(admin, 'modo consulta');
+  await capture(admin, 'desktop-read-only');
+});
+
+test('error: un fallo del servidor muestra «Reintentar» y al reintentar se recupera', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await admin.route('**/v1/workspaces/*/reagents/positions*', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, status: 500, json: { error: { code: 'INTERNAL', message: 'Fallo simulado' } } });
+  });
+  await openReagents(admin, 'Laboratorio de Química');
+  await expect(admin.getByText('No pudimos cargar esta información')).toBeVisible();
+  await expectAccessible(admin, 'error');
+
+  await admin.unroute('**/v1/workspaces/*/reagents/positions*');
+  await admin.getByRole('button', { name: 'Reintentar' }).click();
+  await expect(admin.getByRole('tab', { name: 'Inventario' })).toBeVisible();
+  await expect(admin.getByText('No pudimos cargar esta información')).toHaveCount(0);
+});
+
+test('sesión expirada: un token que la API rechaza cierra la sesión y vuelve al acceso con aviso', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await expect(admin.getByRole('heading', { name: 'Elige un espacio de trabajo' })).toBeVisible();
+  // Firma alterada: la API la verifica contra el JWKS de Auth y responde IDENTITY_INVALID.
+  await admin.evaluate(() => {
+    const key = Object.keys(localStorage).find((name) => /^sb-.+-auth-token$/.test(name));
+    if (!key) throw new Error('No hay sesión guardada');
+    const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as { access_token: string };
+    const [header, payload] = stored.access_token.split('.');
+    localStorage.setItem(key, JSON.stringify({ ...stored, access_token: `${header}.${payload}.firma-alterada` }));
+  });
+  await admin.reload();
+  await expect(admin).toHaveURL(/\/acceso\?sesion=expirada/);
+  await expect(admin.getByText('Tu sesión terminó. Vuelve a iniciar sesión para continuar.')).toBeVisible();
+  await expectAccessible(admin, 'sesión expirada');
+});
