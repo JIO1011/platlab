@@ -458,12 +458,15 @@ export const listPositions = new PreparedQuery<IListPositionsParams,IListPositio
 export interface IListOperationsParams {
   beforeAt?: DateOrString | null | void;
   beforeId?: string | null | void;
+  days?: number | null | void;
   itemId?: string | null | void;
   kind: string;
   limit: NumberOrString;
   locationId?: string | null | void;
   locationIds: stringArray;
   positionId?: string | null | void;
+  timeZone: string;
+  type?: string | null | void;
   workspaceId: string;
 }
 
@@ -494,7 +497,7 @@ export interface IListOperationsQuery {
   result: IListOperationsResult;
 }
 
-const listOperationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"itemId":true,"locationId":true,"positionId":true,"beforeId":true,"beforeAt":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1399,"b":1411}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1428,"b":1433}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1462,"b":1474}]},{"name":"itemId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1492,"b":1498},{"a":1529,"b":1535}]},{"name":"locationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1551,"b":1561},{"a":1596,"b":1606}]},{"name":"positionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1622,"b":1632},{"a":1658,"b":1668}]},{"name":"beforeId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1689,"b":1697},{"a":1770,"b":1778}]},{"name":"beforeAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":1746,"b":1754}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":1837,"b":1843}]}],"statement":"-- En R-00 cada operación tiene un solo asiento; las de varios asientos llegan con los traslados.\nSELECT\n  o.id,\n  o.type,\n  o.effective_at,\n  -- Marca exacta (microsegundos, UTC) para el cursor; un Date de JavaScript la redondearía.\n  to_char(o.effective_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS \"cursor_at!\",\n  o.reason,\n  o.destination,\n  o.reference,\n  o.actor_principal_id,\n  ident.display_name AS actor_name,\n  e.position_id,\n  trim_scale(e.quantity) AS \"quantity!\",\n  trim_scale(e.balance_after) AS \"balance_after!\",\n  i.code AS item_code,\n  i.name AS item_name,\n  l.code AS lot_code,\n  loc.code AS location_code,\n  i.base_unit\nFROM inventory.operations AS o\nJOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id\nJOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE o.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)\n  AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)\n  AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)\n  AND (\n    :beforeId::uuid IS NULL\n    OR (o.effective_at, o.id) < (:beforeAt::timestamptz, :beforeId::uuid)\n  )\nORDER BY o.effective_at DESC, o.id DESC\nLIMIT :limit!"};
+const listOperationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"itemId":true,"locationId":true,"positionId":true,"type":true,"days":true,"timeZone":true,"beforeId":true,"beforeAt":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1399,"b":1411}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1428,"b":1433}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1462,"b":1474}]},{"name":"itemId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1492,"b":1498},{"a":1529,"b":1535}]},{"name":"locationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1551,"b":1561},{"a":1596,"b":1606}]},{"name":"positionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1622,"b":1632},{"a":1658,"b":1668}]},{"name":"type","required":false,"transform":{"type":"scalar"},"locs":[{"a":1684,"b":1688},{"a":1716,"b":1720}]},{"name":"days","required":false,"transform":{"type":"scalar"},"locs":[{"a":1832,"b":1836},{"a":1919,"b":1923}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":1898,"b":1907},{"a":1960,"b":1969}]},{"name":"beforeId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1988,"b":1996},{"a":2069,"b":2077}]},{"name":"beforeAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":2045,"b":2053}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":2136,"b":2142}]}],"statement":"-- En R-00 cada operación tiene un solo asiento; las de varios asientos llegan con los traslados.\nSELECT\n  o.id,\n  o.type,\n  o.effective_at,\n  -- Marca exacta (microsegundos, UTC) para el cursor; un Date de JavaScript la redondearía.\n  to_char(o.effective_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS \"cursor_at!\",\n  o.reason,\n  o.destination,\n  o.reference,\n  o.actor_principal_id,\n  ident.display_name AS actor_name,\n  e.position_id,\n  trim_scale(e.quantity) AS \"quantity!\",\n  trim_scale(e.balance_after) AS \"balance_after!\",\n  i.code AS item_code,\n  i.name AS item_name,\n  l.code AS lot_code,\n  loc.code AS location_code,\n  i.base_unit\nFROM inventory.operations AS o\nJOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id\nJOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE o.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)\n  AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)\n  AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)\n  AND (:type::text IS NULL OR o.type = :type::text)\n  -- Misma ventana que countOperationsByDay: desde la medianoche local de hace N - 1 días.\n  AND (\n    :days::int IS NULL\n    OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)\n  )\n  AND (\n    :beforeId::uuid IS NULL\n    OR (o.effective_at, o.id) < (:beforeAt::timestamptz, :beforeId::uuid)\n  )\nORDER BY o.effective_at DESC, o.id DESC\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
@@ -534,6 +537,12 @@ const listOperationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"l
  *   AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)
  *   AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)
  *   AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)
+ *   AND (:type::text IS NULL OR o.type = :type::text)
+ *   -- Misma ventana que countOperationsByDay: desde la medianoche local de hace N - 1 días.
+ *   AND (
+ *     :days::int IS NULL
+ *     OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)
+ *   )
  *   AND (
  *     :beforeId::uuid IS NULL
  *     OR (o.effective_at, o.id) < (:beforeAt::timestamptz, :beforeId::uuid)
@@ -543,5 +552,71 @@ const listOperationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"l
  * ```
  */
 export const listOperations = new PreparedQuery<IListOperationsParams,IListOperationsResult>(listOperationsIR);
+
+
+/** 'CountOperationsByDay' parameters type */
+export interface ICountOperationsByDayParams {
+  days: number;
+  kind: string;
+  locationIds: stringArray;
+  timeZone: string;
+  type: string;
+  workspaceId: string;
+}
+
+/** 'CountOperationsByDay' return type */
+export interface ICountOperationsByDayResult {
+  count: number;
+  day: string;
+}
+
+/** 'CountOperationsByDay' query type */
+export interface ICountOperationsByDayQuery {
+  params: ICountOperationsByDayParams;
+  result: ICountOperationsByDayResult;
+}
+
+const countOperationsByDayIR: any = {"usedParamSet":{"timeZone":true,"days":true,"workspaceId":true,"type":true,"kind":true,"locationIds":true},"params":[{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":312,"b":321},{"a":393,"b":402},{"a":589,"b":598},{"a":798,"b":807}]},{"name":"days","required":true,"transform":{"type":"scalar"},"locs":[{"a":333,"b":338}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":697,"b":709}]},{"name":"type","required":true,"transform":{"type":"scalar"},"locs":[{"a":728,"b":733}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1159,"b":1164}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1199,"b":1211}]}],"statement":"-- Operaciones de un tipo por día, en la zona del espacio y en las ubicaciones autorizadas, para\n-- los gráficos (ADR 0011). Cuenta sucesos: nunca suma cantidades de unidades distintas. Los días\n-- sin operaciones salen con cero para que el gráfico no salte fechas.\nWITH bounds AS (\n  SELECT (now() AT TIME ZONE :timeZone!)::date - (:days!::int - 1) AS first_day,\n         (now() AT TIME ZONE :timeZone!)::date AS last_day\n),\ndays AS (\n  SELECT generate_series(b.first_day, b.last_day, interval '1 day')::date AS day\n  FROM bounds AS b\n),\nscoped AS (\n  SELECT (o.effective_at AT TIME ZONE :timeZone!)::date AS day\n  FROM inventory.operations AS o\n  CROSS JOIN bounds AS b\n  WHERE o.workspace_id = :workspaceId!\n    AND o.type = :type!\n    AND o.effective_at >= (b.first_day::timestamp AT TIME ZONE :timeZone!)\n    AND EXISTS (\n      SELECT 1\n      FROM inventory.entries AS e\n      JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id\n      JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\n      WHERE e.workspace_id = o.workspace_id\n        AND e.operation_id = o.id\n        AND i.kind = :kind!\n        AND p.location_id = ANY (:locationIds!::uuid[])\n    )\n)\nSELECT to_char(d.day, 'YYYY-MM-DD') AS \"day!\", count(s.day)::int AS \"count!\"\nFROM days AS d\nLEFT JOIN scoped AS s ON s.day = d.day\nGROUP BY d.day\nORDER BY d.day"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Operaciones de un tipo por día, en la zona del espacio y en las ubicaciones autorizadas, para
+ * -- los gráficos (ADR 0011). Cuenta sucesos: nunca suma cantidades de unidades distintas. Los días
+ * -- sin operaciones salen con cero para que el gráfico no salte fechas.
+ * WITH bounds AS (
+ *   SELECT (now() AT TIME ZONE :timeZone!)::date - (:days!::int - 1) AS first_day,
+ *          (now() AT TIME ZONE :timeZone!)::date AS last_day
+ * ),
+ * days AS (
+ *   SELECT generate_series(b.first_day, b.last_day, interval '1 day')::date AS day
+ *   FROM bounds AS b
+ * ),
+ * scoped AS (
+ *   SELECT (o.effective_at AT TIME ZONE :timeZone!)::date AS day
+ *   FROM inventory.operations AS o
+ *   CROSS JOIN bounds AS b
+ *   WHERE o.workspace_id = :workspaceId!
+ *     AND o.type = :type!
+ *     AND o.effective_at >= (b.first_day::timestamp AT TIME ZONE :timeZone!)
+ *     AND EXISTS (
+ *       SELECT 1
+ *       FROM inventory.entries AS e
+ *       JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id
+ *       JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+ *       WHERE e.workspace_id = o.workspace_id
+ *         AND e.operation_id = o.id
+ *         AND i.kind = :kind!
+ *         AND p.location_id = ANY (:locationIds!::uuid[])
+ *     )
+ * )
+ * SELECT to_char(d.day, 'YYYY-MM-DD') AS "day!", count(s.day)::int AS "count!"
+ * FROM days AS d
+ * LEFT JOIN scoped AS s ON s.day = d.day
+ * GROUP BY d.day
+ * ORDER BY d.day
+ * ```
+ */
+export const countOperationsByDay = new PreparedQuery<ICountOperationsByDayParams,ICountOperationsByDayResult>(countOperationsByDayIR);
 
 

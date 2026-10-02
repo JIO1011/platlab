@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(49);
+select plan(53);
 
 -- Solo dentro de esta transacción: pgTAP vive en `extensions` y se invoca también como platlab_api,
 -- y `postgres` (que administra el rol, pero no lo usa) necesita SET para adoptarlo.
@@ -337,7 +337,37 @@ select is(
     + (select max(version) from core.memberships where workspace_id = 'b0000000-0000-4000-8000-00000000000b'),
   2, 'con contexto A, el runtime no modifica filas de B');
 
+-- ---------------------------------------------------------------------------
+-- Permisos efectivos: el propietario tiene los del Administrador (ADR 0008, cambio del 02-10-2026)
+-- ---------------------------------------------------------------------------
+
+select ok(
+  has_table_privilege('platlab_api', 'core.effective_role_assignments', 'SELECT')
+    and not has_table_privilege('platlab_api', 'core.effective_role_assignments', 'INSERT'),
+  'el runtime solo lee los permisos efectivos');
+
 set local role platlab_api;
+select set_config('platlab.workspace_id', 'a0000000-0000-4000-8000-00000000000a', true);
+
+select results_eq(
+  $$ select principal_id, role_code, location_id from core.effective_role_assignments order by principal_id $$,
+  $$ values ('a2000000-0000-4000-8000-000000000001'::uuid, 'admin'::text, null::uuid),
+            ('a2000000-0000-4000-8000-000000000002'::uuid, 'admin'::text, null::uuid) $$,
+  'la propietaria de A tiene el rol Administrador en todo el espacio sin asignación');
+
+select set_eq('select distinct workspace_id from core.effective_role_assignments',
+  array['a0000000-0000-4000-8000-00000000000a']::uuid[],
+  'los permisos efectivos respetan el contexto del espacio');
+
+reset role;
+update core.workspaces set owner_membership_id = 'a1000000-0000-4000-8000-000000000001'
+ where id = 'a0000000-0000-4000-8000-00000000000a';
+set local role platlab_api;
+
+select results_eq(
+  $$ select principal_id, count(*)::int from core.effective_role_assignments group by principal_id $$,
+  $$ values ('a2000000-0000-4000-8000-000000000001'::uuid, 2) $$,
+  'al transferir la propiedad, la anterior propietaria pierde los permisos implícitos');
 
 reset role;
 

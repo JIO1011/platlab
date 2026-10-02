@@ -5,4 +5,4 @@
 export { createItem, createLot } from './application/catalog.js';
 export type { InventoryContext } from './application/context.js';
 export { applyMovement, lockExistingPosition, lockReceiptPosition } from './application/movements.js';
-export { listOperationPage, listPositionPage } from './application/queries.js';
+export { countOperationsPerDay, listOperationPage, listPositionPage } from './application/queries.js';

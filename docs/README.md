@@ -11,7 +11,7 @@ SaaS modular para gestionar laboratorios de varias instituciones: reactivos, equ
 | Punto | Estado |
 |---|---|
 | Diseño | Cerrado para el primer incremento; decisiones en [05](05_decisiones.md) |
-| Hecho | T-01 (monorepo y CI), T-02/T-03 (Core, RLS, JWT por JWKS, roles con ámbito), T-04/T-05 (derechos por contrato, admisión de dos ejes bajo bloqueo, `/me` y `/home`, auditoría e idempotencia), R-00 (Reactivos por API) y paso 5 (interfaz con el [ADR 0010](05_decisiones.md#adr-0010) y su nota «precisión suave»). V-00: G0 de Reactivos con la demo A/B/C y Reactivos en etapa `pilot`. Evidencias en [desarrollo/evidencias](desarrollo/evidencias/) |
+| Hecho | T-01 (monorepo y CI), T-02/T-03 (Core, RLS, JWT por JWKS, roles con ámbito), T-04/T-05 (derechos por contrato, admisión de dos ejes bajo bloqueo, `/me` y `/home`, auditoría e idempotencia), R-00 (Reactivos por API) y paso 5 (interfaz con el [ADR 0010](05_decisiones.md#adr-0010) y su nota «precisión suave»). V-00: G0 de Reactivos con la demo A/B/C y Reactivos en etapa `pilot`. Después, el Inicio como tablero de módulos y cada módulo como app ([ADR 0011](05_decisiones.md#adr-0011)), y el propietario con los permisos del Administrador ([ADR 0008](05_decisiones.md#adr-0008)). Evidencias en [desarrollo/evidencias](desarrollo/evidencias/) |
 | Siguiente paso | F1b y F2 en paralelo ([roadmap](04_roadmap.md)). Sin dependencias externas: T-07 (archivos, outbox y worker). S-01 necesita las cuentas de los proveedores; R-01 y E-01 esperan a P-02 |
 | Siguiente puerta | G1: piloto con datos reales en un espacio ([roadmap](04_roadmap.md)) |
 | En paralelo | F0 con el laboratorio interesado: fiscalizados (REG-01) y prácticas (P-04) |

@@ -27,7 +27,19 @@ export const reagentsModule = defineModule({
     ],
     operator: ['reagents.catalog.read', 'reagents.receipt.create', 'reagents.issue.create'],
   },
-  nav: [{ path: 'reactivos', label: 'Reactivos', permission: 'reagents.catalog.read' }],
+  // Las demás secciones (Informes, Fiscalizados, Documentos, Configuración) llegan con su entrega.
+  nav: [
+    {
+      path: 'reactivos',
+      label: 'Reactivos',
+      permission: 'reagents.catalog.read',
+      sections: [
+        { path: '', label: 'Resumen', permission: 'reagents.catalog.read' },
+        { path: 'inventario', label: 'Inventario', permission: 'reagents.catalog.read' },
+        { path: 'movimientos', label: 'Movimientos', permission: 'reagents.catalog.read' },
+      ],
+    },
+  ],
   homeCard: { permission: 'reagents.catalog.read' },
   stage: 'pilot',
 });

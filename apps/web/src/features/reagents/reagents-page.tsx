@@ -1,4 +1,4 @@
-import type { Operation, Position, ProductList } from '@platlab/contracts';
+import type { Operation, Position, ProductList, ReagentsSummary, WorkspaceMeResponse } from '@platlab/contracts';
 import {
   Badge,
   Button,
@@ -11,21 +11,26 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   cn,
 } from '@platlab/ui';
+import { useIsFetching, useQueryClient, type InfiniteData, type UseInfiniteQueryResult, type UseQueryResult } from '@tanstack/react-query';
 import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
-import { ArrowDownToLine, ArrowUpFromLine, Eye, FlaskConical, History, Plus, RefreshCw, Scale } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, ChevronRight, Eye, FlaskConical, History, Plus, RefreshCw, Scale, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, Outlet, useLocation, useOutletContext, useSearchParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
-import { useShell } from '../../app/app-shell';
+import { moduleApps, useShell } from '../../app/app-shell';
 import { formatAgo, formatDate, formatDateTime } from '../../app/format';
-import { useOperations, usePositions, useProducts } from '../../app/queries';
+import {
+  useOperations,
+  usePositions,
+  useProducts,
+  useReagentsKey,
+  useReagentsSummary,
+  type OperationFilter,
+} from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
+import { TrendChart } from '../../app/trend-chart';
 import { AdjustmentSheet, IssueSheet, NewLotSheet, NewProductSheet, ReceiptSheet } from './sheets';
 
 type SheetRequest =
@@ -34,6 +39,8 @@ type SheetRequest =
   | { kind: 'receipt'; productId?: string }
   | { kind: 'issue'; positionId?: string }
   | { kind: 'adjustment'; positionId?: string };
+
+type Allowed = Record<'product' | 'receipt' | 'issue' | 'adjustment', boolean>;
 
 /**
  * La hoja se monta de nuevo en cada apertura (clave nueva: formulario limpio y clave idempotente
@@ -57,62 +64,88 @@ function useNow(intervalMs: number): number {
   return now;
 }
 
-export function ReagentsPage() {
+/** Lo que las secciones comparten: datos ya pedidos, permisos y la apertura de hojas. */
+interface ReagentsContext {
+  workspaceId: string;
+  me: WorkspaceMeResponse;
+  base: string;
+  allowed: Allowed;
+  products: UseQueryResult<ProductList>;
+  productList: StockedProduct[];
+  positions: UseInfiniteQueryResult<InfiniteData<{ items: Position[] }>>;
+  positionList: Position[];
+  operations: UseInfiniteQueryResult<InfiniteData<{ items: Operation[] }>>;
+  operationFilter: OperationFilter;
+  summary: UseQueryResult<ReagentsSummary>;
+  openSheet: (request: SheetRequest) => void;
+}
+
+/**
+ * Filtro del historial en la URL, para que la cifra del Resumen abra exactamente su lista:
+ * `?tipo=salida&dias=30` son las salidas de los últimos 30 días, la misma ventana del gráfico.
+ */
+const typeParams = { ingreso: 'receipt', salida: 'issue', ajuste: 'adjustment' } as const;
+
+function readOperationFilter(params: URLSearchParams): OperationFilter {
+  const type = typeParams[params.get('tipo') as keyof typeof typeParams] as OperationFilter['type'];
+  const days = Number(params.get('dias'));
+  return { type, days: Number.isInteger(days) && days >= 1 && days <= 90 ? days : undefined };
+}
+
+const useReagents = () => useOutletContext<ReagentsContext>();
+
+/**
+ * La app de Reactivos (ADR 0011): una cabecera común con el título de la sección, las acciones que
+ * permite el rol y las hojas de registro; cada sección se dibuja debajo. Las acciones viven aquí
+ * para que registrar una salida esté a un clic desde cualquier sección.
+ */
+export function ReagentsLayout() {
   const { workspaceId, me } = useShell();
+  const { pathname } = useLocation();
+  const [params] = useSearchParams();
+  const queryClient = useQueryClient();
+  const reagentsKey = useReagentsKey(workspaceId);
+  const operationFilter = readOperationFilter(params);
   const products = useProducts(workspaceId);
   const positions = usePositions(workspaceId);
-  const operations = useOperations(workspaceId);
+  const operations = useOperations(workspaceId, operationFilter);
   const sheets = useSheets();
   const now = useNow(15_000);
 
   const module = me.modules.find((entry) => entry.code === 'reagents');
   const canOperate = module?.access.includes('new_operation') ?? false;
   const can = (permission: string) => canOperate && me.permissions.includes(permission);
-  const allowed = {
+  const allowed: Allowed = {
     product: can('reagents.catalog.manage'),
     receipt: can('reagents.receipt.create'),
     issue: can('reagents.issue.create'),
     adjustment: can('reagents.adjustment.create'),
   };
 
+  const app = moduleApps(me).find((entry) => entry.code === 'reagents');
+  const base = `/e/${workspaceId}/${app?.path ?? 'reactivos'}`;
+  const sectionPath = pathname.slice(base.length + 1).split('/')[0] ?? '';
+  const section = app?.sections.find((entry) => entry.path === sectionPath);
+  // El Resumen es la portada de la app: lleva el nombre del módulo; las demás, el de su sección.
+  const title = sectionPath === '' ? (module?.name ?? 'Reactivos') : (section?.label ?? module?.name ?? 'Reactivos');
+  const summary = useReagentsSummary(workspaceId, sectionPath === '');
+
   const positionList = useMemo(() => positions.data?.pages.flatMap((page) => page.items) ?? [], [positions.data]);
-  // Por debajo de 1024 px (móvil y tableta), la primaria ocupa su fila y las secundarias van de dos en dos: si son impares,
-  // la última toma la fila entera para no dejar un hueco.
+  const productList = products.data?.items ?? [];
+  // Por debajo de 1024 px (móvil y tableta), la primaria ocupa su fila y las secundarias van de dos
+  // en dos: si son impares, la última toma la fila entera para no dejar un hueco.
   const secondaryActions = [
     { kind: 'product', label: 'Nuevo reactivo', icon: Plus, shown: allowed.product },
     { kind: 'receipt', label: 'Registrar ingreso', icon: ArrowDownToLine, shown: allowed.receipt },
     { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 },
   ] as const;
   const visibleSecondary = secondaryActions.filter((action) => action.shown);
-  const [params, setParams] = useSearchParams();
-  const [tab, setTab] = useState(params.get('pestana') === 'movimientos' ? 'movements' : 'inventory');
-
-  // Las acciones rápidas de Inicio llegan como ?registrar=…: se abre la hoja una vez y se limpia
-  // la URL, así recargar no la vuelve a abrir. Solo si el permiso la habría mostrado aquí.
-  const requested = params.get('registrar');
-  const ready = !products.isPending && !positions.isPending;
-  useEffect(() => {
-    if (!requested || !ready) return;
-    const requests: Record<string, [boolean, SheetRequest]> = {
-      salida: [allowed.issue && positionList.length > 0, { kind: 'issue' }],
-      ingreso: [allowed.receipt, { kind: 'receipt' }],
-      ajuste: [allowed.adjustment && positionList.length > 0, { kind: 'adjustment' }],
-      reactivo: [allowed.product, { kind: 'product' }],
-    };
-    const [permitted, request] = requests[requested] ?? [false, { kind: 'product' }];
-    if (permitted) sheets.open(request);
-    setParams(
-      (current) => {
-        current.delete('registrar');
-        return current;
-      },
-      { replace: true },
-    );
-    // Se evalúa solo al llegar la petición y los datos; permisos y posiciones ya están cargados.
-  }, [requested, ready]);
-  const productList = products.data?.items ?? [];
-  const updatedAt = Math.max(positions.dataUpdatedAt, products.dataUpdatedAt);
-  const refreshing = positions.isFetching || products.isFetching || operations.isFetching;
+  // «Actualizado hace…» informa lo más antiguo de lo que la sección muestra, nunca lo más fresco.
+  const shown: Array<{ dataUpdatedAt: number }> =
+    sectionPath === '' ? [summary] : sectionPath === 'movimientos' ? [operations] : [products, positions];
+  const stamps = shown.map((query) => query.dataUpdatedAt).filter((stamp) => stamp > 0);
+  const updatedAt = stamps.length === shown.length ? Math.min(...stamps) : 0;
+  const refreshing = useIsFetching({ queryKey: reagentsKey }) > 0;
 
   if (products.isError || positions.isError) {
     return (
@@ -139,16 +172,13 @@ export function ReagentsPage() {
     <div className="mx-auto max-w-6xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-display text-ink">Reactivos</h1>
+          <h1 className="text-display text-ink">{title}</h1>
           <p className="mt-1 flex items-center gap-2 text-[13px] text-ink-muted">
             {updatedAt > 0 ? <span>Actualizado {formatAgo(updatedAt, now)}</span> : <span>Cargando…</span>}
             <button
               type="button"
-              onClick={() => {
-                void products.refetch();
-                void positions.refetch();
-                void operations.refetch();
-              }}
+              // Todo lo de Reactivos: las consultas activas se vuelven a pedir y las demás quedan viejas.
+              onClick={() => void queryClient.invalidateQueries({ queryKey: reagentsKey })}
               className="inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 font-medium text-action transition-colors hover:bg-action-soft"
             >
               <RefreshCw className="size-3.5" aria-hidden />
@@ -183,69 +213,26 @@ export function ReagentsPage() {
         </p>
       ) : null}
 
-      <Tabs value={tab} onValueChange={setTab} className="mt-6">
-        <TabsList>
-          <TabsTrigger value="inventory">Inventario</TabsTrigger>
-          <TabsTrigger value="movements">Movimientos</TabsTrigger>
-        </TabsList>
-        <TabsContent value="inventory">
-          <div className="overflow-hidden rounded-card bg-surface shadow-raised">
-            {products.isPending || positions.isPending ? (
-              <TableSkeleton />
-            ) : productList.length === 0 ? (
-              <StatePanel
-                icon={FlaskConical}
-                title="Aún no hay reactivos"
-                description={
-                  allowed.product
-                    ? 'Crea el primer reactivo del catálogo; después podrás registrar sus lotes e ingresos.'
-                    : 'Cuando alguien con permiso cree reactivos en el catálogo, aparecerán aquí.'
-                }
-                action={
-                  allowed.product ? (
-                    <Button variant="primary" onClick={() => sheets.open({ kind: 'product' })}>
-                      <Plus aria-hidden />
-                      Nuevo reactivo
-                    </Button>
-                  ) : undefined
-                }
-              />
-            ) : (
-              <InventoryTable
-                products={productList}
-                positions={positionList}
-                allowed={allowed}
-                onAction={(request) => sheets.open(request)}
-              />
-            )}
-            {positions.hasNextPage ? (
-              <div className="border-t border-line p-3 text-center">
-                <Button variant="ghost" size="sm" loading={positions.isFetchingNextPage} onClick={() => void positions.fetchNextPage()}>
-                  Cargar más ubicaciones
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </TabsContent>
-        <TabsContent value="movements">
-          <div className="overflow-hidden rounded-card bg-surface shadow-raised">
-            {operations.isPending ? (
-              <TableSkeleton />
-            ) : operations.isError ? (
-              <QueryErrorState error={operations.error} onRetry={() => void operations.refetch()} />
-            ) : (
-              <MovementsView operations={operations.data.pages.flatMap((page) => page.items)} timeZone={me.workspace.timeZone} />
-            )}
-            {operations.hasNextPage ? (
-              <div className="border-t border-line p-3 text-center">
-                <Button variant="ghost" size="sm" loading={operations.isFetchingNextPage} onClick={() => void operations.fetchNextPage()}>
-                  Cargar movimientos anteriores
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </TabsContent>
-      </Tabs>
+      <div className="mt-6">
+        <Outlet
+          context={
+            {
+              workspaceId,
+              me,
+              base,
+              allowed,
+              products,
+              productList,
+              positions,
+              positionList,
+              operations,
+              operationFilter,
+              summary,
+              openSheet: sheets.open,
+            } satisfies ReagentsContext
+          }
+        />
+      </div>
 
       {current?.request.kind === 'product' ? <NewProductSheet key={current.id} {...sheetProps('product')} /> : null}
       {current?.request.kind === 'lot' ? (
@@ -261,6 +248,193 @@ export function ReagentsPage() {
         <AdjustmentSheet key={current.id} {...sheetProps('adjustment')} positions={positionList} positionId={current.request.positionId} />
       ) : null}
     </div>
+  );
+}
+
+const counterLabels = {
+  productsWithStock: (n: number) => (n === 1 ? 'Reactivo con existencias' : 'Reactivos con existencias'),
+  positionsWithStock: (n: number) => (n === 1 ? 'Ubicación con existencias' : 'Ubicaciones con existencias'),
+};
+
+/** Una cifra del Resumen que abre la lista que la explica (ADR 0011). */
+function StatLink({ to, value, label }: { to: string; value: number; label: string }) {
+  return (
+    // Por debajo de 1024 px, una fila compacta (cifra a la derecha); desde lg, una tarjeta con la
+    // cifra grande. En tableta, tres tarjetas estrechas partirían sus etiquetas en varias líneas.
+    <Link
+      to={to}
+      className="group flex items-center justify-between gap-4 rounded-card bg-surface px-5 py-4 shadow-raised transition-shadow duration-150 hover:shadow-float lg:flex-col lg:items-stretch lg:gap-6 lg:p-6"
+    >
+      <span className="flex items-center gap-1.5 text-sm font-medium text-ink-muted lg:justify-between">
+        {label}
+        {/* Señal de enlace siempre visible; se enciende con el puntero o el foco. */}
+        <ChevronRight
+          className="size-4 shrink-0 text-ink-subtle transition-colors group-hover:text-action group-focus-visible:text-action"
+          aria-hidden
+        />
+      </span>
+      <span className="text-metric-sm text-ink lg:text-metric">{value}</span>
+    </Link>
+  );
+}
+
+/** Resumen: las cifras del módulo, las salidas por día y la actividad reciente, en su ámbito. */
+export function ReagentsSummaryPage() {
+  const { me, base, summary } = useReagents();
+
+  if (summary.isPending) {
+    return (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3" aria-busy="true" aria-label="Cargando">
+        <Skeleton className="h-32 rounded-card" />
+        <Skeleton className="h-32 rounded-card" />
+        <Skeleton className="h-32 rounded-card" />
+      </div>
+    );
+  }
+  if (summary.isError) return <QueryErrorState error={summary.error} onRetry={() => void summary.refetch()} />;
+
+  const { summary: counters, trend, activity } = summary.data;
+  const issues = trend?.points.reduce((sum, point) => sum + point.value, 0) ?? 0;
+
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
+        <StatLink to={`${base}/inventario`} value={counters.productsWithStock} label={counterLabels.productsWithStock(counters.productsWithStock)} />
+        <StatLink to={`${base}/inventario`} value={counters.positionsWithStock} label={counterLabels.positionsWithStock(counters.positionsWithStock)} />
+        <StatLink to={`${base}/movimientos?tipo=salida&dias=30`} value={issues} label="Salidas, últimos 30 días" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
+        <article className="min-w-0 rounded-card bg-surface p-5 shadow-raised sm:p-6 lg:col-span-7">
+          <h2 className="text-lg font-semibold text-ink">Salidas por día</h2>
+          <p className="mt-1 text-sm text-ink-muted">Últimos 30 días, en las ubicaciones que puedes consultar.</p>
+          <div className="mt-8">
+            {trend ? (
+              <TrendChart title="Salidas por día, últimos 30 días" points={trend.points} unit={{ one: 'salida', many: 'salidas' }} />
+            ) : (
+              // Sin salidas no hay gráfico: uno vacío no informa (ADR 0011).
+              <p className="rounded-panel bg-surface-sunken px-4 py-6 text-center text-sm text-ink-muted">
+                No hubo salidas en los últimos 30 días.
+              </p>
+            )}
+          </div>
+        </article>
+        <article className="min-w-0 rounded-card bg-surface p-5 shadow-raised sm:p-6 lg:col-span-5">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold text-ink">Actividad reciente</h2>
+            <Link to={`${base}/movimientos`} className="whitespace-nowrap text-sm font-medium text-action">
+              Ver movimientos
+            </Link>
+          </div>
+          {activity.length ? (
+            <ul className="mt-3 divide-y divide-line">
+              {activity.map((entry) => (
+                <li key={entry.id} className="py-3">
+                  <ActivityRow {...entry} timeZone={me.workspace.timeZone} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-ink-muted">Todavía no hay movimientos en tus ubicaciones.</p>
+          )}
+        </article>
+      </div>
+    </div>
+  );
+}
+
+/** Inventario: producto → lote → ubicación (01 §7), con sus acciones por fila. */
+export function ReagentsInventoryPage() {
+  const { allowed, products, productList, positions, positionList, openSheet } = useReagents();
+  return (
+    <div className="overflow-hidden rounded-card bg-surface shadow-raised">
+      {products.isPending || positions.isPending ? (
+        <TableSkeleton />
+      ) : productList.length === 0 ? (
+        <StatePanel
+          icon={FlaskConical}
+          title="Aún no hay reactivos"
+          description={
+            allowed.product
+              ? 'Crea el primer reactivo del catálogo; después podrás registrar sus lotes e ingresos.'
+              : 'Cuando alguien con permiso cree reactivos en el catálogo, aparecerán aquí.'
+          }
+          action={
+            allowed.product ? (
+              <Button variant="primary" onClick={() => openSheet({ kind: 'product' })}>
+                <Plus aria-hidden />
+                Nuevo reactivo
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <InventoryTable products={productList} positions={positionList} allowed={allowed} onAction={openSheet} />
+      )}
+      {positions.hasNextPage ? (
+        <div className="border-t border-line p-3 text-center">
+          <Button variant="ghost" size="sm" loading={positions.isFetchingNextPage} onClick={() => void positions.fetchNextPage()}>
+            Cargar más ubicaciones
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Movimientos: el historial completo, del más reciente al más antiguo, con su responsable. */
+const filterLabels: Record<NonNullable<OperationFilter['type']>, string> = {
+  receipt: 'Ingresos',
+  issue: 'Salidas',
+  adjustment: 'Ajustes',
+};
+
+export function ReagentsMovementsPage() {
+  const { me, operations, operationFilter } = useReagents();
+  const [, setParams] = useSearchParams();
+  const label = [
+    operationFilter.type ? filterLabels[operationFilter.type] : null,
+    operationFilter.days ? `últimos ${operationFilter.days} días` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return (
+    <>
+      {label ? (
+        <div className="mb-4 flex items-center gap-2">
+          <span className="inline-flex h-9 items-center gap-1 rounded-full bg-action-soft pl-3.5 pr-1 text-sm font-medium text-action">
+            {label.charAt(0).toUpperCase() + label.slice(1)}
+            <button
+              type="button"
+              aria-label={`Quitar el filtro: ${label}`}
+              onClick={() => setParams({}, { replace: true })}
+              className="inline-flex size-7 items-center justify-center rounded-full transition-colors hover:bg-action/10"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+          </span>
+        </div>
+      ) : null}
+      <div className="overflow-hidden rounded-card bg-surface shadow-raised">
+        {operations.isPending ? (
+          <TableSkeleton />
+        ) : operations.isError ? (
+          <QueryErrorState error={operations.error} onRetry={() => void operations.refetch()} />
+        ) : (
+          <MovementsView
+            operations={operations.data.pages.flatMap((page) => page.items)}
+            timeZone={me.workspace.timeZone}
+            filtered={Boolean(label)}
+          />
+        )}
+        {operations.hasNextPage ? (
+          <div className="border-t border-line p-3 text-center">
+            <Button variant="ghost" size="sm" loading={operations.isFetchingNextPage} onClick={() => void operations.fetchNextPage()}>
+              Cargar movimientos anteriores
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </>
   );
 }
 
@@ -290,7 +464,7 @@ function InventoryTable({
 }: {
   products: StockedProduct[];
   positions: Position[];
-  allowed: Record<'product' | 'receipt' | 'issue' | 'adjustment', boolean>;
+  allowed: Allowed;
   onAction: (request: SheetRequest) => void;
 }) {
   const byProduct = new Map<string, Position[]>();
@@ -508,9 +682,11 @@ const features = tableFeatures({});
 const helper = createColumnHelper<typeof features, Operation>();
 
 /** Historial: tabla en escritorio y filas de actividad por debajo de 1024 px, sin desplazamiento lateral. */
-function MovementsView({ operations, timeZone }: { operations: Operation[]; timeZone: string }) {
+function MovementsView({ operations, timeZone, filtered = false }: { operations: Operation[]; timeZone: string; filtered?: boolean }) {
   if (operations.length === 0) {
-    return (
+    return filtered ? (
+      <StatePanel icon={History} title="Ningún movimiento con este filtro" description="Quita el filtro para ver todo el historial." />
+    ) : (
       <StatePanel
         icon={History}
         title="Todavía no hay movimientos"

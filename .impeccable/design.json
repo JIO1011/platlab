@@ -1,66 +1,263 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T00:00:00Z",
+  "generatedAt": "2026-10-02T18:00:00Z",
   "title": "Design System: PlatLab",
   "source": "packages/ui/src/styles.css manda sobre estos valores si difieren.",
   "extensions": {
     "colorMeta": {
-      "canvas": { "role": "neutral", "displayName": "Lienzo frío", "canonical": "#f5f7fb" },
-      "surface": { "role": "neutral", "displayName": "Superficie", "canonical": "#ffffff" },
-      "surface-sunken": { "role": "neutral", "displayName": "Superficie hundida", "canonical": "#eef2f7" },
-      "ink": { "role": "neutral", "displayName": "Tinta pizarra", "canonical": "#102a43" },
-      "ink-muted": { "role": "neutral", "displayName": "Tinta atenuada", "canonical": "#526275" },
-      "ink-subtle": { "role": "neutral", "displayName": "Tinta tenue", "canonical": "#5e6d80" },
-      "line": { "role": "neutral", "displayName": "Línea", "canonical": "#dde4ed" },
-      "line-strong": { "role": "neutral", "displayName": "Línea fuerte", "canonical": "#c3cdd9" },
-      "action": { "role": "primary", "displayName": "Azul de acción", "canonical": "#1f5f96", "tonalRamp": ["#15426b", "#1a5182", "#1f5f96", "#e6eef7"] },
-      "action-hover": { "role": "primary", "displayName": "Acción al pasar", "canonical": "#1a5182" },
-      "action-pressed": { "role": "primary", "displayName": "Acción pulsada", "canonical": "#15426b" },
-      "action-soft": { "role": "primary", "displayName": "Acción suave", "canonical": "#e6eef7" },
-      "on-action": { "role": "primary", "displayName": "Sobre acción", "canonical": "#ffffff" },
-      "success": { "role": "status", "displayName": "Éxito", "canonical": "#1d7a46" },
-      "success-soft": { "role": "status", "displayName": "Éxito suave", "canonical": "#e5f3ea" },
-      "warning": { "role": "status", "displayName": "Aviso", "canonical": "#8a5a00" },
-      "warning-soft": { "role": "status", "displayName": "Aviso suave", "canonical": "#fdf2d8" },
-      "danger": { "role": "status", "displayName": "Peligro", "canonical": "#b42318" },
-      "danger-soft": { "role": "status", "displayName": "Peligro suave", "canonical": "#fcebe9" }
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Lienzo frío",
+        "canonical": "#f5f7fb"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Superficie",
+        "canonical": "#ffffff"
+      },
+      "surface-sunken": {
+        "role": "neutral",
+        "displayName": "Superficie hundida",
+        "canonical": "#eef2f7"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Tinta pizarra",
+        "canonical": "#102a43"
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Tinta atenuada",
+        "canonical": "#526275"
+      },
+      "ink-subtle": {
+        "role": "neutral",
+        "displayName": "Tinta tenue",
+        "canonical": "#5e6d80"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Línea",
+        "canonical": "#dde4ed"
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Línea fuerte",
+        "canonical": "#c3cdd9"
+      },
+      "action": {
+        "role": "primary",
+        "displayName": "Azul de acción",
+        "canonical": "#1f5f96",
+        "tonalRamp": [
+          "#15426b",
+          "#1a5182",
+          "#1f5f96",
+          "#e6eef7"
+        ]
+      },
+      "action-hover": {
+        "role": "primary",
+        "displayName": "Acción al pasar",
+        "canonical": "#1a5182"
+      },
+      "action-pressed": {
+        "role": "primary",
+        "displayName": "Acción pulsada",
+        "canonical": "#15426b"
+      },
+      "action-soft": {
+        "role": "primary",
+        "displayName": "Acción suave",
+        "canonical": "#e6eef7"
+      },
+      "on-action": {
+        "role": "primary",
+        "displayName": "Sobre acción",
+        "canonical": "#ffffff"
+      },
+      "success": {
+        "role": "status",
+        "displayName": "Éxito",
+        "canonical": "#1d7a46"
+      },
+      "success-soft": {
+        "role": "status",
+        "displayName": "Éxito suave",
+        "canonical": "#e5f3ea"
+      },
+      "warning": {
+        "role": "status",
+        "displayName": "Aviso",
+        "canonical": "#8a5a00"
+      },
+      "warning-soft": {
+        "role": "status",
+        "displayName": "Aviso suave",
+        "canonical": "#fdf2d8"
+      },
+      "danger": {
+        "role": "status",
+        "displayName": "Peligro",
+        "canonical": "#b42318"
+      },
+      "danger-soft": {
+        "role": "status",
+        "displayName": "Peligro suave",
+        "canonical": "#fcebe9"
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Título de página y saludo de Inicio; fluido de 32 a 44 px." },
-      "metric": { "displayName": "Metric", "purpose": "Contadores reales del resumen de Inicio, enlazados a su vista." },
-      "metric-sm": { "displayName": "Metric pequeño", "purpose": "Los mismos contadores en el móvil." },
-      "title": { "displayName": "Title", "purpose": "Título de hoja y de tarjeta, total por reactivo." },
-      "body-lg": { "displayName": "Body grande", "purpose": "Navegación de escritorio, nombre del espacio y fecha bajo el saludo." },
-      "body": { "displayName": "Body", "purpose": "Tablas, campos, botones, pestañas y navegación del móvil." },
-      "meta": { "displayName": "Meta", "purpose": "Actualizado hace…, ayudas, errores de campo, código, CAS y detalle de actividad." },
-      "label": { "displayName": "Label", "purpose": "Solo encabezados de columna de tabla, en mayúsculas." },
-      "quantity": { "displayName": "Quantity", "purpose": "Cantidades y saldos: cifras tabulares, unidad atenuada." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "Título de página (nombre del módulo en el Resumen, de la sección en las demás) y saludo de Inicio; fluido de 32 a 44 px."
+      },
+      "metric": {
+        "displayName": "Metric",
+        "purpose": "Cifras de StatLink desde 1024 px, enlazadas a su vista."
+      },
+      "metric-sm": {
+        "displayName": "Metric pequeño",
+        "purpose": "Cifras de las tarjetas de módulo de Inicio y de StatLink por debajo de 1024 px."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Título de hoja y de tarjeta (nombre del módulo, «Salidas por día»), total por reactivo."
+      },
+      "body-lg": {
+        "displayName": "Body grande",
+        "purpose": "Navegación de escritorio, nombre del módulo en el selector, nombre del espacio y fecha bajo el saludo."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Tablas, campos, botones, navegación del móvil, etiquetas de cifras y etiqueta de filtro."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Actualizado hace…, ayudas, errores de campo, código, CAS, detalle de actividad, frase del minigráfico y tabla del gráfico."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Encabezados de columna de tabla, en mayúsculas. Ejes e información emergente de gráficos usan 12 px sin mayúsculas."
+      },
+      "quantity": {
+        "displayName": "Quantity",
+        "purpose": "Cantidades y saldos: cifras tabulares, unidad atenuada."
+      }
     },
     "background": {
       "body": "radial-gradient(1100px 620px at 0% 0%, #ffffff 0%, transparent 62%) fixed, var(--color-canvas)",
       "purpose": "Brillo leve desde arriba a la izquierda que da profundidad a los paneles flotantes."
     },
     "shadows": [
-      { "name": "raised", "value": "0 1px 2px rgb(16 42 67 / 0.04), 0 6px 20px -10px rgb(16 42 67 / 0.14)", "purpose": "Tarjetas de contenido, acciones rápidas, botón primario y pestaña activa." },
-      { "name": "float", "value": "0 1px 2px rgb(16 42 67 / 0.04), 0 18px 40px -22px rgb(16 42 67 / 0.22)", "purpose": "Shell (barra lateral y barra superior) y tarjetas de acceso y selector de espacio." },
-      { "name": "overlay", "value": "0 24px 48px -16px rgb(16 42 67 / 0.28), 0 4px 12px -4px rgb(16 42 67 / 0.12)", "purpose": "Hojas, menú del Select y avisos." }
+      {
+        "name": "raised",
+        "value": "0 1px 2px rgb(16 42 67 / 0.04), 0 6px 20px -10px rgb(16 42 67 / 0.14)",
+        "purpose": "Tarjetas de contenido (tarjetas de módulo, StatLink, gráfico, actividad, tablas), botón primario, selector de módulo compacto y pestaña activa."
+      },
+      {
+        "name": "float",
+        "value": "0 1px 2px rgb(16 42 67 / 0.04), 0 18px 40px -22px rgb(16 42 67 / 0.22)",
+        "purpose": "Shell (barra lateral y barra superior), tarjetas de acceso y selector de espacio, y hover de las tarjetas-enlace (tarjeta de módulo y StatLink)."
+      },
+      {
+        "name": "overlay",
+        "value": "0 24px 48px -16px rgb(16 42 67 / 0.28), 0 4px 12px -4px rgb(16 42 67 / 0.12)",
+        "purpose": "Hojas, menús (Select y DropdownMenu), información emergente de los gráficos y avisos."
+      }
     ],
     "motion": [
-      { "name": "ease-out-expo", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Pulsación, fundidos y menús." },
-      { "name": "ease-sheet", "value": "cubic-bezier(0.32, 0.72, 0, 1)", "purpose": "Curva de cajón sin rebote para hojas." },
-      { "name": "press", "value": "150ms ease-out-expo, scale 0.98", "purpose": "Pulsación de botón y acción rápida, solo con movimiento permitido." },
-      { "name": "fade-in", "value": "180ms ease-out-expo", "purpose": "Entrada de velos de superposición." },
-      { "name": "fade-out", "value": "150ms ease-out-expo", "purpose": "Salida de velos; más corta que la entrada." },
-      { "name": "pop-in", "value": "160ms ease-out-expo", "purpose": "Menú del Select desde su origen." },
-      { "name": "sheet-in", "value": "260ms ease-sheet", "purpose": "Entrada de hoja: derecha en escritorio, abajo en el móvil (spring sin rebote, ADR 0010)." },
-      { "name": "sheet-out", "value": "180ms ease-sheet", "purpose": "Salida de hoja." },
-      { "name": "reduced-motion", "value": "hojas → fade-in 180ms / fade-out 150ms; pop-in → fade-in 150ms", "purpose": "Se quitan desplazamientos y escalas; se conservan los fundidos." }
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Pulsación, fundidos y menús."
+      },
+      {
+        "name": "ease-sheet",
+        "value": "cubic-bezier(0.32, 0.72, 0, 1)",
+        "purpose": "Curva de cajón sin rebote para hojas."
+      },
+      {
+        "name": "press",
+        "value": "150ms ease-out-expo, scale 0.98",
+        "purpose": "Pulsación de botón, solo con movimiento permitido."
+      },
+      {
+        "name": "fade-in",
+        "value": "180ms ease-out-expo",
+        "purpose": "Entrada de velos de superposición."
+      },
+      {
+        "name": "fade-out",
+        "value": "150ms ease-out-expo",
+        "purpose": "Salida de velos; más corta que la entrada."
+      },
+      {
+        "name": "pop-in",
+        "value": "160ms ease-out-expo",
+        "purpose": "Menús (Select y DropdownMenu) desde su origen."
+      },
+      {
+        "name": "sheet-in",
+        "value": "260ms ease-sheet",
+        "purpose": "Entrada de hoja: derecha en escritorio, abajo en el móvil (spring sin rebote, ADR 0010)."
+      },
+      {
+        "name": "sheet-out",
+        "value": "180ms ease-sheet",
+        "purpose": "Salida de hoja."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "hojas → fade-in 180ms / fade-out 150ms; pop-in → fade-in 150ms",
+        "purpose": "Se quitan desplazamientos y escalas; se conservan los fundidos."
+      },
+      {
+        "name": "card-hover",
+        "value": "box-shadow 150ms, raised → float",
+        "purpose": "Tarjeta-enlace al pasar el puntero; la flecha se desplaza 2 px."
+      },
+      {
+        "name": "chart-focus",
+        "value": "opacity 150ms, barras no activas al 45 %",
+        "purpose": "Barra activa de TrendChart con puntero o teclado; la información emergente aparece sin animación."
+      }
     ],
     "breakpoints": [
-      { "name": "sm", "value": "640px" },
-      { "name": "md", "value": "768px" },
-      { "name": "lg", "value": "1024px" }
-    ]
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "Relleno de 24 px en las tarjetas del Resumen."
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "purpose": "Aparece la barra lateral; desaparece la fila de píldoras del móvil."
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "purpose": "Tablas de inventario y movimientos en lugar de listas; StatLink en tarjeta; acciones de la cabecera en fila; Resumen en 12 columnas."
+      },
+      {
+        "name": "@lg (contenedor)",
+        "value": "32rem",
+        "purpose": "Marcas semanales en el eje X de TrendChart."
+      },
+      {
+        "name": "@xl (contenedor)",
+        "value": "36rem",
+        "purpose": "Fila de actividad en dos líneas: responsable y fecha completa junto al detalle."
+      }
+    ],
+    "homeGrid": {
+      "value": "repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); gap 16px",
+      "purpose": "Rejilla de tarjetas de módulo en Inicio."
+    },
+    "mobilePillMask": {
+      "value": "linear-gradient(to right, transparent, black 12px, black calc(100% - 40px), transparent)",
+      "purpose": "Desvanece los dos bordes de la fila de secciones del móvil."
+    }
   },
   "components": [
     {
@@ -88,20 +285,12 @@
       "css": ".ds-field { display:grid; gap:6px; font-family:'Inter Variable',system-ui,sans-serif; } .ds-field-label { font-size:14px; font-weight:500; color:var(--color-ink,#102a43); } .ds-field-wrap { position:relative; } .ds-input { width:100%; height:40px; padding:0 56px 0 12px; border:1px solid var(--color-line-strong,#c3cdd9); border-radius:var(--radius-control,10px); background:var(--color-surface,#fff); color:var(--color-ink,#102a43); font-size:14px; font-variant-numeric:tabular-nums; transition:border-color 150ms, box-shadow 150ms; } .ds-input:hover { border-color:var(--color-ink-subtle,#5e6d80); } .ds-input:focus-visible { outline:none; border-color:var(--color-action,#1f5f96); box-shadow:0 0 0 3px rgb(31 95 150 / 0.2); } .ds-field-unit { position:absolute; inset:0 12px 0 auto; display:flex; align-items:center; font-size:14px; color:var(--color-ink-muted,#526275); pointer-events:none; } .ds-field-hint { margin:0; font-size:13px; color:var(--color-ink-muted,#526275); } .ds-field-hint b { color:var(--color-ink,#102a43); font-weight:500; font-variant-numeric:tabular-nums; }"
     },
     {
-      "name": "Navegación lateral flotante",
+      "name": "Navegación lateral de una app de módulo",
       "kind": "nav",
       "refersTo": "shell-sidebar",
-      "description": "Panel flotante con Inicio y los módulos visibles para el rol; activo en acción suave.",
-      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\" href=\"#\">Inicio</a><a class=\"ds-nav-item ds-nav-active\" href=\"#\" aria-current=\"page\">Reactivos</a></nav>",
-      "css": ".ds-nav { display:flex; flex-direction:column; gap:4px; width:240px; padding:16px; border-radius:var(--radius-card,24px); background:var(--color-surface,#fff); box-shadow:var(--shadow-float,0 1px 2px rgb(16 42 67 / 0.04),0 18px 40px -22px rgb(16 42 67 / 0.22)); font-family:'Inter Variable',system-ui,sans-serif; } .ds-nav-item { display:flex; align-items:center; gap:12px; height:44px; padding:0 14px; border-radius:var(--radius-control,10px); font-size:15px; font-weight:500; color:var(--color-ink-muted,#526275); text-decoration:none; transition:background-color 150ms, color 150ms; } .ds-nav-item:hover { background:var(--color-surface-sunken,#eef2f7); color:var(--color-ink,#102a43); } .ds-nav-active, .ds-nav-active:hover { background:var(--color-action-soft,#e6eef7); color:var(--color-action,#1f5f96); } .ds-nav-item:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; }"
-    },
-    {
-      "name": "Pestañas en píldora",
-      "kind": "nav",
-      "refersTo": "tabs-trigger-active",
-      "description": "Inventario · Movimientos; la activa sube a superficie sobre una pista hundida.",
-      "html": "<div class=\"ds-tabs\" role=\"tablist\"><button class=\"ds-tab ds-tab-active\" role=\"tab\" aria-selected=\"true\">Inventario</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\">Movimientos</button></div>",
-      "css": ".ds-tabs { display:inline-flex; gap:4px; padding:4px; border-radius:9999px; background:var(--color-surface-sunken,#eef2f7); font-family:'Inter Variable',system-ui,sans-serif; } .ds-tab { height:36px; padding:0 16px; border:0; border-radius:9999px; background:transparent; font-size:14px; font-weight:500; color:var(--color-ink-muted,#526275); transition:background-color 150ms cubic-bezier(0.16,1,0.3,1), color 150ms cubic-bezier(0.16,1,0.3,1), box-shadow 150ms cubic-bezier(0.16,1,0.3,1); } .ds-tab:hover { color:var(--color-ink,#102a43); } .ds-tab-active { background:var(--color-surface,#fff); color:var(--color-ink,#102a43); box-shadow:var(--shadow-raised,0 1px 2px rgb(16 42 67 / 0.04),0 6px 20px -10px rgb(16 42 67 / 0.14)); } .ds-tab:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; }"
+      "description": "Modo app (ADR 0011): regreso al Inicio, selector de módulo y secciones del manifiesto; activo en acción suave. En la plataforma, solo «Inicio».",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-back\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/></svg>Inicio</a><button class=\"ds-sw\"><span class=\"ds-sw-icon\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10 2v7.31\"/><path d=\"M14 9.3V1.99\"/><path d=\"M8.5 2h7\"/><path d=\"M14 9.3a6.5 6.5 0 1 1-4 0\"/><path d=\"M5.52 16h12.96\"/></svg></span><span class=\"ds-sw-name\">Reactivos</span><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m7 15 5 5 5-5\"/><path d=\"m7 9 5-5 5 5\"/></svg></button><hr class=\"ds-nav-sep\"><a class=\"ds-nav-item ds-nav-active\" href=\"#\" aria-current=\"page\">Resumen</a><a class=\"ds-nav-item\" href=\"#\">Inventario</a><a class=\"ds-nav-item\" href=\"#\">Movimientos</a></nav>",
+      "css": ".ds-nav { display:flex; flex-direction:column; gap:4px; width:240px; padding:16px; border-radius:var(--radius-card,24px); background:var(--color-surface,#fff); box-shadow:var(--shadow-float,0 1px 2px rgb(16 42 67 / 0.04),0 18px 40px -22px rgb(16 42 67 / 0.22)); font-family:'Inter Variable',system-ui,sans-serif; } .ds-nav-back { display:flex; align-items:center; gap:8px; height:36px; margin-bottom:4px; padding:0 12px; border-radius:var(--radius-control,10px); font-size:14px; font-weight:500; color:var(--color-ink-muted,#526275); text-decoration:none; transition:background-color 150ms, color 150ms; } .ds-nav-back:hover { background:var(--color-surface-sunken,#eef2f7); color:var(--color-ink,#102a43); } .ds-sw { display:flex; align-items:center; gap:12px; width:100%; height:48px; padding:0 12px; border:0; border-radius:var(--radius-control,10px); background:transparent; text-align:left; font:600 15px 'Inter Variable',system-ui,sans-serif; color:var(--color-ink,#102a43); transition:background-color 150ms; } .ds-sw:hover { background:var(--color-surface-sunken,#eef2f7); } .ds-sw svg:last-child { color:var(--color-ink-muted,#526275); flex-shrink:0; } .ds-sw-icon { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; flex-shrink:0; border-radius:8px; background:var(--color-action,#1f5f96); color:var(--color-on-action,#fff); } .ds-sw-icon svg { width:18px; height:18px; } .ds-sw-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ds-nav-sep { width:100%; height:1px; margin:8px 0; border:0; background:var(--color-line,#dde4ed); } .ds-nav-item { display:flex; align-items:center; gap:12px; height:44px; padding:0 14px; border-radius:var(--radius-control,10px); font-size:15px; font-weight:500; color:var(--color-ink-muted,#526275); text-decoration:none; transition:background-color 150ms, color 150ms; } .ds-nav-item:hover { background:var(--color-surface-sunken,#eef2f7); color:var(--color-ink,#102a43); } .ds-nav-active, .ds-nav-active:hover { background:var(--color-action-soft,#e6eef7); color:var(--color-action,#1f5f96); } .ds-nav a:focus-visible, .ds-sw:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; }"
     },
     {
       "name": "Badge de estado",
@@ -112,20 +301,28 @@
       "css": ".ds-badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:9999px; font:500 12px 'Inter Variable',system-ui,sans-serif; } .ds-badge-warning { background:var(--color-warning-soft,#fdf2d8); color:var(--color-warning,#8a5a00); } .ds-badge-success { background:var(--color-success-soft,#e5f3ea); color:var(--color-success,#1d7a46); }"
     },
     {
-      "name": "Acciones rápidas",
-      "kind": "card",
-      "refersTo": "quick-action-primary",
-      "description": "Mosaico de Inicio: Registrar salida primaria, el resto en superficie; solo lo que el rol permite.",
-      "html": "<nav class=\"ds-qa\"><a class=\"ds-qa-item ds-qa-primary\" href=\"#\"><span class=\"ds-qa-icon\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 15V3\"/><path d=\"m7 8 5-5 5 5\"/><path d=\"M5 21h14\"/></svg></span>Registrar salida</a><a class=\"ds-qa-item\" href=\"#\"><span class=\"ds-qa-icon\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v12\"/><path d=\"m7 10 5 5 5-5\"/><path d=\"M5 21h14\"/></svg></span>Registrar ingreso</a></nav>",
-      "css": ".ds-qa { display:grid; grid-template-columns:1fr 1fr; gap:12px; max-width:380px; font:500 14px 'Inter Variable',system-ui,sans-serif; } .ds-qa-item { display:flex; flex-direction:column; justify-content:space-between; gap:16px; min-height:112px; padding:20px; border-radius:var(--radius-card,24px); background:var(--color-surface,#fff); color:var(--color-ink,#102a43); text-decoration:none; box-shadow:var(--shadow-raised,0 1px 2px rgb(16 42 67 / 0.04),0 6px 20px -10px rgb(16 42 67 / 0.14)); transition:background-color 150ms cubic-bezier(0.16,1,0.3,1), transform 150ms cubic-bezier(0.16,1,0.3,1); } .ds-qa-item:hover { background:var(--color-surface-sunken,#eef2f7); } .ds-qa-item:active { transform:scale(0.98); } .ds-qa-item:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; } .ds-qa-icon { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:9999px; background:var(--color-action-soft,#e6eef7); color:var(--color-action,#1f5f96); } .ds-qa-primary { background:var(--color-action,#1f5f96); color:var(--color-on-action,#fff); } .ds-qa-primary:hover { background:var(--color-action-hover,#1a5182); } .ds-qa-primary .ds-qa-icon { background:color-mix(in srgb, var(--color-on-action,#fff) 15%, transparent); color:inherit; }"
+      "name": "Selector de módulo compacto y secciones del móvil",
+      "kind": "nav",
+      "refersTo": "module-switcher-compact",
+      "description": "Fila bajo la barra en una app de módulo: el selector queda fijo a la izquierda y las secciones se desplazan con máscara en los dos bordes.",
+      "html": "<div class=\"ds-mnav\"><button class=\"ds-swc\"><span class=\"ds-swc-icon\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10 2v7.31\"/><path d=\"M14 9.3V1.99\"/><path d=\"M8.5 2h7\"/><path d=\"M14 9.3a6.5 6.5 0 1 1-4 0\"/><path d=\"M5.52 16h12.96\"/></svg></span>Reactivos<svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m7 15 5 5 5-5\"/><path d=\"m7 9 5-5 5 5\"/></svg></button><nav class=\"ds-pills\"><a class=\"ds-pill ds-pill-active\" href=\"#\" aria-current=\"page\">Resumen</a><a class=\"ds-pill\" href=\"#\">Inventario</a><a class=\"ds-pill\" href=\"#\">Movimientos</a></nav></div>",
+      "css": ".ds-mnav { display:flex; align-items:center; gap:6px; max-width:360px; font:500 14px 'Inter Variable',system-ui,sans-serif; } .ds-swc { display:flex; flex-shrink:0; align-items:center; gap:8px; height:40px; padding:0 12px; border:0; border-radius:9999px; background:var(--color-surface,#fff); box-shadow:var(--shadow-raised,0 1px 2px rgb(16 42 67 / 0.04),0 6px 20px -10px rgb(16 42 67 / 0.14)); font:600 14px 'Inter Variable',system-ui,sans-serif; color:var(--color-ink,#102a43); transition:background-color 150ms; } .ds-swc:hover { background:var(--color-surface-sunken,#eef2f7); } .ds-swc > svg { color:var(--color-ink-muted,#526275); } .ds-swc-icon { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:9999px; background:var(--color-action,#1f5f96); color:var(--color-on-action,#fff); } .ds-swc-icon svg { width:14px; height:14px; } .ds-pills { display:flex; flex:1; min-width:0; gap:4px; overflow-x:auto; padding:4px 32px 4px 4px; scrollbar-width:none; mask-image:linear-gradient(to right,transparent,black 12px,black calc(100% - 40px),transparent); } .ds-pill { display:flex; flex-shrink:0; align-items:center; height:40px; padding:0 14px; border-radius:9999px; color:var(--color-ink-muted,#526275); text-decoration:none; transition:background-color 150ms, color 150ms; } .ds-pill:hover { background:var(--color-surface-sunken,#eef2f7); color:var(--color-ink,#102a43); } .ds-pill-active, .ds-pill-active:hover { background:var(--color-action-soft,#e6eef7); color:var(--color-action,#1f5f96); } .ds-swc:focus-visible, .ds-pill:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; }"
     },
     {
       "name": "Fila de actividad",
       "kind": "custom",
       "refersTo": "card",
-      "description": "Movimiento como asiento: icono del tipo, qué y dónde, quién y cuándo, cantidad con signo.",
-      "html": "<div class=\"ds-act\"><span class=\"ds-act-icon\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v12\"/><path d=\"m7 10 5 5 5-5\"/><path d=\"M5 21h14\"/></svg></span><div class=\"ds-act-main\"><p class=\"ds-act-title\">Etanol 96 %</p><p class=\"ds-act-meta\">ETOH-2026-01 · ALM-BIO · 2 oct., 09:14 · Óscar Operador</p></div><div class=\"ds-act-qty\"><b>+500 <small>mL</small></b><span>Ingreso</span></div></div>",
-      "css": ".ds-act { display:flex; align-items:center; gap:14px; max-width:560px; padding:14px 0; font:14px 'Inter Variable',system-ui,sans-serif; color:var(--color-ink,#102a43); } .ds-act-icon { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; width:40px; height:40px; border-radius:9999px; background:var(--color-surface-sunken,#eef2f7); color:var(--color-ink-muted,#526275); } .ds-act-main { min-width:0; flex:1; } .ds-act-title { margin:0; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .ds-act-meta { margin:0; font-size:13px; color:var(--color-ink-muted,#526275); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .ds-act-qty { flex-shrink:0; text-align:right; } .ds-act-qty b { display:block; font-weight:600; font-variant-numeric:tabular-nums; } .ds-act-qty small { font-size:inherit; font-weight:400; color:var(--color-ink-muted,#526275); } .ds-act-qty span { font-size:12px; color:var(--color-ink-muted,#526275); }"
+      "description": "Movimiento como asiento; se adapta a su contenedor: estrecho, responsable · hora en una tercera línea, siempre antes que la hora.",
+      "html": "<div class=\"ds-act\"><span class=\"ds-act-icon\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3v12\"/><path d=\"m7 10 5 5 5-5\"/><path d=\"M5 21h14\"/></svg></span><div class=\"ds-act-main\"><div class=\"ds-act-line\"><p class=\"ds-act-title\">Etanol 96 %</p><b class=\"ds-act-qty\">+500 <small>mL</small></b></div><div class=\"ds-act-line ds-act-meta\"><p>ETOH-2026-01 · ALM-BIO</p><span>Ingreso</span></div><p class=\"ds-act-meta ds-act-who\">Óscar Operador · 2 oct., 09:14</p></div></div>",
+      "css": ".ds-act { display:flex; align-items:center; gap:14px; max-width:420px; padding:14px 0; font:14px 'Inter Variable',system-ui,sans-serif; color:var(--color-ink,#102a43); } .ds-act-icon { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; width:40px; height:40px; border-radius:9999px; background:var(--color-surface-sunken,#eef2f7); color:var(--color-ink-muted,#526275); } .ds-act-main { min-width:0; flex:1; } .ds-act-line { display:flex; align-items:baseline; justify-content:space-between; gap:12px; } .ds-act p { margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ds-act-title { font-weight:500; } .ds-act-qty { flex-shrink:0; font-weight:600; font-variant-numeric:tabular-nums; } .ds-act-qty small { font-size:inherit; font-weight:400; color:var(--color-ink-muted,#526275); } .ds-act-meta { font-size:13px; color:var(--color-ink-muted,#526275); } .ds-act-meta span { flex-shrink:0; font-size:12px; }"
+    },
+    {
+      "name": "Tarjeta de módulo",
+      "kind": "card",
+      "refersTo": "module-card",
+      "description": "Inicio (ADR 0011): toda la tarjeta abre la app; icono, nombre, dos cifras en dl, minigráfico decorativo y su frase. Sin enlaces anidados.",
+      "html": "<a class=\"ds-mod\" href=\"#\" aria-label=\"Abrir Reactivos\"><span class=\"ds-mod-head\"><span class=\"ds-mod-icon\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10 2v7.31\"/><path d=\"M14 9.3V1.99\"/><path d=\"M8.5 2h7\"/><path d=\"M14 9.3a6.5 6.5 0 1 1-4 0\"/><path d=\"M5.52 16h12.96\"/></svg></span><span class=\"ds-mod-name\">Reactivos</span><span class=\"ds-mod-arrow\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg></span></span><dl class=\"ds-mod-stats\"><div><dt>reactivos con existencias</dt><dd>24</dd></div><div><dt>ubicaciones con existencias</dt><dd>61</dd></div></dl><span class=\"ds-spark\" aria-hidden=\"true\"><span style=\"height:0%\"></span><span style=\"height:25.0%\"></span><span style=\"height:0%\"></span><span style=\"height:50.0%\"></span><span style=\"height:75.0%\"></span><span style=\"height:25.0%\"></span><span style=\"height:0%\"></span><span style=\"height:100.0%\"></span><span style=\"height:50.0%\"></span><span style=\"height:25.0%\"></span><span style=\"height:0%\"></span><span style=\"height:75.0%\"></span></span><span class=\"ds-mod-note\">17 salidas en los últimos 30 días</span></a>",
+      "css": ".ds-mod { display:flex; flex-direction:column; max-width:360px; min-height:256px; padding:24px; border-radius:var(--radius-card,24px); background:var(--color-surface,#fff); color:var(--color-ink,#102a43); text-decoration:none; box-shadow:var(--shadow-raised,0 1px 2px rgb(16 42 67 / 0.04),0 6px 20px -10px rgb(16 42 67 / 0.14)); font-family:'Inter Variable',system-ui,sans-serif; transition:box-shadow 150ms; } .ds-mod:hover { box-shadow:var(--shadow-float,0 1px 2px rgb(16 42 67 / 0.04),0 18px 40px -22px rgb(16 42 67 / 0.22)); } .ds-mod:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; } .ds-mod-head { display:flex; align-items:center; gap:12px; } .ds-mod-icon { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:var(--radius-control,10px); background:var(--color-action-soft,#e6eef7); color:var(--color-action,#1f5f96); } .ds-mod-name { font-size:18px; font-weight:600; } .ds-mod-arrow { display:inline-flex; margin-left:auto; color:var(--color-action,#1f5f96); transition:transform 150ms; } .ds-mod:hover .ds-mod-arrow { transform:translateX(2px); } .ds-mod-stats { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:auto 0 0; padding-top:32px; } .ds-mod-stats div { display:flex; flex-direction:column-reverse; gap:4px; } .ds-mod-stats dt { font-size:14px; color:var(--color-ink-muted,#526275); } .ds-mod-stats dd { margin:0; font-size:2.125rem; font-weight:600; line-height:1; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; } .ds-spark { display:flex; align-items:flex-end; gap:2px; height:48px; margin-top:24px; border-bottom:1px solid var(--color-line,#dde4ed); } .ds-spark span { flex:1; max-width:24px; border-radius:4px 4px 0 0; background:var(--color-action,#1f5f96); } .ds-mod-note { margin-top:8px; font-size:13px; color:var(--color-ink-muted,#526275); }"
     },
     {
       "name": "Inventario producto → lote → ubicación",
@@ -134,33 +331,69 @@
       "description": "Tarjeta con el reactivo y su total en la fila de grupo y lotes con sangría; saldo como columna dominante.",
       "html": "<div class=\"ds-inv\"><table><thead><tr><th>Lote</th><th>Ubicación</th><th class=\"ds-num\">Saldo</th></tr></thead><tbody><tr class=\"ds-inv-group\"><th colspan=\"2\">Cloruro de sodio<span>NACL-01 · CAS 7647-14-5</span></th><td class=\"ds-num ds-inv-total\">1.280,5 <small>g</small></td></tr><tr class=\"ds-inv-row\"><td class=\"ds-inv-lot\">L-0042</td><td>Almacén de reactivos</td><td class=\"ds-num ds-inv-bal\">80 <small>g</small></td></tr></tbody></table></div>",
       "css": ".ds-inv { overflow:hidden; border-radius:var(--radius-card,24px); background:var(--color-surface,#fff); box-shadow:var(--shadow-raised,0 1px 2px rgb(16 42 67 / 0.04),0 6px 20px -10px rgb(16 42 67 / 0.14)); font:14px 'Inter Variable',system-ui,sans-serif; color:var(--color-ink,#102a43); } .ds-inv table { width:100%; border-collapse:collapse; } .ds-inv thead { background:var(--color-surface,#fff); border-bottom:1px solid var(--color-line,#dde4ed); } .ds-inv thead th { height:40px; padding:0 16px; text-align:left; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:var(--color-ink-muted,#526275); } .ds-inv .ds-num { text-align:right; font-variant-numeric:tabular-nums; } .ds-inv-group th { padding:16px 16px 8px; text-align:left; font-weight:600; } .ds-inv-group th span { display:block; margin-top:2px; font-size:13px; font-weight:400; color:var(--color-ink-muted,#526275); } .ds-inv-group td { padding:16px 16px 8px; } .ds-inv-total { font-size:18px; font-weight:600; } .ds-inv small { font-size:inherit; font-weight:400; color:var(--color-ink-muted,#526275); } .ds-inv-row { border-top:1px solid var(--color-line,#dde4ed); transition:background-color 150ms; } .ds-inv-row:hover { background:var(--color-canvas,#f5f7fb); } .ds-inv-row td { padding:12px 16px; } .ds-inv-lot { padding-left:32px !important; font-weight:500; } .ds-inv-bal { font-size:16px; font-weight:600; }"
+    },
+    {
+      "name": "Gráfico de tendencia",
+      "kind": "custom",
+      "refersTo": "chart-bar",
+      "description": "TrendChart del Resumen: una serie en acción, eje Y con pocas marcas enteras, información emergente en tinta con puntero o teclado y tabla en <details>.",
+      "html": "<figure class=\"ds-tc\"><div class=\"ds-tc-plot\"><div class=\"ds-tc-y\"><span style=\"bottom:0\">0</span><span style=\"bottom:50%\">2</span><span style=\"bottom:100%\">4</span></div><div class=\"ds-tc-area\"><i class=\"ds-tc-grid ds-tc-zero\" style=\"bottom:0\"></i><i class=\"ds-tc-grid\" style=\"bottom:50%\"></i><i class=\"ds-tc-grid\" style=\"bottom:100%\"></i><div class=\"ds-tc-bars\" tabindex=\"0\" role=\"group\" aria-label=\"Salidas por día: 17 salidas en total.\"><span class=\"ds-tc-col\"><span class=\"ds-tc-bar ds-tc-dim\" style=\"height:0%\"></span></span><span class=\"ds-tc-col\"><span class=\"ds-tc-bar ds-tc-dim\" style=\"height:25.0%\"></span></span><span class=\"ds-tc-col\"><span class=\"ds-tc-bar ds-tc-dim\" style=\"height:0%\"></span></span><span class=\"ds-tc-col\"><span class=\"ds-tc-bar ds-tc-dim\" style=\"height:50.0%\"></span></span><span class=\"ds-tc-col\"><span class=\"ds-tc-bar ds-tc-dim\" style=\"height:75.0%\"></span></span><span class=\"ds-tc-col\"><span class=\"ds-tc-bar ds-tc-dim\" style=\"height:25.0%\"></span></span><span class=\"ds-tc-col\"><span class=\"ds-tc-bar ds-tc-dim\" style=\"height:0%\"></span></span><span class=\"ds-tc-col\"><span class=\"ds-tc-bar\" style=\"height:100.0%\"></span></span><span class=\"ds-tc-col\"><span class=\"ds-tc-bar ds-tc-dim\" style=\"height:50.0%\"></span></span><span class=\"ds-tc-col\"><span class=\"ds-tc-bar ds-tc-dim\" style=\"height:25.0%\"></span></span><span class=\"ds-tc-col\"><span class=\"ds-tc-bar ds-tc-dim\" style=\"height:0%\"></span></span><span class=\"ds-tc-col\"><span class=\"ds-tc-bar ds-tc-dim\" style=\"height:75.0%\"></span></span><div class=\"ds-tc-tip\" style=\"left:62.5%\"><strong>4 salidas</strong> jue 1 oct</div></div></div></div><details class=\"ds-tc-table\"><summary>Ver los datos en tabla</summary></details></figure>",
+      "css": ".ds-tc { margin:0; max-width:420px; padding-top:40px; font-family:'Inter Variable',system-ui,sans-serif; } .ds-tc-plot { display:flex; gap:12px; } .ds-tc-y { position:relative; width:24px; flex-shrink:0; font-size:12px; font-variant-numeric:tabular-nums; color:var(--color-ink-muted,#526275); } .ds-tc-y span { position:absolute; right:0; transform:translateY(50%); } .ds-tc-area { position:relative; flex:1; height:160px; } .ds-tc-grid { position:absolute; left:0; right:0; height:1px; background:var(--color-line,#dde4ed); } .ds-tc-zero { background:var(--color-line-strong,#c3cdd9); } .ds-tc-bars { position:relative; display:flex; align-items:flex-end; gap:2px; height:100%; border-radius:6px; outline-offset:4px; } .ds-tc-bars:focus-visible { outline:2px solid var(--color-action,#1f5f96); } .ds-tc-col { display:flex; flex:1; align-items:flex-end; justify-content:center; height:100%; } .ds-tc-bar { width:100%; max-width:24px; border-radius:4px 4px 0 0; background:var(--color-action,#1f5f96); transition:opacity 150ms; } .ds-tc-dim { opacity:0.45; } .ds-tc-tip { position:absolute; bottom:100%; margin-bottom:16px; transform:translateX(-50%); white-space:nowrap; padding:6px 10px; border-radius:var(--radius-control,10px); background:var(--color-ink,#102a43); color:var(--color-surface,#fff); font-size:12px; box-shadow:var(--shadow-overlay,0 24px 48px -16px rgb(16 42 67 / 0.28),0 4px 12px -4px rgb(16 42 67 / 0.12)); } .ds-tc-tip strong { font-weight:600; margin-right:6px; } .ds-tc-table { margin-top:16px; font-size:14px; } .ds-tc-table summary { cursor:pointer; font-weight:500; color:var(--color-action,#1f5f96); }"
     }
   ],
   "narrative": {
     "northStar": "El libro de saldos, en precisión suave",
-    "overview": "Cada pantalla responde primero «¿cuánto hay, dónde y quién lo movió?». La interfaz es una herramienta de trabajo tranquila: lienzo frío con un brillo leve desde arriba a la izquierda, paneles blancos flotantes de esquinas amplias y sombras suaves en capas, una sola voz de acción y cifras grandes con su unidad. La navegación y la barra superior también son paneles que flotan sobre el lienzo. El historial se lee como un libro: nada se edita, todo queda firmado. La dirección y sus motivos están en 01 §7 y en el ADR 0010.",
+    "overview": "Cada pantalla responde primero «¿cuánto hay, dónde y quién lo movió?». La interfaz es una herramienta de trabajo tranquila: lienzo frío con un brillo leve desde arriba a la izquierda, paneles blancos flotantes de esquinas amplias y sombras suaves en capas, una sola voz de acción y cifras grandes con su unidad. La navegación y la barra superior también son paneles que flotan sobre el lienzo. El Inicio es un tablero con una tarjeta por módulo, y cada módulo se usa como una app propia con su menú. El historial se lee como un libro: nada se edita, todo queda firmado. La dirección y sus motivos están en 01 §7 y en los ADR 0010 y 0011.",
     "keyCharacteristics": [
       "El saldo es la columna dominante; las cantidades llevan siempre su unidad atenuada.",
       "Títulos y contadores grandes; el cuerpo sigue siendo denso y legible.",
       "Una acción primaria por sección; el resto son botones secundarios o fantasma.",
       "Profundidad por paneles flotantes con sombra en capas, nunca por halos, vidrio ni imágenes.",
+      "Gráficos de una sola serie en `action`, solo con datos reales y siempre con una lectura en texto.",
       "El servidor confirma antes de que la pantalla cambie."
     ],
     "rules": [
-      { "name": "La regla de la voz única", "body": "Solo `action` invita a actuar. Los tipos de movimiento (ingreso, salida, ajuste) no son estados: se distinguen por icono y texto, nunca con colores de alerta.", "section": "colors" },
-      { "name": "La regla del texto obligatorio", "body": "Ningún estado se comunica solo con color: todo Badge y todo aviso lleva texto.", "section": "colors" },
-      { "name": "La regla de la cifra tabular", "body": "Toda cantidad, saldo o contador usa `tabular-nums`; en tablas y filas se alinea a la derecha.", "section": "typography" },
-      { "name": "La regla del tamaño con dato", "body": "Las cifras grandes (Metric) solo muestran datos reales del servidor y llevan a su vista; nunca una métrica decorativa.", "section": "typography" },
-      { "name": "La regla de la capa justa", "body": "Cada sombra dice a qué capa pertenece la pieza: contenido (elevada), estructura (flotante) o algo que se abrió encima (superposición). Ninguna sombra es un halo de color ni se usa para decorar.", "section": "elevation" }
+      {
+        "name": "La regla de la voz única",
+        "body": "Solo `action` invita a actuar. Los tipos de movimiento (ingreso, salida, ajuste) no son estados: se distinguen por icono y texto, nunca con colores de alerta.",
+        "section": "colors"
+      },
+      {
+        "name": "La regla del texto obligatorio",
+        "body": "Ningún estado se comunica solo con color: todo Badge y todo aviso lleva texto.",
+        "section": "colors"
+      },
+      {
+        "name": "La regla de la serie única",
+        "body": "Un gráfico muestra una sola serie, en `action`, sin leyenda: el título la nombra.",
+        "section": "colors"
+      },
+      {
+        "name": "La regla de la cifra tabular",
+        "body": "Toda cantidad, saldo o contador usa `tabular-nums`; en tablas y filas se alinea a la derecha.",
+        "section": "typography"
+      },
+      {
+        "name": "La regla del tamaño con dato",
+        "body": "Las cifras grandes (Metric) solo muestran datos reales del servidor y llevan a su vista; nunca una métrica decorativa.",
+        "section": "typography"
+      },
+      {
+        "name": "La regla de la capa justa",
+        "body": "Cada sombra dice a qué capa pertenece la pieza: contenido (elevada), estructura (flotante) o algo que se abrió encima (superposición). Ninguna sombra es un halo de color ni se usa para decorar. La única sombra que cambia por estado es la de una tarjeta que es enlace entero: sube de elevada a flotante al pasar el puntero.",
+        "section": "elevation"
+      }
     ],
     "dos": [
       "Do usar los tokens semánticos de `packages/ui/src/styles.css`; nunca un color literal en un componente.",
       "Do construir pantallas con paneles blancos flotantes sobre el lienzo: tarjeta en `card` con sombra elevada, sin borde.",
       "Do mostrar toda cantidad con Quantity: cadena decimal, coma es-EC, cifras tabulares, unidad atenuada.",
       "Do reservar Display para el título de página y Metric para contadores reales enlazados a su vista.",
-      "Do agrupar el inventario producto → lote → ubicación con el total por reactivo, y pasar a lista apilada por debajo de 768 px.",
+      "Do dar a cada módulo una tarjeta-enlace en Inicio y, dentro, su propio menú con «← Inicio», el selector de módulo y sus secciones.",
+      "Do hacer que un gráfico cuente sucesos (p. ej., salidas por día), en una sola serie `action`, con su lectura en texto, y una tabla cuando es interactivo.",
+      "Do agrupar el inventario producto → lote → ubicación con el total por reactivo, y pasar a lista apilada por debajo de 1024 px.",
       "Do registrar movimientos en una Sheet con una sola acción primaria al pie.",
-      "Do mostrar «Actualizado hace…» con un botón Actualizar; nunca prometer «en vivo».",
+      "Do mostrar «Actualizado hace…», con la marca más antigua de lo que se ve, y un botón Actualizar; nunca prometer «en vivo».",
       "Do diseñar carga, vacío, error, sin permiso y módulo no disponible como estados distintos con StatePanel."
     ],
     "donts": [
@@ -169,6 +402,8 @@
       "Don't comunicar un estado solo con color ni pintar los tipos de movimiento con colores de alerta.",
       "Don't mostrar acciones que el rol no permite: se ocultan y la API las rechaza igual.",
       "Don't usar imágenes decorativas, vidrio, gráficos sin dato ni métricas inventadas (ADR 0010, 02-10-2026).",
+      "Don't sumar en un gráfico o una cifra cantidades de unidades distintas, ni dibujar un gráfico vacío: sin datos, va un texto.",
+      "Don't anidar enlaces dentro de una tarjeta que ya es enlace.",
       "Don't animar en bucle, animar filas ni usar rebote.",
       "Don't pasar una cantidad por `number` en la interfaz."
     ]

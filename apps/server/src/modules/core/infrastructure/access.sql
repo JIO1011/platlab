@@ -1,6 +1,8 @@
 /*
   Acceso y admisión (02 §5–§6). Cada consulta filtra el espacio de forma explícita;
   RLS es la segunda barrera, no la única. La decisión la toma siempre core.admission.
+  Los permisos salen de core.effective_role_assignments: asignaciones más el rol Administrador
+  implícito del propietario (ADR 0008, cambio del 02-10-2026).
 */
 
 /* @name findIdentity */
@@ -121,7 +123,7 @@ ORDER BY md.code;
 
 /* @name listPermissionCodes */
 SELECT DISTINCT rp.permission_code
-FROM core.role_assignments AS ra
+FROM core.effective_role_assignments AS ra
 JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
 WHERE ra.workspace_id = :workspaceId!
   AND ra.principal_id = :principalId!
@@ -146,7 +148,7 @@ WITH RECURSIVE ancestors (id, parent_id) AS (
 )
 SELECT EXISTS (
   SELECT 1
-  FROM core.role_assignments AS ra
+  FROM core.effective_role_assignments AS ra
   JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
   WHERE ra.workspace_id = :workspaceId!
     AND ra.principal_id = :principalId!
@@ -161,7 +163,7 @@ SELECT EXISTS (
 -- Permiso con ámbito de todo el espacio: lo exige lo que no pertenece a una ubicación (catálogo).
 SELECT EXISTS (
   SELECT 1
-  FROM core.role_assignments AS ra
+  FROM core.effective_role_assignments AS ra
   JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
   WHERE ra.workspace_id = :workspaceId!
     AND ra.principal_id = :principalId!
@@ -177,7 +179,7 @@ SELECT EXISTS (
 -- y su descendencia (03 §3). Las listas de los módulos se filtran con este conjunto.
 WITH RECURSIVE grants (location_id) AS (
   SELECT ra.location_id
-  FROM core.role_assignments AS ra
+  FROM core.effective_role_assignments AS ra
   JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
   WHERE ra.workspace_id = :workspaceId!
     AND ra.principal_id = :principalId!

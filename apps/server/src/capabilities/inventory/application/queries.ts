@@ -1,6 +1,6 @@
 import type { Operation, Position } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
-import { listOperations, listPositions } from '../infrastructure/inventory.queries.js';
+import { countOperationsByDay, listOperations, listPositions } from '../infrastructure/inventory.queries.js';
 import type { InventoryContext } from './context.js';
 
 /** Cursor opaco para paginar por clave: el cliente no elige orden ni filtros arbitrarios. */
@@ -72,6 +72,10 @@ export async function listOperationPage(
     itemId?: string | undefined;
     locationId?: string | undefined;
     positionId?: string | undefined;
+    type?: Operation['type'] | undefined;
+    /** Últimos N días civiles en `timeZone`, hoy incluido. */
+    days?: number | undefined;
+    timeZone: string;
     cursor?: string | undefined;
     limit: number;
   },
@@ -85,6 +89,9 @@ export async function listOperationPage(
       itemId: filter.itemId ?? null,
       locationId: filter.locationId ?? null,
       positionId: filter.positionId ?? null,
+      type: filter.type ?? null,
+      days: filter.days ?? null,
+      timeZone: filter.timeZone,
       beforeAt: before?.[0] ?? null,
       beforeId: before?.[1] ?? null,
       limit: filter.limit + 1,
@@ -113,4 +120,23 @@ export async function listOperationPage(
     nextCursor:
       rows.length > filter.limit && last ? encodeCursor([last.cursor_at, last.id]) : null,
   };
+}
+
+/** Operaciones de un tipo por día, con ceros incluidos, para el gráfico de un resumen (ADR 0011). */
+export async function countOperationsPerDay(
+  ctx: InventoryContext,
+  filter: { type: Operation['type']; locationIds: string[]; timeZone: string; days: number },
+): Promise<Array<{ date: string; value: number }>> {
+  const rows = await countOperationsByDay.run(
+    {
+      workspaceId: ctx.workspaceId,
+      kind: ctx.kind,
+      type: filter.type,
+      locationIds: filter.locationIds,
+      timeZone: filter.timeZone,
+      days: filter.days,
+    },
+    ctx.client,
+  );
+  return rows.map((row) => ({ date: row.day, value: row.count }));
 }

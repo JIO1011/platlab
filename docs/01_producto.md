@@ -95,7 +95,7 @@ Los roles del espacio salen de un catálogo fijo en código. Son combinables y c
 
 | Rol | Propósito | Puede | No puede |
 |---|---|---|---|
-| Propietario | Gobierno de la cuenta; uno por espacio y transferible | Ver suscripción y uso, solicitar módulos, invitar miembros y asignar roles y ámbitos, configurar marca y ubicaciones, transferir la propiedad | Operar por el solo hecho de ser propietario. Al crear el espacio recibe también el rol Administrador, que puede retirarse |
+| Propietario | Gobierno de la cuenta; uno por espacio y transferible | Todo lo del Administrador en todo el espacio, sin asignación ([ADR 0008](05_decisiones.md#adr-0008), cambio del 02-10-2026); además, ver suscripción y uso, solicitar módulos, invitar miembros y asignar roles y ámbitos, configurar marca y ubicaciones, transferir la propiedad | Borrar registros, aprobar su propia solicitud o actuar como Responsable de fiscalizados sin que se le asigne ese rol |
 | Administrador | Decide y configura la operación | Todo lo del Operador; revisar solicitudes (aprobar, rechazar, pedir cambios, proponer ajustes, reubicar); catálogos, laboratorios, plantillas, mínimos, motivos y destinos; ajustes y bajas con motivo; reportes | Borrar registros, aprobar su propia solicitud o invitar miembros sin delegación del propietario |
 | Operador | Ejecuta el día a día | Ingresos, salidas (descargas), traslados, preparación, entregas y devoluciones; condición de equipos e incidencias; consultar toda la información operativa | Aprobar solicitudes, ajustar existencias, configurar o gestionar miembros |
 | Docente | Solicita actividades de docencia | Crear solicitudes desde plantillas, ver el catálogo solicitable con disponibilidad orientativa, aceptar o declinar propuestas, seguir sus actividades y reportar incidencias de ellas | Fijar la sala definitiva, tocar el inventario o ver solicitudes ajenas |
@@ -105,7 +105,7 @@ Los roles del espacio salen de un catálogo fijo en código. Son combinables y c
 Reglas:
 
 - Nadie borra registros de negocio. Los catálogos se archivan, las solicitudes se cancelan o rechazan con motivo y los movimientos se corrigen con otro movimiento. Los datos solo se eliminan en el procedimiento de salida del cliente ([02 §11](02_arquitectura.md#11-datos-reales-y-salida-del-cliente)).
-- Delegar no es ejecutar: el propietario asigna roles sin necesitar esos permisos.
+- Los permisos forman una escalera: Propietario ⊇ Administrador ⊇ Operador. Al transferir la propiedad, los permisos del propietario pasan al nuevo propietario.
 - Una persona puede tener varios roles, por ejemplo Administrador y Operador en un laboratorio pequeño, y roles distintos en cada espacio.
 - El propietario puede delegar a un Administrador «gestionar miembros». Con esa delegación invita Operadores, Docentes y Estudiantes dentro de su ámbito, pero no Administradores.
 - La interfaz oculta las acciones no permitidas y la API las rechaza igualmente.
@@ -118,15 +118,15 @@ Matriz de referencia (✔ incluido; — no incluido):
 | Suscripción, uso y solicitud de módulos | ✔ | — | — | — |
 | Miembros, roles y ámbitos | ✔ | Delegable | — | — |
 | Marca y ubicaciones | ✔ | ✔ | — | — |
-| Catálogos, laboratorios, plantillas y configuración de módulos | — | ✔ | — | — |
-| Ingresos, salidas, traslados, entregas y devoluciones | — | ✔ | ✔ | — |
-| Ajustes de existencias y bajas | — | ✔ | — | — |
-| Condición de equipos e incidencias | — | ✔ | ✔ | Reportar |
-| Revisar y decidir solicitudes | — | ✔ | — | — |
-| Preparar, iniciar y cerrar actividades | — | ✔ | ✔ | — |
+| Catálogos, laboratorios, plantillas y configuración de módulos | ✔ | ✔ | — | — |
+| Ingresos, salidas, traslados, entregas y devoluciones | ✔ | ✔ | ✔ | — |
+| Ajustes de existencias y bajas | ✔ | ✔ | — | — |
+| Condición de equipos e incidencias | ✔ | ✔ | ✔ | Reportar |
+| Revisar y decidir solicitudes | ✔ | ✔ | — | — |
+| Preparar, iniciar y cerrar actividades | ✔ | ✔ | ✔ | — |
 | Crear solicitudes y aceptar propuestas | — | — | — | ✔ |
-| Consultar inventario | — | Todo | Todo | Catálogo solicitable |
-| Reportes, exportaciones y auditoría | Auditoría | ✔ | — | — |
+| Consultar inventario | Todo | Todo | Todo | Catálogo solicitable |
+| Reportes, exportaciones y auditoría | ✔ | ✔ | — | — |
 
 La lista exacta de permisos vive en el manifiesto de cada módulo ([02 §4](02_arquitectura.md#4-contrato-de-módulo)). Esta matriz se valida con usuarios en P-03.
 
@@ -190,39 +190,48 @@ Casos especiales:
 
 ## 7. Cómo se ve la plataforma
 
-Recorrido: iniciar sesión → elegir espacio (si tiene varios) → Inicio.
+Recorrido: iniciar sesión → elegir espacio (si tiene varios) → Inicio, el tablero de módulos → abrir un módulo, que funciona como una app propia ([ADR 0011](05_decisiones.md#adr-0011)).
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────┐
 │ PlatLab · Depto. de Química (cambiar)        Buscar…        Avisos · Ana   │
 ├────────────────┬───────────────────────────────────────────────────────────┤
 │ Inicio         │ Buenos días, Ana                                          │
-│ Reactivos      │ Pendientes: 3 por revisar · 2 entregas hoy                │
-│ Equipos        │ ┌ Reactivos ─────┐ ┌ Equipos ───────┐ ┌ Agenda ────────┐  │
-│ Agenda         │ │ 4 por vencer   │ │ 1 averiado     │ │ 7 hoy          │  │
-│ Prácticas      │ │ 2 bajo mínimo  │ │ 3 incidencias  │ │ 1 conflicto    │  │
-│ ────────────── │ │ Abrir tablero →│ │ Abrir tablero →│ │ Abrir tablero →│  │
-│ Administración │ └────────────────┘ └────────────────┘ └────────────────┘  │
+│ ────────────── │ Pendientes: 3 por revisar · 2 entregas hoy                │
+│ Administración │ ┌ Reactivos ─────┐ ┌ Equipos ───────┐ ┌ Agenda ────────┐  │
+│                │ │ 4 por vencer   │ │ 1 averiado     │ │ 7 hoy          │  │
+│                │ │ 2 bajo mínimo  │ │ 3 incidencias  │ │ 1 conflicto    │  │
+│                │ │ ▂▃▅▂▆▃▇ salidas│ │                │ │                │  │
+│                │ └────────────────┘ └────────────────┘ └────────────────┘  │
 └────────────────┴───────────────────────────────────────────────────────────┘
 ```
 
-- El menú y las tarjetas se componen con los módulos habilitados y los permisos del usuario. Un módulo no contratado no aparece en la operación diaria; se explica en Administración → Suscripción.
-- Cada tarjeta muestra contadores accionables que abren la lista filtrada; no hay gráficos decorativos.
+- Las tarjetas se componen con los módulos habilitados y los permisos del usuario. Un módulo no contratado no aparece en la operación diaria; se explica en Administración → Suscripción.
+- Cada tarjeta muestra cifras y un gráfico pequeño solo si hay datos reales. Toda la tarjeta abre el módulo; en su Resumen, cada cifra abre la lista que explica.
+- Lo transversal vive en el Inicio y en la barra: pendientes y bandeja de aprobaciones, búsqueda y avisos.
 - El Inicio prioriza según el rol:
   - Propietario: resumen de módulos, suscripción y uso.
   - Administrador: pendientes de revisión y alertas.
   - Operador: tareas de hoy.
   - Docente y Estudiante: «Mis solicitudes» y «Nueva solicitud».
 
-Tablero de un módulo, con Reactivos como ejemplo:
+Un módulo por dentro, con Reactivos como ejemplo:
 
 ```text
-Reactivos                      [Registrar ingreso] [Registrar salida] [Ajustar]
-┌ Por vencer ┐ ┌ Bajo mínimo ┐ ┌ Bloqueados ┐ ┌ Movimientos de hoy ┐
-Pestañas: Inventario · Movimientos · Fiscalizados · Documentos · Configuración
-Inventario: tabla producto → lotes → ubicaciones, con filtros, orden y exportación
+┌────────────────┬───────────────────────────────────────────────────────────┐
+│ ← Inicio       │ Reactivos · Resumen     [Registrar ingreso] [Salida] [Ajustar]
+│ ⊞ Módulos      │ ┌ Por vencer ┐ ┌ Bajo mínimo ┐ ┌ Salidas, 30 días ───────┐ │
+│ ────────────── │ │     4      │ │      2      │ │ ▂▃▅▂▆▃▇▂▃▅▂▆           │ │
+│ Resumen        │ └────────────┘ └─────────────┘ └─────────────────────────┘ │
+│ Inventario     │ Actividad reciente                                         │
+│ Movimientos    │                                                            │
+│ Fiscalizados   │ Inventario: tabla producto → lotes → ubicaciones, con      │
+│ Documentos     │ filtros, orden y exportación                               │
+│ Configuración  │                                                            │
+└────────────────┴───────────────────────────────────────────────────────────┘
 ```
 
+- El menú del módulo muestra solo las secciones que el rol puede usar y que ya existen. Fiscalizados, Documentos e Informes aparecen con su entrega.
 - Los botones visibles dependen del permiso del usuario.
 - La ficha de producto reúne datos químicos, SDS, lotes, existencias por ubicación e historial.
 - Registrar una salida toma pocos pasos: buscar el producto, indicar la cantidad con atajos, elegir motivo y destino de listas y ver el saldo resultante.

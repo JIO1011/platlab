@@ -11,7 +11,7 @@ import type {
   productListQuery,
   Product,
 } from '@platlab/contracts';
-import { listOperationPage, listPositionPage } from '../../../capabilities/inventory/index.js';
+import { countOperationsPerDay, listOperationPage, listPositionPage } from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
 import {
   permissionScope,
@@ -29,6 +29,8 @@ import {
 import { inventoryContext } from './commands.js';
 
 const READ = 'reagents.catalog.read';
+/** Ventana del gráfico de salidas del resumen (ADR 0011). */
+const TREND_DAYS = 30;
 
 interface QueryRequest {
   subject: string;
@@ -124,6 +126,9 @@ export function listOperations(
       itemId: query.productId,
       locationId: query.locationId,
       positionId: query.positionId,
+      type: query.type,
+      days: query.days,
+      timeZone: access.workspace.timeZone,
       cursor: query.cursor,
       limit: query.limit,
     }),
@@ -137,7 +142,14 @@ export function listOperations(
 export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<HomeContribution> {
   const locationIds = await permissionScope(access, READ);
   const [row] = await homeSummary.run({ workspaceId: access.workspace.id, locationIds }, access.client);
-  const recent = await listOperationPage(inventoryContext(access), { locationIds, limit: 5 });
+  const ctx = inventoryContext(access);
+  const recent = await listOperationPage(ctx, { locationIds, timeZone: access.workspace.timeZone, limit: 5 });
+  const issues = await countOperationsPerDay(ctx, {
+    type: 'issue',
+    locationIds,
+    timeZone: access.workspace.timeZone,
+    days: TREND_DAYS,
+  });
   return {
     summary: {
       productsWithStock: Number(row?.products_with_stock ?? 0),
@@ -153,7 +165,16 @@ export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<Home
       occurredAt: operation.effectiveAt,
       actor: operation.actor.displayName,
     })),
+    // Sin ninguna salida en el periodo no hay gráfico: un gráfico vacío no informa (ADR 0011).
+    trend: issues.some((point) => point.value > 0)
+      ? { label: `Salidas por día, últimos ${TREND_DAYS} días`, points: issues }
+      : null,
   };
+}
+
+/** Resumen de la app de Reactivos (ADR 0011): lo mismo que su tarjeta de Inicio. */
+export function getSummary(pool: pg.Pool, request: QueryRequest): Promise<HomeContribution> {
+  return runQuery(pool, request, reagentsHomeSummary);
 }
 
 /** Lotes de un reactivo; uno de otro espacio o de otro tipo no tiene lotes visibles. */

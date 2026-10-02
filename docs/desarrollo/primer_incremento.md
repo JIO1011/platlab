@@ -105,7 +105,7 @@ El comando contractual mínimo y los fixtures son solo de desarrollo: no existe 
 1. **Recorrido visible.** Ingreso de 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g; el historial y los actores coinciden.
 2. **Aislamiento.** A y B tienen datos propios de Reactivos. Un miembro de A no ve ni usa IDs de B. Pertenecer a ambos no permite usar una ubicación o un lote de B en un comando de A.
 3. **Roles.**
-   - El propietario sin rol operativo no registra movimientos.
+   - El propietario opera con los permisos del Administrador sin asignación; un miembro sin rol de Reactivos no registra movimientos ni consulta el inventario (cambio del 02-10-2026, [ADR 0008](../05_decisiones.md#adr-0008)).
    - El Operador registra ingresos y salidas, pero no ajustes ni productos del catálogo.
    - El Administrador hace todo lo anterior.
    - La revocación de la membresía se aplica en la siguiente petición.

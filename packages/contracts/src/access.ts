@@ -29,7 +29,14 @@ export const moduleAccess = z.object({
   code: z.string(),
   name: z.string(),
   access: z.array(actionClass),
-  nav: z.array(z.object({ path: z.string(), label: z.string() })),
+  /** La app del módulo (ADR 0011): su entrada y las secciones que el miembro puede usar. */
+  nav: z.array(
+    z.object({
+      path: z.string(),
+      label: z.string(),
+      sections: z.array(z.object({ path: z.string(), label: z.string() })),
+    }),
+  ),
 });
 
 /**
@@ -70,6 +77,17 @@ export const homeActivity = z.object({
   actor: z.string().nullable(),
 });
 
+/**
+ * Gráfico de una tarjeta (ADR 0011): sucesos por día con ceros incluidos, nunca cantidades de
+ * unidades distintas. null si el módulo no tiene una serie que mostrar.
+ */
+export const homeTrend = z.object({
+  label: z.string(),
+  points: z
+    .array(z.object({ date: z.iso.date(), value: z.number().int().nonnegative() }))
+    .max(90),
+});
+
 export const homeResponse = z.object({
   cards: z.array(
     z.object({
@@ -77,6 +95,7 @@ export const homeResponse = z.object({
       name: z.string(),
       summary: z.record(z.string(), z.number().int().nonnegative()).nullable(),
       activity: z.array(homeActivity).max(10),
+      trend: homeTrend.nullable(),
     }),
   ),
 });
@@ -88,3 +107,4 @@ export type ModuleAccess = z.infer<typeof moduleAccess>;
 export type WorkspaceMeResponse = z.infer<typeof workspaceMeResponse>;
 export type HomeResponse = z.infer<typeof homeResponse>;
 export type HomeActivity = z.infer<typeof homeActivity>;
+export type HomeTrend = z.infer<typeof homeTrend>;

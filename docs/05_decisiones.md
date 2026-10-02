@@ -11,9 +11,10 @@ Revisión: 2 de octubre de 2026. Registro resumido de decisiones de arquitectura
 | [0005](#adr-0005) | Datos reales, respaldos y acceso privilegiado | Aceptado como criterio el 29-09-2026; las capacidades se validan antes de G1 |
 | [0006](#adr-0006) | SQL tipado y pruebas | Aceptado el 28-09-2026 |
 | [0007](#adr-0007) | Asignación y aprobación condicionada | Aceptado el 29-09-2026; actor actualizado el 30-09-2026 |
-| [0008](#adr-0008) | Roles y actores | Aceptado el 30-09-2026; la matriz detallada se valida en P-03 |
+| [0008](#adr-0008) | Roles y actores | Aceptado el 30-09-2026; propietario con los permisos del Administrador el 02-10-2026; la matriz detallada se valida en P-03 |
 | [0009](#adr-0009) | Etapas de módulo y admisión de operaciones | Aceptado el 30-09-2026; marca de ambiente el 01-10-2026 |
 | [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026; «precisión suave» el 02-10-2026 |
+| [0011](#adr-0011) | Inicio como tablero y cada módulo como app | Aceptado el 02-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -119,7 +120,7 @@ Cambio del 30-09-2026: quien revisa pasa de «técnico» a Administrador; prepar
 - **Dos planos.** En el de PlatLab está el Equipo PlatLab, que usa la consola. En el del espacio están el Propietario, el Administrador, el Operador, el Docente, el Estudiante (tesista) y el rol especial Responsable de fiscalizados.
 - **Roles.** Son paquetes de permisos del catálogo fijo, combinables y asignados con un ámbito.
 - **Administrador y Operador.** El Administrador incluye todo lo del Operador, decide las solicitudes, configura los catálogos y aplica ajustes. El Operador ejecuta y consulta toda la información operativa.
-- **Propietario.** Gobierna suscripción, miembros y propiedad. Al crear el espacio recibe el rol Administrador, que puede retirarse.
+- **Propietario.** Gobierna suscripción, miembros y propiedad, y tiene en todo el espacio los permisos del Administrador (y por tanto los del Operador) sin que nadie se los asigne. No recibe el rol Responsable de fiscalizados salvo que se le asigne.
 - **Límites.** Nadie borra registros de negocio y, por defecto, nadie aprueba su propia solicitud.
 - **Alumnos de clase.** No tienen cuenta en el alcance inicial.
 
@@ -129,6 +130,13 @@ Motivo:
 - Separa decidir de ejecutar sin obligar a tener dos personas en un laboratorio pequeño.
 
 La matriz está en [01 §5](01_producto.md#5-actores-y-roles).
+
+Cambio del 02-10-2026, decidido por el usuario:
+- Los permisos forman una escalera: Propietario ⊇ Administrador ⊇ Operador.
+- El propietario ya no necesita el rol Administrador para operar. Los hereda por ser propietario, en todo el espacio y sin poder retirárselos mientras lo sea; al transferir la propiedad, pasan al nuevo propietario.
+- El rol Responsable de fiscalizados sigue siendo una designación aparte.
+- Se mantienen los límites: nadie borra registros de negocio ni aprueba su propia solicitud.
+- En SQL, los permisos efectivos son las asignaciones vigentes más los del rol Administrador para la membresía propietaria, en un solo lugar (`core.effective_role_assignments`).
 
 <a id="adr-0009"></a>
 ## ADR 0009 — Etapas de módulo y admisión de operaciones
@@ -179,6 +187,36 @@ Cambio del 02-10-2026, «precisión suave». Tomado de las referencias visuales 
 - Filas de actividad para el historial en el móvil.
 
 Se descartan sus imágenes 3D, el vidrio, los gráficos sin dato y las métricas inventadas. Se mantiene el azul de acción. Los valores viven en 01 «Dirección visual».
+
+<a id="adr-0011"></a>
+## ADR 0011 — Inicio como tablero y cada módulo como app
+
+- **Inicio.** Es un tablero con una tarjeta por cada módulo habilitado y visible para el rol.
+  - Cada tarjeta lleva dos o tres cifras.
+  - Lleva un gráfico pequeño solo si hay datos reales; sin datos, muestra un texto.
+  - Toda la tarjeta abre el módulo. Por eso sus cifras no son enlaces aparte: no se anidan enlaces.
+- **Módulo como app.** Al entrar a un módulo, el menú lateral muestra solo sus secciones: Resumen, Inventario, Movimientos, y las demás cuando su entrega exista.
+  - Desde ahí se vuelve al Inicio o se salta a otro módulo.
+  - El Resumen reúne las cifras, el gráfico y la actividad reciente del módulo. Allí cada cifra abre la lista que explica.
+  - Las acciones de registro van en la cabecera de la app, a un clic desde cualquier sección.
+- **Una sola aplicación.** Es una forma de navegar, no aplicaciones separadas: la misma sesión, la misma admisión y el mismo sistema de diseño.
+  - Cada módulo se descarga al abrirlo ([02 §8](02_arquitectura.md#8-frontend)).
+  - El manifiesto declara las secciones con su permiso ([02 §4](02_arquitectura.md#4-contrato-de-módulo)), y `/me` envía solo las permitidas.
+- **Lo transversal queda fuera de los módulos.**
+  - En el Inicio: los pendientes y la bandeja de aprobaciones.
+  - En la barra: la búsqueda y los avisos.
+  - En Administración: miembros, suscripción y ubicaciones.
+  - Los flujos entre módulos se resuelven con enlaces, y cada operación la ejecuta el módulo dueño del recurso ([ADR 0009](#adr-0009)).
+- **Gráficos.**
+  - Cuentan sucesos, como las salidas por día; nunca suman cantidades de unidades distintas.
+  - Usan la zona horaria del espacio y el ámbito del miembro.
+  - Tienen un resumen en texto para los lectores de pantalla.
+
+Motivo:
+- Los módulos se contratan por separado, y cada uno se entiende como una herramienta propia.
+- El Inicio da la vista de conjunto sin mezclar las operaciones.
+
+Reemplaza el menú común con todos los módulos y las pestañas del tablero de 01 §7, y la regla de «no hay gráficos». Se mantiene la prohibición de gráficos sin datos reales del ADR 0010.
 
 ## Pendientes
 

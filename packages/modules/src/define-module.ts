@@ -9,10 +9,19 @@ export const roleCodes = ['admin', 'operator', 'teacher', 'student', 'regulatory
 
 export type RoleCode = (typeof roleCodes)[number];
 
+interface NavSection {
+  /** Relativa a la entrada del módulo; '' es su Resumen. */
+  path: string;
+  label: string;
+  permission: string;
+}
+
+/** La app de un módulo (ADR 0011): su entrada en el Inicio y las secciones de su menú. */
 export interface NavEntry {
   path: string;
   label: string;
   permission: string;
+  sections: readonly NavSection[];
 }
 
 /** Manifiesto de un módulo: única fuente para contratos, permisos e interfaz (02 §4). */
@@ -44,7 +53,7 @@ export function defineModule<const M extends ModuleManifest>(manifest: M): M {
   }
   const used = [
     ...Object.values(manifest.roleGrants).flatMap((grants) => grants ?? []),
-    ...manifest.nav.map((entry) => entry.permission),
+    ...manifest.nav.flatMap((entry) => [entry.permission, ...entry.sections.map((section) => section.permission)]),
     ...(manifest.homeCard ? [manifest.homeCard.permission] : []),
   ];
   for (const permission of used) {

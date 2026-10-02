@@ -39,10 +39,18 @@ async function expectAccessible(page: Page, label: string) {
   ).toEqual([]);
 }
 
+/** Del selector a la app de Reactivos (ADR 0011): la tarjeta del Inicio abre su Resumen. */
 async function openReagents(page: Page, workspace: string) {
   await page.getByRole('link', { name: new RegExp(workspace) }).click();
   await page.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(page.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
+}
+
+/** Una sección del menú de la app del módulo; queda marcada como la página actual. */
+async function goTo(page: Page, section: 'Resumen' | 'Inventario' | 'Movimientos') {
+  const link = page.getByRole('link', { name: section, exact: true });
+  await link.click();
+  await expect(link).toHaveAttribute('aria-current', 'page');
 }
 
 async function choose(page: Page, label: string, option: RegExp | string) {
@@ -66,6 +74,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await expectAccessible(admin, 'selector');
   await capture(admin, 'desktop-selector');
   await openReagents(admin, 'Laboratorio de Química');
+  await goTo(admin, 'Inventario');
 
   await admin.getByRole('button', { name: 'Nuevo reactivo' }).first().click();
   const productSheet = admin.getByRole('dialog', { name: 'Nuevo reactivo' });
@@ -86,6 +95,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   // El Operador registra el ingreso y la salida, y no puede ajustar.
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Laboratorio de Química');
+  await goTo(operator, 'Inventario');
   await expect(operator.getByRole('button', { name: 'Ajustar' })).toHaveCount(0);
   await expect(operator.getByRole('button', { name: 'Nuevo reactivo' })).toHaveCount(0);
 
@@ -130,7 +140,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await admin.keyboard.press('Escape');
   await expect(issueSheet).toHaveCount(0);
 
-  await admin.getByRole('tab', { name: 'Movimientos' }).click();
+  await goTo(admin, 'Movimientos');
   const history = admin.getByRole('row').filter({ hasText: product.name });
   await expect(history).toHaveCount(3);
   await expect(history.nth(0)).toContainText('Ajuste');
@@ -144,53 +154,58 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await admin.getByRole('link', { name: 'Inicio', exact: true }).click();
   await expect(admin.getByText(/reactivos? con existencias/)).toBeVisible();
   await expectAccessible(admin, 'inicio');
-  await capture(admin, 'desktop-home');
 });
 
-test('C sin Reactivos no lo ve; la propietaria sin rol operativo tampoco opera', async ({ browser }) => {
+test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol asignado', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
   await admin.getByRole('link', { name: /Laboratorio de Física/ }).click();
   await expect(admin.getByText('No hay módulos para tu rol en este espacio')).toBeVisible();
-  await expect(admin.getByRole('link', { name: 'Reactivos' })).toHaveCount(0);
+  await expect(admin.getByRole('link', { name: /Reactivos/ })).toHaveCount(0);
   await expectAccessible(admin, 'inicio C');
   const workspaceUrl = admin.url();
   await admin.goto(`${workspaceUrl}/reactivos`);
   await expect(admin.getByText('Módulo no disponible')).toBeVisible();
 
+  // ADR 0008, cambio del 02-10-2026: la propietaria tiene los permisos del Administrador.
   const owner = await signIn(browser, 'propietaria@demo.platlab.test');
   await expect(owner.getByRole('heading', { level: 1 })).toContainText('Paula');
-  await expect(owner.getByText('No hay módulos para tu rol en este espacio')).toBeVisible();
-  await expect(owner.getByRole('link', { name: 'Reactivos' })).toHaveCount(0);
+  await owner.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await expect(owner.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
+  for (const name of ['Registrar salida', 'Registrar ingreso', 'Ajustar', 'Nuevo reactivo']) {
+    await expect(owner.getByRole('button', { name, exact: true })).toBeVisible();
+  }
 });
 
-test('en el móvil, el Inicio y el tablero se adaptan desde 360 px', async ({ browser }) => {
+test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', async ({ browser }) => {
   const operator = await signIn(browser, 'operador@demo.platlab.test', { width: 360, height: 780 });
   await operator.getByRole('link', { name: /Laboratorio de Biología/ }).click();
   await expect(operator.getByRole('link', { name: 'Abrir Reactivos' })).toBeVisible();
   await expect(operator.getByText('Laboratorio de Biología').first()).toBeVisible();
-  await expect(operator.getByRole('heading', { name: 'Actividad reciente' })).toBeVisible();
   await expectAccessible(operator, 'inicio móvil');
   expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await capture(operator, 'mobile-home');
 
-  // Una acción rápida del Inicio abre su hoja en el tablero.
-  await operator.getByRole('link', { name: 'Registrar salida' }).click();
+  // La tarjeta abre el Resumen; su acción primaria abre la hoja de salida.
+  await operator.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await expect(operator.getByRole('heading', { name: 'Actividad reciente' })).toBeVisible();
+  await expectAccessible(operator, 'resumen móvil');
+  expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await capture(operator, 'mobile-summary');
+  await operator.getByRole('button', { name: 'Registrar salida' }).click();
   await expect(operator.getByRole('dialog', { name: 'Registrar salida' })).toBeVisible();
   await operator.keyboard.press('Escape');
   await expect(operator.getByRole('dialog', { name: 'Registrar salida' })).toHaveCount(0);
-  await operator.getByRole('link', { name: 'Inicio', exact: true }).click();
-  await operator.getByRole('link', { name: 'Abrir Reactivos' }).click();
+
+  await goTo(operator, 'Inventario');
   await expect(operator.getByRole('heading', { name: /Etanol 96 %/ })).toBeVisible();
-  await expectAccessible(operator, 'tablero móvil');
+  await expectAccessible(operator, 'inventario móvil');
   await capture(operator, 'mobile');
-  await operator.getByRole('tab', { name: 'Movimientos' }).click();
-  await expect(operator.getByRole('tab', { name: 'Movimientos' })).toHaveAttribute('aria-selected', 'true');
-  await expect(operator.getByRole('tab', { name: 'Inventario' })).toHaveAttribute('aria-selected', 'false');
+  await goTo(operator, 'Movimientos');
   await expect(operator.getByRole('listitem').filter({ hasText: 'Etanol 96 %' }).first()).toBeVisible();
   await capture(operator, 'mobile-movements');
   // La página nunca se desplaza en horizontal: si una tabla no cabe, se desplaza dentro de su panel.
   expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await operator.getByRole('tab', { name: 'Inventario' }).click();
+  await goTo(operator, 'Inventario');
 
   await operator.getByRole('button', { name: 'Salida' }).first().click();
   await expect(operator.getByRole('dialog', { name: 'Registrar salida' })).toBeVisible();
@@ -198,10 +213,10 @@ test('en el móvil, el Inicio y el tablero se adaptan desde 360 px', async ({ br
   await capture(operator, 'mobile-sheet', false);
 });
 
-test('en tableta (820 px), Inicio y tablero conservan la barra lateral y usan listas sin desplazarse en horizontal', async ({ browser }) => {
+test('en tableta (820 px), Inicio y la app conservan la barra lateral y usan listas sin desplazarse en horizontal', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test', { width: 820, height: 1180 });
   await admin.getByRole('link', { name: /Laboratorio de Química/ }).click();
-  await expect(admin.getByRole('heading', { name: 'Actividad reciente' })).toBeVisible();
+  await expect(admin.getByRole('link', { name: 'Abrir Reactivos' })).toBeVisible();
   await expect(admin.getByRole('complementary')).toBeVisible();
   expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expectAccessible(admin, 'inicio tableta');
@@ -211,14 +226,58 @@ test('en tableta (820 px), Inicio y tablero conservan la barra lateral y usan li
   await expect(admin.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
   await expect(admin.getByRole('button', { name: 'Registrar salida' })).toBeVisible();
   expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await capture(admin, 'tablet-summary');
   // Por debajo de 1024 px el inventario y el historial son listas: nada se corta dentro del panel.
+  await goTo(admin, 'Inventario');
   await expect(admin.getByRole('table')).toHaveCount(0);
-  await expectAccessible(admin, 'tablero tableta');
+  await expectAccessible(admin, 'inventario tableta');
   await capture(admin, 'tablet');
-  await admin.getByRole('tab', { name: 'Movimientos' }).click();
+  await goTo(admin, 'Movimientos');
   await expect(admin.getByRole('listitem').first()).toBeVisible();
   expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await capture(admin, 'tablet-movements');
+});
+
+test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado y tabla', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await admin.getByRole('link', { name: /Laboratorio de Química/ }).click();
+  // La tarjeta del Inicio resume el módulo con datos reales del historial de la demo.
+  await expect(admin.getByText(/\d+ salidas? en los últimos 30 días/)).toBeVisible();
+  await capture(admin, 'desktop-home');
+
+  await admin.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await expect(admin.getByRole('heading', { name: 'Salidas por día' })).toBeVisible();
+  const chart = admin.getByRole('group', { name: /Salidas por día, últimos 30 días: \d+ salidas en total/ });
+  // Teclado: Fin lleva al día de hoy, que se anuncia y se muestra igual que con el puntero.
+  await chart.focus();
+  await admin.keyboard.press('End');
+  await expect(admin.getByText(/^[a-záéíóú]+, \d+ de [a-z]+: \d+ salidas?$/)).toBeAttached();
+  await expect(admin.getByText(/^\d+ salidas?$/)).toBeVisible();
+  await expectAccessible(admin, 'resumen');
+  await capture(admin, 'desktop-summary');
+  await chart.hover({ position: { x: 20, y: 150 } });
+  await expect(admin.getByText(/^\d+ salidas?$/)).toBeVisible();
+  await admin.getByText('Ver los datos en tabla').click();
+  await expect(admin.getByRole('table').getByRole('row')).toHaveCount(31);
+
+  // El selector de módulos marca el actual; la cifra de salidas abre Movimientos.
+  await admin.getByRole('button', { name: 'Reactivos. Cambiar de módulo' }).click();
+  await expect(admin.getByRole('menuitem', { name: /Reactivos/ })).toBeVisible();
+  await admin.keyboard.press('Escape');
+  await admin.getByRole('link', { name: /Salidas, últimos 30 días/ }).click();
+  await expect(admin.getByRole('heading', { name: 'Movimientos', level: 1 })).toBeVisible();
+  // La lista llega filtrada como la cifra: solo salidas de los últimos 30 días, y el filtro se quita.
+  await expect(admin.getByText('Salidas · últimos 30 días')).toBeVisible();
+  const rows = admin.getByRole('row');
+  await expect(rows.nth(1)).toBeVisible();
+  for (const row of await rows.all()) {
+    if ((await row.getByRole('cell').count()) > 0) await expect(row).toContainText('Salida');
+  }
+  await expectAccessible(admin, 'movimientos filtrados');
+  await capture(admin, 'desktop-movements-filtered', false);
+  await admin.getByRole('button', { name: /Quitar el filtro/ }).click();
+  await expect(admin.getByText('Salidas · últimos 30 días')).toHaveCount(0);
+  await expect(admin.getByRole('row').filter({ hasText: 'Ingreso' }).first()).toBeVisible();
 });
 
 /**
@@ -229,6 +288,7 @@ test('en tableta (820 px), Inicio y tablero conservan la barra lateral y usan li
 test('stock insuficiente: la salida se rechaza en el formulario y el saldo no cambia', async ({ browser }) => {
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Laboratorio de Biología');
+  await goTo(operator, 'Inventario');
   const ethanol = operator.getByRole('rowgroup').filter({ hasText: 'Etanol 96 %' });
   await expect(ethanol.getByText('500 mL', { exact: true }).first()).toBeVisible();
 
@@ -249,13 +309,13 @@ test('stock insuficiente: la salida se rechaza en el formulario y el saldo no ca
   await expect(ethanol.getByText('500 mL', { exact: true }).first()).toBeVisible();
 });
 
-test('sin permiso: la propietaria sin rol que abre Reactivos por URL ve «Sin permiso»', async ({ browser }) => {
-  const owner = await signIn(browser, 'propietaria@demo.platlab.test');
-  await expect(owner.getByText('No hay módulos para tu rol en este espacio')).toBeVisible();
-  await owner.goto(`${owner.url()}/reactivos`);
-  await expect(owner.getByRole('heading', { name: 'Sin permiso' })).toBeVisible();
-  await expect(owner.getByRole('button', { name: /Registrar/ })).toHaveCount(0);
-  await expectAccessible(owner, 'sin permiso');
+test('sin permiso: el docente que abre Reactivos por URL ve «Sin permiso»', async ({ browser }) => {
+  const teacher = await signIn(browser, 'docente@demo.platlab.test');
+  await expect(teacher.getByText('No hay módulos para tu rol en este espacio')).toBeVisible();
+  await teacher.goto(`${teacher.url()}/reactivos`);
+  await expect(teacher.getByRole('heading', { name: 'Sin permiso' })).toBeVisible();
+  await expect(teacher.getByRole('button', { name: /Registrar/ })).toHaveCount(0);
+  await expectAccessible(teacher, 'sin permiso');
 });
 
 test('modo consulta: sin operación nueva no hay acciones de registro, solo inventario e historial', async ({ browser }) => {
@@ -267,16 +327,13 @@ test('modo consulta: sin operación nueva no hay acciones de registro, solo inve
     me.modules = me.modules.map((module) => (module.code === 'reagents' ? { ...module, access: ['read_export'] } : module));
     await route.fulfill({ response, json: me });
   });
-  await admin.getByRole('link', { name: /Laboratorio de Química/ }).click();
-  await expect(admin.getByRole('link', { name: 'Abrir Reactivos' })).toBeVisible();
-  await expect(admin.getByRole('navigation', { name: /Acciones rápidas/ })).toHaveCount(0);
-
-  await admin.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await openReagents(admin, 'Laboratorio de Química');
   await expect(admin.getByRole('status').filter({ hasText: 'Reactivos está en modo consulta' })).toBeVisible();
+  await goTo(admin, 'Inventario');
   for (const name of ['Registrar salida', 'Registrar ingreso', 'Ajustar', 'Nuevo reactivo', 'Salida', 'Ingreso', 'Nuevo lote']) {
     await expect(admin.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
-  await admin.getByRole('tab', { name: 'Movimientos' }).click();
+  await goTo(admin, 'Movimientos');
   await expect(admin.getByRole('row').nth(1)).toBeVisible();
   await expectAccessible(admin, 'modo consulta');
   await capture(admin, 'desktop-read-only');
@@ -288,13 +345,14 @@ test('error: un fallo del servidor muestra «Reintentar» y al reintentar se rec
     const response = await route.fetch();
     await route.fulfill({ response, status: 500, json: { error: { code: 'INTERNAL', message: 'Fallo simulado' } } });
   });
-  await openReagents(admin, 'Laboratorio de Química');
+  await admin.getByRole('link', { name: /Laboratorio de Química/ }).click();
+  await admin.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(admin.getByText('No pudimos cargar esta información')).toBeVisible();
   await expectAccessible(admin, 'error');
 
   await admin.unroute('**/v1/workspaces/*/reagents/positions*');
   await admin.getByRole('button', { name: 'Reintentar' }).click();
-  await expect(admin.getByRole('tab', { name: 'Inventario' })).toBeVisible();
+  await expect(admin.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
   await expect(admin.getByText('No pudimos cargar esta información')).toHaveCount(0);
 });
 

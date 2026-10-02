@@ -150,9 +150,51 @@ WHERE o.workspace_id = :workspaceId!
   AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)
   AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)
   AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)
+  AND (:type::text IS NULL OR o.type = :type::text)
+  -- Misma ventana que countOperationsByDay: desde la medianoche local de hace N - 1 días.
+  AND (
+    :days::int IS NULL
+    OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)
+  )
   AND (
     :beforeId::uuid IS NULL
     OR (o.effective_at, o.id) < (:beforeAt::timestamptz, :beforeId::uuid)
   )
 ORDER BY o.effective_at DESC, o.id DESC
 LIMIT :limit!;
+
+/* @name countOperationsByDay */
+-- Operaciones de un tipo por día, en la zona del espacio y en las ubicaciones autorizadas, para
+-- los gráficos (ADR 0011). Cuenta sucesos: nunca suma cantidades de unidades distintas. Los días
+-- sin operaciones salen con cero para que el gráfico no salte fechas.
+WITH bounds AS (
+  SELECT (now() AT TIME ZONE :timeZone!)::date - (:days!::int - 1) AS first_day,
+         (now() AT TIME ZONE :timeZone!)::date AS last_day
+),
+days AS (
+  SELECT generate_series(b.first_day, b.last_day, interval '1 day')::date AS day
+  FROM bounds AS b
+),
+scoped AS (
+  SELECT (o.effective_at AT TIME ZONE :timeZone!)::date AS day
+  FROM inventory.operations AS o
+  CROSS JOIN bounds AS b
+  WHERE o.workspace_id = :workspaceId!
+    AND o.type = :type!
+    AND o.effective_at >= (b.first_day::timestamp AT TIME ZONE :timeZone!)
+    AND EXISTS (
+      SELECT 1
+      FROM inventory.entries AS e
+      JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id
+      JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+      WHERE e.workspace_id = o.workspace_id
+        AND e.operation_id = o.id
+        AND i.kind = :kind!
+        AND p.location_id = ANY (:locationIds!::uuid[])
+    )
+)
+SELECT to_char(d.day, 'YYYY-MM-DD') AS "day!", count(s.day)::int AS "count!"
+FROM days AS d
+LEFT JOIN scoped AS s ON s.day = d.day
+GROUP BY d.day
+ORDER BY d.day;

@@ -115,7 +115,7 @@ describe('/me y /home según los módulos del espacio', () => {
     expect(me.modules.map((module) => module.code)).toEqual(['reagents']);
     const home = homeResponse.parse((await get(`/v1/workspaces/${a.id}/home`, adminA.subject)).json());
     expect(home.cards).toEqual([
-      { moduleCode: 'reagents', name: 'Reactivos', summary: { productsWithStock: 0, positionsWithStock: 0 }, activity: [] },
+      { moduleCode: 'reagents', name: 'Reactivos', summary: { productsWithStock: 0, positionsWithStock: 0 }, activity: [], trend: null },
     ]);
   });
 
@@ -127,10 +127,20 @@ describe('/me y /home según los módulos del espacio', () => {
     expect(home.cards).toEqual([]);
   });
 
-  it('el propietario sin rol operativo ve el módulo sin menú ni tarjeta', async () => {
+  it('el propietario ve el menú y la tarjeta como el Administrador', async () => {
     const me = workspaceMeResponse.parse((await get(`/v1/workspaces/${a.id}/me`, a.owner.subject)).json());
-    expect(me.modules).toEqual([expect.objectContaining({ code: 'reagents', nav: [] })]);
+    expect(me.modules).toEqual([
+      expect.objectContaining({ code: 'reagents', nav: [expect.objectContaining({ path: 'reactivos' })] }),
+    ]);
     const home = homeResponse.parse((await get(`/v1/workspaces/${a.id}/home`, a.owner.subject)).json());
+    expect(home.cards).toEqual([expect.objectContaining({ moduleCode: 'reagents' })]);
+  });
+
+  it('un miembro sin rol ve el módulo sin menú ni tarjeta', async () => {
+    const member = await addMember(admin, a.id);
+    const me = workspaceMeResponse.parse((await get(`/v1/workspaces/${a.id}/me`, member.subject)).json());
+    expect(me.modules).toEqual([expect.objectContaining({ code: 'reagents', nav: [] })]);
+    const home = homeResponse.parse((await get(`/v1/workspaces/${a.id}/home`, member.subject)).json());
     expect(home.cards).toEqual([]);
   });
 });

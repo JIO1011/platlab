@@ -5,6 +5,7 @@ import {
   myWorkspacesResponse,
   operationList,
   positionList,
+  reagentsSummary,
   productList,
   workspaceMeResponse,
 } from '@platlab/contracts';
@@ -55,6 +56,17 @@ export function useReagentsKey(workspaceId: string) {
   return reagentsKey(useUserKey(), workspaceId);
 }
 
+/** Resumen de la app de Reactivos (ADR 0011): cifras, gráfico de salidas y actividad reciente. */
+export function useReagentsSummary(workspaceId: string, enabled = true) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'summary'],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/summary`, { schema: reagentsSummary }),
+    refetchInterval: jitteredPoll,
+    enabled,
+  });
+}
+
 export function useProducts(workspaceId: string) {
   const user = useUserKey();
   return useQuery({
@@ -79,16 +91,24 @@ export function usePositions(workspaceId: string) {
   });
 }
 
-export function useOperations(workspaceId: string) {
+/** Filtro del historial: un tipo y una ventana de días, la misma que la del gráfico del Resumen. */
+export interface OperationFilter {
+  type?: 'receipt' | 'issue' | 'adjustment' | undefined;
+  days?: number | undefined;
+}
+
+export function useOperations(workspaceId: string, filter: OperationFilter = {}) {
   const user = useUserKey();
   return useInfiniteQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'operations'],
+    queryKey: [...reagentsKey(user, workspaceId), 'operations', filter.type ?? null, filter.days ?? null],
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) =>
-      api(
-        `/workspaces/${workspaceId}/reagents/operations?limit=50${pageParam ? `&cursor=${pageParam}` : ''}`,
-        { schema: operationList },
-      ),
+    queryFn: ({ pageParam }) => {
+      const search = new URLSearchParams({ limit: '50' });
+      if (filter.type) search.set('type', filter.type);
+      if (filter.days) search.set('days', String(filter.days));
+      if (pageParam) search.set('cursor', pageParam);
+      return api(`/workspaces/${workspaceId}/reagents/operations?${search}`, { schema: operationList });
+    },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     refetchInterval: jitteredPoll,
   });

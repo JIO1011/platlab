@@ -7,7 +7,8 @@ import { useSession } from '../../app/session';
 const demoAccounts = [
   { email: 'admin@demo.platlab.test', role: 'Administradora en Química y en Física' },
   { email: 'operador@demo.platlab.test', role: 'Operador en Química, Administrador en Biología' },
-  { email: 'propietaria@demo.platlab.test', role: 'Propietaria de Química, sin rol operativo' },
+  { email: 'propietaria@demo.platlab.test', role: 'Propietaria de Química: opera como Administradora' },
+  { email: 'docente@demo.platlab.test', role: 'Docente en Química, sin acceso a Reactivos' },
 ];
 
 export function LoginPage() {

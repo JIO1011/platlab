@@ -1,4 +1,4 @@
-import type { HomeActivity, HomeResponse, ModuleAccess } from '@platlab/contracts';
+import type { HomeActivity, HomeResponse, HomeTrend, ModuleAccess } from '@platlab/contracts';
 import { actionClass } from '@platlab/contracts';
 import { moduleRegistry } from '@platlab/modules';
 import { listModuleAccess } from '../infrastructure/access.queries.js';
@@ -33,17 +33,24 @@ export async function describeWorkspace(access: WorkspaceAccess): Promise<Worksp
         access: row.access.map((value) => actionClass.parse(value)),
         nav: manifest.nav
           .filter((entry) => permissions.includes(entry.permission))
-          .map(({ path, label }) => ({ path, label })),
+          .map(({ path, label, sections }) => ({
+            path,
+            label,
+            sections: sections
+              .filter((section) => permissions.includes(section.permission))
+              .map((section) => ({ path: section.path, label: section.label })),
+          })),
       },
     ];
   });
   return { modules, permissions };
 }
 
-/** Lo que cada módulo aporta a su tarjeta de Inicio: contadores y actividad reciente. */
+/** Lo que cada módulo aporta a su tarjeta de Inicio: contadores, gráfico y actividad reciente. */
 export interface HomeContribution {
   summary: Record<string, number>;
   activity: HomeActivity[];
+  trend: HomeTrend | null;
 }
 
 /** Core no importa módulos: la composición le pasa la aportación de cada uno (02 §3). */
@@ -69,6 +76,7 @@ export async function homeCards(
       name: module.name,
       summary: contribution?.summary ?? null,
       activity: contribution?.activity ?? [],
+      trend: contribution?.trend ?? null,
     });
   }
   return cards;

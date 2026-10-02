@@ -315,13 +315,13 @@ export interface IListPermissionCodesQuery {
   result: IListPermissionCodesResult;
 }
 
-const listPermissionCodesIR: any = {"usedParamSet":{"workspaceId":true,"principalId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":156,"b":168}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":194,"b":206}]}],"statement":"SELECT DISTINCT rp.permission_code\nFROM core.role_assignments AS ra\nJOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\nWHERE ra.workspace_id = :workspaceId!\n  AND ra.principal_id = :principalId!\n  AND ra.revoked_at IS NULL\n  AND ra.valid_from <= now()\n  AND (ra.valid_until IS NULL OR ra.valid_until > now())\nORDER BY rp.permission_code"};
+const listPermissionCodesIR: any = {"usedParamSet":{"workspaceId":true,"principalId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":166,"b":178}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":204,"b":216}]}],"statement":"SELECT DISTINCT rp.permission_code\nFROM core.effective_role_assignments AS ra\nJOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\nWHERE ra.workspace_id = :workspaceId!\n  AND ra.principal_id = :principalId!\n  AND ra.revoked_at IS NULL\n  AND ra.valid_from <= now()\n  AND (ra.valid_until IS NULL OR ra.valid_until > now())\nORDER BY rp.permission_code"};
 
 /**
  * Query generated from SQL:
  * ```
  * SELECT DISTINCT rp.permission_code
- * FROM core.role_assignments AS ra
+ * FROM core.effective_role_assignments AS ra
  * JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
  * WHERE ra.workspace_id = :workspaceId!
  *   AND ra.principal_id = :principalId!
@@ -353,7 +353,7 @@ export interface IHasPermissionAtQuery {
   result: IHasPermissionAtResult;
 }
 
-const hasPermissionAtIR: any = {"usedParamSet":{"workspaceId":true,"locationId":true,"principalId":true,"permission":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":376,"b":388},{"a":545,"b":557},{"a":715,"b":727}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":401,"b":412}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":755,"b":767}]},{"name":"permission","required":true,"transform":{"type":"scalar"},"locs":[{"a":798,"b":809}]}],"statement":"-- Un rol aplica en la ubicación si su ámbito es todo el espacio o un ancestro de ella (03 §3).\n-- Una ubicación de otro espacio no tiene ancestros aquí: solo valdría un rol de todo el espacio,\n-- y la operación la rechaza después por no encontrarla.\nWITH RECURSIVE ancestors (id, parent_id) AS (\n  SELECT l.id, l.parent_id\n  FROM core.locations AS l\n  WHERE l.workspace_id = :workspaceId! AND l.id = :locationId!\n  UNION\n  SELECT l.id, l.parent_id\n  FROM core.locations AS l\n  JOIN ancestors AS a ON l.id = a.parent_id\n  WHERE l.workspace_id = :workspaceId!\n)\nSELECT EXISTS (\n  SELECT 1\n  FROM core.role_assignments AS ra\n  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\n  WHERE ra.workspace_id = :workspaceId!\n    AND ra.principal_id = :principalId!\n    AND rp.permission_code = :permission!\n    AND ra.revoked_at IS NULL\n    AND ra.valid_from <= now()\n    AND (ra.valid_until IS NULL OR ra.valid_until > now())\n    AND (ra.location_id IS NULL OR ra.location_id IN (SELECT id FROM ancestors))\n) AS \"allowed!\""};
+const hasPermissionAtIR: any = {"usedParamSet":{"workspaceId":true,"locationId":true,"principalId":true,"permission":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":376,"b":388},{"a":545,"b":557},{"a":725,"b":737}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":401,"b":412}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":765,"b":777}]},{"name":"permission","required":true,"transform":{"type":"scalar"},"locs":[{"a":808,"b":819}]}],"statement":"-- Un rol aplica en la ubicación si su ámbito es todo el espacio o un ancestro de ella (03 §3).\n-- Una ubicación de otro espacio no tiene ancestros aquí: solo valdría un rol de todo el espacio,\n-- y la operación la rechaza después por no encontrarla.\nWITH RECURSIVE ancestors (id, parent_id) AS (\n  SELECT l.id, l.parent_id\n  FROM core.locations AS l\n  WHERE l.workspace_id = :workspaceId! AND l.id = :locationId!\n  UNION\n  SELECT l.id, l.parent_id\n  FROM core.locations AS l\n  JOIN ancestors AS a ON l.id = a.parent_id\n  WHERE l.workspace_id = :workspaceId!\n)\nSELECT EXISTS (\n  SELECT 1\n  FROM core.effective_role_assignments AS ra\n  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\n  WHERE ra.workspace_id = :workspaceId!\n    AND ra.principal_id = :principalId!\n    AND rp.permission_code = :permission!\n    AND ra.revoked_at IS NULL\n    AND ra.valid_from <= now()\n    AND (ra.valid_until IS NULL OR ra.valid_until > now())\n    AND (ra.location_id IS NULL OR ra.location_id IN (SELECT id FROM ancestors))\n) AS \"allowed!\""};
 
 /**
  * Query generated from SQL:
@@ -373,7 +373,7 @@ const hasPermissionAtIR: any = {"usedParamSet":{"workspaceId":true,"locationId":
  * )
  * SELECT EXISTS (
  *   SELECT 1
- *   FROM core.role_assignments AS ra
+ *   FROM core.effective_role_assignments AS ra
  *   JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
  *   WHERE ra.workspace_id = :workspaceId!
  *     AND ra.principal_id = :principalId!
@@ -406,7 +406,7 @@ export interface IHasWorkspacePermissionQuery {
   result: IHasWorkspacePermissionResult;
 }
 
-const hasWorkspacePermissionIR: any = {"usedParamSet":{"workspaceId":true,"principalId":true,"permission":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":253,"b":265}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":293,"b":305}]},{"name":"permission","required":true,"transform":{"type":"scalar"},"locs":[{"a":336,"b":347}]}],"statement":"-- Permiso con ámbito de todo el espacio: lo exige lo que no pertenece a una ubicación (catálogo).\nSELECT EXISTS (\n  SELECT 1\n  FROM core.role_assignments AS ra\n  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\n  WHERE ra.workspace_id = :workspaceId!\n    AND ra.principal_id = :principalId!\n    AND rp.permission_code = :permission!\n    AND ra.location_id IS NULL\n    AND ra.revoked_at IS NULL\n    AND ra.valid_from <= now()\n    AND (ra.valid_until IS NULL OR ra.valid_until > now())\n) AS \"allowed!\""};
+const hasWorkspacePermissionIR: any = {"usedParamSet":{"workspaceId":true,"principalId":true,"permission":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":263,"b":275}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":303,"b":315}]},{"name":"permission","required":true,"transform":{"type":"scalar"},"locs":[{"a":346,"b":357}]}],"statement":"-- Permiso con ámbito de todo el espacio: lo exige lo que no pertenece a una ubicación (catálogo).\nSELECT EXISTS (\n  SELECT 1\n  FROM core.effective_role_assignments AS ra\n  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\n  WHERE ra.workspace_id = :workspaceId!\n    AND ra.principal_id = :principalId!\n    AND rp.permission_code = :permission!\n    AND ra.location_id IS NULL\n    AND ra.revoked_at IS NULL\n    AND ra.valid_from <= now()\n    AND (ra.valid_until IS NULL OR ra.valid_until > now())\n) AS \"allowed!\""};
 
 /**
  * Query generated from SQL:
@@ -414,7 +414,7 @@ const hasWorkspacePermissionIR: any = {"usedParamSet":{"workspaceId":true,"princ
  * -- Permiso con ámbito de todo el espacio: lo exige lo que no pertenece a una ubicación (catálogo).
  * SELECT EXISTS (
  *   SELECT 1
- *   FROM core.role_assignments AS ra
+ *   FROM core.effective_role_assignments AS ra
  *   JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
  *   WHERE ra.workspace_id = :workspaceId!
  *     AND ra.principal_id = :principalId!
@@ -447,7 +447,7 @@ export interface IListPermissionScopeQuery {
   result: IListPermissionScopeResult;
 }
 
-const listPermissionScopeIR: any = {"usedParamSet":{"workspaceId":true,"principalId":true,"permission":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":376,"b":388},{"a":677,"b":689},{"a":938,"b":950}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":416,"b":428}]},{"name":"permission","required":true,"transform":{"type":"scalar"},"locs":[{"a":459,"b":470}]}],"statement":"-- Ubicaciones donde aplica el permiso: todas si el rol es de todo el espacio; si no, cada ámbito\n-- y su descendencia (03 §3). Las listas de los módulos se filtran con este conjunto.\nWITH RECURSIVE grants (location_id) AS (\n  SELECT ra.location_id\n  FROM core.role_assignments AS ra\n  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\n  WHERE ra.workspace_id = :workspaceId!\n    AND ra.principal_id = :principalId!\n    AND rp.permission_code = :permission!\n    AND ra.revoked_at IS NULL\n    AND ra.valid_from <= now()\n    AND (ra.valid_until IS NULL OR ra.valid_until > now())\n),\nscope (id) AS (\n  SELECT l.id\n  FROM core.locations AS l\n  WHERE l.workspace_id = :workspaceId!\n    AND (l.id IN (SELECT g.location_id FROM grants AS g)\n         OR EXISTS (SELECT 1 FROM grants AS g WHERE g.location_id IS NULL))\n  UNION\n  SELECT l.id\n  FROM core.locations AS l\n  JOIN scope AS s ON l.parent_id = s.id\n  WHERE l.workspace_id = :workspaceId!\n)\nSELECT id AS \"id!\" FROM scope"};
+const listPermissionScopeIR: any = {"usedParamSet":{"workspaceId":true,"principalId":true,"permission":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":386,"b":398},{"a":687,"b":699},{"a":948,"b":960}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":426,"b":438}]},{"name":"permission","required":true,"transform":{"type":"scalar"},"locs":[{"a":469,"b":480}]}],"statement":"-- Ubicaciones donde aplica el permiso: todas si el rol es de todo el espacio; si no, cada ámbito\n-- y su descendencia (03 §3). Las listas de los módulos se filtran con este conjunto.\nWITH RECURSIVE grants (location_id) AS (\n  SELECT ra.location_id\n  FROM core.effective_role_assignments AS ra\n  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\n  WHERE ra.workspace_id = :workspaceId!\n    AND ra.principal_id = :principalId!\n    AND rp.permission_code = :permission!\n    AND ra.revoked_at IS NULL\n    AND ra.valid_from <= now()\n    AND (ra.valid_until IS NULL OR ra.valid_until > now())\n),\nscope (id) AS (\n  SELECT l.id\n  FROM core.locations AS l\n  WHERE l.workspace_id = :workspaceId!\n    AND (l.id IN (SELECT g.location_id FROM grants AS g)\n         OR EXISTS (SELECT 1 FROM grants AS g WHERE g.location_id IS NULL))\n  UNION\n  SELECT l.id\n  FROM core.locations AS l\n  JOIN scope AS s ON l.parent_id = s.id\n  WHERE l.workspace_id = :workspaceId!\n)\nSELECT id AS \"id!\" FROM scope"};
 
 /**
  * Query generated from SQL:
@@ -456,7 +456,7 @@ const listPermissionScopeIR: any = {"usedParamSet":{"workspaceId":true,"principa
  * -- y su descendencia (03 §3). Las listas de los módulos se filtran con este conjunto.
  * WITH RECURSIVE grants (location_id) AS (
  *   SELECT ra.location_id
- *   FROM core.role_assignments AS ra
+ *   FROM core.effective_role_assignments AS ra
  *   JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
  *   WHERE ra.workspace_id = :workspaceId!
  *     AND ra.principal_id = :principalId!

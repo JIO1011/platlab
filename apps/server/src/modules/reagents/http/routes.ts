@@ -23,6 +23,7 @@ import {
   type CommandRequest,
 } from '../application/commands.js';
 import {
+  getSummary,
   listLots,
   listOperations,
   listPositions,
@@ -46,6 +47,8 @@ const commandRequest = (request: FastifyRequest): CommandRequest => ({
  */
 export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync {
   return async (app) => {
+    app.get('/summary', async (request) => getSummary(pool, queryRequest(request)));
+
     app.get('/products', async (request) =>
       listProducts(pool, queryRequest(request), productListQuery.parse(request.query)),
     );

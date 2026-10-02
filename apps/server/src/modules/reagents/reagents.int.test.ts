@@ -11,6 +11,7 @@ import {
   positionList,
   product as productContract,
   productList,
+  reagentsSummary,
 } from '@platlab/contracts';
 import { buildApp } from '../../app.js';
 import { createPool } from '../../platform/db/pool.js';
@@ -192,6 +193,30 @@ describe('G0 · recorrido visible', () => {
       { type: 'issue', quantity: '-20', actor: 'Operador' },
       { type: 'receipt', quantity: '100', actor: 'Operador' },
     ]);
+    // Gráfico (ADR 0011): 30 días con ceros incluidos, que cuentan salidas y no cantidades; la
+    // única salida cae en el día de hoy según la zona del espacio.
+    const trend = home.cards[0]!.trend;
+    expect(trend?.label).toBe('Salidas por día, últimos 30 días');
+    expect(trend?.points).toHaveLength(30);
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' }).format(new Date());
+    expect(trend?.points.at(-1)).toEqual({ date: today, value: 1 });
+    expect(trend?.points.reduce((sum, point) => sum + point.value, 0)).toBe(1);
+
+    // El Resumen de la app devuelve lo mismo que la tarjeta; el Operador lo ve con su ámbito.
+    const summary = reagentsSummary.parse((await call(lab.operator.subject, `${lab.base}/summary`)).body);
+    expect(summary).toEqual({ summary: home.cards[0]!.summary, activity: home.cards[0]!.activity, trend });
+
+    // La cifra «Salidas, últimos 30 días» abre la lista con el mismo filtro: suman lo mismo.
+    const issues = operationList.parse(
+      (await call(lab.operator.subject, `${lab.base}/operations?type=issue&days=30&limit=100`)).body,
+    );
+    expect(issues.items.map((operation) => operation.type)).toEqual(['issue']);
+    expect(issues.items).toHaveLength(trend!.points.reduce((sum, point) => sum + point.value, 0));
+    const receipts = operationList.parse(
+      (await call(lab.operator.subject, `${lab.base}/operations?type=receipt&days=1`)).body,
+    );
+    expect(receipts.items.map((operation) => operation.quantity)).toEqual(['100']);
+    expect((await call(lab.operator.subject, `${lab.base}/operations?days=0`)).status).toBe(400);
   });
 });
 
@@ -259,10 +284,24 @@ describe('G0 · roles', () => {
     } = await createProductAndLot(lab));
   });
 
-  it('el propietario sin rol operativo no registra movimientos ni consulta el inventario', async () => {
-    const receipt = await receive(lab, lotId, '1', lab.storage, lab.workspace.owner.subject);
+  it('un miembro sin rol no registra movimientos ni consulta el inventario', async () => {
+    const member = await addMember(admin, lab.workspace.id);
+    const receipt = await receive(lab, lotId, '1', lab.storage, member.subject);
     expect(receipt.status).toBe(403);
-    expect((await call(lab.workspace.owner.subject, `${lab.base}/positions`)).status).toBe(403);
+    expect((await call(member.subject, `${lab.base}/positions`)).status).toBe(403);
+  });
+
+  it('el propietario opera como Administrador sin asignación: ingresa y ajusta (ADR 0008, 02-10-2026)', async () => {
+    const owner = lab.workspace.owner.subject;
+    const receipt = await receive(lab, lotId, '5', lab.storage, owner);
+    expect(receipt.status).toBe(201);
+    const { positionId } = movementResponse.parse(receipt.body);
+    const adjustment = await call(owner, `${lab.base}/adjustments`, {
+      method: 'POST',
+      body: { positionId, quantity: '-1', unit: 'g', reason: 'Conteo del propietario' },
+    });
+    expect(adjustment.status).toBe(201);
+    expect((await call(owner, `${lab.base}/positions`)).status).toBe(200);
   });
 
   it('el Operador registra ingresos y salidas, pero no productos, lotes ni ajustes', async () => {

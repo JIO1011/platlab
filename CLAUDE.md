@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado del proyecto
 
-PlatLab es un SaaS modular para laboratorios. T-01 está implementado: monorepo pnpm (`apps/server`, `apps/web`, `packages/contracts`, `packages/modules`), Supabase local, PgTyped y CI. T-02/T-03 añaden Core (`core`, `platform`), RLS, JWT por JWKS y `GET /v1/me/workspaces`. T-04/T-05 añaden el registro de módulos, los derechos por `platform.apply_contract_revision`, la admisión de dos ejes (`core.admission`, con `withModuleAccess`), `/me` con módulos, `/home`, auditoría e idempotencia. R-00 añade la capacidad `inventory` (ledger con saldo verificado contra sus asientos) y el módulo `reagents` con sus rutas `/v1/workspaces/:workspaceId/reagents/*`. El paso 5 añade `packages/ui` (tokens del ADR 0010 y componentes propios) y la web: acceso, selector de espacio, Inicio y tablero de Reactivos, con el rediseño «precisión suave». V-00 cierra la G0 de Reactivos y lo pasa a etapa `pilot`. No hay infraestructura desplegada.
+PlatLab es un SaaS modular para laboratorios. T-01 está implementado: monorepo pnpm (`apps/server`, `apps/web`, `packages/contracts`, `packages/modules`), Supabase local, PgTyped y CI. T-02/T-03 añaden Core (`core`, `platform`), RLS, JWT por JWKS y `GET /v1/me/workspaces`. T-04/T-05 añaden el registro de módulos, los derechos por `platform.apply_contract_revision`, la admisión de dos ejes (`core.admission`, con `withModuleAccess`), `/me` con módulos, `/home`, auditoría e idempotencia. R-00 añade la capacidad `inventory` (ledger con saldo verificado contra sus asientos) y el módulo `reagents` con sus rutas `/v1/workspaces/:workspaceId/reagents/*`. El paso 5 añade `packages/ui` (tokens del ADR 0010 y componentes propios) y la web: acceso, selector de espacio, Inicio y tablero de Reactivos, con el rediseño «precisión suave». V-00 cierra la G0 de Reactivos y lo pasa a etapa `pilot`. Desde el ADR 0011, el Inicio es un tablero de módulos y cada módulo es una app con sus secciones (declaradas en el manifiesto) y su `/summary`. Desde el cambio del ADR 0008, el propietario tiene los permisos del Administrador (`core.effective_role_assignments`). No hay infraestructura desplegada.
 
 ## Comandos
 
@@ -111,6 +111,12 @@ Decidido el 30-09-2026:
 - Materiales en F3 según una práctica real (P-04).
 - Equipos solicitados por tipo.
 - Confirmación en lote con un resultado por solicitud.
+
+Decidido el 02-10-2026:
+
+- Reactivos en etapa `pilot` (V-00).
+- Los permisos forman una escalera: Propietario ⊇ Administrador ⊇ Operador. El propietario opera sin rol asignado; Responsable de fiscalizados sigue aparte (ADR 0008).
+- El Inicio es un tablero con una tarjeta por módulo (cifras y gráfico con datos reales) y cada módulo es una app con su propio menú (ADR 0011).
 
 El modelo comercial sigue pendiente: la recomendación está en 01 §4 y debe confirmarla el usuario.
 

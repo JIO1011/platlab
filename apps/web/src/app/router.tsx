@@ -6,6 +6,8 @@ import { AppShell } from './app-shell';
 import { NotFound, PageLoading } from './states';
 import { useSession } from './session';
 
+const reagents = () => import('../features/reagents/reagents-page');
+
 /** Las rutas privadas esperan a conocer la sesión y, sin ella, llevan al acceso. */
 function RequireSession() {
   const { session, loading, expired } = useSession();
@@ -29,10 +31,16 @@ export const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { index: true, element: <HomePage /> },
-          // Ruta diferida por módulo (02 §8): el tablero de Reactivos se descarga al abrirlo.
+          // La app de Reactivos (ADR 0011), diferida (02 §8): se descarga al abrirla. Sus secciones
+          // coinciden con las del manifiesto, que el servidor filtra por permiso en /me.
           {
             path: 'reactivos',
-            lazy: async () => ({ Component: (await import('../features/reagents/reagents-page')).ReagentsPage }),
+            lazy: async () => ({ Component: (await reagents()).ReagentsLayout }),
+            children: [
+              { index: true, lazy: async () => ({ Component: (await reagents()).ReagentsSummaryPage }) },
+              { path: 'inventario', lazy: async () => ({ Component: (await reagents()).ReagentsInventoryPage }) },
+              { path: 'movimientos', lazy: async () => ({ Component: (await reagents()).ReagentsMovementsPage }) },
+            ],
           },
         ],
       },

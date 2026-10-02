@@ -28,13 +28,14 @@ export function ActivityRow({ type, title, detail, quantity, unit, occurredAt, a
   const kind = types[type] ?? { label: type, icon: CircleDot };
   const Icon = kind.icon;
   return (
-    <div className={cn('flex items-center gap-3.5', className)}>
+    <div className={cn('@container flex items-center gap-3.5', className)}>
       <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-ink-muted">
         <Icon className="size-[18px]" aria-hidden />
       </span>
-      {/* Cantidad y tipo acompañan a sus líneas en lugar de ocupar una columna propia. Por debajo de
-          1024 px, quién y cuándo bajan a su propia línea; el responsable siempre va antes que la
-          hora, para que un recorte nunca oculte quién movió el stock. */}
+      {/* Cantidad y tipo acompañan a sus líneas en lugar de ocupar una columna propia. Si la fila
+          es estrecha (consulta de contenedor, no de ventana: sirve igual en una columna del Resumen
+          que en el móvil), quién y cuándo bajan a su propia línea. El responsable siempre va antes
+          que la hora, para que un recorte nunca oculte quién movió el stock. */}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
           <p className="truncate font-medium text-ink">{title}</p>
@@ -43,7 +44,7 @@ export function ActivityRow({ type, title, detail, quantity, unit, occurredAt, a
         <div className="flex items-baseline justify-between gap-3 text-[13px] text-ink-muted">
           <p className="truncate">
             {detail}
-            <span className="hidden lg:inline">
+            <span className="hidden @xl:inline">
               {actor ? ` · ${actor}` : ''}
               {' · '}
               {formatDateTime(occurredAt, timeZone)}
@@ -51,7 +52,7 @@ export function ActivityRow({ type, title, detail, quantity, unit, occurredAt, a
           </p>
           <span className="shrink-0 text-[12px]">{kind.label}</span>
         </div>
-        <p className="truncate text-[13px] text-ink-muted lg:hidden">
+        <p className="truncate text-[13px] text-ink-muted @xl:hidden">
           {actor ? `${actor} · ` : ''}
           {formatShortDateTime(occurredAt, timeZone)}
         </p>

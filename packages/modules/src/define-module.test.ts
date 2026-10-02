@@ -8,7 +8,7 @@ const base = {
   integrates: [],
   permissions: ['demo.read'],
   roleGrants: { admin: ['demo.read'] },
-  nav: [{ path: 'demo', label: 'Demo', permission: 'demo.read' }],
+  nav: [{ path: 'demo', label: 'Demo', permission: 'demo.read', sections: [{ path: '', label: 'Resumen', permission: 'demo.read' }] }],
   stage: 'development',
 } as const;
 
@@ -29,7 +29,12 @@ describe('defineModule', () => {
     );
   });
 
-  it('el registro solo contiene módulos válidos y con códigos únicos', () => {
+  it('rechaza una sección con un permiso no declarado', () => {
+    const nav = [{ ...base.nav[0], sections: [{ path: 'informes', label: 'Informes', permission: 'demo.report' }] }];
+    expect(() => defineModule({ ...base, nav })).toThrow(/no declarado: demo.report/);
+  });
+
+    it('el registro solo contiene módulos válidos y con códigos únicos', () => {
     const codes = moduleRegistry.map((module) => module.code);
     expect(new Set(codes).size).toBe(codes.length);
   });

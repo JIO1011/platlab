@@ -88,7 +88,10 @@ defineModule({
   integrates: ['practices'],   // integraciones opcionales
   permissions: ['reagents.catalog.read', 'reagents.issue.create', 'reagents.adjust.create' /* … */],
   roleGrants: { admin: [/* … */], operator: [/* … */], teacher: ['reagents.requestable.read'] },
-  nav: [{ path: 'reactivos', label: 'Reactivos', permission: 'reagents.catalog.read' }],
+  nav: [{                      // la app del módulo (ADR 0011): entrada y secciones con su permiso
+    path: 'reactivos', label: 'Reactivos', permission: 'reagents.catalog.read',
+    sections: [{ path: '', label: 'Resumen', permission: 'reagents.catalog.read' } /* … */],
+  }],
   homeCard: { permission: 'reagents.catalog.read' },  // el servidor aporta su resumen a /home
   stage: 'development',        // development → pilot → general (§6)
 });
@@ -105,7 +108,7 @@ Para agregar un módulo:
 3. Crear la migración con esquema propio: `workspace_id`, FKs compuestas, RLS, grants y pruebas pgTAP.
 4. Implementar el servidor en `modules/<código>`, con comandos transaccionales y un plugin Fastify bajo `/v1/workspaces/:workspaceId/<ruta>`.
 5. Definir los contratos en `packages/contracts`.
-6. Crear la web en `features/<código>`: rutas diferidas, tablero del módulo y tarjeta de Inicio.
+6. Crear la web en `features/<código>`: rutas diferidas, la app del módulo con su Resumen y sus secciones, y la tarjeta de Inicio ([ADR 0011](05_decisiones.md#adr-0011)).
 7. Cubrir exportación, importación y disposición de sus datos.
 8. Crear una versión de paquete en la consola para venderlo; se habilita por contrato ([ADR 0002](05_decisiones.md#adr-0002)).
 9. Avanzar su etapa cuando supere la puerta correspondiente: pasa a `pilot` tras su G0 y a `general` tras su G2 ([04 §2](04_roadmap.md#2-puertas)).
@@ -226,7 +229,7 @@ Reglas generales:
 
 ## 8. Frontend
 
-- `GET /v1/workspaces/:workspaceId/me` devuelve los módulos habilitados y los permisos efectivos; con eso se arman el menú y las rutas.
+- `GET /v1/workspaces/:workspaceId/me` devuelve los módulos habilitados, sus secciones permitidas y los permisos efectivos. Con eso se arman el tablero de Inicio, el menú de cada módulo y las rutas ([ADR 0011](05_decisiones.md#adr-0011)).
 - `GET /v1/workspaces/:workspaceId/home` compone en el servidor los resúmenes de los módulos visibles para el usuario, con una sola petición por vista.
 - Una URL directa recibe la misma denegación que la interfaz.
 - Hay rutas diferidas por módulo y un endpoint agregado por vista.

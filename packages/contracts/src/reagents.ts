@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { homeActivity, homeTrend } from './access.js';
 import { decimalString } from './decimal.js';
 
 /**
@@ -128,6 +129,10 @@ export const operationListQuery = z
     productId: z.uuid().optional(),
     locationId: z.uuid().optional(),
     positionId: z.uuid().optional(),
+    /** Solo un tipo de movimiento, p. ej. las salidas que cuenta el gráfico del Resumen. */
+    type: z.enum(['receipt', 'issue', 'adjustment']).optional(),
+    /** Los últimos N días civiles en la zona del espacio, hoy incluido: la misma ventana del gráfico. */
+    days: z.coerce.number().int().min(1).max(90).optional(),
   })
   .strict();
 
@@ -170,6 +175,19 @@ export const locationList = z.object({ items: z.array(location) });
 export const positionList = list(position);
 export const operationList = list(operation);
 
+/**
+ * GET /reagents/summary: el Resumen de la app de Reactivos (ADR 0011). Las mismas cifras, el mismo
+ * gráfico y la misma actividad que su tarjeta de Inicio, en el ámbito del miembro.
+ */
+export const reagentsSummary = z.object({
+  summary: z.object({
+    productsWithStock: z.number().int().nonnegative(),
+    positionsWithStock: z.number().int().nonnegative(),
+  }),
+  activity: z.array(homeActivity).max(10),
+  trend: homeTrend.nullable(),
+});
+
 export type Product = z.infer<typeof product>;
 export type Lot = z.infer<typeof lot>;
 export type MovementResponse = z.infer<typeof movementResponse>;
@@ -179,4 +197,5 @@ export type ProductList = z.infer<typeof productList>;
 export type LotList = z.infer<typeof lotList>;
 export type LocationList = z.infer<typeof locationList>;
 export type PositionList = z.infer<typeof positionList>;
+export type ReagentsSummary = z.infer<typeof reagentsSummary>;
 export type OperationList = z.infer<typeof operationList>;

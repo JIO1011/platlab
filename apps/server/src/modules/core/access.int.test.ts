@@ -130,16 +130,39 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
         code: 'reagents',
         name: 'Reactivos',
         access: ['new_operation', 'resolve_pending', 'read_export'],
-        nav: [{ path: 'reactivos', label: 'Reactivos' }],
+        nav: [
+          {
+            path: 'reactivos',
+            label: 'Reactivos',
+            sections: [
+              { path: '', label: 'Resumen' },
+              { path: 'inventario', label: 'Inventario' },
+              { path: 'movimientos', label: 'Movimientos' },
+            ],
+          },
+        ],
       },
     ]);
   });
 
-  it('el propietario sin rol operativo no recibe permisos operativos', async () => {
+  it('el propietario recibe los permisos del Administrador sin asignación (ADR 0008, 02-10-2026)', async () => {
     const body = workspaceMeResponse.parse(
       (await get(`/v1/workspaces/${a.id}/me`, a.owner.subject)).json(),
     );
     expect(body.member.isOwner).toBe(true);
+    expect(body.permissions).toEqual([
+      'reagents.adjustment.create',
+      'reagents.catalog.manage',
+      'reagents.catalog.read',
+      'reagents.issue.create',
+      'reagents.receipt.create',
+    ]);
+  });
+
+  it('un miembro sin rol no recibe permisos', async () => {
+    const member = await addMember(admin, a.id);
+    const body = workspaceMeResponse.parse((await get(`/v1/workspaces/${a.id}/me`, member.subject)).json());
+    expect(body.member.isOwner).toBe(false);
     expect(body.permissions).toEqual([]);
   });
 
@@ -194,9 +217,13 @@ describe('roles con ámbito', () => {
     expect(result).toEqual({ siteB: true, locationOfA: false });
   });
 
-  it('el propietario sin rol no tiene permisos en ninguna ubicación', async () => {
+  it('el propietario tiene los permisos en todas las ubicaciones; un miembro sin rol, en ninguna', async () => {
     await expect(
-      access(a.owner.subject, a.id, (ctx) => hasPermissionAt(ctx, permission, siteA)),
+      access(a.owner.subject, a.id, (ctx) => hasPermissionAt(ctx, permission, storeA)),
+    ).resolves.toBe(true);
+    const member = await addMember(admin, a.id);
+    await expect(
+      access(member.subject, a.id, (ctx) => hasPermissionAt(ctx, permission, siteA)),
     ).resolves.toBe(false);
   });
 

@@ -4,9 +4,12 @@
 -- Cuentas (contraseña local: platlab-demo):
 --   admin@demo.platlab.test        Ana Administradora: Administradora en A; propietaria y Administradora en C.
 --   operador@demo.platlab.test     Óscar Operador: Operador en A; propietario y Administrador en B.
---   propietaria@demo.platlab.test  Paula Propietaria: propietaria de A, sin rol operativo.
+--   propietaria@demo.platlab.test  Paula Propietaria: propietaria de A, sin rol asignado; opera con los
+--                                  permisos del Administrador por ser propietaria (ADR 0008, 02-10-2026).
+--   docente@demo.platlab.test      Diego Docente: Docente en A, sin permisos de Reactivos.
 --
--- Espacios: A y B con Reactivos (B ya tiene existencias propias); C sin Reactivos.
+-- Espacios: A y B con Reactivos (A con 30 días de historial y B con existencias propias); C sin
+-- Reactivos.
 
 begin;
 
@@ -26,7 +29,8 @@ select '00000000-0000-0000-0000-000000000000', u.id, 'authenticated', 'authentic
   from (values
     ('d0000000-0000-4000-8000-000000000001'::uuid, 'admin@demo.platlab.test', 'Ana Administradora'),
     ('d0000000-0000-4000-8000-000000000002'::uuid, 'operador@demo.platlab.test', 'Óscar Operador'),
-    ('d0000000-0000-4000-8000-000000000003'::uuid, 'propietaria@demo.platlab.test', 'Paula Propietaria')
+    ('d0000000-0000-4000-8000-000000000003'::uuid, 'propietaria@demo.platlab.test', 'Paula Propietaria'),
+    ('d0000000-0000-4000-8000-000000000004'::uuid, 'docente@demo.platlab.test', 'Diego Docente')
   ) as u (id, email, name);
 
 insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
@@ -34,7 +38,7 @@ select u.id::text, u.id, jsonb_build_object('sub', u.id::text, 'email', u.email,
        'email', now(), now(), now()
   from auth.users as u
  where u.id in ('d0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000002',
-                'd0000000-0000-4000-8000-000000000003');
+                'd0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000004');
 
 -- ---------------------------------------------------------------------------
 -- Core: titular, espacios, identidades, membresías, principales y ubicaciones
@@ -51,12 +55,14 @@ insert into core.workspaces (id, customer_account_id, code, name, time_zone) val
 insert into core.identities (id, provider, provider_subject, display_name) values
   ('d2000000-0000-4000-8000-000000000001', 'supabase', 'd0000000-0000-4000-8000-000000000001', 'Ana Administradora'),
   ('d2000000-0000-4000-8000-000000000002', 'supabase', 'd0000000-0000-4000-8000-000000000002', 'Óscar Operador'),
-  ('d2000000-0000-4000-8000-000000000003', 'supabase', 'd0000000-0000-4000-8000-000000000003', 'Paula Propietaria');
+  ('d2000000-0000-4000-8000-000000000003', 'supabase', 'd0000000-0000-4000-8000-000000000003', 'Paula Propietaria'),
+  ('d2000000-0000-4000-8000-000000000004', 'supabase', 'd0000000-0000-4000-8000-000000000004', 'Diego Docente');
 
 insert into core.memberships (id, workspace_id, identity_id) values
   ('da100000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'd2000000-0000-4000-8000-000000000001'),
   ('da100000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'd2000000-0000-4000-8000-000000000002'),
   ('da100000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'd2000000-0000-4000-8000-000000000003'),
+  ('da100000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'd2000000-0000-4000-8000-000000000004'),
   ('db100000-0000-4000-8000-000000000002', 'db000000-0000-4000-8000-00000000000b', 'd2000000-0000-4000-8000-000000000002'),
   ('dc100000-0000-4000-8000-000000000001', 'dc000000-0000-4000-8000-00000000000c', 'd2000000-0000-4000-8000-000000000001');
 
@@ -64,6 +70,7 @@ insert into core.principals (id, workspace_id, kind, membership_id) values
   ('da200000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'member', 'da100000-0000-4000-8000-000000000001'),
   ('da200000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'member', 'da100000-0000-4000-8000-000000000002'),
   ('da200000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'member', 'da100000-0000-4000-8000-000000000003'),
+  ('da200000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'member', 'da100000-0000-4000-8000-000000000004'),
   ('db200000-0000-4000-8000-000000000002', 'db000000-0000-4000-8000-00000000000b', 'member', 'db100000-0000-4000-8000-000000000002'),
   ('dc200000-0000-4000-8000-000000000001', 'dc000000-0000-4000-8000-00000000000c', 'member', 'dc100000-0000-4000-8000-000000000001');
 
@@ -85,6 +92,7 @@ insert into core.locations (id, workspace_id, parent_id, kind, code, name) value
 insert into core.role_assignments (workspace_id, principal_id, role_code) values
   ('da000000-0000-4000-8000-00000000000a', 'da200000-0000-4000-8000-000000000001', 'admin'),
   ('da000000-0000-4000-8000-00000000000a', 'da200000-0000-4000-8000-000000000002', 'operator'),
+  ('da000000-0000-4000-8000-00000000000a', 'da200000-0000-4000-8000-000000000004', 'teacher'),
   ('db000000-0000-4000-8000-00000000000b', 'db200000-0000-4000-8000-000000000002', 'admin'),
   ('dc000000-0000-4000-8000-00000000000c', 'dc200000-0000-4000-8000-000000000001', 'admin');
 
@@ -130,5 +138,95 @@ with moved as (
 insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
 select 'db000000-0000-4000-8000-00000000000b', 'db900000-0000-4000-8000-000000000001', id, 500, 500, 'mL', balance
   from moved;
+
+-- ---------------------------------------------------------------------------
+-- Historial sintético de A: tres reactivos con 30 días de movimientos, para que el Inicio y el
+-- Resumen tengan cifras y un gráfico con datos (ADR 0011). Solo el seed puede fechar en el pasado:
+-- el runtime no tiene permiso sobre effective_at. Cada asiento deja el saldo acumulado.
+-- ---------------------------------------------------------------------------
+
+insert into inventory.items (id, workspace_id, kind, code, name, base_unit) values
+  ('da600000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'reagent', 'NACL', 'Cloruro de sodio', 'g'),
+  ('da600000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'reagent', 'HCL-37', 'Ácido clorhídrico 37 %', 'mL'),
+  ('da600000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'reagent', 'NAOH', 'Hidróxido de sodio', 'g');
+insert into reagents.products (workspace_id, item_id, cas_number, physical_state) values
+  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', '7647-14-5', 'solid'),
+  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', '7647-01-0', 'liquid'),
+  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', '1310-73-2', 'solid');
+insert into inventory.lots (id, workspace_id, item_id, code, supplier_name, expires_on) values
+  ('da700000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'NACL-2026-03', 'Proveedor sintético', '2028-03-31'),
+  ('da700000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'HCL-2026-01', 'Proveedor sintético', '2027-01-15'),
+  ('da700000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', 'NAOH-2025-11', 'Proveedor sintético', '2026-11-20');
+insert into inventory.positions (id, workspace_id, item_id, lot_id, location_id) values
+  ('da800000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'da700000-0000-4000-8000-000000000001', 'da300000-0000-4000-8000-000000000002'),
+  ('da800000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'da700000-0000-4000-8000-000000000002', 'da300000-0000-4000-8000-000000000002'),
+  ('da800000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', 'da700000-0000-4000-8000-000000000003', 'da300000-0000-4000-8000-000000000002');
+
+do $$
+declare
+  operation_id uuid;
+  balance numeric;
+  position_n int;
+  issues_today int;
+  sequence_n int := 0;
+  units text[] := array['g', 'mL', 'g'];
+  reasons text[] := array['Práctica de Química General', 'Práctica de Análisis Químico', 'Preparación de soluciones',
+                          'Práctica de Química Orgánica', 'Proyecto de titulación'];
+begin
+  -- Ingreso inicial de cada reactivo hace 29 días. Cada asiento deja el saldo acumulado y las
+  -- fechas son locales del espacio.
+  for position_n in 1..3 loop
+    insert into inventory.operations (workspace_id, type, actor_principal_id, reference, effective_at, correlation_id)
+    values ('da000000-0000-4000-8000-00000000000a', 'receipt', 'da200000-0000-4000-8000-000000000001', 'Compra sintética',
+            ((now() at time zone 'America/Guayaquil')::date - 29 + make_interval(hours => 8 + position_n))
+              at time zone 'America/Guayaquil',
+            gen_random_uuid())
+    returning id into operation_id;
+    update inventory.positions set balance = positions.balance + (array[2000, 5000, 1000])[position_n]
+     where id = ('da800000-0000-4000-8000-00000000000' || position_n)::uuid
+    returning positions.balance into balance;
+    insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+    values ('da000000-0000-4000-8000-00000000000a', operation_id, ('da800000-0000-4000-8000-00000000000' || position_n)::uuid,
+            (array[2000, 5000, 1000])[position_n], (array[2000, 5000, 1000])[position_n], units[position_n], balance);
+  end loop;
+
+  -- Salidas de los últimos 28 días: de 1 a 4 por día laborable y ninguna el fin de semana.
+  for day_offset in reverse 28..1 loop
+    if extract(isodow from (now() at time zone 'America/Guayaquil')::date - day_offset) in (6, 7) then
+      continue;
+    end if;
+    issues_today := 1 + (day_offset * 7) % 4;
+    for i in 1..issues_today loop
+      sequence_n := sequence_n + 1;
+      position_n := 1 + sequence_n % 3;
+      insert into inventory.operations (workspace_id, type, actor_principal_id, reason, destination, effective_at, correlation_id)
+      values ('da000000-0000-4000-8000-00000000000a', 'issue', 'da200000-0000-4000-8000-000000000002',
+              reasons[1 + sequence_n % 5], 'Laboratorio 1',
+              ((now() at time zone 'America/Guayaquil')::date - day_offset + make_interval(hours => 8 + i * 2))
+                at time zone 'America/Guayaquil',
+              gen_random_uuid())
+      returning id into operation_id;
+      update inventory.positions set balance = positions.balance - (10 + (sequence_n * 7) % 25)
+       where id = ('da800000-0000-4000-8000-00000000000' || position_n)::uuid
+      returning positions.balance into balance;
+      insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+      values ('da000000-0000-4000-8000-00000000000a', operation_id, ('da800000-0000-4000-8000-00000000000' || position_n)::uuid,
+              -(10 + (sequence_n * 7) % 25), -(10 + (sequence_n * 7) % 25), units[position_n], balance);
+    end loop;
+  end loop;
+
+  -- Un ajuste por conteo hace una semana, con su motivo.
+  insert into inventory.operations (workspace_id, type, actor_principal_id, reason, effective_at, correlation_id)
+  values ('da000000-0000-4000-8000-00000000000a', 'adjustment', 'da200000-0000-4000-8000-000000000001', 'Conteo mensual',
+          ((now() at time zone 'America/Guayaquil')::date - 7 + make_interval(hours => 17)) at time zone 'America/Guayaquil',
+          gen_random_uuid())
+  returning id into operation_id;
+  update inventory.positions set balance = positions.balance - 2.5
+   where id = 'da800000-0000-4000-8000-000000000003'
+  returning positions.balance into balance;
+  insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+  values ('da000000-0000-4000-8000-00000000000a', operation_id, 'da800000-0000-4000-8000-000000000003', -2.5, -2.5, 'g', balance);
+end
+$$;
 
 commit;
