@@ -1,0 +1,126 @@
+/*
+  Tokens semánticos de PlatLab (ADR 0010, 01 «Dirección visual»). Solo tema claro; los nombres
+  describen el papel, no el color, para poder añadir el tema oscuro sin tocar componentes.
+  La aplicación importa este archivo después de `@import "tailwindcss"`.
+*/
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-canvas: #f5f7fb;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #eef2f7;
+  --color-ink: #102a43;
+  --color-ink-muted: #526275;
+  --color-ink-subtle: #5e6d80;
+  --color-line: #dde4ed;
+  --color-line-strong: #c3cdd9;
+
+  --color-action: #1f5f96;
+  --color-action-hover: #1a5182;
+  --color-action-pressed: #15426b;
+  --color-action-soft: #e6eef7;
+  --color-on-action: #ffffff;
+
+  --color-success: #1d7a46;
+  --color-success-soft: #e5f3ea;
+  --color-warning: #8a5a00;
+  --color-warning-soft: #fdf2d8;
+  --color-danger: #b42318;
+  --color-danger-soft: #fcebe9;
+
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-card: 14px;
+
+  --shadow-raised: 0 1px 2px rgb(16 42 67 / 0.06), 0 1px 1px rgb(16 42 67 / 0.04);
+  --shadow-overlay: 0 24px 48px -16px rgb(16 42 67 / 0.28), 0 4px 12px -4px rgb(16 42 67 / 0.12);
+
+  /* Movimiento (ADR 0010): pulsación corta, superposiciones desde su origen, hojas sin rebote. */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Entradas y salidas con curva de salida; la salida, más corta: el sistema responde rápido. */
+  --animate-fade-in: fade-in 180ms var(--ease-out-expo);
+  --animate-fade-out: fade-out 150ms var(--ease-out-expo);
+  --animate-sheet-in-right: sheet-in-right 260ms var(--ease-sheet);
+  --animate-sheet-out-right: sheet-out-right 180ms var(--ease-sheet);
+  --animate-sheet-in-bottom: sheet-in-bottom 260ms var(--ease-sheet);
+  --animate-sheet-out-bottom: sheet-out-bottom 180ms var(--ease-sheet);
+  --animate-pop-in: pop-in 160ms var(--ease-out-expo);
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes sheet-in-right {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  @keyframes sheet-out-right {
+    from { transform: translateX(0); }
+    to { transform: translateX(100%); }
+  }
+  @keyframes sheet-in-bottom {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  @keyframes sheet-out-bottom {
+    from { transform: translateY(0); }
+    to { transform: translateY(100%); }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background-color: var(--color-action-soft);
+    color: var(--color-ink);
+  }
+  input,
+  textarea {
+    caret-color: var(--color-action);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-action);
+    outline-offset: 2px;
+  }
+  * {
+    scrollbar-color: var(--color-line-strong) transparent;
+    scrollbar-width: thin;
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+}
+
+/*
+  Movimiento reducido: menos y más suave, no cero. Se conservan los fundidos que ayudan a entender
+  qué apareció; se quitan los desplazamientos y los cambios de escala.
+*/
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --animate-sheet-in-right: fade-in 180ms var(--ease-out-expo);
+    --animate-sheet-out-right: fade-out 150ms var(--ease-out-expo);
+    --animate-sheet-in-bottom: fade-in 180ms var(--ease-out-expo);
+    --animate-sheet-out-bottom: fade-out 150ms var(--ease-out-expo);
+    --animate-pop-in: fade-in 150ms var(--ease-out-expo);
+  }
+}

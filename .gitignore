@@ -15,3 +15,9 @@ supabase/.temp/
 
 # Clave local de firma de Supabase Auth (ADR 0004): se genera con `pnpm db:keys`
 supabase/signing_keys.json
+
+# Playwright y capturas de revisión de diseño (se regeneran)
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/.impeccable/review/
+apps/web/.impeccable/hook.cache.json

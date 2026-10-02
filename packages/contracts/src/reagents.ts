@@ -160,7 +160,13 @@ export const operation = z.object({
 const list = <T extends z.ZodType>(item: T) =>
   z.object({ items: z.array(item), nextCursor: z.string().nullable() });
 
-export const productList = list(product);
+/** Ubicación donde el miembro puede registrar el movimiento (su ámbito y descendencia). */
+export const location = z.object({ id: z.uuid(), code: z.string(), name: z.string(), kind: z.string() });
+
+/** En la lista, cada reactivo lleva su total en las ubicaciones que el miembro puede consultar. */
+export const productList = list(product.extend({ balance: decimalString }));
+export const lotList = z.object({ items: z.array(lot.extend({ condition: z.string() })) });
+export const locationList = z.object({ items: z.array(location) });
 export const positionList = list(position);
 export const operationList = list(operation);
 
@@ -170,5 +176,7 @@ export type MovementResponse = z.infer<typeof movementResponse>;
 export type Position = z.infer<typeof position>;
 export type Operation = z.infer<typeof operation>;
 export type ProductList = z.infer<typeof productList>;
+export type LotList = z.infer<typeof lotList>;
+export type LocationList = z.infer<typeof locationList>;
 export type PositionList = z.infer<typeof positionList>;
 export type OperationList = z.infer<typeof operationList>;

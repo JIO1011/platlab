@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-01T00:00:00Z",
+  "title": "Design System: PlatLab",
+  "source": "packages/ui/src/styles.css manda sobre estos valores si difieren.",
+  "extensions": {
+    "colorMeta": {
+      "canvas": { "role": "neutral", "displayName": "Lienzo frío", "canonical": "#f5f7fb" },
+      "surface": { "role": "neutral", "displayName": "Superficie", "canonical": "#ffffff" },
+      "surface-sunken": { "role": "neutral", "displayName": "Superficie hundida", "canonical": "#eef2f7" },
+      "ink": { "role": "neutral", "displayName": "Tinta pizarra", "canonical": "#102a43" },
+      "ink-muted": { "role": "neutral", "displayName": "Tinta atenuada", "canonical": "#526275" },
+      "ink-subtle": { "role": "neutral", "displayName": "Tinta tenue", "canonical": "#5e6d80" },
+      "line": { "role": "neutral", "displayName": "Línea", "canonical": "#dde4ed" },
+      "line-strong": { "role": "neutral", "displayName": "Línea fuerte", "canonical": "#c3cdd9" },
+      "action": { "role": "primary", "displayName": "Azul de acción", "canonical": "#1f5f96", "tonalRamp": ["#15426b", "#1a5182", "#1f5f96", "#e6eef7"] },
+      "action-hover": { "role": "primary", "displayName": "Acción al pasar", "canonical": "#1a5182" },
+      "action-pressed": { "role": "primary", "displayName": "Acción pulsada", "canonical": "#15426b" },
+      "action-soft": { "role": "primary", "displayName": "Acción suave", "canonical": "#e6eef7" },
+      "on-action": { "role": "primary", "displayName": "Sobre acción", "canonical": "#ffffff" },
+      "success": { "role": "status", "displayName": "Éxito", "canonical": "#1d7a46" },
+      "success-soft": { "role": "status", "displayName": "Éxito suave", "canonical": "#e5f3ea" },
+      "warning": { "role": "status", "displayName": "Aviso", "canonical": "#8a5a00" },
+      "warning-soft": { "role": "status", "displayName": "Aviso suave", "canonical": "#fdf2d8" },
+      "danger": { "role": "status", "displayName": "Peligro", "canonical": "#b42318" },
+      "danger-soft": { "role": "status", "displayName": "Peligro suave", "canonical": "#fcebe9" }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "Título de página." },
+      "title": { "displayName": "Title", "purpose": "Título de hoja y total por reactivo." },
+      "body": { "displayName": "Body", "purpose": "Tablas, campos, botones y navegación." },
+      "meta": { "displayName": "Meta", "purpose": "Actualizado hace…, ayudas, errores de campo, código y CAS." },
+      "label": { "displayName": "Label", "purpose": "Solo encabezados de columna de tabla, en mayúsculas." },
+      "quantity": { "displayName": "Quantity", "purpose": "Cantidades y saldos: cifras tabulares, alineadas a la derecha, unidad atenuada." }
+    },
+    "shadows": [
+      { "name": "raised", "value": "0 1px 2px rgb(16 42 67 / 0.06), 0 1px 1px rgb(16 42 67 / 0.04)", "purpose": "Paneles de tabla y botón primario." },
+      { "name": "overlay", "value": "0 24px 48px -16px rgb(16 42 67 / 0.28), 0 4px 12px -4px rgb(16 42 67 / 0.12)", "purpose": "Hojas, menú del Select y avisos." }
+    ],
+    "motion": [
+      { "name": "ease-out-expo", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Pulsación, fundidos y menús." },
+      { "name": "ease-sheet", "value": "cubic-bezier(0.32, 0.72, 0, 1)", "purpose": "Curva de cajón sin rebote para hojas." },
+      { "name": "press", "value": "150ms ease-out-expo, scale 0.98", "purpose": "Pulsación de botón, solo con movimiento permitido." },
+      { "name": "fade-in", "value": "180ms ease-out-expo", "purpose": "Entrada de velos de superposición." },
+      { "name": "fade-out", "value": "140ms ease-out-expo", "purpose": "Salida de velos; más corta que la entrada." },
+      { "name": "pop-in", "value": "160ms ease-out-expo", "purpose": "Menú del Select desde su origen." },
+      { "name": "sheet-in", "value": "260ms ease-sheet", "purpose": "Entrada de hoja lateral o inferior (spring sin rebote, ADR 0010)." },
+      { "name": "sheet-out", "value": "180ms ease-sheet", "purpose": "Salida de hoja." },
+      { "name": "reduced-motion", "value": "hojas y menús → fade-in 180ms / fade-out 140ms", "purpose": "Se quitan desplazamientos y escalas; se conservan los fundidos." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón primario",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "La única acción primaria de la sección (p. ej., Registrar salida).",
+      "html": "<button class=\"ds-btn-primary\">Registrar salida</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 16px; border:0; border-radius:var(--radius-control,8px); background:var(--color-action,#1f5f96); color:var(--color-on-action,#fff); font:500 14px 'Inter Variable',system-ui,sans-serif; box-shadow:0 1px 2px rgb(16 42 67 / 0.06),0 1px 1px rgb(16 42 67 / 0.04); transition:background-color 150ms cubic-bezier(0.16,1,0.3,1), transform 150ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-primary:hover { background:var(--color-action-hover,#1a5182); } .ds-btn-primary:active { background:var(--color-action-pressed,#15426b); transform:scale(0.98); } .ds-btn-primary:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; }"
+    },
+    {
+      "name": "Botón secundario",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Variante por defecto para las demás acciones de la barra de página.",
+      "html": "<button class=\"ds-btn-secondary\">Registrar ingreso</button>",
+      "css": ".ds-btn-secondary { display:inline-flex; align-items:center; height:40px; padding:0 16px; border:1px solid var(--color-line-strong,#c3cdd9); border-radius:var(--radius-control,8px); background:var(--color-surface,#fff); color:var(--color-ink,#102a43); font:500 14px 'Inter Variable',system-ui,sans-serif; transition:background-color 150ms cubic-bezier(0.16,1,0.3,1), transform 150ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-secondary:hover { background:var(--color-surface-sunken,#eef2f7); } .ds-btn-secondary:active { transform:scale(0.98); } .ds-btn-secondary:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; }"
+    },
+    {
+      "name": "Botón fantasma",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Acciones por fila (Salida, Ajustar) y Cancelar en hojas.",
+      "html": "<button class=\"ds-btn-ghost\">Salida</button>",
+      "css": ".ds-btn-ghost { height:32px; padding:0 12px; border:0; border-radius:var(--radius-control,8px); background:transparent; color:var(--color-ink-muted,#526275); font:500 13px 'Inter Variable',system-ui,sans-serif; transition:background-color 150ms, color 150ms; } .ds-btn-ghost:hover { background:var(--color-surface-sunken,#eef2f7); color:var(--color-ink,#102a43); } .ds-btn-ghost:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; }"
+    },
+    {
+      "name": "Campo de cantidad",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Field con etiqueta, entrada decimal con unidad dentro y vista previa «Se registrará …».",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-q\">Cantidad</label><div class=\"ds-field-wrap\"><input id=\"ds-q\" class=\"ds-input\" inputmode=\"decimal\" value=\"12,5\"><span class=\"ds-field-unit\">g</span></div><p class=\"ds-field-hint\">Se registrará <b>−12,5</b> g</p></div>",
+      "css": ".ds-field { display:grid; gap:6px; font-family:'Inter Variable',system-ui,sans-serif; } .ds-field-label { font-size:14px; font-weight:500; color:var(--color-ink,#102a43); } .ds-field-wrap { position:relative; } .ds-input { width:100%; height:40px; padding:0 56px 0 12px; border:1px solid var(--color-line-strong,#c3cdd9); border-radius:var(--radius-control,8px); background:var(--color-surface,#fff); color:var(--color-ink,#102a43); font-size:14px; font-variant-numeric:tabular-nums; transition:border-color 150ms, box-shadow 150ms; } .ds-input:hover { border-color:var(--color-ink-subtle,#5e6d80); } .ds-input:focus-visible { outline:none; border-color:var(--color-action,#1f5f96); box-shadow:0 0 0 3px rgb(31 95 150 / 0.2); } .ds-field-unit { position:absolute; inset:0 12px 0 auto; display:flex; align-items:center; font-size:14px; color:var(--color-ink-muted,#526275); pointer-events:none; } .ds-field-hint { margin:0; font-size:13px; color:var(--color-ink-muted,#526275); } .ds-field-hint b { color:var(--color-ink,#102a43); font-weight:500; font-variant-numeric:tabular-nums; }"
+    },
+    {
+      "name": "Navegación lateral",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Inicio y los módulos visibles para el rol; activo en acción suave.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\" href=\"#\">Inicio</a><a class=\"ds-nav-item ds-nav-active\" href=\"#\" aria-current=\"page\">Reactivos</a></nav>",
+      "css": ".ds-nav { display:flex; flex-direction:column; gap:4px; width:224px; padding:12px; font-family:'Inter Variable',system-ui,sans-serif; } .ds-nav-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius-control,8px); font-size:14px; font-weight:500; color:var(--color-ink-muted,#526275); text-decoration:none; transition:background-color 150ms, color 150ms; } .ds-nav-item:hover { background:var(--color-surface-sunken,#eef2f7); color:var(--color-ink,#102a43); } .ds-nav-active, .ds-nav-active:hover { background:var(--color-action-soft,#e6eef7); color:var(--color-action,#1f5f96); } .ds-nav-item:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; }"
+    },
+    {
+      "name": "Badge de estado",
+      "kind": "chip",
+      "refersTo": "badge-warning",
+      "description": "Estado siempre con texto; aquí, caducidad desconocida.",
+      "html": "<span class=\"ds-badge ds-badge-warning\">Caducidad desconocida</span> <span class=\"ds-badge ds-badge-success\">Vigente</span>",
+      "css": ".ds-badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:9999px; font:500 12px 'Inter Variable',system-ui,sans-serif; } .ds-badge-warning { background:var(--color-warning-soft,#fdf2d8); color:var(--color-warning,#8a5a00); } .ds-badge-success { background:var(--color-success-soft,#e5f3ea); color:var(--color-success,#1d7a46); }"
+    },
+    {
+      "name": "Inventario producto → lote → ubicación",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "Reactivo con su total en la fila de grupo y lotes con sangría; saldo como columna dominante.",
+      "html": "<div class=\"ds-inv\"><table><thead><tr><th>Lote</th><th>Ubicación</th><th class=\"ds-num\">Saldo</th></tr></thead><tbody><tr class=\"ds-inv-group\"><th colspan=\"2\">Cloruro de sodio<span>NACL-01 · CAS 7647-14-5</span></th><td class=\"ds-num ds-inv-total\">1.280,5 <small>g</small></td></tr><tr class=\"ds-inv-row\"><td class=\"ds-inv-lot\">L-0042</td><td>Almacén de reactivos</td><td class=\"ds-num ds-inv-bal\">80 <small>g</small></td></tr></tbody></table></div>",
+      "css": ".ds-inv { overflow:hidden; border:1px solid var(--color-line,#dde4ed); border-radius:var(--radius-panel,12px); background:var(--color-surface,#fff); box-shadow:0 1px 2px rgb(16 42 67 / 0.06),0 1px 1px rgb(16 42 67 / 0.04); font:14px 'Inter Variable',system-ui,sans-serif; color:var(--color-ink,#102a43); } .ds-inv table { width:100%; border-collapse:collapse; } .ds-inv thead { background:rgb(238 242 247 / 0.6); border-bottom:1px solid var(--color-line,#dde4ed); } .ds-inv thead th { height:40px; padding:0 16px; text-align:left; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:var(--color-ink-muted,#526275); } .ds-inv .ds-num { text-align:right; font-variant-numeric:tabular-nums; } .ds-inv-group th { padding:16px 16px 8px; text-align:left; font-weight:600; } .ds-inv-group th span { display:block; margin-top:2px; font-size:13px; font-weight:400; color:var(--color-ink-muted,#526275); } .ds-inv-group td { padding:16px 16px 8px; } .ds-inv-total { font-size:18px; font-weight:600; } .ds-inv small { font-size:inherit; font-weight:400; color:var(--color-ink-muted,#526275); } .ds-inv-row { border-top:1px solid var(--color-line,#dde4ed); transition:background-color 150ms; } .ds-inv-row:hover { background:var(--color-canvas,#f5f7fb); } .ds-inv-row td { padding:12px 16px; } .ds-inv-lot { padding-left:32px !important; font-weight:500; } .ds-inv-bal { font-size:16px; font-weight:600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "El libro de saldos",
+    "overview": "Cada pantalla responde primero «¿cuánto hay, dónde y quién lo movió?». La interfaz es una herramienta de trabajo densa y tranquila: lienzo frío, paneles blancos con borde fino, una sola voz de acción y cifras grandes alineadas a la derecha con su unidad. El historial se lee como un libro: nada se edita, todo queda firmado. La dirección y sus motivos están en 01 §7 y en el ADR 0010.",
+    "keyCharacteristics": [
+      "El saldo es la columna dominante; las cantidades llevan siempre su unidad atenuada.",
+      "Una acción primaria por sección; el resto son botones secundarios o fantasma.",
+      "Profundidad por tono y borde fino; sombra solo en paneles y superposiciones.",
+      "El servidor confirma antes de que la pantalla cambie."
+    ],
+    "rules": [
+      { "name": "La regla de la voz única", "body": "Solo `action` invita a actuar. Los tipos de movimiento (ingreso, salida, ajuste) no son estados: se distinguen por icono y texto, nunca con colores de alerta.", "section": "colors" },
+      { "name": "La regla del texto obligatorio", "body": "Ningún estado se comunica solo con color: todo Badge y todo aviso lleva texto.", "section": "colors" },
+      { "name": "La regla de la cifra tabular", "body": "Toda cantidad, saldo o detalle numérico usa `tabular-nums` y se alinea a la derecha.", "section": "typography" },
+      { "name": "La regla del contacto", "body": "Las sombras no decoran: solo separan lo que flota (superposiciones) o lo que se trabaja (panel de tabla).", "section": "elevation" }
+    ],
+    "dos": [
+      "Do usar los tokens semánticos de `packages/ui/src/styles.css`; nunca un color literal en un componente.",
+      "Do mostrar toda cantidad con Quantity: cadena decimal, coma es-EC, cifras tabulares, unidad atenuada, alineada a la derecha.",
+      "Do agrupar el inventario producto → lote → ubicación con el total por reactivo, y pasar a lista apilada por debajo de 768 px.",
+      "Do registrar movimientos en una Sheet con una sola acción primaria al pie.",
+      "Do mostrar «Actualizado hace…» con un botón Actualizar; nunca prometer «en vivo».",
+      "Do diseñar carga, vacío, error, sin permiso y módulo no disponible como estados distintos con StatePanel."
+    ],
+    "donts": [
+      "Don't usar UI optimista sobre existencias: la tabla se refresca con lo confirmado por el servidor.",
+      "Don't ofrecer «deshacer» en un movimiento confirmado: se corrige con otro movimiento (ajuste).",
+      "Don't comunicar un estado solo con color ni pintar los tipos de movimiento con colores de alerta.",
+      "Don't mostrar acciones que el rol no permite: se ocultan y la API las rechaza igual.",
+      "Don't animar en bucle, animar filas ni usar rebote.",
+      "Don't pasar una cantidad por `number` en la interfaz."
+    ]
+  }
+}

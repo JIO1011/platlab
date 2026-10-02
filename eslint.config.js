@@ -21,8 +21,13 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
-    files: ['apps/web/**/*.{ts,tsx}'],
+    files: ['apps/web/**/*.{ts,tsx}', 'packages/ui/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
+  },
+  {
+    // Configuración y pruebas de extremo a extremo de la web corren en Node.
+    files: ['apps/web/vite.config.ts', 'apps/web/playwright.config.ts', 'apps/web/e2e/**/*.ts'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {
     files: ['**/*.cjs'],

@@ -13,6 +13,7 @@ Revisión: 1 de octubre de 2026. Registro resumido de decisiones de arquitectura
 | [0007](#adr-0007) | Asignación y aprobación condicionada | Aceptado el 29-09-2026; actor actualizado el 30-09-2026 |
 | [0008](#adr-0008) | Roles y actores | Aceptado el 30-09-2026; la matriz detallada se valida en P-03 |
 | [0009](#adr-0009) | Etapas de módulo y admisión de operaciones | Aceptado el 30-09-2026; marca de ambiente el 01-10-2026 |
+| [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026; se aplica desde el paso 5 del primer incremento |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -151,6 +152,24 @@ Motivo:
 Cambio del 30-09-2026: la tabla única pasa a dos ejes con denegación por defecto, con rutas por módulo y admisión bajo bloqueo.
 
 Cambio del 01-10-2026: el ambiente se marca en la base (`platform.environment`), que nace como datos reales. Solo el seed local o de CI y el aprovisionamiento de staging o demo lo marcan como sintético. Si se olvida marcarlo, un módulo en `development` se deniega: el error siempre cae del lado seguro. Un contrato de tipo `demo` solo se admite en un ambiente sintético.
+
+<a id="adr-0010"></a>
+## ADR 0010 — Sistema de diseño y movimiento
+
+- **Dirección.** Precisión operativa con calma: las pautas de Apple (HIG) aplicadas a una aplicación de trabajo. Parte de 01 «Dirección visual» y del stack de 02 §2; los documentos de diseño que generen las herramientas solo enlazan aquí, a 01 y a 02.
+- **Tokens.** Semánticos, en `packages/ui`. Solo tema claro, pero preparado para el oscuro. Inter, con cifras tabulares (`tabular-nums`) en cantidades y saldos.
+- **Componentes.** shadcn como código propio sobre Radix, TanStack Table para tablas, Sonner para avisos, cmdk para la salida rápida y hoja lateral o inferior para los formularios de movimiento.
+- **Movimiento.**
+  - Pulsación de 100–150 ms con CSS.
+  - Superposiciones de 150–200 ms que nacen de su origen.
+  - Spring sin rebote para hojas y fichas.
+  - Se respeta `prefers-reduced-motion`.
+  - Nunca se animan filas, escritura ni bucles.
+- **Dominio por encima del estilo.** No hay UI optimista sobre existencias ni «deshacer» en un movimiento confirmado: se corrige con otro movimiento.
+- **Verificación.** Playwright con axe (WCAG 2.2 AA) en CI. Antes de cerrar una entrega con UI: `impeccable audit`, `harden` y `polish`, y `review-animations`.
+- **Orden.** Tokens y estructura base → acceso, selector de espacio e Inicio → tablero de Reactivos y «Registrar salida».
+
+Motivo: una app que se usa todo el día necesita jerarquía clara, estados honestos y movimiento que explique, no que decore.
 
 ## Pendientes
 

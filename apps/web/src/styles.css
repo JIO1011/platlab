@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@import "@platlab/ui/styles.css";
+
+/* Los componentes de packages/ui también generan utilidades. */
+@source "../../../packages/ui/src";

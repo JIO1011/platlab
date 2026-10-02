@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado del proyecto
 
-PlatLab es un SaaS modular para laboratorios. T-01 está implementado: monorepo pnpm (`apps/server`, `apps/web`, `packages/contracts`, `packages/modules`), Supabase local, PgTyped y CI. T-02/T-03 añaden Core (`core`, `platform`), RLS, JWT por JWKS y `GET /v1/me/workspaces`. T-04/T-05 añaden el registro de módulos, los derechos por `platform.apply_contract_revision`, la admisión de dos ejes (`core.admission`, con `withModuleAccess`), `/me` con módulos, `/home`, auditoría e idempotencia. R-00 añade la capacidad `inventory` (ledger con saldo verificado contra sus asientos) y el módulo `reagents` con sus rutas `/v1/workspaces/:workspaceId/reagents/*`. No hay infraestructura desplegada.
+PlatLab es un SaaS modular para laboratorios. T-01 está implementado: monorepo pnpm (`apps/server`, `apps/web`, `packages/contracts`, `packages/modules`), Supabase local, PgTyped y CI. T-02/T-03 añaden Core (`core`, `platform`), RLS, JWT por JWKS y `GET /v1/me/workspaces`. T-04/T-05 añaden el registro de módulos, los derechos por `platform.apply_contract_revision`, la admisión de dos ejes (`core.admission`, con `withModuleAccess`), `/me` con módulos, `/home`, auditoría e idempotencia. R-00 añade la capacidad `inventory` (ledger con saldo verificado contra sus asientos) y el módulo `reagents` con sus rutas `/v1/workspaces/:workspaceId/reagents/*`. El paso 5 añade `packages/ui` (tokens del ADR 0010 y componentes propios) y la web: acceso, selector de espacio, Inicio y tablero de Reactivos. No hay infraestructura desplegada.
 
 ## Comandos
 
@@ -21,6 +21,8 @@ Requisitos: Node 24 (`.nvmrc`), pnpm 11 y Docker en ejecución. La CLI de Supaba
 | pgTAP | `pnpm test:db` |
 | Integración (rol de runtime y Auth local) | `pnpm test:int` (requiere `pnpm db:start`) |
 | API / web en desarrollo | `pnpm --filter @platlab/server dev` · `pnpm --filter @platlab/web dev` |
+| Flujo de G0 en el navegador | `pnpm e2e` (Playwright + axe; requiere `pnpm db:start`; levanta la API y la vista previa; la primera vez, `pnpm --filter @platlab/web exec playwright install chromium`) |
+| Demo local | Tras `pnpm db:start`, la API y la web en desarrollo: http://localhost:5173 con las cuentas de `supabase/seeds/demo.sql` (contraseña `platlab-demo`) |
 
 Una sola prueba: `pnpm --filter @platlab/server exec vitest run src/app.test.ts` o filtrar por nombre con `-t "texto"`. Un solo archivo pgTAP: `pnpm supabase test db supabase/tests/database/runtime_role.test.sql`.
 

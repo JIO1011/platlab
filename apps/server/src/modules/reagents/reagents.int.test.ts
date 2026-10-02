@@ -3,6 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   errorResponse,
   homeResponse,
+  locationList,
+  lotList,
   lot as lotContract,
   movementResponse,
   operationList,
@@ -156,6 +158,8 @@ describe('G0 · recorrido visible', () => {
     expect(positions.items).toEqual([
       expect.objectContaining({ id: receiptBody.positionId, balance: '79.5', unit: 'g' }),
     ]);
+    const catalog = productList.parse((await call(lab.operator.subject, `${lab.base}/products`)).body);
+    expect(catalog.items).toEqual([expect.objectContaining({ id: product.id, balance: '79.5' })]);
 
     const history = operationList.parse((await call(lab.operator.subject, `${lab.base}/operations`)).body);
     expect(
@@ -174,7 +178,7 @@ describe('G0 · recorrido visible', () => {
 
     const home = homeResponse.parse((await call(lab.adminMember.subject, `/workspaces/${lab.workspace.id}/home`)).body);
     expect(home.cards).toEqual([
-      { moduleCode: 'reagents', name: 'Reactivos', summary: { products: 1, positionsWithStock: 1 } },
+      { moduleCode: 'reagents', name: 'Reactivos', summary: { productsWithStock: 1, positionsWithStock: 1 } },
     ]);
   });
 });
@@ -564,5 +568,37 @@ describe('validación y consultas', () => {
     );
     const all = operationList.parse((await call(lab.operator.subject, `${lab.base}/operations?limit=50`)).body);
     expect([...history.items, ...rest.items].map((o) => o.id)).toEqual(all.items.map((o) => o.id));
+  });
+});
+
+describe('consultas de apoyo a la interfaz', () => {
+  it('lista los lotes de un reactivo y las ubicaciones donde el miembro puede registrar ingresos', async () => {
+    const lab = await createLab();
+    const { product, lot } = await createProductAndLot(lab);
+    const lots = lotList.parse((await call(lab.operator.subject, `${lab.base}/products/${product.id}/lots`)).body);
+    expect(lots.items).toEqual([expect.objectContaining({ id: lot.id, code: 'L-001', condition: 'enabled' })]);
+
+    const scoped = await addMember(admin, lab.workspace.id, {
+      roles: [{ role: 'operator', locationId: lab.storage }],
+    });
+    const scopedLocations = locationList.parse((await call(scoped.subject, `${lab.base}/receipt-locations`)).body);
+    expect(scopedLocations.items.map((l) => l.id)).toEqual([lab.storage]);
+    const allLocations = locationList.parse((await call(lab.adminMember.subject, `${lab.base}/receipt-locations`)).body);
+    expect(allLocations.items.map((l) => l.id)).toEqual(expect.arrayContaining([lab.storage, lab.otherStorage]));
+  });
+
+  it('los lotes de un ítem de otro tipo no se listan', async () => {
+    const lab = await createLab();
+    const item = await admin.query<{ id: string }>(
+      `insert into inventory.items (workspace_id, kind, code, name, base_unit)
+       values ($1, 'material', $2, 'Gradilla', 'u') returning id`,
+      [lab.workspace.id, `MAT-${uniqueSuffix()}`],
+    );
+    await admin.query(`insert into inventory.lots (workspace_id, item_id, code) values ($1, $2, 'M-1')`, [
+      lab.workspace.id,
+      item.rows[0]!.id,
+    ]);
+    const lots = lotList.parse((await call(lab.adminMember.subject, `${lab.base}/products/${item.rows[0]!.id}/lots`)).body);
+    expect(lots.items).toEqual([]);
   });
 });

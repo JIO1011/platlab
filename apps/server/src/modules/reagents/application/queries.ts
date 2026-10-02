@@ -1,6 +1,8 @@
 import type pg from 'pg';
 import type { z } from 'zod';
 import type {
+  LocationList,
+  LotList,
   OperationList,
   operationListQuery,
   PositionList,
@@ -17,7 +19,12 @@ import {
   withModuleAccess,
   type WorkspaceAccess,
 } from '../../core/index.js';
-import { homeSummary, listProducts as listProductsQuery } from '../infrastructure/products.queries.js';
+import {
+  homeSummary,
+  listLocationsIn,
+  listProductLots,
+  listProducts as listProductsQuery,
+} from '../infrastructure/products.queries.js';
 import { inventoryContext } from './commands.js';
 
 const READ = 'reagents.catalog.read';
@@ -63,6 +70,7 @@ export function listProducts(
     const rows = await listProductsQuery.run(
       {
         workspaceId: access.workspace.id,
+        locationIds: await permissionScope(access, READ),
         afterCode: after?.[0] ?? null,
         afterId: after?.[1] ?? null,
         limit: query.limit + 1,
@@ -79,6 +87,7 @@ export function listProducts(
         baseUnit: row.base_unit,
         casNumber: row.cas_number,
         physicalState: row.physical_state as Product['physicalState'],
+        balance: row.balance,
       })),
       nextCursor:
         rows.length > query.limit && last
@@ -120,14 +129,41 @@ export function listOperations(
   );
 }
 
-/** Tarjeta de Inicio (01 §7): productos del catálogo y posiciones con existencias consultables. */
+/** Tarjeta de Inicio (01 §7): reactivos y ubicaciones con existencias que el miembro puede consultar. */
 export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<Record<string, number>> {
   const [row] = await homeSummary.run(
     { workspaceId: access.workspace.id, locationIds: await permissionScope(access, READ) },
     access.client,
   );
   return {
-    products: Number(row?.products ?? 0),
+    productsWithStock: Number(row?.products_with_stock ?? 0),
     positionsWithStock: Number(row?.positions_with_stock ?? 0),
   };
+}
+
+/** Lotes de un reactivo; uno de otro espacio o de otro tipo no tiene lotes visibles. */
+export function listLots(pool: pg.Pool, request: QueryRequest, productId: string): Promise<LotList> {
+  return runQuery(pool, request, async (access) => {
+    const rows = await listProductLots.run({ workspaceId: access.workspace.id, itemId: productId }, access.client);
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        productId: row.item_id,
+        code: row.code,
+        supplierName: row.supplier_name,
+        supplierLot: row.supplier_lot,
+        expiresOn: row.expires_on,
+        condition: row.condition,
+      })),
+    };
+  });
+}
+
+/** Ubicaciones donde el miembro puede registrar ingresos: la interfaz no ofrece las demás. */
+export function listReceiptLocations(pool: pg.Pool, request: QueryRequest): Promise<LocationList> {
+  return runQuery(pool, request, async (access) => {
+    const scope = await permissionScope(access, 'reagents.receipt.create');
+    const rows = await listLocationsIn.run({ workspaceId: access.workspace.id, locationIds: scope }, access.client);
+    return { items: rows.map(({ id, code, name, kind }) => ({ id, code, name, kind })) };
+  });
 }

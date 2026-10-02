@@ -6,6 +6,7 @@ VALUES (:workspaceId!, :itemId!, :casNumber, :physicalState)
 RETURNING cas_number, physical_state;
 
 /* @name listProducts */
+-- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.
 SELECT
   i.id,
   i.code,
@@ -13,6 +14,11 @@ SELECT
   i.base_unit,
   r.cas_number,
   r.physical_state,
+  (SELECT trim_scale(coalesce(sum(p.balance), 0))
+     FROM inventory.positions AS p
+    WHERE p.workspace_id = i.workspace_id
+      AND p.item_id = i.id
+      AND p.location_id = ANY (:locationIds!::uuid[])) AS "balance!",
   lower(i.code) AS "sort_code!"
 FROM inventory.items AS i
 JOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id
@@ -24,12 +30,15 @@ ORDER BY lower(i.code), i.id
 LIMIT :limit!;
 
 /* @name homeSummary */
--- Contadores de la tarjeta de Inicio, solo en las ubicaciones que el miembro puede consultar.
+-- Contadores de la tarjeta de Inicio: inventario que el miembro puede consultar, no filas del catálogo.
 SELECT
-  (SELECT count(*)
-     FROM inventory.items AS i
-     JOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id
-    WHERE i.workspace_id = :workspaceId! AND i.archived_at IS NULL) AS "products!",
+  (SELECT count(DISTINCT p.item_id)
+     FROM inventory.positions AS p
+     JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+    WHERE p.workspace_id = :workspaceId!
+      AND i.kind = 'reagent'
+      AND p.balance > 0
+      AND p.location_id = ANY (:locationIds!::uuid[])) AS "products_with_stock!",
   (SELECT count(*)
      FROM inventory.positions AS p
      JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
@@ -37,3 +46,23 @@ SELECT
       AND i.kind = 'reagent'
       AND p.balance > 0
       AND p.location_id = ANY (:locationIds!::uuid[])) AS "positions_with_stock!";
+
+/* @name listProductLots */
+-- Lotes de un reactivo del espacio, para elegirlos al registrar un ingreso.
+SELECT l.id, l.item_id, l.code, l.supplier_name, l.supplier_lot, l.expires_on, l.condition
+FROM inventory.lots AS l
+JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
+WHERE l.workspace_id = :workspaceId!
+  AND l.item_id = :itemId!
+  AND i.kind = 'reagent'
+  AND i.archived_at IS NULL
+ORDER BY l.expires_on NULLS LAST, lower(l.code), l.id
+LIMIT 200;
+
+/* @name listLocationsIn */
+SELECT id, code, name, kind
+FROM core.locations
+WHERE workspace_id = :workspaceId!
+  AND id = ANY (:locationIds!::uuid[])
+  AND archived_at IS NULL
+ORDER BY lower(code), id;

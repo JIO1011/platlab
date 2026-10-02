@@ -22,7 +22,13 @@ import {
   registerReceipt,
   type CommandRequest,
 } from '../application/commands.js';
-import { listOperations, listPositions, listProducts } from '../application/queries.js';
+import {
+  listLots,
+  listOperations,
+  listPositions,
+  listProducts,
+  listReceiptLocations,
+} from '../application/queries.js';
 
 const queryRequest = (request: FastifyRequest) => ({
   subject: verifiedSubject(request),
@@ -48,6 +54,12 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
       const input = createProductRequest.parse(request.body);
       return reply.status(201).send(await createProduct(pool, commandRequest(request), input));
     });
+
+    app.get('/products/:productId/lots', async (request) =>
+      listLots(pool, queryRequest(request), productParams.parse(request.params).productId),
+    );
+
+    app.get('/receipt-locations', async (request) => listReceiptLocations(pool, queryRequest(request)));
 
     app.post('/products/:productId/lots', async (request, reply) => {
       const { productId } = productParams.parse(request.params);
