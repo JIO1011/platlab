@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { decimalString } from './decimal.js';
 
 /** Estados en los que un miembro todavía ve el espacio (eje espacio de la admisión, 02 §6). */
 export const visibleWorkspaceStatus = z.enum(['trial', 'active', 'suspended', 'closing']);
@@ -56,12 +57,26 @@ export const workspaceMeResponse = z.object({
  * GET /v1/workspaces/:workspaceId/home: tarjetas de los módulos visibles. Cada módulo aporta
  * contadores accionables con claves propias (01 §7); null si el módulo todavía no tiene resumen.
  */
+/** Movimiento reciente que un módulo muestra en Inicio, ya filtrado por el ámbito del miembro. */
+export const homeActivity = z.object({
+  id: z.uuid(),
+  /** Tipo propio del módulo (en Reactivos: receipt, issue o adjustment). */
+  type: z.string(),
+  title: z.string(),
+  detail: z.string(),
+  quantity: decimalString,
+  unit: z.string(),
+  occurredAt: z.iso.datetime({ offset: true }),
+  actor: z.string().nullable(),
+});
+
 export const homeResponse = z.object({
   cards: z.array(
     z.object({
       moduleCode: z.string(),
       name: z.string(),
       summary: z.record(z.string(), z.number().int().nonnegative()).nullable(),
+      activity: z.array(homeActivity).max(10),
     }),
   ),
 });
@@ -72,3 +87,4 @@ export type MyWorkspacesResponse = z.infer<typeof myWorkspacesResponse>;
 export type ModuleAccess = z.infer<typeof moduleAccess>;
 export type WorkspaceMeResponse = z.infer<typeof workspaceMeResponse>;
 export type HomeResponse = z.infer<typeof homeResponse>;
+export type HomeActivity = z.infer<typeof homeActivity>;

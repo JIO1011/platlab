@@ -1,6 +1,6 @@
 # PlatLab — hilo del proyecto
 
-Revisión: 1 de octubre de 2026. Estado: primer incremento en construcción (T-01 a T-05 y R-00 por API cerrados; interfaz del paso 5 verificada en local); sin infraestructura desplegada ni datos reales.
+Revisión: 2 de octubre de 2026. Estado: primer incremento en construcción (T-01 a T-05, R-00 por API e interfaz del paso 5 con CI en verde; rediseño «precisión suave» verificado en local); sin infraestructura desplegada ni datos reales.
 
 ## Qué es
 
@@ -12,7 +12,7 @@ SaaS modular para gestionar laboratorios de varias instituciones: reactivos, equ
 |---|---|
 | Diseño | Cerrado para el primer incremento; decisiones en [05](05_decisiones.md) |
 | Hecho | T-01 (monorepo y CI), T-02/T-03 (Core, RLS, JWT por JWKS, roles con ámbito) y T-04/T-05 (derechos por contrato, admisión de dos ejes bajo bloqueo, `/me` y `/home`, auditoría e idempotencia); evidencias en [desarrollo/evidencias](desarrollo/evidencias/) |
-| En curso | Paso 5 (R-00/V-00): interfaz de acceso, selector, Inicio y tablero de Reactivos con el [ADR 0010](05_decisiones.md#adr-0010), demo A/B/C y flujo Playwright con axe |
+| En curso | Paso 5 (R-00/V-00): interfaz de acceso, selector, Inicio y tablero de Reactivos con el [ADR 0010](05_decisiones.md#adr-0010) y su nota «precisión suave» del 02-10-2026, demo A/B/C y flujo Playwright con axe |
 | Siguiente paso | Comentarios del usuario sobre la demo y cierre de G0: Reactivos pasa a etapa `pilot` (V-00); después F1b y F2 en paralelo ([roadmap](04_roadmap.md)) |
 | Primera puerta | G0: demo sintética con dos espacios aislados ([roadmap](04_roadmap.md)) |
 | En paralelo | F0 con el laboratorio interesado: fiscalizados (REG-01) y prácticas (P-04) |

@@ -229,12 +229,15 @@ Inventario: tabla producto → lotes → ubicaciones, con filtros, orden y expor
 - La ficha de un equipo tiene pestañas Información, Reservas, Historial, Mantenimiento e Incidencias, según los módulos contratados.
 - Nueva práctica: Plantilla → Fecha y condiciones → Recursos → Revisión. La agenda se ve por laboratorio y franja, con vista de lista en el móvil.
 
-Dirección visual (tomada del PDF, más sobria):
+Dirección visual (tomada del PDF, más sobria; «precisión suave» desde el 02-10-2026, [ADR 0010](05_decisiones.md#adr-0010)):
 
 - Colores: fondo `#F5F7FB`, superficie blanca, texto `#102A43`/`#526275` y acción `#1F5F96`.
 - Estados en verde, ámbar o rojo, siempre con texto y no solo con color.
-- Inter; bordes de 8 px en controles y de 12–16 px en tarjetas.
+- Inter; títulos y cifras grandes, con cifras tabulares.
+- Bordes de 10 px en controles, 20 px en paneles y 24 px en tarjetas; píldora en pestañas y filtros.
+- Navegación y barra superior como paneles flotantes con sombras suaves en capas.
 - Una acción primaria por sección; objetivo WCAG 2.2 AA; foco visible e iconos con etiqueta.
+- Sin imágenes decorativas, vidrio ni gráficos sin dato real.
 
 Situaciones que siempre se diseñan:
 

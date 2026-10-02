@@ -25,7 +25,7 @@ export function WorkspacePicker() {
   if (list.length === 1 && list[0]) return <Navigate to={`/e/${list[0].id}`} replace />;
 
   return (
-    <main className="min-h-dvh bg-canvas px-4 py-10">
+    <main className="min-h-dvh px-4 py-10">
       <div className="mx-auto w-full max-w-[520px]">
         <div className="flex items-center justify-between">
           <Wordmark className="text-lg" />
@@ -42,14 +42,14 @@ export function WorkspacePicker() {
           />
         ) : (
           <>
-            <h1 className="mt-10 text-2xl font-semibold tracking-[-0.02em] text-ink">Elige un espacio de trabajo</h1>
+            <h1 className="mt-10 text-display text-ink">Elige un espacio de trabajo</h1>
             <p className="mt-1.5 text-sm text-ink-muted">Cada espacio tiene sus propios datos, módulos y roles.</p>
-            <ul className="mt-6 overflow-hidden rounded-panel border border-line bg-surface shadow-raised">
+            <ul className="mt-6 overflow-hidden rounded-card bg-surface p-2 shadow-float">
               {list.map((workspace, index) => (
-                <li key={workspace.id} className={index > 0 ? 'border-t border-line' : undefined}>
+                <li key={workspace.id} className={index > 0 ? 'mt-1' : undefined}>
                   <Link
                     to={`/e/${workspace.id}`}
-                    className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-canvas"
+                    className="group flex items-center gap-4 rounded-panel px-4 py-4 transition-colors hover:bg-canvas"
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium text-ink">{workspace.name}</span>

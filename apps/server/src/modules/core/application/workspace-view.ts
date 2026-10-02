@@ -1,4 +1,4 @@
-import type { HomeResponse, ModuleAccess } from '@platlab/contracts';
+import type { HomeActivity, HomeResponse, ModuleAccess } from '@platlab/contracts';
 import { actionClass } from '@platlab/contracts';
 import { moduleRegistry } from '@platlab/modules';
 import { listModuleAccess } from '../infrastructure/access.queries.js';
@@ -40,8 +40,14 @@ export async function describeWorkspace(access: WorkspaceAccess): Promise<Worksp
   return { modules, permissions };
 }
 
-/** Resumen que cada módulo aporta a su tarjeta; Core no importa módulos, se los pasa la composición. */
-export type HomeSummaries = Record<string, (access: WorkspaceAccess) => Promise<Record<string, number>>>;
+/** Lo que cada módulo aporta a su tarjeta de Inicio: contadores y actividad reciente. */
+export interface HomeContribution {
+  summary: Record<string, number>;
+  activity: HomeActivity[];
+}
+
+/** Core no importa módulos: la composición le pasa la aportación de cada uno (02 §3). */
+export type HomeSummaries = Record<string, (access: WorkspaceAccess) => Promise<HomeContribution>>;
 
 /** Tarjetas de Inicio: módulos que se pueden consultar y cuyo permiso de tarjeta tiene el miembro. */
 export async function homeCards(
@@ -56,8 +62,14 @@ export async function homeCards(
     if (!permission || !module.access.includes('read_export') || !view.permissions.includes(permission)) {
       continue;
     }
-    const summary = summaries[module.code];
-    cards.push({ moduleCode: module.code, name: module.name, summary: summary ? await summary(access) : null });
+    const contribute = summaries[module.code];
+    const contribution = contribute ? await contribute(access) : null;
+    cards.push({
+      moduleCode: module.code,
+      name: module.name,
+      summary: contribution?.summary ?? null,
+      activity: contribution?.activity ?? [],
+    });
   }
   return cards;
 }

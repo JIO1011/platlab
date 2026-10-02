@@ -1,6 +1,6 @@
 # 05 — Decisiones y pendientes
 
-Revisión: 1 de octubre de 2026. Registro resumido de decisiones de arquitectura (ADR). Una decisión aceptada solo se reemplaza con otra que indique qué cambia. El texto completo anterior de los ADR 0001–0007 está en el commit `bc26fa8`.
+Revisión: 2 de octubre de 2026. Registro resumido de decisiones de arquitectura (ADR). Una decisión aceptada solo se reemplaza con otra que indique qué cambia. El texto completo anterior de los ADR 0001–0007 está en el commit `bc26fa8`.
 
 | ADR | Tema | Estado |
 |---|---|---|
@@ -13,7 +13,7 @@ Revisión: 1 de octubre de 2026. Registro resumido de decisiones de arquitectura
 | [0007](#adr-0007) | Asignación y aprobación condicionada | Aceptado el 29-09-2026; actor actualizado el 30-09-2026 |
 | [0008](#adr-0008) | Roles y actores | Aceptado el 30-09-2026; la matriz detallada se valida en P-03 |
 | [0009](#adr-0009) | Etapas de módulo y admisión de operaciones | Aceptado el 30-09-2026; marca de ambiente el 01-10-2026 |
-| [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026; se aplica desde el paso 5 del primer incremento |
+| [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026; «precisión suave» el 02-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -170,6 +170,15 @@ Cambio del 01-10-2026: el ambiente se marca en la base (`platform.environment`),
 - **Orden.** Tokens y estructura base → acceso, selector de espacio e Inicio → tablero de Reactivos y «Registrar salida».
 
 Motivo: una app que se usa todo el día necesita jerarquía clara, estados honestos y movimiento que explique, no que decore.
+
+Cambio del 02-10-2026, «precisión suave». Tomado de las referencias visuales que trajo el usuario:
+- Shell flotante, con navegación y barra superior como paneles.
+- Bordes más redondos (10/20/24 px), píldoras en pestañas y sombras suaves en capas.
+- Títulos y cifras más grandes.
+- Inicio en bloques con datos reales: resumen, actividad reciente y acciones rápidas según el rol.
+- Filas de actividad para el historial en el móvil.
+
+Se descartan sus imágenes 3D, el vidrio, los gráficos sin dato y las métricas inventadas. Se mantiene el azul de acción. Los valores viven en 01 «Dirección visual».
 
 ## Pendientes
 

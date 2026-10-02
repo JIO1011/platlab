@@ -3,6 +3,20 @@ export function formatDateTime(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat('es-EC', { timeZone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
 }
 
+/** Versión corta para listas estrechas: «1 oct, 8:23 p. m.»; el año solo si no es el actual. */
+export function formatShortDateTime(iso: string, timeZone: string): string {
+  const date = new Date(iso);
+  const year = (value: Date) => new Intl.DateTimeFormat('en', { timeZone, year: 'numeric' }).format(value);
+  return new Intl.DateTimeFormat('es-EC', {
+    timeZone,
+    day: 'numeric',
+    month: 'short',
+    year: year(date) === year(new Date()) ? undefined : 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
 export function formatDate(isoDate: string): string {
   const [year, month, day] = isoDate.split('-').map(Number);
   return new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium', timeZone: 'UTC' }).format(

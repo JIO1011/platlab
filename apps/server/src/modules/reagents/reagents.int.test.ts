@@ -178,7 +178,19 @@ describe('G0 · recorrido visible', () => {
 
     const home = homeResponse.parse((await call(lab.adminMember.subject, `/workspaces/${lab.workspace.id}/home`)).body);
     expect(home.cards).toEqual([
-      { moduleCode: 'reagents', name: 'Reactivos', summary: { productsWithStock: 1, positionsWithStock: 1 } },
+      expect.objectContaining({
+        moduleCode: 'reagents',
+        name: 'Reactivos',
+        summary: { productsWithStock: 1, positionsWithStock: 1 },
+      }),
+    ]);
+    // Actividad reciente en Inicio: los mismos tres movimientos, del más reciente al más antiguo.
+    expect(
+      home.cards[0]!.activity.map(({ type, quantity, actor }) => ({ type, quantity, actor })),
+    ).toEqual([
+      { type: 'adjustment', quantity: '-0.5', actor: 'Administradora' },
+      { type: 'issue', quantity: '-20', actor: 'Operador' },
+      { type: 'receipt', quantity: '100', actor: 'Operador' },
     ]);
   });
 });

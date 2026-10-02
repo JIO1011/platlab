@@ -3,6 +3,7 @@ export { decimalString } from './decimal.js';
 export { errorCodes, errorResponse, type ErrorCode, type ErrorResponse } from './errors.js';
 export {
   actionClass,
+  homeActivity,
   homeResponse,
   moduleAccess,
   myWorkspacesResponse,
@@ -11,6 +12,7 @@ export {
   workspaceParams,
   workspaceSummary,
   type ActionClass,
+  type HomeActivity,
   type HomeResponse,
   type ModuleAccess,
   type MyWorkspacesResponse,

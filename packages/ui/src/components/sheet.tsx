@@ -26,7 +26,7 @@ export function Sheet({ open, onOpenChange, title, description, children, footer
           className={cn(
             'fixed z-50 flex flex-col bg-surface shadow-overlay outline-none',
             'inset-x-0 bottom-0 max-h-[92dvh] rounded-t-card data-[state=closed]:animate-sheet-out-bottom data-[state=open]:animate-sheet-in-bottom',
-            'md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[min(460px,100vw)] md:rounded-l-card md:rounded-tr-none',
+            'md:inset-y-4 md:left-auto md:right-4 md:max-h-none md:w-[min(460px,calc(100vw-2rem))] md:rounded-card',
             'md:data-[state=closed]:animate-sheet-out-right md:data-[state=open]:animate-sheet-in-right',
           )}
         >

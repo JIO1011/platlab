@@ -33,10 +33,10 @@ export function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-canvas px-4 py-10">
-      <div className="w-full max-w-[400px]">
+    <main className="grid min-h-dvh place-items-center px-4 py-10">
+      <div className="w-full max-w-[420px] rounded-card bg-surface p-8 shadow-float">
         <Wordmark className="text-lg" />
-        <h1 className="mt-8 text-2xl font-semibold tracking-[-0.02em] text-ink">Inicia sesión</h1>
+        <h1 className="mt-8 text-display text-ink">Inicia sesión</h1>
         <p className="mt-1.5 text-sm text-ink-muted">Usa la cuenta con la que te invitaron a tu laboratorio.</p>
 
         {expired ? (
@@ -70,7 +70,7 @@ export function LoginPage() {
         </form>
 
         {import.meta.env.DEV ? (
-          <section className="mt-10 rounded-panel border border-dashed border-line-strong p-4" aria-label="Cuentas de demo">
+          <section className="mt-8 rounded-panel bg-canvas p-4" aria-label="Cuentas de demo">
             <h2 className="text-[13px] font-semibold text-ink">Cuentas de demo (solo local)</h2>
             <p className="mt-1 text-[13px] text-ink-muted">Contraseña: platlab-demo</p>
             <ul className="mt-3 grid gap-2">
@@ -78,7 +78,7 @@ export function LoginPage() {
                 <li key={account.email}>
                   <button
                     type="button"
-                    className="w-full rounded-control px-2 py-1.5 text-left transition-colors hover:bg-surface"
+                    className="w-full rounded-control px-2 py-1.5 text-left transition-colors hover:bg-surface-sunken"
                     onClick={() => {
                       setEmail(account.email);
                       setPassword('platlab-demo');

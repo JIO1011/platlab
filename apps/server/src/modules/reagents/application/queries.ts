@@ -17,6 +17,7 @@ import {
   permissionScope,
   requirePermission,
   withModuleAccess,
+  type HomeContribution,
   type WorkspaceAccess,
 } from '../../core/index.js';
 import {
@@ -129,15 +130,29 @@ export function listOperations(
   );
 }
 
-/** Tarjeta de Inicio (01 §7): reactivos y ubicaciones con existencias que el miembro puede consultar. */
-export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<Record<string, number>> {
-  const [row] = await homeSummary.run(
-    { workspaceId: access.workspace.id, locationIds: await permissionScope(access, READ) },
-    access.client,
-  );
+/**
+ * Tarjeta de Inicio (01 §7): reactivos y ubicaciones con existencias, y los últimos movimientos,
+ * todo dentro de las ubicaciones que el miembro puede consultar.
+ */
+export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<HomeContribution> {
+  const locationIds = await permissionScope(access, READ);
+  const [row] = await homeSummary.run({ workspaceId: access.workspace.id, locationIds }, access.client);
+  const recent = await listOperationPage(inventoryContext(access), { locationIds, limit: 5 });
   return {
-    productsWithStock: Number(row?.products_with_stock ?? 0),
-    positionsWithStock: Number(row?.positions_with_stock ?? 0),
+    summary: {
+      productsWithStock: Number(row?.products_with_stock ?? 0),
+      positionsWithStock: Number(row?.positions_with_stock ?? 0),
+    },
+    activity: recent.items.map((operation) => ({
+      id: operation.id,
+      type: operation.type,
+      title: operation.product.name,
+      detail: `${operation.lot.code} · ${operation.location.code}`,
+      quantity: operation.quantity,
+      unit: operation.unit,
+      occurredAt: operation.effectiveAt,
+      actor: operation.actor.displayName,
+    })),
   };
 }
 

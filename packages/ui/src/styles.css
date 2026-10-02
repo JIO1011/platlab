@@ -6,6 +6,22 @@
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
+  /* Escala tipográfica de precisión suave: titulares y cifras grandes, cuerpo legible. */
+  --text-display: clamp(2rem, 1.4rem + 1.6vw, 2.75rem);
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 600;
+  --text-metric: 2.5rem;
+  --text-metric--line-height: 1;
+  --text-metric--letter-spacing: -0.03em;
+  --text-metric--font-weight: 600;
+  --text-metric-sm: 2.125rem;
+  --text-metric-sm--line-height: 1;
+  --text-metric-sm--letter-spacing: -0.03em;
+  --text-metric-sm--font-weight: 600;
+  --text-body-lg: 0.9375rem;
+  --text-body-lg--line-height: 1.45;
+
   --color-canvas: #f5f7fb;
   --color-surface: #ffffff;
   --color-surface-sunken: #eef2f7;
@@ -28,11 +44,13 @@
   --color-danger: #b42318;
   --color-danger-soft: #fcebe9;
 
-  --radius-control: 8px;
-  --radius-panel: 12px;
-  --radius-card: 14px;
+  /* Precisión suave (ADR 0010, 02-10-2026): bordes redondos y sombras en capas, nunca un halo. */
+  --radius-control: 10px;
+  --radius-panel: 20px;
+  --radius-card: 24px;
 
-  --shadow-raised: 0 1px 2px rgb(16 42 67 / 0.06), 0 1px 1px rgb(16 42 67 / 0.04);
+  --shadow-raised: 0 1px 2px rgb(16 42 67 / 0.04), 0 6px 20px -10px rgb(16 42 67 / 0.14);
+  --shadow-float: 0 1px 2px rgb(16 42 67 / 0.04), 0 18px 40px -22px rgb(16 42 67 / 0.22);
   --shadow-overlay: 0 24px 48px -16px rgb(16 42 67 / 0.28), 0 4px 12px -4px rgb(16 42 67 / 0.12);
 
   /* Movimiento (ADR 0010): pulsación corta, superposiciones desde su origen, hojas sin rebote. */
@@ -84,7 +102,8 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    background-color: var(--color-canvas);
+    /* Un brillo muy leve desde arriba a la izquierda da profundidad a los paneles flotantes. */
+    background: radial-gradient(1100px 620px at 0% 0%, #ffffff 0%, transparent 62%) fixed, var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-feature-settings: "cv11", "ss01";

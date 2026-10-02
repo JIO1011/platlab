@@ -15,10 +15,13 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  cn,
 } from '@platlab/ui';
 import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
 import { ArrowDownToLine, ArrowUpFromLine, Eye, FlaskConical, History, Plus, RefreshCw, Scale } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
+import { ActivityRow } from '../../app/activity-row';
 import { useShell } from '../../app/app-shell';
 import { formatAgo, formatDate, formatDateTime } from '../../app/format';
 import { useOperations, usePositions, useProducts } from '../../app/queries';
@@ -73,6 +76,40 @@ export function ReagentsPage() {
   };
 
   const positionList = useMemo(() => positions.data?.pages.flatMap((page) => page.items) ?? [], [positions.data]);
+  // En el móvil, la primaria ocupa su fila y las secundarias van de dos en dos: si son impares,
+  // la última toma la fila entera para no dejar un hueco.
+  const secondaryActions = [
+    { kind: 'product', label: 'Nuevo reactivo', icon: Plus, shown: allowed.product },
+    { kind: 'receipt', label: 'Registrar ingreso', icon: ArrowDownToLine, shown: allowed.receipt },
+    { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 },
+  ] as const;
+  const visibleSecondary = secondaryActions.filter((action) => action.shown);
+  const [params, setParams] = useSearchParams();
+  const [tab, setTab] = useState(params.get('pestana') === 'movimientos' ? 'movements' : 'inventory');
+
+  // Las acciones rápidas de Inicio llegan como ?registrar=…: se abre la hoja una vez y se limpia
+  // la URL, así recargar no la vuelve a abrir. Solo si el permiso la habría mostrado aquí.
+  const requested = params.get('registrar');
+  const ready = !products.isPending && !positions.isPending;
+  useEffect(() => {
+    if (!requested || !ready) return;
+    const requests: Record<string, [boolean, SheetRequest]> = {
+      salida: [allowed.issue && positionList.length > 0, { kind: 'issue' }],
+      ingreso: [allowed.receipt, { kind: 'receipt' }],
+      ajuste: [allowed.adjustment && positionList.length > 0, { kind: 'adjustment' }],
+      reactivo: [allowed.product, { kind: 'product' }],
+    };
+    const [permitted, request] = requests[requested] ?? [false, { kind: 'product' }];
+    if (permitted) sheets.open(request);
+    setParams(
+      (current) => {
+        current.delete('registrar');
+        return current;
+      },
+      { replace: true },
+    );
+    // Se evalúa solo al llegar la petición y los datos; permisos y posiciones ya están cargados.
+  }, [requested, ready]);
   const productList = products.data?.items ?? [];
   const updatedAt = Math.max(positions.dataUpdatedAt, products.dataUpdatedAt);
   const refreshing = positions.isFetching || products.isFetching || operations.isFetching;
@@ -102,7 +139,7 @@ export function ReagentsPage() {
     <div className="mx-auto max-w-6xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink">Reactivos</h1>
+          <h1 className="text-display text-ink">Reactivos</h1>
           <p className="mt-1 flex items-center gap-2 text-[13px] text-ink-muted">
             {updatedAt > 0 ? <span>Actualizado {formatAgo(updatedAt, now)}</span> : <span>Cargando…</span>}
             <button
@@ -119,27 +156,19 @@ export function ReagentsPage() {
             </button>
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {allowed.product ? (
-            <Button onClick={() => sheets.open({ kind: 'product' })}>
-              <Plus aria-hidden />
-              Nuevo reactivo
+        <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap">
+          {visibleSecondary.map(({ kind, label, icon: Icon }, index) => (
+            <Button
+              key={kind}
+              className={cn(index === visibleSecondary.length - 1 && index % 2 === 0 && 'col-span-2 md:col-span-1')}
+              onClick={() => sheets.open({ kind })}
+            >
+              <Icon aria-hidden />
+              {label}
             </Button>
-          ) : null}
-          {allowed.receipt ? (
-            <Button onClick={() => sheets.open({ kind: 'receipt' })}>
-              <ArrowDownToLine aria-hidden />
-              Registrar ingreso
-            </Button>
-          ) : null}
-          {allowed.adjustment && positionList.length > 0 ? (
-            <Button onClick={() => sheets.open({ kind: 'adjustment' })}>
-              <Scale aria-hidden />
-              Ajustar
-            </Button>
-          ) : null}
+          ))}
           {allowed.issue && positionList.length > 0 ? (
-            <Button variant="primary" className="order-first md:order-none" onClick={() => sheets.open({ kind: 'issue' })}>
+            <Button variant="primary" className="order-first col-span-2 md:order-none" onClick={() => sheets.open({ kind: 'issue' })}>
               <ArrowUpFromLine aria-hidden />
               Registrar salida
             </Button>
@@ -154,13 +183,13 @@ export function ReagentsPage() {
         </p>
       ) : null}
 
-      <Tabs defaultValue="inventory" className="mt-6">
+      <Tabs value={tab} onValueChange={setTab} className="mt-6">
         <TabsList>
           <TabsTrigger value="inventory">Inventario</TabsTrigger>
           <TabsTrigger value="movements">Movimientos</TabsTrigger>
         </TabsList>
         <TabsContent value="inventory">
-          <div className="overflow-hidden rounded-panel border border-line bg-surface shadow-raised">
+          <div className="overflow-hidden rounded-card bg-surface shadow-raised">
             {products.isPending || positions.isPending ? (
               <TableSkeleton />
             ) : productList.length === 0 ? (
@@ -199,13 +228,13 @@ export function ReagentsPage() {
           </div>
         </TabsContent>
         <TabsContent value="movements">
-          <div className="overflow-hidden rounded-panel border border-line bg-surface shadow-raised">
+          <div className="overflow-hidden rounded-card bg-surface shadow-raised">
             {operations.isPending ? (
               <TableSkeleton />
             ) : operations.isError ? (
               <QueryErrorState error={operations.error} onRetry={() => void operations.refetch()} />
             ) : (
-              <MovementsTable operations={operations.data.pages.flatMap((page) => page.items)} timeZone={me.workspace.timeZone} />
+              <MovementsView operations={operations.data.pages.flatMap((page) => page.items)} timeZone={me.workspace.timeZone} />
             )}
             {operations.hasNextPage ? (
               <div className="border-t border-line p-3 text-center">
@@ -315,12 +344,12 @@ function ProductActions({ product, allowed, onAction }: Omit<InventoryViewProps,
   return (
     <>
       {allowed.product ? (
-        <Button size="sm" variant="ghost" onClick={() => onAction({ kind: 'lot', productId: product.id })}>
+        <Button size="sm" variant="ghost" className="max-md:h-11" onClick={() => onAction({ kind: 'lot', productId: product.id })}>
           Nuevo lote
         </Button>
       ) : null}
       {allowed.receipt ? (
-        <Button size="sm" variant="ghost" onClick={() => onAction({ kind: 'receipt', productId: product.id })}>
+        <Button size="sm" variant="ghost" className="max-md:h-11" onClick={() => onAction({ kind: 'receipt', productId: product.id })}>
           Ingreso
         </Button>
       ) : null}
@@ -332,12 +361,12 @@ function PositionActions({ position, allowed, onAction }: Omit<InventoryViewProp
   return (
     <>
       {allowed.issue && position.balance !== '0' ? (
-        <Button size="sm" variant="ghost" onClick={() => onAction({ kind: 'issue', positionId: position.id })}>
+        <Button size="sm" variant="ghost" className="max-md:h-11" onClick={() => onAction({ kind: 'issue', positionId: position.id })}>
           Salida
         </Button>
       ) : null}
       {allowed.adjustment ? (
-        <Button size="sm" variant="ghost" onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}>
+        <Button size="sm" variant="ghost" className="max-md:h-11" onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}>
           Ajustar
         </Button>
       ) : null}
@@ -478,6 +507,47 @@ const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }
 const features = tableFeatures({});
 const helper = createColumnHelper<typeof features, Operation>();
 
+/** Historial: tabla en escritorio y filas de actividad en el móvil, sin desplazamiento lateral. */
+function MovementsView({ operations, timeZone }: { operations: Operation[]; timeZone: string }) {
+  if (operations.length === 0) {
+    return (
+      <StatePanel
+        icon={History}
+        title="Todavía no hay movimientos"
+        description="Cada ingreso, salida o ajuste quedará aquí con su responsable y no se podrá editar."
+      />
+    );
+  }
+  return (
+    <>
+      <div className="hidden md:block">
+        <MovementsTable operations={operations} timeZone={timeZone} />
+      </div>
+      <ul className="divide-y divide-line md:hidden">
+        {operations.map((operation) => (
+          <li key={operation.id} className="px-4 py-3.5">
+            <ActivityRow
+              type={operation.type}
+              title={operation.product.name}
+              detail={`${operation.lot.code} · ${operation.location.code}`}
+              quantity={operation.quantity}
+              unit={operation.unit}
+              occurredAt={operation.effectiveAt}
+              actor={operation.actor.displayName}
+              timeZone={timeZone}
+            />
+            {operation.reason || operation.destination ? (
+              <p className="mt-1.5 pl-[3.375rem] text-[13px] text-ink-muted">
+                {[operation.reason, operation.destination ? `→ ${operation.destination}` : null].filter(Boolean).join(' ')}
+              </p>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 /** Historial como libro: cada fila, una operación con su responsable; nada se edita. */
 function MovementsTable({ operations, timeZone }: { operations: Operation[]; timeZone: string }) {
   const columns = useMemo(
@@ -505,7 +575,7 @@ function MovementsTable({ operations, timeZone }: { operations: Operation[]; tim
           header: 'Reactivo',
           cell: ({ row }) => (
             <>
-              <span className="block min-w-48 font-medium">{row.original.product.name}</span>
+              <span className="block whitespace-nowrap font-medium">{row.original.product.name}</span>
               <span className="block text-[12px] text-ink-muted">
                 {row.original.lot.code} · {row.original.location.code}
               </span>
@@ -541,16 +611,6 @@ function MovementsTable({ operations, timeZone }: { operations: Operation[]; tim
   );
   const table = useTable({ features, columns, data: operations, getRowId: (row) => row.id });
   const numeric = new Set(['quantity', 'balanceAfter']);
-
-  if (operations.length === 0) {
-    return (
-      <StatePanel
-        icon={History}
-        title="Todavía no hay movimientos"
-        description="Cada ingreso, salida o ajuste quedará aquí con su responsable y no se podrá editar."
-      />
-    );
-  }
 
   return (
     <Table>

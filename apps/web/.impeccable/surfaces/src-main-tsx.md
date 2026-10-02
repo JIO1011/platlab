@@ -17,11 +17,11 @@ Estados obligatorios: carga, vacío, error, sin permiso, módulo no disponible, 
 
 THESIS: El saldo es el protagonista. Cada pantalla responde «¿cuánto hay, dónde y quién lo movió?» antes que cualquier adorno; se rechaza el tablero genérico de tarjetas con iconos y métricas sin acción.
 
-OWN-WORLD: Fondo #F5F7FB, superficies blancas con borde hairline frío, texto #102A43/#526275, una sola acción #1F5F96. Inter con cifras tabulares; cantidades grandes y alineadas a la derecha con su unidad. Bordes de 8 px en controles y 12 px en paneles. Estados en verde, ámbar o rojo siempre con texto.
+OWN-WORLD: «Precisión suave» (ADR 0010, 02-10-2026): lienzo #F5F7FB con paneles blancos flotantes de 20–24 px de radio y sombras suaves en capas; navegación y barra superior también flotan. Texto #102A43/#526275 y una sola acción #1F5F96. Inter con títulos y cifras grandes, cifras tabulares; pestañas en píldora. Sin imágenes decorativas, vidrio ni gráficos sin dato.
 
-STORY: El usuario entra, elige su espacio, ve en Inicio cuánto inventario consultable tiene y abre Reactivos; registra un movimiento en una hoja lateral y ve el saldo nuevo confirmado por el servidor y la fila del historial con su nombre.
+STORY: El usuario entra, elige su espacio y en Inicio ve de un vistazo cuánto inventario consultable tiene, qué se movió hace poco y quién lo movió, con sus acciones rápidas a mano; abre Reactivos, registra un movimiento en una hoja y ve el saldo nuevo confirmado por el servidor.
 
-FIRST VIEWPORT: Barra superior con el espacio actual y el usuario; navegación lateral con Inicio y los módulos visibles. En el tablero, título «Reactivos» con las acciones permitidas a la derecha (una primaria: Registrar salida), pestañas Inventario · Movimientos y la tabla producto → lote → ubicación con el saldo como columna dominante.
+FIRST VIEWPORT: Inicio en bloques: saludo grande; resumen de Reactivos con cifras grandes enlazadas; acciones rápidas en mosaico (Registrar salida como primaria) y actividad reciente en filas (icono, reactivo, lote · ubicación · hora · responsable, cantidad con signo). En el tablero: título grande con las acciones a la derecha (una primaria: Registrar salida), pestañas en píldora y la tabla producto → lote → ubicación con el saldo dominante.
 
 FORM: Shell de aplicación con navegación lateral y tabla densa (posición 1 de 1). Seed: exento de tirada de conceptos porque la composición la fija el documento de producto, docs/01_producto.md §7 («Reactivos [Registrar ingreso] [Registrar salida] [Ajustar] … Pestañas: Inventario · Movimientos … Inventario: tabla producto → lotes → ubicaciones»), y el usuario confirmó ese alcance el 01-10-2026 con «Confirmar tal cual» y «Escritorio, adaptada al móvil».
 

@@ -10,4 +10,5 @@ export {
   type WorkspaceAccess,
 } from './application/access.js';
 export { recordAudit, type AuditEntry } from './application/audit.js';
+export type { HomeContribution } from './application/workspace-view.js';
 export { coreRoutes } from './http/routes.js';

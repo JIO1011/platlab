@@ -168,8 +168,17 @@ test('en el móvil, el Inicio y el tablero se adaptan desde 360 px', async ({ br
   await operator.getByRole('link', { name: /Laboratorio de Biología/ }).click();
   await expect(operator.getByRole('link', { name: 'Abrir Reactivos' })).toBeVisible();
   await expect(operator.getByText('Laboratorio de Biología').first()).toBeVisible();
+  await expect(operator.getByRole('heading', { name: 'Actividad reciente' })).toBeVisible();
   await expectAccessible(operator, 'inicio móvil');
+  expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await capture(operator, 'mobile-home');
+
+  // Una acción rápida del Inicio abre su hoja en el tablero.
+  await operator.getByRole('link', { name: 'Registrar salida' }).click();
+  await expect(operator.getByRole('dialog', { name: 'Registrar salida' })).toBeVisible();
+  await operator.keyboard.press('Escape');
+  await expect(operator.getByRole('dialog', { name: 'Registrar salida' })).toHaveCount(0);
+  await operator.getByRole('link', { name: 'Inicio', exact: true }).click();
   await operator.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(operator.getByRole('heading', { name: /Etanol 96 %/ })).toBeVisible();
   await expectAccessible(operator, 'tablero móvil');
@@ -177,7 +186,7 @@ test('en el móvil, el Inicio y el tablero se adaptan desde 360 px', async ({ br
   await operator.getByRole('tab', { name: 'Movimientos' }).click();
   await expect(operator.getByRole('tab', { name: 'Movimientos' })).toHaveAttribute('aria-selected', 'true');
   await expect(operator.getByRole('tab', { name: 'Inventario' })).toHaveAttribute('aria-selected', 'false');
-  await expect(operator.getByRole('row').filter({ hasText: 'Etanol 96 %' }).first()).toBeVisible();
+  await expect(operator.getByRole('listitem').filter({ hasText: 'Etanol 96 %' }).first()).toBeVisible();
   await capture(operator, 'mobile-movements');
   // La página nunca se desplaza en horizontal: si una tabla no cabe, se desplaza dentro de su panel.
   expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
