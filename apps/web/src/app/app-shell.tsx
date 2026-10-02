@@ -1,9 +1,11 @@
 import type { ModuleAccess, WorkspaceMeResponse } from '@platlab/contracts';
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, cn } from '@platlab/ui';
 import { ArrowLeft, Boxes, Check, ChevronsUpDown, FlaskConical, House, LogOut } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router';
+import type { WorkspaceSummary } from '@platlab/contracts';
 import { Wordmark } from './brand';
+import { rememberWorkspace } from './last-workspace';
 import { useMyWorkspaces, useWorkspaceMe } from './queries';
 import { useSession } from './session';
 import { PageLoading, QueryErrorState } from './states';
@@ -102,9 +104,50 @@ function ModuleSwitcher({
           const AppIcon = moduleIcons[app.code] ?? Boxes;
           return (
             <DropdownMenuItem key={app.code} onSelect={() => navigate(`${base}/${app.path}`)}>
-              <AppIcon aria-hidden />
+              {/* Cada módulo con su color, aunque el menú esté dentro del tema de otro. */}
+              <span data-module={app.code} className="inline-flex text-action">
+                <AppIcon className="!text-action" aria-hidden />
+              </span>
               <span className="flex-1">{app.name}</span>
               {app.code === current.code ? <Check className="!text-action" aria-label="Módulo actual" /> : null}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+const statusLabel: Record<string, string> = { trial: 'Prueba', suspended: 'Suspendido', closing: 'En cierre' };
+
+/**
+ * Cambio de espacio desde la barra (ADR 0011, entrada directa): el nombre del espacio abre un menú
+ * con los demás y lleva al Inicio del elegido. El nombre actual nunca se recorta.
+ */
+function WorkspaceSwitcher({ current, workspaces }: { current: { id: string; name: string }; workspaces: WorkspaceSummary[] }) {
+  const navigate = useNavigate();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={`${current.name}. Cambiar de espacio de trabajo`}
+        className="-mx-2 flex min-w-0 items-center gap-2 rounded-control px-2 py-1.5 text-left transition-colors hover:bg-surface-sunken data-[state=open]:bg-surface-sunken"
+      >
+        <span className="text-body-lg font-semibold leading-snug text-ink">{current.name}</span>
+        <ChevronsUpDown className="size-4 shrink-0 text-ink-muted" aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-72">
+        {workspaces.map((workspace) => {
+          // Segunda línea solo si aporta: si es propietario o si el espacio no está activo.
+          const note = [workspace.isOwner ? 'Propietario' : null, statusLabel[workspace.status] ?? null]
+            .filter(Boolean)
+            .join(' · ');
+          return (
+            <DropdownMenuItem key={workspace.id} onSelect={() => navigate(`/e/${workspace.id}`)} className="h-auto min-h-10 py-2">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{workspace.name}</span>
+                {note ? <span className="block text-[12px] text-ink-muted">{note}</span> : null}
+              </span>
+              {workspace.id === current.id ? <Check className="!text-action" aria-label="Espacio actual" /> : null}
             </DropdownMenuItem>
           );
         })}
@@ -124,33 +167,61 @@ export function AppShell() {
   const { pathname } = useLocation();
   const me = useWorkspaceMe(workspaceId);
   const workspaces = useMyWorkspaces();
-  const { signOut } = useSession();
+  const { session, signOut } = useSession();
   const pills = useRef<HTMLElement>(null);
+  const base = `/e/${workspaceId}`;
+  const segment = pathname.slice(base.length + 1).split('/')[0] ?? '';
+  const moduleCode = me.data ? moduleApps(me.data).find((entry) => entry.path === segment)?.code : undefined;
+  const userId = session?.user.id;
+  const loaded = me.isSuccess;
 
   // En la fila desplazable del móvil, la sección actual se trae a la vista en cada navegación.
   useEffect(() => {
     pills.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [pathname]);
 
+  // El tema del módulo se marca en <html>: hojas, menús y avisos viven en portales fuera del shell.
+  // Antes de pintar, para que no asome un cuadro en azul al entrar ni en lila al salir.
+  useLayoutEffect(() => {
+    if (!moduleCode) return;
+    document.documentElement.dataset['module'] = moduleCode;
+    return () => {
+      delete document.documentElement.dataset['module'];
+    };
+  }, [moduleCode]);
+
+  // Solo se recuerda un espacio que se pudo abrir.
+  useEffect(() => {
+    if (userId && loaded) rememberWorkspace(userId, workspaceId);
+  }, [userId, loaded, workspaceId]);
+
   if (me.isPending) return <PageLoading />;
   if (me.isError) {
+    // La entrada llevaría de vuelta a este mismo espacio: se ofrecen los demás directamente.
+    const others = workspaces.data?.workspaces.filter((workspace) => workspace.id !== workspaceId) ?? [];
     return (
-      <main className="grid min-h-dvh place-items-center">
+      <main className="grid min-h-dvh place-items-center px-4">
         <div className="text-center">
           <QueryErrorState error={me.error} onRetry={() => void me.refetch()} />
-          <Link to="/espacios" className="text-sm font-medium text-action underline">
-            Volver a mis espacios
-          </Link>
+          {others.length ? (
+            <ul className="mt-2 flex flex-wrap justify-center gap-2">
+              {others.map((workspace) => (
+                <li key={workspace.id}>
+                  <Link to={`/e/${workspace.id}`} className="text-sm font-medium text-action underline">
+                    Ir a {workspace.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       </main>
     );
   }
 
-  const base = `/e/${workspaceId}`;
   const apps = moduleApps(me.data);
-  const segment = pathname.slice(base.length + 1).split('/')[0] ?? '';
   const app = apps.find((entry) => entry.path === segment);
-  const canSwitch = (workspaces.data?.workspaces.length ?? 0) > 1;
+  const workspaceList = workspaces.data?.workspaces ?? [];
 
   const sections = (compact: boolean) =>
     app?.sections.map((section) => (
@@ -164,18 +235,13 @@ export function AppShell() {
       </NavItem>
     ));
 
-  const workspace = canSwitch ? (
-    <Link
-      to="/espacios"
-      aria-label={`${me.data.workspace.name}. Cambiar de espacio de trabajo`}
-      className="-mx-2 flex min-w-0 items-center gap-2 rounded-control px-2 py-1.5 transition-colors hover:bg-surface-sunken"
-    >
+  // Con varios espacios, el nombre es el propio selector; con uno solo, un título.
+  const workspace =
+    workspaceList.length > 1 ? (
+      <WorkspaceSwitcher current={me.data.workspace} workspaces={workspaceList} />
+    ) : (
       <span className="text-body-lg font-semibold leading-snug text-ink">{me.data.workspace.name}</span>
-      <ChevronsUpDown className="size-4 shrink-0 text-ink-muted" aria-hidden />
-    </Link>
-  ) : (
-    <span className="text-body-lg font-semibold leading-snug text-ink">{me.data.workspace.name}</span>
-  );
+    );
 
   return (
     <div className="min-h-dvh md:flex md:gap-2 md:p-4">

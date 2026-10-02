@@ -10,11 +10,20 @@ colors:
   ink-subtle: "#5e6d80"
   line: "#dde4ed"
   line-strong: "#c3cdd9"
+  # Acción de la plataforma; dentro de un módulo, su bloque [data-module] redefine las cuatro.
   action: "#1f5f96"
   action-hover: "#1a5182"
   action-pressed: "#15426b"
   action-soft: "#e6eef7"
   on-action: "#ffffff"
+  brand: "#1f5f96"
+  canvas-glow: "#ffffff"
+  # Tema de Reactivos: [data-module='reagents'] en styles.css.
+  reagents-action: "#7c3aed"
+  reagents-action-hover: "#6d28d9"
+  reagents-action-pressed: "#5b21b6"
+  reagents-action-soft: "#f1eafe"
+  reagents-canvas-glow: "#f1e9ff"
   success: "#1d7a46"
   success-soft: "#e5f3ea"
   warning: "#8a5a00"
@@ -95,6 +104,14 @@ components:
     backgroundColor: "{colors.action-hover}"
   button-primary-active:
     backgroundColor: "{colors.action-pressed}"
+  button-primary-reagents:
+    backgroundColor: "{colors.reagents-action}"
+    textColor: "{colors.on-action}"
+    rounded: "{rounded.control}"
+    padding: "0 16px"
+    height: "40px"
+  button-primary-reagents-hover:
+    backgroundColor: "{colors.reagents-action-hover}"
   button-secondary:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
@@ -149,6 +166,10 @@ components:
     rounded: "{rounded.pill}"
     padding: "0 12px"
     height: "40px"
+  workspace-switcher:
+    textColor: "{colors.ink}"
+    rounded: "{rounded.control}"
+    padding: "6px 8px"
   dropdown-menu:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.control}"
@@ -211,15 +232,15 @@ components:
 > **Fuentes que mandan.** Este archivo describe lo construido y enlaza; no copia.
 > Dirección visual: [docs/01_producto.md §7 «Dirección visual»](docs/01_producto.md#7-cómo-se-ve-la-plataforma).
 > Stack y frontend: [docs/02_arquitectura.md §2](docs/02_arquitectura.md#2-stack) y [§8](docs/02_arquitectura.md#8-frontend).
-> Sistema de diseño y movimiento: [ADR 0010](docs/05_decisiones.md#adr-0010), con su cambio del 02-10-2026 («precisión suave»).
-> Inicio como tablero y cada módulo como app: [ADR 0011](docs/05_decisiones.md#adr-0011).
+> Sistema de diseño y movimiento: [ADR 0010](docs/05_decisiones.md#adr-0010), con sus cambios del 02-10-2026 («precisión suave» y color por módulo).
+> Inicio como tablero, cada módulo como app y entrada directa al último espacio: [ADR 0011](docs/05_decisiones.md#adr-0011).
 > **Tokens:** la única fuente es [`packages/ui/src/styles.css`](packages/ui/src/styles.css). Los valores del encabezado YAML se derivan de ese archivo para las herramientas de diseño; si difieren, manda `styles.css`.
 
 ## Overview
 
 **Creative North Star: "El libro de saldos", en precisión suave**
 
-Cada pantalla responde primero «¿cuánto hay, dónde y quién lo movió?». La interfaz es una herramienta de trabajo tranquila: lienzo frío con un brillo leve desde arriba a la izquierda, paneles blancos flotantes de esquinas amplias y sombras suaves en capas, una sola voz de acción y cifras grandes con su unidad. La navegación y la barra superior también son paneles que flotan sobre el lienzo. El Inicio es un tablero con una tarjeta por módulo, y cada módulo se usa como una app propia con su menú. El historial se lee como un libro: nada se edita, todo queda firmado. La dirección y sus motivos están en 01 §7 y en los ADR 0010 y 0011.
+Cada pantalla responde primero «¿cuánto hay, dónde y quién lo movió?». La interfaz es una herramienta de trabajo tranquila: lienzo frío con un brillo leve desde arriba a la izquierda, paneles blancos flotantes de esquinas amplias y sombras suaves en capas, una sola voz de acción por contexto (azul en la plataforma, el color del módulo dentro de su app) y cifras grandes con su unidad. La navegación y la barra superior también son paneles que flotan sobre el lienzo. El Inicio es un tablero con una tarjeta por módulo, y cada módulo se usa como una app propia con su menú. El historial se lee como un libro: nada se edita, todo queda firmado. La dirección y sus motivos están en 01 §7 y en los ADR 0010 y 0011.
 
 **Key Characteristics:**
 - El saldo es la columna dominante; las cantidades llevan siempre su unidad atenuada.
@@ -227,17 +248,21 @@ Cada pantalla responde primero «¿cuánto hay, dónde y quién lo movió?». La
 - Una acción primaria por sección; el resto son botones secundarios o fantasma.
 - Profundidad por paneles flotantes con sombra en capas, nunca por halos, vidrio ni imágenes.
 - Gráficos de una sola serie en `action`, solo con datos reales y siempre con una lectura en texto.
+- Cada módulo tiñe solo los tokens de acción y el brillo del lienzo; la plataforma, el Inicio y la marca van en azul.
 - El servidor confirma antes de que la pantalla cambie.
 
 ## Colors
 
-Neutros fríos azul pizarra con un único azul de acción; los estados solo aparecen como pareja de color suave y texto.
+Neutros fríos azul pizarra con una sola voz de acción por contexto: azul en la plataforma y el acento de cada módulo dentro de su app. Los estados solo aparecen como pareja de color suave y texto.
 
 ### Primary
-- **Azul de acción** (`action`): botón primario, enlace, foco, cursor de escritura, la marca, las barras de los gráficos y el recuadro del icono en el selector de módulo. Sus variantes `action-hover` y `action-pressed` son estados del mismo botón; `action-soft` es el fondo de selección, del elemento de navegación activo, de la opción resaltada del Select y del DropdownMenu, del icono de la tarjeta de módulo, de la etiqueta de filtro y del hover de «Actualizar».
+- **Azul de acción** (`action`): valor de la plataforma (Inicio, acceso y todo lo que está fuera de un módulo). Botón primario, enlace, foco, cursor de escritura, las barras de los gráficos y el recuadro del icono en el selector de módulo. Sus variantes `action-hover` y `action-pressed` son estados del mismo botón; `action-soft` es el fondo de selección, del elemento de navegación activo, de la opción resaltada del Select y del DropdownMenu, del icono de la tarjeta de módulo, de la etiqueta de filtro y del hover de «Actualizar». Dentro de un módulo, los cuatro tokens toman el valor de su tema.
+- **Azul PlatLab** (`brand`): solo la marca. Mismo valor que la acción de la plataforma, pero es otro token y no cambia con el tema del módulo.
+- **Lila de Reactivos** (`reagents-action`, `-hover`, `-pressed`, `-soft`): el bloque `[data-module='reagents']` de `styles.css` lo asigna a `action`, `action-hover`, `action-pressed` y `action-soft`, y tiñe `canvas-glow` (`reagents-canvas-glow`). Se activa en `<html>` dentro de la app de Reactivos (así lo heredan hojas, menús y avisos, que viven en portales), en su tarjeta del Inicio y en su opción del selector de módulo.
 
 ### Neutral
-- **Lienzo** (`canvas`): fondo de la aplicación bajo un degradado radial blanco fijo en la esquina superior izquierda; también hover de fila y de la lista de espacios, y fondo del recuadro de cuentas de demo.
+- **Lienzo** (`canvas`): fondo de la aplicación bajo un degradado radial fijo de `canvas-glow` en la esquina superior izquierda; también hover de fila y fondo del recuadro de cuentas de demo.
+- **Brillo del lienzo** (`canvas-glow`): color del degradado del `body`; blanco en la plataforma y teñido con el color del módulo dentro de su app.
 - **Superficie** (`surface`): paneles, tarjetas, barra lateral, barra superior, hojas, campos, encabezado de tabla y pestaña activa.
 - **Superficie hundida** (`surface-sunken`): pista de las pestañas, hover de botón secundario, fantasma y navegación, círculo de icono de las filas de actividad, esqueletos y campos deshabilitados.
 - **Tinta** (`ink`): texto principal y cifras; también el fondo de la información emergente de los gráficos, con texto en `surface`. **Tinta atenuada** (`ink-muted`): metadatos, unidades, ayudas, navegación inactiva. **Tinta tenue** (`ink-subtle`): marcadores de posición, «(opcional)», saldos en cero.
@@ -253,6 +278,8 @@ Neutros fríos azul pizarra con un único azul de acción; los estados solo apar
 
 **La regla de la serie única.** Un gráfico muestra una sola serie, en `action`, sin leyenda: el título la nombra.
 
+**La regla del acento por módulo.** El acento vive solo en los tokens de acción de cada módulo (`[data-module]` en `styles.css`); los componentes no cambian ni llevan colores de módulo literales. La plataforma, el Inicio y la marca van en azul. Verde, ámbar y rojo quedan para los estados y ningún módulo los usa como acento. Cada acento se valida para WCAG AA, con texto blanco y como texto sobre su `action-soft`, y cada módulo registrado tiene su bloque (lo exige `packages/modules/src/define-module.test.ts`).
+
 ## Typography
 
 **Fuente:** Inter Variable (con ui-sans-serif, system-ui), con `cv11` y `ss01` activos en el cuerpo.
@@ -260,13 +287,13 @@ Neutros fríos azul pizarra con un único azul de acción; los estados solo apar
 **Character:** una sola familia; el tamaño grande y el tracking cerrado dan la voz a títulos y cifras, el peso y el tono separan el resto. Cifras tabulares en toda cantidad.
 
 ### Hierarchy
-- **Display** (600, fluido de 32 a 44 px, interlínea 1,1, −0.03em): título de página y saludo de Inicio («Buenos días, …», «Reactivos» en el Resumen, el nombre de la sección en las demás, «Inicia sesión», «Elige un espacio de trabajo»).
+- **Display** (600, fluido de 32 a 44 px, interlínea 1,1, −0.03em): título de página y saludo de Inicio («Buenos días, …», «Reactivos» en el Resumen, el nombre de la sección en las demás y «Inicia sesión»).
 - **Metric** (600, 40 px; interlínea 1, −0.03em, tabulares): cifras de StatLink desde 1024 px. **Metric-sm** (34 px): cifras de las tarjetas de módulo de Inicio en todos los anchos y de StatLink por debajo de 1024 px. Siempre enlazadas a la vista que las explica.
 - **Title** (600, 18 px, −0.01em): título de hoja y de tarjeta (nombre del módulo en Inicio, «Salidas por día», «Actividad reciente»), total por reactivo.
 - **Body-lg** (400–600, 15 px, interlínea 1,45): navegación de escritorio, nombre del módulo en el selector, nombre del espacio en la barra y fecha bajo el saludo.
 - **Body** (400–500, 14 px): tablas, campos, botones, navegación del móvil, etiquetas de las cifras y de StatLink, etiqueta de filtro.
 - **Meta** (400, 13 px): «Actualizado hace…», ayudas y errores de campo, código y CAS, detalle de las filas de actividad, frase bajo el minigráfico y tabla de datos del gráfico.
-- **Label** (600, 12 px, 0.04em, mayúsculas): solo encabezados de columna de tabla. Badge, títulos de grupo del Select, tipo de movimiento, ejes e información emergente de los gráficos usan 12 px sin mayúsculas.
+- **Label** (600, 12 px, 0.04em, mayúsculas): solo encabezados de columna de tabla. Badge, títulos de grupo del Select, segunda línea del menú de espacios, tipo de movimiento, ejes e información emergente de los gráficos usan 12 px sin mayúsculas.
 
 ### Named Rules
 **La regla de la cifra tabular.** Toda cantidad, saldo o contador usa `tabular-nums`; en tablas y filas se alinea a la derecha.
@@ -275,7 +302,7 @@ Neutros fríos azul pizarra con un único azul de acción; los estados solo apar
 
 ## Layout
 
-- **Shell flotante:** desde 768 px, el lienzo deja 16 px de margen y 8 px entre columnas. La barra lateral (240 px) es un panel fijo con la marca y la navegación, de la altura de la ventana menos los márgenes. La barra superior es un panel fijo de 56 px como mínimo con el espacio actual a la izquierda (el propio selector cuando hay varios espacios; nunca se recorta) y, a la derecha, el nombre de la persona y «Salir». Por debajo de 768 px desaparece la barra lateral y la barra superior muestra el espacio y «Salir» solo con icono.
+- **Shell flotante:** desde 768 px, el lienzo deja 16 px de margen y 8 px entre columnas. La barra lateral (240 px) es un panel fijo con la marca y la navegación, de la altura de la ventana menos los márgenes. La barra superior es un panel fijo de 56 px como mínimo con el nombre del espacio actual a la izquierda (con varios espacios, abre el menú de espacios; con uno solo, es un título sin menú; nunca se recorta) y, a la derecha, el nombre de la persona y «Salir». Por debajo de 768 px desaparece la barra lateral y la barra superior muestra el espacio y «Salir» solo con icono.
 - **Dos modos de navegación (ADR 0011):** en la plataforma, el menú solo tiene «Inicio» y los módulos se abren desde sus tarjetas. Dentro de un módulo, el menú es el de esa app: «← Inicio», el selector de módulo y las secciones del manifiesto, debajo de una línea. En el móvil, dentro de un módulo, una flecha de regreso de 40 px sustituye a la marca compacta, y bajo la barra corre una fila con el selector de módulo compacto fijo a la izquierda y las secciones en píldoras desplazables a su derecha; una máscara desvanece los dos bordes (12 px a la izquierda, 40 px a la derecha), la barra de desplazamiento se oculta y la sección actual se trae a la vista en cada navegación. En la plataforma, el móvil no tiene fila de píldoras.
 - **Contenido:** limitado a 72 rem (`max-w-6xl`), con 16/24 px de margen lateral (móvil/escritorio) y 24/32 px sobre el título.
 - **Inicio como tablero:** saludo Display con la fecha debajo y, 32 px más abajo, una rejilla `repeat(auto-fill, minmax(min(100%, 20rem), 1fr))` con 16 px de separación: una tarjeta de módulo de 20 rem como mínimo, que junto a la barra lateral de la tableta no se estrecha y en el móvil ocupa todo el ancho. La carga reproduce la rejilla con esqueletos de 256 px.
@@ -283,17 +310,17 @@ Neutros fríos azul pizarra con un único azul de acción; los estados solo apar
 - **Resumen de un módulo:** tres StatLink (en columna, 12 px entre ellos, por debajo de 1024 px; tres columnas con 16 px desde 1024 px) y, debajo, una rejilla de 12 columnas desde 1024 px: el gráfico (7 columnas) y la actividad reciente (5), alineados arriba. Las tarjetas del Resumen tienen 20 px de relleno y 24 px desde 640 px.
 - **Inventario producto → lote → ubicación:** en escritorio, un `tbody` por reactivo dentro de una tarjeta; su fila de encabezado muestra nombre, código y CAS, y el total del reactivo en Title; debajo, una fila por lote y ubicación con sangría de 32 px, caducidad y saldo. Por debajo de 1024 px la tabla se sustituye por una lista apilada: reactivo con total a la derecha y, debajo, sus lotes con sangría y borde izquierdo. Las acciones por fila son botones fantasma pequeños (44 px de alto por debajo de 1024 px).
 - **Movimientos:** por debajo de 1024 px, filas de actividad en lugar de tabla, con el motivo o destino en una línea Meta alineada al texto. Un filtro activo aparece como etiqueta quitable encima de la tarjeta.
-- **Pantallas de entrada:** acceso en una tarjeta centrada de 420 px; selector de espacio en una columna de 520 px con la lista en una tarjeta.
+- **Entrada directa (ADR 0011):** acceso en una tarjeta centrada de 420 px. No hay pantalla para elegir espacio: tras el acceso se abre el último espacio usado en ese navegador o, la primera vez, el primero de la lista, y se cambia desde la barra. Solo quien no pertenece a ningún espacio ve una columna de 520 px con la marca, «Salir» y un StatePanel.
 - **Consultas de contenedor:** las piezas que viven tanto en una columna estrecha como a todo el ancho se adaptan a su contenedor, no a la ventana: la fila de actividad (desde 36 rem, `@xl`) y el eje X de TrendChart (marcas semanales desde 32 rem, `@lg`).
 - **Ritmo:** escala de 4 px. 16 px entre tarjetas de Inicio y del Resumen; 24 px de relleno en tarjetas (20 px en el Resumen por debajo de 640 px y 16 px en la lista apilada), 24 × 20 px en hojas.
 
 ## Elevation & Depth
 
-La profundidad viene de paneles blancos que flotan sobre el lienzo, no de bordes: las tarjetas y barras no llevan borde, solo sombra. Tres sombras en capas con el tinte de `ink`, definidas en `styles.css`. El lienzo recibe un degradado radial blanco, fijo, desde la esquina superior izquierda.
+La profundidad viene de paneles blancos que flotan sobre el lienzo, no de bordes: las tarjetas y barras no llevan borde, solo sombra. Tres sombras en capas con el tinte de `ink`, definidas en `styles.css`. El lienzo recibe un degradado radial fijo de `canvas-glow` desde la esquina superior izquierda: blanco en la plataforma, teñido dentro de un módulo.
 
 ### Shadow Vocabulary
 - **Elevada** (`shadow-raised`): tarjetas de contenido (tarjetas de módulo, StatLink, gráfico, actividad, tablas de Reactivos), botón primario, selector de módulo compacto y pestaña activa.
-- **Flotante** (`shadow-float`): el shell (barra lateral y barra superior), las tarjetas de las pantallas de entrada (acceso, lista de espacios) y el estado de hover de las tarjetas-enlace (tarjeta de módulo y StatLink), con transición de 150 ms.
+- **Flotante** (`shadow-float`): el shell (barra lateral y barra superior), la tarjeta de acceso y el estado de hover de las tarjetas-enlace (tarjeta de módulo y StatLink), con transición de 150 ms.
 - **Superposición** (`shadow-overlay`): hojas, menús (Select y DropdownMenu), información emergente de los gráficos y avisos.
 
 ### Named Rules
@@ -301,7 +328,7 @@ La profundidad viene de paneles blancos que flotan sobre el lienzo, no de bordes
 
 ## Shapes
 
-Radios por papel, no por tamaño: `control` (10 px) en botones, campos, navegación de escritorio y avisos en línea; `panel` (20 px) en la barra superior, avisos de Sonner, contadores y filas de la lista de espacios; `card` (24 px) en tarjetas, tarjetas de módulo, StatLink, barra lateral y hojas; píldora en pestañas, navegación del móvil, selector de módulo compacto, etiqueta de filtro, Badge y círculos de icono. El icono de la tarjeta de módulo va en un recuadro `control` de 40 px. Opciones de los menús, esqueletos de línea, el enlace «Actualizar», el área enfocable del gráfico y el selector segmentado de las hojas usan 6 px; las barras de los gráficos, 4 px solo arriba. Bordes de 1 px solo en controles, divisores, líneas guía y superposiciones.
+Radios por papel, no por tamaño: `control` (10 px) en botones, campos, navegación de escritorio y avisos en línea; `panel` (20 px) en la barra superior, avisos de Sonner, contadores y el recuadro de cuentas de demo; `card` (24 px) en tarjetas, tarjetas de módulo, StatLink, barra lateral y hojas; píldora en pestañas, navegación del móvil, selector de módulo compacto, etiqueta de filtro, Badge y círculos de icono. El icono de la tarjeta de módulo va en un recuadro `control` de 40 px. Opciones de los menús, esqueletos de línea, el enlace «Actualizar», el área enfocable del gráfico y el selector segmentado de las hojas usan 6 px; las barras de los gráficos, 4 px solo arriba. Bordes de 1 px solo en controles, divisores, líneas guía y superposiciones.
 
 ## Components
 
@@ -314,7 +341,7 @@ Radios por papel, no por tamaño: `control` (10 px) en botones, campos, navegaci
 - **Field** da la etiqueta, la ayuda permanente y el error, y los entrega por contexto (`useFieldControl`): un control envuelto (Controller, campo con unidad) sigue unido a su etiqueta. «(opcional)» se escribe en la etiqueta; el error tiene `role="alert"` y dice cómo resolverlo.
 - **Estilo:** superficie, línea fuerte, `control`, 40 px. Foco: borde `action` y anillo de 3 px al 20 %. Inválido: borde `danger`.
 - **Select** (Radix): menú en `control` con sombra de superposición, anclado a su origen con `pop-in`; agrupa opciones por título (p. ej., lotes bajo su reactivo, un grupo por nombre en orden de aparición) y muestra a la derecha un dato secundario tabular (saldo, caducidad).
-- **DropdownMenu** (Radix): misma superficie y entrada que el Select (superficie, borde `line`, `control`, sombra de superposición, 4 px de relleno, `pop-in` desde su disparador, 6 px de separación, alineado al inicio y al menos tan ancho como el disparador). Opciones de 40 px en Body con icono de 16 px en tinta atenuada; la resaltada pasa a `action-soft`, como en el Select. Hoy lo usa el selector de módulo.
+- **DropdownMenu** (Radix): misma superficie y entrada que el Select (superficie, borde `line`, `control`, sombra de superposición, 4 px de relleno, `pop-in` desde su disparador, 6 px de separación, alineado al inicio y al menos tan ancho como el disparador). Opciones de 40 px en Body con icono de 16 px en tinta atenuada; la resaltada pasa a `action-soft`, como en el Select. Hoy lo usan el selector de módulo y el de espacio.
 - **Quantity:** recibe cadenas decimales de la API, nunca `number`; muestra coma decimal y punto de miles es-EC, signo menos tipográfico, `+` opcional en el historial y la unidad atenuada. La entrada usa `inputMode="decimal"`, acepta coma o punto, normaliza a cadena con punto y muestra «Se registrará …» bajo el campo; la unidad va dentro del campo, a la derecha.
 
 ### Cards / Containers
@@ -325,12 +352,13 @@ Radios por papel, no por tamaño: `control` (10 px) en botones, campos, navegaci
 ### Navigation
 - **Escritorio:** elementos de 44 px en `control` y Body-lg; «Inicio» lleva icono de 18 px y las secciones de un módulo van sin icono. Activo en `action-soft` con texto `action`; inactivos en tinta atenuada con hover hundido.
 - **Regreso «← Inicio»:** enlace fantasma de 36 px en Body y tinta atenuada, con flecha de 16 px, encima del selector de módulo. En el móvil, botón de icono de 40 px en el lugar de la marca.
-- **Selector de módulo (ModuleSwitcher):** nombra el módulo actual y abre un DropdownMenu con las apps del miembro; la actual lleva una marca `action`. Normal, en la barra lateral: 48 px a todo el ancho, `control`, icono blanco sobre un recuadro `action` de 32 px, nombre en Body-lg semibold y doble chevron. Compacto, en el móvil: píldora de 40 px en superficie con sombra elevada, icono sobre un círculo `action` de 24 px y nombre en Body. Abierto o al pasar, superficie hundida.
+- **Selector de módulo (ModuleSwitcher):** nombra el módulo actual y abre un DropdownMenu con las apps del miembro; la actual lleva una marca `action`. Cada opción lleva su icono en el color de su módulo (`data-module` en el icono), aunque el menú se abra dentro del tema de otro. Normal, en la barra lateral: 48 px a todo el ancho, `control`, icono blanco sobre un recuadro `action` de 32 px, nombre en Body-lg semibold y doble chevron. Compacto, en el móvil: píldora de 40 px en superficie con sombra elevada, icono sobre un círculo `action` de 24 px y nombre en Body. Abierto o al pasar, superficie hundida.
+- **Selector de espacio (WorkspaceSwitcher):** con varios espacios, el nombre del espacio en la barra (Body-lg semibold y doble chevron de 16 px en tinta atenuada, `control`, superficie hundida al pasar o abierto) abre un DropdownMenu de 288 px con todos los espacios. Cada opción, de 40 px como mínimo, muestra el nombre en Body medio y, solo si aporta, una segunda línea de 12 px atenuada («Propietario», «Prueba», «Suspendido», «En cierre»); el actual lleva una marca `action`. Elegir uno lleva a su Inicio. Con un solo espacio, el nombre es un título sin menú.
 - **Móvil:** píldoras de 40 px con los mismos colores, en la fila desplazable a la derecha del selector compacto.
 - **Pestañas:** píldoras de 36 px sobre una pista hundida; la activa sube a superficie con sombra elevada. El componente sigue en `packages/ui`, pero desde el ADR 0011 las secciones del módulo son rutas del menú y la web no lo usa.
 
 ### Tarjeta de módulo (Inicio)
-Una tarjeta-enlace por módulo: toda la tarjeta abre la app y no contiene otros enlaces. Superficie, `card`, 24 px de relleno, 256 px de alto como mínimo y sombra elevada que pasa a flotante al pasar. Arriba, el icono en un recuadro `action-soft` de 40 px, el nombre en Title y una flecha `action` que se desplaza 2 px al pasar. Abajo, dos cifras en un `dl` de dos columnas (Metric-sm sobre su etiqueta en Body atenuado), el minigráfico y una frase en Meta que dice el total («12 salidas en los últimos 30 días» o «Sin salidas en los últimos 30 días»). El enlace se nombra «Abrir {módulo}» y las cifras lo describen.
+Una tarjeta-enlace por módulo: toda la tarjeta abre la app y no contiene otros enlaces. Superficie, `card`, 24 px de relleno, 256 px de alto como mínimo y sombra elevada que pasa a flotante al pasar. Arriba, el icono en un recuadro `action-soft` de 40 px, el nombre en Title y una flecha `action` que se desplaza 2 px al pasar. Abajo, dos cifras en un `dl` de dos columnas (Metric-sm sobre su etiqueta en Body atenuado), el minigráfico y una frase en Meta que dice el total («12 salidas en los últimos 30 días» o «Sin salidas en los últimos 30 días»). El enlace se nombra «Abrir {módulo}» y las cifras lo describen. La tarjeta lleva el `data-module` de su módulo: icono, flecha, minigráfico y foco van en su acento sobre el Inicio azul.
 
 ### StatLink (Resumen de un módulo)
 Una cifra que abre la lista que la explica. Por debajo de 1024 px, fila compacta (16 × 20 px de relleno) con la etiqueta a la izquierda y la cifra Metric-sm a la derecha; desde 1024 px, tarjeta de 24 px de relleno con la etiqueta arriba y la cifra Metric debajo. El chevron de 16 px está siempre visible en tinta tenue y pasa a `action` al pasar o con foco; la sombra sube a flotante al pasar.
@@ -378,6 +406,7 @@ Arriba a la derecha bajo la barra, en `panel` con borde de línea y sombra de su
 - **Do** registrar movimientos en una Sheet con una sola acción primaria al pie.
 - **Do** mostrar «Actualizado hace…», con la marca más antigua de lo que se ve, y un botón Actualizar; nunca prometer «en vivo».
 - **Do** diseñar carga, vacío, error, sin permiso y módulo no disponible como estados distintos con StatePanel.
+- **Do** dar a cada módulo nuevo su bloque `[data-module]` en `styles.css` con `action`, `action-hover`, `action-pressed`, `action-soft` y su brillo, validado para AA antes de usarlo.
 
 ### Don't:
 - **Don't** usar UI optimista sobre existencias: la tabla se refresca con lo confirmado por el servidor.
@@ -389,3 +418,4 @@ Arriba a la derecha bajo la barra, en `panel` con borde de línea y sombra de su
 - **Don't** anidar enlaces dentro de una tarjeta que ya es enlace.
 - **Don't** animar en bucle, animar filas ni usar rebote.
 - **Don't** pasar una cantidad por `number` en la interfaz.
+- **Don't** usar verde, ámbar o rojo como acento de módulo, teñir la marca ni escribir un color de módulo en un componente: el tema solo redefine tokens.

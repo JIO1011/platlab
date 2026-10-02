@@ -22,7 +22,7 @@ export function NotFound() {
         description="Puede que el enlace esté incompleto o que la página haya cambiado de lugar."
         action={
           <Link to="/espacios" className="text-sm font-medium text-action underline">
-            Ir a mis espacios
+            Ir al Inicio
           </Link>
         }
       />

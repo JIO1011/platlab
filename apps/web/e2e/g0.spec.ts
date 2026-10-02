@@ -39,9 +39,23 @@ async function expectAccessible(page: Page, label: string) {
   ).toEqual([]);
 }
 
-/** Del selector a la app de Reactivos (ADR 0011): la tarjeta del Inicio abre su Resumen. */
+/**
+ * Entrada directa (ADR 0011): se entra al último espacio usado y se cambia desde su nombre en la
+ * barra. Si ya se está en ese espacio, no hace nada.
+ */
+async function switchTo(page: Page, workspace: string) {
+  const trigger = page.getByRole('button', { name: /Cambiar de espacio de trabajo/ });
+  await expect(trigger).toBeVisible();
+  if (!(await trigger.getAttribute('aria-label'))?.startsWith(workspace)) {
+    await trigger.click();
+    await page.getByRole('menuitem', { name: new RegExp(workspace) }).click();
+  }
+  await expect(page.getByRole('button', { name: `${workspace}. Cambiar de espacio de trabajo` })).toBeVisible();
+}
+
+/** Del espacio a la app de Reactivos (ADR 0011): la tarjeta del Inicio abre su Resumen. */
 async function openReagents(page: Page, workspace: string) {
-  await page.getByRole('link', { name: new RegExp(workspace) }).click();
+  await switchTo(page, workspace);
   await page.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(page.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
 }
@@ -70,9 +84,16 @@ test('el acceso es accesible y se ve en escritorio', async ({ page }) => {
 test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsables', async ({ browser }) => {
   // La Administradora crea el reactivo y su lote.
   const admin = await signIn(browser, 'admin@demo.platlab.test');
-  await expect(admin.getByRole('heading', { name: 'Elige un espacio de trabajo' })).toBeVisible();
-  await expectAccessible(admin, 'selector');
-  await capture(admin, 'desktop-selector');
+  // Sin pantalla para elegir: entra a un espacio y el nombre en la barra abre los demás.
+  await expect(admin.getByRole('heading', { level: 1 })).toContainText('Ana');
+  // axe con el menú cerrado: abierto, Radix oculta el resto a los lectores de pantalla mientras
+  // atrapa el foco, y axe no conoce esa trampa (lo mismo que con el Select).
+  await expectAccessible(admin, 'inicio con cambio de espacio');
+  await admin.getByRole('button', { name: /Cambiar de espacio de trabajo/ }).click();
+  await expect(admin.getByRole('menuitem', { name: /Laboratorio de Química/ })).toBeVisible();
+  await expect(admin.getByRole('menuitem', { name: /Laboratorio de Física/ })).toBeVisible();
+  await capture(admin, 'desktop-workspace-switcher', false);
+  await admin.keyboard.press('Escape');
   await openReagents(admin, 'Laboratorio de Química');
   await goTo(admin, 'Inventario');
 
@@ -158,7 +179,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
 
 test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol asignado', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
-  await admin.getByRole('link', { name: /Laboratorio de Física/ }).click();
+  await switchTo(admin, 'Laboratorio de Física');
   await expect(admin.getByText('No hay módulos para tu rol en este espacio')).toBeVisible();
   await expect(admin.getByRole('link', { name: /Reactivos/ })).toHaveCount(0);
   await expectAccessible(admin, 'inicio C');
@@ -169,6 +190,9 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
   // ADR 0008, cambio del 02-10-2026: la propietaria tiene los permisos del Administrador.
   const owner = await signIn(browser, 'propietaria@demo.platlab.test');
   await expect(owner.getByRole('heading', { level: 1 })).toContainText('Paula');
+  // Con un solo espacio, su nombre es un título: no hay menú que no lleve a ningún lado.
+  await expect(owner.getByRole('button', { name: /Cambiar de espacio de trabajo/ })).toHaveCount(0);
+  await expect(owner.getByText('Laboratorio de Química').first()).toBeVisible();
   await owner.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(owner.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
   for (const name of ['Registrar salida', 'Registrar ingreso', 'Ajustar', 'Nuevo reactivo']) {
@@ -178,7 +202,7 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
 
 test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', async ({ browser }) => {
   const operator = await signIn(browser, 'operador@demo.platlab.test', { width: 360, height: 780 });
-  await operator.getByRole('link', { name: /Laboratorio de Biología/ }).click();
+  await switchTo(operator, 'Laboratorio de Biología');
   await expect(operator.getByRole('link', { name: 'Abrir Reactivos' })).toBeVisible();
   await expect(operator.getByText('Laboratorio de Biología').first()).toBeVisible();
   await expectAccessible(operator, 'inicio móvil');
@@ -215,7 +239,7 @@ test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', as
 
 test('en tableta (820 px), Inicio y la app conservan la barra lateral y usan listas sin desplazarse en horizontal', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test', { width: 820, height: 1180 });
-  await admin.getByRole('link', { name: /Laboratorio de Química/ }).click();
+  await switchTo(admin, 'Laboratorio de Química');
   await expect(admin.getByRole('link', { name: 'Abrir Reactivos' })).toBeVisible();
   await expect(admin.getByRole('complementary')).toBeVisible();
   expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -240,7 +264,10 @@ test('en tableta (820 px), Inicio y la app conservan la barra lateral y usan lis
 
 test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado y tabla', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
-  await admin.getByRole('link', { name: /Laboratorio de Química/ }).click();
+  await switchTo(admin, 'Laboratorio de Química');
+  // Volver a entrar abre el último espacio usado, sin pantalla para elegir (ADR 0011).
+  await admin.goto('/');
+  await expect(admin.getByRole('button', { name: 'Laboratorio de Química. Cambiar de espacio de trabajo' })).toBeVisible();
   // La tarjeta del Inicio resume el módulo con datos reales del historial de la demo.
   await expect(admin.getByText(/\d+ salidas? en los últimos 30 días/)).toBeVisible();
   await capture(admin, 'desktop-home');
@@ -277,7 +304,8 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
   await capture(admin, 'desktop-movements-filtered', false);
   await admin.getByRole('button', { name: /Quitar el filtro/ }).click();
   await expect(admin.getByText('Salidas · últimos 30 días')).toHaveCount(0);
-  await expect(admin.getByRole('row').filter({ hasText: 'Ingreso' }).first()).toBeVisible();
+  await expect(admin).not.toHaveURL(/tipo=/);
+  await expect(admin.getByRole('row').nth(1)).toBeVisible();
 });
 
 /**
@@ -345,7 +373,7 @@ test('error: un fallo del servidor muestra «Reintentar» y al reintentar se rec
     const response = await route.fetch();
     await route.fulfill({ response, status: 500, json: { error: { code: 'INTERNAL', message: 'Fallo simulado' } } });
   });
-  await admin.getByRole('link', { name: /Laboratorio de Química/ }).click();
+  await switchTo(admin, 'Laboratorio de Química');
   await admin.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(admin.getByText('No pudimos cargar esta información')).toBeVisible();
   await expectAccessible(admin, 'error');
@@ -358,7 +386,7 @@ test('error: un fallo del servidor muestra «Reintentar» y al reintentar se rec
 
 test('sesión expirada: un token que la API rechaza cierra la sesión y vuelve al acceso con aviso', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
-  await expect(admin.getByRole('heading', { name: 'Elige un espacio de trabajo' })).toBeVisible();
+  await expect(admin.getByRole('heading', { level: 1 })).toContainText('Ana');
   // Firma alterada: la API la verifica contra el JWKS de Auth y responde IDENTITY_INVALID.
   await admin.evaluate(() => {
     const key = Object.keys(localStorage).find((name) => /^sb-.+-auth-token$/.test(name));

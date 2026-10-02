@@ -190,7 +190,7 @@ Casos especiales:
 
 ## 7. Cómo se ve la plataforma
 
-Recorrido: iniciar sesión → elegir espacio (si tiene varios) → Inicio, el tablero de módulos → abrir un módulo, que funciona como una app propia ([ADR 0011](05_decisiones.md#adr-0011)).
+Recorrido: iniciar sesión → Inicio del último espacio usado, el tablero de módulos → abrir un módulo, que funciona como una app propia con su color ([ADR 0011](05_decisiones.md#adr-0011)). Quien tiene varios espacios cambia desde el nombre del espacio en la barra superior.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -241,6 +241,7 @@ Un módulo por dentro, con Reactivos como ejemplo:
 Dirección visual (tomada del PDF, más sobria; «precisión suave» desde el 02-10-2026, [ADR 0010](05_decisiones.md#adr-0010)):
 
 - Colores: fondo `#F5F7FB`, superficie blanca, texto `#102A43`/`#526275` y acción `#1F5F96`.
+- Cada módulo tematiza su app con su color de acento, por ejemplo Reactivos en lila `#7C3AED`; el Inicio y la marca siguen en azul ([ADR 0010](05_decisiones.md#adr-0010), 02-10-2026).
 - Estados en verde, ámbar o rojo, siempre con texto y no solo con color.
 - Inter; títulos y cifras grandes, con cifras tabulares.
 - Bordes de 10 px en controles, 20 px en paneles y 24 px en tarjetas; píldora en pestañas y filtros.

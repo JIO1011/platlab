@@ -36,6 +36,10 @@
   --color-action-pressed: #15426b;
   --color-action-soft: #e6eef7;
   --color-on-action: #ffffff;
+  /* La marca PlatLab no cambia con el tema del módulo (ADR 0010, color por módulo). */
+  --color-brand: #1f5f96;
+  /* Brillo del lienzo arriba a la izquierda; cada módulo lo tiñe con su color. */
+  --color-canvas-glow: #ffffff;
 
   --color-success: #1d7a46;
   --color-success-soft: #e5f3ea;
@@ -103,7 +107,7 @@
   }
   body {
     /* Un brillo muy leve desde arriba a la izquierda da profundidad a los paneles flotantes. */
-    background: radial-gradient(1100px 620px at 0% 0%, #ffffff 0%, transparent 62%) fixed, var(--color-canvas);
+    background: radial-gradient(1100px 620px at 0% 0%, var(--color-canvas-glow) 0%, transparent 62%) fixed, var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-feature-settings: "cv11", "ss01";
@@ -142,4 +146,20 @@
     --animate-sheet-out-bottom: fade-out 150ms var(--ease-out-expo);
     --animate-pop-in: fade-in 150ms var(--ease-out-expo);
   }
+}
+
+/*
+ * Temas de módulo (ADR 0010, cambio del 02-10-2026). Dentro de su app, cada módulo redefine el
+ * acento: los componentes siguen usando los tokens de acción y aquí solo cambian sus valores. Se
+ * marca con `data-module` en <html> (las hojas y los menús viven en portales) o en un bloque, como
+ * una tarjeta del Inicio. Cada acento se valida para WCAG AA con texto blanco; verde, ámbar y rojo
+ * quedan reservados para los estados.
+ */
+[data-module='reagents'] {
+  /* Lila: 5,7:1 con blanco; el texto #6D28D9 sobre #F1EAFE, 6,1:1. */
+  --color-action: #7c3aed;
+  --color-action-hover: #6d28d9;
+  --color-action-pressed: #5b21b6;
+  --color-action-soft: #f1eafe;
+  --color-canvas-glow: #f1e9ff;
 }

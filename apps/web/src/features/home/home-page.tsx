@@ -86,7 +86,7 @@ export function HomePage() {
   );
 }
 
-/** Tarjeta de un módulo: nombre, cifras y gráfico; abre la app del módulo. */
+/** Tarjeta de un módulo: nombre, cifras y gráfico en su color; abre la app del módulo. */
 function ModuleCard({ card }: { card: Card }) {
   const { workspaceId, me } = useShell();
   const statsId = useId();
@@ -97,8 +97,10 @@ function ModuleCard({ card }: { card: Card }) {
   const trendTotal = card.trend?.points.reduce((sum, point) => sum + point.value, 0) ?? 0;
 
   return (
+    // La tarjeta lleva el color de su módulo (ADR 0010): el Inicio se colorea con los módulos.
     <Link
       to={`/e/${workspaceId}/${app.path}`}
+      data-module={card.moduleCode}
       aria-label={`Abrir ${card.name}`}
       aria-describedby={statsId}
       className="group flex min-h-64 flex-col rounded-card bg-surface p-6 shadow-raised transition-shadow duration-150 hover:shadow-float"

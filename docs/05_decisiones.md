@@ -13,8 +13,8 @@ Revisión: 2 de octubre de 2026. Registro resumido de decisiones de arquitectura
 | [0007](#adr-0007) | Asignación y aprobación condicionada | Aceptado el 29-09-2026; actor actualizado el 30-09-2026 |
 | [0008](#adr-0008) | Roles y actores | Aceptado el 30-09-2026; propietario con los permisos del Administrador el 02-10-2026; la matriz detallada se valida en P-03 |
 | [0009](#adr-0009) | Etapas de módulo y admisión de operaciones | Aceptado el 30-09-2026; marca de ambiente el 01-10-2026 |
-| [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026; «precisión suave» el 02-10-2026 |
-| [0011](#adr-0011) | Inicio como tablero y cada módulo como app | Aceptado el 02-10-2026 |
+| [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026; «precisión suave» y color por módulo el 02-10-2026 |
+| [0011](#adr-0011) | Inicio como tablero y cada módulo como app | Aceptado el 02-10-2026; entrada directa al último espacio el mismo día |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -188,6 +188,14 @@ Cambio del 02-10-2026, «precisión suave». Tomado de las referencias visuales 
 
 Se descartan sus imágenes 3D, el vidrio, los gráficos sin dato y las métricas inventadas. Se mantiene el azul de acción. Los valores viven en 01 «Dirección visual».
 
+Cambio del 02-10-2026, color por módulo, decidido por el usuario («Tematizar cada app»):
+- Cada módulo tiene un color de acento. Dentro de su app reemplaza al azul en el botón principal, los enlaces, el menú activo, el foco, los gráficos y el icono, y tiñe el brillo del lienzo.
+- El Inicio y la plataforma siguen en azul PlatLab, y cada tarjeta del Inicio lleva el color de su módulo.
+- La marca PlatLab nunca cambia de color.
+- Reactivos es lila: acento `#7C3AED` (5,7:1 con blanco), `#6D28D9` al pasar, `#5B21B6` al pulsar, fondo suave `#F1EAFE` y brillo del lienzo `#F1E9FF`.
+- Cada color se valida para WCAG AA antes de usarse. Verde, ámbar y rojo quedan reservados para los estados, así que ningún módulo los usa como acento.
+- Se implementa con un juego de tokens por módulo (`[data-module]`) que redefine los de acción; los componentes no cambian.
+
 <a id="adr-0011"></a>
 ## ADR 0011 — Inicio como tablero y cada módulo como app
 
@@ -217,6 +225,11 @@ Motivo:
 - El Inicio da la vista de conjunto sin mezclar las operaciones.
 
 Reemplaza el menú común con todos los módulos y las pestañas del tablero de 01 §7, y la regla de «no hay gráficos». Se mantiene la prohibición de gráficos sin datos reales del ADR 0010.
+
+Cambio del 02-10-2026, entrada directa, decidido por el usuario:
+- Al iniciar sesión no hay pantalla para elegir espacio. Se abre el último espacio usado en ese navegador; la primera vez, el primero de la lista.
+- Se cambia de espacio desde su nombre en la barra superior, que abre un menú con los demás y lleva al Inicio del elegido.
+- Así todos los roles entran igual. Lo que cambia es lo que cada uno puede hacer; Administración, por ejemplo, solo la ve el propietario.
 
 ## Pendientes
 

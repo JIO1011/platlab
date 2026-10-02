@@ -117,6 +117,8 @@ Decidido el 02-10-2026:
 - Reactivos en etapa `pilot` (V-00).
 - Los permisos forman una escalera: Propietario ⊇ Administrador ⊇ Operador. El propietario opera sin rol asignado; Responsable de fiscalizados sigue aparte (ADR 0008).
 - El Inicio es un tablero con una tarjeta por módulo (cifras y gráfico con datos reales) y cada módulo es una app con su propio menú (ADR 0011).
+- Entrada directa al último espacio usado y cambio de espacio desde la barra; sin pantalla para elegir (ADR 0011).
+- Cada módulo tematiza su app con su color (Reactivos en lila); el Inicio y la marca siguen en azul (ADR 0010).
 
 El modelo comercial sigue pendiente: la recomendación está en 01 §4 y debe confirmarla el usuario.
 
