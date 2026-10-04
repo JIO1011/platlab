@@ -1,6 +1,19 @@
 import type { Position, StockedProduct } from '@platlab/contracts';
-import { Badge, Button, Input, Quantity, Skeleton, StatePanel, cn, ratioPercent } from '@platlab/ui';
-import { ArrowUpFromLine, ChevronRight, FlaskConical, History, Plus, Scale, Search } from 'lucide-react';
+import { Badge, Button, IconChip, Input, Quantity, Skeleton, StatePanel, cn, ratioPercent } from '@platlab/ui';
+import {
+  ArrowUpFromLine,
+  Box,
+  CircleAlert,
+  Droplet,
+  FlaskConical,
+  History,
+  Layers,
+  Plus,
+  Scale,
+  Search,
+  Wind,
+  type LucideIcon,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
@@ -12,6 +25,9 @@ import { purposeOf, responsibleOf } from './operation-text';
 import { availableOf } from './stock';
 
 const physicalStateLabel: Record<string, string> = { solid: 'Sólido', liquid: 'Líquido', gas: 'Gas' };
+
+/** El icono lo da el estado físico, un dato que ya existe; sin él, el matraz del módulo. */
+const physicalStateIcon: Record<string, LucideIcon> = { solid: Box, liquid: Droplet, gas: Wind };
 
 const matches = (product: StockedProduct, query: string) => {
   const text = query.trim().toLowerCase();
@@ -52,7 +68,7 @@ export function ReagentsInventoryPage() {
     return (
       <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4" role="status" aria-busy="true" aria-label="Cargando">
         {[0, 1, 2].map((key) => (
-          <Skeleton key={key} className="h-36 rounded-card" />
+          <Skeleton key={key} className="h-52 rounded-card" />
         ))}
       </div>
     );
@@ -114,28 +130,49 @@ export function ReagentsInventoryPage() {
   );
 }
 
+/**
+ * Tarjeta de catálogo (ADR 0010, 04-10-2026): chip de icono, rótulo y CAS, nombre, y abajo la cifra
+ * principal en el acento del módulo con su píldora. El color es el del módulo; un reactivo sin
+ * existencias pasa a neutro y ámbar, que son estados y se dicen también con texto.
+ */
 function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
   const empty = product.balance === '0';
+  const state = product.physicalState ?? undefined;
+  const frascos = product.containersWithStock === 1 ? '1 frasco' : `${product.containersWithStock} frascos`;
   return (
     <Link
       to={to}
-      className="group flex h-full flex-col gap-5 rounded-card bg-surface p-5 shadow-raised transition-shadow duration-150 hover:shadow-float"
+      className="group flex h-full flex-col gap-4 rounded-card bg-surface p-5 shadow-raised ring-1 ring-transparent transition-[box-shadow,--tw-ring-color] duration-150 hover:shadow-float hover:ring-action/25"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="font-semibold leading-snug text-ink">{product.name}</h2>
-          <p className="mt-0.5 text-[13px] text-ink-muted">
-            {product.code}
-            {product.casNumber ? ` · CAS ${product.casNumber}` : ''}
+      <div className="flex items-start gap-3">
+        <IconChip icon={(state && physicalStateIcon[state]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} />
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-[12px] font-semibold uppercase tracking-wide text-ink-muted">
+            <span>{(state && physicalStateLabel[state]) ?? 'Reactivo'}</span>
+            {product.casNumber ? (
+              <span className="ml-auto font-medium normal-case tracking-normal tabular-nums">CAS {product.casNumber}</span>
+            ) : null}
           </p>
+          <h2 className="mt-1 font-semibold leading-snug text-ink transition-colors group-hover:text-action">{product.name}</h2>
+          <p className="mt-0.5 text-[13px] text-ink-muted">{product.code}</p>
         </div>
-        <ChevronRight className="mt-0.5 size-4 shrink-0 text-ink-subtle transition-colors group-hover:text-action" aria-hidden />
       </div>
-      <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
-        <Quantity value={product.balance} unit={product.baseUnit} className={cn('text-metric-sm', empty ? 'text-ink-subtle' : 'text-ink')} />
-        <Badge tone={empty ? 'warning' : 'neutral'} className="mb-1.5 whitespace-nowrap">
-          {empty ? 'Sin existencias' : product.containersWithStock === 1 ? '1 frasco' : `${product.containersWithStock} frascos`}
-        </Badge>
+      <div className="mt-auto border-t border-line pt-4">
+        {/* La píldora comparte fila con «Total»: la cifra siempre tiene su propia línea y todas las
+            tarjetas tienen la misma estructura, sea cual sea el ancho del número. */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-muted">Total</p>
+          <Badge tone={empty ? 'warning' : 'info'} className="gap-1.5 whitespace-nowrap px-2.5 py-1 text-[13px]">
+            {empty ? <CircleAlert className="size-4" aria-hidden /> : <Layers className="size-4" aria-hidden />}
+            {empty ? 'Sin existencias' : frascos}
+          </Badge>
+        </div>
+        <Quantity
+          value={product.balance}
+          unit={product.baseUnit}
+          // Un saldo muy largo baja la unidad a otra línea en lugar de salirse de la tarjeta.
+          className={cn('mt-1.5 block whitespace-normal text-metric-sm', empty ? 'text-ink-subtle' : 'text-action')}
+        />
       </div>
     </Link>
   );

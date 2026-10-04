@@ -197,6 +197,14 @@ Cambio del 02-10-2026, color por módulo, decidido por el usuario («Tematizar c
 - Cada color se valida para WCAG AA antes de usarse. Verde, ámbar y rojo quedan reservados para los estados, así que ningún módulo los usa como acento.
 - Se implementa con un juego de tokens por módulo (`[data-module]`) que redefine los de acción; los componentes no cambian.
 
+Cambio del 04-10-2026, tarjetas de catálogo con icono y color, pedido por el usuario con dos referencias de ReactiLab:
+- Patrón común para las tarjetas de catálogo de todos los módulos (reactivos hoy; materiales y equipos después): chip de icono, rótulo en mayúsculas pequeñas, dato de identidad a la derecha, nombre, línea divisoria, cifra principal en el acento del módulo y píldora con icono.
+- El color sale del acento del módulo (chip, cifra, píldora y resalte al pasar el puntero). Verde, ámbar y rojo siguen reservados para los estados: ningún tipo de ítem tiene color propio, para que un color nunca sea ambiguo entre «es de este tipo» y «tiene este estado».
+- El icono del chip lo da un dato que ya existe (el estado físico del reactivo: sólido, líquido o gas) y nunca decora; un reactivo sin existencias pasa a chip neutro y píldora ámbar con texto e icono.
+- Solo cambia la presentación: ni datos, ni contratos, ni reglas.
+- Los textos de apoyo mantienen el contraste AA: no se usa el gris muy claro de la referencia.
+- Se implementa con un componente compartido, `IconChip`, en `packages/ui`.
+
 <a id="adr-0011"></a>
 ## ADR 0011 — Inicio como tablero y cada módulo como app
 

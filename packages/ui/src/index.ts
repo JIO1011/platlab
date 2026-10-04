@@ -2,6 +2,7 @@ export { Badge } from './components/badge';
 export { Button, type ButtonProps } from './components/button';
 export { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './components/dropdown-menu';
 export { Field } from './components/field';
+export { IconChip } from './components/icon-chip';
 export { Input, Textarea } from './components/input';
 export { Quantity } from './components/quantity';
 export { Select, type SelectOption } from './components/select';

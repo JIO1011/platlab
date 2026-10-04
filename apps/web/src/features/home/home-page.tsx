@@ -1,5 +1,5 @@
 import type { HomeResponse } from '@platlab/contracts';
-import { Skeleton, StatePanel } from '@platlab/ui';
+import { IconChip, Skeleton, StatePanel } from '@platlab/ui';
 import { ArrowRight, Boxes, LayoutGrid } from 'lucide-react';
 import { useId } from 'react';
 import { Link } from 'react-router';
@@ -126,9 +126,7 @@ function ModuleCard({ card }: { card: Card }) {
       className="group flex min-h-64 flex-col rounded-card bg-surface p-6 shadow-raised transition-shadow duration-150 hover:shadow-float"
     >
       <div className="flex items-center gap-3">
-        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-control bg-action-soft text-action">
-          <Icon className="size-5" aria-hidden />
-        </span>
+        <IconChip icon={Icon} />
         <h2 className="text-lg font-semibold text-ink">{card.name}</h2>
         <ArrowRight
           className="ml-auto size-5 text-action transition-transform duration-150 group-hover:translate-x-0.5"
