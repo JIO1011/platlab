@@ -1,7 +1,7 @@
 # Verificación — tarjetas de catálogo del Inventario de Reactivos (ADR 0010, cambio del 04-10-2026)
 
 Fecha: 2026-10-04 · Commit: 9456b5b, con cambios sin confirmar · Entorno: local
-Veredicto: **Incompleto**, solo a falta del CI de este commit. Cambio solo de presentación: sin datos, contratos ni reglas nuevas.
+Veredicto: **Cumple**, también en el CI (run 37181927747 sobre 9e02c21). Cambio solo de presentación: sin datos, contratos ni reglas nuevas.
 
 | # | Criterio | Estado | Evidencia |
 |---|---|---|---|
@@ -12,7 +12,7 @@ Veredicto: **Incompleto**, solo a falta del CI de este commit. Cambio solo de pr
 | 5 | Accesibilidad WCAG 2.2 AA | ✅ | Playwright con axe, 13 pruebas pasan (incluidos inventario de escritorio, tableta y móvil); contraste de la píldora calculado en 4,9:1 |
 | 6 | Revisor final de impeccable | ✅ | Primer pase «fix»: CAS que salta de línea, saldo largo y altura del esqueleto; las tres, aplicadas |
 | 7 | Detector de impeccable y DESIGN.md | ✅ | Detector `[]`; documentador actualizó `DESIGN.md` y `design.json` (válido) |
-| 8 | Reproducibilidad en CI | ⚠️ | Falta el CI de este commit |
+| 8 | Reproducibilidad en CI | ✅ | Run 37181927747 sobre 9e02c21, todos los pasos en verde, Playwright con axe incluido |
 
 Comandos locales: `pnpm typecheck`, `lint`, `deps` y `knip` en verde; `pnpm test` 37 pruebas; `pnpm e2e` 13 pruebas con axe; build y detector sin hallazgos.
 
