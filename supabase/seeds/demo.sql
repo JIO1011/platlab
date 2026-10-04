@@ -208,7 +208,8 @@ begin
     end loop;
   end loop;
 
-  -- Salidas de los últimos 28 días: de 1 a 4 por día laborable y ninguna el fin de semana.
+  -- Salidas de los últimos 28 días: de 1 a 4 por día laborable y ninguna el fin de semana. Las
+  -- pide el Operador y las aprueba la Administradora (ADR 0012): ella es la responsable.
   for day_offset in reverse 28..1 loop
     if extract(isodow from (now() at time zone 'America/Guayaquil')::date - day_offset) in (6, 7) then
       continue;
@@ -217,9 +218,10 @@ begin
     for i in 1..issues_today loop
       sequence_n := sequence_n + 1;
       position_n := 1 + sequence_n % 5;
-      insert into inventory.operations (workspace_id, type, actor_principal_id, reason, destination, effective_at, correlation_id)
-      values ('da000000-0000-4000-8000-00000000000a', 'issue', 'da200000-0000-4000-8000-000000000002',
-              reasons[1 + sequence_n % 5], 'Laboratorio 1',
+      insert into inventory.operations
+        (workspace_id, type, actor_principal_id, requested_by_principal_id, reason, destination, effective_at, correlation_id)
+      values ('da000000-0000-4000-8000-00000000000a', 'issue', 'da200000-0000-4000-8000-000000000001',
+              'da200000-0000-4000-8000-000000000002', reasons[1 + sequence_n % 5], 'Laboratorio 1',
               ((now() at time zone 'America/Guayaquil')::date - day_offset + make_interval(hours => 8 + i * 2))
                 at time zone 'America/Guayaquil',
               gen_random_uuid())
@@ -318,5 +320,13 @@ insert into inventory.destinations (workspace_id, item_kind, name)
 select w.id, 'reagent', d.name
   from (values ('da000000-0000-4000-8000-00000000000a'::uuid), ('db000000-0000-4000-8000-00000000000b'::uuid)) as w (id)
  cross join (values ('Laboratorio 1'), ('Laboratorio 2'), ('Bodega central')) as d (name);
+
+-- Una solicitud de salida pendiente del Operador en Química (ADR 0012): aparta 50 g del primer
+-- frasco de NaCl hasta que la Administradora la apruebe o la rechace.
+update inventory.positions set reserved = 50 where id = 'da800000-0000-4000-8000-000000000001';
+insert into inventory.allocations
+  (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id, created_at)
+values ('da000000-0000-4000-8000-00000000000a', 'da800000-0000-4000-8000-000000000001', 50,
+        'Práctica de Análisis Químico', 'Laboratorio 2', 'da200000-0000-4000-8000-000000000002', now() - interval '2 hours');
 
 commit;

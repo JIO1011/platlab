@@ -122,6 +122,7 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
       'reagents.adjustment.create',
       'reagents.catalog.manage',
       'reagents.catalog.read',
+      'reagents.issue.approve',
       'reagents.issue.create',
       'reagents.receipt.create',
     ]);
@@ -138,6 +139,7 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
               { path: '', label: 'Resumen' },
               { path: 'inventario', label: 'Inventario' },
               { path: 'movimientos', label: 'Movimientos' },
+              { path: 'solicitudes', label: 'Solicitudes' },
             ],
           },
         ],
@@ -154,6 +156,7 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
       'reagents.adjustment.create',
       'reagents.catalog.manage',
       'reagents.catalog.read',
+      'reagents.issue.approve',
       'reagents.issue.create',
       'reagents.receipt.create',
     ]);

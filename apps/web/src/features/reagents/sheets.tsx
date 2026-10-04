@@ -2,6 +2,7 @@ import {
   adjustmentRequest,
   createProductRequest,
   issueRequest,
+  issueResponse,
   movementResponse,
   product as productContract,
   receiptRequest,
@@ -20,6 +21,7 @@ import {
   normalizeDecimalInput,
   percentOfDecimal,
   subtractDecimal,
+  toDecimalInput,
   toast,
   type SelectOption,
 } from '@platlab/ui';
@@ -31,6 +33,7 @@ import { formatDate } from '../../app/format';
 import { useDestinations, useLots, useReasons, useReceiptLocations } from '../../app/queries';
 import { ChoiceField } from './choices';
 import { commandErrorMessage, fieldErrors, useCommand } from './commands';
+import { availableOf } from './stock';
 
 const units: SelectOption[] = [
   { value: 'g', label: 'Gramos (g)' },
@@ -151,6 +154,16 @@ const positionOption = (position: Position): SelectOption => ({
   group: position.product.name,
 });
 
+/** En la salida, lo disponible: lo apartado por solicitudes no se ofrece (ADR 0012). */
+const issueOption = (position: Position): SelectOption => {
+  const available = availableOf(position);
+  const amount =
+    position.reserved === '0'
+      ? `${formatDecimal(available)} ${position.unit}`
+      : `${formatDecimal(available)} ${position.unit} disponibles`;
+  return { ...positionOption(position), detail: `${amount} · ${expiryText(position)}` };
+};
+
 /** Orden FEFO dentro de cada reactivo: por nombre, luego por caducidad (desconocida al final). */
 const byProductThenExpiry = (a: Position, b: Position) =>
   a.product.name.localeCompare(b.product.name) ||
@@ -171,7 +184,7 @@ function fefoCandidates(positions: Position[], productId: string, today: string)
     .filter(
       (p) =>
         p.product.id === productId &&
-        p.balance !== '0' &&
+        availableOf(p) !== '0' &&
         p.lot.condition === 'enabled' &&
         p.disposition === 'usable' &&
         !isExpired(p, today),
@@ -184,7 +197,7 @@ function fefoSuggestion(positions: Position[], chosen: Position, today: string):
     .filter(
       (p) =>
         p.product.id === chosen.product.id &&
-        p.balance !== '0' &&
+        availableOf(p) !== '0' &&
         p.lot.condition === 'enabled' &&
         p.disposition === 'usable' &&
         !isExpired(p, today),
@@ -504,7 +517,8 @@ export function ReceiptSheet({
 
 /**
  * Salida de un frasco (ADR 0012): atajos de cantidad y lo que quedará, sugerencia FEFO, aviso si
- * el frasco está vencido (se permite, con advertencia) y motivo y destino de las listas.
+ * el frasco está vencido (se permite, con advertencia) y motivo y destino de las listas. Para el
+ * Operador es una solicitud que aparta la cantidad; lo decide el servidor y la respuesta lo dice.
  */
 export function IssueSheet({
   workspaceId,
@@ -515,6 +529,7 @@ export function IssueSheet({
   productId,
   timeZone,
   canManageLists,
+  needsApproval,
 }: SheetBaseProps & {
   positions: Position[];
   positionId: string | undefined;
@@ -522,8 +537,10 @@ export function IssueSheet({
   productId?: string | undefined;
   timeZone: string;
   canManageLists: boolean;
+  /** Sin permiso de aprobar: la salida será una solicitud (solo cambia los textos). */
+  needsApproval: boolean;
 }) {
-  const command = useCommand(workspaceId, '/issues', movementResponse);
+  const command = useCommand(workspaceId, '/issues', issueResponse);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const today = todayIn(timeZone);
   const scoped = productId ? positions.filter((p) => p.product.id === productId) : positions;
@@ -535,7 +552,10 @@ export function IssueSheet({
   const errors = form.formState.errors;
   const suggestion = position ? fefoSuggestion(positions, position, today) : null;
   const quantity = normalizeDecimalInput(form.watch('quantity'));
-  const remaining = position && quantity ? subtractDecimal(position.balance, quantity) : null;
+  const available = position ? availableOf(position) : null;
+  const remaining = available !== null && quantity ? subtractDecimal(available, quantity) : null;
+  // Con algo apartado, las cifras dicen «disponible»: el saldo del frasco no es lo que se puede sacar.
+  const reservedNote = position && position.reserved !== '0' ? ' disponibles' : '';
 
   const submit = form.handleSubmit(async (values) => {
     setGeneralError(null);
@@ -553,17 +573,24 @@ export function IssueSheet({
     if (!payload) return;
     try {
       const result = await command.mutateAsync(payload);
-      toast.success('Salida registrada', {
-        description: `Quedan ${formatDecimal(result.balance)} ${result.unit} en el frasco`,
-      });
+      if (result.status === 'pending') {
+        toast.success('Solicitud enviada', {
+          description: `Se apartaron ${formatDecimal(result.quantity)} ${result.unit} del frasco hasta que se apruebe. La verás en Solicitudes.`,
+        });
+      } else {
+        toast.success('Salida registrada', {
+          description: `Quedan ${formatDecimal(result.balance)} ${result.unit} en el frasco`,
+        });
+      }
       onOpenChange(false);
     } catch (error) {
       if (isApiError(error, 'INSUFFICIENT_STOCK')) {
         // El servidor confirma que no alcanza; se dice cuánto hay, como la pista local.
         form.setError('quantity', {
-          message: position
-            ? `No alcanza: el frasco tiene ${formatDecimal(position.balance)} ${position.unit}.`
-            : commandErrorMessage(error),
+          message:
+            position && available !== null
+              ? `No alcanza: el frasco tiene ${formatDecimal(available)} ${position.unit}${reservedNote}.`
+              : commandErrorMessage(error),
         });
       } else setGeneralError(commandErrorMessage(error));
     }
@@ -571,11 +598,15 @@ export function IssueSheet({
 
   return (
     <FormSheet
-      title="Registrar salida"
-      description="Descuenta de un frasco. El saldo se confirma al registrar."
+      title={needsApproval ? 'Solicitar salida' : 'Registrar salida'}
+      description={
+        needsApproval
+          ? 'La cantidad queda apartada del frasco hasta que un Administrador apruebe la salida.'
+          : 'Descuenta de un frasco. El saldo se confirma al registrar.'
+      }
       open={open}
       onOpenChange={onOpenChange}
-      submitLabel="Registrar salida"
+      submitLabel={needsApproval ? 'Enviar solicitud' : 'Registrar salida'}
       pending={command.isPending}
       generalError={generalError}
       onSubmit={() => void submit()}
@@ -588,7 +619,7 @@ export function IssueSheet({
             <Select
               value={field.value || undefined}
               onValueChange={field.onChange}
-              options={scoped.filter((p) => p.balance !== '0').sort(byProductThenExpiry).map(positionOption)}
+              options={scoped.filter((p) => availableOf(p) !== '0').sort(byProductThenExpiry).map(issueOption)}
               placeholder={productId ? 'Elige el frasco' : 'Elige reactivo, frasco y ubicación'}
             />
           )}
@@ -615,17 +646,29 @@ export function IssueSheet({
         label="Cantidad"
         error={errors.quantity?.message}
         hint={
-          position && remaining !== null ? (
+          position && available !== null && remaining !== null ? (
             remaining.startsWith('-') ? (
-              <span className="font-medium text-danger">No alcanza: el frasco tiene {formatDecimal(position.balance)} {position.unit}.</span>
+              <span className="font-medium text-danger">
+                No alcanza: el frasco tiene {formatDecimal(available)} {position.unit}
+                {reservedNote}.
+              </span>
             ) : (
               <span>
-                Quedarán <Quantity value={remaining} unit={position.unit} className="font-medium text-ink" /> en el frasco.
+                Quedarán <Quantity value={remaining} unit={position.unit} className="font-medium text-ink" />
+                {reservedNote} en el frasco.
               </span>
             )
-          ) : position ? (
+          ) : position && available !== null ? (
             <span>
-              Hay <Quantity value={position.balance} unit={position.unit} className="font-medium text-ink" /> en el frasco.
+              Hay <Quantity value={available} unit={position.unit} className="font-medium text-ink" />
+              {reservedNote} en el frasco
+              {position.reserved !== '0' ? (
+                <>
+                  {' '}
+                  (<Quantity value={position.reserved} unit={position.unit} /> apartados en solicitudes)
+                </>
+              ) : null}
+              .
             </span>
           ) : undefined
         }
@@ -644,8 +687,9 @@ export function IssueSheet({
               key={percent}
               type="button"
               onClick={() => {
-                const value = percentOfDecimal(position.balance, percent);
-                if (value) form.setValue('quantity', formatDecimal(value), { shouldValidate: false });
+                const value = percentOfDecimal(availableOf(position), percent);
+                // Sin separador de miles: «2.257» volvería como 2,257 al normalizar el campo.
+                if (value) form.setValue('quantity', toDecimalInput(value), { shouldValidate: false });
               }}
               className="inline-flex h-9 items-center rounded-full border border-line px-3.5 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
             >

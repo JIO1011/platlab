@@ -12,4 +12,11 @@ export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 export { Toaster, toast } from './components/toaster';
 export { cn } from './lib/cn';
-export { formatDecimal, normalizeDecimalInput, percentOfDecimal, ratioPercent, subtractDecimal } from './lib/decimal';
+export {
+  formatDecimal,
+  normalizeDecimalInput,
+  percentOfDecimal,
+  ratioPercent,
+  subtractDecimal,
+  toDecimalInput,
+} from './lib/decimal';

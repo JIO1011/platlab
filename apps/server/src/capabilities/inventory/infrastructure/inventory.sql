@@ -64,20 +64,21 @@ FOR UPDATE OF p;
 /* @name insertOperation */
 -- La fecha efectiva la fija la base (el runtime no puede escribirla).
 INSERT INTO inventory.operations
-  (workspace_id, type, actor_principal_id, reason, destination, reference, correlation_id)
+  (workspace_id, type, actor_principal_id, reason, destination, reference, correlation_id, requested_by_principal_id)
 VALUES
-  (:workspaceId!, :type!, :principalId!, :reason, :destination, :reference, :correlationId!)
+  (:workspaceId!, :type!, :principalId!, :reason, :destination, :reference, :correlationId!, :requestedBy)
 RETURNING id, effective_at;
 
 /* @name applyEntry */
--- Saldo y asiento en una sola sentencia sobre la posición ya bloqueada. Si el saldo no alcanza,
--- no actualiza ni inserta nada y el comando responde stock insuficiente.
+-- Saldo y asiento en una sola sentencia sobre la posición ya bloqueada. Si lo disponible no
+-- alcanza (el saldo nunca baja de lo reservado, ADR 0012), no actualiza ni inserta nada y el
+-- comando responde stock insuficiente.
 WITH moved AS (
   UPDATE inventory.positions
   SET balance = balance + :sign! * :quantity!::numeric, version = version + 1
   WHERE workspace_id = :workspaceId!
     AND id = :positionId!
-    AND balance + :sign! * :quantity!::numeric >= 0
+    AND balance + :sign! * :quantity!::numeric >= reserved
   RETURNING id, balance
 )
 INSERT INTO inventory.entries
@@ -105,6 +106,7 @@ SELECT
   loc.code AS location_code,
   loc.name AS location_name,
   trim_scale(p.balance) AS "balance!",
+  trim_scale(p.reserved) AS "reserved!",
   i.base_unit,
   lower(i.code) AS "sort_item!",
   lower(l.code) AS "sort_lot!",
@@ -145,8 +147,10 @@ SELECT
   o.reason,
   o.destination,
   o.reference,
+  o.requested_by_principal_id,
   o.actor_principal_id,
   ident.display_name AS actor_name,
+  requester.display_name AS requester_name,
   e.position_id,
   trim_scale(e.quantity) AS "quantity!",
   trim_scale(e.balance_after) AS "balance_after!",
@@ -166,6 +170,9 @@ JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.l
 LEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id
 LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
 LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
+LEFT JOIN core.principals AS rqp ON rqp.workspace_id = o.workspace_id AND rqp.id = o.requested_by_principal_id
+LEFT JOIN core.memberships AS rqm ON rqm.workspace_id = rqp.workspace_id AND rqm.id = rqp.membership_id
+LEFT JOIN core.identities AS requester ON requester.id = rqm.identity_id
 WHERE o.workspace_id = :workspaceId!
   AND i.kind = :kind!
   AND p.location_id = ANY (:locationIds!::uuid[])
@@ -272,3 +279,112 @@ UPDATE inventory.destinations
 SET archived_at = now()
 WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND id = :id! AND archived_at IS NULL
 RETURNING id;
+
+/* @name reserveQuantity */
+-- Aparta cantidad del frasco ya bloqueado para una solicitud: solo si lo disponible alcanza.
+UPDATE inventory.positions
+SET reserved = reserved + :quantity!::numeric, version = version + 1
+WHERE workspace_id = :workspaceId! AND id = :positionId! AND balance - reserved >= :quantity!::numeric
+RETURNING trim_scale(balance - reserved) AS "available!";
+
+/* @name releaseReserved */
+UPDATE inventory.positions
+SET reserved = reserved - :quantity!::numeric, version = version + 1
+WHERE workspace_id = :workspaceId! AND id = :positionId! AND reserved >= :quantity!::numeric
+RETURNING id;
+
+/* @name fulfillEntry */
+-- Aprobar: lo reservado sale del saldo y de la reserva a la vez, con su asiento.
+WITH moved AS (
+  UPDATE inventory.positions
+  SET balance = balance - :quantity!::numeric, reserved = reserved - :quantity!::numeric, version = version + 1
+  WHERE workspace_id = :workspaceId!
+    AND id = :positionId!
+    AND reserved >= :quantity!::numeric
+  RETURNING id, balance
+)
+INSERT INTO inventory.entries
+  (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+SELECT :workspaceId!, :operationId!, moved.id, -1 * :quantity!::numeric, -1 * :quantity!::numeric, :unit!, moved.balance
+FROM moved
+RETURNING trim_scale(quantity) AS "quantity!", trim_scale(balance_after) AS "balance_after!";
+
+/* @name insertAllocation */
+INSERT INTO inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id)
+VALUES (:workspaceId!, :positionId!, :quantity!::numeric, :reason!, :destination!, :principalId!)
+RETURNING id, created_at;
+
+/* @name findAllocation */
+-- Sin bloqueo: solo para conocer el frasco, que se bloquea antes que la reserva.
+SELECT a.id, a.position_id
+FROM inventory.allocations AS a
+JOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+WHERE a.workspace_id = :workspaceId! AND a.id = :allocationId! AND i.kind = :kind!;
+
+/* @name lockAllocation */
+SELECT id, position_id, status, trim_scale(quantity) AS "quantity!", reason, destination, requested_by_principal_id
+FROM inventory.allocations
+WHERE workspace_id = :workspaceId! AND id = :allocationId!
+FOR UPDATE;
+
+/* @name decideAllocation */
+UPDATE inventory.allocations
+SET status = :status!, decided_by_principal_id = :principalId!, decided_at = now(),
+    decision_reason = :decisionReason, operation_id = :operationId, version = version + 1
+WHERE workspace_id = :workspaceId! AND id = :allocationId! AND status = 'held'
+RETURNING id, decided_at;
+
+/* @name listAllocations */
+-- Solicitudes en las ubicaciones autorizadas; `requestedBy` acota a las propias.
+SELECT
+  a.id,
+  a.status,
+  trim_scale(a.quantity) AS "quantity!",
+  a.reason,
+  a.destination,
+  a.decision_reason,
+  a.created_at,
+  a.decided_at,
+  a.position_id,
+  a.requested_by_principal_id,
+  a.decided_by_principal_id,
+  requester.display_name AS requester_name,
+  decider.display_name AS decider_name,
+  i.id AS item_id,
+  i.name AS item_name,
+  i.base_unit,
+  l.code AS lot_code,
+  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,
+  loc.code AS location_code,
+  loc.name AS location_name
+FROM inventory.allocations AS a
+JOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
+JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+LEFT JOIN core.principals AS rp ON rp.workspace_id = a.workspace_id AND rp.id = a.requested_by_principal_id
+LEFT JOIN core.memberships AS rm ON rm.workspace_id = rp.workspace_id AND rm.id = rp.membership_id
+LEFT JOIN core.identities AS requester ON requester.id = rm.identity_id
+LEFT JOIN core.principals AS dp ON dp.workspace_id = a.workspace_id AND dp.id = a.decided_by_principal_id
+LEFT JOIN core.memberships AS dm ON dm.workspace_id = dp.workspace_id AND dm.id = dp.membership_id
+LEFT JOIN core.identities AS decider ON decider.id = dm.identity_id
+WHERE a.workspace_id = :workspaceId!
+  AND i.kind = :kind!
+  AND p.location_id = ANY (:locationIds!::uuid[])
+  AND (:status::text IS NULL OR a.status = :status::text)
+  AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid)
+ORDER BY (a.status = 'held') DESC, a.created_at DESC, a.id DESC
+LIMIT :limit!;
+
+/* @name countPendingAllocations */
+SELECT count(*)::int AS "count!"
+FROM inventory.allocations AS a
+JOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+WHERE a.workspace_id = :workspaceId!
+  AND i.kind = :kind!
+  AND a.status = 'held'
+  AND p.location_id = ANY (:locationIds!::uuid[])
+  AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid);

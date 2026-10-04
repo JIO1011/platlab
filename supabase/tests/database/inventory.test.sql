@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(50);
+select plan(65);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -56,6 +56,17 @@ insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, initia
 insert into inventory.reasons (workspace_id, item_kind, kind, name) values
   ('b0000000-0000-4000-8000-00000000000b', 'reagent', 'issue', 'Motivo de B');
 
+-- R-01A, entrega 2: otra persona en A (quien aprueba) y una solicitud pendiente en B.
+insert into core.identities (id, provider, provider_subject, display_name) values
+  ('10000000-0000-4000-8000-000000000003', 'supabase', 'inv-a2', 'Administradora A');
+insert into core.memberships (id, workspace_id, identity_id) values
+  ('a1000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-00000000000a', '10000000-0000-4000-8000-000000000003');
+insert into core.principals (id, workspace_id, kind, membership_id) values
+  ('a2000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-00000000000a', 'member', 'a1000000-0000-4000-8000-000000000002');
+insert into inventory.allocations (id, workspace_id, position_id, quantity, reason, destination, requested_by_principal_id) values
+  ('bd000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', 'b8000000-0000-4000-8000-000000000001',
+   1, 'Práctica', 'Laboratorio', 'b2000000-0000-4000-8000-000000000001');
+
 -- Desde aquí, las restricciones diferidas (saldo = asientos) se comprueban en cada sentencia.
 set constraints all immediate;
 
@@ -64,7 +75,8 @@ set constraints all immediate;
 -- ---------------------------------------------------------------------------
 
 select tables_are('inventory',
-  array['units', 'items', 'lots', 'positions', 'operations', 'entries', 'containers', 'reasons', 'destinations'],
+  array['units', 'items', 'lots', 'positions', 'operations', 'entries', 'containers', 'reasons', 'destinations',
+        'allocations'],
   'inventory contiene las tablas de R-00 y de R-01A');
 select tables_are('reagents', array['products'], 'reagents contiene solo el detalle químico');
 
@@ -95,17 +107,21 @@ select set_eq(
         and privilege_type in ('INSERT', 'UPDATE')
         and table_name in ('positions', 'operations')
         and not (table_name = 'positions' and privilege_type = 'INSERT') $$,
-  array['positions.balance UPDATE', 'positions.version UPDATE',
+  array['positions.balance UPDATE', 'positions.reserved UPDATE', 'positions.version UPDATE',
         'operations.workspace_id INSERT', 'operations.type INSERT', 'operations.actor_principal_id INSERT',
         'operations.reason INSERT', 'operations.destination INSERT', 'operations.reference INSERT',
-        'operations.correlation_id INSERT'],
-  'el runtime solo cambia saldo y versión, y no fija la fecha de una operación');
+        'operations.correlation_id INSERT', 'operations.requested_by_principal_id INSERT'],
+  'el runtime solo cambia saldo, reservado y versión, y no fija la fecha de una operación');
 
 select results_eq(
   'select code from core.permissions where module_code = ''reagents'' order by code',
   array['reagents.adjustment.create', 'reagents.catalog.manage', 'reagents.catalog.read',
-        'reagents.issue.create', 'reagents.receipt.create'],
+        'reagents.issue.approve', 'reagents.issue.create', 'reagents.receipt.create'],
   'los permisos de Reactivos están en el catálogo');
+
+select ok(
+  exists (select 1 from core.role_permissions where role_code = 'admin' and permission_code = 'reagents.issue.approve'),
+  'aprobar salidas es del Administrador (ADR 0012)');
 
 select set_eq(
   'select permission_code from core.role_permissions where role_code = ''operator''',
@@ -248,6 +264,33 @@ select throws_ok(
         'ac000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000001', 'quarantine', 10) $$,
   '23505', null, 'un frasco tiene saldo en un solo lugar');
 
+-- R-01A, entrega 2: reservas de salida (03 §4, ADR 0012).
+select throws_ok(
+  $$ update inventory.positions set reserved = balance + 1 where id = 'a8000000-0000-4000-8000-000000000001' $$,
+  '23514', null, 'lo reservado no supera el saldo');
+
+select throws_ok(
+  $$ insert into inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id,
+                                        status, decided_by_principal_id, decided_at, operation_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a8000000-0000-4000-8000-000000000001', 1, 'Práctica', 'Lab',
+             'a2000000-0000-4000-8000-000000000001', 'fulfilled', 'a2000000-0000-4000-8000-000000000001', now(),
+             'a9000000-0000-4000-8000-000000000001') $$,
+  '23514', null, 'nadie aprueba su propia solicitud');
+
+select throws_ok(
+  $$ insert into inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id,
+                                        status, decided_by_principal_id, decided_at)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a8000000-0000-4000-8000-000000000001', 1, 'Práctica', 'Lab',
+             'a2000000-0000-4000-8000-000000000001', 'released', 'a2000000-0000-4000-8000-000000000002', now()) $$,
+  '23514', null, 'rechazar la solicitud de otro exige motivo');
+
+select throws_ok(
+  $$ insert into inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id,
+                                        decided_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a8000000-0000-4000-8000-000000000001', 1, 'Práctica', 'Lab',
+             'a2000000-0000-4000-8000-000000000001', 'a2000000-0000-4000-8000-000000000002') $$,
+  '23514', null, 'una solicitud pendiente no tiene decisión');
+
 -- ---------------------------------------------------------------------------
 -- Bajo el rol real de runtime
 -- ---------------------------------------------------------------------------
@@ -354,6 +397,57 @@ select throws_ok(
 
 select is_empty($$ select id from inventory.reasons where name = 'Motivo de B' $$,
   'los motivos de B no se ven desde A');
+
+-- R-01A, entrega 2: solicitudes de salida bajo el rol real.
+select lives_ok(
+  $$ insert into inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a8000000-0000-4000-8000-000000000001', 5, 'Solicitud A', 'Lab',
+             'a2000000-0000-4000-8000-000000000001') $$,
+  'el runtime pide una salida en nombre propio');
+
+select throws_ok(
+  $$ insert into inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a8000000-0000-4000-8000-000000000001', 5, 'Ajena', 'Lab',
+             'a2000000-0000-4000-8000-000000000002') $$,
+  '42501', null, 'nadie pide una salida en nombre de otro');
+
+select throws_ok(
+  $$ insert into inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id, status)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a8000000-0000-4000-8000-000000000001', 5, 'Aprobada', 'Lab',
+             'a2000000-0000-4000-8000-000000000001', 'fulfilled') $$,
+  '42501', null, 'una solicitud nace pendiente');
+
+select throws_ok(
+  $$ update inventory.allocations set quantity = 1 where reason = 'Solicitud A' $$,
+  '42501', null, 'la cantidad pedida no cambia');
+
+select throws_ok(
+  $$ delete from inventory.allocations $$,
+  '42501', null, 'las solicitudes no se borran');
+
+select throws_ok(
+  $$ update inventory.allocations
+        set status = 'released', decided_by_principal_id = 'a2000000-0000-4000-8000-000000000002', decided_at = now(),
+            decision_reason = 'En nombre de otro'
+      where reason = 'Solicitud A' $$,
+  '42501', null, 'nadie decide en nombre de otro');
+
+select lives_ok(
+  $$ update inventory.allocations
+        set status = 'released', decided_by_principal_id = 'a2000000-0000-4000-8000-000000000001', decided_at = now()
+      where reason = 'Solicitud A' $$,
+  'quien pidió cancela su solicitud');
+
+select throws_ok(
+  $$ update inventory.allocations set decision_reason = 'Otro motivo' where reason = 'Solicitud A' $$,
+  '23514', null, 'una solicitud decidida no cambia');
+
+select is_empty($$ select id from inventory.allocations where id = 'bd000000-0000-4000-8000-000000000001' $$,
+  'las solicitudes de B no se ven desde A');
+
+select throws_ok(
+  $$ update inventory.positions set reserved = balance + 1 where id = 'a8000000-0000-4000-8000-000000000001' $$,
+  '23514', null, 'el runtime no aparta más que el saldo');
 
 reset role;
 

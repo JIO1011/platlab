@@ -124,6 +124,7 @@ export async function receiveContainers(
       destination: null,
       reference: input.reference,
       correlationId: ctx.correlationId,
+      requestedBy: null,
     },
     ctx.client,
   );
@@ -217,6 +218,7 @@ export async function applyMovement(
       destination: input.destination ?? null,
       reference: input.reference ?? null,
       correlationId: ctx.correlationId,
+      requestedBy: null,
     },
     ctx.client,
   );

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatDecimal, normalizeDecimalInput, percentOfDecimal, ratioPercent, subtractDecimal } from './decimal';
+import {
+  formatDecimal,
+  normalizeDecimalInput,
+  percentOfDecimal,
+  ratioPercent,
+  subtractDecimal,
+  toDecimalInput,
+} from './decimal';
 
 describe('formatDecimal', () => {
   it('usa coma decimal, punto de miles y el signo menos tipográfico', () => {
@@ -23,6 +30,15 @@ describe('normalizeDecimalInput', () => {
 
   it('respeta el punto decimal cuando no hay coma', () => {
     expect(normalizeDecimalInput('20.25')).toBe('20.25');
+  });
+});
+
+describe('toDecimalInput', () => {
+  it('escribe una cantidad que vuelve igual al normalizarla, también con miles', () => {
+    for (const value of ['2257', '2257.5', '0.125', '1234567.000000001']) {
+      expect(normalizeDecimalInput(toDecimalInput(value))).toBe(value);
+    }
+    expect(toDecimalInput('2257.5')).toBe('2257,5');
   });
 });
 

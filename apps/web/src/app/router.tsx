@@ -42,6 +42,8 @@ export const router = createBrowserRouter([
               // Ficha del reactivo, segundo nivel del inventario (ADR 0012).
               { path: 'inventario/:productId', lazy: async () => ({ Component: (await reagents()).ReagentsProductPage }) },
               { path: 'movimientos', lazy: async () => ({ Component: (await reagents()).ReagentsMovementsPage }) },
+              // Solicitudes de salida (ADR 0012): bandeja de quien aprueba o las propias del Operador.
+              { path: 'solicitudes', lazy: async () => ({ Component: (await reagents()).ReagentsRequestsPage }) },
             ],
           },
         ],

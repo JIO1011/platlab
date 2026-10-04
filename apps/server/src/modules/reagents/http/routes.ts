@@ -6,6 +6,9 @@ import {
   createLotRequest,
   createReasonRequest,
   entryParams,
+  issueRequestListQuery,
+  issueRequestParams,
+  rejectIssueRequest,
   createProductRequest,
   issueRequest,
   operationListQuery,
@@ -19,12 +22,15 @@ import {
 import { verifiedSubject } from '../../../platform/http/auth.js';
 import { idempotencyKey } from '../../../platform/http/idempotency-key.js';
 import {
+  approveRequest,
   archiveDestination,
   archiveReason,
+  cancelRequest,
   createDestination,
   createLot,
   createProduct,
   createReason,
+  rejectRequest,
   registerAdjustment,
   registerIssue,
   registerReceipt,
@@ -40,6 +46,7 @@ import {
   listProducts,
   listReasons,
   listReceiptLocations,
+  listRequests,
 } from '../application/queries.js';
 
 const queryRequest = (request: FastifyRequest) => ({
@@ -127,6 +134,31 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
 
     app.post('/destinations/:entryId/archive', async (request) =>
       archiveDestination(pool, commandRequest(request), entryParams.parse(request.params).entryId),
+    );
+
+    // Solicitudes de salida (ADR 0012): bandeja de quien aprueba o «mis solicitudes».
+    app.get('/issue-requests', async (request) =>
+      listRequests(pool, queryRequest(request), issueRequestListQuery.parse(request.query).estado === 'pendientes'),
+    );
+
+    // Aprobar crea el movimiento (201); rechazar o cancelar solo deciden la solicitud (200).
+    app.post('/issue-requests/:requestId/approve', async (request, reply) =>
+      reply
+        .status(201)
+        .send(await approveRequest(pool, commandRequest(request), issueRequestParams.parse(request.params).requestId)),
+    );
+
+    app.post('/issue-requests/:requestId/reject', async (request) =>
+      rejectRequest(
+        pool,
+        commandRequest(request),
+        issueRequestParams.parse(request.params).requestId,
+        rejectIssueRequest.parse(request.body).reason,
+      ),
+    );
+
+    app.post('/issue-requests/:requestId/cancel', async (request) =>
+      cancelRequest(pool, commandRequest(request), issueRequestParams.parse(request.params).requestId),
     );
 
     app.get('/operations', async (request) =>

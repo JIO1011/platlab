@@ -8,6 +8,8 @@ import { formatDate } from '../../app/format';
 import { useOperations, usePositions, useProduct } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
 import { useReagents, type Allowed, type SheetRequest } from './context';
+import { purposeOf, responsibleOf } from './operation-text';
+import { availableOf } from './stock';
 
 const physicalStateLabel: Record<string, string> = { solid: 'Sólido', liquid: 'Líquido', gas: 'Gas' };
 
@@ -171,6 +173,9 @@ function ContainerCard({
   const initial = position.container?.initialQuantity ?? null;
   const percent = initial ? ratioPercent(position.balance, initial) : null;
   const empty = position.balance === '0';
+  // Lo apartado por solicitudes no se puede sacar (ADR 0012); con todo apartado, no hay «Salida».
+  const reserved = position.reserved !== '0';
+  const available = availableOf(position);
   // Con saldo pero menos del 1 %, se dice y se ve: un frasco casi vacío no es un frasco vacío.
   const percentText = percent === 0 && !empty ? '<1 %' : `${percent ?? 0} %`;
   const condition = conditionLabel[position.lot.condition];
@@ -194,6 +199,11 @@ function ContainerCard({
       <div className="flex flex-wrap gap-1.5">
         <ExpiryBadge expiresOn={position.lot.expiresOn} today={today} />
         {condition ? <Badge tone={condition.tone}>{condition.text}</Badge> : null}
+        {reserved ? (
+          <Badge tone="info">
+            <Quantity value={position.reserved} unit={position.unit} /> apartados
+          </Badge>
+        ) : null}
       </div>
       {percent !== null && initial ? (
         <div>
@@ -215,9 +225,9 @@ function ContainerCard({
           </p>
         </div>
       ) : null}
-      {(allowed.issue && !empty) || allowed.adjustment ? (
+      {(allowed.issue && available !== '0') || allowed.adjustment ? (
         <div className="mt-auto flex gap-2 border-t border-line pt-3">
-          {allowed.issue && !empty ? (
+          {allowed.issue && available !== '0' ? (
             <Button size="sm" className="flex-1 max-lg:h-11" onClick={() => onAction({ kind: 'issue', positionId: position.id })}>
               <ArrowUpFromLine aria-hidden />
               Salida
@@ -335,13 +345,11 @@ export function ReagentsProductPage() {
                 <ActivityRow
                   type={operation.type}
                   title={operation.container?.code ?? operation.lot.code}
-                  detail={[operation.location.code, operation.reason, operation.destination ? `→ ${operation.destination}` : null]
-                    .filter(Boolean)
-                    .join(' · ')}
+                  detail={[operation.location.code, purposeOf(operation)].filter(Boolean).join(' · ')}
                   quantity={operation.quantity}
                   unit={operation.unit}
                   occurredAt={operation.effectiveAt}
-                  actor={operation.actor.displayName}
+                  actor={responsibleOf(operation)}
                   timeZone={me.workspace.timeZone}
                 />
               </li>

@@ -12,6 +12,15 @@ export function formatDecimal(value: string): string {
 }
 
 /**
+ * Cadena de la API → texto para un campo editable: coma decimal y sin separador de miles, para
+ * que vuelva igual por `normalizeDecimalInput` («2257.5» → «2257,5»). `formatDecimal` no sirve
+ * aquí: «2.257» se leería como dos coma dos.
+ */
+export function toDecimalInput(value: string): string {
+  return value.replace('.', ',');
+}
+
+/**
  * Lo que escribe la persona → cadena decimal de la API. Acepta coma decimal («79,5») y punto
  * («79.5»); con coma presente, los puntos se toman como separadores de miles («1.234,5»).
  * No valida: el contrato decide si el resultado es una cantidad aceptable.

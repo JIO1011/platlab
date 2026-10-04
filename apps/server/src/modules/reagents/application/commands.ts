@@ -7,6 +7,7 @@ import type {
   createProductRequest,
   createReasonRequest,
   issueRequest,
+  IssueResponse,
   ListEntry,
   Lot,
   MovementResponse,
@@ -18,16 +19,20 @@ import {
   addDestination,
   addReason,
   applyMovement,
+  approveIssueRequest,
   createItem,
   createLot as createInventoryLot,
   lockExistingPosition,
   receiveContainers,
+  releaseIssueRequest,
+  requestIssue,
   retireDestination,
   retireReason,
   type InventoryContext,
 } from '../../../capabilities/inventory/index.js';
 import { withIdempotency } from '../../../platform/idempotency/idempotency.js';
 import {
+  hasPermissionAt,
   recordAudit,
   requirePermission,
   requirePermissionAt,
@@ -65,10 +70,12 @@ function runCommand<T>(
   input: unknown,
   authorize: (access: WorkspaceAccess) => Promise<void>,
   work: (access: WorkspaceAccess) => Promise<T>,
+  // Decidir una solicitud es resolver un pendiente (ADR 0009): sigue admitido en consulta o cierre.
+  actionClass: 'new_operation' | 'resolve_pending' = 'new_operation',
 ): Promise<T> {
   return withModuleAccess(
     pool,
-    { subject: request.subject, workspaceId: request.workspaceId, moduleCode: 'reagents', actionClass: 'new_operation' },
+    { subject: request.subject, workspaceId: request.workspaceId, moduleCode: 'reagents', actionClass },
     async (access) => {
       await authorize(access);
       return withIdempotency(
@@ -237,26 +244,120 @@ export function registerReceipt(
 }
 
 /** Salida: posición, cantidad, unidad, motivo y destino; descuenta bajo el bloqueo de la posición. */
+const APPROVE = 'reagents.issue.approve';
+
+/**
+ * Salida (ADR 0012): quien puede aprobar en la ubicación del frasco la registra al instante; el
+ * Operador deja una solicitud pendiente que aparta la cantidad. Lo decide el servidor, nunca el
+ * navegador: el mismo envío da una salida o una solicitud según el permiso de quien lo hace.
+ */
 export function registerIssue(
   pool: pg.Pool,
   request: CommandRequest,
   input: z.infer<typeof issueRequest>,
-): Promise<MovementResponse> {
+): Promise<IssueResponse> {
   const permission = 'reagents.issue.create';
   return runCommand(pool, request, permission, input, (access) => requirePermission(access, permission), async (access) => {
     const ctx = inventoryContext(access);
     const position = await lockExistingPosition(ctx, input.positionId);
     await requirePermissionAt(access, permission, position.locationId);
-    const result = await applyMovement(ctx, position, {
-      type: 'issue',
+    if (await hasPermissionAt(access, APPROVE, position.locationId)) {
+      const result = await applyMovement(ctx, position, {
+        type: 'issue',
+        quantity: input.quantity,
+        unit: input.unit,
+        reason: input.reason,
+        destination: input.destination,
+      });
+      await auditMovement(access, permission, result, input.reason);
+      return { status: 'done' as const, ...result };
+    }
+    const pending = await requestIssue(ctx, position, {
       quantity: input.quantity,
       unit: input.unit,
       reason: input.reason,
       destination: input.destination,
     });
-    await auditMovement(access, permission, result, input.reason);
-    return result;
+    await recordAudit(access, {
+      action: 'reagents.issue.request',
+      entityType: 'inventory.allocation',
+      entityId: pending.requestId,
+      reason: input.reason,
+      changes: { positionId: pending.positionId, quantity: pending.quantity, unit: pending.unit, destination: input.destination },
+    });
+    return { status: 'pending' as const, ...pending };
   });
+}
+
+/** Aprueba una solicitud pendiente: la salida se confirma; nadie aprueba la suya (ADR 0012). */
+export function approveRequest(pool: pg.Pool, request: CommandRequest, requestId: string): Promise<MovementResponse> {
+  return runCommand(
+    pool,
+    request,
+    'reagents.issue.approve',
+    { requestId },
+    (access) => requirePermission(access, APPROVE),
+    async (access) => {
+      const result = await approveIssueRequest(inventoryContext(access), requestId, (locationId) =>
+        requirePermissionAt(access, APPROVE, locationId),
+      );
+      await recordAudit(access, {
+        action: APPROVE,
+        entityType: 'inventory.allocation',
+        entityId: requestId,
+        changes: { operationId: result.operationId, positionId: result.positionId, quantity: result.appliedQuantity, balance: result.balance },
+      });
+      return result;
+    },
+    'resolve_pending',
+  );
+}
+
+/** Rechaza una solicitud con motivo: libera lo reservado. */
+export function rejectRequest(pool: pg.Pool, request: CommandRequest, requestId: string, reason: string) {
+  return runCommand(
+    pool,
+    request,
+    'reagents.issue.reject',
+    { requestId, reason },
+    (access) => requirePermission(access, APPROVE),
+    async (access) => {
+      const result = await releaseIssueRequest(inventoryContext(access), requestId, { kind: 'reject', reason }, (locationId) =>
+        requirePermissionAt(access, APPROVE, locationId),
+      );
+      await recordAudit(access, {
+        action: 'reagents.issue.reject',
+        entityType: 'inventory.allocation',
+        entityId: requestId,
+        reason,
+        changes: { positionId: result.positionId },
+      });
+      return result;
+    },
+    'resolve_pending',
+  );
+}
+
+/** Quien pidió la salida la cancela mientras siga pendiente: libera lo reservado. */
+export function cancelRequest(pool: pg.Pool, request: CommandRequest, requestId: string) {
+  return runCommand(
+    pool,
+    request,
+    'reagents.issue.cancel',
+    { requestId },
+    (access) => requirePermission(access, 'reagents.issue.create'),
+    async (access) => {
+      const result = await releaseIssueRequest(inventoryContext(access), requestId, { kind: 'cancel' }, async () => {});
+      await recordAudit(access, {
+        action: 'reagents.issue.cancel',
+        entityType: 'inventory.allocation',
+        entityId: requestId,
+        changes: { positionId: result.positionId },
+      });
+      return result;
+    },
+    'resolve_pending',
+  );
 }
 
 /** Ajuste con signo y motivo obligatorio (Administrador); corrige con otro movimiento, no edita. */

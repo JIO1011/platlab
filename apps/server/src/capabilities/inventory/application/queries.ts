@@ -66,6 +66,7 @@ export async function listPositionPage(
       disposition: row.disposition as Position['disposition'],
       location: { id: row.location_id, code: row.location_code, name: row.location_name },
       balance: row.balance,
+      reserved: row.reserved,
       unit: row.base_unit,
     })),
     nextCursor:
@@ -119,6 +120,7 @@ export async function listOperationPage(
       type: row.type as Operation['type'],
       effectiveAt: row.effective_at.toISOString(),
       actor: { principalId: row.actor_principal_id, displayName: row.actor_name },
+      requestedBy: row.requested_by_principal_id ? { displayName: row.requester_name } : null,
       reason: row.reason,
       destination: row.destination,
       reference: row.reference,

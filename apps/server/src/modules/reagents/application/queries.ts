@@ -10,6 +10,7 @@ import type {
   ProductList,
   productListQuery,
   Product,
+  IssueRequestItem,
   ListEntry,
   ReasonKind,
   StockedProduct,
@@ -17,8 +18,10 @@ import type {
 import {
   countOperationsPerDay,
   destinationsOf,
+  listIssueRequests,
   listOperationPage,
   listPositionPage,
+  pendingRequestCount,
   reasonsOf,
 } from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
@@ -99,6 +102,36 @@ export function getProduct(pool: pg.Pool, request: QueryRequest, productId: stri
     );
     if (!row) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
     return toStockedProduct(row);
+  });
+}
+
+/**
+ * Quién ve qué solicitudes (ADR 0012): quien puede aprobar, la bandeja de las ubicaciones donde
+ * aprueba; el Operador, solo las suyas, en las ubicaciones donde registra salidas.
+ */
+async function requestScope(access: WorkspaceAccess) {
+  const approvable = await permissionScope(access, 'reagents.issue.approve');
+  if (approvable.length > 0) return { canApprove: true, locationIds: approvable, requestedBy: null };
+  return {
+    canApprove: false,
+    locationIds: await permissionScope(access, 'reagents.issue.create'),
+    requestedBy: access.principalId,
+  };
+}
+
+export function listRequests(
+  pool: pg.Pool,
+  request: QueryRequest,
+  pendingOnly: boolean,
+): Promise<{ canApprove: boolean; items: IssueRequestItem[] }> {
+  return runQuery(pool, request, async (access) => {
+    const scope = await requestScope(access);
+    const items = await listIssueRequests(inventoryContext(access), {
+      locationIds: scope.locationIds,
+      requestedBy: scope.requestedBy,
+      pendingOnly,
+    });
+    return { canApprove: scope.canApprove, items };
   });
 }
 
@@ -192,10 +225,13 @@ export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<Home
     timeZone: access.workspace.timeZone,
     days: TREND_DAYS,
   });
+  const scope = await requestScope(access);
+  const pendingRequests = await pendingRequestCount(ctx, { locationIds: scope.locationIds, requestedBy: scope.requestedBy });
   return {
     summary: {
       productsWithStock: Number(row?.products_with_stock ?? 0),
       positionsWithStock: Number(row?.positions_with_stock ?? 0),
+      pendingRequests,
     },
     activity: recent.items.map((operation) => ({
       id: operation.entryId,

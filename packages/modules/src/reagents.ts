@@ -15,14 +15,17 @@ export const reagentsModule = defineModule({
     'reagents.catalog.manage',
     'reagents.receipt.create',
     'reagents.issue.create',
+    'reagents.issue.approve',
     'reagents.adjustment.create',
   ],
   roleGrants: {
+    // Aprobar salidas (ADR 0012) es del Administrador; el Propietario lo hereda (ADR 0008).
     admin: [
       'reagents.catalog.read',
       'reagents.catalog.manage',
       'reagents.receipt.create',
       'reagents.issue.create',
+      'reagents.issue.approve',
       'reagents.adjustment.create',
     ],
     operator: ['reagents.catalog.read', 'reagents.receipt.create', 'reagents.issue.create'],
@@ -37,6 +40,8 @@ export const reagentsModule = defineModule({
         { path: '', label: 'Resumen', permission: 'reagents.catalog.read' },
         { path: 'inventario', label: 'Inventario', permission: 'reagents.catalog.read' },
         { path: 'movimientos', label: 'Movimientos', permission: 'reagents.catalog.read' },
+        // Solicitudes de salida (ADR 0012): el Operador ve las suyas; quien aprueba, la bandeja.
+        { path: 'solicitudes', label: 'Solicitudes', permission: 'reagents.issue.create' },
       ],
     },
   ],

@@ -14,3 +14,10 @@ export {
 } from './application/lists.js';
 export { applyMovement, lockExistingPosition, receiveContainers } from './application/movements.js';
 export { countOperationsPerDay, listOperationPage, listPositionPage } from './application/queries.js';
+export {
+  approveIssueRequest,
+  listIssueRequests,
+  pendingRequestCount,
+  releaseIssueRequest,
+  requestIssue,
+} from './application/requests.js';

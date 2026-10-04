@@ -14,13 +14,26 @@ import {
 } from '@platlab/ui';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
-import { ArrowDownToLine, ArrowLeft, ArrowUpFromLine, ChevronRight, Eye, History, Plus, RefreshCw, Scale, X } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  ArrowLeft,
+  ArrowUpFromLine,
+  ChevronRight,
+  Eye,
+  History,
+  Inbox,
+  Plus,
+  RefreshCw,
+  Scale,
+  X,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
 import { moduleApps, useShell } from '../../app/app-shell';
 import { formatAgo, formatDateTime } from '../../app/format';
 import {
+  useIssueRequests,
   useOperations,
   usePositions,
   useProducts,
@@ -31,9 +44,11 @@ import {
 import { QueryErrorState } from '../../app/states';
 import { TrendChart } from '../../app/trend-chart';
 import { useReagents, type Allowed, type ReagentsContext, type SheetRequest } from './context';
+import { purposeOf, responsibleOf } from './operation-text';
 import { AdjustmentSheet, IssueSheet, NewProductSheet, ReceiptSheet } from './sheets';
 
 export { ReagentsInventoryPage, ReagentsProductPage } from './inventory';
+export { ReagentsRequestsPage } from './requests';
 
 /**
  * La hoja se monta de nuevo en cada apertura (clave nueva: formulario limpio y clave idempotente
@@ -96,7 +111,9 @@ export function ReagentsLayout() {
     issue: can('reagents.issue.create'),
     adjustment: can('reagents.adjustment.create'),
     lists: can('reagents.catalog.manage'),
+    approve: can('reagents.issue.approve'),
   };
+  const canResolve = module?.access.includes('resolve_pending') ?? false;
 
   const app = moduleApps(me).find((entry) => entry.code === 'reagents');
   const base = `/e/${workspaceId}/${app?.path ?? 'reactivos'}`;
@@ -113,6 +130,7 @@ export function ReagentsLayout() {
         ? (module?.name ?? 'Reactivos')
         : (section?.label ?? module?.name ?? 'Reactivos');
   const summary = useReagentsSummary(workspaceId, sectionPath === '');
+  const requests = useIssueRequests(workspaceId, params.get('estado') === 'todas', sectionPath === 'solicitudes');
 
   const positionList = useMemo(() => positions.data?.pages.flatMap((page) => page.items) ?? [], [positions.data]);
   // Por debajo de 1024 px (móvil y tableta), la primaria ocupa su fila y las secundarias van de dos
@@ -128,7 +146,13 @@ export function ReagentsLayout() {
   const visibleSecondary = secondaryActions.filter((action) => action.shown);
   // «Actualizado hace…» informa lo más antiguo de lo que la sección muestra, nunca lo más fresco.
   const shown: Array<{ dataUpdatedAt: number }> =
-    sectionPath === '' ? [summary] : sectionPath === 'movimientos' ? [operations] : [products, positions];
+    sectionPath === ''
+      ? [summary]
+      : sectionPath === 'movimientos'
+        ? [operations]
+        : sectionPath === 'solicitudes'
+          ? [requests]
+          : [products, positions];
   const stamps = shown.map((query) => query.dataUpdatedAt).filter((stamp) => stamp > 0);
   const updatedAt = stamps.length === shown.length ? Math.min(...stamps) : 0;
   const refreshing = useIsFetching({ queryKey: reagentsKey }) > 0;
@@ -200,7 +224,7 @@ export function ReagentsLayout() {
               onClick={() => sheets.open(detailId ? { kind: 'issue', productId: detailId } : { kind: 'issue' })}
             >
               <ArrowUpFromLine aria-hidden />
-              Registrar salida
+              {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
             </Button>
           ) : null}
         </div>
@@ -228,6 +252,8 @@ export function ReagentsLayout() {
               operations,
               operationFilter,
               summary,
+              requests,
+              canResolve,
               openSheet: sheets.open,
             } satisfies ReagentsContext
           }
@@ -247,6 +273,7 @@ export function ReagentsLayout() {
           productId={current.request.productId}
           timeZone={me.workspace.timeZone}
           canManageLists={allowed.lists}
+          needsApproval={!allowed.approve}
         />
       ) : null}
       {current?.request.kind === 'adjustment' ? (
@@ -306,9 +333,33 @@ export function ReagentsSummaryPage() {
 
   const { summary: counters, trend, activity } = summary.data;
   const issues = trend?.points.reduce((sum, point) => sum + point.value, 0) ?? 0;
+  const pending = counters.pendingRequests;
+  const approves = me.permissions.includes('reagents.issue.approve');
 
   return (
     <div className="grid grid-cols-1 gap-4">
+      {/* Solo aparece si hay algo que decidir o esperar (ADR 0012): abre la lista de pendientes. */}
+      {pending > 0 ? (
+        <Link
+          to={`${base}/solicitudes`}
+          className="group flex items-center justify-between gap-4 rounded-card bg-warning-soft px-5 py-4 text-warning transition-shadow duration-150 hover:shadow-raised"
+        >
+          <span className="flex items-center gap-3 text-sm font-medium">
+            <Inbox className="size-5 shrink-0" aria-hidden />
+            {approves
+              ? pending === 1
+                ? '1 salida espera tu aprobación'
+                : `${pending} salidas esperan tu aprobación`
+              : pending === 1
+                ? 'Tienes 1 solicitud de salida pendiente'
+                : `Tienes ${pending} solicitudes de salida pendientes`}
+          </span>
+          <span className="flex shrink-0 items-center gap-1 text-sm font-semibold">
+            {approves ? 'Revisar' : 'Ver'}
+            <ChevronRight className="size-4 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
+          </span>
+        </Link>
+      ) : null}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
         <StatLink to={`${base}/inventario`} value={counters.productsWithStock} label={counterLabels.productsWithStock(counters.productsWithStock)} />
         <StatLink to={`${base}/inventario`} value={counters.positionsWithStock} label={counterLabels.positionsWithStock(counters.positionsWithStock)} />
@@ -461,13 +512,11 @@ function MovementsView({ operations, timeZone, filtered = false }: { operations:
               quantity={operation.quantity}
               unit={operation.unit}
               occurredAt={operation.effectiveAt}
-              actor={operation.actor.displayName}
+              actor={responsibleOf(operation)}
               timeZone={timeZone}
             />
-            {operation.reason || operation.destination ? (
-              <p className="mt-1.5 pl-[3.375rem] text-[13px] text-ink-muted">
-                {[operation.reason, operation.destination ? `→ ${operation.destination}` : null].filter(Boolean).join(' ')}
-              </p>
+            {purposeOf(operation) ? (
+              <p className="mt-1.5 pl-[3.375rem] text-[13px] text-ink-muted">{purposeOf(operation)}</p>
             ) : null}
           </li>
         ))}
@@ -521,16 +570,23 @@ function MovementsTable({ operations, timeZone }: { operations: Operation[]; tim
         helper.display({
           id: 'actor',
           header: 'Responsable',
+          // Una salida aprobada (ADR 0012) lleva a quien la aprobó y, debajo, a quien la pidió.
           cell: ({ row }) => (
-            <span className="whitespace-nowrap">{row.original.actor.displayName ?? 'Miembro anterior'}</span>
+            <>
+              <span className="block whitespace-nowrap">{row.original.actor.displayName ?? 'Miembro anterior'}</span>
+              {row.original.requestedBy ? (
+                <span className="block whitespace-nowrap text-[12px] text-ink-muted">
+                  Pidió {row.original.requestedBy.displayName ?? 'un miembro anterior'}
+                </span>
+              ) : null}
+            </>
           ),
         }),
         helper.display({
           id: 'detail',
           header: 'Detalle',
           cell: ({ row }) => {
-            const { reason, destination, reference } = row.original;
-            const text = [reason, destination ? `→ ${destination}` : null, reference].filter(Boolean).join(' ');
+            const text = [purposeOf(row.original), row.original.reference].filter(Boolean).join(' ');
             return <span className="text-ink-muted">{text || '—'}</span>;
           },
         }),

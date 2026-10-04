@@ -30,6 +30,18 @@ const counters: Record<string, Array<{ key: string; label: (n: number) => string
   ],
 };
 
+/**
+ * Lo pendiente de cada módulo, con las mismas palabras que el aviso de su Resumen: quien aprueba
+ * ve lo que espera su decisión; quien pidió, lo que espera la de otro (ADR 0012).
+ */
+const pendingLabels: Record<string, { permission: string; approver: (n: number) => string; requester: (n: number) => string }> = {
+  reagents: {
+    permission: 'reagents.issue.approve',
+    approver: (n) => (n === 1 ? '1 salida espera tu aprobación' : `${n} salidas esperan tu aprobación`),
+    requester: (n) => (n === 1 ? 'Tienes 1 solicitud de salida pendiente' : `Tienes ${n} solicitudes de salida pendientes`),
+  },
+};
+
 /** Qué cuenta el gráfico de cada módulo, para la frase que lo acompaña. */
 const trendNouns: Record<string, { one: string; many: string }> = {
   reagents: { one: 'salida', many: 'salidas' },
@@ -90,11 +102,19 @@ export function HomePage() {
 function ModuleCard({ card }: { card: Card }) {
   const { workspaceId, me } = useShell();
   const statsId = useId();
+  const pendingId = useId();
   const app = moduleApps(me).find((entry) => entry.code === card.moduleCode);
   if (!app) return null;
   const Icon = moduleIcons[card.moduleCode] ?? Boxes;
   const noun = trendNouns[card.moduleCode] ?? { one: 'movimiento', many: 'movimientos' };
   const trendTotal = card.trend?.points.reduce((sum, point) => sum + point.value, 0) ?? 0;
+  const pending = card.summary?.['pendingRequests'] ?? 0;
+  const labels = pendingLabels[card.moduleCode];
+  const pendingText = labels
+    ? me.permissions.includes(labels.permission)
+      ? labels.approver(pending)
+      : labels.requester(pending)
+    : null;
 
   return (
     // La tarjeta lleva el color de su módulo (ADR 0010): el Inicio se colorea con los módulos.
@@ -102,7 +122,7 @@ function ModuleCard({ card }: { card: Card }) {
       to={`/e/${workspaceId}/${app.path}`}
       data-module={card.moduleCode}
       aria-label={`Abrir ${card.name}`}
-      aria-describedby={statsId}
+      aria-describedby={pending > 0 && pendingText ? `${pendingId} ${statsId}` : statsId}
       className="group flex min-h-64 flex-col rounded-card bg-surface p-6 shadow-raised transition-shadow duration-150 hover:shadow-float"
     >
       <div className="flex items-center gap-3">
@@ -115,6 +135,12 @@ function ModuleCard({ card }: { card: Card }) {
           aria-hidden
         />
       </div>
+      {/* Lo pendiente de decidir (ADR 0012) se ve desde el Inicio; es un estado, va en ámbar. */}
+      {pending > 0 && pendingText ? (
+        <p id={pendingId} className="mt-4 self-start rounded-full bg-warning-soft px-2.5 py-1 text-[13px] font-medium text-warning">
+          {pendingText}
+        </p>
+      ) : null}
       <div id={statsId} className="mt-auto pt-8">
         <dl className="grid grid-cols-2 gap-4">
           {(counters[card.moduleCode] ?? []).map((counter) => {

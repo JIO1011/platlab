@@ -63,7 +63,7 @@ async function openReagents(page: Page, workspace: string) {
 }
 
 /** Una sección del menú de la app del módulo; queda marcada como la página actual. */
-async function goTo(page: Page, section: 'Resumen' | 'Inventario' | 'Movimientos') {
+async function goTo(page: Page, section: 'Resumen' | 'Inventario' | 'Movimientos' | 'Solicitudes') {
   // Dentro del menú de la app: la ficha también tiene un enlace «Inventario» para volver.
   const link = page.getByRole('navigation').getByRole('link', { name: section, exact: true });
   await link.click();
@@ -138,23 +138,51 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   // Dos niveles: la tarjeta del reactivo abre su ficha con sus frascos.
   await operator.getByRole('link', { name: new RegExp(product.name) }).click();
   await expect(operator.getByRole('heading', { name: product.name, level: 1 })).toBeVisible();
+  const productUrl = operator.url();
   const frasco = operator.getByRole('article').filter({ hasText: `${product.lot}-01` });
   await expect(frasco.getByText('100 g', { exact: true }).first()).toBeVisible();
 
+  // ADR 0012: la salida del Operador es una solicitud que aparta la cantidad hasta que se aprueba.
   await frasco.getByRole('button', { name: 'Salida' }).click();
-  const issue = operator.getByRole('dialog', { name: 'Registrar salida' });
+  const issue = operator.getByRole('dialog', { name: 'Solicitar salida' });
   await issue.getByLabel('Cantidad', { exact: true }).fill('20');
   await expect(issue.getByText('Quedarán')).toContainText('80');
   await pick(issue, 'Práctica de Química General');
   await pick(issue, 'Laboratorio 1');
   await expectAccessible(operator, 'hoja de salida');
   await capture(operator, 'desktop-issue', false);
-  await issue.getByRole('button', { name: 'Registrar salida' }).click();
-  await expect(operator.getByText('Quedan 80 g en el frasco')).toBeVisible();
+  await issue.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await expect(operator.getByText('Solicitud enviada')).toBeVisible();
+  // El saldo no cambia hasta que se apruebe; lo pedido se ve apartado en el frasco.
+  await expect(frasco.getByText('100 g', { exact: true }).first()).toBeVisible();
+  await expect(frasco.getByText(/apartados/)).toContainText('20 g');
+  await capture(operator, 'desktop-product-requested');
+
+  // La Administradora la aprueba desde Solicitudes: la salida queda a su nombre.
+  await goTo(admin, 'Solicitudes');
+  const request = admin.getByRole('article').filter({ hasText: product.name });
+  await expect(request).toContainText('Óscar Operador');
+  await expect(request).toContainText('Práctica de Química General');
+  await expectAccessible(admin, 'bandeja de solicitudes');
+  await capture(admin, 'desktop-requests');
+  await request.getByRole('button', { name: 'Aprobar salida' }).click();
+  await expect(admin.getByText(`Quedan 80 g en ${product.lot}-01`)).toBeVisible();
+  await expect(request).toHaveCount(0);
+
+  // El Operador la ve aprobada entre todas las suyas, y el frasco con 80 g.
+  await goTo(operator, 'Solicitudes');
+  await operator.getByRole('link', { name: 'Todas', exact: true }).click();
+  const mine = operator.getByRole('article').filter({ hasText: product.name });
+  await expect(mine).toContainText('Aprobada');
+  await expect(mine).toContainText('Ana Administradora');
+  await expectAccessible(operator, 'mis solicitudes');
+  await capture(operator, 'desktop-requests-mine');
+  await operator.goto(productUrl);
   await expect(frasco.getByText('80 g', { exact: true }).first()).toBeVisible();
+  await expect(frasco.getByText(/apartados/)).toHaveCount(0);
 
   // La Administradora ajusta el frasco por conteo, con un motivo de la lista.
-  await admin.goto(operator.url());
+  await admin.goto(productUrl);
   const adminFrasco = admin.getByRole('article').filter({ hasText: `${product.lot}-01` });
   await adminFrasco.getByRole('button', { name: 'Ajustar' }).click();
   const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
@@ -187,7 +215,9 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await expect(history.nth(0)).toContainText('Ajuste');
   await expect(history.nth(0)).toContainText('Ana Administradora');
   await expect(history.nth(1)).toContainText('Salida');
-  await expect(history.nth(1)).toContainText('Óscar Operador');
+  // Aprobada (ADR 0012): responsable la Administradora y, debajo, quien la pidió.
+  await expect(history.nth(1)).toContainText('Ana Administradora');
+  await expect(history.nth(1)).toContainText('Pidió Óscar Operador');
   await expect(history.nth(2)).toContainText('Ingreso');
   await expectAccessible(admin, 'movimientos');
   await capture(admin, 'desktop-movements');
@@ -332,6 +362,74 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
   await expect(admin.getByText('Salidas · últimos 30 días')).toHaveCount(0);
   await expect(admin).not.toHaveURL(/tipo=/);
   await expect(admin.getByRole('row').nth(1)).toBeVisible();
+});
+
+test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelación (ADR 0012)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await openReagents(admin, 'Laboratorio de Química');
+  // La demo trae una solicitud pendiente del Operador: el Resumen la anuncia y abre la bandeja.
+  await admin.getByRole('link', { name: /1 salida espera tu aprobación/ }).click();
+  await expect(admin.getByRole('heading', { name: 'Solicitudes', level: 1 })).toBeVisible();
+  const demo = admin.getByRole('article').filter({ hasText: 'Práctica de Análisis Químico' });
+  await expect(demo).toContainText('NACL-2026-03-01');
+  // En el móvil la bandeja se lee igual, sin desplazarse en horizontal.
+  // Se recarga ya en el móvil: la fila de secciones trae la actual a la vista al montarse.
+  await admin.setViewportSize({ width: 360, height: 780 });
+  await admin.reload();
+  await expect(demo.getByRole('button', { name: 'Aprobar salida' })).toBeVisible();
+  await expect(admin.getByRole('navigation', { name: /en el móvil/ }).getByRole('link', { name: 'Solicitudes' })).toBeInViewport();
+  expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expectAccessible(admin, 'solicitudes móvil');
+  await capture(admin, 'mobile-requests');
+  await admin.setViewportSize({ width: 1440, height: 900 });
+  await demo.getByRole('button', { name: 'Rechazar' }).click();
+  // Rechazar exige motivo: sin él, se dice en el campo y no se envía.
+  await demo.getByRole('button', { name: 'Rechazar solicitud' }).click();
+  await expect(demo.getByText('Escribe por qué se rechaza: quien la pidió lo verá.')).toBeVisible();
+  await demo.getByLabel('Motivo del rechazo').fill('La práctica se reprogramó para la próxima semana');
+  await expectAccessible(admin, 'rechazo con motivo');
+  await capture(admin, 'desktop-reject', false);
+  await demo.getByRole('button', { name: 'Rechazar solicitud' }).click();
+  await expect(admin.getByText('Solicitud rechazada')).toBeVisible();
+  await expect(admin.getByText('No hay salidas por aprobar')).toBeVisible();
+  await capture(admin, 'desktop-requests-empty', false);
+
+  // El Operador pide otra salida, la cancela y ve el rechazo con su motivo.
+  const operator = await signIn(browser, 'operador@demo.platlab.test');
+  await openReagents(operator, 'Laboratorio de Química');
+  await operator.getByRole('button', { name: 'Solicitar salida' }).click();
+  const issue = operator.getByRole('dialog', { name: 'Solicitar salida' });
+  await choose(operator, 'Frasco', /HCL-2026-01-01/);
+  await issue.getByRole('button', { name: 'Todo el frasco' }).click();
+  // El atajo escribe la cantidad sin separador de miles: más de 1.000 mL no se lee como decimal.
+  await expect(issue.getByText(/^Quedarán/)).toHaveText(/^Quedarán 0\s*mL en el frasco\.$/);
+  await pick(issue, 'Preparación de soluciones');
+  await pick(issue, 'Laboratorio 2');
+  await issue.getByRole('button', { name: 'Enviar solicitud' }).click();
+  await expect(operator.getByText('Solicitud enviada')).toBeVisible();
+  // Con todo el frasco apartado, su tarjeta lo dice y ya no ofrece «Salida»; el otro frasco, sí.
+  await goTo(operator, 'Inventario');
+  await operator.getByRole('link', { name: /Ácido clorhídrico/ }).click();
+  const reservedFrasco = operator.getByRole('article').filter({ hasText: 'HCL-2026-01-01' });
+  await expect(reservedFrasco.getByText(/apartados/)).toBeVisible();
+  await expect(reservedFrasco.getByRole('button', { name: 'Salida' })).toHaveCount(0);
+  await expect(operator.getByRole('article').filter({ hasText: 'HCL-2026-01-02' }).getByRole('button', { name: 'Salida' })).toBeVisible();
+  await expectAccessible(operator, 'ficha con un frasco apartado');
+  await capture(operator, 'desktop-product-reserved');
+  await goTo(operator, 'Solicitudes');
+  const pending = operator.getByRole('article').filter({ hasText: 'Preparación de soluciones' });
+  await expect(pending).toContainText('HCL-2026-01-01');
+  await expect(pending.getByRole('button', { name: 'Aprobar salida' })).toHaveCount(0);
+  await pending.getByRole('button', { name: 'Cancelar solicitud' }).click();
+  await expect(operator.getByText('Solicitud cancelada')).toBeVisible();
+  await expect(operator.getByText('No tienes solicitudes pendientes')).toBeVisible();
+  await operator.getByRole('link', { name: 'Todas', exact: true }).click();
+  await expect(operator.getByRole('article').filter({ hasText: 'Preparación de soluciones' })).toContainText('Cancelada');
+  const rejected = operator.getByRole('article').filter({ hasText: 'Práctica de Análisis Químico' });
+  await expect(rejected).toContainText('Rechazada');
+  await expect(rejected).toContainText('La práctica se reprogramó para la próxima semana');
+  await expectAccessible(operator, 'solicitudes decididas');
+  await capture(operator, 'desktop-requests-decided');
 });
 
 /**

@@ -118,6 +118,12 @@ Reglas:
 - **Disposición de la posición:** utilizable, cuarentena o restringida. Siempre prevalece la restricción más fuerte.
 - **Retornos:** van a cuarentena hasta verificarse. Un sobrante manipulado nunca se suma al lote original.
 - **Conteos:** si el conteo queda por debajo de lo reservado, se registra la discrepancia y se resuelven los compromisos antes de ajustar.
+- **Solicitudes de salida** ([ADR 0012](05_decisiones.md#adr-0012)):
+  - La del Operador crea una reserva `held` sobre el frasco y suma su cantidad a `reserved`. Lo disponible es `saldo − reservado`, y una salida directa o un ajuste nunca bajan el saldo por debajo de lo reservado.
+  - Aprobar confirma la salida, con el aprobador como actor y `requested_by` como quien la pidió, y deja la reserva en `fulfilled`. Rechazar exige motivo; rechazar o cancelar la propia deja la reserva en `released`.
+  - Una reserva decidida no cambia más y nadie aprueba su propia solicitud.
+  - Aprobar, rechazar y cancelar son «resolver pendientes» en la admisión ([ADR 0009](05_decisiones.md#adr-0009)).
+  - Orden de bloqueo dentro de «datos»: lote → posición → reserva.
 - **Importación:** el saldo inicial es una operación de apertura.
 - **Preparación de soluciones:**
   - Si la solución se almacena o se reutiliza, una sola operación consume los insumos y crea un lote del producto preparado (un reactivo del catálogo con su concentración), con trazabilidad del insumo al lote.

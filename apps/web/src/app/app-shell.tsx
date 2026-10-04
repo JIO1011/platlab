@@ -175,10 +175,11 @@ export function AppShell() {
   const userId = session?.user.id;
   const loaded = me.isSuccess;
 
-  // En la fila desplazable del móvil, la sección actual se trae a la vista en cada navegación.
+  // En la fila desplazable del móvil, la sección actual se trae a la vista en cada navegación y
+  // al llegar /me: al entrar por URL, la fila aún no existe cuando cambia la ruta.
   useEffect(() => {
     pills.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [pathname]);
+  }, [pathname, loaded]);
 
   // El tema del módulo se marca en <html>: hojas, menús y avisos viven en portales fuera del shell.
   // Antes de pintar, para que no asome un cuadro en azul al entrar ni en lila al salir.

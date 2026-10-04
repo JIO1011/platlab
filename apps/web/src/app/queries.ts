@@ -1,6 +1,7 @@
 import {
   entryList,
   homeResponse,
+  issueRequestList,
   locationList,
   lotList,
   myWorkspacesResponse,
@@ -165,6 +166,23 @@ export function useReceiptLocations(workspaceId: string, enabled: boolean) {
   return useQuery({
     queryKey: [...reagentsKey(user, workspaceId), 'receipt-locations'],
     queryFn: () => api(`/workspaces/${workspaceId}/reagents/receipt-locations`, { schema: locationList }),
+    enabled,
+  });
+}
+
+/**
+ * Solicitudes de salida (ADR 0012): la bandeja de quien aprueba o las propias del Operador; lo
+ * decide el servidor. Se refresca como el resto, sin actualizaciones optimistas.
+ */
+export function useIssueRequests(workspaceId: string, all: boolean, enabled = true) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'issue-requests', all ? 'todas' : 'pendientes'],
+    queryFn: () =>
+      api(`/workspaces/${workspaceId}/reagents/issue-requests?estado=${all ? 'todas' : 'pendientes'}`, {
+        schema: issueRequestList,
+      }),
+    refetchInterval: jitteredPoll,
     enabled,
   });
 }

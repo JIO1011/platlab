@@ -142,6 +142,55 @@ export const movementResponse = z.object({
   effectiveAt: z.iso.datetime({ offset: true }),
 });
 
+/**
+ * POST /issues (ADR 0012): quien puede aprobar registra la salida al instante (`done`); el
+ * Operador deja una solicitud pendiente que aparta la cantidad (`pending`).
+ */
+export const issueResponse = z.discriminatedUnion('status', [
+  movementResponse.extend({ status: z.literal('done') }),
+  z.object({
+    status: z.literal('pending'),
+    requestId: z.uuid(),
+    positionId: z.uuid(),
+    quantity: decimalString,
+    unit: z.string(),
+    available: decimalString,
+    requestedAt: z.iso.datetime({ offset: true }),
+  }),
+]);
+
+/** Solicitud de salida en la bandeja o en «mis solicitudes». */
+const issueRequestItem = z.object({
+  id: z.uuid(),
+  /** Rechazada: la decidió quien aprueba, con motivo. Cancelada: la retiró quien la pidió. */
+  status: z.enum(['pending', 'approved', 'rejected', 'cancelled']),
+  quantity: decimalString,
+  unit: z.string(),
+  reason: z.string(),
+  destination: z.string(),
+  decisionReason: z.string().nullable(),
+  requestedAt: z.iso.datetime({ offset: true }),
+  decidedAt: z.iso.datetime({ offset: true }).nullable(),
+  positionId: z.uuid(),
+  product: z.object({ id: z.uuid(), name: z.string() }),
+  container: z.object({ code: z.string() }),
+  location: z.object({ code: z.string(), name: z.string() }),
+  requester: z.object({ principalId: z.uuid(), displayName: z.string().nullable() }),
+  /** La pidió quien consulta: solo esa persona la cancela. */
+  mine: z.boolean(),
+  decider: z.object({ displayName: z.string().nullable() }).nullable(),
+});
+
+export const issueRequestList = z.object({
+  /** true si quien consulta puede aprobar: ve la bandeja de su ámbito, no solo las suyas. */
+  canApprove: z.boolean(),
+  items: z.array(issueRequestItem),
+});
+export const issueRequestListQuery = z.object({ estado: z.enum(['pendientes', 'todas']).default('pendientes') }).strict();
+export const issueRequestParams = z.object({ workspaceId: z.uuid(), requestId: z.uuid() });
+export const rejectIssueRequest = z.object({ reason: text(500) }).strict();
+export const releasedRequest = z.object({ requestId: z.uuid(), positionId: z.uuid(), status: z.literal('released') });
+
 // ---------------------------------------------------------------------------
 // Consultas paginadas
 // ---------------------------------------------------------------------------
@@ -177,6 +226,8 @@ export const position = z.object({
   disposition: z.enum(['usable', 'quarantine', 'restricted']),
   location: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
   balance: decimalString,
+  /** Apartado por solicitudes pendientes (ADR 0012); lo disponible es saldo − reservado. */
+  reserved: decimalString,
   unit: z.string(),
 });
 
@@ -187,6 +238,8 @@ export const operation = z.object({
   type: operationType,
   effectiveAt: z.iso.datetime({ offset: true }),
   actor: z.object({ principalId: z.uuid(), displayName: z.string().nullable() }),
+  /** Quién pidió la salida que el actor aprobó (ADR 0012); null si no hubo solicitud. */
+  requestedBy: z.object({ displayName: z.string().nullable() }).nullable(),
   reason: z.string().nullable(),
   destination: z.string().nullable(),
   reference: z.string().nullable(),
@@ -225,6 +278,8 @@ export const reagentsSummary = z.object({
   summary: z.object({
     productsWithStock: z.number().int().nonnegative(),
     positionsWithStock: z.number().int().nonnegative(),
+    /** Solicitudes pendientes: la bandeja de quien aprueba o las propias del Operador. */
+    pendingRequests: z.number().int().nonnegative(),
   }),
   activity: z.array(homeActivity).max(10),
   trend: homeTrend.nullable(),
@@ -252,6 +307,8 @@ export type LotList = z.infer<typeof lotList>;
 export type LocationList = z.infer<typeof locationList>;
 export type PositionList = z.infer<typeof positionList>;
 export type ReagentsSummary = z.infer<typeof reagentsSummary>;
+export type IssueRequestItem = z.infer<typeof issueRequestItem>;
+export type IssueResponse = z.infer<typeof issueResponse>;
 export type StockedProduct = z.infer<typeof stockedProduct>;
 export type ReceiptResponse = z.infer<typeof receiptResponse>;
 export type ListEntry = z.infer<typeof listEntry>;

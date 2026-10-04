@@ -1,4 +1,5 @@
 import type {
+  IssueRequestItem,
   Operation,
   Position,
   ProductList,
@@ -17,8 +18,11 @@ export type SheetRequest =
   | { kind: 'issue'; positionId?: string; productId?: string }
   | { kind: 'adjustment'; positionId?: string };
 
-/** Lo que el rol puede hacer hoy; `lists` es administrar motivos y destinos (ADR 0012). */
-export type Allowed = Record<'product' | 'receipt' | 'issue' | 'adjustment' | 'lists', boolean>;
+/**
+ * Lo que el rol puede hacer hoy; `lists` es administrar motivos y destinos y `approve`, aprobar
+ * salidas (ADR 0012). Sin `approve`, la salida es una solicitud.
+ */
+export type Allowed = Record<'product' | 'receipt' | 'issue' | 'adjustment' | 'lists' | 'approve', boolean>;
 
 /** Lo que las secciones de la app de Reactivos comparten: datos ya pedidos, permisos y hojas. */
 export interface ReagentsContext {
@@ -33,6 +37,9 @@ export interface ReagentsContext {
   operations: UseInfiniteQueryResult<InfiniteData<{ items: Operation[] }>>;
   operationFilter: OperationFilter;
   summary: UseQueryResult<ReagentsSummary>;
+  requests: UseQueryResult<{ canApprove: boolean; items: IssueRequestItem[] }>;
+  /** Decidir solicitudes es resolver pendientes (ADR 0009): sigue permitido con el módulo en cierre. */
+  canResolve: boolean;
   openSheet: (request: SheetRequest) => void;
 }
 
