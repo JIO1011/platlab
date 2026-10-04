@@ -1,4 +1,5 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import { createAdminPool } from '../../testing/core-fixtures.js';
 import { setRequestScope } from './context.queries.js';
 import { createPool } from './pool.js';
 import { currentRole, sessionTimeouts, smokeArrays, smokeTypes } from './smoke.queries.js';
@@ -69,5 +70,26 @@ describe('pg + PgTyped sobre la base local', () => {
 
     const [after] = await smokeTypes.run({ amount: '0', day: '2026-10-01' }, pool);
     expect(after?.workspace_id ?? '').toBe('');
+  });
+});
+
+describe('conexión inactiva perdida', () => {
+  it('el pool la descarta, avisa y sigue sirviendo, sin terminar el proceso', async () => {
+    const onIdleError = vi.fn();
+    const resilient = createPool({ connectionString, max: 1, onIdleError });
+    const admin = createAdminPool();
+    try {
+      const client = await resilient.connect();
+      const { rows } = await client.query<{ pid: number }>('select pg_backend_pid() as pid');
+      client.release();
+      // Como un reinicio de PostgreSQL: el servidor cierra la conexión que espera en el pool.
+      await admin.query('select pg_terminate_backend($1)', [rows[0]!.pid]);
+      await vi.waitFor(() => expect(onIdleError).toHaveBeenCalledOnce());
+      const [role] = await currentRole.run(undefined, resilient);
+      expect(role?.role_name).toBe('platlab_api');
+    } finally {
+      await resilient.end();
+      await admin.end();
+    }
   });
 });

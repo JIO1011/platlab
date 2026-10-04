@@ -32,6 +32,12 @@ export interface PoolOptions {
   statementTimeoutMs?: number;
   /** Espera máxima por un bloqueo antes de responder conflicto transitorio (02 §6, §12). */
   lockTimeoutMs?: number;
+  /**
+   * Una conexión inactiva se perdió (reinicio o conmutación de PostgreSQL). El pool la descarta y
+   * abre otra al pedirla; sin este manejador, Node trataría el evento como error no atendido y
+   * terminaría el proceso.
+   */
+  onIdleError?: (error: Error) => void;
 }
 
 /** Pool pequeño por proceso; tamaños y tiempos iniciales viven en 02 §12. */
@@ -40,12 +46,15 @@ export function createPool({
   max = 5,
   statementTimeoutMs = 5_000,
   lockTimeoutMs = 1_000,
+  onIdleError = (error) => console.error(`Conexión inactiva con PostgreSQL perdida: ${error.message}`),
 }: PoolOptions): pg.Pool {
-  return new pg.Pool({
+  const pool = new pg.Pool({
     connectionString,
     max,
     types: typeParsers,
     statement_timeout: statementTimeoutMs,
     lock_timeout: lockTimeoutMs,
   });
+  pool.on('error', onIdleError);
+  return pool;
 }

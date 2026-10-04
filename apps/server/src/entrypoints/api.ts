@@ -4,7 +4,11 @@ import { createTokenVerifier, remoteJwks } from '../platform/auth/jwt.js';
 import { createPool } from '../platform/db/pool.js';
 
 const config = loadConfig();
-const pool = createPool({ connectionString: config.databaseUrl });
+const pool = createPool({
+  connectionString: config.databaseUrl,
+  // Solo ocurre con conexiones ya abiertas, cuando `app` existe.
+  onIdleError: (error) => app.log.warn({ err: error }, 'Conexión inactiva con PostgreSQL perdida; el pool abre otra'),
+});
 const verifyToken = createTokenVerifier({
   keys: remoteJwks(config.auth.jwksUrl),
   issuer: config.auth.issuer,
