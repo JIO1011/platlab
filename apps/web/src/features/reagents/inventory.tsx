@@ -50,7 +50,7 @@ export function ReagentsInventoryPage() {
 
   if (products.isPending) {
     return (
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4" aria-busy="true" aria-label="Cargando">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4" role="status" aria-busy="true" aria-label="Cargando">
         {[0, 1, 2].map((key) => (
           <Skeleton key={key} className="h-36 rounded-card" />
         ))}
@@ -264,7 +264,7 @@ export function ReagentsProductPage() {
 
   if (product.isPending) {
     return (
-      <div className="grid gap-4" aria-busy="true" aria-label="Cargando">
+      <div className="grid gap-4" role="status" aria-busy="true" aria-label="Cargando">
         <Skeleton className="h-24 rounded-card" />
         <Skeleton className="h-44 rounded-card" />
       </div>

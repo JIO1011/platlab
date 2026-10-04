@@ -5,7 +5,7 @@ import { isApiError } from './api';
 
 export function PageLoading() {
   return (
-    <div className="mx-auto grid max-w-5xl gap-4 px-6 py-10" aria-busy="true" aria-label="Cargando">
+    <div className="mx-auto grid max-w-5xl gap-4 px-6 py-10" role="status" aria-busy="true" aria-label="Cargando">
       <Skeleton className="h-7 w-48" />
       <Skeleton className="h-4 w-72" />
       <Skeleton className="mt-4 h-40 w-full" />

@@ -284,6 +284,8 @@ test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', as
   // Segundo nivel en el móvil: la ficha con sus frascos, y la salida desde un frasco.
   await operator.getByRole('link', { name: /Etanol 96 %/ }).click();
   await expect(operator.getByRole('heading', { name: 'Etanol 96 %', level: 1 })).toBeVisible();
+  // Frascos ya cargados: la captura es la ficha, no su esqueleto (que también pasa axe).
+  await expect(operator.getByRole('article').first()).toBeVisible();
   expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expectAccessible(operator, 'ficha móvil');
   await capture(operator, 'mobile-product');
@@ -554,6 +556,19 @@ test('error: un fallo del servidor muestra «Reintentar» y al reintentar se rec
   await admin.getByRole('button', { name: 'Reintentar' }).click();
   await expect(admin.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
   await expect(admin.getByText('No pudimos cargar esta información')).toHaveCount(0);
+
+  // Carga: con la respuesta retenida, el esqueleto se anuncia como estado y pasa axe.
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await admin.route('**/v1/workspaces/*/reagents/issue-requests*', async (route) => {
+    await held;
+    await route.continue();
+  });
+  await goTo(admin, 'Solicitudes');
+  await expect(admin.getByRole('status', { name: 'Cargando' })).toBeVisible();
+  await expectAccessible(admin, 'carga');
+  release();
+  await expect(admin.getByRole('status', { name: 'Cargando' })).toHaveCount(0);
 });
 
 test('sesión expirada: un token que la API rechaza cierra la sesión y vuelve al acceso con aviso', async ({ browser }) => {

@@ -322,7 +322,7 @@ export function ReagentsSummaryPage() {
 
   if (summary.isPending) {
     return (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3" aria-busy="true" aria-label="Cargando">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3" role="status" aria-busy="true" aria-label="Cargando">
         <Skeleton className="h-32 rounded-card" />
         <Skeleton className="h-32 rounded-card" />
         <Skeleton className="h-32 rounded-card" />
@@ -462,7 +462,7 @@ export function ReagentsMovementsPage() {
 
 function TableSkeleton() {
   return (
-    <div className="grid gap-3 p-5" aria-busy="true" aria-label="Cargando">
+    <div className="grid gap-3 p-5" role="status" aria-busy="true" aria-label="Cargando">
       {[0, 1, 2, 3].map((row) => (
         <div key={row} className="flex items-center gap-4">
           <Skeleton className="h-4 w-1/4" />

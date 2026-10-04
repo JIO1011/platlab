@@ -32,7 +32,7 @@ export function ReagentsRequestsPage() {
 
   if (requests.isPending) {
     return (
-      <div className="grid gap-3" aria-busy="true" aria-label="Cargando">
+      <div className="grid gap-3" role="status" aria-busy="true" aria-label="Cargando">
         <Skeleton className="h-36 rounded-card" />
         <Skeleton className="h-36 rounded-card" />
       </div>
