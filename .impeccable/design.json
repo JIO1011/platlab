@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T21:00:00Z",
+  "generatedAt": "2026-10-02T23:30:00Z",
   "title": "Design System: PlatLab",
   "source": "packages/ui/src/styles.css manda sobre estos valores si difieren.",
   "extensions": {
@@ -159,11 +159,11 @@
       },
       "metric-sm": {
         "displayName": "Metric pequeño",
-        "purpose": "Cifras de las tarjetas de módulo de Inicio y de StatLink por debajo de 1024 px."
+        "purpose": "Cifras de las tarjetas de módulo de Inicio, de StatLink por debajo de 1024 px, total de cada tarjeta de reactivo y existencia en la ficha."
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Título de hoja y de tarjeta (nombre del módulo, «Salidas por día»), total por reactivo."
+        "purpose": "Título de hoja, de tarjeta y de sección de la ficha («Frascos», «Historial del reactivo»); saldo de cada frasco."
       },
       "body-lg": {
         "displayName": "Body grande",
@@ -175,11 +175,11 @@
       },
       "meta": {
         "displayName": "Meta",
-        "purpose": "Actualizado hace…, ayudas, errores de campo, código, CAS, detalle de actividad, frase del minigráfico y tabla del gráfico."
+        "purpose": "Actualizado hace…, ayudas, errores de campo, código, CAS, ubicación del frasco, etiquetas del dl de la ficha, «Agregar», detalle de actividad, frase del minigráfico y tabla del gráfico."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Encabezados de columna de tabla, en mayúsculas. Badge, segunda línea del menú de espacios, ejes e información emergente de gráficos usan 12 px sin mayúsculas."
+        "purpose": "Encabezados de columna de tabla, en mayúsculas. Badge, segunda línea del menú de espacios, «Entró con … · %» del frasco, ejes e información emergente de gráficos usan 12 px sin mayúsculas."
       },
       "quantity": {
         "displayName": "Quantity",
@@ -194,12 +194,12 @@
       {
         "name": "raised",
         "value": "0 1px 2px rgb(16 42 67 / 0.04), 0 6px 20px -10px rgb(16 42 67 / 0.14)",
-        "purpose": "Tarjetas de contenido (tarjetas de módulo, StatLink, gráfico, actividad, tablas), botón primario, selector de módulo compacto y pestaña activa."
+        "purpose": "Tarjetas de contenido (tarjetas de módulo, StatLink, gráfico, actividad, tabla de movimientos, tarjetas de reactivo y de frasco, resumen e historial de la ficha), botón primario, selector de módulo compacto, pestaña activa y opción elegida del selector segmentado."
       },
       {
         "name": "float",
         "value": "0 1px 2px rgb(16 42 67 / 0.04), 0 18px 40px -22px rgb(16 42 67 / 0.22)",
-        "purpose": "Shell (barra lateral y barra superior), tarjeta de acceso y hover de las tarjetas-enlace (tarjeta de módulo y StatLink)."
+        "purpose": "Shell (barra lateral y barra superior), tarjeta de acceso y hover de las tarjetas-enlace (tarjeta de módulo, StatLink y tarjeta de reactivo)."
       },
       {
         "name": "overlay",
@@ -268,7 +268,7 @@
       {
         "name": "sm",
         "value": "640px",
-        "purpose": "Relleno de 24 px en las tarjetas del Resumen."
+        "purpose": "Relleno de 24 px en las tarjetas del Resumen y de la ficha; buscador del inventario de 320 px."
       },
       {
         "name": "md",
@@ -278,7 +278,7 @@
       {
         "name": "lg",
         "value": "1024px",
-        "purpose": "Tablas de inventario y movimientos en lugar de listas; StatLink en tarjeta; acciones de la cabecera en fila; Resumen en 12 columnas."
+        "purpose": "Tabla de movimientos en lugar de filas; StatLink en tarjeta; acciones de la cabecera en fila; Resumen en 12 columnas; resumen de la ficha en dos columnas; botones del frasco bajan de 44 a 32 px."
       },
       {
         "name": "@lg (contenedor)",
@@ -325,6 +325,18 @@
         }
       },
       "guard": "packages/modules/src/define-module.test.ts exige un bloque con los cuatro tokens de acción por cada módulo registrado."
+    },
+    "inventoryGrid": {
+      "value": "repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap 16px",
+      "purpose": "Rejilla de tarjetas de reactivo (nivel 1) y de frascos en la ficha (nivel 2), ADR 0012."
+    },
+    "containerFill": {
+      "value": "altura 8px, píldora, pista surface-sunken; relleno action, o warning con ≤ 20 %; mínimo 4px con saldo bajo el 1 % («<1 %»)",
+      "purpose": "Barra de % restante del frasco, calculada con ratioPercent (BigInt)."
+    },
+    "tailwindMerge": {
+      "value": "extendTailwindMerge: font-size += text-{display, metric, metric-sm, body-lg}",
+      "purpose": "packages/ui/src/lib/cn.ts: los tamaños propios no se pierden junto a un color."
     }
   },
   "components": [
@@ -401,12 +413,28 @@
       "css": ".ds-theme-reagents { --color-action:#7c3aed; --color-action-hover:#6d28d9; --color-action-pressed:#5b21b6; --color-action-soft:#f1eafe; } .ds-mod { display:flex; flex-direction:column; max-width:360px; min-height:256px; padding:24px; border-radius:var(--radius-card,24px); background:var(--color-surface,#fff); color:var(--color-ink,#102a43); text-decoration:none; box-shadow:var(--shadow-raised,0 1px 2px rgb(16 42 67 / 0.04),0 6px 20px -10px rgb(16 42 67 / 0.14)); font-family:'Inter Variable',system-ui,sans-serif; transition:box-shadow 150ms; } .ds-mod:hover { box-shadow:var(--shadow-float,0 1px 2px rgb(16 42 67 / 0.04),0 18px 40px -22px rgb(16 42 67 / 0.22)); } .ds-mod:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; } .ds-mod-head { display:flex; align-items:center; gap:12px; } .ds-mod-icon { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:var(--radius-control,10px); background:var(--color-action-soft,#e6eef7); color:var(--color-action,#1f5f96); } .ds-mod-name { font-size:18px; font-weight:600; } .ds-mod-arrow { display:inline-flex; margin-left:auto; color:var(--color-action,#1f5f96); transition:transform 150ms; } .ds-mod:hover .ds-mod-arrow { transform:translateX(2px); } .ds-mod-stats { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:auto 0 0; padding-top:32px; } .ds-mod-stats div { display:flex; flex-direction:column-reverse; gap:4px; } .ds-mod-stats dt { font-size:14px; color:var(--color-ink-muted,#526275); } .ds-mod-stats dd { margin:0; font-size:2.125rem; font-weight:600; line-height:1; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; } .ds-spark { display:flex; align-items:flex-end; gap:2px; height:48px; margin-top:24px; border-bottom:1px solid var(--color-line,#dde4ed); } .ds-spark span { flex:1; max-width:24px; border-radius:4px 4px 0 0; background:var(--color-action,#1f5f96); } .ds-mod-note { margin-top:8px; font-size:13px; color:var(--color-ink-muted,#526275); }"
     },
     {
-      "name": "Inventario producto → lote → ubicación",
-      "kind": "custom",
+      "name": "Tarjeta de reactivo",
+      "kind": "card",
       "refersTo": "card",
-      "description": "Tarjeta con el reactivo y su total en la fila de grupo y lotes con sangría; saldo como columna dominante.",
-      "html": "<div class=\"ds-inv\"><table><thead><tr><th>Lote</th><th>Ubicación</th><th class=\"ds-num\">Saldo</th></tr></thead><tbody><tr class=\"ds-inv-group\"><th colspan=\"2\">Cloruro de sodio<span>NACL-01 · CAS 7647-14-5</span></th><td class=\"ds-num ds-inv-total\">1.280,5 <small>g</small></td></tr><tr class=\"ds-inv-row\"><td class=\"ds-inv-lot\">L-0042</td><td>Almacén de reactivos</td><td class=\"ds-num ds-inv-bal\">80 <small>g</small></td></tr></tbody></table></div>",
-      "css": ".ds-inv { overflow:hidden; border-radius:var(--radius-card,24px); background:var(--color-surface,#fff); box-shadow:var(--shadow-raised,0 1px 2px rgb(16 42 67 / 0.04),0 6px 20px -10px rgb(16 42 67 / 0.14)); font:14px 'Inter Variable',system-ui,sans-serif; color:var(--color-ink,#102a43); } .ds-inv table { width:100%; border-collapse:collapse; } .ds-inv thead { background:var(--color-surface,#fff); border-bottom:1px solid var(--color-line,#dde4ed); } .ds-inv thead th { height:40px; padding:0 16px; text-align:left; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:var(--color-ink-muted,#526275); } .ds-inv .ds-num { text-align:right; font-variant-numeric:tabular-nums; } .ds-inv-group th { padding:16px 16px 8px; text-align:left; font-weight:600; } .ds-inv-group th span { display:block; margin-top:2px; font-size:13px; font-weight:400; color:var(--color-ink-muted,#526275); } .ds-inv-group td { padding:16px 16px 8px; } .ds-inv-total { font-size:18px; font-weight:600; } .ds-inv small { font-size:inherit; font-weight:400; color:var(--color-ink-muted,#526275); } .ds-inv-row { border-top:1px solid var(--color-line,#dde4ed); transition:background-color 150ms; } .ds-inv-row:hover { background:var(--color-canvas,#f5f7fb); } .ds-inv-row td { padding:12px 16px; } .ds-inv-lot { padding-left:32px !important; font-weight:500; } .ds-inv-bal { font-size:16px; font-weight:600; }"
+      "description": "Inventario, nivel 1 (ADR 0012): toda la tarjeta abre la ficha; nombre, código · CAS, total en Metric-sm y Badge de frascos.",
+      "html": "<a class=\"ds-rc\" href=\"#\"><span class=\"ds-rc-head\"><span class=\"ds-rc-id\"><b>Cloruro de sodio</b><small>NACL-01 · CAS 7647-14-5</small></span><span class=\"ds-rc-chev\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 18 6-6-6-6\"/></svg></span></span><span class=\"ds-rc-foot\"><span class=\"ds-rc-total\">1.280,5 <small>g</small></span><span class=\"ds-badge-n\">3 frascos</span></span></a>",
+      "css": ".ds-rc { display:flex; flex-direction:column; gap:20px; max-width:300px; padding:20px; border-radius:var(--radius-card,24px); background:var(--color-surface,#fff); color:var(--color-ink,#102a43); text-decoration:none; box-shadow:var(--shadow-raised,0 1px 2px rgb(16 42 67 / 0.04),0 6px 20px -10px rgb(16 42 67 / 0.14)); font-family:'Inter Variable',system-ui,sans-serif; transition:box-shadow 150ms; } .ds-rc:hover { box-shadow:var(--shadow-float,0 1px 2px rgb(16 42 67 / 0.04),0 18px 40px -22px rgb(16 42 67 / 0.22)); } .ds-rc:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; } .ds-rc-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; } .ds-rc-id { display:flex; flex-direction:column; min-width:0; } .ds-rc-id b { font-weight:600; line-height:1.375; } .ds-rc-id small { margin-top:2px; font-size:13px; color:var(--color-ink-muted,#526275); } .ds-rc-chev { display:inline-flex; margin-top:2px; color:var(--color-ink-subtle,#5e6d80); transition:color 150ms; } .ds-rc:hover .ds-rc-chev { color:var(--color-action,#1f5f96); } .ds-rc-foot { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:4px 12px; } .ds-rc-total { font-size:2.125rem; font-weight:600; line-height:1; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; } .ds-rc-total small { font-size:inherit; font-weight:400; color:var(--color-ink-muted,#526275); } .ds-badge-n { margin-bottom:6px; padding:2px 8px; border-radius:9999px; background:var(--color-surface-sunken,#eef2f7); color:var(--color-ink-muted,#526275); font-size:12px; font-weight:500; white-space:nowrap; }"
+    },
+    {
+      "name": "Tarjeta de frasco",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Ficha del reactivo, nivel 2 (ADR 0012): código entero (si no cabe, el saldo baja), ubicación, caducidad y estado con texto, barra de % restante exacta (ámbar ≤ 20 %, «<1 %» con 4 px) y Salida / Ajustar secundarios.",
+      "html": "<article class=\"ds-fr\"><header class=\"ds-fr-head\"><span><b class=\"ds-fr-code\">NACL-2026-04-003</b><small>Almacén de reactivos · ALM-01</small></span><span class=\"ds-fr-bal\">80 <small>g</small></span></header><div class=\"ds-fr-badges\"><span class=\"ds-fr-b ds-fr-b-warn\">Caducidad sin confirmar</span><span class=\"ds-fr-b ds-fr-b-warn\">Lote en cuarentena</span></div><div><div class=\"ds-fr-bar\" role=\"img\" aria-label=\"Queda el 16 % de lo que entró\"><i style=\"width:16%\"></i></div><p class=\"ds-fr-meta\"><span>Entró con 500 g</span><span>16 %</span></p></div><div class=\"ds-fr-actions\"><button class=\"ds-fr-btn ds-fr-grow\">Salida</button><button class=\"ds-fr-btn\">Ajustar</button></div></article>",
+      "css": ".ds-fr { display:flex; flex-direction:column; gap:16px; max-width:300px; padding:20px; border-radius:var(--radius-card,24px); background:var(--color-surface,#fff); color:var(--color-ink,#102a43); box-shadow:var(--shadow-raised,0 1px 2px rgb(16 42 67 / 0.04),0 6px 20px -10px rgb(16 42 67 / 0.14)); font:14px 'Inter Variable',system-ui,sans-serif; } .ds-fr-head { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:4px 12px; } .ds-fr-head > span:first-child { display:flex; flex-direction:column; min-width:0; } .ds-fr-code { white-space:nowrap; font-weight:600; font-variant-numeric:tabular-nums; } .ds-fr-head small { margin-top:2px; font-size:13px; color:var(--color-ink-muted,#526275); } .ds-fr-bal { flex-shrink:0; font-size:18px; font-weight:600; font-variant-numeric:tabular-nums; } .ds-fr-bal small { font-size:inherit; font-weight:400; color:var(--color-ink-muted,#526275); } .ds-fr-badges { display:flex; flex-wrap:wrap; gap:6px; } .ds-fr-b { padding:2px 8px; border-radius:9999px; font-size:12px; font-weight:500; } .ds-fr-b-warn { background:var(--color-warning-soft,#fdf2d8); color:var(--color-warning,#8a5a00); } .ds-fr-bar { height:8px; overflow:hidden; border-radius:9999px; background:var(--color-surface-sunken,#eef2f7); } .ds-fr-bar i { display:block; height:100%; border-radius:9999px; background:var(--color-warning,#8a5a00); } .ds-fr-meta { display:flex; justify-content:space-between; margin:6px 0 0; font-size:12px; color:var(--color-ink-muted,#526275); font-variant-numeric:tabular-nums; } .ds-fr-actions { display:flex; gap:8px; margin-top:auto; padding-top:12px; border-top:1px solid var(--color-line,#dde4ed); } .ds-fr-btn { height:32px; padding:0 12px; border:1px solid var(--color-line-strong,#c3cdd9); border-radius:var(--radius-control,10px); background:var(--color-surface,#fff); color:var(--color-ink,#102a43); font:500 14px 'Inter Variable',system-ui,sans-serif; transition:background-color 150ms, transform 150ms; } .ds-fr-btn:hover { background:var(--color-surface-sunken,#eef2f7); } .ds-fr-btn:active { transform:scale(0.98); } .ds-fr-btn:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; } .ds-fr-grow { flex:1; }"
+    },
+    {
+      "name": "ChoiceField y atajos de cantidad",
+      "kind": "chip",
+      "refersTo": "filter-chip",
+      "description": "Hoja de salida (ADR 0012): motivo como píldoras de radio en un fieldset con «Agregar» para el Administrador; atajos 25 % / 50 % / Todo el frasco en un role=group.",
+      "html": "<fieldset class=\"ds-ch\"><legend class=\"ds-sr\">Motivo</legend><div class=\"ds-ch-head\"><span aria-hidden=\"true\">Motivo</span><button type=\"button\" class=\"ds-ch-add\">+ Agregar</button></div><div class=\"ds-ch-opts\"><label class=\"ds-ch-opt\"><input type=\"radio\" name=\"ds-m\" class=\"ds-sr\" checked>Práctica de laboratorio</label><label class=\"ds-ch-opt\"><input type=\"radio\" name=\"ds-m\" class=\"ds-sr\">Tesis</label><label class=\"ds-ch-opt\"><input type=\"radio\" name=\"ds-m\" class=\"ds-sr\">Mantenimiento</label></div><div class=\"ds-ch-opts\" role=\"group\" aria-label=\"Atajos de cantidad\"><button type=\"button\" class=\"ds-ch-short\">25 %</button><button type=\"button\" class=\"ds-ch-short\">50 %</button><button type=\"button\" class=\"ds-ch-short\">Todo el frasco</button></div></fieldset>",
+      "css": ".ds-ch { display:grid; gap:8px; max-width:420px; margin:0; padding:0; border:0; font:14px 'Inter Variable',system-ui,sans-serif; color:var(--color-ink,#102a43); } .ds-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; } .ds-ch-head { display:flex; align-items:center; justify-content:space-between; gap:12px; font-weight:500; } .ds-ch-add { padding:2px 6px; border:0; border-radius:6px; background:transparent; color:var(--color-action,#1f5f96); font:500 13px 'Inter Variable',system-ui,sans-serif; transition:background-color 150ms; } .ds-ch-add:hover { background:var(--color-action-soft,#e6eef7); } .ds-ch-opts { display:flex; flex-wrap:wrap; gap:8px; } .ds-ch-opt, .ds-ch-short { display:inline-flex; align-items:center; min-height:36px; padding:0 14px; border:1px solid var(--color-line,#dde4ed); border-radius:9999px; background:transparent; color:var(--color-ink-muted,#526275); font:500 14px 'Inter Variable',system-ui,sans-serif; cursor:pointer; transition:background-color 150ms, color 150ms; } .ds-ch-opt:hover, .ds-ch-short:hover { background:var(--color-surface-sunken,#eef2f7); color:var(--color-ink,#102a43); } .ds-ch-opt:has(input:checked) { border-color:color-mix(in srgb, var(--color-action,#1f5f96) 40%, transparent); background:var(--color-action-soft,#e6eef7); color:var(--color-action,#1f5f96); } .ds-ch-opt:has(input:focus-visible), .ds-ch-short:focus-visible, .ds-ch-add:focus-visible { outline:2px solid var(--color-action,#1f5f96); outline-offset:2px; }"
     },
     {
       "name": "Gráfico de tendencia",
@@ -419,7 +447,7 @@
   ],
   "narrative": {
     "northStar": "El libro de saldos, en precisión suave",
-    "overview": "Cada pantalla responde primero «¿cuánto hay, dónde y quién lo movió?». La interfaz es una herramienta de trabajo tranquila: lienzo frío con un brillo leve desde arriba a la izquierda, paneles blancos flotantes de esquinas amplias y sombras suaves en capas, una sola voz de acción por contexto (azul en la plataforma, el color del módulo dentro de su app) y cifras grandes con su unidad. La navegación y la barra superior también son paneles que flotan sobre el lienzo. El Inicio es un tablero con una tarjeta por módulo, y cada módulo se usa como una app propia con su menú. El historial se lee como un libro: nada se edita, todo queda firmado. La dirección y sus motivos están en 01 §7 y en los ADR 0010 y 0011.",
+    "overview": "Cada pantalla responde primero «¿cuánto hay, dónde y quién lo movió?». La interfaz es una herramienta de trabajo tranquila: lienzo frío con un brillo leve desde arriba a la izquierda, paneles blancos flotantes de esquinas amplias y sombras suaves en capas, una sola voz de acción por contexto (azul en la plataforma, el color del módulo dentro de su app) y cifras grandes con su unidad. La navegación y la barra superior también son paneles que flotan sobre el lienzo. El Inicio es un tablero con una tarjeta por módulo, y cada módulo se usa como una app propia con su menú. El inventario se recorre por frasco: del reactivo a su ficha y de ahí a cada frasco con lo que le queda. El historial se lee como un libro: nada se edita, todo queda firmado. La dirección y sus motivos están en 01 §6.1 y §7 y en los ADR 0010, 0011 y 0012.",
     "keyCharacteristics": [
       "El saldo es la columna dominante; las cantidades llevan siempre su unidad atenuada.",
       "Títulos y contadores grandes; el cuerpo sigue siendo denso y legible.",
@@ -461,6 +489,11 @@
         "section": "typography"
       },
       {
+        "name": "La regla de la escala que no se pierde",
+        "body": "Las clases se combinan siempre con `cn` de `packages/ui`, que enseña a tailwind-merge la escala propia (`display`, `metric`, `metric-sm`, `body-lg`) como tamaños: un tamaño propio junto a un color (`text-metric-sm text-ink`) conserva los dos. Un tamaño nuevo en `styles.css` se añade también a `cn.ts`.",
+        "section": "typography"
+      },
+      {
         "name": "La regla de la capa justa",
         "body": "Cada sombra dice a qué capa pertenece la pieza: contenido (elevada), estructura (flotante) o algo que se abrió encima (superposición). Ninguna sombra es un halo de color ni se usa para decorar. La única sombra que cambia por estado es la de una tarjeta que es enlace entero: sube de elevada a flotante al pasar el puntero.",
         "section": "elevation"
@@ -473,7 +506,9 @@
       "Do reservar Display para el título de página y Metric para contadores reales enlazados a su vista.",
       "Do dar a cada módulo una tarjeta-enlace en Inicio y, dentro, su propio menú con «← Inicio», el selector de módulo y sus secciones.",
       "Do hacer que un gráfico cuente sucesos (p. ej., salidas por día), en una sola serie `action`, con su lectura en texto, y una tabla cuando es interactivo.",
-      "Do agrupar el inventario producto → lote → ubicación con el total por reactivo, y pasar a lista apilada por debajo de 1024 px.",
+      "Do recorrer el inventario en dos niveles: rejilla de tarjetas de reactivo con su total y, en la ficha, una tarjeta por frasco con su código entero, caducidad con texto y % restante (ADR 0012).",
+      "Do calcular porcentajes, restas y atajos de cantidad con `ratioPercent`, `subtractDecimal` y `percentOfDecimal` de `packages/ui/src/lib/decimal.ts` (BigInt), y combinar clases con `cn`.",
+      "Do ofrecer motivo y destino como opciones de la lista del laboratorio (ChoiceField), no como texto libre.",
       "Do registrar movimientos en una Sheet con una sola acción primaria al pie.",
       "Do mostrar «Actualizado hace…», con la marca más antigua de lo que se ve, y un botón Actualizar; nunca prometer «en vivo».",
       "Do diseñar carga, vacío, error, sin permiso y módulo no disponible como estados distintos con StatePanel.",

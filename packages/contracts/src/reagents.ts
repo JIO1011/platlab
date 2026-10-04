@@ -3,7 +3,7 @@ import { homeActivity, homeTrend } from './access.js';
 import { decimalString } from './decimal.js';
 
 /**
- * Contratos de Reactivos para R-00 (primer incremento, «Rutas»). Las cantidades viajan como
+ * Contratos de Reactivos (R-00 y R-01A, ADR 0012). Las cantidades viajan como
  * cadenas decimales con la precisión de numeric(24,9) (02 §12) y nunca se operan como number.
  * Los esquemas de entrada son estrictos: no se aceptan campos, filtros ni órdenes arbitrarios.
  */
@@ -72,15 +72,45 @@ export const lot = z.object({
 // Movimientos
 // ---------------------------------------------------------------------------
 
+/**
+ * Ingreso por frascos (ADR 0012): `containers` frascos iguales de `quantity` cada uno. El lote es
+ * uno existente (`lotId`) o uno nuevo del reactivo (`productId` + `newLot`), creado en la misma
+ * transacción (01 §6.1).
+ */
 export const receiptRequest = z
   .object({
-    lotId: z.uuid(),
+    lotId: z.uuid().optional(),
+    productId: z.uuid().optional(),
+    newLot: createLotRequest.optional(),
     locationId: z.uuid(),
+    containers: z.number().int().min(1).max(50).default(1),
     quantity: positiveQuantity,
     unit,
     reference: text(200).nullish(),
   })
-  .strict();
+  .strict()
+  .refine((value) => (value.lotId ? !value.newLot && !value.productId : Boolean(value.newLot && value.productId)), {
+    message: 'Indica un lote existente o los datos de un lote nuevo del reactivo',
+    path: ['lotId'],
+  });
+
+/** Frasco creado por un ingreso, con su posición y su saldo. */
+const receivedContainer = z.object({
+  containerId: z.uuid(),
+  code: z.string(),
+  positionId: z.uuid(),
+  quantity: decimalString,
+  balance: decimalString,
+});
+
+export const receiptResponse = z.object({
+  operationId: z.uuid(),
+  type: z.literal('receipt'),
+  lot: z.object({ id: z.uuid(), code: z.string() }),
+  unit: z.string(),
+  effectiveAt: z.iso.datetime({ offset: true }),
+  containers: z.array(receivedContainer).min(1),
+});
 
 export const issueRequest = z
   .object({
@@ -136,17 +166,24 @@ export const operationListQuery = z
   })
   .strict();
 
+const lotCondition = z.enum(['enabled', 'quarantine', 'blocked', 'discarded']);
+
+/** Posición: un frasco (ADR 0012) en una ubicación; `container` es null solo en datos sin frasco. */
 export const position = z.object({
   id: z.uuid(),
   product: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
-  lot: z.object({ id: z.uuid(), code: z.string(), expiresOn: z.string().nullable() }),
+  lot: z.object({ id: z.uuid(), code: z.string(), expiresOn: z.string().nullable(), condition: lotCondition }),
+  container: z.object({ id: z.uuid(), code: z.string(), initialQuantity: decimalString }).nullable(),
+  disposition: z.enum(['usable', 'quarantine', 'restricted']),
   location: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
   balance: decimalString,
   unit: z.string(),
 });
 
+/** Un asiento del historial: un ingreso de varios frascos son varios asientos de una operación. */
 export const operation = z.object({
   id: z.uuid(),
+  entryId: z.uuid(),
   type: operationType,
   effectiveAt: z.iso.datetime({ offset: true }),
   actor: z.object({ principalId: z.uuid(), displayName: z.string().nullable() }),
@@ -156,6 +193,7 @@ export const operation = z.object({
   positionId: z.uuid(),
   product: z.object({ code: z.string(), name: z.string() }),
   lot: z.object({ code: z.string() }),
+  container: z.object({ code: z.string() }).nullable(),
   location: z.object({ code: z.string() }),
   quantity: decimalString,
   balanceAfter: decimalString,
@@ -168,8 +206,12 @@ const list = <T extends z.ZodType>(item: T) =>
 /** Ubicación donde el miembro puede registrar el movimiento (su ámbito y descendencia). */
 export const location = z.object({ id: z.uuid(), code: z.string(), name: z.string(), kind: z.string() });
 
-/** En la lista, cada reactivo lleva su total en las ubicaciones que el miembro puede consultar. */
-export const productList = list(product.extend({ balance: decimalString }));
+/** Reactivo con su total y sus frascos con saldo en las ubicaciones que el miembro puede consultar. */
+export const stockedProduct = product.extend({
+  balance: decimalString,
+  containersWithStock: z.number().int().nonnegative(),
+});
+export const productList = list(stockedProduct);
 export const lotList = z.object({ items: z.array(lot.extend({ condition: z.string() })) });
 export const locationList = z.object({ items: z.array(location) });
 export const positionList = list(position);
@@ -188,6 +230,18 @@ export const reagentsSummary = z.object({
   trend: homeTrend.nullable(),
 });
 
+// ---------------------------------------------------------------------------
+// Motivos y destinos (ADR 0012): listas del espacio; la operación guarda el texto elegido
+// ---------------------------------------------------------------------------
+
+const reasonKind = z.enum(['issue', 'adjustment']);
+export const reasonListQuery = z.object({ kind: reasonKind }).strict();
+const listEntry = z.object({ id: z.uuid(), name: z.string() });
+export const entryList = z.object({ items: z.array(listEntry) });
+export const createReasonRequest = z.object({ kind: reasonKind, name: text(120) }).strict();
+export const createDestinationRequest = z.object({ name: text(120) }).strict();
+export const entryParams = z.object({ workspaceId: z.uuid(), entryId: z.uuid() });
+
 export type Product = z.infer<typeof product>;
 export type Lot = z.infer<typeof lot>;
 export type MovementResponse = z.infer<typeof movementResponse>;
@@ -198,4 +252,8 @@ export type LotList = z.infer<typeof lotList>;
 export type LocationList = z.infer<typeof locationList>;
 export type PositionList = z.infer<typeof positionList>;
 export type ReagentsSummary = z.infer<typeof reagentsSummary>;
+export type StockedProduct = z.infer<typeof stockedProduct>;
+export type ReceiptResponse = z.infer<typeof receiptResponse>;
+export type ListEntry = z.infer<typeof listEntry>;
+export type ReasonKind = z.infer<typeof reasonKind>;
 export type OperationList = z.infer<typeof operationList>;

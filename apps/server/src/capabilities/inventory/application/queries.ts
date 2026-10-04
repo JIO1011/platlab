@@ -31,7 +31,7 @@ export async function listPositionPage(
   ctx: InventoryContext,
   filter: { locationIds: string[]; itemId?: string | undefined; cursor?: string | undefined; limit: number },
 ): Promise<Page<Position>> {
-  const after = decodeCursor(filter.cursor, 4);
+  const after = decodeCursor(filter.cursor, 5);
   const rows = await listPositions.run(
     {
       workspaceId: ctx.workspaceId,
@@ -40,8 +40,9 @@ export async function listPositionPage(
       itemId: filter.itemId ?? null,
       afterItem: after?.[0] ?? null,
       afterLot: after?.[1] ?? null,
-      afterLocation: after?.[2] ?? null,
-      afterId: after?.[3] ?? null,
+      afterSeq: after ? Number(after[2]) : null,
+      afterLocation: after?.[3] ?? null,
+      afterId: after?.[4] ?? null,
       limit: filter.limit + 1,
     },
     ctx.client,
@@ -52,14 +53,24 @@ export async function listPositionPage(
     items: visible.map((row) => ({
       id: row.id,
       product: { id: row.item_id, code: row.item_code, name: row.item_name },
-      lot: { id: row.lot_id, code: row.lot_code, expiresOn: row.expires_on },
+      lot: {
+        id: row.lot_id,
+        code: row.lot_code,
+        expiresOn: row.expires_on,
+        condition: row.lot_condition as Position['lot']['condition'],
+      },
+      container:
+        row.container_id && row.container_code && row.container_initial_quantity
+          ? { id: row.container_id, code: row.container_code, initialQuantity: row.container_initial_quantity }
+          : null,
+      disposition: row.disposition as Position['disposition'],
       location: { id: row.location_id, code: row.location_code, name: row.location_name },
       balance: row.balance,
       unit: row.base_unit,
     })),
     nextCursor:
       rows.length > filter.limit && last
-        ? encodeCursor([last.sort_item, last.sort_lot, last.sort_location, last.id])
+        ? encodeCursor([last.sort_item, last.sort_lot, String(last.sort_seq), last.sort_location, last.id])
         : null,
   };
 }
@@ -80,7 +91,7 @@ export async function listOperationPage(
     limit: number;
   },
 ): Promise<Page<Operation>> {
-  const before = decodeCursor(filter.cursor, 2);
+  const before = decodeCursor(filter.cursor, 3);
   const rows = await listOperations.run(
     {
       workspaceId: ctx.workspaceId,
@@ -94,6 +105,7 @@ export async function listOperationPage(
       timeZone: filter.timeZone,
       beforeAt: before?.[0] ?? null,
       beforeId: before?.[1] ?? null,
+      beforeEntryId: before?.[2] ?? null,
       limit: filter.limit + 1,
     },
     ctx.client,
@@ -103,6 +115,7 @@ export async function listOperationPage(
   return {
     items: visible.map((row) => ({
       id: row.id,
+      entryId: row.entry_id,
       type: row.type as Operation['type'],
       effectiveAt: row.effective_at.toISOString(),
       actor: { principalId: row.actor_principal_id, displayName: row.actor_name },
@@ -112,13 +125,14 @@ export async function listOperationPage(
       positionId: row.position_id,
       product: { code: row.item_code, name: row.item_name },
       lot: { code: row.lot_code },
+      container: row.container_code ? { code: row.container_code } : null,
       location: { code: row.location_code },
       quantity: row.quantity,
       balanceAfter: row.balance_after,
       unit: row.base_unit,
     })),
     nextCursor:
-      rows.length > filter.limit && last ? encodeCursor([last.cursor_at, last.id]) : null,
+      rows.length > filter.limit && last ? encodeCursor([last.cursor_at, last.id, last.entry_id]) : null,
   };
 }
 

@@ -22,7 +22,11 @@ export {
 } from './access.js';
 export {
   adjustmentRequest,
+  createDestinationRequest,
   createLotRequest,
+  createReasonRequest,
+  entryList,
+  entryParams,
   createProductRequest,
   issueRequest,
   location,
@@ -43,7 +47,11 @@ export {
   productList,
   productListQuery,
   productParams,
+  reasonListQuery,
   receiptRequest,
+  receiptResponse,
+  stockedProduct,
+  type ListEntry,
   type LocationList,
   type Lot,
   type LotList,
@@ -55,4 +63,7 @@ export {
   type PositionList,
   type Product,
   type ProductList,
+  type ReasonKind,
+  type ReceiptResponse,
+  type StockedProduct,
 } from './reagents.js';

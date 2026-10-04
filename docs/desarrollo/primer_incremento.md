@@ -26,7 +26,7 @@ No incluye agenda, solicitudes docentes, archivos, importación, facturación, a
 - **Posición.** Representa lote, ubicación y disposición. En este incremento no hay envases, retornos, reservas ni conversiones de unidades.
 - **Cantidades.** En la API van como cadenas decimales y en la base como `numeric`. Se opera en la unidad base del producto; una unidad incompatible o una cantidad no positiva se rechazan (el ajuste admite signo, pero no cero).
 - **Movimientos.** Cada ingreso, salida o ajuste genera cabecera, asientos y saldo; el saldo no tiene edición directa. El servidor fija la fecha efectiva y el actor, y no se admiten retrofechas.
-- **Motivos.** Salida y ajuste exigen un motivo en texto acotado; las listas administradas de motivos y destinos llegan en R-01.
+- **Motivos.** Salida y ajuste exigen un motivo en texto acotado; las listas administradas de motivos y destinos llegan en R-01A ([ADR 0012](../05_decisiones.md#adr-0012)).
 - **Correcciones.** Un movimiento confirmado no se edita ni se borra; se corrige con otro movimiento.
 - **Concurrencia.** Crear una posición en paralelo no duplica su clave.
 - **Aislamiento.** Todo pertenece a un `workspace_id` y todas las FKs lo incluyen.

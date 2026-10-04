@@ -125,8 +125,12 @@ insert into reagents.products (workspace_id, item_id, cas_number, physical_state
   ('db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', '64-17-5', 'liquid');
 insert into inventory.lots (id, workspace_id, item_id, code, supplier_name, expires_on) values
   ('db700000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', 'ETOH-2026-01', 'Proveedor sintético', '2027-06-30');
-insert into inventory.positions (id, workspace_id, item_id, lot_id, location_id) values
-  ('db800000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', 'db700000-0000-4000-8000-000000000001', 'db300000-0000-4000-8000-000000000002');
+-- Un frasco de 500 mL (ADR 0012): el lote reparte su número.
+update inventory.lots set container_seq = 1 where id = 'db700000-0000-4000-8000-000000000001';
+insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, initial_quantity) values
+  ('dbc00000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', 'db700000-0000-4000-8000-000000000001', 1, 500);
+insert into inventory.positions (id, workspace_id, item_id, lot_id, container_id, location_id) values
+  ('db800000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', 'db700000-0000-4000-8000-000000000001', 'dbc00000-0000-4000-8000-000000000001', 'db300000-0000-4000-8000-000000000002');
 insert into inventory.operations (id, workspace_id, type, actor_principal_id, reference, correlation_id) values
   ('db900000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'receipt', 'db200000-0000-4000-8000-000000000002', 'Saldo inicial de la demo', gen_random_uuid());
 
@@ -157,10 +161,20 @@ insert into inventory.lots (id, workspace_id, item_id, code, supplier_name, expi
   ('da700000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'NACL-2026-03', 'Proveedor sintético', '2028-03-31'),
   ('da700000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'HCL-2026-01', 'Proveedor sintético', '2027-01-15'),
   ('da700000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', 'NAOH-2025-11', 'Proveedor sintético', '2026-11-20');
-insert into inventory.positions (id, workspace_id, item_id, lot_id, location_id) values
-  ('da800000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'da700000-0000-4000-8000-000000000001', 'da300000-0000-4000-8000-000000000002'),
-  ('da800000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'da700000-0000-4000-8000-000000000002', 'da300000-0000-4000-8000-000000000002'),
-  ('da800000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', 'da700000-0000-4000-8000-000000000003', 'da300000-0000-4000-8000-000000000002');
+-- Frascos (ADR 0012): NaCl en 2 frascos de 1000 g, HCl en 2 de 2500 mL y NaOH en 1 de 1000 g.
+insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, initial_quantity) values
+  ('dac00000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'da700000-0000-4000-8000-000000000001', 1, 1000),
+  ('dac00000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'da700000-0000-4000-8000-000000000001', 2, 1000),
+  ('dac00000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'da700000-0000-4000-8000-000000000002', 1, 2500),
+  ('dac00000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'da700000-0000-4000-8000-000000000002', 2, 2500),
+  ('dac00000-0000-4000-8000-000000000005', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', 'da700000-0000-4000-8000-000000000003', 1, 1000);
+update inventory.lots set container_seq = 2 where id in ('da700000-0000-4000-8000-000000000001', 'da700000-0000-4000-8000-000000000002');
+update inventory.lots set container_seq = 1 where id = 'da700000-0000-4000-8000-000000000003';
+insert into inventory.positions (id, workspace_id, item_id, lot_id, container_id, location_id)
+select ('da800000-0000-4000-8000-00000000000' || right(c.id::text, 1))::uuid, c.workspace_id, c.item_id, c.lot_id, c.id,
+       'da300000-0000-4000-8000-000000000002'
+  from inventory.containers as c
+ where c.workspace_id = 'da000000-0000-4000-8000-00000000000a';
 
 do $$
 declare
@@ -169,25 +183,29 @@ declare
   position_n int;
   issues_today int;
   sequence_n int := 0;
-  units text[] := array['g', 'mL', 'g'];
+  -- Frasco → unidad, cantidad inicial y lote: 1-2 NaCl (g), 3-4 HCl (mL), 5 NaOH (g).
+  units text[] := array['g', 'g', 'mL', 'mL', 'g'];
+  initial numeric[] := array[1000, 1000, 2500, 2500, 1000];
   reasons text[] := array['Práctica de Química General', 'Práctica de Análisis Químico', 'Preparación de soluciones',
                           'Práctica de Química Orgánica', 'Proyecto de titulación'];
 begin
-  -- Ingreso inicial de cada reactivo hace 29 días. Cada asiento deja el saldo acumulado y las
-  -- fechas son locales del espacio.
-  for position_n in 1..3 loop
+  -- Un ingreso por lote hace 29 días, con un asiento por frasco. Cada asiento deja el saldo
+  -- acumulado y las fechas son locales del espacio.
+  for lot_n in 1..3 loop
     insert into inventory.operations (workspace_id, type, actor_principal_id, reference, effective_at, correlation_id)
     values ('da000000-0000-4000-8000-00000000000a', 'receipt', 'da200000-0000-4000-8000-000000000001', 'Compra sintética',
-            ((now() at time zone 'America/Guayaquil')::date - 29 + make_interval(hours => 8 + position_n))
+            ((now() at time zone 'America/Guayaquil')::date - 29 + make_interval(hours => 8 + lot_n))
               at time zone 'America/Guayaquil',
             gen_random_uuid())
     returning id into operation_id;
-    update inventory.positions set balance = positions.balance + (array[2000, 5000, 1000])[position_n]
-     where id = ('da800000-0000-4000-8000-00000000000' || position_n)::uuid
-    returning positions.balance into balance;
-    insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
-    values ('da000000-0000-4000-8000-00000000000a', operation_id, ('da800000-0000-4000-8000-00000000000' || position_n)::uuid,
-            (array[2000, 5000, 1000])[position_n], (array[2000, 5000, 1000])[position_n], units[position_n], balance);
+    for position_n in select unnest(case lot_n when 1 then array[1, 2] when 2 then array[3, 4] else array[5] end) loop
+      update inventory.positions set balance = positions.balance + initial[position_n]
+       where id = ('da800000-0000-4000-8000-00000000000' || position_n)::uuid
+      returning positions.balance into balance;
+      insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+      values ('da000000-0000-4000-8000-00000000000a', operation_id, ('da800000-0000-4000-8000-00000000000' || position_n)::uuid,
+              initial[position_n], initial[position_n], units[position_n], balance);
+    end loop;
   end loop;
 
   -- Salidas de los últimos 28 días: de 1 a 4 por día laborable y ninguna el fin de semana.
@@ -198,7 +216,7 @@ begin
     issues_today := 1 + (day_offset * 7) % 4;
     for i in 1..issues_today loop
       sequence_n := sequence_n + 1;
-      position_n := 1 + sequence_n % 3;
+      position_n := 1 + sequence_n % 5;
       insert into inventory.operations (workspace_id, type, actor_principal_id, reason, destination, effective_at, correlation_id)
       values ('da000000-0000-4000-8000-00000000000a', 'issue', 'da200000-0000-4000-8000-000000000002',
               reasons[1 + sequence_n % 5], 'Laboratorio 1',
@@ -222,11 +240,83 @@ begin
           gen_random_uuid())
   returning id into operation_id;
   update inventory.positions set balance = positions.balance - 2.5
-   where id = 'da800000-0000-4000-8000-000000000003'
+   where id = 'da800000-0000-4000-8000-000000000005'
   returning positions.balance into balance;
   insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
-  values ('da000000-0000-4000-8000-00000000000a', operation_id, 'da800000-0000-4000-8000-000000000003', -2.5, -2.5, 'g', balance);
+  values ('da000000-0000-4000-8000-00000000000a', operation_id, 'da800000-0000-4000-8000-000000000005', -2.5, -2.5, 'g', balance);
 end
 $$;
+
+-- Ácido sulfúrico con tres lotes (vencido, próximo y lejano) para la sugerencia FEFO y el aviso de
+-- frasco vencido, y Acetona agotada para el interruptor «Mostrar agotados» (ADR 0012).
+insert into inventory.items (id, workspace_id, kind, code, name, base_unit) values
+  ('da600000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'reagent', 'H2SO4', 'Ácido sulfúrico 98 %', 'mL'),
+  ('da600000-0000-4000-8000-000000000005', 'da000000-0000-4000-8000-00000000000a', 'reagent', 'ACETONA', 'Acetona', 'mL');
+insert into reagents.products (workspace_id, item_id, cas_number, physical_state) values
+  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', '7664-93-9', 'liquid'),
+  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000005', '67-64-1', 'liquid');
+insert into inventory.lots (id, workspace_id, item_id, code, supplier_name, expires_on, container_seq) values
+  ('da700000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'H2SO4-2024-08', 'Proveedor sintético', '2026-08-31', 1),
+  ('da700000-0000-4000-8000-000000000005', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'H2SO4-2026-02', 'Proveedor sintético', '2026-12-31', 1),
+  ('da700000-0000-4000-8000-000000000006', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'H2SO4-2026-09', 'Proveedor sintético', '2028-09-30', 1),
+  ('da700000-0000-4000-8000-000000000007', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000005', 'ACE-2026-01', 'Proveedor sintético', '2027-03-31', 1);
+insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, initial_quantity) values
+  ('dac00000-0000-4000-8000-000000000006', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'da700000-0000-4000-8000-000000000004', 1, 250),
+  ('dac00000-0000-4000-8000-000000000007', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'da700000-0000-4000-8000-000000000005', 1, 1000),
+  ('dac00000-0000-4000-8000-000000000008', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'da700000-0000-4000-8000-000000000006', 1, 1000),
+  ('dac00000-0000-4000-8000-000000000009', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000005', 'da700000-0000-4000-8000-000000000007', 1, 500);
+insert into inventory.positions (id, workspace_id, item_id, lot_id, container_id, location_id)
+select ('da800000-0000-4000-8000-00000000000' || right(c.id::text, 1))::uuid, c.workspace_id, c.item_id, c.lot_id, c.id,
+       'da300000-0000-4000-8000-000000000002'
+  from inventory.containers as c
+ where c.id in ('dac00000-0000-4000-8000-000000000006', 'dac00000-0000-4000-8000-000000000007',
+                'dac00000-0000-4000-8000-000000000008', 'dac00000-0000-4000-8000-000000000009');
+
+do $$
+declare
+  operation_id uuid;
+  balance numeric;
+  movement record;
+begin
+  -- (frasco, tipo, cantidad con signo, días atrás, actor, motivo, destino)
+  for movement in
+    select * from (values
+      (6, 'receipt', 250::numeric, 20, 1, null, null),
+      (7, 'receipt', 1000, 20, 1, null, null),
+      (8, 'receipt', 1000, 20, 1, null, null),
+      (9, 'receipt', 500, 18, 1, null, null),
+      (9, 'issue', -500, 5, 2, 'Práctica de Química Orgánica', 'Laboratorio 2')
+    ) as m (position_n, type, quantity, days_ago, actor_n, reason, destination)
+  loop
+    insert into inventory.operations (workspace_id, type, actor_principal_id, reason, destination, reference, effective_at, correlation_id)
+    values ('da000000-0000-4000-8000-00000000000a', movement.type, ('da200000-0000-4000-8000-00000000000' || movement.actor_n)::uuid,
+            movement.reason, movement.destination, case when movement.type = 'receipt' then 'Compra sintética' end,
+            ((now() at time zone 'America/Guayaquil')::date - movement.days_ago + make_interval(hours => 10))
+              at time zone 'America/Guayaquil',
+            gen_random_uuid())
+    returning id into operation_id;
+    update inventory.positions set balance = positions.balance + movement.quantity
+     where id = ('da800000-0000-4000-8000-00000000000' || movement.position_n)::uuid
+    returning positions.balance into balance;
+    insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+    values ('da000000-0000-4000-8000-00000000000a', operation_id, ('da800000-0000-4000-8000-00000000000' || movement.position_n)::uuid,
+            movement.quantity, movement.quantity, 'mL', balance);
+  end loop;
+end
+$$;
+
+-- Motivos y destinos de A y B (ADR 0012): listas del laboratorio para elegir al registrar.
+insert into inventory.reasons (workspace_id, item_kind, kind, name)
+select w.id, 'reagent', r.kind, r.name
+  from (values ('da000000-0000-4000-8000-00000000000a'::uuid), ('db000000-0000-4000-8000-00000000000b'::uuid)) as w (id)
+ cross join (values
+   ('issue', 'Práctica de Química General'), ('issue', 'Práctica de Análisis Químico'),
+   ('issue', 'Preparación de soluciones'), ('issue', 'Proyecto de titulación'),
+   ('adjustment', 'Conteo mensual'), ('adjustment', 'Derrame'), ('adjustment', 'Error de registro')
+ ) as r (kind, name);
+insert into inventory.destinations (workspace_id, item_kind, name)
+select w.id, 'reagent', d.name
+  from (values ('da000000-0000-4000-8000-00000000000a'::uuid), ('db000000-0000-4000-8000-00000000000b'::uuid)) as w (id)
+ cross join (values ('Laboratorio 1'), ('Laboratorio 2'), ('Bodega central')) as d (name);
 
 commit;

@@ -95,7 +95,7 @@ Reglas:
 | `inventory.items` | Código, nombre, `kind`, unidad base, modo de seguimiento y archivado |
 | `reagents.products` | Extensión 1:1 del item: CAS opcional, concentración, pureza, estado físico, peligros y SDS |
 | `inventory.lots` | Item (FK compuesta), proveedor y referencia, recepción, caducidad (puede ser desconocida) y condición |
-| `inventory.containers` | Envase identificable: código, apertura y caducidad tras abrir; solo cuando el proceso lo exige |
+| `inventory.containers` | Envase identificable (frasco): código, lote y cantidad inicial. En Reactivos, cada ingreso registra sus frascos ([ADR 0012](05_decisiones.md#adr-0012)); la apertura y la caducidad tras abrir, cuando el proceso lo exija |
 | `inventory.positions` | Item, lote, envase y retorno opcionales, ubicación, disposición, saldo, reservado y versión |
 | `inventory.operations` | Cabecera del movimiento: tipo, actor, motivo, fecha, correlación y referencia |
 | `inventory.entries` | Asientos inmutables con signo por posición |
@@ -103,7 +103,7 @@ Reglas:
 | `inventory.preparation_inputs` | Preparación: lote resultante y asientos de los insumos consumidos |
 | `inventory.custodies`, `custody_lines` | Entrega a un responsable y su conciliación |
 | `inventory.return_batches` | Retorno segregado hasta verificarlo o disponerlo |
-| `inventory.allocations` | Reservas: `held → fulfilled / released` |
+| `inventory.allocations` | Reservas: `held → fulfilled / released`. Una solicitud de salida del Operador aparta la cantidad hasta que se aprueba o se rechaza ([ADR 0012](05_decisiones.md#adr-0012)) |
 | `inventory.transfers`, `transfer_lines` | `draft → approved → in_transit → partially_received → received` |
 
 Reglas:

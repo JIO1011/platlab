@@ -44,6 +44,7 @@ export interface IListProductsParams {
   afterId?: string | null | void;
   limit: NumberOrString;
   locationIds: stringArray;
+  productId?: string | null | void;
   workspaceId: string;
 }
 
@@ -53,6 +54,7 @@ export interface IListProductsResult {
   base_unit: string;
   cas_number: string | null;
   code: string;
+  containers_with_stock: number;
   id: string;
   name: string;
   physical_state: string | null;
@@ -65,7 +67,7 @@ export interface IListProductsQuery {
   result: IListProductsResult;
 }
 
-const listProductsIR: any = {"usedParamSet":{"locationIds":true,"workspaceId":true,"afterId":true,"afterCode":true,"limit":true},"params":[{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":374,"b":386}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":578,"b":590}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":652,"b":659},{"a":721,"b":728}]},{"name":"afterCode","required":false,"transform":{"type":"scalar"},"locs":[{"a":703,"b":712}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":773,"b":779}]}],"statement":"-- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.\nSELECT\n  i.id,\n  i.code,\n  i.name,\n  i.base_unit,\n  r.cas_number,\n  r.physical_state,\n  (SELECT trim_scale(coalesce(sum(p.balance), 0))\n     FROM inventory.positions AS p\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.location_id = ANY (:locationIds!::uuid[])) AS \"balance!\",\n  lower(i.code) AS \"sort_code!\"\nFROM inventory.items AS i\nJOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id\nWHERE i.workspace_id = :workspaceId!\n  AND i.kind = 'reagent'\n  AND i.archived_at IS NULL\n  AND (:afterId::uuid IS NULL OR (lower(i.code), i.id) > (:afterCode::text, :afterId::uuid))\nORDER BY lower(i.code), i.id\nLIMIT :limit!"};
+const listProductsIR: any = {"usedParamSet":{"locationIds":true,"workspaceId":true,"productId":true,"afterId":true,"afterCode":true,"limit":true},"params":[{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":374,"b":386},{"a":591,"b":603}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":814,"b":826}]},{"name":"productId","required":false,"transform":{"type":"scalar"},"locs":[{"a":888,"b":897},{"a":923,"b":932}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":948,"b":955},{"a":1017,"b":1024}]},{"name":"afterCode","required":false,"transform":{"type":"scalar"},"locs":[{"a":999,"b":1008}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":1069,"b":1075}]}],"statement":"-- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.\nSELECT\n  i.id,\n  i.code,\n  i.name,\n  i.base_unit,\n  r.cas_number,\n  r.physical_state,\n  (SELECT trim_scale(coalesce(sum(p.balance), 0))\n     FROM inventory.positions AS p\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.location_id = ANY (:locationIds!::uuid[])) AS \"balance!\",\n  (SELECT count(*)\n     FROM inventory.positions AS p\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND p.location_id = ANY (:locationIds!::uuid[]))::int AS \"containers_with_stock!\",\n  lower(i.code) AS \"sort_code!\"\nFROM inventory.items AS i\nJOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id\nWHERE i.workspace_id = :workspaceId!\n  AND i.kind = 'reagent'\n  AND i.archived_at IS NULL\n  AND (:productId::uuid IS NULL OR i.id = :productId::uuid)\n  AND (:afterId::uuid IS NULL OR (lower(i.code), i.id) > (:afterCode::text, :afterId::uuid))\nORDER BY lower(i.code), i.id\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
@@ -83,12 +85,19 @@ const listProductsIR: any = {"usedParamSet":{"locationIds":true,"workspaceId":tr
  *     WHERE p.workspace_id = i.workspace_id
  *       AND p.item_id = i.id
  *       AND p.location_id = ANY (:locationIds!::uuid[])) AS "balance!",
+ *   (SELECT count(*)
+ *      FROM inventory.positions AS p
+ *     WHERE p.workspace_id = i.workspace_id
+ *       AND p.item_id = i.id
+ *       AND p.balance > 0
+ *       AND p.location_id = ANY (:locationIds!::uuid[]))::int AS "containers_with_stock!",
  *   lower(i.code) AS "sort_code!"
  * FROM inventory.items AS i
  * JOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id
  * WHERE i.workspace_id = :workspaceId!
  *   AND i.kind = 'reagent'
  *   AND i.archived_at IS NULL
+ *   AND (:productId::uuid IS NULL OR i.id = :productId::uuid)
  *   AND (:afterId::uuid IS NULL OR (lower(i.code), i.id) > (:afterCode::text, :afterId::uuid))
  * ORDER BY lower(i.code), i.id
  * LIMIT :limit!

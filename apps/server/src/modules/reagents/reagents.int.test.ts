@@ -12,6 +12,8 @@ import {
   product as productContract,
   productList,
   reagentsSummary,
+  receiptResponse,
+  entryList,
 } from '@platlab/contracts';
 import { buildApp } from '../../app.js';
 import { createPool } from '../../platform/db/pool.js';
@@ -116,6 +118,11 @@ async function receive(lab: Lab, lotId: string, quantity: string, location = lab
   });
 }
 
+const listEntry = entryList.shape.items.element;
+
+/** Posición del primer frasco de un ingreso (ADR 0012: la posición es frasco + ubicación). */
+const receivedPosition = (response: { body: unknown }) => receiptResponse.parse(response.body).containers[0]!.positionId;
+
 const count = async (sql: string, params: unknown[]) =>
   Number((await admin.query<{ n: string }>(sql, params)).rows[0]!.n);
 const operationsIn = (workspaceId: string) =>
@@ -131,8 +138,12 @@ describe('G0 · recorrido visible', () => {
 
     const receipt = await receive(lab, lot.id, '100');
     expect(receipt.status).toBe(201);
-    const receiptBody = movementResponse.parse(receipt.body);
-    expect(receiptBody).toMatchObject({ type: 'receipt', appliedQuantity: '100', balance: '100', unit: 'g' });
+    const received = receiptResponse.parse(receipt.body);
+    expect(received).toMatchObject({ type: 'receipt', lot: { id: lot.id, code: 'L-001' }, unit: 'g' });
+    expect(received.containers).toEqual([
+      expect.objectContaining({ code: 'L-001-01', quantity: '100', balance: '100' }),
+    ]);
+    const receiptBody = { positionId: received.containers[0]!.positionId };
 
     const issue = await call(lab.operator.subject, `${lab.base}/issues`, {
       method: 'POST',
@@ -157,10 +168,15 @@ describe('G0 · recorrido visible', () => {
 
     const positions = positionList.parse((await call(lab.operator.subject, `${lab.base}/positions`)).body);
     expect(positions.items).toEqual([
-      expect.objectContaining({ id: receiptBody.positionId, balance: '79.5', unit: 'g' }),
+      expect.objectContaining({
+        id: receiptBody.positionId,
+        balance: '79.5',
+        unit: 'g',
+        container: expect.objectContaining({ code: 'L-001-01', initialQuantity: '100' }),
+      }),
     ]);
     const catalog = productList.parse((await call(lab.operator.subject, `${lab.base}/products`)).body);
-    expect(catalog.items).toEqual([expect.objectContaining({ id: product.id, balance: '79.5' })]);
+    expect(catalog.items).toEqual([expect.objectContaining({ id: product.id, balance: '79.5', containersWithStock: 1 })]);
 
     const history = operationList.parse((await call(lab.operator.subject, `${lab.base}/operations`)).body);
     expect(
@@ -231,7 +247,7 @@ describe('G0 · aislamiento entre A y B', () => {
     a = await createLab();
     b = await createLab();
     bLot = (await createProductAndLot(b)).lot.id;
-    bPosition = movementResponse.parse((await receive(b, bLot, '50')).body).positionId;
+    bPosition = receivedPosition(await receive(b, bLot, '50'));
     // Una misma identidad: Operador en A y Administrador en B.
     shared = `sub-shared-${uniqueSuffix()}`;
     await addMember(admin, a.workspace.id, { subject: shared, roles: [{ role: 'operator' }] });
@@ -295,7 +311,7 @@ describe('G0 · roles', () => {
     const owner = lab.workspace.owner.subject;
     const receipt = await receive(lab, lotId, '5', lab.storage, owner);
     expect(receipt.status).toBe(201);
-    const { positionId } = movementResponse.parse(receipt.body);
+    const positionId = receivedPosition(receipt);
     const adjustment = await call(owner, `${lab.base}/adjustments`, {
       method: 'POST',
       body: { positionId, quantity: '-1', unit: 'g', reason: 'Conteo del propietario' },
@@ -324,10 +340,10 @@ describe('G0 · roles', () => {
     const scoped = await addMember(admin, lab.workspace.id, {
       roles: [{ role: 'operator', locationId: lab.storage }],
     });
-    const other = movementResponse.parse((await receive(lab, lotId, '10', lab.otherStorage)).body);
+    const otherPosition = receivedPosition(await receive(lab, lotId, '10', lab.otherStorage));
     const issue = await call(scoped.subject, `${lab.base}/issues`, {
       method: 'POST',
-      body: { positionId: other.positionId, quantity: '1', unit: 'g', reason: 'Práctica', destination: 'Lab' },
+      body: { positionId: otherPosition, quantity: '1', unit: 'g', reason: 'Práctica', destination: 'Lab' },
     });
     expect(issue.status).toBe(403);
     expect((await receive(lab, lotId, '1', lab.otherStorage, scoped.subject)).status).toBe(403);
@@ -390,7 +406,7 @@ describe('G0 · módulos y tipo de ítem', () => {
   it('una salida lanzada a la vez que la desactivación del módulo no queda confirmada después', async () => {
     const lab = await createLab();
     const { lot } = await createProductAndLot(lab);
-    const positionId = movementResponse.parse((await receive(lab, lot.id, '100')).body).positionId;
+    const positionId = receivedPosition(await receive(lab, lot.id, '100'));
     const before = await operationsIn(lab.workspace.id);
 
     const other = await admin.connect();
@@ -435,7 +451,7 @@ describe('G0 · concurrencia', () => {
   it('dos salidas de 60 g sobre 100 g: una confirma, la otra recibe stock insuficiente y quedan 40 g', async () => {
     const lab = await createLab();
     const { lot } = await createProductAndLot(lab);
-    const positionId = movementResponse.parse((await receive(lab, lot.id, '100')).body).positionId;
+    const positionId = receivedPosition(await receive(lab, lot.id, '100'));
     const issue = () =>
       call(lab.operator.subject, `${lab.base}/issues`, {
         method: 'POST',
@@ -456,13 +472,71 @@ describe('G0 · concurrencia', () => {
     ).toBe(1);
   });
 
-  it('dos ingresos simultáneos a una posición nueva no duplican su clave', async () => {
+  it('dos ingresos simultáneos al mismo lote reciben números de frasco distintos', async () => {
     const lab = await createLab();
     const { lot } = await createProductAndLot(lab);
     const results = await Promise.all([receive(lab, lot.id, '10'), receive(lab, lot.id, '15')]);
     expect(results.map((r) => r.status)).toEqual([201, 201]);
     const positions = positionList.parse((await call(lab.operator.subject, `${lab.base}/positions`)).body);
-    expect(positions.items.map((p) => p.balance)).toEqual(['25']);
+    expect(positions.items.map((p) => p.container?.code).sort()).toEqual(['L-001-01', 'L-001-02']);
+    expect(positions.items.map((p) => p.balance).sort()).toEqual(['10', '15']);
+  });
+
+  it('un ingreso de varios frascos es una operación con un asiento por frasco', async () => {
+    const lab = await createLab();
+    const { lot } = await createProductAndLot(lab);
+    const response = await call(lab.operator.subject, `${lab.base}/receipts`, {
+      method: 'POST',
+      body: { lotId: lot.id, locationId: lab.storage, containers: 3, quantity: '250', unit: 'g' },
+    });
+    expect(response.status).toBe(201);
+    const received = receiptResponse.parse(response.body);
+    expect(received.containers.map((c) => [c.code, c.balance])).toEqual([
+      ['L-001-01', '250'],
+      ['L-001-02', '250'],
+      ['L-001-03', '250'],
+    ]);
+    const history = operationList.parse((await call(lab.operator.subject, `${lab.base}/operations?limit=2`)).body);
+    expect(history.items.map((item) => item.id)).toEqual([received.operationId, received.operationId]);
+    // La página siguiente sigue con el tercer frasco de la misma operación, sin saltarlo.
+    const next = operationList.parse(
+      (await call(lab.operator.subject, `${lab.base}/operations?limit=2&cursor=${history.nextCursor}`)).body,
+    );
+    expect(next.items.map((item) => item.id)).toEqual([received.operationId]);
+    expect(new Set([...history.items, ...next.items].map((item) => item.entryId)).size).toBe(3);
+  });
+
+  it('el ingreso puede crear el lote en la misma transacción (01 §6.1)', async () => {
+    const lab = await createLab();
+    const { product } = await createProductAndLot(lab);
+    const response = await call(lab.operator.subject, `${lab.base}/receipts`, {
+      method: 'POST',
+      body: {
+        productId: product.id,
+        newLot: { code: 'L-NUEVO', expiresOn: '2027-01-31' },
+        locationId: lab.storage,
+        quantity: '40',
+        unit: 'g',
+      },
+    });
+    expect(response.status).toBe(201);
+    expect(receiptResponse.parse(response.body)).toMatchObject({ lot: { code: 'L-NUEVO' } });
+    const lots = lotList.parse((await call(lab.operator.subject, `${lab.base}/products/${product.id}/lots`)).body);
+    expect(lots.items.map((l) => l.code).sort()).toEqual(['L-001', 'L-NUEVO']);
+    // Lote existente y lote nuevo a la vez es ambiguo: se rechaza.
+    const ambiguous = await call(lab.operator.subject, `${lab.base}/receipts`, {
+      method: 'POST',
+      body: { lotId: lots.items[0]!.id, productId: product.id, newLot: { code: 'L-X' }, locationId: lab.storage, quantity: '1', unit: 'g' },
+    });
+    expect(ambiguous.status).toBe(400);
+    // Un lote nuevo para un reactivo de otro espacio no encuentra el reactivo: 404, sin revelar nada.
+    const other = await createLab();
+    const foreign = await createProductAndLot(other);
+    const crossed = await call(lab.operator.subject, `${lab.base}/receipts`, {
+      method: 'POST',
+      body: { productId: foreign.product.id, newLot: { code: 'L-AJENO' }, locationId: lab.storage, quantity: '1', unit: 'g' },
+    });
+    expect(crossed.status).toBe(404);
   });
 });
 
@@ -542,7 +616,7 @@ describe('validación y consultas', () => {
   beforeAll(async () => {
     lab = await createLab();
     lotId = (await createProductAndLot(lab)).lot.id;
-    positionId = movementResponse.parse((await receive(lab, lotId, '10')).body).positionId;
+    positionId = receivedPosition(await receive(lab, lotId, '10'));
   });
 
   it.each([
@@ -651,5 +725,47 @@ describe('consultas de apoyo a la interfaz', () => {
     ]);
     const lots = lotList.parse((await call(lab.adminMember.subject, `${lab.base}/products/${item.rows[0]!.id}/lots`)).body);
     expect(lots.items).toEqual([]);
+  });
+});
+
+describe('R-01A · motivos y destinos (ADR 0012)', () => {
+  it('el Administrador los administra, el Operador los consulta, y archivar los quita sin borrarlos', async () => {
+    const lab = await createLab();
+    const created = await call(lab.adminMember.subject, `${lab.base}/reasons`, {
+      method: 'POST',
+      body: { kind: 'issue', name: 'Práctica de Química General' },
+    });
+    expect(created.status).toBe(201);
+    const reason = listEntry.parse(created.body);
+    // Repetir el nombre (sin distinguir mayúsculas) no duplica la lista.
+    const again = await call(lab.adminMember.subject, `${lab.base}/reasons`, {
+      method: 'POST',
+      body: { kind: 'issue', name: 'práctica de química general' },
+    });
+    expect(listEntry.parse(again.body).id).toBe(reason.id);
+    // Los motivos de ajuste son otra lista.
+    await call(lab.adminMember.subject, `${lab.base}/reasons`, { method: 'POST', body: { kind: 'adjustment', name: 'Conteo' } });
+
+    const operatorList = entryList.parse((await call(lab.operator.subject, `${lab.base}/reasons?kind=issue`)).body);
+    expect(operatorList.items.map((item) => item.name)).toEqual(['Práctica de Química General']);
+    const denied = await call(lab.operator.subject, `${lab.base}/reasons`, {
+      method: 'POST',
+      body: { kind: 'issue', name: 'Otro' },
+    });
+    expect(denied.status).toBe(403);
+
+    const destination = listEntry.parse(
+      (await call(lab.adminMember.subject, `${lab.base}/destinations`, { method: 'POST', body: { name: 'Laboratorio 1' } })).body,
+    );
+    expect(entryList.parse((await call(lab.operator.subject, `${lab.base}/destinations`)).body).items).toEqual([destination]);
+
+    expect((await call(lab.adminMember.subject, `${lab.base}/reasons/${reason.id}/archive`, { method: 'POST' })).status).toBe(200);
+    expect(entryList.parse((await call(lab.operator.subject, `${lab.base}/reasons?kind=issue`)).body).items).toEqual([]);
+    // El registro sigue en la base: archivado, no borrado.
+    expect(await count('select count(*) as n from inventory.reasons where id = $1 and archived_at is not null', [reason.id])).toBe(1);
+    // Archivar dos veces, o desde otro espacio, no encuentra nada.
+    expect((await call(lab.adminMember.subject, `${lab.base}/reasons/${reason.id}/archive`, { method: 'POST' })).status).toBe(404);
+    const other = await createLab();
+    expect((await call(other.adminMember.subject, `${other.base}/destinations/${destination.id}/archive`, { method: 'POST' })).status).toBe(404);
   });
 });

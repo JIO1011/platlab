@@ -1,13 +1,15 @@
 import { AppError } from '../../../platform/errors.js';
 import {
   applyEntry,
-  ensurePosition,
   findLocation,
   findLot,
+  insertContainerPosition,
+  insertContainers,
   insertOperation,
   lockPosition,
-  lockPositionByKey,
+  reserveContainerSeqs,
 } from '../infrastructure/inventory.queries.js';
+import { createLot, type NewLot } from './catalog.js';
 import type { InventoryContext } from './context.js';
 
 const notFound = () => new AppError('NOT_FOUND', 'Recurso no encontrado');
@@ -39,33 +41,136 @@ function requireBaseUnit(unit: string, baseUnit: string): void {
   }
 }
 
+/** Código visible de un frasco: «código del lote-NN» (ADR 0012). */
+const containerCode = (lotCode: string, seq: number) => `${lotCode}-${String(seq).padStart(2, '0')}`;
+
+interface ReceivedContainer {
+  containerId: string;
+  code: string;
+  positionId: string;
+  quantity: string;
+  balance: string;
+}
+
+export interface ReceiptResult {
+  operationId: string;
+  type: 'receipt';
+  lot: { id: string; code: string };
+  unit: string;
+  effectiveAt: string;
+  containers: ReceivedContainer[];
+}
+
+interface ReceiptInput {
+  /** Un lote existente del ítem, o uno nuevo que se crea en la misma transacción (01 §6.1). */
+  lot: { id: string } | { itemId: string; create: NewLot };
+  locationId: string;
+  /** Frascos iguales del mismo lote; cada uno entra con `quantity`. */
+  count: number;
+  quantity: string;
+  unit: string;
+  reference: string | null;
+}
+
 /**
- * Lote y ubicación de un ingreso, validados en el espacio y para el tipo del módulo. Después de
- * `authorize` (el módulo comprueba su permiso en la ubicación), crea la posición si falta y la
- * bloquea; dos ingresos simultáneos a la misma posición nueva no la duplican.
+ * Ingreso por frascos (ADR 0012): una operación con un asiento por frasco. Valida lote y ubicación
+ * en el espacio y para el tipo del módulo; después de `authorize` (el módulo comprueba su permiso
+ * en la ubicación) reserva los números de frasco en el lote, que queda bloqueado, y crea cada
+ * frasco con su posición llena.
  */
-export async function lockReceiptPosition(
+export async function receiveContainers(
   ctx: InventoryContext,
-  input: { lotId: string; locationId: string; unit: string },
+  input: ReceiptInput,
   authorize: (locationId: string) => Promise<void>,
-): Promise<LockedPosition> {
-  const [lot] = await findLot.run({ workspaceId: ctx.workspaceId, lotId: input.lotId, kind: ctx.kind }, ctx.client);
-  if (!lot) throw notFound();
+): Promise<ReceiptResult> {
   const [location] = await findLocation.run(
     { workspaceId: ctx.workspaceId, locationId: input.locationId },
     ctx.client,
   );
   if (!location) throw notFound();
+  await authorize(location.id);
+
+  const lotId = 'id' in input.lot ? input.lot.id : (await createLot(ctx, input.lot.itemId, input.lot.create)).id;
+  const [lot] = await findLot.run({ workspaceId: ctx.workspaceId, lotId, kind: ctx.kind }, ctx.client);
+  if (!lot) throw notFound();
   requireBaseUnit(input.unit, lot.base_unit);
   if (lot.condition === 'discarded') {
     throw new AppError('VALIDATION_FAILED', 'El lote está descartado');
   }
-  await authorize(location.id);
-  const key = { workspaceId: ctx.workspaceId, itemId: lot.item_id, lotId: lot.id, locationId: location.id };
-  await ensurePosition.run(key, ctx.client);
-  const [position] = await lockPositionByKey.run(key, ctx.client);
-  if (!position) throw new Error('La posición del ingreso no quedó disponible');
-  return { id: position.id, locationId: location.id, baseUnit: lot.base_unit, movable: true };
+
+  const [reserved] = await reserveContainerSeqs.run(
+    { workspaceId: ctx.workspaceId, lotId: lot.id, count: input.count },
+    ctx.client,
+  );
+  if (!reserved) throw notFound();
+  const containers = await insertContainers.run(
+    {
+      workspaceId: ctx.workspaceId,
+      itemId: lot.item_id,
+      lotId: lot.id,
+      quantity: input.quantity,
+      firstSeq: reserved.last - input.count + 1,
+      lastSeq: reserved.last,
+    },
+    ctx.client,
+  );
+
+  const [operation] = await insertOperation.run(
+    {
+      workspaceId: ctx.workspaceId,
+      type: 'receipt',
+      principalId: ctx.principalId,
+      reason: null,
+      destination: null,
+      reference: input.reference,
+      correlationId: ctx.correlationId,
+    },
+    ctx.client,
+  );
+  if (!operation) throw new Error('La operación no devolvió fila');
+
+  const received: ReceivedContainer[] = [];
+  for (const container of containers) {
+    const [position] = await insertContainerPosition.run(
+      {
+        workspaceId: ctx.workspaceId,
+        itemId: lot.item_id,
+        lotId: lot.id,
+        containerId: container.id,
+        locationId: location.id,
+      },
+      ctx.client,
+    );
+    if (!position) throw new Error('La posición del frasco no devolvió fila');
+    const [entry] = await applyEntry.run(
+      {
+        workspaceId: ctx.workspaceId,
+        operationId: operation.id,
+        positionId: position.id,
+        sign: '1',
+        quantity: input.quantity,
+        unit: input.unit,
+      },
+      ctx.client,
+    );
+    if (!entry) throw new Error('El asiento del ingreso no devolvió fila');
+    received.push({
+      containerId: container.id,
+      code: containerCode(lot.code, container.seq),
+      positionId: position.id,
+      quantity: entry.quantity,
+      balance: entry.balance_after,
+    });
+  }
+
+  return {
+    operationId: operation.id,
+    type: 'receipt',
+    lot: { id: lot.id, code: lot.code },
+    unit: lot.base_unit,
+    effectiveAt: operation.effective_at.toISOString(),
+    containers: received,
+  };
 }
 
 /** Bloquea una posición existente del tipo del módulo antes de leer o descontar su saldo. */

@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 
 /**
  * Recorrido visible de G0 (primer incremento, «Evidencia para cerrar G0», punto 1) con las cuentas
@@ -25,8 +25,10 @@ async function capture(page: Page, name: string, fullPage = true) {
   await page.evaluate(() => window.scrollTo(0, 0));
   // Sin transiciones a medias: una captura tomada durante un fundido no es evidencia.
   await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
-  await page.locator('[data-sonner-toast]').evaluateAll((toasts) => toasts.forEach((toast) => toast.remove()));
+  // Los avisos se ocultan solo durante la foto: quitarlos del DOM rompería los siguientes.
+  const hide = await page.addStyleTag({ content: '[data-sonner-toaster] { visibility: hidden !important; }' });
   await page.screenshot({ path: `${reviewDir}/${name}.png`, fullPage });
+  await hide.evaluate((style) => style.remove());
 }
 
 /** WCAG 2.2 AA con axe en la pantalla tal como está (ADR 0010). */
@@ -62,17 +64,22 @@ async function openReagents(page: Page, workspace: string) {
 
 /** Una sección del menú de la app del módulo; queda marcada como la página actual. */
 async function goTo(page: Page, section: 'Resumen' | 'Inventario' | 'Movimientos') {
-  const link = page.getByRole('link', { name: section, exact: true });
+  // Dentro del menú de la app: la ficha también tiene un enlace «Inventario» para volver.
+  const link = page.getByRole('navigation').getByRole('link', { name: section, exact: true });
   await link.click();
   await expect(link).toHaveAttribute('aria-current', 'page');
 }
 
-async function choose(page: Page, label: string, option: RegExp | string) {
-  await page.getByLabel(label).click();
-  await page.getByRole('option', { name: option }).click();
+/** Motivo o destino de la lista: se pulsa la etiqueta, como una persona, y queda marcado. */
+async function pick(scope: Locator, name: string) {
+  await scope.locator('label').filter({ hasText: new RegExp(`^${name}$`) }).click();
+  await expect(scope.getByRole('radio', { name, exact: true })).toBeChecked();
 }
 
-const productRows = (page: Page) => page.getByRole('rowgroup').filter({ hasText: product.name });
+async function choose(page: Page, label: string, option: RegExp | string) {
+  await page.getByLabel(label, { exact: true }).click();
+  await page.getByRole('option', { name: option }).click();
+}
 
 test('el acceso es accesible y se ve en escritorio', async ({ page }) => {
   await page.goto('/acceso');
@@ -107,59 +114,72 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await productSheet.getByRole('button', { name: 'Crear reactivo' }).click();
   await expect(admin.getByText('Reactivo creado')).toBeVisible();
 
-  await productRows(admin).getByRole('button', { name: 'Nuevo lote' }).click();
-  const lotSheet = admin.getByRole('dialog', { name: 'Nuevo lote' });
-  await lotSheet.getByLabel('Código del lote').fill(product.lot);
-  await lotSheet.getByRole('button', { name: 'Crear lote' }).click();
-  await expect(admin.getByText('Lote creado')).toBeVisible();
-
-  // El Operador registra el ingreso y la salida, y no puede ajustar.
+  // El Operador registra el ingreso por frascos y crea el lote en la misma hoja (ADR 0012, 01 §6.1).
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Laboratorio de Química');
   await goTo(operator, 'Inventario');
   await expect(operator.getByRole('button', { name: 'Ajustar' })).toHaveCount(0);
   await expect(operator.getByRole('button', { name: 'Nuevo reactivo' })).toHaveCount(0);
 
-  await productRows(operator).getByRole('button', { name: 'Ingreso' }).click();
+  await operator.getByRole('button', { name: 'Registrar ingreso' }).click();
   const receipt = operator.getByRole('dialog', { name: 'Registrar ingreso' });
-  await choose(operator, 'Lote', product.lot);
+  await choose(operator, 'Reactivo', new RegExp(product.name));
+  // El reactivo aún no tiene lotes: el primero se crea aquí.
+  await receipt.getByLabel('Código del lote nuevo').fill(product.lot);
   await choose(operator, 'Ubicación', /Almacén de reactivos/);
-  await receipt.getByLabel('Cantidad').fill('100');
+  await receipt.getByLabel('Cantidad por frasco').fill('100');
   await expect(receipt.getByText('Se registrará')).toContainText('+100');
+  await expectAccessible(operator, 'hoja de ingreso');
+  await capture(operator, 'desktop-receipt', false);
   await receipt.getByRole('button', { name: 'Registrar ingreso' }).click();
-  await expect(operator.getByText('Saldo en la ubicación: 100 g')).toBeVisible();
+  await expect(operator.getByText('Frasco registrado')).toBeVisible();
+  await expect(operator.getByText(`${product.lot}-01 · 100 g cada uno`)).toBeVisible();
 
-  await productRows(operator).getByRole('button', { name: 'Salida' }).click();
+  // Dos niveles: la tarjeta del reactivo abre su ficha con sus frascos.
+  await operator.getByRole('link', { name: new RegExp(product.name) }).click();
+  await expect(operator.getByRole('heading', { name: product.name, level: 1 })).toBeVisible();
+  const frasco = operator.getByRole('article').filter({ hasText: `${product.lot}-01` });
+  await expect(frasco.getByText('100 g', { exact: true }).first()).toBeVisible();
+
+  await frasco.getByRole('button', { name: 'Salida' }).click();
   const issue = operator.getByRole('dialog', { name: 'Registrar salida' });
-  await issue.getByLabel('Cantidad').fill('20');
-  await issue.getByLabel('Motivo').fill('Práctica de Química General');
-  await issue.getByLabel('Destino').fill('Laboratorio 1');
+  await issue.getByLabel('Cantidad', { exact: true }).fill('20');
+  await expect(issue.getByText('Quedarán')).toContainText('80');
+  await pick(issue, 'Práctica de Química General');
+  await pick(issue, 'Laboratorio 1');
+  await expectAccessible(operator, 'hoja de salida');
+  await capture(operator, 'desktop-issue', false);
   await issue.getByRole('button', { name: 'Registrar salida' }).click();
-  await expect(operator.getByText('Saldo en la ubicación: 80 g')).toBeVisible();
-  await expect(productRows(operator).getByText('80 g', { exact: true }).first()).toBeVisible();
+  await expect(operator.getByText('Quedan 80 g en el frasco')).toBeVisible();
+  await expect(frasco.getByText('80 g', { exact: true }).first()).toBeVisible();
 
-  // La Administradora ajusta por conteo.
-  await admin.reload();
-  await productRows(admin).getByRole('button', { name: 'Ajustar' }).click();
+  // La Administradora ajusta el frasco por conteo, con un motivo de la lista.
+  await admin.goto(operator.url());
+  const adminFrasco = admin.getByRole('article').filter({ hasText: `${product.lot}-01` });
+  await adminFrasco.getByRole('button', { name: 'Ajustar' }).click();
   const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
   await adjustment.getByLabel('Diferencia').fill('0,5');
-  await adjustment.getByLabel('Motivo').fill('Conteo');
+  await pick(adjustment, 'Conteo mensual');
   await adjustment.getByRole('button', { name: 'Registrar ajuste' }).click();
-  await expect(admin.getByText('Saldo en la ubicación: 79,5 g')).toBeVisible();
-  await expect(productRows(admin).getByText('79,5 g', { exact: true }).first()).toBeVisible();
-  await expectAccessible(admin, 'inventario');
-  await capture(admin, 'desktop');
+  await expect(admin.getByText('Quedan 79,5 g en el frasco')).toBeVisible();
+  await expect(adminFrasco.getByText('79,5 g', { exact: true }).first()).toBeVisible();
+  await expectAccessible(admin, 'ficha del reactivo');
+  await capture(admin, 'desktop-product');
 
-  // El selector de ubicación agrupa por reactivo: el de esta prueba aparece una sola vez.
+  // El selector de frascos agrupa por reactivo: el de esta prueba aparece una sola vez.
   await admin.getByRole('button', { name: 'Registrar salida' }).click();
   const issueSheet = admin.getByRole('dialog', { name: 'Registrar salida' });
-  await issueSheet.getByLabel('Desde').click();
+  await issueSheet.getByLabel('Frasco').click();
   await expect(admin.getByRole('group', { name: product.name })).toHaveCount(1);
   await expect(admin.getByRole('group', { name: product.name }).getByRole('option')).toHaveCount(1);
   await capture(admin, 'desktop-select', false);
   await admin.keyboard.press('Escape');
   await admin.keyboard.press('Escape');
   await expect(issueSheet).toHaveCount(0);
+
+  await goTo(admin, 'Inventario');
+  await expectAccessible(admin, 'inventario');
+  await capture(admin, 'desktop');
 
   await goTo(admin, 'Movimientos');
   const history = admin.getByRole('row').filter({ hasText: product.name });
@@ -231,6 +251,12 @@ test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', as
   expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await goTo(operator, 'Inventario');
 
+  // Segundo nivel en el móvil: la ficha con sus frascos, y la salida desde un frasco.
+  await operator.getByRole('link', { name: /Etanol 96 %/ }).click();
+  await expect(operator.getByRole('heading', { name: 'Etanol 96 %', level: 1 })).toBeVisible();
+  expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expectAccessible(operator, 'ficha móvil');
+  await capture(operator, 'mobile-product');
   await operator.getByRole('button', { name: 'Salida' }).first().click();
   await expect(operator.getByRole('dialog', { name: 'Registrar salida' })).toBeVisible();
   await expectAccessible(operator, 'hoja móvil');
@@ -313,21 +339,67 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
  * expirada usan la API real; consulta y error simulan solo la respuesta, porque cambiar el estado
  * del módulo es del Equipo PlatLab y la decisión del servidor ya la prueba la integración.
  */
+test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de vencido y ajuste (ADR 0012)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await openReagents(admin, 'Laboratorio de Química');
+  await goTo(admin, 'Inventario');
+  // Lo que no tiene saldo se oculta, pero no desaparece.
+  await expect(admin.getByRole('link', { name: /Acetona/ })).toHaveCount(0);
+  await admin.getByRole('button', { name: /Mostrar sin existencias/ }).click();
+  await expect(admin.getByRole('link', { name: /Acetona/ })).toContainText('Sin existencias');
+  await capture(admin, 'desktop-inventory-empty');
+
+  await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
+  await expect(admin.getByRole('heading', { name: 'Ácido sulfúrico 98 %', level: 1 })).toBeVisible();
+  await expect(admin.getByRole('article')).toHaveCount(3);
+  await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2024-08-01' })).toContainText('Venció el');
+  // Una sola primaria: «Registrar salida» de la cabecera; «Nuevo reactivo» no corresponde a la ficha.
+  await expect(admin.getByRole('button', { name: 'Nuevo reactivo' })).toHaveCount(0);
+  await expectAccessible(admin, 'ficha con varios frascos');
+  await capture(admin, 'desktop-product-multi');
+
+  // Desde la ficha, la salida llega con el frasco utilizable que vence antes (01 §6.1).
+  await admin.getByRole('button', { name: 'Registrar salida' }).click();
+  const issue = admin.getByRole('dialog', { name: 'Registrar salida' });
+  await expect(issue.getByLabel('Frasco', { exact: true })).toContainText('H2SO4-2026-02-01');
+  await choose(admin, 'Frasco', /H2SO4-2026-09-01/);
+  await expect(issue.getByText('Vence antes:')).toContainText('H2SO4-2026-02-01');
+  await capture(admin, 'desktop-fefo', false);
+  await issue.getByRole('button', { name: 'Usar ese frasco' }).click();
+  await expect(issue.getByLabel('Frasco', { exact: true })).toContainText('H2SO4-2026-02-01');
+  // Un frasco vencido se puede usar, con advertencia.
+  await choose(admin, 'Frasco', /H2SO4-2024-08-01/);
+  await expect(issue.getByRole('alert')).toContainText('Este frasco venció el');
+  await expectAccessible(admin, 'salida de un frasco vencido');
+  await capture(admin, 'desktop-expired', false);
+  await admin.keyboard.press('Escape');
+  await expect(issue).toHaveCount(0);
+
+  await admin.getByRole('article').filter({ hasText: 'H2SO4-2026-09-01' }).getByRole('button', { name: 'Ajustar' }).click();
+  const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
+  await expect(adjustment.getByRole('radio', { name: 'Conteo mensual', exact: true })).toBeAttached();
+  await expectAccessible(admin, 'hoja de ajuste');
+  await capture(admin, 'desktop-adjust', false);
+});
+
 test('stock insuficiente: la salida se rechaza en el formulario y el saldo no cambia', async ({ browser }) => {
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Laboratorio de Biología');
   await goTo(operator, 'Inventario');
-  const ethanol = operator.getByRole('rowgroup').filter({ hasText: 'Etanol 96 %' });
+  await operator.getByRole('link', { name: /Etanol 96 %/ }).click();
+  const ethanol = operator.getByRole('article').filter({ hasText: 'ETOH-2026-01-01' });
   await expect(ethanol.getByText('500 mL', { exact: true }).first()).toBeVisible();
 
-  await ethanol.getByRole('button', { name: 'Salida' }).first().click();
+  await ethanol.getByRole('button', { name: 'Salida' }).click();
   const issue = operator.getByRole('dialog', { name: 'Registrar salida' });
-  await issue.getByLabel('Cantidad').fill('100000');
-  await issue.getByLabel('Motivo').fill('Prueba de saldo insuficiente');
-  await issue.getByLabel('Destino').fill('Laboratorio 2');
+  await issue.getByLabel('Cantidad', { exact: true }).fill('100000');
+  // Antes de enviar ya se ve que no alcanza; el servidor lo confirma igual.
+  await expect(issue.getByText('No alcanza: el frasco tiene 500 mL.')).toBeVisible();
+  await pick(issue, 'Práctica de Química General');
+  await pick(issue, 'Laboratorio 2');
   await issue.getByRole('button', { name: 'Registrar salida' }).click();
-  await expect(issue.getByText('No hay saldo suficiente en esa ubicación.')).toBeVisible();
-  await expect(issue.getByLabel('Cantidad')).toHaveAttribute('aria-invalid', 'true');
+  await expect(issue.getByText('No alcanza: el frasco tiene 500 mL.')).toBeVisible();
+  await expect(issue.getByLabel('Cantidad', { exact: true })).toHaveAttribute('aria-invalid', 'true');
   await expectAccessible(operator, 'hoja con stock insuficiente');
   await capture(operator, 'desktop-insufficient', false);
 
@@ -358,7 +430,9 @@ test('modo consulta: sin operación nueva no hay acciones de registro, solo inve
   await openReagents(admin, 'Laboratorio de Química');
   await expect(admin.getByRole('status').filter({ hasText: 'Reactivos está en modo consulta' })).toBeVisible();
   await goTo(admin, 'Inventario');
-  for (const name of ['Registrar salida', 'Registrar ingreso', 'Ajustar', 'Nuevo reactivo', 'Salida', 'Ingreso', 'Nuevo lote']) {
+  await admin.getByRole('link', { name: /Cloruro de sodio\b(?! MUR)/ }).first().click();
+  await expect(admin.getByRole('heading', { name: 'Frascos' })).toBeVisible();
+  for (const name of ['Registrar salida', 'Registrar ingreso', 'Ajustar', 'Nuevo reactivo', 'Salida', 'Ingresar frascos']) {
     await expect(admin.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
   await goTo(admin, 'Movimientos');

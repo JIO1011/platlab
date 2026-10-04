@@ -230,17 +230,18 @@ components:
 # Design System: PlatLab
 
 > **Fuentes que mandan.** Este archivo describe lo construido y enlaza; no copia.
-> Dirección visual: [docs/01_producto.md §7 «Dirección visual»](docs/01_producto.md#7-cómo-se-ve-la-plataforma).
+> Dirección visual: [docs/01_producto.md §7 «Dirección visual»](docs/01_producto.md#7-cómo-se-ve-la-plataforma); flujo del inventario de reactivos en [§6.1](docs/01_producto.md#61-inventario-de-reactivos-m2).
 > Stack y frontend: [docs/02_arquitectura.md §2](docs/02_arquitectura.md#2-stack) y [§8](docs/02_arquitectura.md#8-frontend).
 > Sistema de diseño y movimiento: [ADR 0010](docs/05_decisiones.md#adr-0010), con sus cambios del 02-10-2026 («precisión suave» y color por módulo).
 > Inicio como tablero, cada módulo como app y entrada directa al último espacio: [ADR 0011](docs/05_decisiones.md#adr-0011).
+> Reactivos por frasco y salidas con aprobación (entrega 1 de R-01A: inventario en dos niveles, ingreso por frascos, salida con FEFO, motivos y destinos de lista): [ADR 0012](docs/05_decisiones.md#adr-0012).
 > **Tokens:** la única fuente es [`packages/ui/src/styles.css`](packages/ui/src/styles.css). Los valores del encabezado YAML se derivan de ese archivo para las herramientas de diseño; si difieren, manda `styles.css`.
 
 ## Overview
 
 **Creative North Star: "El libro de saldos", en precisión suave**
 
-Cada pantalla responde primero «¿cuánto hay, dónde y quién lo movió?». La interfaz es una herramienta de trabajo tranquila: lienzo frío con un brillo leve desde arriba a la izquierda, paneles blancos flotantes de esquinas amplias y sombras suaves en capas, una sola voz de acción por contexto (azul en la plataforma, el color del módulo dentro de su app) y cifras grandes con su unidad. La navegación y la barra superior también son paneles que flotan sobre el lienzo. El Inicio es un tablero con una tarjeta por módulo, y cada módulo se usa como una app propia con su menú. El historial se lee como un libro: nada se edita, todo queda firmado. La dirección y sus motivos están en 01 §7 y en los ADR 0010 y 0011.
+Cada pantalla responde primero «¿cuánto hay, dónde y quién lo movió?». La interfaz es una herramienta de trabajo tranquila: lienzo frío con un brillo leve desde arriba a la izquierda, paneles blancos flotantes de esquinas amplias y sombras suaves en capas, una sola voz de acción por contexto (azul en la plataforma, el color del módulo dentro de su app) y cifras grandes con su unidad. La navegación y la barra superior también son paneles que flotan sobre el lienzo. El Inicio es un tablero con una tarjeta por módulo, y cada módulo se usa como una app propia con su menú. El inventario se recorre por frasco: del reactivo a su ficha y de ahí a cada frasco con lo que le queda. El historial se lee como un libro: nada se edita, todo queda firmado. La dirección y sus motivos están en 01 §6.1 y §7 y en los ADR 0010, 0011 y 0012.
 
 **Key Characteristics:**
 - El saldo es la columna dominante; las cantidades llevan siempre su unidad atenuada.
@@ -288,17 +289,19 @@ Neutros fríos azul pizarra con una sola voz de acción por contexto: azul en la
 
 ### Hierarchy
 - **Display** (600, fluido de 32 a 44 px, interlínea 1,1, −0.03em): título de página y saludo de Inicio («Buenos días, …», «Reactivos» en el Resumen, el nombre de la sección en las demás y «Inicia sesión»).
-- **Metric** (600, 40 px; interlínea 1, −0.03em, tabulares): cifras de StatLink desde 1024 px. **Metric-sm** (34 px): cifras de las tarjetas de módulo de Inicio en todos los anchos y de StatLink por debajo de 1024 px. Siempre enlazadas a la vista que las explica.
-- **Title** (600, 18 px, −0.01em): título de hoja y de tarjeta (nombre del módulo en Inicio, «Salidas por día», «Actividad reciente»), total por reactivo.
+- **Metric** (600, 40 px; interlínea 1, −0.03em, tabulares): cifras de StatLink desde 1024 px. **Metric-sm** (34 px): cifras de las tarjetas de módulo de Inicio en todos los anchos, de StatLink por debajo de 1024 px, total de cada tarjeta de reactivo del inventario y existencia en el resumen de la ficha. Siempre enlazadas a la vista que las explica o encabezando la vista que las desglosa.
+- **Title** (600, 18 px, −0.01em): título de hoja, de tarjeta y de sección de la ficha («Salidas por día», «Actividad reciente», «Frascos», «Historial del reactivo»); saldo de cada frasco.
 - **Body-lg** (400–600, 15 px, interlínea 1,45): navegación de escritorio, nombre del módulo en el selector, nombre del espacio en la barra y fecha bajo el saludo.
 - **Body** (400–500, 14 px): tablas, campos, botones, navegación del móvil, etiquetas de las cifras y de StatLink, etiqueta de filtro.
-- **Meta** (400, 13 px): «Actualizado hace…», ayudas y errores de campo, código y CAS, detalle de las filas de actividad, frase bajo el minigráfico y tabla de datos del gráfico.
-- **Label** (600, 12 px, 0.04em, mayúsculas): solo encabezados de columna de tabla. Badge, títulos de grupo del Select, segunda línea del menú de espacios, tipo de movimiento, ejes e información emergente de los gráficos usan 12 px sin mayúsculas.
+- **Meta** (400, 13 px): «Actualizado hace…», ayudas y errores de campo, código y CAS, ubicación del frasco, etiquetas del `dl` de la ficha, enlace «Agregar» de ChoiceField, detalle de las filas de actividad, frase bajo el minigráfico y tabla de datos del gráfico.
+- **Label** (600, 12 px, 0.04em, mayúsculas): solo encabezados de columna de tabla. Badge, títulos de grupo del Select, segunda línea del menú de espacios, tipo de movimiento, la línea «Entró con … · %» bajo la barra del frasco, ejes e información emergente de los gráficos usan 12 px sin mayúsculas.
 
 ### Named Rules
 **La regla de la cifra tabular.** Toda cantidad, saldo o contador usa `tabular-nums`; en tablas y filas se alinea a la derecha.
 
 **La regla del tamaño con dato.** Las cifras grandes (Metric) solo muestran datos reales del servidor y llevan a su vista; nunca una métrica decorativa.
+
+**La regla de la escala que no se pierde.** Las clases se combinan siempre con `cn` de `packages/ui`, que enseña a tailwind-merge la escala propia (`display`, `metric`, `metric-sm`, `body-lg`) como tamaños: un tamaño propio junto a un color (`text-metric-sm text-ink`) conserva los dos. Un tamaño nuevo en `styles.css` se añade también a `cn.ts`.
 
 ## Layout
 
@@ -306,21 +309,21 @@ Neutros fríos azul pizarra con una sola voz de acción por contexto: azul en la
 - **Dos modos de navegación (ADR 0011):** en la plataforma, el menú solo tiene «Inicio» y los módulos se abren desde sus tarjetas. Dentro de un módulo, el menú es el de esa app: «← Inicio», el selector de módulo y las secciones del manifiesto, debajo de una línea. En el móvil, dentro de un módulo, una flecha de regreso de 40 px sustituye a la marca compacta, y bajo la barra corre una fila con el selector de módulo compacto fijo a la izquierda y las secciones en píldoras desplazables a su derecha; una máscara desvanece los dos bordes (12 px a la izquierda, 40 px a la derecha), la barra de desplazamiento se oculta y la sección actual se trae a la vista en cada navegación. En la plataforma, el móvil no tiene fila de píldoras.
 - **Contenido:** limitado a 72 rem (`max-w-6xl`), con 16/24 px de margen lateral (móvil/escritorio) y 24/32 px sobre el título.
 - **Inicio como tablero:** saludo Display con la fecha debajo y, 32 px más abajo, una rejilla `repeat(auto-fill, minmax(min(100%, 20rem), 1fr))` con 16 px de separación: una tarjeta de módulo de 20 rem como mínimo, que junto a la barra lateral de la tableta no se estrecha y en el móvil ocupa todo el ancho. La carga reproduce la rejilla con esqueletos de 256 px.
-- **Cabecera de la app de módulo:** título Display y, debajo, «Actualizado hace…» en Meta con el enlace «Actualizar»; las acciones van a la derecha y bajan si no caben. La marca de tiempo es la más antigua de las consultas que la sección muestra, nunca la más fresca. Por debajo de 1024 px, las acciones forman una rejilla de dos columnas: la primaria primero y a todo el ancho; si las secundarias son impares, la última también toma la fila entera.
+- **Cabecera de la app de módulo:** en una vista de detalle, la miga de regreso («← Inventario») va sobre el título; después, título Display y, debajo, «Actualizado hace…» en Meta con el enlace «Actualizar»; las acciones van a la derecha y bajan si no caben. La marca de tiempo es la más antigua de las consultas que la sección muestra, nunca la más fresca. Por debajo de 1024 px, las acciones forman una rejilla de dos columnas: la primaria primero y a todo el ancho; si las secundarias son impares, la última también toma la fila entera. En la ficha de un reactivo la cabecera se acota a lo que aplica a ese reactivo: sin «Nuevo reactivo» ni «Ajustar» (el ajuste vive en cada frasco), y «Registrar ingreso» y «Registrar salida» abren con el reactivo ya elegido.
 - **Resumen de un módulo:** tres StatLink (en columna, 12 px entre ellos, por debajo de 1024 px; tres columnas con 16 px desde 1024 px) y, debajo, una rejilla de 12 columnas desde 1024 px: el gráfico (7 columnas) y la actividad reciente (5), alineados arriba. Las tarjetas del Resumen tienen 20 px de relleno y 24 px desde 640 px.
-- **Inventario producto → lote → ubicación:** en escritorio, un `tbody` por reactivo dentro de una tarjeta; su fila de encabezado muestra nombre, código y CAS, y el total del reactivo en Title; debajo, una fila por lote y ubicación con sangría de 32 px, caducidad y saldo. Por debajo de 1024 px la tabla se sustituye por una lista apilada: reactivo con total a la derecha y, debajo, sus lotes con sangría y borde izquierdo. Las acciones por fila son botones fantasma pequeños (44 px de alto por debajo de 1024 px).
+- **Inventario en dos niveles (ADR 0012):** no hay tabla. Nivel 1: buscador (320 px desde 640 px, a todo el ancho en el móvil) y el interruptor de vacíos en una fila que se envuelve; debajo, una rejilla `repeat(auto-fill, minmax(min(100%, 16rem), 1fr))` con 16 px de separación de tarjetas de reactivo. Nivel 2, la ficha: el resumen del reactivo (existencia a la izquierda y el `dl` de tres columnas a la derecha, separados por una línea vertical desde 1024 px; apilados por debajo), la sección «Frascos» con su interruptor de vacíos y la misma rejilla de 16 rem con una tarjeta por frasco, y el historial del reactivo en una tarjeta; 24 px entre secciones. La misma rejilla sirve en todos los anchos: en el móvil queda en una columna.
 - **Movimientos:** por debajo de 1024 px, filas de actividad en lugar de tabla, con el motivo o destino en una línea Meta alineada al texto. Un filtro activo aparece como etiqueta quitable encima de la tarjeta.
 - **Entrada directa (ADR 0011):** acceso en una tarjeta centrada de 420 px. No hay pantalla para elegir espacio: tras el acceso se abre el último espacio usado en ese navegador o, la primera vez, el primero de la lista, y se cambia desde la barra. Solo quien no pertenece a ningún espacio ve una columna de 520 px con la marca, «Salir» y un StatePanel.
 - **Consultas de contenedor:** las piezas que viven tanto en una columna estrecha como a todo el ancho se adaptan a su contenedor, no a la ventana: la fila de actividad (desde 36 rem, `@xl`) y el eje X de TrendChart (marcas semanales desde 32 rem, `@lg`).
-- **Ritmo:** escala de 4 px. 16 px entre tarjetas de Inicio y del Resumen; 24 px de relleno en tarjetas (20 px en el Resumen por debajo de 640 px y 16 px en la lista apilada), 24 × 20 px en hojas.
+- **Ritmo:** escala de 4 px. 16 px entre tarjetas de Inicio y del Resumen; 24 px de relleno en tarjetas (20 px en el Resumen, el resumen y el historial de la ficha por debajo de 640 px; 20 px siempre en las tarjetas de reactivo y de frasco), 24 × 20 px en hojas.
 
 ## Elevation & Depth
 
 La profundidad viene de paneles blancos que flotan sobre el lienzo, no de bordes: las tarjetas y barras no llevan borde, solo sombra. Tres sombras en capas con el tinte de `ink`, definidas en `styles.css`. El lienzo recibe un degradado radial fijo de `canvas-glow` desde la esquina superior izquierda: blanco en la plataforma, teñido dentro de un módulo.
 
 ### Shadow Vocabulary
-- **Elevada** (`shadow-raised`): tarjetas de contenido (tarjetas de módulo, StatLink, gráfico, actividad, tablas de Reactivos), botón primario, selector de módulo compacto y pestaña activa.
-- **Flotante** (`shadow-float`): el shell (barra lateral y barra superior), la tarjeta de acceso y el estado de hover de las tarjetas-enlace (tarjeta de módulo y StatLink), con transición de 150 ms.
+- **Elevada** (`shadow-raised`): tarjetas de contenido (tarjetas de módulo, StatLink, gráfico, actividad, tabla de movimientos, tarjetas de reactivo y de frasco, resumen e historial de la ficha), botón primario, selector de módulo compacto y pestaña activa.
+- **Flotante** (`shadow-float`): el shell (barra lateral y barra superior), la tarjeta de acceso y el estado de hover de las tarjetas-enlace (tarjeta de módulo, StatLink y tarjeta de reactivo), con transición de 150 ms.
 - **Superposición** (`shadow-overlay`): hojas, menús (Select y DropdownMenu), información emergente de los gráficos y avisos.
 
 ### Named Rules
@@ -328,7 +331,7 @@ La profundidad viene de paneles blancos que flotan sobre el lienzo, no de bordes
 
 ## Shapes
 
-Radios por papel, no por tamaño: `control` (10 px) en botones, campos, navegación de escritorio y avisos en línea; `panel` (20 px) en la barra superior, avisos de Sonner, contadores y el recuadro de cuentas de demo; `card` (24 px) en tarjetas, tarjetas de módulo, StatLink, barra lateral y hojas; píldora en pestañas, navegación del móvil, selector de módulo compacto, etiqueta de filtro, Badge y círculos de icono. El icono de la tarjeta de módulo va en un recuadro `control` de 40 px. Opciones de los menús, esqueletos de línea, el enlace «Actualizar», el área enfocable del gráfico y el selector segmentado de las hojas usan 6 px; las barras de los gráficos, 4 px solo arriba. Bordes de 1 px solo en controles, divisores, líneas guía y superposiciones.
+Radios por papel, no por tamaño: `control` (10 px) en botones, campos, navegación de escritorio y avisos en línea; `panel` (20 px) en la barra superior, avisos de Sonner, contadores, el recuadro de cuentas de demo, el panel del lote nuevo y los mensajes de «sin resultados»; `card` (24 px) en tarjetas, tarjetas de módulo, de reactivo y de frasco, StatLink, barra lateral y hojas; píldora en pestañas, navegación del móvil, selector de módulo compacto, etiqueta de filtro, Badge, interruptor de vacíos, opciones de ChoiceField, atajos de cantidad, barra de % restante y círculos de icono. El icono de la tarjeta de módulo va en un recuadro `control` de 40 px. Opciones de los menús, esqueletos de línea, los enlaces «Actualizar» y «Agregar», el área enfocable del gráfico y el selector segmentado de las hojas usan 6 px; las barras de los gráficos, 4 px solo arriba. Bordes de 1 px solo en controles, divisores, líneas guía y superposiciones.
 
 ## Components
 
@@ -340,9 +343,12 @@ Radios por papel, no por tamaño: `control` (10 px) en botones, campos, navegaci
 ### Inputs / Fields
 - **Field** da la etiqueta, la ayuda permanente y el error, y los entrega por contexto (`useFieldControl`): un control envuelto (Controller, campo con unidad) sigue unido a su etiqueta. «(opcional)» se escribe en la etiqueta; el error tiene `role="alert"` y dice cómo resolverlo.
 - **Estilo:** superficie, línea fuerte, `control`, 40 px. Foco: borde `action` y anillo de 3 px al 20 %. Inválido: borde `danger`.
-- **Select** (Radix): menú en `control` con sombra de superposición, anclado a su origen con `pop-in`; agrupa opciones por título (p. ej., lotes bajo su reactivo, un grupo por nombre en orden de aparición) y muestra a la derecha un dato secundario tabular (saldo, caducidad).
+- **Select** (Radix): menú en `control` con sombra de superposición, anclado a su origen con `pop-in`; puede agrupar opciones por título y muestra a la derecha un dato secundario tabular. En la salida, los frascos con saldo van ordenados por reactivo y caducidad, con saldo y caducidad en el detalle.
 - **DropdownMenu** (Radix): misma superficie y entrada que el Select (superficie, borde `line`, `control`, sombra de superposición, 4 px de relleno, `pop-in` desde su disparador, 6 px de separación, alineado al inicio y al menos tan ancho como el disparador). Opciones de 40 px en Body con icono de 16 px en tinta atenuada; la resaltada pasa a `action-soft`, como en el Select. Hoy lo usan el selector de módulo y el de espacio.
 - **Quantity:** recibe cadenas decimales de la API, nunca `number`; muestra coma decimal y punto de miles es-EC, signo menos tipográfico, `+` opcional en el historial y la unidad atenuada. La entrada usa `inputMode="decimal"`, acepta coma o punto, normaliza a cadena con punto y muestra «Se registrará …» bajo el campo; la unidad va dentro del campo, a la derecha.
+
+### ChoiceField (motivo y destino)
+Elegir de la lista del laboratorio, no escribir. Un `fieldset` con leyenda accesible (la etiqueta visible queda en Body medio) y las opciones como píldoras de radio de 36 px como mínimo: sin elegir, borde `line` y tinta atenuada con hover hundido; elegida, `action-soft` con borde `action` al 40 % y texto `action`; el foco del radio oculto se dibuja en la píldora. Quien puede ampliar la lista ve «Agregar» (Meta medio en `action`, 6 px, hover `action-soft`), que abre un campo y «Guardar» en línea. Texto libre solo si la lista está vacía y la persona no puede ampliarla.
 
 ### Cards / Containers
 - **Tarjeta:** superficie, `card`, sombra elevada, sin borde, 24 px de relleno. Encabezado con Title a la izquierda y, si cabe, un enlace de acción a la derecha («Ver movimientos»).
@@ -379,7 +385,22 @@ Un movimiento como asiento: círculo hundido de 40 px con el icono del tipo; en 
 Radix Dialog sobre un velo de tinta al 25 %. En escritorio, panel flotante de 460 px con 16 px de margen al borde de la ventana y `card` en todas las esquinas; en el móvil, hoja inferior a todo el ancho con 92 dvh como máximo y `card` arriba. Encabezado con título y descripción, cuerpo desplazable, pie fijo con Cancelar (fantasma) y la acción primaria. Se monta de nuevo en cada apertura (formulario limpio, clave idempotente nueva) y queda montada al cerrar para animar la salida. Los errores generales van arriba, en un aviso `danger-soft`.
 
 ### Chips: Badge
-Píldora de 12 px con tono neutral, info, éxito, aviso o peligro; siempre con texto. «Caducidad desconocida» es un Badge de aviso, nunca un gris.
+Píldora de 12 px con tono neutral, info, éxito, aviso o peligro; siempre con texto. Caducidad del frasco: «Caducidad sin confirmar» en aviso (nunca un gris), «Venció el …» en peligro y «Caduca …» neutral. Estado del lote, solo si no está habilitado: «Lote en cuarentena» en aviso, «Lote bloqueado» y «Lote descartado» en peligro. «Sin existencias» en aviso y «N frascos» neutral en la tarjeta de reactivo.
+
+### Interruptor de vacíos
+Lo que no tiene saldo se oculta, pero no desaparece: un botón píldora de 36 px con `aria-pressed` y el recuento («Mostrar sin existencias (3)», «Mostrar vacíos (2)»). Apagado, hundido con tinta atenuada; encendido, `action-soft` con texto `action` y «Ocultar …». Sin vacíos, no se muestra.
+
+### Tarjeta de reactivo (Inventario, nivel 1)
+Tarjeta-enlace entera a la ficha: superficie, `card`, 20 px de relleno, sombra elevada que pasa a flotante al pasar. Arriba, el nombre en semibold con código · CAS en Meta debajo y un chevron de 16 px en tinta tenue que pasa a `action`; abajo, el total en Metric-sm (tinta tenue si es cero) y el Badge de frascos alineado a su base.
+
+### Ficha del reactivo (Inventario, nivel 2)
+- **Resumen:** tarjeta con «Existencia» en Body atenuado, el total en Metric-sm y «N frascos con saldo» en Meta; a su lado, un `dl` con código, CAS y estado físico (etiqueta en Meta atenuado, valor en Body medio recortado).
+- **Tarjeta de frasco:** superficie, `card`, 20 px de relleno, sombra elevada, sin enlace. Encabezado con el código del frasco en semibold tabular, que nunca se parte (`whitespace-nowrap`): si no cabe, el saldo (Title) baja a la línea siguiente; debajo, ubicación · código en Meta. Luego los Badges de caducidad y de estado del lote. La barra de % restante (8 px, píldora, pista hundida) se rellena en `action`, o en `warning` con el 20 % o menos; con saldo por debajo del 1 % dice «<1 %» y conserva 4 px visibles, porque un frasco casi vacío no es un frasco vacío. Bajo la barra, «Entró con …» y el porcentaje en 12 px, y la barra se nombra con el mismo dato en texto. Al pie, sobre una línea, «Salida» (a lo ancho) y «Ajustar» como botones secundarios pequeños, de 44 px de alto por debajo de 1024 px; «Salida» no aparece en un frasco vacío.
+- **Historial:** tarjeta con las últimas filas de actividad del reactivo, titulada por el código del frasco y con ubicación, motivo y destino en el detalle.
+
+### Hojas de ingreso y salida (Reactivos)
+- **Ingreso por frascos:** con lotes previos, un selector segmentado «Lote existente / Lote nuevo» (pista hundida `control` de 4 px de relleno; la opción elegida sube a superficie con sombra elevada). El lote nuevo agrupa código, caducidad (campo de fecha; vacía queda «sin confirmar») y proveedor en un panel `panel` hundido al 60 %; después, ubicación, número de frascos y cantidad por frasco.
+- **Salida:** la pista del campo dice «Quedarán X en el frasco» con la cifra en tinta o, si no alcanza, «No alcanza: …» en `danger`. Debajo, atajos en píldoras de 36 px con borde `line` en un `role="group"` (25 %, 50 %, «Todo el frasco»), calculados con la aritmética exacta de `decimal.ts`. Un frasco vencido muestra un aviso `warning-soft` que permite seguir; si otro frasco del reactivo vence antes, una sugerencia FEFO en `action-soft` con «Usar ese frasco» (fantasma pequeño). Motivo y destino con ChoiceField.
 
 ### Avisos (Sonner)
 Arriba a la derecha bajo la barra, en `panel` con borde de línea y sombra de superposición. Solo informan un resultado ya confirmado por el servidor.
@@ -402,7 +423,9 @@ Arriba a la derecha bajo la barra, en `panel` con borde de línea y sombra de su
 - **Do** reservar Display para el título de página y Metric para contadores reales enlazados a su vista.
 - **Do** dar a cada módulo una tarjeta-enlace en Inicio y, dentro, su propio menú con «← Inicio», el selector de módulo y sus secciones.
 - **Do** hacer que un gráfico cuente sucesos (p. ej., salidas por día), en una sola serie `action`, con su lectura en texto, y una tabla cuando es interactivo.
-- **Do** agrupar el inventario producto → lote → ubicación con el total por reactivo, y pasar a lista apilada por debajo de 1024 px.
+- **Do** recorrer el inventario en dos niveles: rejilla de tarjetas de reactivo con su total y, en la ficha, una tarjeta por frasco con su código entero, caducidad con texto y % restante (ADR 0012).
+- **Do** calcular porcentajes, restas y atajos de cantidad con `ratioPercent`, `subtractDecimal` y `percentOfDecimal` de `packages/ui/src/lib/decimal.ts` (BigInt), y combinar clases con `cn`.
+- **Do** ofrecer motivo y destino como opciones de la lista del laboratorio (ChoiceField), no como texto libre.
 - **Do** registrar movimientos en una Sheet con una sola acción primaria al pie.
 - **Do** mostrar «Actualizado hace…», con la marca más antigua de lo que se ve, y un botón Actualizar; nunca prometer «en vivo».
 - **Do** diseñar carga, vacío, error, sin permiso y módulo no disponible como estados distintos con StatePanel.

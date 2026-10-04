@@ -136,8 +136,8 @@ La lista exacta de permisos vive en el manifiesto de cada módulo ([02 §4](02_a
 
 | Operación | Quién | Efecto |
 |---|---|---|
-| Ingreso | Operador | Suma a un lote y ubicación; crea el lote si es nuevo |
-| Salida (descarga) | Operador | Resta con motivo y destino tomados de listas del laboratorio; se rechaza si no alcanza |
+| Ingreso | Operador | Registra uno o más frascos de un lote en una ubicación; crea el lote si es nuevo |
+| Salida (descarga) | Operador | Resta de un frasco, con motivo y destino de las listas del laboratorio. La del Operador queda pendiente y aparta la cantidad hasta que el Administrador la aprueba; la del Administrador o del Propietario es directa. Se rechaza si no alcanza, y un frasco vencido se puede usar con advertencia ([ADR 0012](05_decisiones.md#adr-0012)) |
 | Ajuste | Administrador | Corrige un conteo con motivo; el saldo nunca se edita |
 | Traslado | Operador | Origen → tránsito → destino, con recepción y diferencias |
 | Cuarentena, bloqueo o baja | Administrador | Aísla o retira un lote o una posición con motivo |
@@ -150,7 +150,7 @@ Cantidades:
 - **Disponible:** lo utilizable menos lo reservado.
 - **Consumo:** solo un movimiento real confirmado.
 
-Una caducidad desconocida se muestra «sin confirmar». Al elegir lotes, el orden FEFO propone primero el lote válido que vence antes.
+Una caducidad desconocida se muestra «sin confirmar». Al elegir frascos, el orden FEFO propone primero el frasco utilizable que vence antes.
 
 Fiscalizados: cada producto regulado tiene perfil, autorizaciones, sitios y cupos. Cada operación regulada guarda su detalle y el reporte del periodo lo revisa el Responsable de fiscalizados. REG-01 valida con el laboratorio el formato y las reglas antes de implementarlos; no se automatiza el envío a la autoridad.
 

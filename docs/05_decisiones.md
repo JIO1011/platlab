@@ -15,6 +15,7 @@ Revisión: 2 de octubre de 2026. Registro resumido de decisiones de arquitectura
 | [0009](#adr-0009) | Etapas de módulo y admisión de operaciones | Aceptado el 30-09-2026; marca de ambiente el 01-10-2026 |
 | [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026; «precisión suave» y color por módulo el 02-10-2026 |
 | [0011](#adr-0011) | Inicio como tablero y cada módulo como app | Aceptado el 02-10-2026; entrada directa al último espacio el mismo día |
+| [0012](#adr-0012) | Reactivos por frasco y salidas con aprobación | Aceptado el 02-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -231,20 +232,44 @@ Cambio del 02-10-2026, entrada directa, decidido por el usuario:
 - Se cambia de espacio desde su nombre en la barra superior, que abre un menú con los demás y lleva al Inicio del elegido.
 - Así todos los roles entran igual. Lo que cambia es lo que cada uno puede hacer; Administración, por ejemplo, solo la ve el propietario.
 
+<a id="adr-0012"></a>
+## ADR 0012 — Reactivos por frasco y salidas con aprobación
+
+Decidido por el usuario el 02-10-2026, tomando ReactiLab como referencia de UX:
+- **Por frasco.** Cada ingreso de reactivo registra uno o más frascos (envases) de un mismo lote.
+  - Cada frasco tiene código propio (lote y número), cantidad inicial y QR.
+  - La posición es frasco más ubicación, y salidas, ajustes y traslados operan sobre un frasco.
+  - El ingreso puede crear el lote en la misma ventana ([01 §6.1](01_producto.md#61-inventario-de-reactivos-m2)).
+  - Resuelve la pregunta «Envases». La apertura y la caducidad tras abrir llegan si el laboratorio las pide.
+- **Dos niveles.** El inventario lista los reactivos con su total y sus avisos. La ficha de cada reactivo muestra sus frascos (lote, ubicación, caducidad y % restante), sus acciones y su historial.
+- **Salidas del Operador con aprobación.**
+  - La solicitud aparta la cantidad del frasco: una reserva `held`, de modo que nadie más dispone de ella.
+  - El Administrador o el Propietario la aprueba, la salida se confirma y la reserva pasa a `fulfilled`. O la rechaza con motivo, y pasa a `released`.
+  - Las salidas del Administrador y del Propietario son directas, y nadie aprueba su propia solicitud.
+  - Los ingresos son directos.
+- **Vencidos.** Se permite sacar de un frasco vencido, con una advertencia visible; el movimiento queda en el historial con la caducidad que tenía.
+- **Sugerencia FEFO.** La salida propone el frasco utilizable que vence antes, nunca el de menor cantidad.
+- **Motivos y destinos.** Son listas del espacio que administra el Administrador. La operación guarda el texto elegido, así que un cambio en la lista no altera la historia. Se archivan, nunca se borran.
+- **Salida rápida.** Atajos de cantidad (25 %, 50 % y todo el frasco) y la vista de lo que quedará.
+- **Orden.** R-01A (todo lo anterior, más caducidad, mínimos, estado del lote, traslados y conteo, sin dependencias externas) va antes de T-07. R-01B (SDS privada, avisos por correo y exportación) va después ([roadmap](04_roadmap.md)).
+
+Motivo: el laboratorio ya trabaja por frasco con ReactiLab. El QR y el % restante por frasco, y el control de las salidas, son parte de su práctica. Se construye en la capacidad inventario para que Materiales lo herede.
+
+No se copia de ReactiLab: frasco, lote y código fusionados; ajustes sin signo; el borrado como baja; el saldo recortado a cero en silencio; la sugerencia por menor cantidad.
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |
 |---|---|---|
 | Fiscalizados | Sustancias, concentraciones, cupos, sitios, custodia, formato vigente del reporte y si las salidas reguladas requieren aprobación | REG-01 (F0) |
 | Espacios del piloto | ¿Una o varias unidades operan el inventario? ¿La calificación abarca varias? | F0, con REG-01 |
-| Envases | ¿Trazabilidad por envase y apertura, o por lote? | Antes de migrar reactivos |
 | Soluciones preparadas | El diseño ya está decidido (03 §4). Falta saber si el laboratorio almacena soluciones y si siguen siendo fiscalizadas | REG-01 |
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
 | Reglas de Prácticas | Anticipación, cancelaciones, salas exclusivas, devoluciones químicas y quién declara el consumo al cerrar | P-04, antes de F3 |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
-| Etiquetas y QR | ¿Etiquetas con QR y escaneo con cámara, como en ReactiLab? | P-03 |
+| Escaneo con cámara | La etiqueta QR por frasco ya está decidida (ADR 0012). ¿Se escanea con la cámara del móvil, como en ReactiLab? | P-03 |
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
 | Conexión a PostgreSQL | ¿Conexión directa con el complemento IPv4 o Supavisor en modo sesión? | S-01 |
 | Credencial local del rol de runtime | `supabase/seed.sql` fija una contraseña de desarrollo. Antes de usar ramas de Supabase o staging, pasarla a una variable de entorno local o desactivar el seed fuera de local y CI | S-01 |

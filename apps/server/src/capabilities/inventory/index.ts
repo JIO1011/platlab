@@ -4,5 +4,13 @@
  */
 export { createItem, createLot } from './application/catalog.js';
 export type { InventoryContext } from './application/context.js';
-export { applyMovement, lockExistingPosition, lockReceiptPosition } from './application/movements.js';
+export {
+  addDestination,
+  addReason,
+  destinationsOf,
+  reasonsOf,
+  retireDestination,
+  retireReason,
+} from './application/lists.js';
+export { applyMovement, lockExistingPosition, receiveContainers } from './application/movements.js';
 export { countOperationsPerDay, listOperationPage, listPositionPage } from './application/queries.js';

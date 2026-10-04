@@ -1,12 +1,11 @@
 import {
   adjustmentRequest,
-  createLotRequest,
   createProductRequest,
   issueRequest,
-  lot as lotContract,
   movementResponse,
   product as productContract,
   receiptRequest,
+  receiptResponse,
   type Position,
   type Product,
 } from '@platlab/contracts';
@@ -19,6 +18,8 @@ import {
   Sheet,
   formatDecimal,
   normalizeDecimalInput,
+  percentOfDecimal,
+  subtractDecimal,
   toast,
   type SelectOption,
 } from '@platlab/ui';
@@ -27,7 +28,8 @@ import { Controller, useForm, type FieldValues, type Path, type UseFormReturn } 
 import type { z } from 'zod';
 import { isApiError } from '../../app/api';
 import { formatDate } from '../../app/format';
-import { useLots, useReceiptLocations } from '../../app/queries';
+import { useDestinations, useLots, useReasons, useReceiptLocations } from '../../app/queries';
+import { ChoiceField } from './choices';
 import { commandErrorMessage, fieldErrors, useCommand } from './commands';
 
 const units: SelectOption[] = [
@@ -135,13 +137,70 @@ function QuantityPreview({ raw, unit, sign = '' }: { raw: string; unit: string |
   );
 }
 
-/** Lote y ubicación por su nombre, agrupados por reactivo, con el saldo como dato secundario. */
+const expiryText = (position: Position) =>
+  position.lot.expiresOn ? `caduca ${formatDate(position.lot.expiresOn)}` : 'caducidad sin confirmar';
+
+/**
+ * Frasco y ubicación, agrupados por reactivo, con saldo y caducidad como dato secundario
+ * (ADR 0012): elegir un frasco es decidir cuál vence antes.
+ */
 const positionOption = (position: Position): SelectOption => ({
   value: position.id,
-  label: `${position.lot.code} · ${position.location.name}`,
-  detail: `${formatDecimal(position.balance)} ${position.unit}`,
+  label: `${position.container?.code ?? position.lot.code} · ${position.location.name}`,
+  detail: `${formatDecimal(position.balance)} ${position.unit} · ${expiryText(position)}`,
   group: position.product.name,
 });
+
+/** Orden FEFO dentro de cada reactivo: por nombre, luego por caducidad (desconocida al final). */
+const byProductThenExpiry = (a: Position, b: Position) =>
+  a.product.name.localeCompare(b.product.name) ||
+  (a.lot.expiresOn ?? '9999-12-31').localeCompare(b.lot.expiresOn ?? '9999-12-31') ||
+  (a.container?.code ?? '').localeCompare(b.container?.code ?? '');
+
+/** Fecha de hoy en la zona del espacio, como AAAA-MM-DD, para comparar caducidades. */
+const todayIn = (timeZone: string) => new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date());
+
+const isExpired = (position: Position, today: string) => position.lot.expiresOn !== null && position.lot.expiresOn < today;
+
+/**
+ * Sugerencia FEFO (01 §6.1, ADR 0012): entre los frascos utilizables del mismo reactivo con saldo,
+ * el que vence antes; una caducidad desconocida va al final. Nunca el de menor cantidad.
+ */
+function fefoCandidates(positions: Position[], productId: string, today: string): Position[] {
+  return positions
+    .filter(
+      (p) =>
+        p.product.id === productId &&
+        p.balance !== '0' &&
+        p.lot.condition === 'enabled' &&
+        p.disposition === 'usable' &&
+        !isExpired(p, today),
+    )
+    .sort(byProductThenExpiry);
+}
+
+function fefoSuggestion(positions: Position[], chosen: Position, today: string): Position | null {
+  const candidates = positions
+    .filter(
+      (p) =>
+        p.product.id === chosen.product.id &&
+        p.balance !== '0' &&
+        p.lot.condition === 'enabled' &&
+        p.disposition === 'usable' &&
+        !isExpired(p, today),
+    )
+    .sort((a, b) =>
+      (a.lot.expiresOn ?? '9999-12-31').localeCompare(b.lot.expiresOn ?? '9999-12-31') ||
+      (a.container?.code ?? '').localeCompare(b.container?.code ?? ''),
+    );
+  const first = candidates[0];
+  if (!first || first.id === chosen.id) return null;
+  // Solo se sugiere si de verdad vence antes que el elegido.
+  if (chosen.lot.expiresOn !== null && first.lot.expiresOn !== null && first.lot.expiresOn >= chosen.lot.expiresOn) {
+    return null;
+  }
+  return first;
+}
 
 // ---------------------------------------------------------------------------
 // Catálogo
@@ -224,94 +283,10 @@ export function NewProductSheet({ workspaceId, open, onOpenChange }: SheetBasePr
   );
 }
 
-export function NewLotSheet({
-  workspaceId,
-  open,
-  onOpenChange,
-  products,
-  productId,
-}: SheetBaseProps & { products: Product[]; productId: string | undefined }) {
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  const form = useForm({
-    defaultValues: { productId: productId ?? '', code: '', supplierName: '', supplierLot: '', expiresOn: '' },
-  });
-  const selected = form.watch('productId');
-  const command = useCommand(workspaceId, `/products/${selected}/lots`, lotContract);
-  const errors = form.formState.errors;
-
-  const submit = form.handleSubmit(async (values) => {
-    setGeneralError(null);
-    if (!values.productId) {
-      form.setError('productId', { message: 'Elige el reactivo del lote.' });
-      return;
-    }
-    const payload = validate(
-      createLotRequest,
-      {
-        code: values.code.trim(),
-        supplierName: values.supplierName.trim() || null,
-        supplierLot: values.supplierLot.trim() || null,
-        expiresOn: values.expiresOn || null,
-      },
-      form,
-    );
-    if (!payload) return;
-    try {
-      const created = await command.mutateAsync(payload);
-      toast.success('Lote creado', { description: created.code });
-      onOpenChange(false);
-    } catch (error) {
-      setGeneralError(commandErrorMessage(error));
-    }
-  });
-
-  return (
-    <FormSheet
-      title="Nuevo lote"
-      description="Un lote pertenece a un solo reactivo. Lo que no sepas puede quedar como desconocido."
-      open={open}
-      onOpenChange={onOpenChange}
-      submitLabel="Crear lote"
-      pending={command.isPending}
-      generalError={generalError}
-      onSubmit={() => void submit()}
-    >
-      <Field label="Reactivo" error={errors.productId?.message}>
-        <Controller
-          control={form.control}
-          name="productId"
-          render={({ field }) => (
-            <Select
-              value={field.value || undefined}
-              onValueChange={field.onChange}
-              options={products.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}` }))}
-              placeholder="Elige un reactivo"
-            />
-          )}
-        />
-      </Field>
-      <Field label="Código del lote" error={errors.code?.message} hint="Interno; el lote del proveedor va aparte.">
-        <Input autoComplete="off" spellCheck={false} {...form.register('code')} />
-      </Field>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Proveedor" optional error={errors.supplierName?.message}>
-          <Input autoComplete="organization" {...form.register('supplierName')} />
-        </Field>
-        <Field label="Lote del proveedor" optional error={errors.supplierLot?.message}>
-          <Input autoComplete="off" {...form.register('supplierLot')} />
-        </Field>
-      </div>
-      <Field label="Caducidad" optional error={errors.expiresOn?.message} hint="Déjala vacía si no la conoces: quedará como desconocida.">
-        <Input type="date" {...form.register('expiresOn')} />
-      </Field>
-    </FormSheet>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Movimientos
-// ---------------------------------------------------------------------------
-
+/**
+ * Ingreso por frascos (ADR 0012): reactivo, lote existente o nuevo (01 §6.1), ubicación y cuántos
+ * frascos iguales entran. Cada frasco recibe su código al registrarse.
+ */
 export function ReceiptSheet({
   workspaceId,
   open,
@@ -319,45 +294,26 @@ export function ReceiptSheet({
   products,
   productId,
 }: SheetBaseProps & { products: Product[]; productId: string | undefined }) {
-  const command = useCommand(workspaceId, '/receipts', movementResponse);
+  const command = useCommand(workspaceId, '/receipts', receiptResponse);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const form = useForm({
-    defaultValues: { productId: productId ?? '', lotId: '', locationId: '', quantity: '', reference: '' },
+    defaultValues: {
+      productId: productId ?? '',
+      lotMode: 'existing' as 'existing' | 'new',
+      lotId: '',
+      lotCode: '',
+      expiresOn: '',
+      supplierName: '',
+      locationId: '',
+      containers: '1',
+      quantity: '',
+      reference: '',
+    },
   });
   const selectedProduct = products.find((p) => p.id === form.watch('productId'));
   const lots = useLots(workspaceId, selectedProduct?.id);
   const locations = useReceiptLocations(workspaceId, open);
   const errors = form.formState.errors;
-
-  const submit = form.handleSubmit(async (values) => {
-    setGeneralError(null);
-    if (!selectedProduct) {
-      form.setError('productId', { message: 'Elige el reactivo que ingresa.' });
-      return;
-    }
-    const payload = validate(
-      receiptRequest,
-      {
-        lotId: values.lotId,
-        locationId: values.locationId,
-        quantity: normalizeDecimalInput(values.quantity),
-        unit: selectedProduct.baseUnit,
-        reference: values.reference.trim() || null,
-      },
-      form,
-    );
-    if (!payload) return;
-    try {
-      const result = await command.mutateAsync(payload);
-      toast.success('Ingreso registrado', {
-        description: `Saldo en la ubicación: ${formatDecimal(result.balance)} ${result.unit}`,
-      });
-      onOpenChange(false);
-    } catch (error) {
-      setGeneralError(commandErrorMessage(error));
-    }
-  });
-
   const lotOptions = (lots.data?.items ?? [])
     .filter((lot) => lot.condition !== 'discarded')
     .map((lot) => ({
@@ -365,11 +321,64 @@ export function ReceiptSheet({
       label: lot.code,
       detail: lot.expiresOn ? `Caduca ${formatDate(lot.expiresOn)}` : 'Caducidad desconocida',
     }));
+  // Sin lotes, el primero se crea aquí mismo.
+  const lotMode = lots.data && lotOptions.length === 0 ? 'new' : form.watch('lotMode');
+  const count = Number(form.watch('containers'));
+
+  const submit = form.handleSubmit(async (values) => {
+    setGeneralError(null);
+    if (!selectedProduct) {
+      form.setError('productId', { message: 'Elige el reactivo que ingresa.' });
+      return;
+    }
+    const common = {
+      locationId: values.locationId,
+      containers: Number(values.containers),
+      quantity: normalizeDecimalInput(values.quantity),
+      unit: selectedProduct.baseUnit,
+      reference: values.reference.trim() || null,
+    };
+    const payload = validate(
+      receiptRequest,
+      lotMode === 'new'
+        ? {
+            ...common,
+            productId: selectedProduct.id,
+            newLot: {
+              code: values.lotCode.trim(),
+              expiresOn: values.expiresOn || null,
+              supplierName: values.supplierName.trim() || null,
+            },
+          }
+        : { ...common, lotId: values.lotId || undefined },
+      form,
+    );
+    if (!payload) {
+      if (lotMode === 'new' && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(values.lotCode.trim())) {
+        form.setError('lotCode', { message: 'Usa letras, números, punto, guion o guion bajo.' });
+      }
+      if (lotMode === 'existing' && !values.lotId) form.setError('lotId', { message: 'Elige un lote.' });
+      if (!Number.isInteger(Number(values.containers)) || Number(values.containers) < 1 || Number(values.containers) > 50) {
+        form.setError('containers', { message: 'Entre 1 y 50 frascos.' });
+      }
+      return;
+    }
+    try {
+      const result = await command.mutateAsync(payload);
+      const codes = result.containers.map((container) => container.code);
+      toast.success(codes.length === 1 ? 'Frasco registrado' : `${codes.length} frascos registrados`, {
+        description: `${codes.join(', ')} · ${formatDecimal(result.containers[0]?.quantity ?? '0')} ${result.unit} cada uno`,
+      });
+      onOpenChange(false);
+    } catch (error) {
+      setGeneralError(commandErrorMessage(error));
+    }
+  });
 
   return (
     <FormSheet
       title="Registrar ingreso"
-      description="Suma existencias de un lote en una ubicación."
+      description="Suma frascos de un lote en una ubicación. Cada frasco recibe su código."
       open={open}
       onOpenChange={onOpenChange}
       submitLabel="Registrar ingreso"
@@ -394,25 +403,58 @@ export function ReceiptSheet({
           )}
         />
       </Field>
-      <Field
-        label="Lote"
-        error={errors.lotId?.message}
-        hint={selectedProduct && lots.data?.items.length === 0 ? 'Este reactivo aún no tiene lotes: créalo primero.' : undefined}
-      >
-        <Controller
-          control={form.control}
-          name="lotId"
-          render={({ field }) => (
-            <Select
-              value={field.value || undefined}
-              onValueChange={field.onChange}
-              options={lotOptions}
-              placeholder={selectedProduct ? 'Elige un lote' : 'Primero elige el reactivo'}
-              disabled={!selectedProduct}
-            />
-          )}
-        />
-      </Field>
+      {selectedProduct && lotOptions.length > 0 ? (
+        <fieldset className="grid gap-1.5">
+          <legend className="text-sm font-medium text-ink">Lote</legend>
+          <div className="grid grid-cols-2 gap-1 rounded-control bg-surface-sunken p-1">
+            {(
+              [
+                ['existing', 'Lote existente'],
+                ['new', 'Lote nuevo'],
+              ] as const
+            ).map(([value, label]) => (
+              <label
+                key={value}
+                className="cursor-pointer rounded-[6px] px-3 py-1.5 text-center text-sm font-medium text-ink-muted transition-colors has-checked:bg-surface has-checked:text-ink has-checked:shadow-raised has-focus-visible:outline-2 has-focus-visible:outline-action"
+              >
+                <input type="radio" value={value} className="sr-only" {...form.register('lotMode')} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
+      {lotMode === 'existing' ? (
+        <Field label={selectedProduct && lotOptions.length > 0 ? 'Lote existente' : 'Lote'} error={errors.lotId?.message}>
+          <Controller
+            control={form.control}
+            name="lotId"
+            render={({ field }) => (
+              <Select
+                value={field.value || undefined}
+                onValueChange={field.onChange}
+                options={lotOptions}
+                placeholder={selectedProduct ? 'Elige un lote' : 'Primero elige el reactivo'}
+                disabled={!selectedProduct}
+              />
+            )}
+          />
+        </Field>
+      ) : (
+        <div className="grid gap-4 rounded-panel bg-surface-sunken/60 p-4">
+          <Field label="Código del lote nuevo" error={errors.lotCode?.message} hint="Único para este reactivo; por ejemplo, NACL-2026-04.">
+            <Input autoComplete="off" {...form.register('lotCode')} />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Caducidad" optional error={errors.expiresOn?.message} hint="Si no se conoce, queda «sin confirmar».">
+              <Input type="date" {...form.register('expiresOn')} />
+            </Field>
+            <Field label="Proveedor" optional error={errors.supplierName?.message}>
+              <Input autoComplete="off" {...form.register('supplierName')} />
+            </Field>
+          </div>
+        </div>
+      )}
       <Field label="Ubicación" error={errors.locationId?.message}>
         <Controller
           control={form.control}
@@ -427,18 +469,32 @@ export function ReceiptSheet({
           )}
         />
       </Field>
-      <Field
-        label="Cantidad"
-        error={errors.quantity?.message}
-        hint={<QuantityPreview raw={form.watch('quantity')} unit={selectedProduct?.baseUnit} />}
-      >
-        <div className="relative">
-          <Input inputMode="decimal" autoComplete="off" className="pr-14 tabular-nums" {...form.register('quantity')} />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted">
-            {selectedProduct?.baseUnit ?? ''}
-          </span>
-        </div>
-      </Field>
+      <div className="grid grid-cols-[6.5rem_1fr] gap-4">
+        <Field label="Frascos" error={errors.containers?.message}>
+          <Input type="number" inputMode="numeric" min={1} max={50} step={1} className="tabular-nums" {...form.register('containers')} />
+        </Field>
+        <Field
+          label="Cantidad por frasco"
+          error={errors.quantity?.message}
+          hint={
+            Number.isInteger(count) && count > 1 ? (
+              <span>
+                Entran {count} frascos iguales. <QuantityPreview raw={form.watch('quantity')} unit={selectedProduct?.baseUnit} />{' '}
+                cada uno.
+              </span>
+            ) : (
+              <QuantityPreview raw={form.watch('quantity')} unit={selectedProduct?.baseUnit} />
+            )
+          }
+        >
+          <div className="relative">
+            <Input inputMode="decimal" autoComplete="off" className="pr-14 tabular-nums" {...form.register('quantity')} />
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted">
+              {selectedProduct?.baseUnit ?? ''}
+            </span>
+          </div>
+        </Field>
+      </div>
       <Field label="Referencia" optional error={errors.reference?.message} hint="Factura, guía de remisión u orden de compra.">
         <Input autoComplete="off" {...form.register('reference')} />
       </Field>
@@ -446,18 +502,40 @@ export function ReceiptSheet({
   );
 }
 
+/**
+ * Salida de un frasco (ADR 0012): atajos de cantidad y lo que quedará, sugerencia FEFO, aviso si
+ * el frasco está vencido (se permite, con advertencia) y motivo y destino de las listas.
+ */
 export function IssueSheet({
   workspaceId,
   open,
   onOpenChange,
   positions,
   positionId,
-}: SheetBaseProps & { positions: Position[]; positionId: string | undefined }) {
+  productId,
+  timeZone,
+  canManageLists,
+}: SheetBaseProps & {
+  positions: Position[];
+  positionId: string | undefined;
+  /** Desde la ficha: solo frascos de ese reactivo y el FEFO ya elegido (01 §6.1). */
+  productId?: string | undefined;
+  timeZone: string;
+  canManageLists: boolean;
+}) {
   const command = useCommand(workspaceId, '/issues', movementResponse);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const form = useForm({ defaultValues: { positionId: positionId ?? '', quantity: '', reason: '', destination: '' } });
+  const today = todayIn(timeZone);
+  const scoped = productId ? positions.filter((p) => p.product.id === productId) : positions;
+  const preselected = positionId ?? (productId ? fefoCandidates(positions, productId, today)[0]?.id : undefined);
+  const form = useForm({ defaultValues: { positionId: preselected ?? '', quantity: '', reason: '', destination: '' } });
   const position = positions.find((p) => p.id === form.watch('positionId'));
+  const reasons = useReasons(workspaceId, 'issue', open);
+  const destinations = useDestinations(workspaceId, open);
   const errors = form.formState.errors;
+  const suggestion = position ? fefoSuggestion(positions, position, today) : null;
+  const quantity = normalizeDecimalInput(form.watch('quantity'));
+  const remaining = position && quantity ? subtractDecimal(position.balance, quantity) : null;
 
   const submit = form.handleSubmit(async (values) => {
     setGeneralError(null);
@@ -476,19 +554,25 @@ export function IssueSheet({
     try {
       const result = await command.mutateAsync(payload);
       toast.success('Salida registrada', {
-        description: `Saldo en la ubicación: ${formatDecimal(result.balance)} ${result.unit}`,
+        description: `Quedan ${formatDecimal(result.balance)} ${result.unit} en el frasco`,
       });
       onOpenChange(false);
     } catch (error) {
-      if (isApiError(error, 'INSUFFICIENT_STOCK')) form.setError('quantity', { message: commandErrorMessage(error) });
-      else setGeneralError(commandErrorMessage(error));
+      if (isApiError(error, 'INSUFFICIENT_STOCK')) {
+        // El servidor confirma que no alcanza; se dice cuánto hay, como la pista local.
+        form.setError('quantity', {
+          message: position
+            ? `No alcanza: el frasco tiene ${formatDecimal(position.balance)} ${position.unit}.`
+            : commandErrorMessage(error),
+        });
+      } else setGeneralError(commandErrorMessage(error));
     }
   });
 
   return (
     <FormSheet
       title="Registrar salida"
-      description="Descuenta existencias de una ubicación. El saldo se confirma al registrar."
+      description="Descuenta de un frasco. El saldo se confirma al registrar."
       open={open}
       onOpenChange={onOpenChange}
       submitLabel="Registrar salida"
@@ -496,7 +580,7 @@ export function IssueSheet({
       generalError={generalError}
       onSubmit={() => void submit()}
     >
-      <Field label="Desde" error={errors.positionId?.message}>
+      <Field label="Frasco" error={errors.positionId?.message}>
         <Controller
           control={form.control}
           name="positionId"
@@ -504,19 +588,48 @@ export function IssueSheet({
             <Select
               value={field.value || undefined}
               onValueChange={field.onChange}
-              options={positions.filter((p) => p.balance !== '0').map(positionOption)}
-              placeholder="Elige reactivo, lote y ubicación"
+              options={scoped.filter((p) => p.balance !== '0').sort(byProductThenExpiry).map(positionOption)}
+              placeholder={productId ? 'Elige el frasco' : 'Elige reactivo, frasco y ubicación'}
             />
           )}
         />
       </Field>
-      {position ? (
-        <div className="flex items-baseline justify-between rounded-control bg-surface-sunken px-3 py-2.5 text-sm">
-          <span className="text-ink-muted">Saldo disponible</span>
-          <Quantity value={position.balance} unit={position.unit} className="font-semibold text-ink" />
+      {position && isExpired(position, today) ? (
+        <p role="alert" className="rounded-control bg-warning-soft px-3 py-2.5 text-sm text-warning">
+          Este frasco venció el {formatDate(position.lot.expiresOn ?? '')}. Puedes registrar la salida; quedará en el
+          historial con su caducidad.
+        </p>
+      ) : null}
+      {suggestion ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-action-soft px-3 py-2.5 text-sm text-ink">
+          <span>
+            Vence antes: <strong className="font-semibold">{suggestion.container?.code ?? suggestion.lot.code}</strong>
+            {suggestion.lot.expiresOn ? ` (${formatDate(suggestion.lot.expiresOn)})` : ''}.
+          </span>
+          <Button type="button" size="sm" onClick={() => form.setValue('positionId', suggestion.id)}>
+            Usar ese frasco
+          </Button>
         </div>
       ) : null}
-      <Field label="Cantidad" error={errors.quantity?.message} hint={<QuantityPreview raw={form.watch('quantity')} unit={position?.unit} sign="-" />}>
+      <Field
+        label="Cantidad"
+        error={errors.quantity?.message}
+        hint={
+          position && remaining !== null ? (
+            remaining.startsWith('-') ? (
+              <span className="font-medium text-danger">No alcanza: el frasco tiene {formatDecimal(position.balance)} {position.unit}.</span>
+            ) : (
+              <span>
+                Quedarán <Quantity value={remaining} unit={position.unit} className="font-medium text-ink" /> en el frasco.
+              </span>
+            )
+          ) : position ? (
+            <span>
+              Hay <Quantity value={position.balance} unit={position.unit} className="font-medium text-ink" /> en el frasco.
+            </span>
+          ) : undefined
+        }
+      >
         <div className="relative">
           <Input inputMode="decimal" autoComplete="off" className="pr-14 tabular-nums" {...form.register('quantity')} />
           <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted">
@@ -524,12 +637,61 @@ export function IssueSheet({
           </span>
         </div>
       </Field>
-      <Field label="Motivo" error={errors.reason?.message} hint="Por ejemplo: práctica de Química General.">
-        <Input autoComplete="off" {...form.register('reason')} />
-      </Field>
-      <Field label="Destino" error={errors.destination?.message} hint="Laboratorio, docente o área que recibe.">
-        <Input autoComplete="off" {...form.register('destination')} />
-      </Field>
+      {position ? (
+        <div className="-mt-2 flex flex-wrap gap-2" role="group" aria-label="Atajos de cantidad">
+          {([25, 50, 100] as const).map((percent) => (
+            <button
+              key={percent}
+              type="button"
+              onClick={() => {
+                const value = percentOfDecimal(position.balance, percent);
+                if (value) form.setValue('quantity', formatDecimal(value), { shouldValidate: false });
+              }}
+              className="inline-flex h-9 items-center rounded-full border border-line px-3.5 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
+            >
+              {percent === 100 ? 'Todo el frasco' : `${percent} %`}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <Controller
+        control={form.control}
+        name="reason"
+        render={({ field }) => (
+          <ChoiceField
+            workspaceId={workspaceId}
+            label="Motivo"
+            error={errors.reason?.message}
+            options={reasons.data?.items ?? []}
+            loading={reasons.isPending}
+            value={field.value}
+            onChange={field.onChange}
+            canAdd={canManageLists}
+            addPath="/reasons"
+            addBody={(name) => ({ kind: 'issue', name })}
+            addLabel="Nuevo motivo"
+          />
+        )}
+      />
+      <Controller
+        control={form.control}
+        name="destination"
+        render={({ field }) => (
+          <ChoiceField
+            workspaceId={workspaceId}
+            label="Destino"
+            error={errors.destination?.message}
+            options={destinations.data?.items ?? []}
+            loading={destinations.isPending}
+            value={field.value}
+            onChange={field.onChange}
+            canAdd={canManageLists}
+            addPath="/destinations"
+            addBody={(name) => ({ name })}
+            addLabel="Nuevo destino"
+          />
+        )}
+      />
     </FormSheet>
   );
 }
@@ -540,8 +702,10 @@ export function AdjustmentSheet({
   onOpenChange,
   positions,
   positionId,
-}: SheetBaseProps & { positions: Position[]; positionId: string | undefined }) {
+  canManageLists,
+}: SheetBaseProps & { positions: Position[]; positionId: string | undefined; canManageLists: boolean }) {
   const command = useCommand(workspaceId, '/adjustments', movementResponse);
+  const reasons = useReasons(workspaceId, 'adjustment', open);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const form = useForm({
     defaultValues: { positionId: positionId ?? '', direction: 'decrease' as 'increase' | 'decrease', quantity: '', reason: '' },
@@ -567,7 +731,7 @@ export function AdjustmentSheet({
     try {
       const result = await command.mutateAsync(payload);
       toast.success('Ajuste registrado', {
-        description: `Saldo en la ubicación: ${formatDecimal(result.balance)} ${result.unit}`,
+        description: `Quedan ${formatDecimal(result.balance)} ${result.unit} en el frasco`,
       });
       onOpenChange(false);
     } catch (error) {
@@ -587,7 +751,7 @@ export function AdjustmentSheet({
       generalError={generalError}
       onSubmit={() => void submit()}
     >
-      <Field label="Ubicación" error={errors.positionId?.message}>
+      <Field label="Frasco" error={errors.positionId?.message}>
         <Controller
           control={form.control}
           name="positionId"
@@ -595,8 +759,8 @@ export function AdjustmentSheet({
             <Select
               value={field.value || undefined}
               onValueChange={field.onChange}
-              options={positions.map(positionOption)}
-              placeholder="Elige reactivo, lote y ubicación"
+              options={[...positions].sort(byProductThenExpiry).map(positionOption)}
+              placeholder="Elige reactivo, frasco y ubicación"
             />
           )}
         />
@@ -638,9 +802,26 @@ export function AdjustmentSheet({
           </span>
         </div>
       </Field>
-      <Field label="Motivo" error={errors.reason?.message} hint="Obligatorio. Por ejemplo: conteo mensual.">
-        <Input autoComplete="off" {...form.register('reason')} />
-      </Field>
+      <Controller
+        control={form.control}
+        name="reason"
+        render={({ field }) => (
+          <ChoiceField
+            workspaceId={workspaceId}
+            label="Motivo"
+            hint="Obligatorio: el historial guarda por qué cambió el saldo."
+            error={errors.reason?.message}
+            options={reasons.data?.items ?? []}
+            loading={reasons.isPending}
+            value={field.value}
+            onChange={field.onChange}
+            canAdd={canManageLists}
+            addPath="/reasons"
+            addBody={(name) => ({ kind: 'adjustment', name })}
+            addLabel="Nuevo motivo"
+          />
+        )}
+      />
     </FormSheet>
   );
 }

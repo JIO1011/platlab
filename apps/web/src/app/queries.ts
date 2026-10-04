@@ -1,4 +1,5 @@
 import {
+  entryList,
   homeResponse,
   locationList,
   lotList,
@@ -7,6 +8,8 @@ import {
   positionList,
   reagentsSummary,
   productList,
+  stockedProduct,
+  type ReasonKind,
   workspaceMeResponse,
 } from '@platlab/contracts';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
@@ -76,16 +79,18 @@ export function useProducts(workspaceId: string) {
   });
 }
 
-export function usePositions(workspaceId: string) {
+/** Frascos con su ubicación; con `productId`, solo los de un reactivo (su ficha, ADR 0012). */
+export function usePositions(workspaceId: string, productId?: string) {
   const user = useUserKey();
   return useInfiniteQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'positions'],
+    queryKey: [...reagentsKey(user, workspaceId), 'positions', productId ?? null],
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) =>
-      api(
-        `/workspaces/${workspaceId}/reagents/positions?limit=100${pageParam ? `&cursor=${pageParam}` : ''}`,
-        { schema: positionList },
-      ),
+    queryFn: ({ pageParam }) => {
+      const search = new URLSearchParams({ limit: '100' });
+      if (productId) search.set('productId', productId);
+      if (pageParam) search.set('cursor', pageParam);
+      return api(`/workspaces/${workspaceId}/reagents/positions?${search}`, { schema: positionList });
+    },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     refetchInterval: jitteredPoll,
   });
@@ -95,22 +100,54 @@ export function usePositions(workspaceId: string) {
 export interface OperationFilter {
   type?: 'receipt' | 'issue' | 'adjustment' | undefined;
   days?: number | undefined;
+  productId?: string | undefined;
 }
 
 export function useOperations(workspaceId: string, filter: OperationFilter = {}) {
   const user = useUserKey();
   return useInfiniteQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'operations', filter.type ?? null, filter.days ?? null],
+    queryKey: [...reagentsKey(user, workspaceId), 'operations', filter.type ?? null, filter.days ?? null, filter.productId ?? null],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => {
       const search = new URLSearchParams({ limit: '50' });
       if (filter.type) search.set('type', filter.type);
       if (filter.days) search.set('days', String(filter.days));
+      if (filter.productId) search.set('productId', filter.productId);
       if (pageParam) search.set('cursor', pageParam);
       return api(`/workspaces/${workspaceId}/reagents/operations?${search}`, { schema: operationList });
     },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     refetchInterval: jitteredPoll,
+  });
+}
+
+/** Ficha de un reactivo: su total y sus frascos con saldo en el ámbito del miembro. */
+export function useProduct(workspaceId: string, productId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'product', productId],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/products/${productId}`, { schema: stockedProduct }),
+  });
+}
+
+/** Motivos de salida o de ajuste y destinos del laboratorio (ADR 0012). */
+export function useReasons(workspaceId: string, kind: ReasonKind, enabled = true) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'reasons', kind],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/reasons?kind=${kind}`, { schema: entryList }),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useDestinations(workspaceId: string, enabled = true) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'destinations'],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/destinations`, { schema: entryList }),
+    enabled,
+    staleTime: 60_000,
   });
 }
 

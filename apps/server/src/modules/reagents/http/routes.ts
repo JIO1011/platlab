@@ -2,32 +2,43 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import {
   adjustmentRequest,
+  createDestinationRequest,
   createLotRequest,
+  createReasonRequest,
+  entryParams,
   createProductRequest,
   issueRequest,
   operationListQuery,
   positionListQuery,
   productListQuery,
   productParams,
+  reasonListQuery,
   receiptRequest,
   workspaceParams,
 } from '@platlab/contracts';
 import { verifiedSubject } from '../../../platform/http/auth.js';
 import { idempotencyKey } from '../../../platform/http/idempotency-key.js';
 import {
+  archiveDestination,
+  archiveReason,
+  createDestination,
   createLot,
   createProduct,
+  createReason,
   registerAdjustment,
   registerIssue,
   registerReceipt,
   type CommandRequest,
 } from '../application/commands.js';
 import {
+  getProduct,
   getSummary,
+  listDestinations,
   listLots,
   listOperations,
   listPositions,
   listProducts,
+  listReasons,
   listReceiptLocations,
 } from '../application/queries.js';
 
@@ -57,6 +68,10 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
       const input = createProductRequest.parse(request.body);
       return reply.status(201).send(await createProduct(pool, commandRequest(request), input));
     });
+
+    app.get('/products/:productId', async (request) =>
+      getProduct(pool, queryRequest(request), productParams.parse(request.params).productId),
+    );
 
     app.get('/products/:productId/lots', async (request) =>
       listLots(pool, queryRequest(request), productParams.parse(request.params).productId),
@@ -88,6 +103,31 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
       const input = adjustmentRequest.parse(request.body);
       return reply.status(201).send(await registerAdjustment(pool, commandRequest(request), input));
     });
+
+    // Motivos y destinos (ADR 0012): los consulta quien registra; los administra el Administrador.
+    app.get('/reasons', async (request) =>
+      listReasons(pool, queryRequest(request), reasonListQuery.parse(request.query).kind),
+    );
+
+    app.post('/reasons', async (request, reply) => {
+      const input = createReasonRequest.parse(request.body);
+      return reply.status(201).send(await createReason(pool, commandRequest(request), input));
+    });
+
+    app.post('/reasons/:entryId/archive', async (request) =>
+      archiveReason(pool, commandRequest(request), entryParams.parse(request.params).entryId),
+    );
+
+    app.get('/destinations', async (request) => listDestinations(pool, queryRequest(request)));
+
+    app.post('/destinations', async (request, reply) => {
+      const input = createDestinationRequest.parse(request.body);
+      return reply.status(201).send(await createDestination(pool, commandRequest(request), input));
+    });
+
+    app.post('/destinations/:entryId/archive', async (request) =>
+      archiveDestination(pool, commandRequest(request), entryParams.parse(request.params).entryId),
+    );
 
     app.get('/operations', async (request) =>
       listOperations(pool, queryRequest(request), operationListQuery.parse(request.query)),

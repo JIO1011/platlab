@@ -30,7 +30,7 @@ export function useCommand<S extends z.ZodType>(workspaceId: string, path: strin
 
 /** Mensaje para la persona según el código estable del error (02 §7). */
 export function commandErrorMessage(error: unknown): string {
-  if (isApiError(error, 'INSUFFICIENT_STOCK')) return 'No hay saldo suficiente en esa ubicación.';
+  if (isApiError(error, 'INSUFFICIENT_STOCK')) return 'No hay saldo suficiente en ese frasco.';
   if (isApiError(error, 'ACCESS_DENIED')) return 'No tienes permiso para esta acción en esta ubicación.';
   if (isApiError(error, 'MODULE_READ_ONLY', 'MODULE_UNAVAILABLE', 'WORKSPACE_RESTRICTED')) {
     return 'Reactivos no admite registrar movimientos en este momento. Puedes consultar el inventario.';

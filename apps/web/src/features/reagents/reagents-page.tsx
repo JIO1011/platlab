@@ -1,6 +1,5 @@
-import type { Operation, Position, ProductList, ReagentsSummary, WorkspaceMeResponse } from '@platlab/contracts';
+import type { Operation } from '@platlab/contracts';
 import {
-  Badge,
   Button,
   Quantity,
   Skeleton,
@@ -13,14 +12,14 @@ import {
   TableRow,
   cn,
 } from '@platlab/ui';
-import { useIsFetching, useQueryClient, type InfiniteData, type UseInfiniteQueryResult, type UseQueryResult } from '@tanstack/react-query';
+import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
-import { ArrowDownToLine, ArrowUpFromLine, ChevronRight, Eye, FlaskConical, History, Plus, RefreshCw, Scale, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowUpFromLine, ChevronRight, Eye, History, Plus, RefreshCw, Scale, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, Outlet, useLocation, useOutletContext, useSearchParams } from 'react-router';
+import { Link, Outlet, useLocation, useSearchParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
 import { moduleApps, useShell } from '../../app/app-shell';
-import { formatAgo, formatDate, formatDateTime } from '../../app/format';
+import { formatAgo, formatDateTime } from '../../app/format';
 import {
   useOperations,
   usePositions,
@@ -31,16 +30,10 @@ import {
 } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
 import { TrendChart } from '../../app/trend-chart';
-import { AdjustmentSheet, IssueSheet, NewLotSheet, NewProductSheet, ReceiptSheet } from './sheets';
+import { useReagents, type Allowed, type ReagentsContext, type SheetRequest } from './context';
+import { AdjustmentSheet, IssueSheet, NewProductSheet, ReceiptSheet } from './sheets';
 
-type SheetRequest =
-  | { kind: 'product' }
-  | { kind: 'lot'; productId?: string }
-  | { kind: 'receipt'; productId?: string }
-  | { kind: 'issue'; positionId?: string }
-  | { kind: 'adjustment'; positionId?: string };
-
-type Allowed = Record<'product' | 'receipt' | 'issue' | 'adjustment', boolean>;
+export { ReagentsInventoryPage, ReagentsProductPage } from './inventory';
 
 /**
  * La hoja se monta de nuevo en cada apertura (clave nueva: formulario limpio y clave idempotente
@@ -64,22 +57,6 @@ function useNow(intervalMs: number): number {
   return now;
 }
 
-/** Lo que las secciones comparten: datos ya pedidos, permisos y la apertura de hojas. */
-interface ReagentsContext {
-  workspaceId: string;
-  me: WorkspaceMeResponse;
-  base: string;
-  allowed: Allowed;
-  products: UseQueryResult<ProductList>;
-  productList: StockedProduct[];
-  positions: UseInfiniteQueryResult<InfiniteData<{ items: Position[] }>>;
-  positionList: Position[];
-  operations: UseInfiniteQueryResult<InfiniteData<{ items: Operation[] }>>;
-  operationFilter: OperationFilter;
-  summary: UseQueryResult<ReagentsSummary>;
-  openSheet: (request: SheetRequest) => void;
-}
-
 /**
  * Filtro del historial en la URL, para que la cifra del Resumen abra exactamente su lista:
  * `?tipo=salida&dias=30` son las salidas de los últimos 30 días, la misma ventana del gráfico.
@@ -91,8 +68,6 @@ function readOperationFilter(params: URLSearchParams): OperationFilter {
   const days = Number(params.get('dias'));
   return { type, days: Number.isInteger(days) && days >= 1 && days <= 90 ? days : undefined };
 }
-
-const useReagents = () => useOutletContext<ReagentsContext>();
 
 /**
  * La app de Reactivos (ADR 0011): una cabecera común con el título de la sección, las acciones que
@@ -120,24 +95,35 @@ export function ReagentsLayout() {
     receipt: can('reagents.receipt.create'),
     issue: can('reagents.issue.create'),
     adjustment: can('reagents.adjustment.create'),
+    lists: can('reagents.catalog.manage'),
   };
 
   const app = moduleApps(me).find((entry) => entry.code === 'reagents');
   const base = `/e/${workspaceId}/${app?.path ?? 'reactivos'}`;
-  const sectionPath = pathname.slice(base.length + 1).split('/')[0] ?? '';
+  const [sectionPath = '', detailId] = pathname.slice(base.length + 1).split('/');
   const section = app?.sections.find((entry) => entry.path === sectionPath);
   // El Resumen es la portada de la app: lleva el nombre del módulo; las demás, el de su sección.
-  const title = sectionPath === '' ? (module?.name ?? 'Reactivos') : (section?.label ?? module?.name ?? 'Reactivos');
+  const productList = products.data?.items ?? [];
+  // La ficha (inventario/:id, ADR 0012) lleva el nombre del reactivo; el Resumen, el del módulo.
+  const detailName = detailId ? productList.find((entry) => entry.id === detailId)?.name : undefined;
+  const title =
+    detailId !== undefined
+      ? (detailName ?? 'Reactivo')
+      : sectionPath === ''
+        ? (module?.name ?? 'Reactivos')
+        : (section?.label ?? module?.name ?? 'Reactivos');
   const summary = useReagentsSummary(workspaceId, sectionPath === '');
 
   const positionList = useMemo(() => positions.data?.pages.flatMap((page) => page.items) ?? [], [positions.data]);
-  const productList = products.data?.items ?? [];
   // Por debajo de 1024 px (móvil y tableta), la primaria ocupa su fila y las secundarias van de dos
   // en dos: si son impares, la última toma la fila entera para no dejar un hueco.
+  // En la ficha (ADR 0012) las acciones se acotan a ese reactivo: ingreso y salida con él ya
+  // elegido; «Nuevo reactivo» no corresponde y «Ajustar» vive en cada frasco.
+  const inProduct = detailId !== undefined;
   const secondaryActions = [
-    { kind: 'product', label: 'Nuevo reactivo', icon: Plus, shown: allowed.product },
+    { kind: 'product', label: 'Nuevo reactivo', icon: Plus, shown: allowed.product && !inProduct },
     { kind: 'receipt', label: 'Registrar ingreso', icon: ArrowDownToLine, shown: allowed.receipt },
-    { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 },
+    { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 && !inProduct },
   ] as const;
   const visibleSecondary = secondaryActions.filter((action) => action.shown);
   // «Actualizado hace…» informa lo más antiguo de lo que la sección muestra, nunca lo más fresco.
@@ -171,7 +157,17 @@ export function ReagentsLayout() {
   return (
     <div className="mx-auto max-w-6xl">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="min-w-0">
+          {/* En la ficha, el camino de vuelta va sobre el título, como una miga de pan. */}
+          {detailId !== undefined ? (
+            <Link
+              to={`${base}/inventario`}
+              className="-ml-1.5 mb-1 inline-flex items-center gap-1.5 rounded-control px-1.5 py-1 text-sm font-medium text-action transition-colors hover:bg-action-soft"
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+              Inventario
+            </Link>
+          ) : null}
           <h1 className="text-display text-ink">{title}</h1>
           <p className="mt-1 flex items-center gap-2 text-[13px] text-ink-muted">
             {updatedAt > 0 ? <span>Actualizado {formatAgo(updatedAt, now)}</span> : <span>Cargando…</span>}
@@ -191,14 +187,18 @@ export function ReagentsLayout() {
             <Button
               key={kind}
               className={cn(index === visibleSecondary.length - 1 && index % 2 === 0 && 'col-span-2 lg:col-span-1')}
-              onClick={() => sheets.open({ kind })}
+              onClick={() => sheets.open(kind === 'receipt' && detailId ? { kind, productId: detailId } : { kind })}
             >
               <Icon aria-hidden />
               {label}
             </Button>
           ))}
           {allowed.issue && positionList.length > 0 ? (
-            <Button variant="primary" className="order-first col-span-2 lg:order-none" onClick={() => sheets.open({ kind: 'issue' })}>
+            <Button
+              variant="primary"
+              className="order-first col-span-2 lg:order-none"
+              onClick={() => sheets.open(detailId ? { kind: 'issue', productId: detailId } : { kind: 'issue' })}
+            >
               <ArrowUpFromLine aria-hidden />
               Registrar salida
             </Button>
@@ -235,17 +235,28 @@ export function ReagentsLayout() {
       </div>
 
       {current?.request.kind === 'product' ? <NewProductSheet key={current.id} {...sheetProps('product')} /> : null}
-      {current?.request.kind === 'lot' ? (
-        <NewLotSheet key={current.id} {...sheetProps('lot')} products={productList} productId={current.request.productId} />
-      ) : null}
       {current?.request.kind === 'receipt' ? (
         <ReceiptSheet key={current.id} {...sheetProps('receipt')} products={productList} productId={current.request.productId} />
       ) : null}
       {current?.request.kind === 'issue' ? (
-        <IssueSheet key={current.id} {...sheetProps('issue')} positions={positionList} positionId={current.request.positionId} />
+        <IssueSheet
+          key={current.id}
+          {...sheetProps('issue')}
+          positions={positionList}
+          positionId={current.request.positionId}
+          productId={current.request.productId}
+          timeZone={me.workspace.timeZone}
+          canManageLists={allowed.lists}
+        />
       ) : null}
       {current?.request.kind === 'adjustment' ? (
-        <AdjustmentSheet key={current.id} {...sheetProps('adjustment')} positions={positionList} positionId={current.request.positionId} />
+        <AdjustmentSheet
+          key={current.id}
+          {...sheetProps('adjustment')}
+          positions={positionList}
+          positionId={current.request.positionId}
+          canManageLists={allowed.lists}
+        />
       ) : null}
     </div>
   );
@@ -342,46 +353,6 @@ export function ReagentsSummaryPage() {
   );
 }
 
-/** Inventario: producto → lote → ubicación (01 §7), con sus acciones por fila. */
-export function ReagentsInventoryPage() {
-  const { allowed, products, productList, positions, positionList, openSheet } = useReagents();
-  return (
-    <div className="overflow-hidden rounded-card bg-surface shadow-raised">
-      {products.isPending || positions.isPending ? (
-        <TableSkeleton />
-      ) : productList.length === 0 ? (
-        <StatePanel
-          icon={FlaskConical}
-          title="Aún no hay reactivos"
-          description={
-            allowed.product
-              ? 'Crea el primer reactivo del catálogo; después podrás registrar sus lotes e ingresos.'
-              : 'Cuando alguien con permiso cree reactivos en el catálogo, aparecerán aquí.'
-          }
-          action={
-            allowed.product ? (
-              <Button variant="primary" onClick={() => openSheet({ kind: 'product' })}>
-                <Plus aria-hidden />
-                Nuevo reactivo
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : (
-        <InventoryTable products={productList} positions={positionList} allowed={allowed} onAction={openSheet} />
-      )}
-      {positions.hasNextPage ? (
-        <div className="border-t border-line p-3 text-center">
-          <Button variant="ghost" size="sm" loading={positions.isFetchingNextPage} onClick={() => void positions.fetchNextPage()}>
-            Cargar más ubicaciones
-          </Button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/** Movimientos: el historial completo, del más reciente al más antiguo, con su responsable. */
 const filterLabels: Record<NonNullable<OperationFilter['type']>, string> = {
   receipt: 'Ingresos',
   issue: 'Salidas',
@@ -453,225 +424,6 @@ function TableSkeleton() {
   );
 }
 
-type StockedProduct = ProductList['items'][number];
-
-/** Producto → lote → ubicación (01 §7), con el saldo como columna dominante. */
-function InventoryTable({
-  products,
-  positions,
-  allowed,
-  onAction,
-}: {
-  products: StockedProduct[];
-  positions: Position[];
-  allowed: Allowed;
-  onAction: (request: SheetRequest) => void;
-}) {
-  const byProduct = new Map<string, Position[]>();
-  for (const position of positions) {
-    const list = byProduct.get(position.product.id) ?? [];
-    list.push(position);
-    byProduct.set(position.product.id, list);
-  }
-
-  return (
-    <>
-      <div className="hidden lg:block">
-        <InventoryGrid products={products} byProduct={byProduct} allowed={allowed} onAction={onAction} />
-      </div>
-      <div className="lg:hidden">
-        <InventoryList products={products} byProduct={byProduct} allowed={allowed} onAction={onAction} />
-      </div>
-    </>
-  );
-}
-
-interface InventoryViewProps {
-  products: StockedProduct[];
-  byProduct: Map<string, Position[]>;
-  allowed: Record<'product' | 'receipt' | 'issue' | 'adjustment', boolean>;
-  onAction: (request: SheetRequest) => void;
-}
-
-/** «Caducidad sin confirmar» siempre se diseña (01 §7): con texto y color, no solo en gris. */
-function Expiry({ position }: { position: Position }) {
-  return position.lot.expiresOn ? (
-    <span className="text-[12px] text-ink-muted">Caduca {formatDate(position.lot.expiresOn)}</span>
-  ) : (
-    <Badge tone="warning">Caducidad desconocida</Badge>
-  );
-}
-
-function ProductHeading({ product }: { product: StockedProduct }) {
-  return (
-    <>
-      <span className="font-semibold text-ink">{product.name}</span>
-      <span className="mt-0.5 flex flex-wrap gap-x-2 text-[13px] font-normal text-ink-muted">
-        <span className="whitespace-nowrap">{product.code}</span>
-        {product.casNumber ? <span className="whitespace-nowrap">CAS {product.casNumber}</span> : null}
-      </span>
-    </>
-  );
-}
-
-function ProductActions({ product, allowed, onAction }: Omit<InventoryViewProps, 'products' | 'byProduct'> & { product: StockedProduct }) {
-  return (
-    <>
-      {allowed.product ? (
-        <Button size="sm" variant="ghost" className="max-lg:h-11" onClick={() => onAction({ kind: 'lot', productId: product.id })}>
-          Nuevo lote
-        </Button>
-      ) : null}
-      {allowed.receipt ? (
-        <Button size="sm" variant="ghost" className="max-lg:h-11" onClick={() => onAction({ kind: 'receipt', productId: product.id })}>
-          Ingreso
-        </Button>
-      ) : null}
-    </>
-  );
-}
-
-function PositionActions({ position, allowed, onAction }: Omit<InventoryViewProps, 'products' | 'byProduct'> & { position: Position }) {
-  return (
-    <>
-      {allowed.issue && position.balance !== '0' ? (
-        <Button size="sm" variant="ghost" className="max-lg:h-11" onClick={() => onAction({ kind: 'issue', positionId: position.id })}>
-          Salida
-        </Button>
-      ) : null}
-      {allowed.adjustment ? (
-        <Button size="sm" variant="ghost" className="max-lg:h-11" onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}>
-          Ajustar
-        </Button>
-      ) : null}
-    </>
-  );
-}
-
-/** Por debajo de 1024 px (móvil y tableta): el reactivo con su total y, debajo, sus lotes como filas con sangría. */
-function InventoryList({ products, byProduct, allowed, onAction }: InventoryViewProps) {
-  return (
-    <ul className="divide-y divide-line">
-      {products.map((product) => {
-        const rows = byProduct.get(product.id) ?? [];
-        return (
-          <li key={product.id} className="py-4">
-            <div className="flex items-start justify-between gap-3 px-4">
-              <h3 className="min-w-0">
-                <ProductHeading product={product} />
-              </h3>
-              <Quantity value={product.balance} unit={product.baseUnit} className="text-lg font-semibold text-ink" />
-            </div>
-            {allowed.product || allowed.receipt ? (
-              <div className="mt-2 flex gap-1 px-2">
-                <ProductActions product={product} allowed={allowed} onAction={onAction} />
-              </div>
-            ) : null}
-            {rows.length === 0 ? (
-              <p className="mt-2 px-4 text-sm text-ink-subtle">Sin existencias registradas.</p>
-            ) : (
-              <ul className="ml-4 mt-3 divide-y divide-line border-l border-line">
-                {rows.map((position) => (
-                  <li key={position.id} className="py-3 pl-4 pr-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="grid min-w-0 gap-1 text-sm">
-                        <span className="font-medium text-ink">{position.lot.code}</span>
-                        <span className="text-ink">{position.location.name}</span>
-                        <Expiry position={position} />
-                      </div>
-                      <Quantity
-                        value={position.balance}
-                        unit={position.unit}
-                        className={`text-base font-semibold ${position.balance === '0' ? 'text-ink-subtle' : 'text-ink'}`}
-                      />
-                    </div>
-                    {allowed.issue || allowed.adjustment ? (
-                      <div className="-ml-3 mt-2 flex gap-1">
-                        <PositionActions position={position} allowed={allowed} onAction={onAction} />
-                      </div>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function InventoryGrid({ products, byProduct, allowed, onAction }: InventoryViewProps) {
-  return (
-    <Table>
-      <TableHead>
-        <tr>
-          <TableHeader>Lote</TableHeader>
-          <TableHeader>Ubicación</TableHeader>
-          <TableHeader numeric>Saldo</TableHeader>
-          <TableHeader className="w-0">
-            <span className="sr-only">Acciones</span>
-          </TableHeader>
-        </tr>
-      </TableHead>
-      {products.map((product) => {
-        const rows = byProduct.get(product.id) ?? [];
-        return (
-          <TableBody key={product.id} className="border-t border-line first-of-type:border-t-0">
-            <tr className="bg-surface">
-              <th scope="rowgroup" colSpan={2} className="px-4 pb-2 pt-4 text-left font-normal">
-                <ProductHeading product={product} />
-              </th>
-              <td className="px-4 pb-2 pt-4 text-right">
-                <span className="sr-only">Total del reactivo: </span>
-                <Quantity value={product.balance} unit={product.baseUnit} className="text-lg font-semibold text-ink" />
-              </td>
-              <td className="px-4 pb-2 pt-4 text-right">
-                <div className="flex justify-end gap-1">
-                  <ProductActions product={product} allowed={allowed} onAction={onAction} />
-                </div>
-              </td>
-            </tr>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 pb-4 text-sm text-ink-subtle">
-                  Sin existencias registradas.
-                </td>
-              </tr>
-            ) : (
-              rows.map((position) => (
-                <TableRow key={position.id}>
-                  <TableCell className="pl-8">
-                    <span className="block font-medium">{position.lot.code}</span>
-                    <Expiry position={position} />
-                  </TableCell>
-                  <TableCell>
-                    {position.location.name}
-                    <span className="block text-[12px] text-ink-muted">{position.location.code}</span>
-                  </TableCell>
-                  <TableCell numeric>
-                    <Quantity
-                      value={position.balance}
-                      unit={position.unit}
-                      className={`text-base font-semibold ${position.balance === '0' ? 'text-ink-subtle' : 'text-ink'}`}
-                    />
-                  </TableCell>
-                  <TableCell className="w-0 whitespace-nowrap text-right">
-                    <div className="flex justify-end gap-1">
-                      <PositionActions position={position} allowed={allowed} onAction={onAction} />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        );
-      })}
-    </Table>
-  );
-}
-
-/** El tipo no es un estado: se distingue por icono y texto, no por colores de alerta. */
 const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }> = {
   receipt: { label: 'Ingreso', icon: ArrowDownToLine },
   issue: { label: 'Salida', icon: ArrowUpFromLine },
@@ -701,11 +453,11 @@ function MovementsView({ operations, timeZone, filtered = false }: { operations:
       </div>
       <ul className="divide-y divide-line lg:hidden">
         {operations.map((operation) => (
-          <li key={operation.id} className="px-4 py-3.5">
+          <li key={operation.entryId} className="px-4 py-3.5">
             <ActivityRow
               type={operation.type}
               title={operation.product.name}
-              detail={`${operation.lot.code} · ${operation.location.code}`}
+              detail={`${operation.container?.code ?? operation.lot.code} · ${operation.location.code}`}
               quantity={operation.quantity}
               unit={operation.unit}
               occurredAt={operation.effectiveAt}
@@ -753,7 +505,7 @@ function MovementsTable({ operations, timeZone }: { operations: Operation[]; tim
             <>
               <span className="block whitespace-nowrap font-medium">{row.original.product.name}</span>
               <span className="block text-[12px] text-ink-muted">
-                {row.original.lot.code} · {row.original.location.code}
+                {row.original.container?.code ?? row.original.lot.code} · {row.original.location.code}
               </span>
             </>
           ),
@@ -785,7 +537,7 @@ function MovementsTable({ operations, timeZone }: { operations: Operation[]; tim
       ]),
     [timeZone],
   );
-  const table = useTable({ features, columns, data: operations, getRowId: (row) => row.id });
+  const table = useTable({ features, columns, data: operations, getRowId: (row) => row.entryId });
   const numeric = new Set(['quantity', 'balanceAfter']);
 
   return (

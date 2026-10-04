@@ -19,12 +19,19 @@ SELECT
     WHERE p.workspace_id = i.workspace_id
       AND p.item_id = i.id
       AND p.location_id = ANY (:locationIds!::uuid[])) AS "balance!",
+  (SELECT count(*)
+     FROM inventory.positions AS p
+    WHERE p.workspace_id = i.workspace_id
+      AND p.item_id = i.id
+      AND p.balance > 0
+      AND p.location_id = ANY (:locationIds!::uuid[]))::int AS "containers_with_stock!",
   lower(i.code) AS "sort_code!"
 FROM inventory.items AS i
 JOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id
 WHERE i.workspace_id = :workspaceId!
   AND i.kind = 'reagent'
   AND i.archived_at IS NULL
+  AND (:productId::uuid IS NULL OR i.id = :productId::uuid)
   AND (:afterId::uuid IS NULL OR (lower(i.code), i.id) > (:afterCode::text, :afterId::uuid))
 ORDER BY lower(i.code), i.id
 LIMIT :limit!;

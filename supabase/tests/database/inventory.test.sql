@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(36);
+select plan(50);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -49,6 +49,13 @@ insert into inventory.positions (id, workspace_id, item_id, lot_id, location_id)
   ('a8000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000001'),
   ('b8000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', 'b6000000-0000-4000-8000-000000000001', 'b7000000-0000-4000-8000-000000000001', 'b3000000-0000-4000-8000-000000000001');
 
+-- R-01A (ADR 0012): un frasco por lote en A y en B, y un motivo de B.
+insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, initial_quantity) values
+  ('ac000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000001', 1, 500),
+  ('bc000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', 'b6000000-0000-4000-8000-000000000001', 'b7000000-0000-4000-8000-000000000001', 1, 500);
+insert into inventory.reasons (workspace_id, item_kind, kind, name) values
+  ('b0000000-0000-4000-8000-00000000000b', 'reagent', 'issue', 'Motivo de B');
+
 -- Desde aquí, las restricciones diferidas (saldo = asientos) se comprueban en cada sentencia.
 set constraints all immediate;
 
@@ -56,8 +63,9 @@ set constraints all immediate;
 -- Estructura y privilegios
 -- ---------------------------------------------------------------------------
 
-select tables_are('inventory', array['units', 'items', 'lots', 'positions', 'operations', 'entries'],
-  'inventory contiene solo las tablas de R-00');
+select tables_are('inventory',
+  array['units', 'items', 'lots', 'positions', 'operations', 'entries', 'containers', 'reasons', 'destinations'],
+  'inventory contiene las tablas de R-00 y de R-01A');
 select tables_are('reagents', array['products'], 'reagents contiene solo el detalle químico');
 
 select is(
@@ -77,7 +85,7 @@ select set_eq(
       where grantee = 'platlab_api' and table_schema in ('inventory', 'reagents')
         and privilege_type <> 'SELECT' $$,
   array['inventory.items INSERT', 'inventory.lots INSERT', 'inventory.positions INSERT',
-        'inventory.entries INSERT', 'reagents.products INSERT'],
+        'inventory.entries INSERT', 'inventory.containers INSERT', 'reagents.products INSERT'],
   'el runtime solo inserta; sin UPDATE de tabla, DELETE ni TRUNCATE');
 
 select set_eq(
@@ -204,6 +212,43 @@ select throws_ok(
   '23514', null, 'un ajuste exige motivo');
 
 -- ---------------------------------------------------------------------------
+-- Frascos (R-01A, ADR 0012)
+-- ---------------------------------------------------------------------------
+
+select throws_ok(
+  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, initial_quantity)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001',
+             'a7000000-0000-4000-8000-000000000002', 1, 10) $$,
+  '23503', null, 'un frasco pertenece a un lote de su mismo ítem');
+
+select throws_ok(
+  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, initial_quantity)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001',
+             'a7000000-0000-4000-8000-000000000001', 1, 10) $$,
+  '23505', null, 'el número de frasco no se repite dentro del lote');
+
+select throws_ok(
+  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, initial_quantity)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001',
+             'a7000000-0000-4000-8000-000000000001', 2, 0) $$,
+  '23514', null, 'un frasco entra con una cantidad mayor que cero');
+
+select throws_ok(
+  $$ insert into inventory.positions (workspace_id, item_id, lot_id, container_id, location_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000002',
+             'a7000000-0000-4000-8000-000000000002', 'ac000000-0000-4000-8000-000000000001',
+             'a3000000-0000-4000-8000-000000000001') $$,
+  '23503', null, 'la posición de un frasco es de su mismo lote e ítem');
+
+select throws_ok(
+  $$ insert into inventory.positions (workspace_id, item_id, lot_id, container_id, location_id, disposition, balance) values
+       ('a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000001',
+        'ac000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000001', 'usable', 10),
+       ('a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000001',
+        'ac000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000001', 'quarantine', 10) $$,
+  '23505', null, 'un frasco tiene saldo en un solo lugar');
+
+-- ---------------------------------------------------------------------------
 -- Bajo el rol real de runtime
 -- ---------------------------------------------------------------------------
 
@@ -272,6 +317,43 @@ select throws_ok(
   $$ insert into inventory.items (workspace_id, kind, code, name, base_unit)
      values ('b0000000-0000-4000-8000-00000000000b', 'reagent', 'NUEVO', 'Nuevo', 'g') $$,
   '42501', null, 'el runtime no crea ítems en otro espacio');
+
+-- R-01A: frascos, motivos y destinos bajo el rol real.
+select set_eq('select id from inventory.containers', array['ac000000-0000-4000-8000-000000000001']::uuid[],
+  'con contexto A solo se ven los frascos de A');
+
+select throws_ok(
+  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, initial_quantity)
+     values ('b0000000-0000-4000-8000-00000000000b', 'b6000000-0000-4000-8000-000000000001',
+             'b7000000-0000-4000-8000-000000000001', 2, 10) $$,
+  '42501', null, 'el runtime no crea frascos en otro espacio');
+
+select throws_ok(
+  $$ update inventory.containers set initial_quantity = 1 $$,
+  '42501', null, 'un frasco no cambia su cantidad inicial');
+
+select lives_ok(
+  $$ insert into inventory.reasons (workspace_id, item_kind, kind, name) values ('a0000000-0000-4000-8000-00000000000a', 'reagent', 'issue', 'Práctica') $$,
+  'el runtime añade un motivo en su espacio');
+
+select throws_ok(
+  $$ delete from inventory.reasons $$,
+  '42501', null, 'los motivos no se borran');
+
+select throws_ok(
+  $$ update inventory.reasons set name = 'Otro' $$,
+  '42501', null, 'el nombre de un motivo no se edita');
+
+select lives_ok(
+  $$ update inventory.reasons set archived_at = now() where name = 'Práctica' $$,
+  'un motivo se archiva');
+
+select throws_ok(
+  $$ update inventory.reasons set archived_at = now() where name = 'Práctica' $$,
+  '23514', null, 'un motivo archivado no vuelve a cambiar');
+
+select is_empty($$ select id from inventory.reasons where name = 'Motivo de B' $$,
+  'los motivos de B no se ven desde A');
 
 reset role;
 

@@ -10,8 +10,17 @@ import type {
   ProductList,
   productListQuery,
   Product,
+  ListEntry,
+  ReasonKind,
+  StockedProduct,
 } from '@platlab/contracts';
-import { countOperationsPerDay, listOperationPage, listPositionPage } from '../../../capabilities/inventory/index.js';
+import {
+  countOperationsPerDay,
+  destinationsOf,
+  listOperationPage,
+  listPositionPage,
+  reasonsOf,
+} from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
 import {
   permissionScope,
@@ -25,6 +34,7 @@ import {
   listLocationsIn,
   listProductLots,
   listProducts as listProductsQuery,
+  type IListProductsResult,
 } from '../infrastructure/products.queries.js';
 import { inventoryContext } from './commands.js';
 
@@ -62,6 +72,45 @@ function decodeProductCursor(cursor: string | undefined): [string, string] | nul
   throw new AppError('VALIDATION_FAILED', 'Cursor inválido');
 }
 
+const toStockedProduct = (row: IListProductsResult): StockedProduct => ({
+  id: row.id,
+  code: row.code,
+  name: row.name,
+  baseUnit: row.base_unit,
+  casNumber: row.cas_number,
+  physicalState: row.physical_state as Product['physicalState'],
+  balance: row.balance,
+  containersWithStock: row.containers_with_stock,
+});
+
+/** Ficha de un reactivo (ADR 0012): su total y sus frascos con saldo en el ámbito del miembro. */
+export function getProduct(pool: pg.Pool, request: QueryRequest, productId: string): Promise<StockedProduct> {
+  return runQuery(pool, request, async (access) => {
+    const [row] = await listProductsQuery.run(
+      {
+        workspaceId: access.workspace.id,
+        locationIds: await permissionScope(access, READ),
+        productId,
+        afterCode: null,
+        afterId: null,
+        limit: 1,
+      },
+      access.client,
+    );
+    if (!row) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
+    return toStockedProduct(row);
+  });
+}
+
+/** Motivos de salida o de ajuste: los usa quien registra; los administra el Administrador. */
+export function listReasons(pool: pg.Pool, request: QueryRequest, kind: ReasonKind): Promise<{ items: ListEntry[] }> {
+  return runQuery(pool, request, async (access) => ({ items: await reasonsOf(inventoryContext(access), kind) }));
+}
+
+export function listDestinations(pool: pg.Pool, request: QueryRequest): Promise<{ items: ListEntry[] }> {
+  return runQuery(pool, request, async (access) => ({ items: await destinationsOf(inventoryContext(access)) }));
+}
+
 /** El catálogo del espacio no depende de la ubicación; las existencias sí se filtran por ámbito. */
 export function listProducts(
   pool: pg.Pool,
@@ -74,6 +123,7 @@ export function listProducts(
       {
         workspaceId: access.workspace.id,
         locationIds: await permissionScope(access, READ),
+        productId: null,
         afterCode: after?.[0] ?? null,
         afterId: after?.[1] ?? null,
         limit: query.limit + 1,
@@ -83,15 +133,7 @@ export function listProducts(
     const visible = rows.slice(0, query.limit);
     const last = visible.at(-1);
     return {
-      items: visible.map((row) => ({
-        id: row.id,
-        code: row.code,
-        name: row.name,
-        baseUnit: row.base_unit,
-        casNumber: row.cas_number,
-        physicalState: row.physical_state as Product['physicalState'],
-        balance: row.balance,
-      })),
+      items: visible.map(toStockedProduct),
       nextCursor:
         rows.length > query.limit && last
           ? Buffer.from(JSON.stringify([last.sort_code, last.id])).toString('base64url')
@@ -156,10 +198,10 @@ export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<Home
       positionsWithStock: Number(row?.positions_with_stock ?? 0),
     },
     activity: recent.items.map((operation) => ({
-      id: operation.id,
+      id: operation.entryId,
       type: operation.type,
       title: operation.product.name,
-      detail: `${operation.lot.code} · ${operation.location.code}`,
+      detail: `${operation.container?.code ?? operation.lot.code} · ${operation.location.code}`,
       quantity: operation.quantity,
       unit: operation.unit,
       occurredAt: operation.effectiveAt,

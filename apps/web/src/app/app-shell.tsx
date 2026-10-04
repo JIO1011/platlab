@@ -308,7 +308,7 @@ export function AppShell() {
               <nav
                 ref={pills}
                 aria-label={`Secciones de ${app.name} en el móvil`}
-                className="flex min-w-0 flex-1 scroll-ps-4 scroll-pe-10 gap-1 overflow-x-auto py-1 pl-1 pr-8 [scrollbar-width:none] [mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%-40px),transparent)]"
+                className="flex min-w-0 flex-1 scroll-ps-6 scroll-pe-10 gap-1 overflow-x-auto py-1 pl-2 pr-8 [scrollbar-width:none] [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-40px),transparent)]"
               >
                 {sections(true)}
               </nav>
