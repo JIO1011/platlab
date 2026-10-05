@@ -1,7 +1,7 @@
 # Verificación — rediseño con el lenguaje visual de ReactiLab (ADR 0010, cambio del 04-10-2026, segundo)
 
 Fecha: 2026-10-04 · Commit: 118b7d0, con cambios sin confirmar · Entorno: local
-Veredicto: **Incompleto**, solo a falta del CI de este commit. Cambio de presentación: sin datos, contratos ni reglas nuevas.
+Veredicto: **Cumple**, también en el CI (run 37260126321 sobre 5701e7f). Cambio de presentación: sin datos, contratos ni reglas nuevas.
 
 Origen: el usuario pidió mantener el diseño de ReactiLab y adjuntó dos imágenes de referencia (tarjeta de inventario y tablero). Se tomó el lenguaje visual del proyecto local `Inventario_V1`; no se copió su código, cuya licencia está por aclarar.
 
@@ -18,7 +18,7 @@ Origen: el usuario pidió mantener el diseño de ReactiLab y adjuntó dos imáge
 | 9 | Revisor final de impeccable | ✅ | Pase «fix», con 8 puntos: 6 aplicados total o parcialmente y 2 rechazados con motivo (ver abajo) |
 | 10 | Detector, build y secretos | ✅ | Detector `[]`; build correcto; sin credenciales en `dist` |
 | 11 | DESIGN.md al día y compacto | ✅ | 19,8 KB (era 48 KB); `design.json` válido (42 KB) |
-| 12 | Reproducibilidad en CI | ⚠️ | Falta el CI de este commit |
+| 12 | Reproducibilidad en CI | ✅ | Run 37260126321 sobre 5701e7f, todos los pasos en verde, Playwright con axe incluido |
 
 Comandos locales: `typecheck`, `lint`, `deps` y `knip` en verde; `pnpm test` 37 pruebas; pgTAP 168; integración 94; Playwright 13 con axe; build.
 
@@ -32,6 +32,5 @@ El revisor no pudo abrir las imágenes de referencia (su carpeta temporal no las
 
 ## No verificado
 
-- **CI de este commit.**
 - **Comparación visual píxel a píxel con las imágenes de referencia:** el revisor no las vio; se comparó a ojo en esta sesión.
 - Una captura móvil de Movimientos con una salida aprobada.
