@@ -451,8 +451,7 @@ export function AppShell() {
               ) : null}
             </p>
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              <span className="hidden text-sm font-medium text-ink-muted md:inline">{me.data.member.displayName}</span>
-              {/* En escritorio, espacios y «Salir» viven en la barra lateral. */}
+              {/* En escritorio, la persona, sus espacios y «Salir» viven en la barra lateral. */}
               <AccountMenu me={me.data} workspaces={workspaceList} initials={initials} onSignOut={() => void signOut()} />
             </div>
           </div>

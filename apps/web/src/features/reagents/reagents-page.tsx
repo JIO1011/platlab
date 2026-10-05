@@ -21,12 +21,13 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpFromLine,
+  CalendarClock,
+  CalendarX,
   CircleCheck,
   Clock,
   Eye,
   FlaskConical,
   History,
-  MapPin,
   Package,
   Plus,
   RefreshCw,
@@ -308,9 +309,9 @@ function StatLink({ to, ...stat }: { to: string } & StatCardProps) {
 }
 
 /**
- * Tarjeta de acción rápida (ADR 0010, 04-10-2026): el degradado del acento del módulo con las
- * acciones de ingreso y salida. Sustituye a las acciones de la cabecera en el Resumen, así que sus
- * botones son la acción primaria de la pantalla.
+ * Acción rápida (ADR 0010, 04-10-2026) en banda compacta (ADR 0012, 05-10-2026): el degradado del
+ * acento con las acciones de ingreso y salida, debajo de los indicadores para no empujar los datos.
+ * Sustituye a las acciones de la cabecera en el Resumen: sus botones son la acción primaria.
  */
 function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canIssue: boolean; openSheet: (request: SheetRequest) => void }) {
   const issue = canIssue && allowed.issue;
@@ -318,27 +319,31 @@ function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canI
   return (
     <section
       aria-labelledby="acciones-rapidas"
-      className="relative overflow-hidden rounded-card bg-linear-to-br from-action to-action-deep p-8 text-on-action shadow-xl shadow-action/20 md:p-10"
+      className="relative overflow-hidden rounded-card bg-linear-to-br from-action to-action-deep px-6 py-6 text-on-action shadow-xl shadow-action/20 md:px-8"
     >
-      <div className="relative z-10 max-w-lg">
-        <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur-md">
-          <FlaskConical className="size-3.5" aria-hidden />
-          Gestión rápida
-        </span>
-        <h2 id="acciones-rapidas" className="mt-4 text-3xl font-bold tracking-tight">
-          Registrar movimiento
-        </h2>
-        <p className="mt-3 leading-relaxed text-on-action/90">
-          {allowed.approve
-            ? 'Registra ingresos de frascos y salidas del inventario. Las salidas que piden los Operadores te esperan en Solicitudes.'
-            : 'Registra el ingreso de frascos o pide una salida: la cantidad queda apartada hasta que un Administrador la apruebe.'}
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
+      <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 max-w-xl">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h2 id="acciones-rapidas" className="text-2xl font-bold tracking-tight">
+              Registrar movimiento
+            </h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/20 px-2.5 py-0.5 text-xs font-medium backdrop-blur-md">
+              <FlaskConical className="size-3.5" aria-hidden />
+              Gestión rápida
+            </span>
+          </div>
+          <p className="mt-1.5 text-sm leading-relaxed text-on-action/90">
+            {allowed.approve
+              ? 'Ingresos de frascos y salidas del inventario. Las salidas que piden los Operadores te esperan en Solicitudes.'
+              : 'Ingresa frascos o pide una salida: la cantidad queda apartada hasta que un Administrador la apruebe.'}
+          </p>
+        </div>
+        <div className="grid gap-2 sm:flex sm:flex-wrap lg:shrink-0">
           {issue ? (
             <button
               type="button"
               onClick={() => openSheet({ kind: 'issue' })}
-              className="inline-flex h-12 items-center gap-2 rounded-control bg-surface px-7 text-sm font-bold text-action shadow-lg transition-[background-color,transform] duration-150 hover:bg-action-soft motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-control bg-surface px-6 text-sm font-bold text-action shadow-lg transition-[background-color,transform] duration-150 hover:bg-action-soft motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98]"
             >
               <ArrowUpFromLine className="size-[18px]" aria-hidden />
               {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
@@ -348,7 +353,7 @@ function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canI
             <button
               type="button"
               onClick={() => openSheet({ kind: 'receipt' })}
-              className="inline-flex h-12 items-center gap-2 rounded-control border border-white/40 px-6 text-sm font-medium backdrop-blur-sm transition-colors duration-150 hover:bg-white/10"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-control border border-white/40 px-5 text-sm font-medium backdrop-blur-sm transition-colors duration-150 hover:bg-white/10"
             >
               <ArrowDownToLine className="size-[18px]" aria-hidden />
               Registrar ingreso
@@ -356,16 +361,17 @@ function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canI
           ) : null}
         </div>
       </div>
-      <FlaskConical
-        className="pointer-events-none absolute -bottom-16 -right-8 size-72 rotate-12 text-white/10 transition-transform duration-700 motion-safe:group-hover:rotate-6"
-        aria-hidden
-      />
-      <div className="pointer-events-none absolute right-24 top-10 size-32 rounded-full bg-white/20 blur-3xl" aria-hidden />
+      <FlaskConical className="pointer-events-none absolute -right-6 -top-10 size-44 rotate-12 text-white/10" aria-hidden />
+      <div className="pointer-events-none absolute right-40 top-0 size-28 rounded-full bg-white/20 blur-3xl" aria-hidden />
     </section>
   );
 }
 
-/** Resumen: la acción rápida, las cifras del módulo, las salidas por día y la actividad reciente. */
+/**
+ * Resumen (ADR 0012, 05-10-2026): primero los indicadores, por urgencia (lo que espera una decisión,
+ * lo vencido, lo que vence pronto y el tamaño del inventario); después la acción rápida, y abajo
+ * el gráfico de salidas con su total y la actividad reciente.
+ */
 export function ReagentsSummaryPage() {
   const { me, base, summary, allowed, positionList, openSheet } = useReagents();
 
@@ -384,6 +390,8 @@ export function ReagentsSummaryPage() {
   const { summary: counters, trend, activity } = summary.data;
   const issues = trend?.points.reduce((sum, point) => sum + point.value, 0) ?? 0;
   const pending = counters.pendingRequests;
+  const expired = counters.expiredContainers;
+  const expiring = counters.expiringContainers;
   const approves = me.permissions.includes('reagents.issue.approve');
   // Lo pendiente de decidir va en ámbar y solo si existe; sin pendientes, «Al día» en verde.
   const pendingHint =
@@ -396,32 +404,11 @@ export function ReagentsSummaryPage() {
         : pending === 1
           ? 'Tienes 1 solicitud de salida pendiente'
           : `Tienes ${pending} solicitudes de salida pendientes`;
+  const frascos = (n: number) => (n === 1 ? '1 frasco' : `${n} frascos`);
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <QuickActions allowed={allowed} canIssue={positionList.length > 0} openSheet={openSheet} />
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <StatLink
-          to={`${base}/inventario`}
-          label="Reactivos"
-          value={counters.productsWithStock}
-          hint="con existencias"
-          icon={Package}
-        />
-        <StatLink
-          to={`${base}/inventario`}
-          label="Ubicaciones"
-          value={counters.positionsWithStock}
-          hint="con existencias"
-          icon={MapPin}
-        />
-        <StatLink
-          to={`${base}/movimientos?tipo=salida&dias=30`}
-          label="Salidas"
-          value={issues}
-          hint="en los últimos 30 días"
-          icon={ArrowUpFromLine}
-        />
+      <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatLink
           to={`${base}/solicitudes`}
           label={approves ? 'Por aprobar' : 'Mis solicitudes'}
@@ -431,10 +418,50 @@ export function ReagentsSummaryPage() {
           icon={pending === 0 ? CircleCheck : Clock}
           tone={pending === 0 ? 'success' : 'warning'}
         />
-      </div>
+        {/* Vencidos y por vencer (02 §12): frascos con saldo. Sin ellos no hay estado que decir. */}
+        <StatLink
+          to={expired ? `${base}/inventario?caducidad=vencidos` : `${base}/inventario`}
+          label="Vencidos"
+          value={expired}
+          hint={expired === 0 ? 'Ninguno' : expired === 1 ? 'frasco con saldo' : 'frascos con saldo'}
+          hintTone={expired === 0 ? 'neutral' : 'danger'}
+          icon={CalendarX}
+          tone={expired === 0 ? 'neutral' : 'danger'}
+        />
+        <StatLink
+          to={expiring ? `${base}/inventario?caducidad=por-vencer` : `${base}/inventario`}
+          label="Por vencer"
+          value={expiring}
+          hint={expiring === 0 ? 'Nada en 30 días' : `${expiring === 1 ? 'frasco' : 'frascos'} en 30 días`}
+          hintTone={expiring === 0 ? 'neutral' : 'warning'}
+          icon={CalendarClock}
+          tone={expiring === 0 ? 'neutral' : 'warning'}
+        />
+        <StatLink
+          to={`${base}/inventario`}
+          label="Reactivos"
+          value={counters.productsWithStock}
+          hint={`en ${frascos(counters.containersWithStock)}`}
+          icon={Package}
+        />
+      </section>
+      <QuickActions allowed={allowed} canIssue={positionList.length > 0} openSheet={openSheet} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
         <article className="min-w-0 rounded-card bg-surface p-6 shadow-raised md:p-8 lg:col-span-7">
+          {/* El total va con su gráfico (ADR 0012, 05-10-2026), alineado a la izquierda para que la
+              etiqueta del día, arriba a la derecha, no lo tape. Sin salidas, lo dice el aviso. */}
           <h2 className="text-lg font-bold text-ink">Salidas por día</h2>
+          {trend ? (
+            <Link
+              to={`${base}/movimientos?tipo=salida&dias=30`}
+              className="group/total mt-2 inline-flex items-baseline gap-2 rounded-control"
+            >
+              <span className="text-3xl font-bold tracking-tight text-ink tabular-nums transition-colors group-hover/total:text-action">
+                {issues}
+              </span>
+              <span className="text-sm font-medium text-ink-muted">{issues === 1 ? 'salida' : 'salidas'} en 30 días</span>
+            </Link>
+          ) : null}
           <p className="mt-1 text-sm text-ink-muted">Últimos 30 días, en las ubicaciones que puedes consultar.</p>
           <div className="mt-8">
             {trend ? (

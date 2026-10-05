@@ -4,6 +4,8 @@ import {
   ArrowUpFromLine,
   Box,
   Calendar,
+  CalendarClock,
+  CalendarX,
   Check,
   CircleAlert,
   Droplet,
@@ -18,7 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
 import { formatDate } from '../../app/format';
 import { useOperations, usePositions, useProduct } from '../../app/queries';
@@ -57,16 +59,60 @@ function EmptyToggle({ count, shown, onToggle, noun }: { count: number; shown: b
   );
 }
 
+/** Filtros de caducidad (ADR 0012, 05-10-2026), en la URL: los indicadores del Resumen abren aquí. */
+const expiryFilters = {
+  vencidos: { label: 'Vencidos', has: (product: StockedProduct) => product.expiredContainers > 0 },
+  'por-vencer': { label: 'Por vencer', has: (product: StockedProduct) => product.expiringContainers > 0 },
+} as const;
+type ExpiryFilter = keyof typeof expiryFilters;
+const isExpiryFilter = (value: string | null): value is ExpiryFilter => value !== null && value in expiryFilters;
+
+/** Píldora de filtro: se muestra si hay algo que filtrar o si ya está activa, para poder quitarla. */
+function FilterPill({ label, count, active, onToggle }: { label: string; count: number; active: boolean; onToggle: () => void }) {
+  if (count === 0 && !active) return null;
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onToggle}
+      className={cn(
+        'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors',
+        active ? 'bg-action-soft text-action' : 'bg-surface-sunken text-ink-muted hover:text-ink',
+      )}
+    >
+      {label}
+      <span className="tabular-nums">({count})</span>
+    </button>
+  );
+}
+
 /**
- * Inventario, primer nivel (ADR 0012): un reactivo por tarjeta con su total y sus frascos con
- * saldo. Toda la tarjeta abre su ficha, el segundo nivel.
+ * Inventario, primer nivel (ADR 0012): un reactivo por tarjeta con su total, sus frascos con saldo
+ * y sus avisos de caducidad. Toda la tarjeta abre su ficha, el segundo nivel.
  */
 export function ReagentsInventoryPage() {
   const { base, allowed, products, productList, openSheet } = useReagents();
+  const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [showEmpty, setShowEmpty] = useState(false);
+  const expiryParam = params.get('caducidad');
+  const expiry = isExpiryFilter(expiryParam) ? expiryParam : null;
   const emptyCount = productList.filter((product) => product.balance === '0').length;
-  const visible = productList.filter((product) => matches(product, query) && (showEmpty || product.balance !== '0'));
+  const visible = productList.filter(
+    (product) =>
+      matches(product, query) &&
+      (expiry ? expiryFilters[expiry].has(product) : showEmpty || product.balance !== '0'),
+  );
+  const toggleExpiry = (filter: ExpiryFilter) =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (expiry === filter) next.delete('caducidad');
+        else next.set('caducidad', filter);
+        return next;
+      },
+      { replace: true },
+    );
 
   if (products.isPending) {
     return (
@@ -115,11 +161,28 @@ export function ReagentsInventoryPage() {
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
-        <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="sin existencias" />
+        <div className="flex flex-wrap items-center gap-2">
+          {(Object.keys(expiryFilters) as ExpiryFilter[]).map((filter) => (
+            <FilterPill
+              key={filter}
+              label={expiryFilters[filter].label}
+              count={productList.filter(expiryFilters[filter].has).length}
+              active={expiry === filter}
+              onToggle={() => toggleExpiry(filter)}
+            />
+          ))}
+          {expiry ? null : (
+            <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="sin existencias" />
+          )}
+        </div>
       </div>
       {visible.length === 0 ? (
         <p className="rounded-panel bg-surface px-4 py-8 text-center text-sm text-ink-muted shadow-raised">
-          Ningún reactivo coincide con «{query}».
+          {query.trim()
+            ? `Ningún reactivo coincide con «${query}».`
+            : expiry === 'vencidos'
+              ? 'Ningún reactivo tiene frascos vencidos con saldo.'
+              : 'Ningún reactivo tiene frascos por vencer en los próximos 30 días.'}
         </p>
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-4">
@@ -164,6 +227,23 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
           </p>
           <h2 className="mt-1 text-lg font-bold leading-snug text-ink transition-colors group-hover:text-action">{product.name}</h2>
           <p className="mt-0.5 text-[13px] text-ink-muted">{product.code}</p>
+          {/* Avisos de caducidad con texto (ADR 0012, 05-10-2026): rojo lo vencido, ámbar lo próximo. */}
+          {product.expiredContainers || product.expiringContainers ? (
+            <p className="mt-2 flex flex-wrap gap-1.5">
+              {product.expiredContainers ? (
+                <Badge tone="danger" className="gap-1">
+                  <CalendarX className="size-3.5" aria-hidden />
+                  {product.expiredContainers === 1 ? '1 vencido' : `${product.expiredContainers} vencidos`}
+                </Badge>
+              ) : null}
+              {product.expiringContainers ? (
+                <Badge tone="warning" className="gap-1">
+                  <CalendarClock className="size-3.5" aria-hidden />
+                  {product.expiringContainers} por vencer
+                </Badge>
+              ) : null}
+            </p>
+          ) : null}
         </div>
       </div>
       <div className="relative mt-auto border-t border-line pt-4">

@@ -25,6 +25,24 @@ SELECT
       AND p.item_id = i.id
       AND p.balance > 0
       AND p.location_id = ANY (:locationIds!::uuid[]))::int AS "containers_with_stock!",
+  -- Avisos de caducidad (ADR 0012, 05-10-2026): frascos con saldo; «hoy» es la fecha civil del espacio.
+  (SELECT count(*)
+     FROM inventory.positions AS p
+     JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+    WHERE p.workspace_id = i.workspace_id
+      AND p.item_id = i.id
+      AND p.balance > 0
+      AND p.location_id = ANY (:locationIds!::uuid[])
+      AND l.expires_on < (now() AT TIME ZONE :timeZone!)::date)::int AS "expired_containers!",
+  (SELECT count(*)
+     FROM inventory.positions AS p
+     JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+    WHERE p.workspace_id = i.workspace_id
+      AND p.item_id = i.id
+      AND p.balance > 0
+      AND p.location_id = ANY (:locationIds!::uuid[])
+      AND l.expires_on BETWEEN (now() AT TIME ZONE :timeZone!)::date
+                           AND (now() AT TIME ZONE :timeZone!)::date + :expiringDays!::int)::int AS "expiring_containers!",
   lower(i.code) AS "sort_code!"
 FROM inventory.items AS i
 JOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id
@@ -37,22 +55,27 @@ ORDER BY lower(i.code), i.id
 LIMIT :limit!;
 
 /* @name homeSummary */
--- Contadores de la tarjeta de Inicio: inventario que el miembro puede consultar, no filas del catálogo.
+-- Contadores del Resumen y de la tarjeta de Inicio: inventario que el miembro puede consultar, no
+-- filas del catálogo. Vencido y por vencer (ADR 0012, 05-10-2026): frascos con saldo, con «hoy» en
+-- la fecha civil del espacio; por vencer incluye hoy y los próximos :expiringDays días (02 §12).
+WITH stocked AS (
+  SELECT p.item_id, l.expires_on
+  FROM inventory.positions AS p
+  JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+  JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+  WHERE p.workspace_id = :workspaceId!
+    AND i.kind = 'reagent'
+    AND p.balance > 0
+    AND p.location_id = ANY (:locationIds!::uuid[])
+), today AS (
+  SELECT (now() AT TIME ZONE :timeZone!)::date AS d
+)
 SELECT
-  (SELECT count(DISTINCT p.item_id)
-     FROM inventory.positions AS p
-     JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
-    WHERE p.workspace_id = :workspaceId!
-      AND i.kind = 'reagent'
-      AND p.balance > 0
-      AND p.location_id = ANY (:locationIds!::uuid[])) AS "products_with_stock!",
-  (SELECT count(*)
-     FROM inventory.positions AS p
-     JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
-    WHERE p.workspace_id = :workspaceId!
-      AND i.kind = 'reagent'
-      AND p.balance > 0
-      AND p.location_id = ANY (:locationIds!::uuid[])) AS "positions_with_stock!";
+  (SELECT count(DISTINCT item_id) FROM stocked) AS "products_with_stock!",
+  (SELECT count(*) FROM stocked) AS "containers_with_stock!",
+  (SELECT count(*) FROM stocked, today WHERE stocked.expires_on < today.d) AS "expired_containers!",
+  (SELECT count(*) FROM stocked, today
+    WHERE stocked.expires_on BETWEEN today.d AND today.d + :expiringDays!::int) AS "expiring_containers!";
 
 /* @name listProductLots */
 -- Lotes de un reactivo del espacio, para elegirlos al registrar un ingreso.

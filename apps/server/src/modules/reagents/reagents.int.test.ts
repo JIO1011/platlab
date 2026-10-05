@@ -209,7 +209,7 @@ describe('G0 · recorrido visible', () => {
       expect.objectContaining({
         moduleCode: 'reagents',
         name: 'Reactivos',
-        summary: { productsWithStock: 1, positionsWithStock: 1, pendingRequests: 0 },
+        summary: { productsWithStock: 1, containersWithStock: 1, expiredContainers: 0, expiringContainers: 0, pendingRequests: 0 },
       }),
     ]);
     // Actividad reciente en Inicio: los mismos tres movimientos, del más reciente al más antiguo.
@@ -1016,5 +1016,57 @@ describe('R-01A · salidas con aprobación y reserva (ADR 0012)', () => {
     expect(first.status).toBe(201);
     expect(replay.body).toEqual(first.body);
     expect(await count('select count(*) as n from inventory.operations where workspace_id = $1 and type = $2', [lab.workspace.id, 'issue'])).toBe(1);
+  });
+});
+
+describe('R-01A · vencidos y por vencer (ADR 0012, 05-10-2026)', () => {
+  it('cuenta frascos con saldo vencidos y por vencer en 30 días, en la fecha del espacio y en el ámbito', async () => {
+    const lab = await createLab();
+    const { product } = await createProductAndLot(lab);
+    // La fecha civil del espacio la da la propia base: la prueba no depende del reloj del runner.
+    const day = async (offset: number) =>
+      (
+        await admin.query<{ d: string }>(
+          `select to_char((now() at time zone 'America/Guayaquil')::date + $1::int, 'YYYY-MM-DD') as d`,
+          [offset],
+        )
+      ).rows[0]!.d;
+    const receiveNew = async (code: string, offset: number | null, location = lab.storage) => {
+      const response = await call(lab.adminMember.subject, `${lab.base}/receipts`, {
+        method: 'POST',
+        body: {
+          productId: product.id,
+          newLot: { code, expiresOn: offset === null ? null : await day(offset) },
+          locationId: location,
+          quantity: '10',
+          unit: 'g',
+        },
+      });
+      expect(response.status).toBe(201);
+      return receivedPosition(response);
+    };
+
+    await receiveNew('V-1', -1); // vencido
+    await receiveNew('H-0', 0); // vence hoy: por vencer, todavía no vencido
+    await receiveNew('H-30', 30); // el último día del plazo
+    await receiveNew('H-31', 31); // fuera del plazo
+    await receiveNew('SIN', null); // sin caducidad confirmada: ni vencido ni por vencer
+    const emptied = await receiveNew('V-5', -5);
+    const issued = await call(lab.adminMember.subject, `${lab.base}/issues`, {
+      method: 'POST',
+      body: { positionId: emptied, quantity: '10', unit: 'g', reason: 'Práctica', destination: 'Lab' },
+    });
+    expect(issued.status).toBe(201); // vencido pero sin saldo: no cuenta
+    await receiveNew('V-OTRO', -2, lab.otherStorage);
+
+    const summary = reagentsSummary.parse((await call(lab.adminMember.subject, `${lab.base}/summary`)).body).summary;
+    expect(summary).toMatchObject({ productsWithStock: 1, containersWithStock: 6, expiredContainers: 2, expiringContainers: 2 });
+    const products = productList.parse((await call(lab.adminMember.subject, `${lab.base}/products`)).body);
+    expect(products.items).toEqual([expect.objectContaining({ id: product.id, expiredContainers: 2, expiringContainers: 2 })]);
+
+    // Un Operador con ámbito en un almacén no cuenta el vencido del otro.
+    const scoped = await addMember(admin, lab.workspace.id, { roles: [{ role: 'operator', locationId: lab.storage }] });
+    const scopedSummary = reagentsSummary.parse((await call(scoped.subject, `${lab.base}/summary`)).body).summary;
+    expect(scopedSummary).toMatchObject({ containersWithStock: 5, expiredContainers: 1, expiringContainers: 2 });
   });
 });

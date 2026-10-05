@@ -26,7 +26,7 @@ function greeting(timeZone: string): string {
 const counters: Record<string, Array<{ key: string; label: (n: number) => string }>> = {
   reagents: [
     { key: 'productsWithStock', label: (n) => (n === 1 ? 'reactivo con existencias' : 'reactivos con existencias') },
-    { key: 'positionsWithStock', label: (n) => (n === 1 ? 'ubicación con existencias' : 'ubicaciones con existencias') },
+    { key: 'containersWithStock', label: (n) => (n === 1 ? 'frasco con existencias' : 'frascos con existencias') },
   ],
 };
 

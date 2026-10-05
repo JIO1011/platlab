@@ -263,6 +263,9 @@ export const location = z.object({ id: z.uuid(), code: z.string(), name: z.strin
 export const stockedProduct = product.extend({
   balance: decimalString,
   containersWithStock: z.number().int().nonnegative(),
+  /** Sus avisos de caducidad: frascos con saldo vencidos y por vencer (ADR 0012, 05-10-2026). */
+  expiredContainers: z.number().int().nonnegative(),
+  expiringContainers: z.number().int().nonnegative(),
 });
 export const productList = list(stockedProduct);
 export const lotList = z.object({ items: z.array(lot.extend({ condition: z.string() })) });
@@ -277,7 +280,10 @@ export const operationList = list(operation);
 export const reagentsSummary = z.object({
   summary: z.object({
     productsWithStock: z.number().int().nonnegative(),
-    positionsWithStock: z.number().int().nonnegative(),
+    containersWithStock: z.number().int().nonnegative(),
+    /** Frascos con saldo vencidos y por vencer (ADR 0012, 05-10-2026; plazo en 02 §12). */
+    expiredContainers: z.number().int().nonnegative(),
+    expiringContainers: z.number().int().nonnegative(),
     /** Solicitudes pendientes: la bandeja de quien aprueba o las propias del Operador. */
     pendingRequests: z.number().int().nonnegative(),
   }),

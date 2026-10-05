@@ -129,6 +129,7 @@ Decidido el 04-10-2026:
 Decidido el 05-10-2026:
 
 - El espacio de trabajo es quien contrata (una facultad o un instituto), no un laboratorio. Química, Física, etc. son laboratorios dentro del espacio: ubicaciones hoy, y M4 Laboratorios en F3. Dentro de un módulo, la barra superior dice dónde se está. La tarjeta de la persona (espacio y rol real) es el selector de espacio; en el móvil, el botón con las iniciales. La institución se muestra solo si los espacios de la persona son de instituciones distintas (ADR 0011).
+- Resumen de Reactivos: indicadores arriba (Por aprobar, Vencidos, Por vencer, Reactivos con sus frascos) y la acción rápida en banda compacta. «Por vencer» son 30 días (02 §12). Quedan pendientes de la entrega 3 los mínimos y el estado del lote (ADR 0012).
 - Los espacios no comparten nada, aunque sean del mismo titular. Una vista consolidada para el titular queda pendiente para F0 y REG-01.
 
 El modelo comercial sigue pendiente: la recomendación está en 01 §4 y debe confirmarla el usuario.

@@ -365,7 +365,8 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
   await admin.getByRole('button', { name: 'Reactivos. Cambiar de módulo' }).click();
   await expect(admin.getByRole('menuitem', { name: /Reactivos/ })).toBeVisible();
   await admin.keyboard.press('Escape');
-  await admin.getByRole('link', { name: /Salidas.*últimos 30 días/ }).click();
+  // El total de salidas va en la cabecera del gráfico (ADR 0012, 05-10-2026) y abre la lista.
+  await admin.getByRole('link', { name: /\d+ salidas? en 30 días/ }).click();
   await expect(admin.getByRole('heading', { name: 'Movimientos', level: 1 })).toBeVisible();
   // La lista llega filtrada como la cifra: solo salidas de los últimos 30 días, y el filtro se quita.
   await expect(admin.getByText('Salidas · últimos 30 días')).toBeVisible();
@@ -380,6 +381,17 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
   await expect(admin.getByText('Salidas · últimos 30 días')).toHaveCount(0);
   await expect(admin).not.toHaveURL(/tipo=/);
   await expect(admin.getByRole('row').nth(1)).toBeVisible();
+
+  // Vencidos abre el Inventario filtrado, y cada tarjeta dice sus avisos con texto (ADR 0012, 05-10-2026).
+  await goTo(admin, 'Resumen');
+  await admin.getByRole('link', { name: /^Vencidos/ }).click();
+  await expect(admin).toHaveURL(/caducidad=vencidos/);
+  await expect(admin.getByRole('button', { name: /Vencidos/, pressed: true })).toBeVisible();
+  await expect(admin.getByRole('link', { name: /Ácido sulfúrico 98 %/ })).toContainText('1 vencido');
+  await expectAccessible(admin, 'inventario filtrado por vencidos');
+  await capture(admin, 'desktop-inventory-expired', false);
+  await admin.getByRole('button', { name: /Vencidos/, pressed: true }).click();
+  await expect(admin).not.toHaveURL(/caducidad=/);
 });
 
 test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelación (ADR 0012)', async ({ browser }) => {

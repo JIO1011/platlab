@@ -44,6 +44,8 @@ import { inventoryContext } from './commands.js';
 const READ = 'reagents.catalog.read';
 /** Ventana del gráfico de salidas del resumen (ADR 0011). */
 const TREND_DAYS = 30;
+/** «Por vencer»: caduca entre hoy y los próximos días (02 §12, ADR 0012 del 05-10-2026). */
+const EXPIRING_DAYS = 30;
 
 interface QueryRequest {
   subject: string;
@@ -84,6 +86,8 @@ const toStockedProduct = (row: IListProductsResult): StockedProduct => ({
   physicalState: row.physical_state as Product['physicalState'],
   balance: row.balance,
   containersWithStock: row.containers_with_stock,
+  expiredContainers: row.expired_containers,
+  expiringContainers: row.expiring_containers,
 });
 
 /** Ficha de un reactivo (ADR 0012): su total y sus frascos con saldo en el ámbito del miembro. */
@@ -97,6 +101,8 @@ export function getProduct(pool: pg.Pool, request: QueryRequest, productId: stri
         afterCode: null,
         afterId: null,
         limit: 1,
+        timeZone: access.workspace.timeZone,
+        expiringDays: EXPIRING_DAYS,
       },
       access.client,
     );
@@ -160,6 +166,8 @@ export function listProducts(
         afterCode: after?.[0] ?? null,
         afterId: after?.[1] ?? null,
         limit: query.limit + 1,
+        timeZone: access.workspace.timeZone,
+        expiringDays: EXPIRING_DAYS,
       },
       access.client,
     );
@@ -211,12 +219,15 @@ export function listOperations(
 }
 
 /**
- * Tarjeta de Inicio (01 §7): reactivos y ubicaciones con existencias, y los últimos movimientos,
- * todo dentro de las ubicaciones que el miembro puede consultar.
+ * Tarjeta de Inicio (01 §7) y Resumen: reactivos y frascos con existencias, vencidos y por vencer,
+ * solicitudes pendientes y los últimos movimientos, todo en las ubicaciones que el miembro consulta.
  */
 export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<HomeContribution> {
   const locationIds = await permissionScope(access, READ);
-  const [row] = await homeSummary.run({ workspaceId: access.workspace.id, locationIds }, access.client);
+  const [row] = await homeSummary.run(
+    { workspaceId: access.workspace.id, locationIds, timeZone: access.workspace.timeZone, expiringDays: EXPIRING_DAYS },
+    access.client,
+  );
   const ctx = inventoryContext(access);
   const recent = await listOperationPage(ctx, { locationIds, timeZone: access.workspace.timeZone, limit: 5 });
   const issues = await countOperationsPerDay(ctx, {
@@ -230,7 +241,9 @@ export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<Home
   return {
     summary: {
       productsWithStock: Number(row?.products_with_stock ?? 0),
-      positionsWithStock: Number(row?.positions_with_stock ?? 0),
+      containersWithStock: Number(row?.containers_with_stock ?? 0),
+      expiredContainers: Number(row?.expired_containers ?? 0),
+      expiringContainers: Number(row?.expiring_containers ?? 0),
       pendingRequests,
     },
     activity: recent.items.map((operation) => ({

@@ -254,7 +254,7 @@ Cambio del 02-10-2026, entrada directa, decidido por el usuario:
 
 Cambio del 05-10-2026, decidido por el usuario:
 - **El espacio es quien contrata, no un laboratorio.** Es la unidad con operación propia, por ejemplo una facultad o un instituto ([01 §2](01_producto.md#2-clientes-espacios-y-aislamiento)). Química, Física y los demás laboratorios viven dentro del espacio: hoy como ubicaciones y, desde F3, como espacios físicos con agenda en M4 Laboratorios. La demo los nombra así.
-- **Dentro de un módulo, la barra superior dice dónde se está** (módulo › sección), no el nombre del espacio. Reemplaza «desde su nombre en la barra superior» del cambio anterior.
+- **Dentro de un módulo, la barra superior dice dónde se está** (módulo › sección), no el nombre del espacio ni el de la persona, que ya están en su tarjeta. Reemplaza «desde su nombre en la barra superior» del cambio anterior.
 - **La tarjeta de la persona es el selector de espacio.** Muestra quién eres, en qué espacio y con qué rol: el rol depende del espacio. Con varios espacios, toda la tarjeta abre el menú; con uno, solo lo muestra. En el móvil, un botón con las iniciales, arriba a la derecha, abre el mismo menú con «Salir». El Inicio nombra el espacio en su subtítulo.
 - **Rol real en lugar de «Miembro».** `/me` envía los nombres de los roles vigentes del miembro, solo para mostrarlos; no autorizan nada.
 - **La institución aparece en el menú solo cuando los espacios de la persona son de instituciones distintas**, para distinguir, por ejemplo, dos «Facultad de Ciencias». El nombre visible va en `core.workspaces.institution_name`, que fija el Equipo PlatLab. El runtime sigue sin leer `platform.customer_accounts`, y el nombre jurídico no se muestra.
@@ -283,6 +283,14 @@ Decidido por el usuario el 02-10-2026, tomando ReactiLab como referencia de UX:
 Motivo: el laboratorio ya trabaja por frasco con ReactiLab. El QR y el % restante por frasco, y el control de las salidas, son parte de su práctica. Se construye en la capacidad inventario para que Materiales lo herede.
 
 No se copia de ReactiLab: frasco, lote y código fusionados; ajustes sin signo; el borrado como baja; el saldo recortado a cero en silencio; la sugerencia por menor cantidad.
+
+Cambio del 05-10-2026, decidido por el usuario, sobre el Resumen y la caducidad:
+- **Indicadores del Resumen, arriba y por urgencia:** Por aprobar (o Mis solicitudes), Vencidos, Por vencer y Reactivos con existencias, con sus frascos como dato secundario. Cada uno abre la lista que lo explica: Solicitudes, o el Inventario filtrado.
+  - Sale «Ubicaciones»: contaba frascos, no ubicaciones. El dato pasa a «Reactivos» y, en el Inicio, se dice «frascos».
+  - Sale «Salidas»: repetía el total del gráfico, que ahora lo lleva en su cabecera.
+- **Acción rápida en banda compacta**, debajo de los indicadores. Conserva el degradado del ADR 0010 sin empujar los datos hacia abajo.
+- **Vencido y por vencer.** Vencido: la caducidad del lote es anterior a hoy, en la zona del espacio. Por vencer: caduca entre hoy y los próximos 30 días ([02 §12](02_arquitectura.md#12-parámetros-iniciales)). Solo cuentan frascos con saldo, en las ubicaciones que el miembro puede consultar. Cada tarjeta del inventario dice sus vencidos y por vencer con texto, y el inventario filtra por ellos.
+- Resuelve el plazo de «por vencer» de la entrega 3 de R-01A. Quedan los mínimos y el estado del lote.
 
 ## Pendientes
 

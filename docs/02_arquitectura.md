@@ -344,3 +344,4 @@ Son valores de arranque para pruebas. Se ajustan con mediciones y no son comprom
 | Monitoreo | Disponibilidad cada minuto; alerta tras 3 heartbeats ausentes o una copia con más de 26 h |
 | Rendimiento objetivo | p95 < 1 s en consultas paginadas y < 2 s en comandos, con el escenario de carga acordado |
 | Cantidades | `numeric(24,9)` inicial |
+| Por vencer | Un frasco con saldo cuya caducidad cae entre hoy y los próximos 30 días, en la zona del espacio ([ADR 0012](05_decisiones.md#adr-0012), 05-10-2026) |
