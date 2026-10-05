@@ -301,6 +301,13 @@ Cambio del 05-10-2026, decidido por el usuario, sobre el Resumen y la caducidad:
   - Para eso, la lista de frascos (`/positions`) añade `lot.supplierName`, `lot.supplierLot` y `container.receivedAt`. Son datos que ya existen (03 §1); no cambia ninguna regla ni permiso.
   - Las acciones son Salida y Ajustar. No hay «borrar», porque nadie borra registros de negocio, ni etiqueta QR todavía (llega con la entrega 4 de R-01A).
   - Lo propio de ReactiLab que PlatLab no modela (tara, peso neto, densidad, categoría, «controlado») no se muestra; «controlado» llega con fiscalizados.
+- **Movimientos como libro por días**, decidido el 05-10-2026. ReactiLab no tiene un historial propio, así que se extiende la línea de tiempo del Resumen a pantalla completa.
+  - Filtros como píldoras, iguales a los del inventario: tipo (todos, ingresos, salidas, ajustes) y periodo (7, 30, 90 días o todo). Usan `?tipo=` y `?dias=`, así que la cifra del Resumen sigue abriendo exactamente su lista.
+  - Los asientos se agrupan por día en la zona del espacio («Hoy», «Ayer»), cada día en una tarjeta. Cada fila lleva hora, tipo con icono, reactivo con frasco y ubicación, motivo y destino, responsable (y quién pidió) y, a la derecha, la cantidad con signo y el saldo. Reemplaza a la tabla.
+  - Cada fila abre la ficha del reactivo. Para eso, la lista de movimientos añade `product.id` (dato que ya existe; no cambia reglas ni permisos).
+  - Sin totales por día ni indicadores del periodo: la lista llega por páginas y un total en el navegador saldría incompleto sin avisarlo. Si hacen falta, los calcula el servidor.
+  - Sigue sin editar, borrar ni «deshacer»: un error se corrige con un ajuste.
+  - Sin tabla, `@tanstack/react-table` sale de las dependencias de la web (nadie la usaba). Vuelve, como indica el ADR 0010, cuando una pantalla necesite una tabla de verdad (ordenar, columnas); `Table` de `packages/ui` se conserva.
 
 ## Pendientes
 

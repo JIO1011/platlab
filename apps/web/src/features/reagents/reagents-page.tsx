@@ -6,22 +6,16 @@ import {
   StatCard,
   StatePanel,
   type StatCardProps,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   cn,
 } from '@platlab/ui';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
-import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
 import {
   ArrowDownToLine,
   ArrowRight,
   ArrowUpFromLine,
   CalendarClock,
   CalendarX,
+  ChevronRight,
   CircleCheck,
   Clock,
   Eye,
@@ -31,14 +25,13 @@ import {
   Plus,
   RefreshCw,
   Scale,
-  X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
 import { ModuleMark } from '../../app/module-mark';
 import { moduleApps, useShell } from '../../app/app-shell';
-import { formatAgo, formatDateTime } from '../../app/format';
+import { addDays, formatAgo } from '../../app/format';
 import {
   useIssueRequests,
   useOperations,
@@ -51,7 +44,7 @@ import {
 import { QueryErrorState } from '../../app/states';
 import { TrendChart } from '../../app/trend-chart';
 import { useReagents, type Allowed, type ReagentsContext, type SheetRequest } from './context';
-import { purposeOf, responsibleOf } from './operation-text';
+import { purposeOf } from './operation-text';
 import { AdjustmentSheet, IssueSheet, NewProductSheet, ReceiptSheet } from './sheets';
 
 export { ReagentsInventoryPage, ReagentsProductPage } from './inventory';
@@ -532,75 +525,150 @@ export function ReagentsSummaryPage() {
   );
 }
 
-const filterLabels: Record<NonNullable<OperationFilter['type']>, string> = {
-  receipt: 'Ingresos',
-  issue: 'Salidas',
-  adjustment: 'Ajustes',
-};
+const typeFilters = [
+  { value: undefined, param: null, label: 'Todos' },
+  { value: 'receipt', param: 'ingreso', label: 'Ingresos' },
+  { value: 'issue', param: 'salida', label: 'Salidas' },
+  { value: 'adjustment', param: 'ajuste', label: 'Ajustes' },
+] as const;
 
+const periodFilters = [
+  { days: undefined, label: 'Todo' },
+  { days: 7, label: '7 días' },
+  { days: 30, label: '30 días' },
+  { days: 90, label: '90 días' },
+] as const;
+
+/** Píldora de filtro con el estilo de las del inventario (que además llevan su cuenta); `aria-pressed` dice el estado, no solo el color. */
+function ChoicePill({ label, active, onSelect }: { label: string; active: boolean; onSelect: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onSelect}
+      className={cn(
+        'inline-flex h-9 items-center rounded-full px-3.5 text-sm font-medium transition-colors',
+        active ? 'bg-action-soft text-action' : 'bg-surface-sunken text-ink-muted hover:text-ink',
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+/**
+ * Movimientos (ADR 0012, 05-10-2026): el libro del módulo como una línea de tiempo por días, con la
+ * misma fila que la actividad del Resumen. Los filtros viven en la URL, así que la cifra del Resumen
+ * abre exactamente su lista.
+ */
 export function ReagentsMovementsPage() {
-  const { me, operations, operationFilter } = useReagents();
-  const [, setParams] = useSearchParams();
-  const label = [
-    operationFilter.type ? filterLabels[operationFilter.type] : null,
-    operationFilter.days ? `últimos ${operationFilter.days} días` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const { me, base, operations, operationFilter } = useReagents();
+  const [params, setParams] = useSearchParams();
+  const filtered = Boolean(operationFilter.type || operationFilter.days);
+  const select = (key: 'tipo' | 'dias', value: string | null) => {
+    const next = new URLSearchParams(params);
+    if (value === null) next.delete(key);
+    else next.set(key, value);
+    setParams(next, { replace: true });
+  };
+  const periodIsStandard = periodFilters.some((period) => period.days === operationFilter.days);
   return (
     <>
-      {label ? (
-        <div className="mb-4 flex items-center gap-2">
-          <span className="inline-flex h-9 items-center gap-1 rounded-full bg-action-soft pl-3.5 pr-1 text-sm font-medium text-action">
-            {label.charAt(0).toUpperCase() + label.slice(1)}
-            <button
-              type="button"
-              aria-label={`Quitar el filtro: ${label}`}
-              onClick={() => setParams({}, { replace: true })}
-              className="inline-flex size-7 items-center justify-center rounded-full transition-colors hover:bg-action/10"
-            >
-              <X className="size-4" aria-hidden />
-            </button>
-          </span>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6">
+        <div role="group" aria-label="Tipo de movimiento" className="flex flex-wrap items-center gap-2">
+          {typeFilters.map((filter) => (
+            <ChoicePill
+              key={filter.label}
+              label={filter.label}
+              active={operationFilter.type === filter.value}
+              onSelect={() => select('tipo', filter.param)}
+            />
+          ))}
+        </div>
+        <div role="group" aria-label="Periodo" className="flex flex-wrap items-center gap-2">
+          {periodFilters.map((period) => (
+            <ChoicePill
+              key={period.label}
+              label={period.label}
+              active={operationFilter.days === period.days}
+              onSelect={() => select('dias', period.days === undefined ? null : String(period.days))}
+            />
+          ))}
+          {/* Un enlace puede traer otro número de días (hasta 90): se muestra activo y se puede quitar. */}
+          {periodIsStandard || !operationFilter.days ? null : (
+            <ChoicePill label={`${operationFilter.days} días`} active onSelect={() => select('dias', null)} />
+          )}
+        </div>
+      </div>
+
+      {operations.isPending ? (
+        <MovementsSkeleton />
+      ) : operations.isError ? (
+        <div className="rounded-card bg-surface shadow-raised">
+          <QueryErrorState error={operations.error} onRetry={() => void operations.refetch()} />
+        </div>
+      ) : (
+        <MovementsView
+          operations={operations.data.pages.flatMap((page) => page.items)}
+          base={base}
+          timeZone={me.workspace.timeZone}
+          filtered={filtered}
+          hasMore={operations.hasNextPage}
+          onClearFilters={() => setParams({}, { replace: true })}
+        />
+      )}
+      {operations.hasNextPage ? (
+        <div className="mt-5 text-center">
+          <Button variant="ghost" size="sm" loading={operations.isFetchingNextPage} onClick={() => void operations.fetchNextPage()}>
+            Cargar movimientos anteriores
+          </Button>
         </div>
       ) : null}
-      <div className="overflow-hidden rounded-card bg-surface shadow-raised">
-        {operations.isPending ? (
-          <TableSkeleton />
-        ) : operations.isError ? (
-          <QueryErrorState error={operations.error} onRetry={() => void operations.refetch()} />
-        ) : (
-          <MovementsView
-            operations={operations.data.pages.flatMap((page) => page.items)}
-            timeZone={me.workspace.timeZone}
-            filtered={Boolean(label)}
-          />
-        )}
-        {operations.hasNextPage ? (
-          <div className="border-t border-line p-3 text-center">
-            <Button variant="ghost" size="sm" loading={operations.isFetchingNextPage} onClick={() => void operations.fetchNextPage()}>
-              Cargar movimientos anteriores
-            </Button>
-          </div>
-        ) : null}
-      </div>
     </>
   );
 }
 
-function TableSkeleton() {
+/** Esqueleto con la forma real: encabezado de día y una tarjeta de filas con círculo, dos líneas y cantidad. */
+function MovementsSkeleton() {
   return (
-    <div className="grid gap-3 p-5" role="status" aria-busy="true" aria-label="Cargando">
-      {[0, 1, 2, 3].map((row) => (
-        <div key={row} className="flex items-center gap-4">
-          <Skeleton className="h-4 w-1/4" />
-          <Skeleton className="h-4 w-1/5" />
-          <Skeleton className="h-4 w-1/5" />
-          <Skeleton className="ml-auto h-4 w-16" />
-        </div>
-      ))}
+    <div className="grid gap-3" role="status" aria-busy="true" aria-label="Cargando">
+      <Skeleton className="h-4 w-48" />
+      <div className="rounded-card bg-surface shadow-raised">
+        {[0, 1, 2, 3].map((row) => (
+          <div key={row} className="flex items-center gap-3.5 px-4 py-3.5">
+            <Skeleton className="size-10 shrink-0 rounded-full" />
+            <div className="grid flex-1 gap-2">
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-3.5 w-1/2" />
+            </div>
+            <Skeleton className="h-6 w-20" />
+          </div>
+        ))}
+      </div>
     </div>
   );
+}
+
+/** Día civil de un instante en la zona del espacio, «AAAA-MM-DD», para agrupar y comparar. */
+function dayKey(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
+/** «Hoy», «Ayer» o el día completo; la fecha larga va siempre, para no depender de recordar qué es hoy. */
+function dayHeading(key: string, timeZone: string, now: Date): { relative: string | null; long: string } {
+  const [year = 1970, month = 1, day = 1] = key.split('-').map(Number);
+  // Mediodía UTC del día civil: formateado en UTC conserva el día sin cruzar de zona.
+  const noon = new Date(Date.UTC(year, month - 1, day, 12));
+  const text = new Intl.DateTimeFormat('es-EC', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' }).format(noon);
+  const today = dayKey(now, timeZone);
+  return {
+    relative: key === today ? 'Hoy' : key === addDays(today, -1) ? 'Ayer' : null,
+    long: text.charAt(0).toUpperCase() + text.slice(1),
+  };
+}
+
+function hourOf(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('es-EC', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
 }
 
 const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }> = {
@@ -609,159 +677,149 @@ const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }
   adjustment: { label: 'Ajuste', icon: Scale },
 };
 
-const features = tableFeatures({});
-const helper = createColumnHelper<typeof features, Operation>();
+/** Historial por días: cada día una tarjeta, cada fila un asiento que abre la ficha del reactivo. */
+function MovementsView({
+  operations,
+  base,
+  timeZone,
+  filtered,
+  hasMore,
+  onClearFilters,
+}: {
+  operations: Operation[];
+  base: string;
+  timeZone: string;
+  filtered: boolean;
+  hasMore: boolean;
+  onClearFilters: () => void;
+}) {
+  const now = useNow(60_000);
+  const days = useMemo(() => {
+    const groups: Array<{ key: string; items: Operation[] }> = [];
+    for (const operation of operations) {
+      const key = dayKey(new Date(operation.effectiveAt), timeZone);
+      const last = groups.at(-1);
+      if (last?.key === key) last.items.push(operation);
+      else groups.push({ key, items: [operation] });
+    }
+    return groups;
+  }, [operations, timeZone]);
 
-/** Historial: tabla en escritorio y filas de actividad por debajo de 1024 px, sin desplazamiento lateral. */
-function MovementsView({ operations, timeZone, filtered = false }: { operations: Operation[]; timeZone: string; filtered?: boolean }) {
   if (operations.length === 0) {
-    return filtered ? (
-      <StatePanel icon={History} title="Ningún movimiento con este filtro" description="Quita el filtro para ver todo el historial." />
-    ) : (
-      <StatePanel
-        icon={History}
-        title="Todavía no hay movimientos"
-        description="Cada ingreso, salida o ajuste quedará aquí con su responsable y no se podrá editar."
-      />
+    return (
+      <div className="rounded-card bg-surface shadow-raised">
+        {filtered ? (
+          <StatePanel
+            icon={History}
+            title="Ningún movimiento con este filtro"
+            description="Cambia el tipo o el periodo para ver más del historial."
+            action={
+              <Button variant="secondary" size="sm" onClick={onClearFilters}>
+                Quitar filtros
+              </Button>
+            }
+          />
+        ) : (
+          <StatePanel
+            icon={History}
+            title="Todavía no hay movimientos"
+            description="Cada ingreso, salida o ajuste quedará aquí con su responsable y no se podrá editar."
+          />
+        )}
+      </div>
     );
   }
   return (
-    <>
-      <div className="hidden lg:block">
-        <MovementsTable operations={operations} timeZone={timeZone} />
-      </div>
-      <ul className="divide-y divide-line lg:hidden">
-        {operations.map((operation) => (
-          <li key={operation.entryId} className="px-4 py-3.5">
-            <ActivityRow
-              type={operation.type}
-              title={operation.product.name}
-              detail={`${operation.container?.code ?? operation.lot.code} · ${operation.location.code}`}
-              quantity={operation.quantity}
-              unit={operation.unit}
-              occurredAt={operation.effectiveAt}
-              actor={responsibleOf(operation)}
-              timeZone={timeZone}
-            />
-            {purposeOf(operation) ? (
-              <p className="mt-1.5 pl-[3.375rem] text-[13px] text-ink-muted">{purposeOf(operation)}</p>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </>
+    <div className="grid gap-6">
+      {days.map((day, index) => {
+        const heading = dayHeading(day.key, timeZone, new Date(now));
+        return (
+          <section key={day.key} aria-labelledby={`dia-${day.key}`}>
+            {/* Fijo bajo la cabecera (en el móvil, la barra y la fila de secciones) mientras se recorre el día. */}
+            <h2
+              id={`dia-${day.key}`}
+              className="sticky top-[7.25rem] z-20 md:top-16 -mx-1 mb-2 flex items-baseline gap-2 bg-canvas/90 px-1 py-2 text-sm backdrop-blur-sm"
+            >
+              {heading.relative ? <span className="font-bold text-ink">{heading.relative}</span> : null}
+              <span className={heading.relative ? 'text-ink-muted' : 'font-bold text-ink'}>{heading.long}</span>
+              {/* La lista llega por páginas: el último día puede seguir en la siguiente, y su cuenta sería parcial. */}
+              {hasMore && index === days.length - 1 ? null : (
+                <span className="ml-auto text-[13px] font-normal tabular-nums text-ink-muted">
+                  {day.items.length === 1 ? '1 asiento' : `${day.items.length} asientos`}
+                </span>
+              )}
+            </h2>
+            <ul className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-raised">
+              {day.items.map((operation) => (
+                <li key={operation.entryId}>
+                  <MovementRow operation={operation} to={`${base}/inventario/${operation.product.id}`} timeZone={timeZone} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
   );
 }
 
-/** Historial como libro: cada fila, una operación con su responsable; nada se edita. */
-function MovementsTable({ operations, timeZone }: { operations: Operation[]; timeZone: string }) {
-  const columns = useMemo(
-    () =>
-      helper.columns([
-        helper.accessor('effectiveAt', {
-          header: 'Fecha',
-          cell: (info) => <span className="whitespace-nowrap text-ink-muted">{formatDateTime(info.getValue(), timeZone)}</span>,
-        }),
-        helper.accessor('type', {
-          header: 'Movimiento',
-          cell: (info) => {
-            const type = typeLabel[info.getValue()];
-            const Icon = type.icon;
-            return (
-              <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-ink">
-                <Icon className="size-3.5 text-ink-muted" aria-hidden />
-                {type.label}
-              </span>
-            );
-          },
-        }),
-        helper.display({
-          id: 'reagent',
-          header: 'Reactivo',
-          cell: ({ row }) => (
-            <>
-              <span className="block whitespace-nowrap font-medium">{row.original.product.name}</span>
-              <span className="block text-[12px] text-ink-muted">
-                {row.original.container?.code ?? row.original.lot.code} · {row.original.location.code}
-              </span>
-            </>
-          ),
-        }),
-        helper.accessor('quantity', {
-          header: 'Cantidad',
-          cell: ({ row }) => (
-            <Quantity
-              value={row.original.quantity}
-              unit={row.original.unit}
-              signed
-              className={cn(
-                'inline-block rounded-md px-2 py-0.5 text-[13px] font-bold [&>span]:font-semibold [&>span]:text-current',
-                row.original.type === 'adjustment'
-                  ? 'bg-action-soft text-action'
-                  : row.original.quantity.startsWith('-')
-                    ? 'bg-danger-soft text-danger'
-                    : 'bg-success-soft text-success',
-              )}
-            />
-          ),
-        }),
-        helper.accessor('balanceAfter', {
-          header: 'Saldo',
-          cell: ({ row }) => <Quantity value={row.original.balanceAfter} unit={row.original.unit} className="text-ink-muted" />,
-        }),
-        helper.display({
-          id: 'actor',
-          header: 'Responsable',
-          // Una salida aprobada (ADR 0012) lleva a quien la aprobó y, debajo, a quien la pidió.
-          cell: ({ row }) => (
-            <>
-              <span className="block whitespace-nowrap">{row.original.actor.displayName ?? 'Miembro anterior'}</span>
-              {row.original.requestedBy ? (
-                <span className="block whitespace-nowrap text-[12px] text-ink-muted">
-                  Pidió {row.original.requestedBy.displayName ?? 'un miembro anterior'}
-                </span>
-              ) : null}
-            </>
-          ),
-        }),
-        helper.display({
-          id: 'detail',
-          header: 'Detalle',
-          cell: ({ row }) => {
-            const text = [purposeOf(row.original), row.original.reference].filter(Boolean).join(' ');
-            return <span className="text-ink-muted">{text || '—'}</span>;
-          },
-        }),
-      ]),
-    [timeZone],
-  );
-  const table = useTable({ features, columns, data: operations, getRowId: (row) => row.entryId });
-  const numeric = new Set(['quantity', 'balanceAfter']);
-
+/**
+ * Un asiento del libro: hora, tipo (icono y texto), reactivo con frasco y ubicación, motivo y
+ * responsable a la izquierda; cantidad con signo y saldo a la derecha. Nada se edita aquí.
+ */
+function MovementRow({ operation, to, timeZone }: { operation: Operation; to: string; timeZone: string }) {
+  const kind = typeLabel[operation.type];
+  const Icon = kind.icon;
+  const tone = operation.type === 'adjustment' ? 'accent' : operation.quantity.startsWith('-') ? 'out' : 'in';
+  const purpose = purposeOf(operation);
+  const actor = operation.actor.displayName ?? 'Miembro anterior';
+  const hour = hourOf(operation.effectiveAt, timeZone);
   return (
-    <Table>
-      <TableHead>
-        {table.getHeaderGroups().map((group) => (
-          <tr key={group.id}>
-            {group.headers.map((header) => (
-              <TableHeader key={header.id} numeric={numeric.has(header.column.id)}>
-                {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-              </TableHeader>
-            ))}
-          </tr>
-        ))}
-      </TableHead>
-      <TableBody>
-        {table.getRowModel().rows.map((row) => (
-          <TableRow key={row.id}>
-            {row.getAllCells().map((cell) => (
-              <TableCell key={cell.id} numeric={numeric.has(cell.column.id)}>
-                <table.FlexRender cell={cell} />
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <Link
+      to={to}
+      className="@container group flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-surface-sunken/60 focus-visible:-outline-offset-2"
+    >
+      <time dateTime={operation.effectiveAt} className="hidden w-12 shrink-0 text-[13px] tabular-nums text-ink-muted @lg:block">
+        {hour}
+      </time>
+      {/* Siempre en el acento: el icono dice el tipo y el color de la cifra, el sentido. */}
+      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-action-soft text-action">
+        <Icon className="size-[18px]" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-bold text-ink">{operation.product.name}</p>
+        <p className="text-[13px] text-ink-muted @lg:truncate">
+          {operation.container?.code ?? operation.lot.code} · {operation.location.code}
+          {purpose ? ` · ${purpose}` : ''}
+          {operation.reference ? ` · ${operation.reference}` : ''}
+        </p>
+        <p className="text-[13px] text-ink-muted @lg:truncate">
+          {kind.label}
+          <span className="@lg:hidden"> · {hour}</span> · {actor}
+          {/* Una salida aprobada (ADR 0012) lleva a quien la aprobó y a quien la pidió. */}
+          {operation.requestedBy ? ` · Pidió ${operation.requestedBy.displayName ?? 'un miembro anterior'}` : ''}
+        </p>
+      </div>
+      <div className="shrink-0 text-right">
+        <Quantity
+          value={operation.quantity}
+          unit={operation.unit}
+          signed
+          className={cn(
+            'inline-block rounded-md px-2 py-0.5 text-[13px] font-bold [&>span]:font-semibold [&>span]:text-current',
+            tone === 'in' && 'bg-success-soft text-success',
+            tone === 'out' && 'bg-danger-soft text-danger',
+            tone === 'accent' && 'bg-action-soft text-action',
+          )}
+        />
+        <p className="mt-1 text-[13px] text-ink-muted">
+          Saldo <Quantity value={operation.balanceAfter} unit={operation.unit} className="text-ink-muted" />
+        </p>
+      </div>
+      <ChevronRight
+        className="size-4 shrink-0 text-ink-muted transition-transform duration-150 group-hover:translate-x-0.5"
+        aria-hidden
+      />
+    </Link>
   );
 }

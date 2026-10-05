@@ -157,6 +157,7 @@ SELECT
   e.position_id,
   trim_scale(e.quantity) AS "quantity!",
   trim_scale(e.balance_after) AS "balance_after!",
+  p.item_id,
   i.code AS item_code,
   i.name AS item_name,
   l.code AS lot_code,

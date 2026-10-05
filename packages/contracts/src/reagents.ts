@@ -254,7 +254,7 @@ export const operation = z.object({
   destination: z.string().nullable(),
   reference: z.string().nullable(),
   positionId: z.uuid(),
-  product: z.object({ code: z.string(), name: z.string() }),
+  product: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
   lot: z.object({ code: z.string() }),
   container: z.object({ code: z.string() }).nullable(),
   location: z.object({ code: z.string() }),

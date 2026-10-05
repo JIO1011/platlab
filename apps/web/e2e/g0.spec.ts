@@ -215,15 +215,20 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await capture(admin, 'desktop');
 
   await goTo(admin, 'Movimientos');
-  const history = admin.getByRole('row').filter({ hasText: product.name });
+  const history = admin.getByRole('listitem').filter({ hasText: product.name });
   await expect(history).toHaveCount(3);
   await expect(history.nth(0)).toContainText('Ajuste');
   await expect(history.nth(0)).toContainText('Ana Administradora');
   await expect(history.nth(1)).toContainText('Salida');
-  // Aprobada (ADR 0012): responsable la Administradora y, debajo, quien la pidió.
+  // Aprobada (ADR 0012): responsable la Administradora y, a continuación, quien la pidió.
   await expect(history.nth(1)).toContainText('Ana Administradora');
   await expect(history.nth(1)).toContainText('Pidió Óscar Operador');
   await expect(history.nth(2)).toContainText('Ingreso');
+  // Los asientos se agrupan por día y cada fila abre la ficha del reactivo.
+  await expect(admin.getByRole('heading', { name: /^Hoy/, level: 2 })).toBeVisible();
+  await history.nth(0).getByRole('link').click();
+  await expect(admin.getByRole('heading', { name: product.name, level: 1 })).toBeVisible();
+  await goTo(admin, 'Movimientos');
   await expectAccessible(admin, 'movimientos');
   await capture(admin, 'desktop-movements');
 
@@ -368,19 +373,18 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
   // El total de salidas va en la cabecera del gráfico (ADR 0012, 05-10-2026) y abre la lista.
   await admin.getByRole('link', { name: /\d+ salidas? en 30 días/ }).click();
   await expect(admin.getByRole('heading', { name: 'Movimientos', level: 1 })).toBeVisible();
-  // La lista llega filtrada como la cifra: solo salidas de los últimos 30 días, y el filtro se quita.
-  await expect(admin.getByText('Salidas · últimos 30 días')).toBeVisible();
-  const rows = admin.getByRole('row');
-  await expect(rows.nth(1)).toBeVisible();
-  for (const row of await rows.all()) {
-    if ((await row.getByRole('cell').count()) > 0) await expect(row).toContainText('Salida');
-  }
+  // La lista llega filtrada como la cifra: solo salidas de los últimos 30 días, con sus píldoras activas.
+  await expect(admin.getByRole('button', { name: 'Salidas', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(admin.getByRole('button', { name: '30 días', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  const rows = admin.locator('main').getByRole('listitem');
+  await expect(rows.first()).toBeVisible();
+  for (const row of await rows.all()) await expect(row).toContainText('Salida');
   await expectAccessible(admin, 'movimientos filtrados');
   await capture(admin, 'desktop-movements-filtered', false);
-  await admin.getByRole('button', { name: /Quitar el filtro/ }).click();
-  await expect(admin.getByText('Salidas · últimos 30 días')).toHaveCount(0);
-  await expect(admin).not.toHaveURL(/tipo=/);
-  await expect(admin.getByRole('row').nth(1)).toBeVisible();
+  await admin.getByRole('button', { name: 'Todos', exact: true }).click();
+  await admin.getByRole('button', { name: 'Todo', exact: true }).click();
+  await expect(admin).not.toHaveURL(/tipo=|dias=/);
+  await expect(admin.locator('main').getByRole('listitem').first()).toBeVisible();
 
   // Vencidos abre el Inventario filtrado, y cada tarjeta dice sus avisos con texto (ADR 0012, 05-10-2026).
   await goTo(admin, 'Resumen');
@@ -571,7 +575,7 @@ test('modo consulta: sin operación nueva no hay acciones de registro, solo inve
     await expect(admin.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
   await goTo(admin, 'Movimientos');
-  await expect(admin.getByRole('row').nth(1)).toBeVisible();
+  await expect(admin.getByRole('listitem').first()).toBeVisible();
   await expectAccessible(admin, 'modo consulta');
   await capture(admin, 'desktop-read-only');
 });

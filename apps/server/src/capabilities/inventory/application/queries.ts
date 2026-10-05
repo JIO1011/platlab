@@ -132,7 +132,7 @@ export async function listOperationPage(
       destination: row.destination,
       reference: row.reference,
       positionId: row.position_id,
-      product: { code: row.item_code, name: row.item_name },
+      product: { id: row.item_id, code: row.item_code, name: row.item_name },
       lot: { code: row.lot_code },
       container: row.container_code ? { code: row.container_code } : null,
       location: { code: row.location_code },
