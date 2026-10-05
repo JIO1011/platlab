@@ -118,8 +118,13 @@ Decidido el 02-10-2026:
 - Los permisos forman una escalera: Propietario ⊇ Administrador ⊇ Operador. El propietario opera sin rol asignado; Responsable de fiscalizados sigue aparte (ADR 0008).
 - El Inicio es un tablero con una tarjeta por módulo (cifras y gráfico con datos reales) y cada módulo es una app con su propio menú (ADR 0011).
 - Entrada directa al último espacio usado y cambio de espacio desde la barra; sin pantalla para elegir (ADR 0011).
-- Cada módulo tematiza su app con su color (Reactivos en lila); el Inicio y la marca siguen en azul (ADR 0010).
+- Cada módulo tematiza su app con su color (Reactivos en índigo, como ReactiLab); el Inicio y la marca siguen en azul (ADR 0010).
 - Reactivos por frasco (código y QR), ficha en dos niveles, salidas del Operador con aprobación y reserva, vencidos con advertencia, sugerencia FEFO y motivos y destinos en listas; R-01A antes de T-07 (ADR 0012).
+
+Decidido el 04-10-2026:
+
+- La interfaz toma el diseño de ReactiLab: barra lateral pegada con el activo relleno, tarjetas con borde fino y elevación, indicadores con icono, acción rápida degradada y actividad como línea de tiempo (ADR 0010). Solo el lenguaje visual; su código no se copia.
+- Las tarjetas de catálogo de todos los módulos siguen un mismo patrón con el componente `IconChip`; verde, ámbar y rojo siguen siendo de estado (ADR 0010).
 
 El modelo comercial sigue pendiente: la recomendación está en 01 §4 y debe confirmarla el usuario.
 

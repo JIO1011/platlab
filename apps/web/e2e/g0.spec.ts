@@ -33,6 +33,8 @@ async function capture(page: Page, name: string, fullPage = true) {
 
 /** WCAG 2.2 AA con axe en la pantalla tal como está (ADR 0010). */
 async function expectAccessible(page: Page, label: string) {
+  // Un color a mitad de una transición no es el estado de la pantalla: se espera a que termine.
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     .analyze();
@@ -245,7 +247,12 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
   await expect(owner.getByText('Laboratorio de Química').first()).toBeVisible();
   await owner.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(owner.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
-  for (const name of ['Registrar salida', 'Registrar ingreso', 'Ajustar', 'Nuevo reactivo']) {
+  // El Resumen ofrece las acciones rápidas; ajustar y crear reactivos están en el Inventario.
+  for (const name of ['Registrar salida', 'Registrar ingreso']) {
+    await expect(owner.getByRole('button', { name, exact: true })).toBeVisible();
+  }
+  await goTo(owner, 'Inventario');
+  for (const name of ['Nuevo reactivo', 'Ajustar']) {
     await expect(owner.getByRole('button', { name, exact: true })).toBeVisible();
   }
 });
@@ -349,7 +356,7 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
   await admin.getByRole('button', { name: 'Reactivos. Cambiar de módulo' }).click();
   await expect(admin.getByRole('menuitem', { name: /Reactivos/ })).toBeVisible();
   await admin.keyboard.press('Escape');
-  await admin.getByRole('link', { name: /Salidas, últimos 30 días/ }).click();
+  await admin.getByRole('link', { name: /Salidas.*últimos 30 días/ }).click();
   await expect(admin.getByRole('heading', { name: 'Movimientos', level: 1 })).toBeVisible();
   // La lista llega filtrada como la cifra: solo salidas de los últimos 30 días, y el filtro se quita.
   await expect(admin.getByText('Salidas · últimos 30 días')).toBeVisible();

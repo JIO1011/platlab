@@ -60,10 +60,15 @@ export function HomePage() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <h1 className="text-display text-ink">
-        {greeting(me.workspace.timeZone)}, {firstName}
-      </h1>
-      <p className="mt-2 text-body-lg text-ink-muted">{formatToday(me.workspace.timeZone)}</p>
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+        <div>
+          <h1 className="text-display text-ink">
+            {greeting(me.workspace.timeZone)}, {firstName}
+          </h1>
+          <p className="mt-2 text-body-lg font-medium text-ink-muted">Elige un módulo para empezar a trabajar.</p>
+        </div>
+        <p className="w-fit rounded-full bg-surface-sunken px-3 py-1 text-sm text-ink-muted">{formatToday(me.workspace.timeZone)}</p>
+      </div>
 
       <section className="mt-8" aria-label="Módulos">
         {home.isPending ? (
@@ -123,11 +128,16 @@ function ModuleCard({ card }: { card: Card }) {
       data-module={card.moduleCode}
       aria-label={`Abrir ${card.name}`}
       aria-describedby={pending > 0 && pendingText ? `${pendingId} ${statsId}` : statsId}
-      className="group flex min-h-64 flex-col rounded-card bg-surface p-6 shadow-raised transition-shadow duration-150 hover:shadow-float"
+      className="group relative flex min-h-64 flex-col overflow-hidden rounded-card bg-surface p-6 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1"
     >
-      <div className="flex items-center gap-3">
+      {/* Marca de agua del módulo, como en ReactiLab: decorativa y casi invisible. */}
+      <Icon
+        className="pointer-events-none absolute -bottom-6 -right-6 size-40 text-action-soft/50 transition-transform duration-500 motion-safe:group-hover:scale-110"
+        aria-hidden
+      />
+      <div className="relative flex items-center gap-3">
         <IconChip icon={Icon} />
-        <h2 className="text-lg font-semibold text-ink">{card.name}</h2>
+        <h2 className="text-lg font-bold text-ink">{card.name}</h2>
         <ArrowRight
           className="ml-auto size-5 text-action transition-transform duration-150 group-hover:translate-x-0.5"
           aria-hidden
@@ -139,7 +149,7 @@ function ModuleCard({ card }: { card: Card }) {
           {pendingText}
         </p>
       ) : null}
-      <div id={statsId} className="mt-auto pt-8">
+      <div id={statsId} className="relative mt-auto pt-8">
         <dl className="grid grid-cols-2 gap-4">
           {(counters[card.moduleCode] ?? []).map((counter) => {
             const value = card.summary?.[counter.key] ?? 0;

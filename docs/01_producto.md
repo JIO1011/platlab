@@ -238,16 +238,17 @@ Un módulo por dentro, con Reactivos como ejemplo:
 - La ficha de un equipo tiene pestañas Información, Reservas, Historial, Mantenimiento e Incidencias, según los módulos contratados.
 - Nueva práctica: Plantilla → Fecha y condiciones → Recursos → Revisión. La agenda se ve por laboratorio y franja, con vista de lista en el móvil.
 
-Dirección visual (tomada del PDF, más sobria; «precisión suave» desde el 02-10-2026, [ADR 0010](05_decisiones.md#adr-0010)):
+Dirección visual (tomada de ReactiLab desde el 04-10-2026, [ADR 0010](05_decisiones.md#adr-0010)):
 
-- Colores: fondo `#F5F7FB`, superficie blanca, texto `#102A43`/`#526275` y acción `#1F5F96`.
-- Cada módulo tematiza su app con su color de acento, por ejemplo Reactivos en lila `#7C3AED`; el Inicio y la marca siguen en azul ([ADR 0010](05_decisiones.md#adr-0010), 02-10-2026).
-- Estados en verde, ámbar o rojo, siempre con texto y no solo con color.
+- Colores: fondo gris pizarra claro `#F8FAFC`, superficie blanca, texto `#1E293B`/`#475569` y acción azul `#1F5F96` en la plataforma.
+- Cada módulo tematiza su app con su color de acento, por ejemplo Reactivos en índigo `#4F46E5`; el Inicio y la marca siguen en azul.
+- Estados en verde, ámbar o rojo, siempre con texto y no solo con color. La cifra con signo de una salida va en rojo suave y la de un ingreso en verde suave.
 - Inter; títulos y cifras grandes, con cifras tabulares.
-- Bordes de 10 px en controles, 20 px en paneles y 24 px en tarjetas; píldora en pestañas y filtros.
-- Navegación y barra superior como paneles flotantes con sombras suaves en capas.
+- Esquinas de 12 px en controles, 16 px en paneles y 24 px en tarjetas; píldora en filtros y etiquetas. Tarjetas con borde fino y elevación al pasar el puntero.
+- Barra lateral pegada al borde, con la tarjeta de la persona, el menú con iconos (el activo relleno con el acento) y «Salir» al pie; barra superior translúcida.
+- Resumen con una tarjeta degradada de acción rápida, indicadores con icono de color y la actividad como línea de tiempo.
 - Una acción primaria por sección; objetivo WCAG 2.2 AA; foco visible e iconos con etiqueta.
-- Sin imágenes decorativas, vidrio ni gráficos sin dato real.
+- Sin imágenes decorativas ni gráficos sin dato real.
 
 Situaciones que siempre se diseñan:
 

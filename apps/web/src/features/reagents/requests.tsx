@@ -214,6 +214,7 @@ function ApproveButton({ item }: { item: IssueRequestItem }) {
   const onError = useResolvedRefresh();
   return (
     <Button
+      variant="primary"
       size="sm"
       className="max-lg:h-11"
       loading={command.isPending}

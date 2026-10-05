@@ -27,9 +27,18 @@ export interface ActivityRowProps {
 export function ActivityRow({ type, title, detail, quantity, unit, occurredAt, actor, timeZone, className }: ActivityRowProps) {
   const kind = types[type] ?? { label: type, icon: CircleDot };
   const Icon = kind.icon;
+  // Como en ReactiLab (ADR 0010, 04-10-2026): lo que sale va en rojo suave y lo que entra, en verde
+  // suave; el ajuste toma el acento. El signo y el tipo siguen escritos: el color nunca es el único dato.
+  const tone = type === 'adjustment' ? 'accent' : quantity.startsWith('-') ? 'out' : 'in';
   return (
     <div className={cn('@container flex items-center gap-3.5', className)}>
-      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-ink-muted">
+      <span
+        className={cn(
+          // El círculo va siempre en el acento: el icono dice el tipo y el color de la cifra, el sentido.
+          // Así una lista de salidas no es un muro rojo.
+          'relative z-10 inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-action-soft text-action ring-4 ring-surface',
+        )}
+      >
         <Icon className="size-[18px]" aria-hidden />
       </span>
       {/* Cantidad y tipo acompañan a sus líneas en lugar de ocupar una columna propia. Si la fila
@@ -38,8 +47,18 @@ export function ActivityRow({ type, title, detail, quantity, unit, occurredAt, a
           que la hora, para que un recorte nunca oculte quién movió el stock. */}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="truncate font-medium text-ink">{title}</p>
-          <Quantity value={quantity} unit={unit} signed className="shrink-0 font-semibold text-ink" />
+          <p className="truncate font-bold text-ink">{title}</p>
+          <Quantity
+            value={quantity}
+            unit={unit}
+            signed
+            className={cn(
+              'shrink-0 rounded-md px-2 py-0.5 text-[13px] font-bold [&>span]:text-current [&>span]:font-semibold',
+              tone === 'in' && 'bg-success-soft text-success',
+              tone === 'out' && 'bg-danger-soft text-danger',
+              tone === 'accent' && 'bg-action-soft text-action',
+            )}
+          />
         </div>
         <div className="flex items-baseline justify-between gap-3 text-[13px] text-ink-muted">
           <p className="truncate">

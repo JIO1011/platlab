@@ -8,6 +8,7 @@ export { Quantity } from './components/quantity';
 export { Select, type SelectOption } from './components/select';
 export { Sheet } from './components/sheet';
 export { Skeleton } from './components/skeleton';
+export { StatCard, type StatCardProps } from './components/stat-card';
 export { StatePanel } from './components/state-panel';
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/table';
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';

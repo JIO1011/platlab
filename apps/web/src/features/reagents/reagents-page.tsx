@@ -3,7 +3,9 @@ import {
   Button,
   Quantity,
   Skeleton,
+  StatCard,
   StatePanel,
+  type StatCardProps,
   Table,
   TableBody,
   TableCell,
@@ -17,11 +19,15 @@ import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-tab
 import {
   ArrowDownToLine,
   ArrowLeft,
+  ArrowRight,
   ArrowUpFromLine,
-  ChevronRight,
+  CircleCheck,
+  Clock,
   Eye,
+  FlaskConical,
   History,
-  Inbox,
+  MapPin,
+  Package,
   Plus,
   RefreshCw,
   Scale,
@@ -206,28 +212,31 @@ export function ReagentsLayout() {
             </button>
           </p>
         </div>
-        <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
-          {visibleSecondary.map(({ kind, label, icon: Icon }, index) => (
-            <Button
-              key={kind}
-              className={cn(index === visibleSecondary.length - 1 && index % 2 === 0 && 'col-span-2 lg:col-span-1')}
-              onClick={() => sheets.open(kind === 'receipt' && detailId ? { kind, productId: detailId } : { kind })}
-            >
-              <Icon aria-hidden />
-              {label}
-            </Button>
-          ))}
-          {allowed.issue && positionList.length > 0 ? (
-            <Button
-              variant="primary"
-              className="order-first col-span-2 lg:order-none"
-              onClick={() => sheets.open(detailId ? { kind: 'issue', productId: detailId } : { kind: 'issue' })}
-            >
-              <ArrowUpFromLine aria-hidden />
-              {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
-            </Button>
-          ) : null}
-        </div>
+        {/* En el Resumen, la tarjeta de acción rápida hace de acciones (ADR 0010, 04-10-2026); en Solicitudes, la tarea es decidir, y «Aprobar salida» es la primaria. */}
+        {sectionPath !== '' && sectionPath !== 'solicitudes' ? (
+          <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
+            {visibleSecondary.map(({ kind, label, icon: Icon }, index) => (
+              <Button
+                key={kind}
+                className={cn(index === visibleSecondary.length - 1 && index % 2 === 0 && 'col-span-2 lg:col-span-1')}
+                onClick={() => sheets.open(kind === 'receipt' && detailId ? { kind, productId: detailId } : { kind })}
+              >
+                <Icon aria-hidden />
+                {label}
+              </Button>
+            ))}
+            {allowed.issue && positionList.length > 0 ? (
+              <Button
+                variant="primary"
+                className="order-first col-span-2 lg:order-none"
+                onClick={() => sheets.open(detailId ? { kind: 'issue', productId: detailId } : { kind: 'issue' })}
+              >
+                <ArrowUpFromLine aria-hidden />
+                {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </header>
 
       {!canOperate ? (
@@ -289,43 +298,84 @@ export function ReagentsLayout() {
   );
 }
 
-const counterLabels = {
-  productsWithStock: (n: number) => (n === 1 ? 'Reactivo con existencias' : 'Reactivos con existencias'),
-  positionsWithStock: (n: number) => (n === 1 ? 'Ubicación con existencias' : 'Ubicaciones con existencias'),
-};
-
-/** Una cifra del Resumen que abre la lista que la explica (ADR 0011). */
-function StatLink({ to, value, label }: { to: string; value: number; label: string }) {
+/** Indicador del Resumen que abre la lista que lo explica (ADR 0011): el enlace envuelve la tarjeta. */
+function StatLink({ to, ...stat }: { to: string } & StatCardProps) {
   return (
-    // Por debajo de 1024 px, una fila compacta (cifra a la derecha); desde lg, una tarjeta con la
-    // cifra grande. En tableta, tres tarjetas estrechas partirían sus etiquetas en varias líneas.
-    <Link
-      to={to}
-      className="group flex items-center justify-between gap-4 rounded-card bg-surface px-5 py-4 shadow-raised transition-shadow duration-150 hover:shadow-float lg:flex-col lg:items-stretch lg:gap-6 lg:p-6"
-    >
-      <span className="flex items-center gap-1.5 text-sm font-medium text-ink-muted lg:justify-between">
-        {label}
-        {/* Señal de enlace siempre visible; se enciende con el puntero o el foco. */}
-        <ChevronRight
-          className="size-4 shrink-0 text-ink-subtle transition-colors group-hover:text-action group-focus-visible:text-action"
-          aria-hidden
-        />
-      </span>
-      <span className="text-metric-sm text-ink lg:text-metric">{value}</span>
+    <Link to={to} className="group block rounded-card focus-visible:outline-offset-4">
+      <StatCard {...stat} />
     </Link>
   );
 }
 
-/** Resumen: las cifras del módulo, las salidas por día y la actividad reciente, en su ámbito. */
+/**
+ * Tarjeta de acción rápida (ADR 0010, 04-10-2026): el degradado del acento del módulo con las
+ * acciones de ingreso y salida. Sustituye a las acciones de la cabecera en el Resumen, así que sus
+ * botones son la acción primaria de la pantalla.
+ */
+function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canIssue: boolean; openSheet: (request: SheetRequest) => void }) {
+  const issue = canIssue && allowed.issue;
+  if (!issue && !allowed.receipt) return null;
+  return (
+    <section
+      aria-labelledby="acciones-rapidas"
+      className="relative overflow-hidden rounded-card bg-linear-to-br from-action to-action-deep p-8 text-on-action shadow-xl shadow-action/20 md:p-10"
+    >
+      <div className="relative z-10 max-w-lg">
+        <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur-md">
+          <FlaskConical className="size-3.5" aria-hidden />
+          Gestión rápida
+        </span>
+        <h2 id="acciones-rapidas" className="mt-4 text-3xl font-bold tracking-tight">
+          Registrar movimiento
+        </h2>
+        <p className="mt-3 leading-relaxed text-on-action/90">
+          {allowed.approve
+            ? 'Registra ingresos de frascos y salidas del inventario. Las salidas que piden los Operadores te esperan en Solicitudes.'
+            : 'Registra el ingreso de frascos o pide una salida: la cantidad queda apartada hasta que un Administrador la apruebe.'}
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          {issue ? (
+            <button
+              type="button"
+              onClick={() => openSheet({ kind: 'issue' })}
+              className="inline-flex h-12 items-center gap-2 rounded-control bg-surface px-7 text-sm font-bold text-action shadow-lg transition-[background-color,transform] duration-150 hover:bg-action-soft motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98]"
+            >
+              <ArrowUpFromLine className="size-[18px]" aria-hidden />
+              {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
+            </button>
+          ) : null}
+          {allowed.receipt ? (
+            <button
+              type="button"
+              onClick={() => openSheet({ kind: 'receipt' })}
+              className="inline-flex h-12 items-center gap-2 rounded-control border border-white/40 px-6 text-sm font-medium backdrop-blur-sm transition-colors duration-150 hover:bg-white/10"
+            >
+              <ArrowDownToLine className="size-[18px]" aria-hidden />
+              Registrar ingreso
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <FlaskConical
+        className="pointer-events-none absolute -bottom-16 -right-8 size-72 rotate-12 text-white/10 transition-transform duration-700 motion-safe:group-hover:rotate-6"
+        aria-hidden
+      />
+      <div className="pointer-events-none absolute right-24 top-10 size-32 rounded-full bg-white/20 blur-3xl" aria-hidden />
+    </section>
+  );
+}
+
+/** Resumen: la acción rápida, las cifras del módulo, las salidas por día y la actividad reciente. */
 export function ReagentsSummaryPage() {
-  const { me, base, summary } = useReagents();
+  const { me, base, summary, allowed, positionList, openSheet } = useReagents();
 
   if (summary.isPending) {
     return (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3" role="status" aria-busy="true" aria-label="Cargando">
-        <Skeleton className="h-32 rounded-card" />
-        <Skeleton className="h-32 rounded-card" />
-        <Skeleton className="h-32 rounded-card" />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4" role="status" aria-busy="true" aria-label="Cargando">
+        <Skeleton className="h-36 rounded-card" />
+        <Skeleton className="h-36 rounded-card" />
+        <Skeleton className="h-36 rounded-card" />
+        <Skeleton className="h-36 rounded-card" />
       </div>
     );
   }
@@ -335,39 +385,56 @@ export function ReagentsSummaryPage() {
   const issues = trend?.points.reduce((sum, point) => sum + point.value, 0) ?? 0;
   const pending = counters.pendingRequests;
   const approves = me.permissions.includes('reagents.issue.approve');
+  // Lo pendiente de decidir va en ámbar y solo si existe; sin pendientes, «Al día» en verde.
+  const pendingHint =
+    pending === 0
+      ? 'Al día'
+      : approves
+        ? pending === 1
+          ? '1 salida espera tu aprobación'
+          : `${pending} salidas esperan tu aprobación`
+        : pending === 1
+          ? 'Tienes 1 solicitud de salida pendiente'
+          : `Tienes ${pending} solicitudes de salida pendientes`;
 
   return (
-    <div className="grid grid-cols-1 gap-4">
-      {/* Solo aparece si hay algo que decidir o esperar (ADR 0012): abre la lista de pendientes. */}
-      {pending > 0 ? (
-        <Link
+    <div className="grid grid-cols-1 gap-6">
+      <QuickActions allowed={allowed} canIssue={positionList.length > 0} openSheet={openSheet} />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <StatLink
+          to={`${base}/inventario`}
+          label="Reactivos"
+          value={counters.productsWithStock}
+          hint="con existencias"
+          icon={Package}
+        />
+        <StatLink
+          to={`${base}/inventario`}
+          label="Ubicaciones"
+          value={counters.positionsWithStock}
+          hint="con existencias"
+          icon={MapPin}
+        />
+        <StatLink
+          to={`${base}/movimientos?tipo=salida&dias=30`}
+          label="Salidas"
+          value={issues}
+          hint="en los últimos 30 días"
+          icon={ArrowUpFromLine}
+        />
+        <StatLink
           to={`${base}/solicitudes`}
-          className="group flex items-center justify-between gap-4 rounded-card bg-warning-soft px-5 py-4 text-warning transition-shadow duration-150 hover:shadow-raised"
-        >
-          <span className="flex items-center gap-3 text-sm font-medium">
-            <Inbox className="size-5 shrink-0" aria-hidden />
-            {approves
-              ? pending === 1
-                ? '1 salida espera tu aprobación'
-                : `${pending} salidas esperan tu aprobación`
-              : pending === 1
-                ? 'Tienes 1 solicitud de salida pendiente'
-                : `Tienes ${pending} solicitudes de salida pendientes`}
-          </span>
-          <span className="flex shrink-0 items-center gap-1 text-sm font-semibold">
-            {approves ? 'Revisar' : 'Ver'}
-            <ChevronRight className="size-4 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
-          </span>
-        </Link>
-      ) : null}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:gap-4">
-        <StatLink to={`${base}/inventario`} value={counters.productsWithStock} label={counterLabels.productsWithStock(counters.productsWithStock)} />
-        <StatLink to={`${base}/inventario`} value={counters.positionsWithStock} label={counterLabels.positionsWithStock(counters.positionsWithStock)} />
-        <StatLink to={`${base}/movimientos?tipo=salida&dias=30`} value={issues} label="Salidas, últimos 30 días" />
+          label={approves ? 'Por aprobar' : 'Mis solicitudes'}
+          value={pending}
+          hint={pendingHint}
+          hintTone={pending === 0 ? 'success' : 'warning'}
+          icon={pending === 0 ? CircleCheck : Clock}
+          tone={pending === 0 ? 'success' : 'warning'}
+        />
       </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
-        <article className="min-w-0 rounded-card bg-surface p-5 shadow-raised sm:p-6 lg:col-span-7">
-          <h2 className="text-lg font-semibold text-ink">Salidas por día</h2>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+        <article className="min-w-0 rounded-card bg-surface p-6 shadow-raised md:p-8 lg:col-span-7">
+          <h2 className="text-lg font-bold text-ink">Salidas por día</h2>
           <p className="mt-1 text-sm text-ink-muted">Últimos 30 días, en las ubicaciones que puedes consultar.</p>
           <div className="mt-8">
             {trend ? (
@@ -380,17 +447,19 @@ export function ReagentsSummaryPage() {
             )}
           </div>
         </article>
-        <article className="min-w-0 rounded-card bg-surface p-5 shadow-raised sm:p-6 lg:col-span-5">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-ink">Actividad reciente</h2>
-            <Link to={`${base}/movimientos`} className="whitespace-nowrap text-sm font-medium text-action">
+        <article className="min-w-0 rounded-card bg-surface p-6 shadow-raised lg:col-span-5 lg:sticky lg:top-24">
+          <div className="flex items-center justify-between gap-4 border-b border-line pb-4">
+            <h2 className="text-lg font-bold text-ink">Actividad reciente</h2>
+            <Link to={`${base}/movimientos`} className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-action transition-colors hover:text-action-hover">
               Ver movimientos
+              <ArrowRight className="size-4" aria-hidden />
             </Link>
           </div>
           {activity.length ? (
-            <ul className="mt-3 divide-y divide-line">
+            // Línea de tiempo: el hilo pasa por detrás de los círculos de icono de cada movimiento.
+            <ul className="relative mt-5 space-y-6 before:absolute before:bottom-5 before:left-5 before:top-5 before:w-0.5 before:bg-line">
               {activity.map((entry) => (
-                <li key={entry.id} className="py-3">
+                <li key={entry.id}>
                   <ActivityRow {...entry} timeZone={me.workspace.timeZone} />
                 </li>
               ))}
@@ -561,7 +630,21 @@ function MovementsTable({ operations, timeZone }: { operations: Operation[]; tim
         }),
         helper.accessor('quantity', {
           header: 'Cantidad',
-          cell: ({ row }) => <Quantity value={row.original.quantity} unit={row.original.unit} signed className="font-semibold" />,
+          cell: ({ row }) => (
+            <Quantity
+              value={row.original.quantity}
+              unit={row.original.unit}
+              signed
+              className={cn(
+                'inline-block rounded-md px-2 py-0.5 text-[13px] font-bold [&>span]:font-semibold [&>span]:text-current',
+                row.original.type === 'adjustment'
+                  ? 'bg-action-soft text-action'
+                  : row.original.quantity.startsWith('-')
+                    ? 'bg-danger-soft text-danger'
+                    : 'bg-success-soft text-success',
+              )}
+            />
+          ),
         }),
         helper.accessor('balanceAfter', {
           header: 'Saldo',

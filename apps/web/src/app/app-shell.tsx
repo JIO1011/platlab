@@ -1,6 +1,19 @@
 import type { ModuleAccess, WorkspaceMeResponse } from '@platlab/contracts';
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, cn } from '@platlab/ui';
-import { ArrowLeft, Boxes, Check, ChevronsUpDown, FlaskConical, House, LogOut } from 'lucide-react';
+import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, cn } from '@platlab/ui';
+import {
+  ArrowLeft,
+  ArrowLeftRight,
+  Boxes,
+  Check,
+  ChevronsUpDown,
+  FlaskConical,
+  House,
+  Inbox,
+  LayoutDashboard,
+  LogOut,
+  Package,
+  type LucideIcon,
+} from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router';
 import type { WorkspaceSummary } from '@platlab/contracts';
@@ -28,6 +41,14 @@ export function moduleApps(me: WorkspaceMeResponse): ModuleApp[] {
   );
 }
 
+/** Icono de cada sección del manifiesto; sin entrada, el de módulo genérico. */
+const sectionIcons: Record<string, LucideIcon> = {
+  '': LayoutDashboard,
+  inventario: Package,
+  movimientos: ArrowLeftRight,
+  solicitudes: Inbox,
+};
+
 function NavItem({
   to,
   end = false,
@@ -37,7 +58,7 @@ function NavItem({
 }: {
   to: string;
   end?: boolean;
-  icon?: typeof Boxes;
+  icon?: LucideIcon | undefined;
   children: string;
   compact?: boolean;
 }) {
@@ -47,16 +68,26 @@ function NavItem({
       end={end}
       className={({ isActive }) =>
         cn(
-          'flex shrink-0 items-center gap-3 font-medium transition-[background-color,color,box-shadow] duration-150',
-          compact ? 'h-10 rounded-full px-3.5 text-sm' : 'h-11 rounded-control px-3.5 text-body-lg',
+          'group flex shrink-0 items-center gap-3 font-medium transition-[background-color,color,box-shadow] duration-200',
+          compact ? 'h-10 rounded-full px-3.5 text-sm' : 'h-12 rounded-control px-4 text-sm',
+          // El activo va relleno con el acento, como en ReactiLab; los demás, atenuados.
           isActive
-            ? 'bg-action-soft text-action'
-            : 'text-ink-muted hover:bg-surface-sunken hover:text-ink',
+            ? 'bg-action text-on-action shadow-md shadow-action/25'
+            : 'text-ink-muted hover:bg-surface-sunken hover:text-action',
         )
       }
     >
-      {Icon ? <Icon className="size-[18px]" aria-hidden /> : null}
-      {children}
+      {({ isActive }) => (
+        <>
+          {Icon && !compact ? (
+            <Icon
+              className={cn('size-5 transition-colors', isActive ? 'text-on-action/80' : 'text-ink-subtle group-hover:text-action')}
+              aria-hidden
+            />
+          ) : null}
+          {children}
+        </>
+      )}
     </NavLink>
   );
 }
@@ -230,6 +261,7 @@ export function AppShell() {
         key={section.path}
         to={section.path ? `${base}/${app.path}/${section.path}` : `${base}/${app.path}`}
         end={section.path === ''}
+        icon={sectionIcons[section.path] ?? FlaskConical}
         compact={compact}
       >
         {section.label}
@@ -244,39 +276,76 @@ export function AppShell() {
       <span className="text-body-lg font-semibold leading-snug text-ink">{me.data.workspace.name}</span>
     );
 
+  const initials = me.data.member.displayName
+    .split(' ')
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
   return (
-    <div className="min-h-dvh md:flex md:gap-2 md:p-4">
-      <aside className="sticky top-4 hidden h-[calc(100dvh-2rem)] w-60 shrink-0 flex-col rounded-card bg-surface p-4 shadow-float md:flex">
-        <Link to={base} aria-label="PlatLab, ir al Inicio" className="px-2 pb-6 pt-1">
-          <Wordmark className="text-lg" />
+    <div className="min-h-dvh md:flex">
+      <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col border-r border-line bg-surface md:flex">
+        <Link to={base} aria-label="PlatLab, ir al Inicio" className="px-8 pb-6 pt-8">
+          <Wordmark large className="text-2xl font-bold" />
         </Link>
-        {app ? (
-          <>
-            <Link
-              to={base}
-              className="mb-2 flex h-9 items-center gap-2 rounded-control px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              Inicio
-            </Link>
-            <ModuleSwitcher base={base} apps={apps} current={app} />
-            <div className="my-3 h-px bg-line" aria-hidden />
-            <nav aria-label={`Secciones de ${app.name}`} className="flex flex-col gap-1">
-              {sections(false)}
-            </nav>
-          </>
-        ) : (
-          <nav aria-label="Secciones" className="flex flex-col gap-1">
-            <NavItem to={base} end icon={House}>
-              Inicio
-            </NavItem>
-          </nav>
-        )}
+        {/* La persona y su rol, como la tarjeta de ReactiLab. */}
+        <div className="mx-6 mb-6 flex items-center gap-3 rounded-panel border border-line bg-canvas p-4">
+          <span
+            aria-hidden
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-action text-sm font-bold text-on-action ring-2 ring-surface"
+          >
+            {initials}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-ink">{me.data.member.displayName}</p>
+            <Badge tone="info" className="mt-0.5 text-[11px] font-bold uppercase tracking-wider">
+              {me.data.member.isOwner ? 'Propietario' : 'Miembro'}
+            </Badge>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4">
+          {app ? (
+            <>
+              <Link
+                to={base}
+                className="mb-2 flex h-9 items-center gap-2 rounded-control px-4 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-action"
+              >
+                <ArrowLeft className="size-4" aria-hidden />
+                Inicio
+              </Link>
+              <ModuleSwitcher base={base} apps={apps} current={app} />
+              <p className="mb-2 mt-4 px-4 text-xs font-semibold uppercase tracking-wider text-ink-subtle">Menú de {app.name}</p>
+              <nav aria-label={`Secciones de ${app.name}`} className="flex flex-col gap-1.5">
+                {sections(false)}
+              </nav>
+            </>
+          ) : (
+            <>
+              <p className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-ink-subtle">Menú principal</p>
+              <nav aria-label="Secciones" className="flex flex-col gap-1.5">
+                <NavItem to={base} end icon={House}>
+                  Inicio
+                </NavItem>
+              </nav>
+            </>
+          )}
+        </div>
+        <div className="border-t border-line p-4">
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="flex h-12 w-full items-center gap-3 rounded-control px-4 text-sm font-medium text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
+          >
+            <LogOut className="size-5" aria-hidden />
+            Salir
+          </button>
+        </div>
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-30 px-3 pt-3 md:top-4 md:px-0 md:pt-0">
-          <div className="flex min-h-14 items-center gap-3 rounded-panel bg-surface px-4 py-2 shadow-float md:px-6">
+        <header className="sticky top-0 z-30 border-b border-line bg-surface/80 backdrop-blur-md">
+          <div className="flex min-h-16 items-center gap-3 px-4 py-2 md:px-8">
             {/* En el móvil, dentro de un módulo, la marca cede su lugar al regreso al Inicio. */}
             {app ? (
               <Link
@@ -294,9 +363,9 @@ export function AppShell() {
             {workspace}
             <div className="ml-auto flex shrink-0 items-center gap-2">
               <span className="hidden text-sm font-medium text-ink-muted md:inline">{me.data.member.displayName}</span>
-              <Button variant="ghost" size="sm" onClick={() => void signOut()} aria-label="Salir de PlatLab">
+              {/* En escritorio, «Salir» vive al pie de la barra lateral. */}
+              <Button variant="ghost" size="sm" className="md:hidden" onClick={() => void signOut()} aria-label="Salir de PlatLab">
                 <LogOut aria-hidden />
-                <span className="hidden md:inline">Salir</span>
               </Button>
             </div>
           </div>
@@ -304,7 +373,7 @@ export function AppShell() {
             // En el móvil, el módulo se nombra a la izquierda y no se desplaza: con varios módulos,
             // «Inventario» solo no basta. Las secciones se desplazan a su derecha; una máscara
             // desvanece los dos bordes y avisa de que hay más.
-            <div className="mt-2 flex items-center gap-1.5 md:hidden">
+            <div className="flex items-center gap-1.5 px-3 pb-2 md:hidden">
               <ModuleSwitcher base={base} apps={apps} current={app} compact />
               <nav
                 ref={pills}
@@ -316,7 +385,7 @@ export function AppShell() {
             </div>
           ) : null}
         </header>
-        <main className="px-4 pb-16 pt-6 md:px-6 md:pt-8">
+        <main className="px-4 pb-16 pt-6 md:px-8 md:pt-8">
           <Outlet context={{ workspaceId, me: me.data } satisfies ShellContext} />
         </main>
       </div>

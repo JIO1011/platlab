@@ -10,7 +10,7 @@
   --text-display: clamp(2rem, 1.4rem + 1.6vw, 2.75rem);
   --text-display--line-height: 1.1;
   --text-display--letter-spacing: -0.03em;
-  --text-display--font-weight: 600;
+  --text-display--font-weight: 700;
   --text-metric: 2.5rem;
   --text-metric--line-height: 1;
   --text-metric--letter-spacing: -0.03em;
@@ -22,19 +22,22 @@
   --text-body-lg: 0.9375rem;
   --text-body-lg--line-height: 1.45;
 
-  --color-canvas: #f5f7fb;
+  /* Escala pizarra de ReactiLab (ADR 0010, 04-10-2026), con el contraste de texto validado para AA. */
+  --color-canvas: #f8fafc;
   --color-surface: #ffffff;
-  --color-surface-sunken: #eef2f7;
-  --color-ink: #102a43;
-  --color-ink-muted: #526275;
-  --color-ink-subtle: #5e6d80;
-  --color-line: #dde4ed;
-  --color-line-strong: #c3cdd9;
+  --color-surface-sunken: #f1f5f9;
+  --color-ink: #1e293b;
+  --color-ink-muted: #475569;
+  --color-ink-subtle: #5b6b7f;
+  --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
 
   --color-action: #1f5f96;
   --color-action-hover: #1a5182;
   --color-action-pressed: #15426b;
   --color-action-soft: #e6eef7;
+  /* Extremo del degradado de la tarjeta de acción rápida: el acento se oscurece hacia su vecino. */
+  --color-action-deep: #15426b;
   --color-on-action: #ffffff;
   /* La marca PlatLab no cambia con el tema del módulo (ADR 0010, color por módulo). */
   --color-brand: #1f5f96;
@@ -48,14 +51,16 @@
   --color-danger: #b42318;
   --color-danger-soft: #fcebe9;
 
-  /* Precisión suave (ADR 0010, 02-10-2026): bordes redondos y sombras en capas, nunca un halo. */
-  --radius-control: 10px;
-  --radius-panel: 20px;
+  /* Diseño de ReactiLab (ADR 0010, 04-10-2026): esquinas amplias, borde fino con sombra mínima y
+     elevación al pasar el puntero. El borde va dentro de la sombra (un anillo de 1 px) para no
+     cambiar el tamaño de nada. */
+  --radius-control: 12px;
+  --radius-panel: 16px;
   --radius-card: 24px;
 
-  --shadow-raised: 0 1px 2px rgb(16 42 67 / 0.04), 0 6px 20px -10px rgb(16 42 67 / 0.14);
-  --shadow-float: 0 1px 2px rgb(16 42 67 / 0.04), 0 18px 40px -22px rgb(16 42 67 / 0.22);
-  --shadow-overlay: 0 24px 48px -16px rgb(16 42 67 / 0.28), 0 4px 12px -4px rgb(16 42 67 / 0.12);
+  --shadow-raised: 0 0 0 1px var(--color-line), 0 1px 2px rgb(15 23 42 / 0.05);
+  --shadow-float: 0 0 0 1px var(--color-line), 0 18px 40px -16px rgb(15 23 42 / 0.18);
+  --shadow-overlay: 0 24px 48px -16px rgb(15 23 42 / 0.28), 0 4px 12px -4px rgb(15 23 42 / 0.12);
 
   /* Movimiento (ADR 0010): pulsación corta, superposiciones desde su origen, hojas sin rebote. */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
@@ -156,10 +161,11 @@
  * quedan reservados para los estados.
  */
 [data-module='reagents'] {
-  /* Lila: 5,7:1 con blanco; el texto #6D28D9 sobre #F1EAFE, 6,1:1. */
-  --color-action: #7c3aed;
-  --color-action-hover: #6d28d9;
-  --color-action-pressed: #5b21b6;
-  --color-action-soft: #f1eafe;
-  --color-canvas-glow: #f1e9ff;
+  /* Índigo de ReactiLab: 6,3:1 con blanco; el texto #4F46E5 sobre #EEF2FF, 5,6:1. */
+  --color-action: #4f46e5;
+  --color-action-hover: #4338ca;
+  --color-action-pressed: #3730a3;
+  --color-action-soft: #eef2ff;
+  --color-action-deep: #6d28d9;
+  --color-canvas-glow: #eef0ff;
 }

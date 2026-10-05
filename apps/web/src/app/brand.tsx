@@ -1,8 +1,8 @@
 /** Marca de PlatLab: un matraz esquemático dibujado, sin emojis ni iconos genéricos. */
-export function Wordmark({ className, compact = false }: { className?: string; compact?: boolean }) {
+export function Wordmark({ className, compact = false, large = false }: { className?: string; compact?: boolean; large?: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-2 font-semibold tracking-[-0.02em] text-ink ${className ?? ''}`}>
-      <svg viewBox="0 0 24 24" className="size-6" aria-hidden>
+    <span className={`inline-flex items-center gap-2.5 font-semibold tracking-[-0.02em] text-ink ${className ?? ''}`}>
+      <svg viewBox="0 0 24 24" className={large ? 'size-10 drop-shadow-md' : 'size-6'} aria-hidden>
         <rect x="1" y="1" width="22" height="22" rx="6" fill="var(--color-brand)" />
         <path
           d="M10 6.5h4M10.75 6.5v4.1L7.4 16.4a1.4 1.4 0 0 0 1.2 2.1h6.8a1.4 1.4 0 0 0 1.2-2.1l-3.35-5.8V6.5"

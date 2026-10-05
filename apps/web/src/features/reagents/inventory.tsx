@@ -66,7 +66,7 @@ export function ReagentsInventoryPage() {
 
   if (products.isPending) {
     return (
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4" role="status" aria-busy="true" aria-label="Cargando">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-4" role="status" aria-busy="true" aria-label="Cargando">
         {[0, 1, 2].map((key) => (
           <Skeleton key={key} className="h-52 rounded-card" />
         ))}
@@ -118,7 +118,7 @@ export function ReagentsInventoryPage() {
           Ningún reactivo coincide con «{query}».
         </p>
       ) : (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-4">
           {visible.map((product) => (
             <li key={product.id}>
               <ProductCard product={product} to={`${base}/inventario/${product.id}`} />
@@ -142,9 +142,14 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
   return (
     <Link
       to={to}
-      className="group flex h-full flex-col gap-4 rounded-card bg-surface p-5 shadow-raised ring-1 ring-transparent transition-[box-shadow,--tw-ring-color] duration-150 hover:shadow-float hover:ring-action/25"
+      className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-card bg-surface p-6 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1"
     >
-      <div className="flex items-start gap-3">
+      {/* Marca de agua, como en ReactiLab: decorativa y casi invisible. */}
+      <FlaskConical
+        className="pointer-events-none absolute -bottom-5 -right-5 size-32 text-surface-sunken transition-[color,transform] duration-500 group-hover:text-action-soft motion-safe:group-hover:scale-110"
+        aria-hidden
+      />
+      <div className="relative flex items-start gap-3">
         <IconChip icon={(state && physicalStateIcon[state]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} />
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-[12px] font-semibold uppercase tracking-wide text-ink-muted">
@@ -153,11 +158,11 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
               <span className="ml-auto font-medium normal-case tracking-normal tabular-nums">CAS {product.casNumber}</span>
             ) : null}
           </p>
-          <h2 className="mt-1 font-semibold leading-snug text-ink transition-colors group-hover:text-action">{product.name}</h2>
+          <h2 className="mt-1 text-lg font-bold leading-snug text-ink transition-colors group-hover:text-action">{product.name}</h2>
           <p className="mt-0.5 text-[13px] text-ink-muted">{product.code}</p>
         </div>
       </div>
-      <div className="mt-auto border-t border-line pt-4">
+      <div className="relative mt-auto border-t border-line pt-4">
         {/* La píldora comparte fila con «Total»: la cifra siempre tiene su propia línea y todas las
             tarjetas tienen la misma estructura, sea cual sea el ancho del número. */}
         <div className="flex items-center justify-between gap-3">
@@ -171,7 +176,7 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
           value={product.balance}
           unit={product.baseUnit}
           // Un saldo muy largo baja la unidad a otra línea en lugar de salirse de la tarjeta.
-          className={cn('mt-1.5 block whitespace-normal text-metric-sm', empty ? 'text-ink-subtle' : 'text-action')}
+          className={cn('mt-1.5 block whitespace-normal text-3xl font-bold tracking-tight', empty ? 'text-ink-subtle' : 'text-action')}
         />
       </div>
     </Link>
@@ -355,7 +360,7 @@ export function ReagentsProductPage() {
             {containers.length === 0 ? 'Este reactivo aún no tiene frascos. Regístralos con un ingreso.' : 'Todos sus frascos están vacíos.'}
           </p>
         ) : (
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4">
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-4">
             {visible.map((position) => (
               <li key={position.id}>
                 <ContainerCard position={position} today={today} allowed={allowed} onAction={openSheet} />

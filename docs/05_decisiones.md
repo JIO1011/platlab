@@ -205,6 +205,17 @@ Cambio del 04-10-2026, tarjetas de catálogo con icono y color, pedido por el us
 - Los textos de apoyo mantienen el contraste AA: no se usa el gris muy claro de la referencia.
 - Se implementa con un componente compartido, `IconChip`, en `packages/ui`.
 
+Cambio del 04-10-2026 (segundo), la interfaz toma el diseño de ReactiLab, pedido por el usuario («quiero que mantengas el diseño del mencionado proyecto»). Sustituye los puntos de «precisión suave» que lo contradicen:
+- **Estructura.** Barra lateral pegada al borde, de ancho completo, con borde derecho, el logotipo, una tarjeta de la persona con su rol, el rótulo «Menú principal», elementos con icono, el activo relleno con el acento y «Salir» al pie; barra superior translúcida con borde. Ya no flotan como paneles.
+- **Tarjetas.** Borde fino de 1 px más sombra mínima, esquinas de 24 px, y elevación de 4 px con sombra amplia al pasar el puntero. El lienzo es un gris pizarra claro; los neutros pasan a la escala pizarra de ReactiLab, con el contraste de texto validado para AA.
+- **Indicadores.** Etiqueta, cifra grande y una línea de estado con un icono de color a la derecha. El color del icono es de estado cuando hay estado (por aprobar en ámbar, «Al día» en verde) y del acento del módulo si no lo hay.
+- **Acción rápida.** El Resumen de Reactivos abre con una tarjeta degradada del acento («Registrar movimiento»), con las acciones de ingreso y salida; sustituye a las acciones de la cabecera en esa sección. Lleva, como en ReactiLab, la pastilla «Gestión rápida», un resplandor suave y el matraz como marca de agua: son decoración pedida por el usuario y no se repiten en otras tarjetas.
+- **Actividad.** Línea de tiempo con círculos de icono y cantidad con signo sobre un fondo suave.
+- **Colores de movimiento.** La cifra con signo de una salida va en rojo suave y la de un ingreso en verde suave, como en ReactiLab. El signo y el tipo siguen escritos, así que el color nunca es el único dato. Esto cambia la «voz única» del ADR 0010 solo en la cifra de la fila de actividad; los botones y enlaces siguen en el acento.
+- **Acento de Reactivos.** Pasa del lila al índigo de ReactiLab (`#4F46E5`, 6,3:1 con blanco), con el degradado hacia violeta. La plataforma y el Inicio siguen en azul.
+- Se mantiene todo lo demás: accesibilidad AA, estados con texto, una acción primaria por pantalla, sin UI optimista y sin tocar datos ni reglas.
+- Solo se toma el lenguaje visual. No se copia su código, que tiene la licencia por aclarar (CLAUDE.md).
+
 <a id="adr-0011"></a>
 ## ADR 0011 — Inicio como tablero y cada módulo como app
 
