@@ -127,9 +127,10 @@ Inter Variable, una sola familia. El tamaño y el tracking cerrado dan la voz a 
 ## Layout
 
 - **Shell anclado** desde 768 px: barra lateral pegada al borde, de 288 px y alto completo, con borde derecho; barra superior fija (64 px mínimo), translúcida y con borde inferior. Ya no hay paneles flotantes. Por debajo de 768 px, solo la barra superior.
-- **Barra lateral:** logotipo, tarjeta de la persona con su rol, rótulo del menú («Menú principal» o «Menú de {módulo}»), elementos con icono (el activo, relleno con `action`) y «Salir» al pie.
+- **Barra lateral:** logotipo, «Espacio de trabajo» con su nombre (el selector si hay varios), tarjeta de la persona con su rol, rótulo del menú («Menú principal» o «Menú de {módulo}»), elementos con icono (el activo, relleno con `action`) y «Salir» al pie.
 - **Dos modos de navegación (ADR 0011).** En la plataforma, el menú es «Inicio»; los módulos se abren desde sus tarjetas. Dentro de un módulo, el menú es el de esa app: «← Inicio», el selector de módulo y las secciones del manifiesto. En el móvil, píldoras desplazables junto al selector compacto.
-- **Inicio** es un tablero con una tarjeta-enlace por módulo, de 20 rem como mínimo. **Entrada directa:** se abre el último espacio usado y se cambia desde la barra; no hay pantalla para elegir.
+- **Inicio** es un tablero con una tarjeta-enlace por módulo, de 20 rem como mínimo. **Entrada directa:** se abre el último espacio usado y se cambia desde la barra lateral (arriba en el móvil); no hay pantalla para elegir.
+- **Barra superior** en escritorio: dice dónde se está («Reactivos › Inventario», o «Inicio»), sin el nombre del espacio. El espacio es quien contrata, no un laboratorio (ADR 0011, 05-10-2026).
 - **Cabecera de módulo:** título Display y «Actualizado hace…» con la marca más antigua de lo que se ve. En el Resumen de Reactivos, las acciones de ingreso y salida no van en la cabecera sino en la tarjeta de acción rápida; en las demás secciones, a la derecha.
 - **Resumen:** acción rápida, cuatro StatCard en rejilla (2 columnas, 4 desde 1280 px), gráfico y actividad.
 - **Inventario en dos niveles (ADR 0012):** rejilla de tarjetas de reactivo y, en su ficha, una tarjeta por frasco. Solicitudes: una tarjeta por solicitud.

@@ -99,11 +99,11 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   // atrapa el foco, y axe no conoce esa trampa (lo mismo que con el Select).
   await expectAccessible(admin, 'inicio con cambio de espacio');
   await admin.getByRole('button', { name: /Cambiar de espacio de trabajo/ }).click();
-  await expect(admin.getByRole('menuitem', { name: /Laboratorio de Química/ })).toBeVisible();
-  await expect(admin.getByRole('menuitem', { name: /Laboratorio de Física/ })).toBeVisible();
+  await expect(admin.getByRole('menuitem', { name: /Facultad de Ciencias/ })).toBeVisible();
+  await expect(admin.getByRole('menuitem', { name: /Centro de Investigación/ })).toBeVisible();
   await capture(admin, 'desktop-workspace-switcher', false);
   await admin.keyboard.press('Escape');
-  await openReagents(admin, 'Laboratorio de Química');
+  await openReagents(admin, 'Facultad de Ciencias');
   await goTo(admin, 'Inventario');
 
   await admin.getByRole('button', { name: 'Nuevo reactivo' }).first().click();
@@ -118,7 +118,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
 
   // El Operador registra el ingreso por frascos y crea el lote en la misma hoja (ADR 0012, 01 §6.1).
   const operator = await signIn(browser, 'operador@demo.platlab.test');
-  await openReagents(operator, 'Laboratorio de Química');
+  await openReagents(operator, 'Facultad de Ciencias');
   await goTo(operator, 'Inventario');
   await expect(operator.getByRole('button', { name: 'Ajustar' })).toHaveCount(0);
   await expect(operator.getByRole('button', { name: 'Nuevo reactivo' })).toHaveCount(0);
@@ -150,7 +150,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await issue.getByLabel('Cantidad', { exact: true }).fill('20');
   await expect(issue.getByText('Quedarán')).toContainText('80');
   await pick(issue, 'Práctica de Química General');
-  await pick(issue, 'Laboratorio 1');
+  await pick(issue, 'Laboratorio de Química');
   await expectAccessible(operator, 'hoja de salida');
   await capture(operator, 'desktop-issue', false);
   await issue.getByRole('button', { name: 'Enviar solicitud' }).click();
@@ -231,7 +231,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
 
 test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol asignado', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
-  await switchTo(admin, 'Laboratorio de Física');
+  await switchTo(admin, 'Centro de Investigación');
   await expect(admin.getByText('No hay módulos para tu rol en este espacio')).toBeVisible();
   await expect(admin.getByRole('link', { name: /Reactivos/ })).toHaveCount(0);
   await expectAccessible(admin, 'inicio C');
@@ -244,14 +244,19 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
   await expect(owner.getByRole('heading', { level: 1 })).toContainText('Paula');
   // Con un solo espacio, su nombre es un título: no hay menú que no lleve a ningún lado.
   await expect(owner.getByRole('button', { name: /Cambiar de espacio de trabajo/ })).toHaveCount(0);
-  await expect(owner.getByText('Laboratorio de Química').first()).toBeVisible();
+  // ADR 0011, cambio del 05-10-2026: el espacio vive en la barra lateral; arriba, dónde se está.
+  await expect(owner.getByRole('complementary')).toContainText('Facultad de Ciencias');
   await owner.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(owner.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
+  const topBar = owner.getByRole('banner');
+  await expect(topBar).toContainText('Reactivos', { useInnerText: true });
+  await expect(topBar).not.toContainText('Facultad de Ciencias', { useInnerText: true });
   // El Resumen ofrece las acciones rápidas; ajustar y crear reactivos están en el Inventario.
   for (const name of ['Registrar salida', 'Registrar ingreso']) {
     await expect(owner.getByRole('button', { name, exact: true })).toBeVisible();
   }
   await goTo(owner, 'Inventario');
+  await expect(topBar).toContainText('Inventario', { useInnerText: true });
   for (const name of ['Nuevo reactivo', 'Ajustar']) {
     await expect(owner.getByRole('button', { name, exact: true })).toBeVisible();
   }
@@ -259,9 +264,9 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
 
 test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', async ({ browser }) => {
   const operator = await signIn(browser, 'operador@demo.platlab.test', { width: 360, height: 780 });
-  await switchTo(operator, 'Laboratorio de Biología');
+  await switchTo(operator, 'Instituto de Biotecnología');
   await expect(operator.getByRole('link', { name: 'Abrir Reactivos' })).toBeVisible();
-  await expect(operator.getByText('Laboratorio de Biología').first()).toBeVisible();
+  await expect(operator.getByText('Instituto de Biotecnología').filter({ visible: true })).toBeVisible();
   await expectAccessible(operator, 'inicio móvil');
   expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await capture(operator, 'mobile-home');
@@ -304,7 +309,7 @@ test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', as
 
 test('en tableta (820 px), Inicio y la app conservan la barra lateral y usan listas sin desplazarse en horizontal', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test', { width: 820, height: 1180 });
-  await switchTo(admin, 'Laboratorio de Química');
+  await switchTo(admin, 'Facultad de Ciencias');
   await expect(admin.getByRole('link', { name: 'Abrir Reactivos' })).toBeVisible();
   await expect(admin.getByRole('complementary')).toBeVisible();
   expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -329,10 +334,10 @@ test('en tableta (820 px), Inicio y la app conservan la barra lateral y usan lis
 
 test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado y tabla', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
-  await switchTo(admin, 'Laboratorio de Química');
+  await switchTo(admin, 'Facultad de Ciencias');
   // Volver a entrar abre el último espacio usado, sin pantalla para elegir (ADR 0011).
   await admin.goto('/');
-  await expect(admin.getByRole('button', { name: 'Laboratorio de Química. Cambiar de espacio de trabajo' })).toBeVisible();
+  await expect(admin.getByRole('button', { name: 'Facultad de Ciencias. Cambiar de espacio de trabajo' })).toBeVisible();
   // La tarjeta del Inicio resume el módulo con datos reales del historial de la demo.
   await expect(admin.getByText(/\d+ salidas? en los últimos 30 días/)).toBeVisible();
   await capture(admin, 'desktop-home');
@@ -375,7 +380,7 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
 
 test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelación (ADR 0012)', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
-  await openReagents(admin, 'Laboratorio de Química');
+  await openReagents(admin, 'Facultad de Ciencias');
   // La demo trae una solicitud pendiente del Operador: el Resumen la anuncia y abre la bandeja.
   await admin.getByRole('link', { name: /1 salida espera tu aprobación/ }).click();
   await expect(admin.getByRole('heading', { name: 'Solicitudes', level: 1 })).toBeVisible();
@@ -405,7 +410,7 @@ test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelaci
 
   // El Operador pide otra salida, la cancela y ve el rechazo con su motivo.
   const operator = await signIn(browser, 'operador@demo.platlab.test');
-  await openReagents(operator, 'Laboratorio de Química');
+  await openReagents(operator, 'Facultad de Ciencias');
   await operator.getByRole('button', { name: 'Solicitar salida' }).click();
   const issue = operator.getByRole('dialog', { name: 'Solicitar salida' });
   await choose(operator, 'Frasco', /HCL-2026-01-01/);
@@ -413,7 +418,7 @@ test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelaci
   // El atajo escribe la cantidad sin separador de miles: más de 1.000 mL no se lee como decimal.
   await expect(issue.getByText(/^Quedarán/)).toHaveText(/^Quedarán 0\s*mL en el frasco\.$/);
   await pick(issue, 'Preparación de soluciones');
-  await pick(issue, 'Laboratorio 2');
+  await pick(issue, 'Laboratorio de Física');
   await issue.getByRole('button', { name: 'Enviar solicitud' }).click();
   await expect(operator.getByText('Solicitud enviada')).toBeVisible();
   // Con todo el frasco apartado, su tarjeta lo dice y ya no ofrece «Salida»; el otro frasco, sí.
@@ -448,7 +453,7 @@ test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelaci
  */
 test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de vencido y ajuste (ADR 0012)', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
-  await openReagents(admin, 'Laboratorio de Química');
+  await openReagents(admin, 'Facultad de Ciencias');
   await goTo(admin, 'Inventario');
   // Lo que no tiene saldo se oculta, pero no desaparece.
   await expect(admin.getByRole('link', { name: /Acetona/ })).toHaveCount(0);
@@ -491,7 +496,7 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
 
 test('stock insuficiente: la salida se rechaza en el formulario y el saldo no cambia', async ({ browser }) => {
   const operator = await signIn(browser, 'operador@demo.platlab.test');
-  await openReagents(operator, 'Laboratorio de Biología');
+  await openReagents(operator, 'Instituto de Biotecnología');
   await goTo(operator, 'Inventario');
   await operator.getByRole('link', { name: /Etanol 96 %/ }).click();
   const ethanol = operator.getByRole('article').filter({ hasText: 'ETOH-2026-01-01' });
@@ -503,7 +508,7 @@ test('stock insuficiente: la salida se rechaza en el formulario y el saldo no ca
   // Antes de enviar ya se ve que no alcanza; el servidor lo confirma igual.
   await expect(issue.getByText('No alcanza: el frasco tiene 500 mL.')).toBeVisible();
   await pick(issue, 'Práctica de Química General');
-  await pick(issue, 'Laboratorio 2');
+  await pick(issue, 'Laboratorio de Física');
   await issue.getByRole('button', { name: 'Registrar salida' }).click();
   await expect(issue.getByText('No alcanza: el frasco tiene 500 mL.')).toBeVisible();
   await expect(issue.getByLabel('Cantidad', { exact: true })).toHaveAttribute('aria-invalid', 'true');
@@ -534,7 +539,7 @@ test('modo consulta: sin operación nueva no hay acciones de registro, solo inve
     me.modules = me.modules.map((module) => (module.code === 'reagents' ? { ...module, access: ['read_export'] } : module));
     await route.fulfill({ response, json: me });
   });
-  await openReagents(admin, 'Laboratorio de Química');
+  await openReagents(admin, 'Facultad de Ciencias');
   await expect(admin.getByRole('status').filter({ hasText: 'Reactivos está en modo consulta' })).toBeVisible();
   await goTo(admin, 'Inventario');
   await admin.getByRole('link', { name: /Cloruro de sodio\b(?! MUR)/ }).first().click();
@@ -554,7 +559,7 @@ test('error: un fallo del servidor muestra «Reintentar» y al reintentar se rec
     const response = await route.fetch();
     await route.fulfill({ response, status: 500, json: { error: { code: 'INTERNAL', message: 'Fallo simulado' } } });
   });
-  await switchTo(admin, 'Laboratorio de Química');
+  await switchTo(admin, 'Facultad de Ciencias');
   await admin.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(admin.getByText('No pudimos cargar esta información')).toBeVisible();
   await expectAccessible(admin, 'error');

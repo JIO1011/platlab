@@ -48,9 +48,9 @@ insert into platform.customer_accounts (id, legal_name)
 values ('d1000000-0000-4000-8000-000000000001', 'Universidad Demo (sintética)');
 
 insert into core.workspaces (id, customer_account_id, code, name, time_zone) values
-  ('da000000-0000-4000-8000-00000000000a', 'd1000000-0000-4000-8000-000000000001', 'demo-quimica', 'Laboratorio de Química', 'America/Guayaquil'),
-  ('db000000-0000-4000-8000-00000000000b', 'd1000000-0000-4000-8000-000000000001', 'demo-biologia', 'Laboratorio de Biología', 'America/Guayaquil'),
-  ('dc000000-0000-4000-8000-00000000000c', 'd1000000-0000-4000-8000-000000000001', 'demo-fisica', 'Laboratorio de Física', 'America/Guayaquil');
+  ('da000000-0000-4000-8000-00000000000a', 'd1000000-0000-4000-8000-000000000001', 'demo-ciencias', 'Facultad de Ciencias', 'America/Guayaquil'),
+  ('db000000-0000-4000-8000-00000000000b', 'd1000000-0000-4000-8000-000000000001', 'demo-biotecnologia', 'Instituto de Biotecnología', 'America/Guayaquil'),
+  ('dc000000-0000-4000-8000-00000000000c', 'd1000000-0000-4000-8000-000000000001', 'demo-investigacion', 'Centro de Investigación', 'America/Guayaquil');
 
 insert into core.identities (id, provider, provider_subject, display_name) values
   ('d2000000-0000-4000-8000-000000000001', 'supabase', 'd0000000-0000-4000-8000-000000000001', 'Ana Administradora'),
@@ -84,7 +84,8 @@ update core.workspaces set owner_membership_id = 'dc100000-0000-4000-8000-000000
 insert into core.locations (id, workspace_id, parent_id, kind, code, name) values
   ('da300000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', null, 'site', 'SEDE', 'Sede central'),
   ('da300000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000001', 'storage', 'ALM-REA', 'Almacén de reactivos'),
-  ('da300000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000001', 'room', 'LAB-1', 'Laboratorio 1'),
+  ('da300000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000001', 'room', 'LAB-QUI', 'Laboratorio de Química'),
+  ('da300000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000001', 'room', 'LAB-FIS', 'Laboratorio de Física'),
   ('db300000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', null, 'site', 'SEDE', 'Sede norte'),
   ('db300000-0000-4000-8000-000000000002', 'db000000-0000-4000-8000-00000000000b', 'db300000-0000-4000-8000-000000000001', 'storage', 'ALM-BIO', 'Almacén de biología'),
   ('dc300000-0000-4000-8000-000000000001', 'dc000000-0000-4000-8000-00000000000c', null, 'site', 'SEDE', 'Sede sur');
@@ -221,7 +222,7 @@ begin
       insert into inventory.operations
         (workspace_id, type, actor_principal_id, requested_by_principal_id, reason, destination, effective_at, correlation_id)
       values ('da000000-0000-4000-8000-00000000000a', 'issue', 'da200000-0000-4000-8000-000000000001',
-              'da200000-0000-4000-8000-000000000002', reasons[1 + sequence_n % 5], 'Laboratorio 1',
+              'da200000-0000-4000-8000-000000000002', reasons[1 + sequence_n % 5], 'Laboratorio de Química',
               ((now() at time zone 'America/Guayaquil')::date - day_offset + make_interval(hours => 8 + i * 2))
                 at time zone 'America/Guayaquil',
               gen_random_uuid())
@@ -287,7 +288,7 @@ begin
       (7, 'receipt', 1000, 20, 1, null, null),
       (8, 'receipt', 1000, 20, 1, null, null),
       (9, 'receipt', 500, 18, 1, null, null),
-      (9, 'issue', -500, 5, 2, 'Práctica de Química Orgánica', 'Laboratorio 2')
+      (9, 'issue', -500, 5, 2, 'Práctica de Química Orgánica', 'Laboratorio de Física')
     ) as m (position_n, type, quantity, days_ago, actor_n, reason, destination)
   loop
     insert into inventory.operations (workspace_id, type, actor_principal_id, reason, destination, reference, effective_at, correlation_id)
@@ -319,14 +320,14 @@ select w.id, 'reagent', r.kind, r.name
 insert into inventory.destinations (workspace_id, item_kind, name)
 select w.id, 'reagent', d.name
   from (values ('da000000-0000-4000-8000-00000000000a'::uuid), ('db000000-0000-4000-8000-00000000000b'::uuid)) as w (id)
- cross join (values ('Laboratorio 1'), ('Laboratorio 2'), ('Bodega central')) as d (name);
+ cross join (values ('Laboratorio de Química'), ('Laboratorio de Física'), ('Bodega central')) as d (name);
 
--- Una solicitud de salida pendiente del Operador en Química (ADR 0012): aparta 50 g del primer
+-- Una solicitud de salida pendiente del Operador en la Facultad de Ciencias (ADR 0012): aparta 50 g del primer
 -- frasco de NaCl hasta que la Administradora la apruebe o la rechace.
 update inventory.positions set reserved = 50 where id = 'da800000-0000-4000-8000-000000000001';
 insert into inventory.allocations
   (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id, created_at)
 values ('da000000-0000-4000-8000-00000000000a', 'da800000-0000-4000-8000-000000000001', 50,
-        'Práctica de Análisis Químico', 'Laboratorio 2', 'da200000-0000-4000-8000-000000000002', now() - interval '2 hours');
+        'Práctica de Análisis Químico', 'Laboratorio de Física', 'da200000-0000-4000-8000-000000000002', now() - interval '2 hours');
 
 commit;

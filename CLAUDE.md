@@ -126,6 +126,10 @@ Decidido el 04-10-2026:
 - La interfaz toma el diseño de ReactiLab: barra lateral pegada con el activo relleno, tarjetas con borde fino y elevación, indicadores con icono, acción rápida degradada y actividad como línea de tiempo (ADR 0010). Solo el lenguaje visual; su código no se copia.
 - Las tarjetas de catálogo de todos los módulos siguen un mismo patrón con el componente `IconChip`; verde, ámbar y rojo siguen siendo de estado (ADR 0010).
 
+Decidido el 05-10-2026:
+
+- El espacio de trabajo es quien contrata (una facultad o un instituto), no un laboratorio. Química, Física, etc. son laboratorios dentro del espacio: ubicaciones hoy, y M4 Laboratorios en F3. Dentro de un módulo, la barra superior dice dónde se está, y el selector de espacio va en la barra lateral (ADR 0011).
+
 El modelo comercial sigue pendiente: la recomendación está en 01 §4 y debe confirmarla el usuario.
 
 No volver a preguntar estas decisiones.

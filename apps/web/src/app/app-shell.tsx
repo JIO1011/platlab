@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   Boxes,
   Check,
+  ChevronRight,
   ChevronsUpDown,
   FlaskConical,
   House,
@@ -152,8 +153,8 @@ function ModuleSwitcher({
 const statusLabel: Record<string, string> = { trial: 'Prueba', suspended: 'Suspendido', closing: 'En cierre' };
 
 /**
- * Cambio de espacio desde la barra (ADR 0011, entrada directa): el nombre del espacio abre un menú
- * con los demás y lleva al Inicio del elegido. El nombre actual nunca se recorta.
+ * Cambio de espacio (ADR 0011): el nombre del espacio, en la barra lateral o arriba en el móvil,
+ * abre un menú con los demás y lleva al Inicio del elegido. El nombre actual nunca se recorta.
  */
 function WorkspaceSwitcher({ current, workspaces }: { current: { id: string; name: string }; workspaces: WorkspaceSummary[] }) {
   const navigate = useNavigate();
@@ -163,7 +164,7 @@ function WorkspaceSwitcher({ current, workspaces }: { current: { id: string; nam
         aria-label={`${current.name}. Cambiar de espacio de trabajo`}
         className="-mx-2 flex min-w-0 items-center gap-2 rounded-control px-2 py-1.5 text-left transition-colors hover:bg-surface-sunken data-[state=open]:bg-surface-sunken"
       >
-        <span className="text-body-lg font-semibold leading-snug text-ink">{current.name}</span>
+        <span className="text-base font-semibold leading-snug text-ink">{current.name}</span>
         <ChevronsUpDown className="size-4 shrink-0 text-ink-muted" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-72">
@@ -273,8 +274,12 @@ export function AppShell() {
     workspaceList.length > 1 ? (
       <WorkspaceSwitcher current={me.data.workspace} workspaces={workspaceList} />
     ) : (
-      <span className="text-body-lg font-semibold leading-snug text-ink">{me.data.workspace.name}</span>
+      <span className="text-base font-semibold leading-snug text-ink">{me.data.workspace.name}</span>
     );
+
+  // La sección actual del módulo, para decir arriba dónde se está; la ficha cuenta como Inventario.
+  const sectionPath = app ? (pathname.slice(`${base}/${app.path}`.length + 1).split('/')[0] ?? '') : '';
+  const section = app?.sections.find((entry) => entry.path === sectionPath);
 
   const initials = me.data.member.displayName
     .split(' ')
@@ -289,6 +294,11 @@ export function AppShell() {
         <Link to={base} aria-label="PlatLab, ir al Inicio" className="px-8 pb-6 pt-8">
           <Wordmark large className="text-2xl font-bold" />
         </Link>
+        {/* El espacio es quien contrata, no un laboratorio; aquí se ve y se cambia (ADR 0011, 05-10-2026). */}
+        <div className="mx-6 mb-3 px-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-ink-subtle">Espacio de trabajo</p>
+          <div className="mt-0.5 flex">{workspace}</div>
+        </div>
         {/* La persona y su rol, como la tarjeta de ReactiLab. */}
         <div className="mx-6 mb-6 flex items-center gap-3 rounded-panel border border-line bg-canvas p-4">
           <span
@@ -360,7 +370,18 @@ export function AppShell() {
                 <Wordmark compact />
               </Link>
             )}
-            {workspace}
+            {/* En el móvil no hay barra lateral: el espacio se cambia aquí. */}
+            <div className="flex min-w-0 md:hidden">{workspace}</div>
+            {/* En escritorio, la barra dice dónde se está: módulo › sección. */}
+            <p className="hidden min-w-0 items-center gap-1.5 text-sm md:flex">
+              <span className="font-semibold text-ink">{app ? app.name : 'Inicio'}</span>
+              {section ? (
+                <>
+                  <ChevronRight className="size-4 shrink-0 text-ink-subtle" aria-hidden />
+                  <span className="truncate text-ink-muted">{section.label}</span>
+                </>
+              ) : null}
+            </p>
             <div className="ml-auto flex shrink-0 items-center gap-2">
               <span className="hidden text-sm font-medium text-ink-muted md:inline">{me.data.member.displayName}</span>
               {/* En escritorio, «Salir» vive al pie de la barra lateral. */}

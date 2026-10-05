@@ -43,9 +43,9 @@ Contraseña de todas: `platlab-demo`. Los datos son sintéticos (`supabase/seeds
 
 | Correo | Quién es |
 |---|---|
-| `admin@demo.platlab.test` | Ana Administradora: Administradora en Química, y propietaria en Física |
-| `operador@demo.platlab.test` | Óscar Operador: Operador en Química, y propietario y Administrador en Biología |
-| `propietaria@demo.platlab.test` | Paula Propietaria: propietaria de Química, con los permisos del Administrador |
+| `admin@demo.platlab.test` | Ana Administradora: Administradora en la Facultad de Ciencias, y propietaria del Centro de Investigación |
+| `operador@demo.platlab.test` | Óscar Operador: Operador en la Facultad de Ciencias, y propietario y Administrador del Instituto de Biotecnología |
+| `propietaria@demo.platlab.test` | Paula Propietaria: propietaria de la Facultad de Ciencias, con los permisos del Administrador |
 | `docente@demo.platlab.test` | Diego Docente: sin permisos en Reactivos |
 
 Para ver el ciclo de aprobación, abre dos sesiones (una ventana normal y otra de incógnito): el Operador pide una salida desde la ficha de un reactivo y la Administradora la aprueba en **Solicitudes**.

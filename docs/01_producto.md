@@ -190,7 +190,7 @@ Casos especiales:
 
 ## 7. Cómo se ve la plataforma
 
-Recorrido: iniciar sesión → Inicio del último espacio usado, el tablero de módulos → abrir un módulo, que funciona como una app propia con su color ([ADR 0011](05_decisiones.md#adr-0011)). Quien tiene varios espacios cambia desde el nombre del espacio en la barra superior.
+Recorrido: iniciar sesión → Inicio del último espacio usado, el tablero de módulos → abrir un módulo, que funciona como una app propia con su color ([ADR 0011](05_decisiones.md#adr-0011)). Quien tiene varios espacios cambia desde el nombre del espacio, en la barra lateral (arriba en el móvil); dentro de un módulo, la barra superior dice dónde se está.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────┐

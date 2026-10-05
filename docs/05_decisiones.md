@@ -14,7 +14,7 @@ Revisión: 2 de octubre de 2026. Registro resumido de decisiones de arquitectura
 | [0008](#adr-0008) | Roles y actores | Aceptado el 30-09-2026; propietario con los permisos del Administrador el 02-10-2026; la matriz detallada se valida en P-03 |
 | [0009](#adr-0009) | Etapas de módulo y admisión de operaciones | Aceptado el 30-09-2026; marca de ambiente el 01-10-2026 |
 | [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026; «precisión suave» y color por módulo el 02-10-2026 |
-| [0011](#adr-0011) | Inicio como tablero y cada módulo como app | Aceptado el 02-10-2026; entrada directa al último espacio el mismo día |
+| [0011](#adr-0011) | Inicio como tablero y cada módulo como app | Aceptado el 02-10-2026; entrada directa al último espacio el mismo día; selector de espacio en la barra lateral el 05-10-2026 |
 | [0012](#adr-0012) | Reactivos por frasco y salidas con aprobación | Aceptado el 02-10-2026 |
 
 <a id="adr-0001"></a>
@@ -251,6 +251,10 @@ Cambio del 02-10-2026, entrada directa, decidido por el usuario:
 - Al iniciar sesión no hay pantalla para elegir espacio. Se abre el último espacio usado en ese navegador; la primera vez, el primero de la lista.
 - Se cambia de espacio desde su nombre en la barra superior, que abre un menú con los demás y lleva al Inicio del elegido.
 - Así todos los roles entran igual. Lo que cambia es lo que cada uno puede hacer; Administración, por ejemplo, solo la ve el propietario.
+
+Cambio del 05-10-2026, decidido por el usuario:
+- **El espacio es quien contrata, no un laboratorio.** Es la unidad con operación propia, por ejemplo una facultad o un instituto ([01 §2](01_producto.md#2-clientes-espacios-y-aislamiento)). Química, Física y los demás laboratorios viven dentro del espacio: hoy como ubicaciones y, desde F3, como espacios físicos con agenda en M4 Laboratorios. La demo los nombra así.
+- **Dentro de un módulo, la barra superior dice dónde se está** (módulo › sección), no el nombre del espacio. En escritorio, el nombre del espacio y su selector pasan a la barra lateral, sobre la tarjeta de la persona. En el móvil, sin barra lateral, el selector sigue arriba. Reemplaza «desde su nombre en la barra superior» del cambio anterior.
 
 <a id="adr-0012"></a>
 ## ADR 0012 — Reactivos por frasco y salidas con aprobación
