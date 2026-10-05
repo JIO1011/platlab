@@ -1,5 +1,5 @@
 import { entryList, type ListEntry } from '@platlab/contracts';
-import { Button, Input, cn } from '@platlab/ui';
+import { Button, Input, cn, sectionLabel } from '@platlab/ui';
 import { Plus } from 'lucide-react';
 import { useId, useState } from 'react';
 import { commandErrorMessage, useCommand } from './commands';
@@ -70,7 +70,7 @@ export function ChoiceField({
       {/* La leyenda va primero para nombrar el grupo; se ve la misma etiqueta junto a «Agregar». */}
       <legend className="sr-only">{label}</legend>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-ink" aria-hidden>
+        <span className={sectionLabel} aria-hidden>
           {label}
         </span>
         {canAdd && !adding ? (

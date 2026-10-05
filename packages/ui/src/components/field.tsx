@@ -25,10 +25,15 @@ export interface FieldProps {
   error?: string | undefined;
   optional?: boolean;
   className?: string;
+  /** Estilo del rótulo; por defecto, el de un campo. */
+  labelClassName?: string;
   children: ReactNode;
 }
 
-export function Field({ label, hint, error, optional = false, className, children }: FieldProps) {
+/** Rótulo de sección de las ventanas emergentes (como ReactiLab): pequeño, en mayúsculas y atenuado. */
+export const sectionLabel = 'text-xs font-semibold uppercase tracking-wider text-ink-muted';
+
+export function Field({ label, hint, error, optional = false, className, labelClassName, children }: FieldProps) {
   const id = useId();
   const hintId = hint && !error ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
@@ -39,8 +44,8 @@ export function Field({ label, hint, error, optional = false, className, childre
   };
 
   return (
-    <div className={cn('grid content-start gap-1.5', className)}>
-      <label htmlFor={id} className="text-sm font-medium text-ink">
+    <div className={cn('grid grid-cols-1 content-start gap-1.5', className)}>
+      <label htmlFor={id} className={cn('text-sm font-medium text-ink', labelClassName)}>
         {label}
         {optional ? <span className="ml-1 font-normal text-ink-subtle">(opcional)</span> : null}
       </label>

@@ -213,6 +213,7 @@ Cambio del 04-10-2026 (segundo), la interfaz toma el diseño de ReactiLab, pedid
 - **Actividad.** Línea de tiempo con círculos de icono y cantidad con signo sobre un fondo suave.
 - **Colores de movimiento.** La cifra con signo de una salida va en rojo suave y la de un ingreso en verde suave, como en ReactiLab. El signo y el tipo siguen escritos, así que el color nunca es el único dato. Esto cambia la «voz única» del ADR 0010 solo en la cifra de la fila de actividad; los botones y enlaces siguen en el acento.
 - **Acento de Reactivos.** Pasa del lila al índigo de ReactiLab (`#4F46E5`, 6,3:1 con blanco), con el degradado hacia violeta. La plataforma y el Inicio siguen en azul.
+- **Ventanas emergentes.** Los formularios de movimiento (nuevo reactivo, ingreso, salida y ajuste) se conservan como ventanas emergentes, pero pasan de hoja lateral o inferior a una ventana centrada, como el modal de salida de ReactiLab: cabecera con cuadro de icono, título y cierre; secciones separadas por líneas con rótulos en mayúsculas; en la salida y el ajuste, el stock con su barra y la cantidad grande y centrada con atajos; motivo y destino en píldoras; y al pie, «Cancelar» y un botón ancho degradado. El formulario, la validación y la acción siguen igual. Sustituye lo dicho en este ADR sobre «hoja lateral o inferior».
 - Se mantiene todo lo demás: accesibilidad AA, estados con texto, una acción primaria por pantalla, sin UI optimista y sin tocar datos ni reglas.
 - Solo se toma el lenguaje visual. No se copia su código, que tiene la licencia por aclarar (CLAUDE.md).
 

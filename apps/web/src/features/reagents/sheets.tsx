@@ -17,7 +17,10 @@ import {
   Quantity,
   Select,
   Sheet,
+  cn,
   formatDecimal,
+  ratioPercent,
+  sectionLabel,
   normalizeDecimalInput,
   percentOfDecimal,
   subtractDecimal,
@@ -25,6 +28,7 @@ import {
   toast,
   type SelectOption,
 } from '@platlab/ui';
+import { ArrowDownToLine, ArrowUpFromLine, FlaskConical, Scale, type LucideIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type FieldValues, type Path, type UseFormReturn } from 'react-hook-form';
 import type { z } from 'zod';
@@ -73,22 +77,27 @@ function validate<S extends z.ZodType, F extends FieldValues>(
 function FormSheet({
   title,
   description,
+  icon,
   open,
   onOpenChange,
   submitLabel,
   pending,
   generalError,
   onSubmit,
+  sections = false,
   children,
 }: {
   title: string;
   description: string;
+  icon: LucideIcon;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   submitLabel: string;
   pending: boolean;
   generalError: string | null;
   onSubmit: () => void;
+  /** Cada hijo es una sección separada por una línea, como el modal de salida de ReactiLab. */
+  sections?: boolean;
   children: ReactNode;
 }) {
   const formId = `form-${title.replace(/\s+/g, '-').toLowerCase()}`;
@@ -98,12 +107,19 @@ function FormSheet({
       onOpenChange={onOpenChange}
       title={title}
       description={description}
+      icon={icon}
       footer={
         <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" className="h-12 shrink-0 rounded-2xl px-5" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button type="submit" form={formId} variant="primary" loading={pending}>
+          <Button
+            type="submit"
+            form={formId}
+            variant="primary"
+            loading={pending}
+            className="h-12 flex-1 rounded-2xl bg-linear-to-r from-action to-action-deep text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep"
+          >
             {submitLabel}
           </Button>
         </>
@@ -112,7 +128,11 @@ function FormSheet({
       <form
         id={formId}
         noValidate
-        className="grid gap-5"
+        className={cn(
+          // Una sola columna del ancho disponible: un nombre largo en un selector no ensancha la ventana.
+          'grid grid-cols-1',
+          sections ? 'divide-y divide-line [&>*]:py-4 [&>:first-child]:pt-0 [&>:last-child]:pb-0' : 'gap-5',
+        )}
         onSubmit={(event) => {
           event.preventDefault();
           onSubmit();
@@ -252,6 +272,7 @@ export function NewProductSheet({ workspaceId, open, onOpenChange }: SheetBasePr
 
   return (
     <FormSheet
+      icon={FlaskConical}
       title="Nuevo reactivo"
       description="Se crea en el catálogo del espacio. Después podrás registrar sus lotes."
       open={open}
@@ -390,6 +411,7 @@ export function ReceiptSheet({
 
   return (
     <FormSheet
+      icon={ArrowDownToLine}
       title="Registrar ingreso"
       description="Suma frascos de un lote en una ubicación. Cada frasco recibe su código."
       open={open}
@@ -556,6 +578,9 @@ export function IssueSheet({
   const remaining = available !== null && quantity ? subtractDecimal(available, quantity) : null;
   // Con algo apartado, las cifras dicen «disponible»: el saldo del frasco no es lo que se puede sacar.
   const reservedNote = position && position.reserved !== '0' ? ' disponibles' : '';
+  // La barra del stock cuenta lo que quedará (o lo disponible si aún no hay cantidad) frente a lo que entró.
+  const barBase = remaining !== null && !remaining.startsWith('-') ? remaining : available;
+  const stockPercent = position?.container?.initialQuantity && barBase ? ratioPercent(barBase, position.container.initialQuantity) : null;
 
   const submit = form.handleSubmit(async (values) => {
     setGeneralError(null);
@@ -598,6 +623,8 @@ export function IssueSheet({
 
   return (
     <FormSheet
+      sections
+      icon={ArrowUpFromLine}
       title={needsApproval ? 'Solicitar salida' : 'Registrar salida'}
       description={
         needsApproval
@@ -611,93 +638,118 @@ export function IssueSheet({
       generalError={generalError}
       onSubmit={() => void submit()}
     >
-      <Field label="Frasco" error={errors.positionId?.message}>
-        <Controller
-          control={form.control}
-          name="positionId"
-          render={({ field }) => (
-            <Select
-              value={field.value || undefined}
-              onValueChange={field.onChange}
-              options={scoped.filter((p) => availableOf(p) !== '0').sort(byProductThenExpiry).map(issueOption)}
-              placeholder={productId ? 'Elige el frasco' : 'Elige reactivo, frasco y ubicación'}
-            />
-          )}
-        />
-      </Field>
-      {position && isExpired(position, today) ? (
-        <p role="alert" className="rounded-control bg-warning-soft px-3 py-2.5 text-sm text-warning">
-          Este frasco venció el {formatDate(position.lot.expiresOn ?? '')}. Puedes registrar la salida; quedará en el
-          historial con su caducidad.
-        </p>
-      ) : null}
-      {suggestion ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-action-soft px-3 py-2.5 text-sm text-ink">
-          <span>
-            Vence antes: <strong className="font-semibold">{suggestion.container?.code ?? suggestion.lot.code}</strong>
-            {suggestion.lot.expiresOn ? ` (${formatDate(suggestion.lot.expiresOn)})` : ''}.
-          </span>
-          <Button type="button" size="sm" onClick={() => form.setValue('positionId', suggestion.id)}>
-            Usar ese frasco
-          </Button>
-        </div>
-      ) : null}
-      <Field
-        label="Cantidad"
-        error={errors.quantity?.message}
-        hint={
-          position && available !== null && remaining !== null ? (
-            remaining.startsWith('-') ? (
-              <span className="font-medium text-danger">
-                No alcanza: el frasco tiene {formatDecimal(available)} {position.unit}
-                {reservedNote}.
-              </span>
-            ) : (
-              <span>
-                Quedarán <Quantity value={remaining} unit={position.unit} className="font-medium text-ink" />
-                {reservedNote} en el frasco.
-              </span>
-            )
-          ) : position && available !== null ? (
+      <div className="grid grid-cols-1 gap-3">
+        <Field label="Frasco" error={errors.positionId?.message}>
+          <Controller
+            control={form.control}
+            name="positionId"
+            render={({ field }) => (
+              <Select
+                value={field.value || undefined}
+                onValueChange={field.onChange}
+                options={scoped.filter((p) => availableOf(p) !== '0').sort(byProductThenExpiry).map(issueOption)}
+                placeholder={productId ? 'Elige el frasco' : 'Elige reactivo, frasco y ubicación'}
+              />
+            )}
+          />
+        </Field>
+        {position && isExpired(position, today) ? (
+          <p role="alert" className="rounded-control bg-warning-soft px-3 py-2.5 text-sm text-warning">
+            Este frasco venció el {formatDate(position.lot.expiresOn ?? '')}. Puedes registrar la salida; quedará en el
+            historial con su caducidad.
+          </p>
+        ) : null}
+        {suggestion ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-action-soft px-3 py-2.5 text-sm text-ink">
             <span>
-              Hay <Quantity value={available} unit={position.unit} className="font-medium text-ink" />
-              {reservedNote} en el frasco
-              {position.reserved !== '0' ? (
-                <>
-                  {' '}
-                  (<Quantity value={position.reserved} unit={position.unit} /> apartados en solicitudes)
-                </>
-              ) : null}
-              .
+              Vence antes: <strong className="font-semibold">{suggestion.container?.code ?? suggestion.lot.code}</strong>
+              {suggestion.lot.expiresOn ? ` (${formatDate(suggestion.lot.expiresOn)})` : ''}.
             </span>
-          ) : undefined
-        }
-      >
-        <div className="relative">
-          <Input inputMode="decimal" autoComplete="off" className="pr-14 tabular-nums" {...form.register('quantity')} />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted">
-            {position?.unit ?? ''}
-          </span>
-        </div>
-      </Field>
-      {position ? (
-        <div className="-mt-2 flex flex-wrap gap-2" role="group" aria-label="Atajos de cantidad">
-          {([25, 50, 100] as const).map((percent) => (
-            <button
-              key={percent}
-              type="button"
-              onClick={() => {
-                const value = percentOfDecimal(availableOf(position), percent);
-                // Sin separador de miles: «2.257» volvería como 2,257 al normalizar el campo.
-                if (value) form.setValue('quantity', toDecimalInput(value), { shouldValidate: false });
-              }}
-              className="inline-flex h-9 items-center rounded-full border border-line px-3.5 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
-            >
-              {percent === 100 ? 'Todo el frasco' : `${percent} %`}
-            </button>
-          ))}
+            <Button type="button" size="sm" onClick={() => form.setValue('positionId', suggestion.id)}>
+              Usar ese frasco
+            </Button>
+          </div>
+        ) : null}
+      </div>
+      <div className="grid grid-cols-1 gap-4">
+      {position && available !== null ? (
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <span className={sectionLabel}>Stock disponible</span>
+            <Quantity value={available} unit={position.unit} className="text-lg font-bold text-ink" />
+          </div>
+          {stockPercent !== null ? (
+            <div className="h-2 overflow-hidden rounded-full bg-surface-sunken" aria-hidden>
+              <div className="h-full rounded-full bg-action transition-[width] duration-300" style={{ width: `${stockPercent}%` }} />
+            </div>
+          ) : null}
         </div>
       ) : null}
+        <Field
+          label="Cantidad"
+          className="text-center"
+          labelClassName={sectionLabel}
+          error={errors.quantity?.message}
+          hint={
+            position && available !== null && remaining !== null ? (
+              remaining.startsWith('-') ? (
+                <span className="font-medium text-danger">
+                  No alcanza: el frasco tiene {formatDecimal(available)} {position.unit}
+                  {reservedNote}.
+                </span>
+              ) : (
+                <span>
+                  Quedarán <Quantity value={remaining} unit={position.unit} className="font-medium text-ink" />
+                  {reservedNote} en el frasco.
+                </span>
+              )
+            ) : position && available !== null ? (
+              <span>
+                Hay <Quantity value={available} unit={position.unit} className="font-medium text-ink" />
+                {reservedNote} en el frasco
+                {position.reserved !== '0' ? (
+                  <>
+                    {' '}
+                    (<Quantity value={position.reserved} unit={position.unit} /> apartados en solicitudes)
+                  </>
+                ) : null}
+                .
+              </span>
+            ) : undefined
+          }
+        >
+          {/* La cantidad es el centro de la ventana: grande, centrada y con la unidad al lado. */}
+          <div className="relative mx-auto w-full max-w-xs">
+            <Input
+              inputMode="decimal"
+              autoComplete="off"
+              className="h-14 rounded-none border-0 border-b-2 border-line-strong bg-transparent px-14 text-center text-4xl font-bold tabular-nums focus-visible:ring-0 aria-[invalid=true]:ring-0"
+              {...form.register('quantity')}
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xl text-ink-muted">
+              {position?.unit ?? ''}
+            </span>
+          </div>
+        </Field>
+        {position ? (
+          <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Atajos de cantidad">
+            {([25, 50, 100] as const).map((percent) => (
+              <button
+                key={percent}
+                type="button"
+                onClick={() => {
+                  const value = percentOfDecimal(availableOf(position), percent);
+                  // Sin separador de miles: «2.257» volvería como 2,257 al normalizar el campo.
+                  if (value) form.setValue('quantity', toDecimalInput(value), { shouldValidate: false });
+                }}
+                className="inline-flex h-9 items-center rounded-full border border-line px-4 text-sm font-medium text-ink-muted transition-colors hover:border-line-strong hover:bg-surface-sunken hover:text-ink"
+              >
+                {percent === 100 ? 'Todo el frasco' : `${percent} %`}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <Controller
         control={form.control}
         name="reason"
@@ -786,6 +838,8 @@ export function AdjustmentSheet({
 
   return (
     <FormSheet
+      sections
+      icon={Scale}
       title="Ajustar existencias"
       description="Corrige el saldo tras un conteo con otro movimiento; el historial no se edita."
       open={open}
@@ -795,57 +849,68 @@ export function AdjustmentSheet({
       generalError={generalError}
       onSubmit={() => void submit()}
     >
-      <Field label="Frasco" error={errors.positionId?.message}>
-        <Controller
-          control={form.control}
-          name="positionId"
-          render={({ field }) => (
-            <Select
-              value={field.value || undefined}
-              onValueChange={field.onChange}
-              options={[...positions].sort(byProductThenExpiry).map(positionOption)}
-              placeholder="Elige reactivo, frasco y ubicación"
+      <div className="grid grid-cols-1 gap-3">
+        <Field label="Frasco" error={errors.positionId?.message}>
+          <Controller
+            control={form.control}
+            name="positionId"
+            render={({ field }) => (
+              <Select
+                value={field.value || undefined}
+                onValueChange={field.onChange}
+                options={[...positions].sort(byProductThenExpiry).map(positionOption)}
+                placeholder="Elige reactivo, frasco y ubicación"
+              />
+            )}
+          />
+        </Field>
+        {position ? (
+          <div className="flex items-baseline justify-between rounded-control bg-surface-sunken px-3 py-2.5 text-sm">
+            <span className="text-ink-muted">Saldo registrado</span>
+            <Quantity value={position.balance} unit={position.unit} className="font-semibold text-ink" />
+          </div>
+        ) : null}
+      </div>
+      <div className="grid grid-cols-1 gap-4">
+        <fieldset className="grid gap-1.5">
+          <legend className="text-sm font-medium text-ink">El conteo</legend>
+          <div className="grid grid-cols-2 gap-1 rounded-control bg-surface-sunken p-1">
+            {(
+              [
+                ['decrease', 'Dio menos'],
+                ['increase', 'Dio más'],
+              ] as const
+            ).map(([value, label]) => (
+              <label
+                key={value}
+                className="cursor-pointer rounded-[6px] px-3 py-1.5 text-center text-sm font-medium text-ink-muted transition-colors has-checked:bg-surface has-checked:text-ink has-checked:shadow-raised has-focus-visible:outline-2 has-focus-visible:outline-action"
+              >
+                <input type="radio" value={value} className="sr-only" {...form.register('direction')} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <Field
+          label="Diferencia"
+          className="text-center"
+          labelClassName={sectionLabel}
+          error={errors.quantity?.message}
+          hint={<QuantityPreview raw={form.watch('quantity')} unit={position?.unit} sign={direction === 'decrease' ? '-' : ''} />}
+        >
+          <div className="relative mx-auto w-full max-w-xs">
+            <Input
+              inputMode="decimal"
+              autoComplete="off"
+              className="h-14 rounded-none border-0 border-b-2 border-line-strong bg-transparent px-14 text-center text-4xl font-bold tabular-nums focus-visible:ring-0 aria-[invalid=true]:ring-0"
+              {...form.register('quantity')}
             />
-          )}
-        />
-      </Field>
-      {position ? (
-        <div className="flex items-baseline justify-between rounded-control bg-surface-sunken px-3 py-2.5 text-sm">
-          <span className="text-ink-muted">Saldo registrado</span>
-          <Quantity value={position.balance} unit={position.unit} className="font-semibold text-ink" />
-        </div>
-      ) : null}
-      <fieldset className="grid gap-1.5">
-        <legend className="text-sm font-medium text-ink">El conteo</legend>
-        <div className="grid grid-cols-2 gap-1 rounded-control bg-surface-sunken p-1">
-          {(
-            [
-              ['decrease', 'Dio menos'],
-              ['increase', 'Dio más'],
-            ] as const
-          ).map(([value, label]) => (
-            <label
-              key={value}
-              className="cursor-pointer rounded-[6px] px-3 py-1.5 text-center text-sm font-medium text-ink-muted transition-colors has-checked:bg-surface has-checked:text-ink has-checked:shadow-raised has-focus-visible:outline-2 has-focus-visible:outline-action"
-            >
-              <input type="radio" value={value} className="sr-only" {...form.register('direction')} />
-              {label}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <Field
-        label="Diferencia"
-        error={errors.quantity?.message}
-        hint={<QuantityPreview raw={form.watch('quantity')} unit={position?.unit} sign={direction === 'decrease' ? '-' : ''} />}
-      >
-        <div className="relative">
-          <Input inputMode="decimal" autoComplete="off" className="pr-14 tabular-nums" {...form.register('quantity')} />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted">
-            {position?.unit ?? ''}
-          </span>
-        </div>
-      </Field>
+            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xl text-ink-muted">
+              {position?.unit ?? ''}
+            </span>
+          </div>
+        </Field>
+      </div>
       <Controller
         control={form.control}
         name="reason"
