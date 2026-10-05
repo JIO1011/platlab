@@ -145,7 +145,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await expect(operator.getByRole('heading', { name: product.name, level: 1 })).toBeVisible();
   const productUrl = operator.url();
   const frasco = operator.getByRole('article').filter({ hasText: `${product.lot}-01` });
-  await expect(frasco.getByText('100 g', { exact: true }).first()).toBeVisible();
+  await expect(frasco).toContainText(/100\s*g/);
 
   // ADR 0012: la salida del Operador es una solicitud que aparta la cantidad hasta que se aprueba.
   await frasco.getByRole('button', { name: 'Salida' }).click();
@@ -159,8 +159,8 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await issue.getByRole('button', { name: 'Enviar solicitud' }).click();
   await expect(operator.getByText('Solicitud enviada')).toBeVisible();
   // El saldo no cambia hasta que se apruebe; lo pedido se ve apartado en el frasco.
-  await expect(frasco.getByText('100 g', { exact: true }).first()).toBeVisible();
-  await expect(frasco.getByText(/apartados/)).toContainText('20 g');
+  await expect(frasco).toContainText(/100\s*g/);
+  await expect(frasco).toContainText(/Apartado\s*20\s*g/);
   await capture(operator, 'desktop-product-requested');
 
   // La Administradora la aprueba desde Solicitudes: la salida queda a su nombre.
@@ -183,8 +183,8 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await expectAccessible(operator, 'mis solicitudes');
   await capture(operator, 'desktop-requests-mine');
   await operator.goto(productUrl);
-  await expect(frasco.getByText('80 g', { exact: true }).first()).toBeVisible();
-  await expect(frasco.getByText(/apartados/)).toHaveCount(0);
+  await expect(frasco).toContainText(/80\s*g/);
+  await expect(frasco).not.toContainText('Apartado');
 
   // La Administradora ajusta el frasco por conteo, con un motivo de la lista.
   await admin.goto(productUrl);
@@ -195,7 +195,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await pick(adjustment, 'Conteo mensual');
   await adjustment.getByRole('button', { name: 'Registrar ajuste' }).click();
   await expect(admin.getByText('Quedan 79,5 g en el frasco')).toBeVisible();
-  await expect(adminFrasco.getByText('79,5 g', { exact: true }).first()).toBeVisible();
+  await expect(adminFrasco).toContainText(/79[.,]5\s*g/);
   await expectAccessible(admin, 'ficha del reactivo');
   await capture(admin, 'desktop-product');
 
@@ -356,7 +356,7 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
   await expect(admin.getByText(/^\d+ salidas?$/)).toBeVisible();
   await expectAccessible(admin, 'resumen');
   await capture(admin, 'desktop-summary');
-  await chart.hover({ position: { x: 20, y: 150 } });
+  await chart.hover({ position: { x: 20, y: 40 } });
   await expect(admin.getByText(/^\d+ salidas?$/)).toBeVisible();
   await admin.getByText('Ver los datos en tabla').click();
   await expect(admin.getByRole('table').getByRole('row')).toHaveCount(31);
@@ -441,7 +441,7 @@ test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelaci
   await goTo(operator, 'Inventario');
   await operator.getByRole('link', { name: /Ácido clorhídrico/ }).click();
   const reservedFrasco = operator.getByRole('article').filter({ hasText: 'HCL-2026-01-01' });
-  await expect(reservedFrasco.getByText(/apartados/)).toBeVisible();
+  await expect(reservedFrasco).toContainText('Apartado');
   await expect(reservedFrasco.getByRole('button', { name: 'Salida' })).toHaveCount(0);
   await expect(operator.getByRole('article').filter({ hasText: 'HCL-2026-01-02' }).getByRole('button', { name: 'Salida' })).toBeVisible();
   await expectAccessible(operator, 'ficha con un frasco apartado');
@@ -480,7 +480,14 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
   await expect(admin.getByRole('heading', { name: 'Ácido sulfúrico 98 %', level: 1 })).toBeVisible();
   await expect(admin.getByRole('article')).toHaveCount(3);
-  await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2024-08-01' })).toContainText('Venció el');
+  // Cada frasco dice su estado con texto (tarjeta de frasco de ReactiLab, 05-10-2026): el vencido,
+  // cuánto hace, y el FEFO, el que conviene usar primero.
+  const expiredCard = admin.getByRole('article').filter({ hasText: 'H2SO4-2024-08-01' });
+  await expect(expiredCard).toContainText(/Venció \d+ \w+ 2026/);
+  await expect(expiredCard).toContainText(/hace \d+ (días|meses)/);
+  await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' })).toContainText('FEFO');
+  await expect(admin.getByText('1 frasco vencido')).toBeVisible();
+  await expect(admin.getByText('Inicial: 250 mL')).toBeVisible();
   // Una sola primaria: «Registrar salida» de la cabecera; «Nuevo reactivo» no corresponde a la ficha.
   await expect(admin.getByRole('button', { name: 'Nuevo reactivo' })).toHaveCount(0);
   await expectAccessible(admin, 'ficha con varios frascos');
@@ -516,7 +523,7 @@ test('stock insuficiente: la salida se rechaza en el formulario y el saldo no ca
   await goTo(operator, 'Inventario');
   await operator.getByRole('link', { name: /Etanol 96 %/ }).click();
   const ethanol = operator.getByRole('article').filter({ hasText: 'ETOH-2026-01-01' });
-  await expect(ethanol.getByText('500 mL', { exact: true }).first()).toBeVisible();
+  await expect(ethanol).toContainText(/500\s*mL/);
 
   await ethanol.getByRole('button', { name: 'Salida' }).click();
   const issue = operator.getByRole('dialog', { name: 'Registrar salida' });
@@ -534,7 +541,7 @@ test('stock insuficiente: la salida se rechaza en el formulario y el saldo no ca
   await operator.keyboard.press('Escape');
   await expect(issue).toHaveCount(0);
   await operator.reload();
-  await expect(ethanol.getByText('500 mL', { exact: true }).first()).toBeVisible();
+  await expect(ethanol).toContainText(/500\s*mL/);
 });
 
 test('sin permiso: el docente que abre Reactivos por URL ve «Sin permiso»', async ({ browser }) => {

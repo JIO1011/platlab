@@ -55,10 +55,13 @@ export function TrendChart({
   title,
   points,
   unit,
+  fill = false,
 }: {
   title: string;
   points: Point[];
   unit: { one: string; many: string };
+  /** Llena el alto de su contenedor (el Resumen en una ventana); si no, un alto fijo. */
+  fill?: boolean;
 }) {
   const [active, setActive] = useState<number | null>(null);
   const { max, ticks } = scale(points);
@@ -82,8 +85,8 @@ export function TrendChart({
   }
 
   return (
-    <figure className="m-0">
-      <div className="flex gap-3">
+    <figure className={cn('m-0', fill && 'flex h-full min-h-0 flex-col')}>
+      <div className={cn('flex gap-3', fill && 'min-h-14 flex-1')}>
         {/* Eje Y: pocas marcas enteras; las líneas guía son finas y quedan detrás de las barras. */}
         <div className="relative w-6 shrink-0 text-right text-[12px] tabular-nums text-ink-muted" aria-hidden>
           {ticks.map((tick) => (
@@ -92,7 +95,7 @@ export function TrendChart({
             </span>
           ))}
         </div>
-        <div className="relative h-40 flex-1 lg:h-56">
+        <div className={cn('relative flex-1', fill ? 'h-full' : 'h-40 lg:h-56')}>
           {ticks.map((tick) => (
             <span
               key={tick}
@@ -128,8 +131,12 @@ export function TrendChart({
             ))}
             {current && active !== null ? (
               <div
-                className="pointer-events-none absolute bottom-full z-10 mb-4 -translate-x-1/2 whitespace-nowrap rounded-control bg-ink px-2.5 py-1.5 text-[12px] text-surface shadow-overlay"
-                style={{ left: `${((active + 0.5) / points.length) * 100}%` }}
+                // En los extremos se ancla al borde del gráfico: centrada, la etiqueta sobresaldría.
+                className={cn(
+                  'pointer-events-none absolute bottom-full z-10 mb-4 whitespace-nowrap rounded-control bg-ink px-2.5 py-1.5 text-[12px] text-surface shadow-overlay',
+                  active / points.length > 0.7 ? 'right-0' : active / points.length < 0.3 ? 'left-0' : '-translate-x-1/2',
+                )}
+                style={active / points.length >= 0.3 && active / points.length <= 0.7 ? { left: `${((active + 0.5) / points.length) * 100}%` } : undefined}
               >
                 <strong className="font-semibold">{countLabel(current.value, unit)}</strong>
                 <span className="ml-1.5 opacity-80">{formatDay(current.date)}</span>
@@ -160,25 +167,31 @@ export function TrendChart({
           )}
         </div>
       </div>
-      <details className="mt-4 text-sm">
+      <details className={cn('text-sm', fill ? 'mt-3' : 'mt-4')}>
         <summary className="cursor-pointer select-none font-medium text-action">Ver los datos en tabla</summary>
-        <table className="mt-3 w-full text-left text-[13px]">
-          <caption className="sr-only">{title}</caption>
-          <thead>
-            <tr className="border-b border-line text-ink-muted">
-              <th scope="col" className="py-1.5 font-medium">Fecha</th>
-              <th scope="col" className="py-1.5 text-right font-medium">{unit.many[0]?.toUpperCase() + unit.many.slice(1)}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {points.map((point) => (
-              <tr key={point.date} className="border-b border-line last:border-0">
-                <td className="py-1.5 text-ink">{formatDay(point.date, 'long')}</td>
-                <td className="py-1.5 text-right tabular-nums text-ink">{point.value}</td>
+        {/* Con alto fijo, la tabla se desplaza por dentro; se puede enfocar para recorrerla con teclado. */}
+        <div
+          className={cn('mt-3', fill && 'max-h-40 overflow-y-auto')}
+          {...(fill ? { tabIndex: 0, role: 'region', 'aria-label': `${title}, tabla` } : {})}
+        >
+          <table className="w-full text-left text-[13px]">
+            <caption className="sr-only">{title}</caption>
+            <thead>
+              <tr className="border-b border-line text-ink-muted">
+                <th scope="col" className="py-1.5 font-medium">Fecha</th>
+                <th scope="col" className="py-1.5 text-right font-medium">{unit.many[0]?.toUpperCase() + unit.many.slice(1)}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {points.map((point) => (
+                <tr key={point.date} className="border-b border-line last:border-0">
+                  <td className="py-1.5 text-ink">{formatDay(point.date, 'long')}</td>
+                  <td className="py-1.5 text-right tabular-nums text-ink">{point.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </details>
     </figure>
   );

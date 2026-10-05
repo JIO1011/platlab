@@ -221,8 +221,18 @@ const lotCondition = z.enum(['enabled', 'quarantine', 'blocked', 'discarded']);
 export const position = z.object({
   id: z.uuid(),
   product: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
-  lot: z.object({ id: z.uuid(), code: z.string(), expiresOn: z.string().nullable(), condition: lotCondition }),
-  container: z.object({ id: z.uuid(), code: z.string(), initialQuantity: decimalString }).nullable(),
+  lot: z.object({
+    id: z.uuid(),
+    code: z.string(),
+    expiresOn: z.string().nullable(),
+    condition: lotCondition,
+    /** Proveedor y su lote, tal como se registraron; null si no se conocen (ADR 0012, 05-10-2026). */
+    supplierName: z.string().nullable(),
+    supplierLot: z.string().nullable(),
+  }),
+  container: z
+    .object({ id: z.uuid(), code: z.string(), initialQuantity: decimalString, receivedAt: z.iso.datetime({ offset: true }) })
+    .nullable(),
   disposition: z.enum(['usable', 'quarantine', 'restricted']),
   location: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
   balance: decimalString,

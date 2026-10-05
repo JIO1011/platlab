@@ -471,7 +471,7 @@ export function AppShell() {
             </div>
           ) : null}
         </header>
-        <main className="px-4 pb-16 pt-6 md:px-8 md:pt-8">
+        <main className="px-4 pb-16 pt-6 md:px-8 md:pb-8 md:pt-8">
           <Outlet context={{ workspaceId, me: me.data } satisfies ShellContext} />
         </main>
       </div>

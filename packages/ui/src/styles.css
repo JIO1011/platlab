@@ -3,6 +3,13 @@
   describen el papel, no el color, para poder añadir el tema oscuro sin tocar componentes.
   La aplicación importa este archivo después de `@import "tailwindcss"`.
 */
+/* Un tablero que cabe en una ventana (ADR 0012, 05-10-2026): escritorio desde 1280 × 720. Por
+   debajo, el contenido fluye y la página se desplaza. */
+@custom-variant fit (@media (min-width: 80rem) and (min-height: 45rem));
+/* Con alto de sobra (desde 864 px), el mismo tablero respira: más espacio y acción rápida más alta.
+   Antes, el gráfico se quedaría sin alto legible. */
+@custom-variant fit-tall (@media (min-width: 80rem) and (min-height: 54rem));
+
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
@@ -140,6 +147,18 @@
     --animate-modal-out: fade-out 150ms var(--ease-out-expo);
     --animate-pop-in: fade-in 150ms var(--ease-out-expo);
   }
+}
+
+/*
+  Densidad de las apps de módulo (ADR 0010, 05-10-2026): dentro de un módulo, el tamaño base baja de
+  16 a 15 px y casi todo lo que está en rem (texto, espacios, botones, tarjetas, menús y hojas) se
+  reduce por igual; el título de página, además, baja un paso. Se marca con el mismo `data-module`
+  que el tema, así que alcanza también a los portales. El porcentaje respeta el tamaño de letra que
+  el usuario haya elegido en el navegador.
+*/
+:root[data-module] {
+  font-size: 93.75%;
+  --text-display: clamp(1.75rem, 1.3rem + 1.2vw, 2.25rem);
 }
 
 /*

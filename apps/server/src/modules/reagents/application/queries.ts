@@ -229,7 +229,8 @@ export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<Home
     access.client,
   );
   const ctx = inventoryContext(access);
-  const recent = await listOperationPage(ctx, { locationIds, timeZone: access.workspace.timeZone, limit: 5 });
+  // Seis: los que llenan la columna de actividad del Resumen en una ventana (ADR 0012, 05-10-2026).
+  const recent = await listOperationPage(ctx, { locationIds, timeZone: access.workspace.timeZone, limit: 6 });
   const issues = await countOperationsPerDay(ctx, {
     type: 'issue',
     locationIds,

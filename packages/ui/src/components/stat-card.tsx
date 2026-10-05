@@ -20,6 +20,8 @@ export interface StatCardProps {
   hintTone?: keyof typeof hintTones;
   icon: LucideIcon;
   tone?: IconChipProps['tone'];
+  /** Más bajo, para tableros que caben en una ventana (ADR 0012, 05-10-2026). */
+  compact?: boolean;
   className?: string;
 }
 
@@ -28,20 +30,31 @@ export interface StatCardProps {
  * color a la derecha y, debajo, una línea de estado. Es una pieza de presentación: si abre una
  * vista, quien la usa la envuelve en el enlace y le pone el `group` para la elevación al pasar.
  */
-export function StatCard({ label, value, hint, hintTone = 'neutral', icon, tone = 'accent', className }: StatCardProps) {
+export function StatCard({ label, value, hint, hintTone = 'neutral', icon, tone = 'accent', compact = false, className }: StatCardProps) {
   return (
     <div
       className={cn(
-        'flex h-full items-start justify-between gap-3 rounded-card bg-surface p-4 shadow-raised sm:gap-4 sm:p-6 transition-[transform,box-shadow] duration-200 ease-out-expo group-hover:shadow-float motion-safe:group-hover:-translate-y-1',
+        'flex h-full items-start justify-between gap-3 rounded-card bg-surface shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo group-hover:shadow-float motion-safe:group-hover:-translate-y-1',
+        compact ? 'p-4 lg:px-5' : 'p-4 sm:gap-4 sm:p-6',
         className,
       )}
     >
       <div className="min-w-0">
         <p className="text-sm font-medium text-ink-muted">{label}</p>
-        <p className="mt-2 text-3xl font-bold tracking-tight text-ink tabular-nums">{value}</p>
-        {hint ? <p className={cn('mt-2 text-xs font-medium', hintTones[hintTone], hintTone !== 'neutral' && 'font-bold')}>{hint}</p> : null}
+        <p className={cn('font-bold tracking-tight text-ink tabular-nums', compact ? 'mt-1 text-[1.75rem] leading-tight' : 'mt-2 text-3xl')}>
+          {value}
+        </p>
+        {hint ? (
+          <p className={cn('text-xs font-medium', compact ? 'mt-1' : 'mt-2', hintTones[hintTone], hintTone !== 'neutral' && 'font-bold')}>{hint}</p>
+        ) : null}
       </div>
-      <IconChip icon={icon} tone={tone} className="size-10 rounded-xl sm:size-12 sm:rounded-2xl [&>svg]:size-5 sm:[&>svg]:size-6" />
+      <IconChip
+        icon={icon}
+        tone={tone}
+        className={cn(
+          compact ? 'size-10 rounded-xl [&>svg]:size-5' : 'size-10 rounded-xl sm:size-12 sm:rounded-2xl [&>svg]:size-5 sm:[&>svg]:size-6',
+        )}
+      />
     </div>
   );
 }

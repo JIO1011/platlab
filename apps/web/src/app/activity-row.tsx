@@ -43,7 +43,8 @@ export function ActivityRow({ type, title, detail, quantity, unit, occurredAt, a
       </span>
       {/* Cantidad y tipo acompañan a sus líneas en lugar de ocupar una columna propia. Si la fila
           es estrecha (consulta de contenedor, no de ventana: sirve igual en una columna del Resumen
-          que en el móvil), quién y cuándo bajan a su propia línea. El responsable siempre va antes
+          que en el móvil; el umbral es holgado para que un detalle largo no se coma al responsable),
+          quién y cuándo bajan a su propia línea. El responsable siempre va antes
           que la hora, para que un recorte nunca oculte quién movió el stock. */}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
@@ -63,7 +64,7 @@ export function ActivityRow({ type, title, detail, quantity, unit, occurredAt, a
         <div className="flex items-baseline justify-between gap-3 text-[13px] text-ink-muted">
           <p className="truncate">
             {detail}
-            <span className="hidden @xl:inline">
+            <span className="hidden @3xl:inline">
               {actor ? ` · ${actor}` : ''}
               {' · '}
               {formatDateTime(occurredAt, timeZone)}
@@ -71,7 +72,7 @@ export function ActivityRow({ type, title, detail, quantity, unit, occurredAt, a
           </p>
           <span className="shrink-0 text-[12px]">{kind.label}</span>
         </div>
-        <p className="truncate text-[13px] text-ink-muted @xl:hidden">
+        <p className="truncate text-[13px] text-ink-muted @3xl:hidden">
           {actor ? `${actor} · ` : ''}
           {formatShortDateTime(occurredAt, timeZone)}
         </p>

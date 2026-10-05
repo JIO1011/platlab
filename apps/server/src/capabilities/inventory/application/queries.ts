@@ -58,10 +58,17 @@ export async function listPositionPage(
         code: row.lot_code,
         expiresOn: row.expires_on,
         condition: row.lot_condition as Position['lot']['condition'],
+        supplierName: row.supplier_name,
+        supplierLot: row.supplier_lot,
       },
       container:
-        row.container_id && row.container_code && row.container_initial_quantity
-          ? { id: row.container_id, code: row.container_code, initialQuantity: row.container_initial_quantity }
+        row.container_id && row.container_code && row.container_initial_quantity && row.container_received_at
+          ? {
+              id: row.container_id,
+              code: row.container_code,
+              initialQuantity: row.container_initial_quantity,
+              receivedAt: row.container_received_at.toISOString(),
+            }
           : null,
       disposition: row.disposition as Position['disposition'],
       location: { id: row.location_id, code: row.location_code, name: row.location_name },

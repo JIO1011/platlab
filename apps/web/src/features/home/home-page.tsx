@@ -4,6 +4,7 @@ import { ArrowRight, Boxes, LayoutGrid } from 'lucide-react';
 import { useId } from 'react';
 import { Link } from 'react-router';
 import { moduleApps, moduleIcons, useShell } from '../../app/app-shell';
+import { ModuleMark } from '../../app/module-mark';
 import { useHome } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
 import { Sparkline } from '../../app/trend-chart';
@@ -133,9 +134,9 @@ function ModuleCard({ card }: { card: Card }) {
       className="group relative flex min-h-64 flex-col overflow-hidden rounded-card bg-surface p-6 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1"
     >
       {/* Marca de agua del módulo, como en ReactiLab: decorativa y casi invisible. */}
-      <Icon
-        className="pointer-events-none absolute -bottom-6 -right-6 size-40 text-action-soft/50 transition-transform duration-500 motion-safe:group-hover:scale-110"
-        aria-hidden
+      <ModuleMark
+        code={card.moduleCode}
+        className="pointer-events-none absolute -bottom-6 -right-4 size-40 rotate-12 text-action-soft transition-transform duration-500 motion-safe:group-hover:scale-110"
       />
       <div className="relative flex items-center gap-3">
         <IconChip icon={Icon} />

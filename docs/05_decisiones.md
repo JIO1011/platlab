@@ -217,6 +217,10 @@ Cambio del 04-10-2026 (segundo), la interfaz toma el diseño de ReactiLab, pedid
 - Se mantiene todo lo demás: accesibilidad AA, estados con texto, una acción primaria por pantalla, sin UI optimista y sin tocar datos ni reglas.
 - Solo se toma el lenguaje visual. No se copia su código, que tiene la licencia por aclarar (CLAUDE.md).
 
+Cambio del 05-10-2026, decidido por el usuario, sobre la densidad:
+- **Dentro de un módulo, la escala baja.** El tamaño base pasa de 16 a 15 px (`:root[data-module]` en `styles.css`) y casi todo lo que está en `rem` (texto, espacios, botones, tarjetas, menús y hojas, que viven en portales) se reduce por igual; el título de página baja un paso. El Inicio y el acceso no cambian. Se usa un porcentaje, no píxeles, para respetar el tamaño de letra del navegador. Si hace falta más, se ajusta ese único valor.
+- **Se quita «← Inventario» de la ficha.** No aportaba: el menú ya lleva al Inventario. Queda abierto darle una función propia (por ejemplo, una miga de pan en la barra superior).
+
 <a id="adr-0011"></a>
 ## ADR 0011 — Inicio como tablero y cada módulo como app
 
@@ -289,8 +293,14 @@ Cambio del 05-10-2026, decidido por el usuario, sobre el Resumen y la caducidad:
   - Sale «Ubicaciones»: contaba frascos, no ubicaciones. El dato pasa a «Reactivos» y, en el Inicio, se dice «frascos».
   - Sale «Salidas»: repetía el total del gráfico, que ahora lo lleva en su cabecera.
 - **Acción rápida en banda compacta**, debajo de los indicadores. Conserva el degradado del ADR 0010 sin empujar los datos hacia abajo.
+- **El Resumen cabe en una ventana** en escritorio desde 1280 × 720. Debajo de los indicadores hay dos columnas: a la izquierda, la acción rápida y el gráfico, que crece con el alto disponible; a la derecha, la actividad reciente, a la misma altura que la acción rápida y con desplazamiento propio. En pantallas más bajas o más estrechas, el contenido fluye y la página se desplaza: entre 1024 y 1279 px de ancho hay dos columnas de igual ancho, y en el móvil, una.
 - **Vencido y por vencer.** Vencido: la caducidad del lote es anterior a hoy, en la zona del espacio. Por vencer: caduca entre hoy y los próximos 30 días ([02 §12](02_arquitectura.md#12-parámetros-iniciales)). Solo cuentan frascos con saldo, en las ubicaciones que el miembro puede consultar. Cada tarjeta del inventario dice sus vencidos y por vencer con texto, y el inventario filtra por ellos.
 - Resuelve el plazo de «por vencer» de la entrega 3 de R-01A. Quedan los mínimos y el estado del lote.
+- **Ficha del reactivo (segundo nivel) con más datos por frasco**, decidido el 05-10-2026 tomando la tarjeta de frasco de ReactiLab (solo su aspecto).
+  - Cada frasco muestra proveedor, ubicación y caducidad; código y saldo grandes; la barra de lo que queda con la cantidad inicial; y recuadros con el lote, el lote del proveedor, la fecha de ingreso y, si hay solicitudes pendientes, lo apartado y lo disponible.
+  - Para eso, la lista de frascos (`/positions`) añade `lot.supplierName`, `lot.supplierLot` y `container.receivedAt`. Son datos que ya existen (03 §1); no cambia ninguna regla ni permiso.
+  - Las acciones son Salida y Ajustar. No hay «borrar», porque nadie borra registros de negocio, ni etiqueta QR todavía (llega con la entrega 4 de R-01A).
+  - Lo propio de ReactiLab que PlatLab no modela (tara, peso neto, densidad, categoría, «controlado») no se muestra; «controlado» llega con fiscalizados.
 
 ## Pendientes
 

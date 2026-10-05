@@ -17,6 +17,11 @@ export function formatShortDateTime(iso: string, timeZone: string): string {
   }).format(date);
 }
 
+/** Solo el día de un instante, en la zona del espacio: «5 oct 2026». */
+export function formatInstantDate(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('es-EC', { timeZone, dateStyle: 'medium' }).format(new Date(iso));
+}
+
 export function formatDate(isoDate: string): string {
   const [year, month, day] = isoDate.split('-').map(Number);
   return new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium', timeZone: 'UTC' }).format(
@@ -31,4 +36,31 @@ export function formatAgo(timestamp: number, now: number): string {
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `hace ${minutes} min`;
   return `hace ${Math.round(minutes / 60)} h`;
+}
+
+/**
+ * Cuánto falta o cuánto pasó desde una fecha civil: «hoy», «mañana», «en 3 meses», «hace 35 días».
+ * Ambas fechas son AAAA-MM-DD y se comparan como días civiles, sin horas ni zonas.
+ */
+export function relativeDays(isoDate: string, today: string): string {
+  const utc = (value: string) => {
+    const [year, month, day] = value.split('-').map(Number);
+    return Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1);
+  };
+  const diff = Math.round((utc(isoDate) - utc(today)) / 86_400_000);
+  const span = (days: number) =>
+    days < 60
+      ? `${days} ${days === 1 ? 'día' : 'días'}`
+      : days < 730
+        ? `${Math.round(days / 30)} meses`
+        : `${Math.round(days / 365)} años`;
+  if (diff === 0) return 'hoy';
+  if (diff === 1) return 'mañana';
+  return diff < 0 ? `hace ${span(-diff)}` : `en ${span(diff)}`;
+}
+
+/** Suma días civiles a una fecha AAAA-MM-DD, sin horas ni zonas. */
+export function addDays(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  return new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, (day ?? 1) + days)).toISOString().slice(0, 10);
 }

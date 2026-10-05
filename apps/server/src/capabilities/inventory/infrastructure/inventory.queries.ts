@@ -438,6 +438,7 @@ export interface IListPositionsResult {
   container_code: string | null;
   container_id: string | null;
   container_initial_quantity: string | null;
+  container_received_at: Date | null;
   disposition: string;
   expires_on: string | null;
   id: string;
@@ -455,6 +456,8 @@ export interface IListPositionsResult {
   sort_location: string;
   sort_lot: string;
   sort_seq: number;
+  supplier_lot: string | null;
+  supplier_name: string | null;
 }
 
 /** 'ListPositions' query type */
@@ -463,7 +466,7 @@ export interface IListPositionsQuery {
   result: IListPositionsResult;
 }
 
-const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"itemId":true,"afterId":true,"afterItem":true,"afterLot":true,"afterSeq":true,"afterLocation":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1103,"b":1115}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1132,"b":1137}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1166,"b":1178}]},{"name":"itemId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1196,"b":1202},{"a":1233,"b":1239}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1571,"b":1578},{"a":1758,"b":1765}]},{"name":"afterItem","required":false,"transform":{"type":"scalar"},"locs":[{"a":1685,"b":1694}]},{"name":"afterLot","required":false,"transform":{"type":"scalar"},"locs":[{"a":1703,"b":1711}]},{"name":"afterSeq","required":false,"transform":{"type":"scalar"},"locs":[{"a":1720,"b":1728}]},{"name":"afterLocation","required":false,"transform":{"type":"scalar"},"locs":[{"a":1736,"b":1749}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":1865,"b":1871}]}],"statement":"SELECT\n  p.id,\n  i.id AS item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  l.id AS lot_id,\n  l.code AS lot_code,\n  l.expires_on,\n  l.condition AS lot_condition,\n  p.disposition,\n  c.id AS \"container_id?\",\n  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,\n  trim_scale(c.initial_quantity) AS container_initial_quantity,\n  loc.id AS location_id,\n  loc.code AS location_code,\n  loc.name AS location_name,\n  trim_scale(p.balance) AS \"balance!\",\n  trim_scale(p.reserved) AS \"reserved!\",\n  i.base_unit,\n  lower(i.code) AS \"sort_item!\",\n  lower(l.code) AS \"sort_lot!\",\n  coalesce(c.seq, 0) AS \"sort_seq!\",\n  lower(loc.code) AS \"sort_location!\"\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nWHERE p.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)\n  -- Un frasco trasladado deja su posición de origen vacía: solo se muestra donde está.\n  AND (p.container_id IS NULL OR p.balance > 0 OR NOT EXISTS (\n    SELECT 1 FROM inventory.positions AS other\n    WHERE other.workspace_id = p.workspace_id AND other.container_id = p.container_id AND other.balance > 0\n  ))\n  AND (\n    :afterId::uuid IS NULL\n    OR (lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id)\n       > (:afterItem::text, :afterLot::text, :afterSeq::int, :afterLocation::text, :afterId::uuid)\n  )\nORDER BY lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id\nLIMIT :limit!"};
+const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"itemId":true,"afterId":true,"afterItem":true,"afterLot":true,"afterSeq":true,"afterLocation":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1184,"b":1196}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1213,"b":1218}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1247,"b":1259}]},{"name":"itemId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1277,"b":1283},{"a":1314,"b":1320}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1652,"b":1659},{"a":1839,"b":1846}]},{"name":"afterItem","required":false,"transform":{"type":"scalar"},"locs":[{"a":1766,"b":1775}]},{"name":"afterLot","required":false,"transform":{"type":"scalar"},"locs":[{"a":1784,"b":1792}]},{"name":"afterSeq","required":false,"transform":{"type":"scalar"},"locs":[{"a":1801,"b":1809}]},{"name":"afterLocation","required":false,"transform":{"type":"scalar"},"locs":[{"a":1817,"b":1830}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":1946,"b":1952}]}],"statement":"SELECT\n  p.id,\n  i.id AS item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  l.id AS lot_id,\n  l.code AS lot_code,\n  l.expires_on,\n  l.condition AS lot_condition,\n  l.supplier_name,\n  l.supplier_lot,\n  p.disposition,\n  c.id AS \"container_id?\",\n  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,\n  trim_scale(c.initial_quantity) AS container_initial_quantity,\n  c.created_at AS \"container_received_at?\",\n  loc.id AS location_id,\n  loc.code AS location_code,\n  loc.name AS location_name,\n  trim_scale(p.balance) AS \"balance!\",\n  trim_scale(p.reserved) AS \"reserved!\",\n  i.base_unit,\n  lower(i.code) AS \"sort_item!\",\n  lower(l.code) AS \"sort_lot!\",\n  coalesce(c.seq, 0) AS \"sort_seq!\",\n  lower(loc.code) AS \"sort_location!\"\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nWHERE p.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)\n  -- Un frasco trasladado deja su posición de origen vacía: solo se muestra donde está.\n  AND (p.container_id IS NULL OR p.balance > 0 OR NOT EXISTS (\n    SELECT 1 FROM inventory.positions AS other\n    WHERE other.workspace_id = p.workspace_id AND other.container_id = p.container_id AND other.balance > 0\n  ))\n  AND (\n    :afterId::uuid IS NULL\n    OR (lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id)\n       > (:afterItem::text, :afterLot::text, :afterSeq::int, :afterLocation::text, :afterId::uuid)\n  )\nORDER BY lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
@@ -477,10 +480,13 @@ const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"lo
  *   l.code AS lot_code,
  *   l.expires_on,
  *   l.condition AS lot_condition,
+ *   l.supplier_name,
+ *   l.supplier_lot,
  *   p.disposition,
  *   c.id AS "container_id?",
  *   CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,
  *   trim_scale(c.initial_quantity) AS container_initial_quantity,
+ *   c.created_at AS "container_received_at?",
  *   loc.id AS location_id,
  *   loc.code AS location_code,
  *   loc.name AS location_name,
