@@ -179,7 +179,7 @@ const isExpired = (position: Position, today: string) => position.lot.expiresOn 
  * Sugerencia FEFO (01 §6.1, ADR 0012): entre los frascos utilizables del mismo reactivo con saldo,
  * el que vence antes; una caducidad desconocida va al final. Nunca el de menor cantidad.
  */
-function fefoCandidates(positions: Position[], productId: string, today: string): Position[] {
+export function fefoCandidates(positions: Position[], productId: string, today: string): Position[] {
   return positions
     .filter(
       (p) =>

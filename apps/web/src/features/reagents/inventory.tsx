@@ -3,11 +3,14 @@ import { Badge, Button, IconChip, Input, Quantity, Skeleton, StatePanel, cn, rat
 import {
   ArrowUpFromLine,
   Box,
+  Calendar,
+  Check,
   CircleAlert,
   Droplet,
   FlaskConical,
   History,
   Layers,
+  MapPin,
   Plus,
   Scale,
   Search,
@@ -22,6 +25,7 @@ import { useOperations, usePositions, useProduct } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
 import { useReagents, type Allowed, type SheetRequest } from './context';
 import { purposeOf, responsibleOf } from './operation-text';
+import { fefoCandidates } from './sheets';
 import { availableOf } from './stock';
 
 const physicalStateLabel: Record<string, string> = { solid: 'Sólido', liquid: 'Líquido', gas: 'Gas' };
@@ -192,29 +196,35 @@ const conditionLabel: Record<Position['lot']['condition'], { text: string; tone:
 
 /** Caducidad con texto, nunca solo con color: vencido, fecha o «sin confirmar» (01 §6.1). */
 function ExpiryBadge({ expiresOn, today }: { expiresOn: string | null; today: string }) {
-  if (expiresOn === null) return <Badge tone="warning">Caducidad sin confirmar</Badge>;
-  if (expiresOn < today) return <Badge tone="danger">Venció el {formatDate(expiresOn)}</Badge>;
-  return <Badge>Caduca {formatDate(expiresOn)}</Badge>;
+  const icon = <Calendar className="size-3" aria-hidden />;
+  if (expiresOn === null) return <Badge tone="warning">{icon}Caducidad sin confirmar</Badge>;
+  if (expiresOn < today) return <Badge tone="danger">{icon}Venció el {formatDate(expiresOn)}</Badge>;
+  return <Badge>{icon}Caduca {formatDate(expiresOn)}</Badge>;
 }
 
 /**
- * Un frasco en la ficha (ADR 0012): código, lote y ubicación, caducidad, lo que queda frente a lo
- * que entró y sus acciones. La barra mide el % restante con aritmética exacta.
+ * Un frasco en la ficha (ADR 0012), con el aspecto de la tarjeta de frasco de ReactiLab: etiquetas
+ * en píldoras con icono (ubicación, caducidad), código y saldo grande en el acento, barra de lo que
+ * queda y acciones compactas. El borde cuenta el estado: verde el que conviene usar primero (FEFO),
+ * rojo el vencido, ámbar el vacío; todos con su texto. La barra mide el % restante con aritmética exacta.
  */
 function ContainerCard({
   position,
   today,
   allowed,
+  recommended,
   onAction,
 }: {
   position: Position;
   today: string;
   allowed: Allowed;
+  recommended: boolean;
   onAction: (request: SheetRequest) => void;
 }) {
   const initial = position.container?.initialQuantity ?? null;
   const percent = initial ? ratioPercent(position.balance, initial) : null;
   const empty = position.balance === '0';
+  const expired = position.lot.expiresOn !== null && position.lot.expiresOn < today;
   // Lo apartado por solicitudes no se puede sacar (ADR 0012); con todo apartado, no hay «Salida».
   const reserved = position.reserved !== '0';
   const available = availableOf(position);
@@ -222,23 +232,30 @@ function ContainerCard({
   const percentText = percent === 0 && !empty ? '<1 %' : `${percent ?? 0} %`;
   const condition = conditionLabel[position.lot.condition];
   return (
-    <article className="flex h-full flex-col gap-4 rounded-card bg-surface p-5 shadow-raised">
-      {/* El código es la identidad de la etiqueta: nunca se parte; si no cabe, el saldo baja. La
-          ubicación va en su propia línea para que el saldo quede a la derecha cuando cabe. */}
-      <header>
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <h3 className="whitespace-nowrap font-semibold tabular-nums text-ink">{position.container?.code ?? position.lot.code}</h3>
-          <Quantity
-            value={position.balance}
-            unit={position.unit}
-            className={cn('text-lg font-semibold', empty ? 'text-ink-subtle' : 'text-ink')}
-          />
-        </div>
-        <p className="mt-0.5 text-[13px] text-ink-muted">
-          {position.location.name} · {position.location.code}
-        </p>
-      </header>
+    <article
+      className={cn(
+        'group relative flex h-full flex-col rounded-card p-5 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-0.5',
+        recommended
+          ? 'bg-surface ring-2 ring-success/40'
+          : expired
+            ? 'bg-danger-soft/40 ring-1 ring-danger/30'
+            : empty
+              ? 'bg-warning-soft/40 ring-1 ring-warning/40'
+              : 'bg-surface',
+      )}
+    >
+      {recommended ? (
+        <span className="absolute -top-3 right-5 inline-flex items-center gap-1 rounded-full bg-success px-2.5 py-0.5 text-xs font-bold text-on-action shadow-sm">
+          <Check className="size-3" aria-hidden />
+          FEFO
+          <span className="sr-only"> (vence antes: conviene usarlo primero)</span>
+        </span>
+      ) : null}
       <div className="flex flex-wrap gap-1.5">
+        <Badge className="gap-1.5 py-1">
+          <MapPin className="size-3" aria-hidden />
+          {position.location.name} · {position.location.code}
+        </Badge>
         <ExpiryBadge expiresOn={position.lot.expiresOn} today={today} />
         {condition ? <Badge tone={condition.tone}>{condition.text}</Badge> : null}
         {reserved ? (
@@ -247,8 +264,19 @@ function ContainerCard({
           </Badge>
         ) : null}
       </div>
+      {/* El código es la identidad de la etiqueta: nunca se parte; si no cabe, el saldo baja. */}
+      <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h3 className="whitespace-nowrap text-lg font-bold tabular-nums leading-tight text-ink">
+          {position.container?.code ?? position.lot.code}
+        </h3>
+        <Quantity
+          value={position.balance}
+          unit={position.unit}
+          className={cn('text-2xl font-black tracking-tight', empty ? 'text-warning' : 'text-action')}
+        />
+      </div>
       {percent !== null && initial ? (
-        <div>
+        <div className="mt-4">
           <div
             className="h-2 overflow-hidden rounded-full bg-surface-sunken"
             role="img"
@@ -259,38 +287,46 @@ function ContainerCard({
               style={{ width: percent === 0 && !empty ? '4px' : `${percent}%` }}
             />
           </div>
-          <p className="mt-1.5 flex justify-between text-[12px] text-ink-muted">
+          <p className="mt-1.5 flex justify-between text-xs text-ink-muted">
             <span>
               Entró con <Quantity value={initial} unit={position.unit} />
             </span>
-            <span className="tabular-nums">{percentText}</span>
+            <span className="font-semibold tabular-nums">{percentText}</span>
           </p>
         </div>
       ) : null}
       {(allowed.issue && available !== '0') || allowed.adjustment ? (
-        <div className="mt-auto flex gap-2 border-t border-line pt-3">
-          {allowed.issue && available !== '0' ? (
-            <Button size="sm" className="flex-1 max-lg:h-11" onClick={() => onAction({ kind: 'issue', positionId: position.id })}>
-              <ArrowUpFromLine aria-hidden />
-              Salida
-            </Button>
-          ) : null}
-          {allowed.adjustment ? (
-            <Button size="sm" className="max-lg:h-11" onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}>
-              <Scale aria-hidden />
-              Ajustar
-            </Button>
-          ) : null}
+        <div className="mt-auto pt-5">
+          <div className="flex gap-2 border-t border-line pt-4">
+            {allowed.issue && available !== '0' ? (
+              // Acento en tono suave: la única primaria de la ficha es la de la cabecera.
+              <Button
+                size="sm"
+                className="flex-1 border-action/30 font-bold text-action hover:bg-action-soft max-lg:h-11"
+                onClick={() => onAction({ kind: 'issue', positionId: position.id })}
+              >
+                <ArrowUpFromLine aria-hidden />
+                Salida
+              </Button>
+            ) : null}
+            {allowed.adjustment ? (
+              <Button
+                size="sm"
+                aria-label="Ajustar"
+                title="Ajustar existencias"
+                className="px-2.5 text-ink-muted hover:border-warning/40 hover:bg-warning-soft hover:text-warning max-lg:h-11 max-lg:px-3.5"
+                onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}
+              >
+                <Scale aria-hidden />
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </article>
   );
 }
 
-/**
- * Ficha del reactivo, segundo nivel (ADR 0012, 01 §7): su total, sus frascos y su historial. Las
- * acciones de cada frasco abren las mismas hojas que la cabecera, con el frasco ya elegido.
- */
 export function ReagentsProductPage() {
   const { productId = '' } = useParams();
   const { workspaceId, me, allowed, openSheet } = useReagents();
@@ -318,27 +354,54 @@ export function ReagentsProductPage() {
     );
   }
 
+  const state = product.data.physicalState ?? undefined;
+  const noStock = product.data.balance === '0';
   const facts = [
     { label: 'Código', value: product.data.code },
     { label: 'CAS', value: product.data.casNumber ?? 'Sin CAS' },
-    { label: 'Estado físico', value: product.data.physicalState ? physicalStateLabel[product.data.physicalState] : 'Sin indicar' },
+    { label: 'Estado físico', value: state ? physicalStateLabel[state] : 'Sin indicar' },
   ];
+  // El frasco que conviene usar primero: la misma sugerencia FEFO que preselecciona la hoja de salida.
+  const recommendedId = fefoCandidates(containers, productId, today)[0]?.id;
 
   return (
     <div className="grid gap-6">
-      <section aria-label="Resumen del reactivo" className="grid gap-4 rounded-card bg-surface p-5 shadow-raised sm:p-6 lg:grid-cols-[auto_1fr] lg:items-center lg:gap-8">
-        <div>
-          <p className="text-sm text-ink-muted">Existencia</p>
-          <Quantity value={product.data.balance} unit={product.data.baseUnit} className="text-metric-sm text-ink" />
-          <p className="text-[13px] text-ink-muted">
-            {product.data.containersWithStock === 1 ? '1 frasco con saldo' : `${product.data.containersWithStock} frascos con saldo`}
-          </p>
+      <section
+        aria-label="Resumen del reactivo"
+        className="relative overflow-hidden rounded-card bg-surface p-6 shadow-raised md:p-8"
+      >
+        {/* Marca de agua, como en la tarjeta de ReactiLab: decorativa y casi invisible. */}
+        <FlaskConical className="pointer-events-none absolute -bottom-8 -right-6 size-44 text-surface-sunken" aria-hidden />
+        <div className="relative flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+          <div className="flex items-center gap-4">
+            <IconChip
+              icon={(state && physicalStateIcon[state]) || FlaskConical}
+              tone={noStock ? 'neutral' : 'accent'}
+              className="size-14 rounded-2xl [&>svg]:size-7"
+            />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Existencia</p>
+              <Quantity
+                value={product.data.balance}
+                unit={product.data.baseUnit}
+                className={cn('mt-1 block text-4xl font-black tracking-tight', noStock ? 'text-ink-subtle' : 'text-action')}
+              />
+            </div>
+          </div>
+          <Badge tone={noStock ? 'warning' : 'info'} className="gap-1.5 px-3 py-1.5 text-[13px]">
+            {noStock ? <CircleAlert className="size-4" aria-hidden /> : <Layers className="size-4" aria-hidden />}
+            {noStock
+              ? 'Sin existencias'
+              : product.data.containersWithStock === 1
+                ? '1 frasco con saldo'
+                : `${product.data.containersWithStock} frascos con saldo`}
+          </Badge>
         </div>
-        <dl className="grid grid-cols-3 gap-4 text-sm lg:border-l lg:border-line lg:pl-8">
+        <dl className="relative mt-6 flex flex-wrap gap-2 border-t border-line pt-5">
           {facts.map((fact) => (
-            <div key={fact.label} className="min-w-0">
-              <dt className="text-[13px] text-ink-muted">{fact.label}</dt>
-              <dd className="truncate font-medium text-ink">{fact.value}</dd>
+            <div key={fact.label} className="inline-flex min-w-0 items-center gap-2 rounded-full bg-surface-sunken px-3.5 py-1.5 text-sm">
+              <dt className="text-ink-muted">{fact.label}</dt>
+              <dd className="truncate font-semibold tabular-nums text-ink">{fact.value}</dd>
             </div>
           ))}
         </dl>
@@ -346,7 +409,7 @@ export function ReagentsProductPage() {
 
       <section aria-labelledby="frascos" className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="frascos" className="text-lg font-semibold text-ink">
+          <h2 id="frascos" className="text-xl font-bold text-ink">
             Frascos
           </h2>
           <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="vacíos" />
@@ -363,15 +426,21 @@ export function ReagentsProductPage() {
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-4">
             {visible.map((position) => (
               <li key={position.id}>
-                <ContainerCard position={position} today={today} allowed={allowed} onAction={openSheet} />
+                <ContainerCard
+                  position={position}
+                  today={today}
+                  allowed={allowed}
+                  recommended={position.id === recommendedId}
+                  onAction={openSheet}
+                />
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      <section aria-labelledby="historial-reactivo" className="rounded-card bg-surface p-5 shadow-raised sm:p-6">
-        <h2 id="historial-reactivo" className="text-lg font-semibold text-ink">
+      <section aria-labelledby="historial-reactivo" className="rounded-card bg-surface p-6 shadow-raised md:p-8">
+        <h2 id="historial-reactivo" className="text-xl font-bold text-ink">
           Historial del reactivo
         </h2>
         {history.isPending ? (
@@ -381,9 +450,10 @@ export function ReagentsProductPage() {
         ) : entries.length === 0 ? (
           <StatePanel icon={History} title="Sin movimientos" description="Cada ingreso, salida o ajuste quedará aquí con su responsable." />
         ) : (
-          <ul className="mt-3 divide-y divide-line">
+          // Línea de tiempo, como en el Resumen: el hilo pasa por detrás de los círculos de icono.
+          <ul className="relative mt-5 space-y-6 before:absolute before:bottom-5 before:left-5 before:top-5 before:w-0.5 before:bg-line">
             {entries.map((operation) => (
-              <li key={operation.entryId} className="py-3">
+              <li key={operation.entryId}>
                 <ActivityRow
                   type={operation.type}
                   title={operation.container?.code ?? operation.lot.code}
