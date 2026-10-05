@@ -43,7 +43,7 @@ Contraseña de todas: `platlab-demo`. Los datos son sintéticos (`supabase/seeds
 
 | Correo | Quién es |
 |---|---|
-| `admin@demo.platlab.test` | Ana Administradora: Administradora en la Facultad de Ciencias, y propietaria del Centro de Investigación |
+| `admin@demo.platlab.test` | Ana Administradora: Administradora en la Facultad de Ciencias (Universidad Demo), y propietaria del Centro de Investigación (Instituto Tecnológico Demo, otra institución) |
 | `operador@demo.platlab.test` | Óscar Operador: Operador en la Facultad de Ciencias, y propietario y Administrador del Instituto de Biotecnología |
 | `propietaria@demo.platlab.test` | Paula Propietaria: propietaria de la Facultad de Ciencias, con los permisos del Administrador |
 | `docente@demo.platlab.test` | Diego Docente: sin permisos en Reactivos |

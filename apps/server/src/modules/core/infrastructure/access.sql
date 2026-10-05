@@ -16,6 +16,7 @@ SELECT
   w.code,
   w.name,
   w.status,
+  w.institution_name,
   (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS "is_owner!"
 FROM core.memberships AS m
 JOIN core.workspaces AS w ON w.id = m.workspace_id
@@ -131,6 +132,19 @@ WHERE ra.workspace_id = :workspaceId!
   AND ra.valid_from <= now()
   AND (ra.valid_until IS NULL OR ra.valid_until > now())
 ORDER BY rp.permission_code;
+
+/* @name listMemberRoles */
+-- Nombres de los roles vigentes del miembro en algún ámbito, solo para mostrarlos (ADR 0011,
+-- 05-10-2026): no autorizan nada. Incluye el Administrador implícito del propietario.
+SELECT DISTINCT r.name
+FROM core.effective_role_assignments AS ra
+JOIN core.roles AS r ON r.code = ra.role_code
+WHERE ra.workspace_id = :workspaceId!
+  AND ra.principal_id = :principalId!
+  AND ra.revoked_at IS NULL
+  AND ra.valid_from <= now()
+  AND (ra.valid_until IS NULL OR ra.valid_until > now())
+ORDER BY r.name;
 
 /* @name hasPermissionAt */
 -- Un rol aplica en la ubicación si su ámbito es todo el espacio o un ancestro de ella (03 §3).

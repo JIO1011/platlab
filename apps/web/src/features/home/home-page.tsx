@@ -65,7 +65,9 @@ export function HomePage() {
           <h1 className="text-display text-ink">
             {greeting(me.workspace.timeZone)}, {firstName}
           </h1>
-          <p className="mt-2 text-body-lg font-medium text-ink-muted">Elige un módulo para empezar a trabajar.</p>
+          <p className="mt-2 text-body-lg font-medium text-ink-muted">
+            Estás en <span className="text-ink">{me.workspace.name}</span>. Elige un módulo para empezar a trabajar.
+          </p>
         </div>
         <p className="w-fit rounded-full bg-surface-sunken px-3 py-1 text-sm text-ink-muted">{formatToday(me.workspace.timeZone)}</p>
       </div>

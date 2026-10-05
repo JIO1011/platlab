@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(53);
+select plan(54);
 
 -- Solo dentro de esta transacción: pgTAP vive en `extensions` y se invoca también como platlab_api,
 -- y `postgres` (que administra el rol, pero no lo usa) necesita SET para adoptarlo.
@@ -116,6 +116,12 @@ select set_eq(
 select ok(
   not has_table_privilege('platlab_api', 'platform.customer_accounts', 'SELECT'),
   'platlab_api no lee los titulares');
+
+-- ADR 0011, 05-10-2026: la institución visible vive en el espacio; el runtime la lee y no la cambia
+-- (la comprobación anterior de UPDATE solo admite version).
+select ok(
+  has_column_privilege('platlab_api', 'core.workspaces', 'institution_name', 'SELECT'),
+  'platlab_api lee la institución visible del espacio');
 
 select set_eq(
   'select code from core.roles',

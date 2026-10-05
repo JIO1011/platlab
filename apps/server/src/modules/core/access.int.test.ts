@@ -102,6 +102,19 @@ describe('GET /v1/me/workspaces', () => {
     expect(sharedBody.workspaces.every((w) => !w.isOwner)).toBe(true);
   });
 
+  it('trae la institución visible de cada espacio, sin leer el titular jurídico', async () => {
+    await admin.query(`update core.workspaces set institution_name = 'Universidad A' where id = $1`, [a.id]);
+    try {
+      const body = myWorkspacesResponse.parse((await get('/v1/me/workspaces', shared.subject)).json());
+      const byId = new Map(body.workspaces.map((w) => [w.id, w.institution]));
+      expect(byId.get(a.id)).toBe('Universidad A');
+      // Sin nombre fijado, null: el nombre jurídico del titular («Titular test-…») nunca sale.
+      expect(byId.get(b.id)).toBeNull();
+    } finally {
+      await admin.query(`update core.workspaces set institution_name = null where id = $1`, [a.id]);
+    }
+  });
+
   it('un JWT válido sin identidad de PlatLab no ve espacios', async () => {
     const response = await get('/v1/me/workspaces', `sub-desconocido-${uniqueSuffix()}`);
     expect(response.statusCode).toBe(200);
@@ -117,6 +130,8 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
     const body = workspaceMeResponse.parse(response.json());
     expect(body.workspace).toMatchObject({ id: a.id, code: a.code, timeZone: 'America/Guayaquil' });
     expect(body.member.isOwner).toBe(false);
+    // Los roles se muestran tal cual; solo los de este espacio (en B es Operador).
+    expect(body.member.roles).toEqual(['Administrador']);
     // Rol de Administrador en todo A: los permisos de Reactivos de su manifiesto (01 §5).
     expect(body.permissions).toEqual([
       'reagents.adjustment.create',
@@ -152,6 +167,7 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
       (await get(`/v1/workspaces/${a.id}/me`, a.owner.subject)).json(),
     );
     expect(body.member.isOwner).toBe(true);
+    expect(body.member.roles).toEqual(['Administrador']);
     expect(body.permissions).toEqual([
       'reagents.adjustment.create',
       'reagents.catalog.manage',
@@ -166,6 +182,7 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
     const member = await addMember(admin, a.id);
     const body = workspaceMeResponse.parse((await get(`/v1/workspaces/${a.id}/me`, member.subject)).json());
     expect(body.member.isOwner).toBe(false);
+    expect(body.member.roles).toEqual([]);
     expect(body.permissions).toEqual([]);
   });
 

@@ -7,7 +7,7 @@ import {
   type WorkspaceMeResponse,
 } from '@platlab/contracts';
 import { verifiedSubject } from '../../../platform/http/auth.js';
-import { listMyWorkspaces, withWorkspaceAccess } from '../application/access.js';
+import { listMemberRoles, listMyWorkspaces, withWorkspaceAccess } from '../application/access.js';
 import { describeWorkspace, homeCards, type HomeSummaries } from '../application/workspace-view.js';
 
 /** Rutas de Core bajo /v1; la autenticación la exige el ámbito que las registra. */
@@ -30,7 +30,7 @@ export function coreRoutes({
         { subject: verifiedSubject(request), workspaceId, actionClass: 'read_export' },
         async (access) => ({
           workspace: access.workspace,
-          member: { displayName: access.displayName, isOwner: access.isOwner },
+          member: { displayName: access.displayName, isOwner: access.isOwner, roles: await listMemberRoles(access) },
           ...(await describeWorkspace(access)),
         }),
       );

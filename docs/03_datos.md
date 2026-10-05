@@ -53,7 +53,7 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 
 | Tabla | Esencial |
 |---|---|
-| `core.workspaces` | `customer_account_id`; `owner_membership_id` con FK compuesta a una membresía del mismo espacio; código, nombre, zona IANA y `status` |
+| `core.workspaces` | `customer_account_id`; `owner_membership_id` con FK compuesta a una membresía del mismo espacio; código, nombre, zona IANA y `status`; `institution_name` opcional, el nombre de la institución que ven los miembros (no el jurídico), para que el runtime no lea `platform.customer_accounts` ([ADR 0011](05_decisiones.md#adr-0011)) |
 | `core.identities` | Identidad de Auth con `(provider, provider_subject)` único |
 | `core.memberships` | Identidad dentro de un espacio y `status`; única por `(workspace_id, identity_id)` |
 | `core.principals` | Actor humano (por su membresía) o de servicio; un `CHECK` impide mezclar ambos |

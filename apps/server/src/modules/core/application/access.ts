@@ -13,6 +13,7 @@ import {
   hasPermissionAt as hasPermissionAtQuery,
   hasWorkspacePermission as hasWorkspacePermissionQuery,
   listPermissionScope,
+  listMemberRoles as listMemberRolesQuery,
   listMyWorkspaces as listMyWorkspacesQuery,
   listPermissionCodes,
   type IAdmitWorkspaceResult,
@@ -157,6 +158,7 @@ export function listMyWorkspaces(pool: pg.Pool, subject: string): Promise<Worksp
       name: row.name,
       status: visibleWorkspaceStatus.parse(row.status),
       isOwner: row.is_owner,
+      institution: row.institution_name,
     }));
   });
 }
@@ -168,6 +170,15 @@ export async function listGrantedPermissions(access: WorkspaceAccess): Promise<s
     access.client,
   );
   return rows.map((row) => row.permission_code);
+}
+
+/** Nombres de los roles vigentes del miembro, para mostrarlos; no autorizan nada. */
+export async function listMemberRoles(access: WorkspaceAccess): Promise<string[]> {
+  const rows = await listMemberRolesQuery.run(
+    { workspaceId: access.workspace.id, principalId: access.principalId },
+    access.client,
+  );
+  return rows.map((row) => row.name);
 }
 
 /** ¿Tiene el miembro el permiso en esa ubicación, por un rol de todo el espacio o de un ancestro? */

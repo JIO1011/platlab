@@ -254,7 +254,10 @@ Cambio del 02-10-2026, entrada directa, decidido por el usuario:
 
 Cambio del 05-10-2026, decidido por el usuario:
 - **El espacio es quien contrata, no un laboratorio.** Es la unidad con operación propia, por ejemplo una facultad o un instituto ([01 §2](01_producto.md#2-clientes-espacios-y-aislamiento)). Química, Física y los demás laboratorios viven dentro del espacio: hoy como ubicaciones y, desde F3, como espacios físicos con agenda en M4 Laboratorios. La demo los nombra así.
-- **Dentro de un módulo, la barra superior dice dónde se está** (módulo › sección), no el nombre del espacio. En escritorio, el nombre del espacio y su selector pasan a la barra lateral, sobre la tarjeta de la persona. En el móvil, sin barra lateral, el selector sigue arriba. Reemplaza «desde su nombre en la barra superior» del cambio anterior.
+- **Dentro de un módulo, la barra superior dice dónde se está** (módulo › sección), no el nombre del espacio. Reemplaza «desde su nombre en la barra superior» del cambio anterior.
+- **La tarjeta de la persona es el selector de espacio.** Muestra quién eres, en qué espacio y con qué rol: el rol depende del espacio. Con varios espacios, toda la tarjeta abre el menú; con uno, solo lo muestra. En el móvil, un botón con las iniciales, arriba a la derecha, abre el mismo menú con «Salir». El Inicio nombra el espacio en su subtítulo.
+- **Rol real en lugar de «Miembro».** `/me` envía los nombres de los roles vigentes del miembro, solo para mostrarlos; no autorizan nada.
+- **La institución aparece en el menú solo cuando los espacios de la persona son de instituciones distintas**, para distinguir, por ejemplo, dos «Facultad de Ciencias». El nombre visible va en `core.workspaces.institution_name`, que fija el Equipo PlatLab. El runtime sigue sin leer `platform.customer_accounts`, y el nombre jurídico no se muestra.
 
 <a id="adr-0012"></a>
 ## ADR 0012 — Reactivos por frasco y salidas con aprobación
@@ -286,7 +289,7 @@ No se copia de ReactiLab: frasco, lote y código fusionados; ajustes sin signo; 
 | Tema | Pregunta | Se resuelve en |
 |---|---|---|
 | Fiscalizados | Sustancias, concentraciones, cupos, sitios, custodia, formato vigente del reporte y si las salidas reguladas requieren aprobación | REG-01 (F0) |
-| Espacios del piloto | ¿Una o varias unidades operan el inventario? ¿La calificación abarca varias? | F0, con REG-01 |
+| Espacios del piloto | ¿Una o varias unidades operan el inventario? ¿La calificación abarca varias? ¿Necesita el titular una vista consolidada de sus espacios (informes o traslados entre ellos)? Hoy los espacios no comparten nada, aunque sean del mismo titular; abrirlo exige una decisión nueva | F0, con REG-01 |
 | Soluciones preparadas | El diseño ya está decidido (03 §4). Falta saber si el laboratorio almacena soluciones y si siguen siendo fiscalizadas | REG-01 |
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |

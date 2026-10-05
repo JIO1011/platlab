@@ -17,6 +17,8 @@ export const workspaceSummary = z.object({
   name: z.string(),
   status: visibleWorkspaceStatus,
   isOwner: z.boolean(),
+  /** Nombre visible de la institución (no el jurídico); null si no está fijado. */
+  institution: z.string().nullable(),
 });
 
 /** GET /v1/me/workspaces: solo los espacios accesibles para la identidad actual. */
@@ -55,6 +57,8 @@ export const workspaceMeResponse = z.object({
   member: z.object({
     displayName: z.string(),
     isOwner: z.boolean(),
+    /** Nombres de sus roles vigentes, solo para mostrarlos; el servidor autoriza por permisos. */
+    roles: z.array(z.string()),
   }),
   modules: z.array(moduleAccess),
   permissions: z.array(z.string()),

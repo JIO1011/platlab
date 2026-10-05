@@ -44,13 +44,17 @@ select u.id::text, u.id, jsonb_build_object('sub', u.id::text, 'email', u.email,
 -- Core: titular, espacios, identidades, membresías, principales y ubicaciones
 -- ---------------------------------------------------------------------------
 
-insert into platform.customer_accounts (id, legal_name)
-values ('d1000000-0000-4000-8000-000000000001', 'Universidad Demo (sintética)');
+-- Dos titulares (01 §2): la Universidad contrata dos espacios, y el Instituto Tecnológico, otro.
+-- Ningún espacio ve los datos de otro, aunque sean del mismo titular. Ana pertenece a espacios de
+-- las dos instituciones, y su menú de espacios las distingue (ADR 0011, 05-10-2026).
+insert into platform.customer_accounts (id, legal_name) values
+  ('d1000000-0000-4000-8000-000000000001', 'Universidad Demo (sintética)'),
+  ('d1000000-0000-4000-8000-000000000002', 'Instituto Tecnológico Demo (sintético)');
 
-insert into core.workspaces (id, customer_account_id, code, name, time_zone) values
-  ('da000000-0000-4000-8000-00000000000a', 'd1000000-0000-4000-8000-000000000001', 'demo-ciencias', 'Facultad de Ciencias', 'America/Guayaquil'),
-  ('db000000-0000-4000-8000-00000000000b', 'd1000000-0000-4000-8000-000000000001', 'demo-biotecnologia', 'Instituto de Biotecnología', 'America/Guayaquil'),
-  ('dc000000-0000-4000-8000-00000000000c', 'd1000000-0000-4000-8000-000000000001', 'demo-investigacion', 'Centro de Investigación', 'America/Guayaquil');
+insert into core.workspaces (id, customer_account_id, code, name, institution_name, time_zone) values
+  ('da000000-0000-4000-8000-00000000000a', 'd1000000-0000-4000-8000-000000000001', 'demo-ciencias', 'Facultad de Ciencias', 'Universidad Demo', 'America/Guayaquil'),
+  ('db000000-0000-4000-8000-00000000000b', 'd1000000-0000-4000-8000-000000000001', 'demo-biotecnologia', 'Instituto de Biotecnología', 'Universidad Demo', 'America/Guayaquil'),
+  ('dc000000-0000-4000-8000-00000000000c', 'd1000000-0000-4000-8000-000000000002', 'demo-investigacion', 'Centro de Investigación', 'Instituto Tecnológico Demo', 'America/Guayaquil');
 
 insert into core.identities (id, provider, provider_subject, display_name) values
   ('d2000000-0000-4000-8000-000000000001', 'supabase', 'd0000000-0000-4000-8000-000000000001', 'Ana Administradora'),

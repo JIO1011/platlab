@@ -1,5 +1,5 @@
 import type { ModuleAccess, WorkspaceMeResponse } from '@platlab/contracts';
-import { Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, cn } from '@platlab/ui';
+import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, cn } from '@platlab/ui';
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -152,37 +152,133 @@ function ModuleSwitcher({
 
 const statusLabel: Record<string, string> = { trial: 'Prueba', suspended: 'Suspendido', closing: 'En cierre' };
 
+/** El rol se dice tal cual (ADR 0011, 05-10-2026): el propietario lo es del espacio; sin rol, «Miembro». */
+function roleLabel(member: WorkspaceMeResponse['member']): string {
+  if (member.isOwner) return 'Propietario';
+  return member.roles.length ? member.roles.join(' · ') : 'Miembro';
+}
+
+const menuLabel = 'px-2.5 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-ink-subtle';
+
 /**
- * Cambio de espacio (ADR 0011): el nombre del espacio, en la barra lateral o arriba en el móvil,
- * abre un menú con los demás y lleva al Inicio del elegido. El nombre actual nunca se recorta.
+ * Los espacios de la persona (ADR 0011): elegir uno lleva a su Inicio. La institución se dice solo
+ * si los espacios son de varias, para distinguir dos «Facultad de Ciencias»; entre los de una
+ * misma, repetirla es ruido.
  */
-function WorkspaceSwitcher({ current, workspaces }: { current: { id: string; name: string }; workspaces: WorkspaceSummary[] }) {
+function WorkspaceItems({ currentId, workspaces }: { currentId: string; workspaces: WorkspaceSummary[] }) {
   const navigate = useNavigate();
+  const mixed = new Set(workspaces.map((workspace) => workspace.institution)).size > 1;
+  return (
+    <>
+      <p className={menuLabel}>Espacios de trabajo</p>
+      {workspaces.map((workspace) => {
+        const note = [
+          mixed ? workspace.institution : null,
+          workspace.isOwner ? 'Propietario' : null,
+          statusLabel[workspace.status] ?? null,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        return (
+          <DropdownMenuItem key={workspace.id} onSelect={() => navigate(`/e/${workspace.id}`)} className="h-auto min-h-10 py-2">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-medium">{workspace.name}</span>
+              {note ? <span className="block text-[12px] text-ink-muted">{note}</span> : null}
+            </span>
+            {workspace.id === currentId ? <Check className="!text-action" aria-label="Espacio actual" /> : null}
+          </DropdownMenuItem>
+        );
+      })}
+    </>
+  );
+}
+
+function Initials({ initials, className }: { initials: string; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-action text-sm font-bold text-on-action ring-2 ring-surface',
+        className,
+      )}
+    >
+      {initials}
+    </span>
+  );
+}
+
+/**
+ * Quién eres, en qué espacio y con qué rol, que depende del espacio (ADR 0011, 05-10-2026). Con
+ * varios espacios, toda la tarjeta abre el menú para cambiar; con uno, solo lo dice.
+ */
+function PersonCard({ me, workspaces, initials }: { me: WorkspaceMeResponse; workspaces: WorkspaceSummary[]; initials: string }) {
+  const content = (
+    <>
+      <Initials initials={initials} />
+      <span className="min-w-0 flex-1">
+        <span className="block break-words text-sm font-bold leading-snug text-ink">{me.member.displayName}</span>
+        <span className="block text-[13px] leading-snug text-ink-muted">{me.workspace.name}</span>
+        <span className="mt-1 block">
+          <Badge tone="info" className="text-[11px] font-bold uppercase tracking-wider">
+            {roleLabel(me.member)}
+          </Badge>
+        </span>
+      </span>
+    </>
+  );
+  // Alineada con el menú; la flecha va en la esquina para no recortar el nombre.
+  const card = 'relative mx-4 mb-6 flex items-center gap-3 rounded-panel border border-line bg-canvas p-4 text-left';
+  if (workspaces.length < 2) return <div className={card}>{content}</div>;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={`${current.name}. Cambiar de espacio de trabajo`}
-        className="-mx-2 flex min-w-0 items-center gap-2 rounded-control px-2 py-1.5 text-left transition-colors hover:bg-surface-sunken data-[state=open]:bg-surface-sunken"
+        aria-label={`${me.workspace.name}. Cambiar de espacio de trabajo`}
+        className={cn(card, 'pr-8 transition-colors hover:bg-surface-sunken data-[state=open]:bg-surface-sunken')}
       >
-        <span className="text-base font-semibold leading-snug text-ink">{current.name}</span>
-        <ChevronsUpDown className="size-4 shrink-0 text-ink-muted" aria-hidden />
+        {content}
+        <ChevronsUpDown className="absolute right-3 top-3 size-4 text-ink-muted" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-72">
-        {workspaces.map((workspace) => {
-          // Segunda línea solo si aporta: si es propietario o si el espacio no está activo.
-          const note = [workspace.isOwner ? 'Propietario' : null, statusLabel[workspace.status] ?? null]
-            .filter(Boolean)
-            .join(' · ');
-          return (
-            <DropdownMenuItem key={workspace.id} onSelect={() => navigate(`/e/${workspace.id}`)} className="h-auto min-h-10 py-2">
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{workspace.name}</span>
-                {note ? <span className="block text-[12px] text-ink-muted">{note}</span> : null}
-              </span>
-              {workspace.id === current.id ? <Check className="!text-action" aria-label="Espacio actual" /> : null}
-            </DropdownMenuItem>
-          );
-        })}
+        <WorkspaceItems currentId={me.workspace.id} workspaces={workspaces} />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** En el móvil, sin barra lateral: las iniciales abren la persona, sus espacios y «Salir». */
+function AccountMenu({
+  me,
+  workspaces,
+  initials,
+  onSignOut,
+}: {
+  me: WorkspaceMeResponse;
+  workspaces: WorkspaceSummary[];
+  initials: string;
+  onSignOut: () => void;
+}) {
+  const several = workspaces.length > 1;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={several ? `${me.workspace.name}. Cambiar de espacio de trabajo` : 'Tu cuenta'}
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full md:hidden"
+      >
+        <Initials initials={initials} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-72">
+        <div className="px-2.5 py-2">
+          <p className="truncate text-sm font-bold text-ink">{me.member.displayName}</p>
+          <p className="text-[13px] leading-snug text-ink-muted">
+            {roleLabel(me.member)} · {me.workspace.name}
+          </p>
+        </div>
+        {several ? <WorkspaceItems currentId={me.workspace.id} workspaces={workspaces} /> : null}
+        <div aria-hidden className="my-1 h-px bg-line" />
+        <DropdownMenuItem onSelect={onSignOut}>
+          <LogOut aria-hidden />
+          Salir
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -269,14 +365,6 @@ export function AppShell() {
       </NavItem>
     ));
 
-  // Con varios espacios, el nombre es el propio selector; con uno solo, un título.
-  const workspace =
-    workspaceList.length > 1 ? (
-      <WorkspaceSwitcher current={me.data.workspace} workspaces={workspaceList} />
-    ) : (
-      <span className="text-base font-semibold leading-snug text-ink">{me.data.workspace.name}</span>
-    );
-
   // La sección actual del módulo, para decir arriba dónde se está; la ficha cuenta como Inventario.
   const sectionPath = app ? (pathname.slice(`${base}/${app.path}`.length + 1).split('/')[0] ?? '') : '';
   const section = app?.sections.find((entry) => entry.path === sectionPath);
@@ -294,26 +382,8 @@ export function AppShell() {
         <Link to={base} aria-label="PlatLab, ir al Inicio" className="px-8 pb-6 pt-8">
           <Wordmark large className="text-2xl font-bold" />
         </Link>
-        {/* El espacio es quien contrata, no un laboratorio; aquí se ve y se cambia (ADR 0011, 05-10-2026). */}
-        <div className="mx-6 mb-3 px-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-ink-subtle">Espacio de trabajo</p>
-          <div className="mt-0.5 flex">{workspace}</div>
-        </div>
-        {/* La persona y su rol, como la tarjeta de ReactiLab. */}
-        <div className="mx-6 mb-6 flex items-center gap-3 rounded-panel border border-line bg-canvas p-4">
-          <span
-            aria-hidden
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-action text-sm font-bold text-on-action ring-2 ring-surface"
-          >
-            {initials}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-ink">{me.data.member.displayName}</p>
-            <Badge tone="info" className="mt-0.5 text-[11px] font-bold uppercase tracking-wider">
-              {me.data.member.isOwner ? 'Propietario' : 'Miembro'}
-            </Badge>
-          </div>
-        </div>
+        {/* La persona, su espacio y su rol, como la tarjeta de ReactiLab; también cambia de espacio. */}
+        <PersonCard me={me.data} workspaces={workspaceList} initials={initials} />
         <div className="min-h-0 flex-1 overflow-y-auto px-4">
           {app ? (
             <>
@@ -370,8 +440,6 @@ export function AppShell() {
                 <Wordmark compact />
               </Link>
             )}
-            {/* En el móvil no hay barra lateral: el espacio se cambia aquí. */}
-            <div className="flex min-w-0 md:hidden">{workspace}</div>
             {/* En escritorio, la barra dice dónde se está: módulo › sección. */}
             <p className="hidden min-w-0 items-center gap-1.5 text-sm md:flex">
               <span className="font-semibold text-ink">{app ? app.name : 'Inicio'}</span>
@@ -384,10 +452,8 @@ export function AppShell() {
             </p>
             <div className="ml-auto flex shrink-0 items-center gap-2">
               <span className="hidden text-sm font-medium text-ink-muted md:inline">{me.data.member.displayName}</span>
-              {/* En escritorio, «Salir» vive al pie de la barra lateral. */}
-              <Button variant="ghost" size="sm" className="md:hidden" onClick={() => void signOut()} aria-label="Salir de PlatLab">
-                <LogOut aria-hidden />
-              </Button>
+              {/* En escritorio, espacios y «Salir» viven en la barra lateral. */}
+              <AccountMenu me={me.data} workspaces={workspaceList} initials={initials} onSignOut={() => void signOut()} />
             </div>
           </div>
           {app ? (

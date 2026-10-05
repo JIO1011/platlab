@@ -128,7 +128,8 @@ Decidido el 04-10-2026:
 
 Decidido el 05-10-2026:
 
-- El espacio de trabajo es quien contrata (una facultad o un instituto), no un laboratorio. Química, Física, etc. son laboratorios dentro del espacio: ubicaciones hoy, y M4 Laboratorios en F3. Dentro de un módulo, la barra superior dice dónde se está, y el selector de espacio va en la barra lateral (ADR 0011).
+- El espacio de trabajo es quien contrata (una facultad o un instituto), no un laboratorio. Química, Física, etc. son laboratorios dentro del espacio: ubicaciones hoy, y M4 Laboratorios en F3. Dentro de un módulo, la barra superior dice dónde se está. La tarjeta de la persona (espacio y rol real) es el selector de espacio; en el móvil, el botón con las iniciales. La institución se muestra solo si los espacios de la persona son de instituciones distintas (ADR 0011).
+- Los espacios no comparten nada, aunque sean del mismo titular. Una vista consolidada para el titular queda pendiente para F0 y REG-01.
 
 El modelo comercial sigue pendiente: la recomendación está en 01 §4 y debe confirmarla el usuario.
 

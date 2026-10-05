@@ -99,11 +99,14 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   // atrapa el foco, y axe no conoce esa trampa (lo mismo que con el Select).
   await expectAccessible(admin, 'inicio con cambio de espacio');
   await admin.getByRole('button', { name: /Cambiar de espacio de trabajo/ }).click();
-  await expect(admin.getByRole('menuitem', { name: /Facultad de Ciencias/ })).toBeVisible();
-  await expect(admin.getByRole('menuitem', { name: /Centro de Investigación/ })).toBeVisible();
+  // Espacios de dos instituciones: el menú dice de cuál es cada uno (ADR 0011, 05-10-2026).
+  await expect(admin.getByRole('menuitem', { name: /Facultad de Ciencias.*Universidad Demo/ })).toBeVisible();
+  await expect(admin.getByRole('menuitem', { name: /Centro de Investigación.*Instituto Tecnológico Demo/ })).toBeVisible();
   await capture(admin, 'desktop-workspace-switcher', false);
   await admin.keyboard.press('Escape');
   await openReagents(admin, 'Facultad de Ciencias');
+  // El rol depende del espacio: aquí es Administradora, no «Miembro».
+  await expect(admin.getByRole('complementary').getByText('Administrador', { exact: true })).toBeVisible();
   await goTo(admin, 'Inventario');
 
   await admin.getByRole('button', { name: 'Nuevo reactivo' }).first().click();
@@ -246,6 +249,7 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
   await expect(owner.getByRole('button', { name: /Cambiar de espacio de trabajo/ })).toHaveCount(0);
   // ADR 0011, cambio del 05-10-2026: el espacio vive en la barra lateral; arriba, dónde se está.
   await expect(owner.getByRole('complementary')).toContainText('Facultad de Ciencias');
+  await expect(owner.getByRole('complementary')).toContainText('Propietario');
   await owner.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(owner.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
   const topBar = owner.getByRole('banner');

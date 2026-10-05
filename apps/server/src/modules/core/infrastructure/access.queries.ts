@@ -42,6 +42,8 @@ export interface IListMyWorkspacesParams {
 export interface IListMyWorkspacesResult {
   code: string;
   id: string;
+  /** Nombre de la institución que ven los miembros (no el jurídico). Opcional; lo fija el Equipo PlatLab. */
+  institution_name: string | null;
   is_owner: boolean;
   name: string;
   status: string;
@@ -53,7 +55,7 @@ export interface IListMyWorkspacesQuery {
   result: IListMyWorkspacesResult;
 }
 
-const listMyWorkspacesIR: any = {"usedParamSet":{"identityId":true},"params":[{"name":"identityId","required":true,"transform":{"type":"scalar"},"locs":[{"a":214,"b":225}]}],"statement":"SELECT\n  w.id,\n  w.code,\n  w.name,\n  w.status,\n  (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS \"is_owner!\"\nFROM core.memberships AS m\nJOIN core.workspaces AS w ON w.id = m.workspace_id\nWHERE m.identity_id = :identityId!\n  AND m.status = 'active'\n  AND cardinality(core.workspace_axis(w.status, w.suspension_reason)) > 0\nORDER BY w.name, w.id"};
+const listMyWorkspacesIR: any = {"usedParamSet":{"identityId":true},"params":[{"name":"identityId","required":true,"transform":{"type":"scalar"},"locs":[{"a":236,"b":247}]}],"statement":"SELECT\n  w.id,\n  w.code,\n  w.name,\n  w.status,\n  w.institution_name,\n  (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS \"is_owner!\"\nFROM core.memberships AS m\nJOIN core.workspaces AS w ON w.id = m.workspace_id\nWHERE m.identity_id = :identityId!\n  AND m.status = 'active'\n  AND cardinality(core.workspace_axis(w.status, w.suspension_reason)) > 0\nORDER BY w.name, w.id"};
 
 /**
  * Query generated from SQL:
@@ -63,6 +65,7 @@ const listMyWorkspacesIR: any = {"usedParamSet":{"identityId":true},"params":[{"
  *   w.code,
  *   w.name,
  *   w.status,
+ *   w.institution_name,
  *   (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS "is_owner!"
  * FROM core.memberships AS m
  * JOIN core.workspaces AS w ON w.id = m.workspace_id
@@ -332,6 +335,44 @@ const listPermissionCodesIR: any = {"usedParamSet":{"workspaceId":true,"principa
  * ```
  */
 export const listPermissionCodes = new PreparedQuery<IListPermissionCodesParams,IListPermissionCodesResult>(listPermissionCodesIR);
+
+
+/** 'ListMemberRoles' parameters type */
+export interface IListMemberRolesParams {
+  principalId: string;
+  workspaceId: string;
+}
+
+/** 'ListMemberRoles' return type */
+export interface IListMemberRolesResult {
+  name: string;
+}
+
+/** 'ListMemberRoles' query type */
+export interface IListMemberRolesQuery {
+  params: IListMemberRolesParams;
+  result: IListMemberRolesResult;
+}
+
+const listMemberRolesIR: any = {"usedParamSet":{"workspaceId":true,"principalId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":317,"b":329}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":355,"b":367}]}],"statement":"-- Nombres de los roles vigentes del miembro en algún ámbito, solo para mostrarlos (ADR 0011,\n-- 05-10-2026): no autorizan nada. Incluye el Administrador implícito del propietario.\nSELECT DISTINCT r.name\nFROM core.effective_role_assignments AS ra\nJOIN core.roles AS r ON r.code = ra.role_code\nWHERE ra.workspace_id = :workspaceId!\n  AND ra.principal_id = :principalId!\n  AND ra.revoked_at IS NULL\n  AND ra.valid_from <= now()\n  AND (ra.valid_until IS NULL OR ra.valid_until > now())\nORDER BY r.name"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Nombres de los roles vigentes del miembro en algún ámbito, solo para mostrarlos (ADR 0011,
+ * -- 05-10-2026): no autorizan nada. Incluye el Administrador implícito del propietario.
+ * SELECT DISTINCT r.name
+ * FROM core.effective_role_assignments AS ra
+ * JOIN core.roles AS r ON r.code = ra.role_code
+ * WHERE ra.workspace_id = :workspaceId!
+ *   AND ra.principal_id = :principalId!
+ *   AND ra.revoked_at IS NULL
+ *   AND ra.valid_from <= now()
+ *   AND (ra.valid_until IS NULL OR ra.valid_until > now())
+ * ORDER BY r.name
+ * ```
+ */
+export const listMemberRoles = new PreparedQuery<IListMemberRolesParams,IListMemberRolesResult>(listMemberRolesIR);
 
 
 /** 'HasPermissionAt' parameters type */
