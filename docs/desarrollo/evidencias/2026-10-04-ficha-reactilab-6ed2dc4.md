@@ -1,7 +1,7 @@
 # Verificación — ficha del reactivo (segundo nivel del inventario) con el diseño de ReactiLab
 
 Fecha: 2026-10-04 · Commit: 6ed2dc4, con cambios sin confirmar · Entorno: local
-Veredicto: **Incompleto**, solo a falta del CI de este commit. Cambio solo de presentación: sin datos, contratos, permisos ni reglas nuevas.
+Veredicto: **Cumple**, también en el CI (run 37262202232 sobre 8e952f0). Cambio solo de presentación: sin datos, contratos, permisos ni reglas nuevas.
 
 Referencia: la vista de detalle de frascos de `Inventario_V1` (ADR 0010, 04-10-2026). Se toma el lenguaje visual; no se copia su código.
 
@@ -14,6 +14,6 @@ Referencia: la vista de detalle de frascos de `Inventario_V1` (ADR 0010, 04-10-2
 | 5 | Historial como línea de tiempo | ✅ | `desktop-product-reserved.png` |
 | 6 | Accesibilidad WCAG 2.2 AA | ✅ | axe en 34 pantallas, incluidas ficha, ficha con varios frascos y ficha móvil |
 | 7 | Comprobaciones | ✅ | `typecheck`, `lint`, `deps` (113 módulos) y `knip` en verde; 13 pruebas Playwright |
-| 8 | Reproducibilidad en CI | ⚠️ | Falta el CI de este commit |
+| 8 | Reproducibilidad en CI | ✅ | Run 37262202232 sobre 8e952f0, todos los pasos en verde, Playwright con axe incluido |
 
 No verificado: revisión final de impeccable de esta ficha (no se pidió un pase aparte) y comparación píxel a píxel con ReactiLab; se comparó a ojo con su código.
