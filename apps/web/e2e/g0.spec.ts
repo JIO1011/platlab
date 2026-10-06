@@ -20,9 +20,12 @@ async function signIn(browser: Browser, email: string, viewport = { width: 1440,
   return page;
 }
 
-/** Captura válida para la revisión: desde arriba, con el movimiento asentado y sin avisos encima. */
-async function capture(page: Page, name: string, fullPage = true) {
-  await page.evaluate(() => window.scrollTo(0, 0));
+/**
+ * Captura válida para la revisión: desde arriba, con el movimiento asentado y sin avisos encima.
+ * Con `keepScroll`, donde la página dejó a la persona (p. ej., el frasco de una etiqueta QR).
+ */
+async function capture(page: Page, name: string, fullPage = true, keepScroll = false) {
+  if (!keepScroll) await page.evaluate(() => window.scrollTo(0, 0));
   // Sin transiciones a medias: una captura tomada durante un fundido no es evidencia.
   await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
   // Los avisos se ocultan solo durante la foto: quitarlos del DOM rompería los siguientes.
@@ -602,7 +605,31 @@ test('conteo: se anota lo que hay por ubicación y solo lo que no cuadra se ajus
   await expect(sheet).toContainText('1 no cuadra');
   await expectAccessible(admin, 'hoja de conteo');
   await capture(admin, 'desktop-count', false);
-  await sheet.getByRole('button', { name: 'Registrar conteo (1 ajuste)' }).click();
+  await sheet.getByRole('button', { name: 'Registrar conteo' }).click();
+  await expect(sheet).toHaveCount(0);
+
+  // Si alguien registra una salida mientras se cuenta, ese frasco pierde lo anotado y se vuelve a contar:
+  // reenviarlo con el saldo nuevo contaría la salida dos veces.
+  await admin.getByRole('button', { name: 'Conteo', exact: true }).click();
+  await choose(admin, 'Ubicación', /Almacén de reactivos/);
+  await sheet.getByLabel('Contado en HCL-2026-01-02', { exact: true }).fill('2290');
+  const other = await signIn(browser, 'admin@demo.platlab.test');
+  await openReagents(other, 'Facultad de Ciencias');
+  await goTo(other, 'Inventario');
+  await other.getByRole('link', { name: /Ácido clorhídrico/ }).click();
+  await other.getByRole('article').filter({ hasText: 'HCL-2026-01-02' }).getByRole('button', { name: 'Salida' }).click();
+  const otherIssue = other.getByRole('dialog', { name: 'Registrar salida' });
+  await otherIssue.getByLabel('Cantidad', { exact: true }).fill('10');
+  await pick(otherIssue, 'Práctica de Química General');
+  await pick(otherIssue, 'Laboratorio de Física');
+  await otherIssue.getByRole('button', { name: 'Registrar salida' }).click();
+  await expect(otherIssue).toHaveCount(0);
+  await sheet.getByRole('button', { name: 'Registrar conteo' }).click();
+  await expect(sheet.getByRole('alert')).toContainText('cambió mientras contabas');
+  await expect(sheet.getByLabel('Contado en HCL-2026-01-02', { exact: true })).toHaveValue('');
+  await expect(sheet).toContainText('El saldo cambió: vuelve a contarlo');
+  await expectAccessible(admin, 'conteo con un saldo cambiado');
+  await admin.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);
 
   await goTo(admin, 'Movimientos');
@@ -610,6 +637,76 @@ test('conteo: se anota lo que hay por ubicación y solo lo que no cuadra se ajus
   const row = admin.locator('main').getByRole('listitem').filter({ hasText: 'H2SO4-2026-02-01' }).filter({ hasText: 'Conteo' });
   await expect(row).toHaveCount(1);
   await expect(row).toContainText(/995\s*mL/);
+
+  // En el móvil (360 px), cada fila conserva el código entero, el campo con su unidad y la diferencia.
+  const phone = await signIn(browser, 'admin@demo.platlab.test', { width: 360, height: 780 });
+  await openReagents(phone, 'Facultad de Ciencias');
+  await goTo(phone, 'Inventario');
+  await phone.getByRole('button', { name: 'Conteo', exact: true }).click();
+  const mobileSheet = phone.getByRole('dialog', { name: 'Conteo' });
+  await choose(phone, 'Ubicación', /Almacén de reactivos/);
+  await mobileSheet.getByLabel('Contado en HCL-2026-01-01', { exact: true }).fill('2250');
+  await expect(mobileSheet).toContainText('1 no cuadra');
+  // Nada se sale de la hoja: ni la página ni el contenido del diálogo se desplazan en horizontal.
+  expect(await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(
+    await mobileSheet.evaluate((dialog) =>
+      [...dialog.querySelectorAll('*')].every((element) => element.getBoundingClientRect().right <= dialog.getBoundingClientRect().right + 1),
+    ),
+  ).toBe(true);
+  await expectAccessible(phone, 'conteo en el móvil');
+  await capture(phone, 'mobile-count', false);
+});
+
+test('etiquetas con QR: se eligen e imprimen, y el enlace del QR abre el frasco aun sin sesión (ADR 0012, entrega 4)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await openReagents(admin, 'Facultad de Ciencias');
+  await goTo(admin, 'Inventario');
+  await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
+  const target = admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' });
+  const containerId = (await target.getAttribute('id'))?.replace('frasco-', '');
+  expect(containerId).toBeTruthy();
+
+  await admin.getByRole('link', { name: 'Etiquetas' }).click();
+  await expect(admin).toHaveURL(/\/etiquetas$/);
+  const labels = admin.getByRole('list', { name: 'Etiquetas' });
+  const qr = labels.getByRole('img', { name: 'Código QR del frasco H2SO4-2026-02-01' });
+  await expect(qr).toBeVisible();
+  // El QR codifica un enlace corto, para que sus módulos se lean impresos en 22 mm.
+  const qrUrl = (await qr.getAttribute('data-value')) ?? '';
+  expect(qrUrl).toMatch(/\/q\/[A-Za-z0-9_-]{43}$/);
+  await expect(labels).toContainText('Lote H2SO4-2026-02');
+  await expect(admin.getByText('3 etiquetas elegidas de 3')).toBeVisible();
+  await labels.getByRole('checkbox', { name: 'H2SO4-2024-08-01' }).uncheck();
+  await expect(admin.getByText('2 etiquetas elegidas de 3')).toBeVisible();
+  // En la página de etiquetas no hay acciones de registro: la tarea es imprimir.
+  await expect(admin.getByRole('button', { name: 'Registrar salida' })).toHaveCount(0);
+  await expectAccessible(admin, 'etiquetas');
+  await capture(admin, 'desktop-labels', false);
+  // Vista de impresión: solo las elegidas, sin menú, barra ni casillas.
+  await admin.emulateMedia({ media: 'print' });
+  await expect(labels.getByRole('checkbox')).toHaveCount(0);
+  await expect(admin.getByRole('navigation').first()).toBeHidden();
+  await capture(admin, 'labels-print');
+  await admin.emulateMedia({ media: 'screen' });
+
+  // El enlace del QR, sin sesión, pasa por el acceso, vuelve, resuelve el frasco y la ficha lo resalta.
+  const url = new URL(qrUrl).pathname;
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'es-EC', timezoneId: 'America/Guayaquil' });
+  const phone = await context.newPage();
+  await phone.goto(url);
+  await expect(phone).toHaveURL(/\/acceso/);
+  await phone.getByLabel('Correo').fill('admin@demo.platlab.test');
+  await phone.getByLabel('Contraseña').fill(password);
+  await phone.getByRole('button', { name: 'Entrar' }).click();
+  await expect(phone).toHaveURL(new RegExp(`/frascos/${containerId}$`));
+  const scanned = phone.locator('article[aria-current="true"]');
+  await expect(scanned).toContainText('Desde su etiqueta');
+  await expect(scanned).toContainText('H2SO4-2026-02-01');
+  await expectAccessible(phone, 'frasco desde su etiqueta');
+  // La ficha lleva el frasco a la vista: la captura conserva ese desplazamiento.
+  await expect(scanned).toBeInViewport();
+  await capture(phone, 'mobile-scanned', false, true);
 });
 
 test('stock insuficiente: la salida se rechaza en el formulario y el saldo no cambia', async ({ browser }) => {

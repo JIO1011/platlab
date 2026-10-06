@@ -68,6 +68,13 @@ JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
 WHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND i.kind = :kind!
 FOR UPDATE OF p;
 
+/* @name findContainerItem */
+-- De qué ítem es un frasco del espacio: lo que necesita el enlace corto de su etiqueta QR.
+SELECT c.id, c.item_id
+FROM inventory.containers AS c
+JOIN inventory.items AS i ON i.workspace_id = c.workspace_id AND i.id = c.item_id
+WHERE c.workspace_id = :workspaceId! AND c.id = :containerId! AND i.kind = :kind!;
+
 /* @name lockTransferPosition */
 -- El frasco que se traslada, bloqueado antes de leer su saldo (posición de origen primero, 02 §6).
 SELECT p.id, p.item_id, p.lot_id, p.container_id, p.location_id, p.disposition,

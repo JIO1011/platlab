@@ -13,7 +13,7 @@ export {
   retireReason,
 } from './application/lists.js';
 export { applyMovement, countLocation, lockExistingPosition, receiveContainers, transferContainer } from './application/movements.js';
-export { countOperationsPerDay, listOperationPage, listPositionPage } from './application/queries.js';
+export { containerItem, countOperationsPerDay, listOperationPage, listPositionPage } from './application/queries.js';
 export {
   approveIssueRequest,
   listIssueRequests,

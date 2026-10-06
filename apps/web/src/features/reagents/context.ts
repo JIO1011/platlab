@@ -17,7 +17,8 @@ export type SheetRequest =
   | { kind: 'receipt'; productId?: string }
   | { kind: 'issue'; positionId?: string; productId?: string }
   | { kind: 'adjustment'; positionId?: string }
-  | { kind: 'transfer'; positionId: string }
+  // El frasco viaja en la petición: la lista global de frascos puede no incluirlo (llega por páginas).
+  | { kind: 'transfer'; position: Position }
   | { kind: 'count' }
   // Mínimo (ADR 0012, 05-10-2026): desde la ficha del reactivo.
   | { kind: 'minimum'; productId: string };

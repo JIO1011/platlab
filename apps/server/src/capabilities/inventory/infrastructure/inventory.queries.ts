@@ -363,6 +363,40 @@ const lockPositionIR: any = {"usedParamSet":{"workspaceId":true,"positionId":tru
 export const lockPosition = new PreparedQuery<ILockPositionParams,ILockPositionResult>(lockPositionIR);
 
 
+/** 'FindContainerItem' parameters type */
+export interface IFindContainerItemParams {
+  containerId: string;
+  kind: string;
+  workspaceId: string;
+}
+
+/** 'FindContainerItem' return type */
+export interface IFindContainerItemResult {
+  id: string;
+  item_id: string;
+}
+
+/** 'FindContainerItem' query type */
+export interface IFindContainerItemQuery {
+  params: IFindContainerItemParams;
+  result: IFindContainerItemResult;
+}
+
+const findContainerItemIR: any = {"usedParamSet":{"workspaceId":true,"containerId":true,"kind":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":251,"b":263}]},{"name":"containerId","required":true,"transform":{"type":"scalar"},"locs":[{"a":276,"b":288}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":303,"b":308}]}],"statement":"-- De qué ítem es un frasco del espacio: lo que necesita el enlace corto de su etiqueta QR.\nSELECT c.id, c.item_id\nFROM inventory.containers AS c\nJOIN inventory.items AS i ON i.workspace_id = c.workspace_id AND i.id = c.item_id\nWHERE c.workspace_id = :workspaceId! AND c.id = :containerId! AND i.kind = :kind!"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- De qué ítem es un frasco del espacio: lo que necesita el enlace corto de su etiqueta QR.
+ * SELECT c.id, c.item_id
+ * FROM inventory.containers AS c
+ * JOIN inventory.items AS i ON i.workspace_id = c.workspace_id AND i.id = c.item_id
+ * WHERE c.workspace_id = :workspaceId! AND c.id = :containerId! AND i.kind = :kind!
+ * ```
+ */
+export const findContainerItem = new PreparedQuery<IFindContainerItemParams,IFindContainerItemResult>(findContainerItemIR);
+
+
 /** 'LockTransferPosition' parameters type */
 export interface ILockTransferPositionParams {
   kind: string;

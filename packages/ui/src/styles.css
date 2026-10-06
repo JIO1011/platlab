@@ -177,3 +177,34 @@
   --color-action-deep: #6d28d9;
   --color-canvas-glow: #eef0ff;
 }
+
+/*
+ * Impresión de etiquetas (ADR 0012, entrega 4): si la página tiene una zona `.print-area`, solo
+ * ella se imprime, sin el menú, la barra ni las acciones.
+ */
+@media print {
+  body:has(.print-area) * {
+    visibility: hidden;
+  }
+  /* Misma base de especificidad que la regla anterior, más la clase: así gana. */
+  body:has(.print-area) .print-area,
+  body:has(.print-area) .print-area * {
+    visibility: visible;
+  }
+  /* Los contenedores de la zona no la desplazan ni la recortan: se posiciona respecto de la hoja. */
+  body:has(.print-area) :has(.print-area) {
+    position: static !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+  body:has(.print-area) .print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+  }
+  /* Márgenes de la hoja A4 adhesiva de 3 × 8 etiquetas de 63,5 × 33,9 mm. */
+  @page {
+    size: A4;
+    margin: 12.9mm 7.2mm;
+  }
+}

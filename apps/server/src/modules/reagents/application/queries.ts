@@ -16,6 +16,7 @@ import type {
   StockedProduct,
 } from '@platlab/contracts';
 import {
+  containerItem,
   countOperationsPerDay,
   destinationsOf,
   listIssueRequests,
@@ -315,5 +316,14 @@ export function listCountLocations(pool: pg.Pool, request: QueryRequest): Promis
     const scope = await permissionScope(access, 'reagents.adjustment.create');
     const rows = await listLocationsIn.run({ workspaceId: access.workspace.id, locationIds: scope }, access.client);
     return { items: rows.map(({ id, code, name, kind }) => ({ id, code, name, kind })) };
+  });
+}
+
+/** Reactivo de un frasco: el enlace corto de su etiqueta QR lleva a su ficha (ADR 0012, entrega 4). */
+export function getContainer(pool: pg.Pool, request: QueryRequest, containerId: string): Promise<{ containerId: string; productId: string }> {
+  return runQuery(pool, request, async (access) => {
+    const productId = await containerItem(inventoryContext(access), containerId);
+    if (!productId) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
+    return { containerId, productId };
   });
 }

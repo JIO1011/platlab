@@ -1,6 +1,6 @@
 import type { Operation, Position } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
-import { countOperationsByDay, listOperations, listPositions } from '../infrastructure/inventory.queries.js';
+import { countOperationsByDay, findContainerItem, listOperations, listPositions } from '../infrastructure/inventory.queries.js';
 import type { InventoryContext } from './context.js';
 
 /** Cursor opaco para paginar por clave: el cliente no elige orden ni filtros arbitrarios. */
@@ -162,4 +162,10 @@ export async function countOperationsPerDay(
     ctx.client,
   );
   return rows.map((row) => ({ date: row.day, value: row.count }));
+}
+
+/** Ítem de un frasco del espacio y del tipo del módulo; null si no existe para él. */
+export async function containerItem(ctx: InventoryContext, containerId: string): Promise<string | null> {
+  const [row] = await findContainerItem.run({ workspaceId: ctx.workspaceId, containerId, kind: ctx.kind }, ctx.client);
+  return row?.item_id ?? null;
 }

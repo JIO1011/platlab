@@ -26,6 +26,8 @@ export const router = createBrowserRouter([
     children: [
       { path: '/', element: <Navigate to="/espacios" replace /> },
       { path: '/espacios', element: <WorkspacePicker /> },
+      // Enlace corto de la etiqueta QR de un frasco (ADR 0012, entrega 4): resuelve espacio y reactivo.
+      { path: '/q/:code', lazy: async () => ({ Component: (await reagents()).FrascoLinkPage }) },
       {
         path: '/e/:workspaceId',
         element: <AppShell />,
@@ -41,6 +43,12 @@ export const router = createBrowserRouter([
               { path: 'inventario', lazy: async () => ({ Component: (await reagents()).ReagentsInventoryPage }) },
               // Ficha del reactivo, segundo nivel del inventario (ADR 0012).
               { path: 'inventario/:productId', lazy: async () => ({ Component: (await reagents()).ReagentsProductPage }) },
+              // El QR de la etiqueta abre el frasco en su ficha; la ruta sobrevive al acceso (entrega 4).
+              {
+                path: 'inventario/:productId/frascos/:containerId',
+                lazy: async () => ({ Component: (await reagents()).ReagentsProductPage }),
+              },
+              { path: 'inventario/:productId/etiquetas', lazy: async () => ({ Component: (await reagents()).ReagentsLabelsPage }) },
               { path: 'movimientos', lazy: async () => ({ Component: (await reagents()).ReagentsMovementsPage }) },
               // Solicitudes de salida (ADR 0012): bandeja de quien aprueba o las propias del Operador.
               { path: 'solicitudes', lazy: async () => ({ Component: (await reagents()).ReagentsRequestsPage }) },

@@ -2,6 +2,7 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import {
   adjustmentRequest,
+  containerParams,
   countRequest,
   createDestinationRequest,
   createLotRequest,
@@ -43,6 +44,7 @@ import {
   type CommandRequest,
 } from '../application/commands.js';
 import {
+  getContainer,
   getProduct,
   listCountLocations,
   getSummary,
@@ -103,6 +105,10 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
     );
 
     app.get('/receipt-locations', async (request) => listReceiptLocations(pool, queryRequest(request)));
+
+    app.get('/containers/:containerId', async (request) =>
+      getContainer(pool, queryRequest(request), containerParams.parse(request.params).containerId),
+    );
 
     app.post('/products/:productId/lots', async (request, reply) => {
       const { productId } = productParams.parse(request.params);

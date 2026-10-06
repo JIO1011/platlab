@@ -50,6 +50,7 @@ import { purposeOf } from './operation-text';
 import { AdjustmentSheet, CountSheet, IssueSheet, MinimumSheet, NewProductSheet, ReceiptSheet, TransferSheet } from './sheets';
 
 export { ReagentsInventoryPage, ReagentsProductPage } from './inventory';
+export { FrascoLinkPage, ReagentsLabelsPage } from './labels';
 export { ReagentsRequestsPage } from './requests';
 
 /**
@@ -141,6 +142,8 @@ export function ReagentsLayout() {
   // En la ficha (ADR 0012) las acciones se acotan a ese reactivo: ingreso y salida con él ya
   // elegido; «Nuevo reactivo» no corresponde y «Ajustar» vive en cada frasco.
   const inProduct = detailId !== undefined;
+  // En la página de etiquetas la tarea es imprimir: sin acciones de registro en la cabecera.
+  const inLabels = pathname.endsWith('/etiquetas');
   const secondaryActions = [
     { kind: 'product', label: 'Nuevo reactivo', icon: Plus, shown: allowed.product && !inProduct },
     { kind: 'receipt', label: 'Registrar ingreso', icon: ArrowDownToLine, shown: allowed.receipt },
@@ -206,7 +209,7 @@ export function ReagentsLayout() {
           </p>
         </div>
         {/* En el Resumen, la tarjeta de acción rápida hace de acciones (ADR 0010, 04-10-2026); en Solicitudes, la tarea es decidir, y «Aprobar salida» es la primaria. */}
-        {sectionPath !== '' && sectionPath !== 'solicitudes' ? (
+        {sectionPath !== '' && sectionPath !== 'solicitudes' && !inLabels ? (
           <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
             {visibleSecondary.map(({ kind, label, icon: Icon }, index) => (
               <Button
@@ -264,7 +267,7 @@ export function ReagentsLayout() {
 
       {current?.request.kind === 'product' ? <NewProductSheet key={current.id} {...sheetProps('product')} /> : null}
       {current?.request.kind === 'receipt' ? (
-        <ReceiptSheet key={current.id} {...sheetProps('receipt')} products={productList} productId={current.request.productId} />
+        <ReceiptSheet key={current.id} {...sheetProps('receipt')} products={productList} productId={current.request.productId} base={base} />
       ) : null}
       {current?.request.kind === 'issue' ? (
         <IssueSheet
@@ -290,7 +293,7 @@ export function ReagentsLayout() {
         <TransferSheet
           key={current.id}
           {...sheetProps('transfer')}
-          position={positionList.find((entry) => entry.id === (current.request.kind === 'transfer' ? current.request.positionId : ''))}
+          position={current.request.position}
         />
       ) : null}
       {current?.request.kind === 'adjustment' ? (

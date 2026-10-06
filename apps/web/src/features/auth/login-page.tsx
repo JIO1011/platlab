@@ -1,6 +1,6 @@
 import { Button, Field, Input } from '@platlab/ui';
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Wordmark } from '../../app/brand';
 import { useSession } from '../../app/session';
 
@@ -15,13 +15,16 @@ export function LoginPage() {
   const { session, signIn } = useSession();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  // Volver adonde se quería ir (p. ej., el frasco de una etiqueta QR), solo si es una ruta de la app.
+  const from = (useLocation().state as { from?: unknown } | null)?.from;
+  const target = typeof from === 'string' && (from.startsWith('/e/') || from.startsWith('/q/')) ? from : '/espacios';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const expired = params.get('sesion') === 'expirada';
 
-  if (session) return <Navigate to="/espacios" replace />;
+  if (session) return <Navigate to={target} replace />;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -30,7 +33,7 @@ export function LoginPage() {
     const failure = await signIn(email.trim(), password);
     setPending(false);
     if (failure) setError(failure);
-    else navigate('/espacios', { replace: true });
+    else navigate(target, { replace: true });
   }
 
   return (

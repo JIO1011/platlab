@@ -55,6 +55,10 @@ export const product = z.object({
 export const setMinimumRequest = z.object({ minimum: positiveQuantity.nullable() }).strict();
 export const minimumResponse = z.object({ productId: z.uuid(), minimum: decimalString.nullable() });
 
+/** GET /containers/:containerId: de qué reactivo es un frasco (enlace corto de su etiqueta QR). */
+export const containerParams = z.object({ workspaceId: z.uuid(), containerId: z.uuid() });
+export const containerResponse = z.object({ containerId: z.uuid(), productId: z.uuid() });
+
 export const productParams = z.object({ workspaceId: z.uuid(), productId: z.uuid() });
 
 /** Si la caducidad o el lote del proveedor se desconocen, se envían como null (quedan desconocidos). */

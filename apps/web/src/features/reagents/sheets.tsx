@@ -38,6 +38,7 @@ import {
 import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, ClipboardCheck, FlaskConical, Scale, TrendingDown, type LucideIcon } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Controller, useForm, type FieldValues, type Path, type UseFormReturn } from 'react-hook-form';
+import { useNavigate } from 'react-router';
 import type { z } from 'zod';
 import { isApiError } from '../../app/api';
 import { formatDate } from '../../app/format';
@@ -406,7 +407,9 @@ export function ReceiptSheet({
   onOpenChange,
   products,
   productId,
-}: SheetBaseProps & { products: Product[]; productId: string | undefined }) {
+  base,
+}: SheetBaseProps & { products: Product[]; productId: string | undefined; base: string }) {
+  const navigate = useNavigate();
   const command = useCommand(workspaceId, '/receipts', receiptResponse);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const form = useForm({
@@ -478,8 +481,19 @@ export function ReceiptSheet({
     try {
       const result = await command.mutateAsync(payload);
       const codes = result.containers.map((container) => container.code);
+      const receivedProduct = selectedProduct?.id;
       toast.success(codes.length === 1 ? 'Frasco registrado' : `${codes.length} frascos registrados`, {
         description: `${codes.join(', ')} · ${formatDecimal(result.containers[0]?.quantity ?? '0')} ${result.unit} cada uno`,
+        // Las etiquetas con QR de los frascos recién registrados, a un clic (ADR 0012, entrega 4).
+        action: receivedProduct
+          ? {
+              label: 'Imprimir etiquetas',
+              onClick: () =>
+                navigate(
+                  `${base}/inventario/${receivedProduct}/etiquetas?frascos=${result.containers.map((container) => container.containerId).join(',')}`,
+                ),
+            }
+          : undefined,
       });
       onOpenChange(false);
     } catch (error) {
@@ -1017,20 +1031,20 @@ export function AdjustmentSheet({
  * Traslado en un paso (ADR 0012, entrega 4): el frasco entero pasa a otra ubicación. Solo se elige el
  * destino; el saldo viaja completo y el historial guarda origen y destino.
  */
-export function TransferSheet({ workspaceId, open, onOpenChange, position }: SheetBaseProps & { position: Position | undefined }) {
+export function TransferSheet({ workspaceId, open, onOpenChange, position }: SheetBaseProps & { position: Position }) {
   const command = useCommand(workspaceId, '/transfers', transferResponse);
   const locations = useTransferLocations(workspaceId, open);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const form = useForm({ defaultValues: { locationId: '' } });
   const errors = form.formState.errors;
   const options = (locations.data?.items ?? [])
-    .filter((location) => location.id !== position?.location.id)
+    .filter((location) => location.id !== position.location.id)
     .map((location) => ({ value: location.id, label: `${location.name} · ${location.code}` }));
 
   const submit = form.handleSubmit(async (values) => {
     setGeneralError(null);
-    const payload = validate(transferRequest, { positionId: position?.id ?? '', locationId: values.locationId }, form);
-    if (!payload || !position) return;
+    const payload = validate(transferRequest, { positionId: position.id, locationId: values.locationId }, form);
+    if (!payload) return;
     try {
       await command.mutateAsync(payload);
       const target = locations.data?.items.find((location) => location.id === payload.locationId);
@@ -1055,17 +1069,15 @@ export function TransferSheet({ workspaceId, open, onOpenChange, position }: She
       generalError={generalError}
       onSubmit={() => void submit()}
     >
-      {position ? (
-        <div className="grid gap-1 rounded-control bg-surface-sunken px-3 py-2.5 text-sm">
-          <p className="flex flex-wrap items-baseline justify-between gap-x-3">
-            <span className="font-bold tabular-nums text-ink">{position.container?.code ?? position.lot.code}</span>
-            <Quantity value={position.balance} unit={position.unit} className="font-semibold text-ink" />
-          </p>
-          <p className="text-ink-muted">
-            {position.product.name} · ahora en <span className="text-ink">{position.location.name}</span>
-          </p>
-        </div>
-      ) : null}
+      <div className="grid gap-1 rounded-control bg-surface-sunken px-3 py-2.5 text-sm">
+        <p className="flex flex-wrap items-baseline justify-between gap-x-3">
+          <span className="font-bold tabular-nums text-ink">{position.container?.code ?? position.lot.code}</span>
+          <Quantity value={position.balance} unit={position.unit} className="font-semibold text-ink" />
+        </p>
+        <p className="text-ink-muted">
+          {position.product.name} · ahora en <span className="text-ink">{position.location.name}</span>
+        </p>
+      </div>
       <Field label="Ubicación de destino" error={errors.locationId?.message}>
         <Controller
           control={form.control}
@@ -1102,6 +1114,8 @@ export function CountSheet({ workspaceId, open, onOpenChange }: SheetBaseProps) 
   const locations = useCountLocations(workspaceId, open);
   const [locationId, setLocationId] = useState('');
   const [counts, setCounts] = useState<Record<string, string>>({});
+  // Frascos cuyo saldo cambió mientras se contaban: su conteo ya no vale y se vuelve a hacer.
+  const [stale, setStale] = useState<Set<string>>(new Set());
   const [generalError, setGeneralError] = useState<string | null>(null);
   const positions = usePositions(workspaceId, undefined, locationId || undefined, open && Boolean(locationId));
   // Un conteo cubre la ubicación entera: se cargan todas las páginas de frascos.
@@ -1130,6 +1144,7 @@ export function CountSheet({ workspaceId, open, onOpenChange }: SheetBaseProps) 
       setGeneralError('Revisa las cantidades: cada una debe ser un número de cero o más.');
       return;
     }
+    const sent = new Map(parsed.data.lines.map((line) => [line.positionId, line.expected]));
     try {
       const result = await command.mutateAsync(parsed.data);
       toast.success('Conteo registrado', {
@@ -1142,9 +1157,25 @@ export function CountSheet({ workspaceId, open, onOpenChange }: SheetBaseProps) 
       });
       onOpenChange(false);
     } catch (error) {
-      setGeneralError(commandErrorMessage(error));
-      // Si un saldo cambió, la lista se vuelve a pedir: se ven los saldos nuevos sin perder lo anotado.
-      void positions.refetch();
+      // Se vuelve a pedir la lista. Un frasco cuyo saldo cambió (alguien registró un movimiento mientras
+      // se contaba) pierde lo anotado: reenviarlo con el saldo nuevo contaría ese movimiento dos veces.
+      const fresh = await positions.refetch();
+      const changed = new Set(
+        (fresh.data?.pages.flatMap((page) => page.items) ?? [])
+          .filter((p) => sent.has(p.id) && subtractDecimal(p.balance, sent.get(p.id) ?? '') !== '0')
+          .map((p) => p.id),
+      );
+      if (changed.size > 0) {
+        setStale(changed);
+        setCounts((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !changed.has(id))));
+        setGeneralError(
+          changed.size === 1
+            ? 'El saldo de un frasco cambió mientras contabas. Vuelve a contar el frasco marcado.'
+            : `El saldo de ${changed.size} frascos cambió mientras contabas. Vuelve a contar los marcados.`,
+        );
+      } else {
+        setGeneralError(commandErrorMessage(error));
+      }
     }
   }
 
@@ -1156,7 +1187,8 @@ export function CountSheet({ workspaceId, open, onOpenChange }: SheetBaseProps) 
       description="Anota lo que hay en cada frasco. Solo los que no cuadran se ajustan, con motivo «Conteo»."
       open={open}
       onOpenChange={onOpenChange}
-      submitLabel={differing.length > 0 ? `Registrar conteo (${differing.length} ${differing.length === 1 ? 'ajuste' : 'ajustes'})` : 'Registrar conteo'}
+      // Cuántos no cuadran ya lo dice la lista; un rótulo largo no cabría junto a «Cancelar» en el móvil.
+      submitLabel="Registrar conteo"
       pending={command.isPending}
       generalError={generalError}
       onSubmit={() => void submit()}
@@ -1167,6 +1199,7 @@ export function CountSheet({ workspaceId, open, onOpenChange }: SheetBaseProps) 
           onValueChange={(value) => {
             setLocationId(value);
             setCounts({});
+            setStale(new Set());
             setGeneralError(null);
           }}
           options={(locations.data?.items ?? []).map((location) => ({ value: location.id, label: `${location.name} · ${location.code}` }))}
@@ -1181,42 +1214,53 @@ export function CountSheet({ workspaceId, open, onOpenChange }: SheetBaseProps) 
         ) : rows.length === 0 ? (
           <p className="text-sm text-ink-muted">Esta ubicación no tiene frascos con saldo.</p>
         ) : (
-          <div className="grid gap-3">
-            <p className="flex justify-between text-[13px] text-ink-muted" aria-live="polite">
+          // Columnas de ancho mínimo cero: una fila larga nunca ensancha la hoja en el móvil.
+          <div className="grid min-w-0 grid-cols-1 gap-3">
+            <p className="flex flex-wrap justify-between gap-x-3 text-[13px] text-ink-muted" aria-live="polite">
               <span>
                 Contados {filled.length} de {rows.length}
               </span>
               <span>{differing.length === 0 ? 'Nada que ajustar' : differing.length === 1 ? '1 no cuadra' : `${differing.length} no cuadran`}</span>
             </p>
-            <ul className="grid gap-2">
+            <ul className="grid min-w-0 grid-cols-1 gap-2">
               {rows.map((p) => {
                 const code = p.container?.code ?? p.lot.code;
                 const raw = counts[p.id] ?? '';
                 const delta = raw.trim() ? countDelta(raw, p.balance) : null;
+                const invalid = raw.trim() !== '' && delta === null;
+                const statusId = `conteo-${p.id}`;
                 return (
-                  <li key={p.id} className="flex items-center gap-3 rounded-control border border-line px-3 py-2">
+                  <li key={p.id} className="flex min-w-0 items-center gap-3 rounded-control border border-line px-3 py-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold tabular-nums text-ink">{code}</p>
+                      {/* El código identifica el frasco en el estante: nunca se corta; si no cabe, pasa de línea. */}
+                      <p className="break-all text-sm font-bold tabular-nums text-ink">{code}</p>
                       <p className="truncate text-[13px] text-ink-muted">{p.product.name}</p>
                       <p className="text-[13px] text-ink-muted">
                         Registrado <Quantity value={p.balance} unit={p.unit} className="font-semibold text-ink" />
                       </p>
                     </div>
-                    <div className="w-32 shrink-0 text-right">
+                    <div className="w-28 shrink-0 text-right sm:w-32">
                       <div className="relative">
                         <Input
                           inputMode="decimal"
                           autoComplete="off"
                           aria-label={`Contado en ${code}`}
+                          aria-invalid={invalid || undefined}
+                          aria-describedby={statusId}
                           placeholder="Contado"
                           className="pr-10 text-right tabular-nums"
                           value={raw}
-                          onChange={(event) => setCounts((current) => ({ ...current, [p.id]: event.target.value }))}
+                          onChange={(event) => {
+                            setCounts((current) => ({ ...current, [p.id]: event.target.value }));
+                            if (stale.has(p.id)) setStale((current) => new Set([...current].filter((id) => id !== p.id)));
+                          }}
                         />
                         <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[13px] text-ink-muted">{p.unit}</span>
                       </div>
-                      <p className="mt-1 min-h-5 text-[13px] tabular-nums">
-                        {raw.trim() === '' ? null : delta === null ? (
+                      <p id={statusId} className="mt-1 min-h-5 text-[13px] tabular-nums">
+                        {raw.trim() === '' ? (
+                          stale.has(p.id) ? <span className="text-warning">El saldo cambió: vuelve a contarlo</span> : null
+                        ) : delta === null ? (
                           <span className="text-danger">Cantidad no válida</span>
                         ) : delta === '0' ? (
                           <span className="text-ink-muted">Cuadra</span>

@@ -22,6 +22,8 @@ export {
 } from './access.js';
 export {
   adjustmentRequest,
+  containerParams,
+  containerResponse,
   countRequest,
   countResponse,
   createDestinationRequest,

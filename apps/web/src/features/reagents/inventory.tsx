@@ -17,13 +17,14 @@ import {
   Layers,
   MapPin,
   Plus,
+  QrCode as QrIcon,
   Scale,
   Search,
   TrendingDown,
   Wind,
   type LucideIcon,
 } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
 import { ModuleMark } from '../../app/module-mark';
@@ -345,6 +346,7 @@ function ContainerCard({
   timeZone,
   allowed,
   recommended,
+  scanned = false,
   onAction,
 }: {
   position: Position;
@@ -352,6 +354,8 @@ function ContainerCard({
   timeZone: string;
   allowed: Allowed;
   recommended: boolean;
+  /** Se llegó a la ficha desde la etiqueta QR de este frasco (ADR 0012, entrega 4). */
+  scanned?: boolean;
   onAction: (request: SheetRequest) => void;
 }) {
   const initial = position.container?.initialQuantity ?? null;
@@ -371,13 +375,22 @@ function ContainerCard({
   const soon = expiresOn !== null && !expired && expiresOn <= addDays(today, 30);
   return (
     <article
+      id={position.container ? `frasco-${position.container.id}` : undefined}
+      aria-current={scanned ? 'true' : undefined}
       className={cn(
         // Siempre blanca; el color solo cuenta un estado y siempre con texto (ADR 0010).
         'group relative flex h-full flex-col gap-3 rounded-card bg-surface p-4 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-0.5',
-        recommended && 'ring-2 ring-success/50',
-        !recommended && expired && 'ring-1 ring-danger/40',
+        scanned && 'scroll-mt-24 ring-2 ring-action',
+        !scanned && recommended && 'ring-2 ring-success/50',
+        !scanned && !recommended && expired && 'ring-1 ring-danger/40',
       )}
     >
+      {scanned ? (
+        <span className="absolute -top-3 left-4 inline-flex items-center gap-1 rounded-full bg-action px-2.5 py-0.5 text-xs font-bold text-on-action shadow-sm">
+          <QrIcon className="size-3" aria-hidden />
+          Desde su etiqueta
+        </span>
+      ) : null}
       {recommended ? (
         <span className="absolute -top-3 right-4 inline-flex items-center gap-1 rounded-full bg-success px-2.5 py-0.5 text-xs font-bold text-on-action shadow-sm">
           <Check className="size-3" aria-hidden />
@@ -479,7 +492,7 @@ function ContainerCard({
               aria-label="Trasladar"
               title="Trasladar el frasco a otra ubicación"
               className={cn('h-10 px-3 text-ink-muted hover:bg-surface-sunken hover:text-ink', !canIssue && 'ml-auto')}
-              onClick={() => onAction({ kind: 'transfer', positionId: position.id })}
+              onClick={() => onAction({ kind: 'transfer', position })}
             >
               <ArrowLeftRight aria-hidden />
             </Button>
@@ -502,7 +515,7 @@ function ContainerCard({
 }
 
 export function ReagentsProductPage() {
-  const { productId = '' } = useParams();
+  const { productId = '', containerId } = useParams();
   const { workspaceId, me, base, allowed, openSheet } = useReagents();
   const product = useProduct(workspaceId, productId);
   const positions = usePositions(workspaceId, productId);
@@ -511,7 +524,13 @@ export function ReagentsProductPage() {
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: me.workspace.timeZone }).format(new Date());
   const containers = useMemo(() => positions.data?.pages.flatMap((page) => page.items) ?? [], [positions.data]);
   const emptyCount = containers.filter((position) => position.balance === '0').length;
-  const visible = containers.filter((position) => showEmpty || position.balance !== '0');
+  // El frasco de la etiqueta se ve aunque esté vacío, y la ficha lo lleva a la vista.
+  const visible = containers.filter((position) => showEmpty || position.balance !== '0' || position.container?.id === containerId);
+  // Solo cuando la ficha ya muestra las tarjetas: mientras carga el reactivo, el frasco no existe aún.
+  const scannedReady = product.isSuccess && containers.some((position) => position.container?.id === containerId);
+  useEffect(() => {
+    if (containerId && scannedReady) document.getElementById(`frasco-${containerId}`)?.scrollIntoView({ block: 'center' });
+  }, [containerId, scannedReady]);
   const allEntries = history.data?.pages.flatMap((page) => page.items) ?? [];
   const entries = allEntries.slice(0, 10);
   // Se muestran los 10 más recientes; si hay más, se dice y se enlaza a todos los movimientos.
@@ -608,7 +627,18 @@ export function ReagentsProductPage() {
           <h2 id="frascos" className="text-xl font-bold text-ink">
             Frascos
           </h2>
-          <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="vacíos" />
+          <div className="flex flex-wrap items-center gap-2">
+            <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="vacíos" />
+            {product.data.containersWithStock > 0 ? (
+              <Link
+                to={`${base}/inventario/${productId}/etiquetas`}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-surface-sunken px-3.5 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
+              >
+                <QrIcon className="size-4" aria-hidden />
+                Etiquetas
+              </Link>
+            ) : null}
+          </div>
         </div>
         {positions.isPending ? (
           <Skeleton className="h-44 rounded-card" />
@@ -628,6 +658,7 @@ export function ReagentsProductPage() {
                   timeZone={me.workspace.timeZone}
                   allowed={allowed}
                   recommended={position.id === recommendedId}
+                  scanned={containerId !== undefined && position.container?.id === containerId}
                   onAction={openSheet}
                 />
               </li>

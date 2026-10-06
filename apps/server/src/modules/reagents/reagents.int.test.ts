@@ -16,6 +16,7 @@ import {
   reagentsSummary,
   receiptResponse,
   entryList,
+  containerResponse,
   countResponse,
   transferResponse,
 } from '@platlab/contracts';
@@ -1271,5 +1272,23 @@ describe('R-01A · conteo por ubicación (ADR 0012, entrega 4)', () => {
     ]);
     expect(duplicated.status).toBe(400);
     expect(await operationsIn(lab.workspace.id)).toBe(before);
+  });
+});
+
+describe('R-01A · enlace de la etiqueta QR (ADR 0012, entrega 4)', () => {
+  it('resuelve el reactivo de un frasco del espacio; uno de otro espacio no existe para él', async () => {
+    const lab = await createLab();
+    const { product, lot } = await createProductAndLot(lab);
+    const received = receiptResponse.parse((await receive(lab, lot.id, '10')).body);
+    const containerId = received.containers[0]!.containerId;
+
+    const found = await call(lab.operator.subject, `${lab.base}/containers/${containerId}`);
+    expect(found.status).toBe(200);
+    expect(containerResponse.parse(found.body)).toEqual({ containerId, productId: product.id });
+
+    const other = await createLab();
+    expect((await call(other.adminMember.subject, `${other.base}/containers/${containerId}`)).status).toBe(404);
+    const outsider = await addMember(admin, lab.workspace.id, { roles: [] });
+    expect((await call(outsider.subject, `${lab.base}/containers/${containerId}`)).status).toBe(403);
   });
 });
