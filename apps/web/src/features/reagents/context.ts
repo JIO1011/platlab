@@ -15,7 +15,8 @@ import type { OperationFilter } from '../../app/queries';
 export type SheetRequest =
   | { kind: 'product' }
   | { kind: 'receipt'; productId?: string }
-  | { kind: 'issue'; positionId?: string; productId?: string }
+  // Con `position`, el frasco viaja en la petición (el de una etiqueta QR puede no estar en la lista global).
+  | { kind: 'issue'; positionId?: string; productId?: string; position?: Position }
   | { kind: 'adjustment'; positionId?: string }
   // El frasco viaja en la petición: la lista global de frascos puede no incluirlo (llega por páginas).
   | { kind: 'transfer'; position: Position }

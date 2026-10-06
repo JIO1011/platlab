@@ -700,13 +700,24 @@ test('etiquetas con QR: se eligen e imprimen, y el enlace del QR abre el frasco 
   await phone.getByLabel('Contraseña').fill(password);
   await phone.getByRole('button', { name: 'Entrar' }).click();
   await expect(phone).toHaveURL(new RegExp(`/frascos/${containerId}$`));
+  // Escanear abre la descarga de ese frasco, ya elegido.
+  const issue = phone.getByRole('dialog', { name: 'Registrar salida' });
+  await expect(issue).toBeVisible();
+  await expect(issue.getByLabel('Frasco', { exact: true })).toContainText('H2SO4-2026-02-01');
+  await expectAccessible(phone, 'descarga desde su etiqueta');
+  await capture(phone, 'mobile-scanned', false, true);
+  // Al cerrarla, la ficha deja el frasco resaltado y a la vista.
+  await phone.keyboard.press('Escape');
   const scanned = phone.locator('article[aria-current="true"]');
   await expect(scanned).toContainText('Desde su etiqueta');
-  await expect(scanned).toContainText('H2SO4-2026-02-01');
-  await expectAccessible(phone, 'frasco desde su etiqueta');
-  // La ficha lleva el frasco a la vista: la captura conserva ese desplazamiento.
   await expect(scanned).toBeInViewport();
-  await capture(phone, 'mobile-scanned', false, true);
+
+  // Para el Operador, la descarga escaneada es una solicitud, con la aprobación de siempre.
+  const operator = await signIn(browser, 'operador@demo.platlab.test', { width: 390, height: 844 });
+  await expect(operator).toHaveURL(/\/e\//);
+  await operator.goto(url);
+  await expect(operator.getByRole('dialog', { name: 'Solicitar salida' })).toBeVisible();
+  await expect(operator.getByRole('dialog', { name: 'Solicitar salida' }).getByLabel('Frasco', { exact: true })).toContainText('H2SO4-2026-02-01');
 });
 
 test('stock insuficiente: la salida se rechaza en el formulario y el saldo no cambia', async ({ browser }) => {

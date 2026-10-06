@@ -33,6 +33,10 @@ Criterio fuente: [ADR 0012](../../05_decisiones.md#adr-0012), cambio del 05-10-2
 | 6 | `pnpm e2e` (tras `pnpm db:reset`) | exit 0 | 17 pruebas Playwright con axe (3 nuevas) |
 | 7 | CI de `4d2c919` y `91889a6` | success | GitHub Actions |
 
+## Cambio pedido por el usuario tras la entrega
+
+El QR debe llevar directo a la descarga del frasco. Escanear abre ahora la hoja de salida con ese frasco ya elegido («Registrar salida» o, para el Operador, «Solicitar salida»); si no se puede descargar, la ficha resalta el frasco y dice por qué. El frasco viaja en la petición, así que no depende de la primera página de frascos. **Navegador:** «etiquetas con QR…» (Administradora: «Registrar salida» con H2SO4-2026-02-01; al cerrarla, el frasco resaltado y a la vista; Operador: «Solicitar salida» con el mismo frasco). Se confirmó que el QR es uno por frasco y que el conteo se mantiene.
+
 ## Revisor de acabado
 
 Primer pase: pidió capturas válidas (frasco escaneado sin volver arriba, vista de impresión, conteo a 360 px). Al tomarlas aparecieron tres fallos reales, corregidos:

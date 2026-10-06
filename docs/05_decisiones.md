@@ -326,7 +326,9 @@ Cambio del 05-10-2026, decidido por el usuario: **mínimos** (entrega 3 de R-01A
 Cambio del 05-10-2026, decidido por el usuario: **traslados, conteo y QR** (entrega 4 de R-01A), en su versión simple.
 - **Traslado en un paso.** Se mueve un frasco entero, con todo su saldo, de una ubicación a otra. Es una operación `transfer` con dos asientos (sale del origen y entra en el destino) y queda en Movimientos como «Traslado». No hay borrador, aprobación ni tránsito. Lo registran el Operador y el Administrador (`reagents.transfer.create`). Un frasco vacío o con salidas pendientes no se traslada: primero se resuelven.
 - **Conteo por ubicación.** El Administrador elige una ubicación, anota lo que hay en cada frasco y confirma. Se registra un ajuste con motivo «Conteo» y un asiento por cada frasco que no cuadra. Si un saldo cambió mientras se contaba, se pide volver a cargar; si lo contado queda por debajo de lo apartado, primero se resuelven las solicitudes.
-- **Etiqueta con QR por frasco.** Lleva el código del frasco, el reactivo, el lote y la caducidad. El QR es un enlace a ese frasco en PlatLab, así que la cámara del móvil lo abre (tras iniciar sesión) sin escáner propio. Se imprime desde la ficha (todos sus frascos con saldo) o desde cada frasco. El escaneo dentro de la app sigue pendiente (P-03).
+- **Etiqueta con QR por frasco.** Lleva el código del frasco, el reactivo, el lote y la caducidad. Cada QR es único: identifica el espacio y el frasco, y no sirve en otro espacio. Es un enlace corto a PlatLab, así que la cámara del móvil lo abre (tras iniciar sesión) sin escáner propio. Se imprime desde la ficha, eligiendo los frascos.
+  - **Escanear abre la descarga de ese frasco**, decidido por el usuario el mismo día: la hoja de salida con el frasco ya elegido (para el Operador, «Solicitar salida», con la aprobación de siempre). Si no se puede descargar (vacío, todo apartado o sin permiso), la ficha resalta el frasco y dice por qué.
+  - El escaneo dentro de la app sigue pendiente (P-03).
 
 ## Pendientes
 

@@ -24,7 +24,7 @@ import {
   Wind,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
 import { ModuleMark } from '../../app/module-mark';
@@ -526,11 +526,29 @@ export function ReagentsProductPage() {
   const emptyCount = containers.filter((position) => position.balance === '0').length;
   // El frasco de la etiqueta se ve aunque esté vacío, y la ficha lo lleva a la vista.
   const visible = containers.filter((position) => showEmpty || position.balance !== '0' || position.container?.id === containerId);
-  // Solo cuando la ficha ya muestra las tarjetas: mientras carga el reactivo, el frasco no existe aún.
-  const scannedReady = product.isSuccess && containers.some((position) => position.container?.id === containerId);
+  // El frasco de una etiqueta QR (ADR 0012, entrega 4). Solo cuando la ficha ya muestra las tarjetas:
+  // mientras carga el reactivo, el frasco no existe aún.
+  const scannedPosition = containers.find((position) => position.container?.id === containerId);
+  const scannedReady = product.isSuccess && scannedPosition !== undefined;
+  // Escanear abre la descarga de ese frasco; si no se puede, la ficha dice por qué.
+  const scanBlocked = !scannedPosition
+    ? null
+    : !allowed.issue
+      ? 'Tu rol no registra salidas en este espacio: puedes consultar el frasco.'
+      : scannedPosition.balance === '0'
+        ? 'Este frasco está vacío: no hay nada que descargar.'
+        : scannedPosition.disposition !== 'usable'
+          ? 'Este frasco no está disponible para salidas.'
+        : availableOf(scannedPosition) === '0'
+          ? 'Todo el saldo de este frasco está apartado por solicitudes pendientes.'
+          : null;
+  const openedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (containerId && scannedReady) document.getElementById(`frasco-${containerId}`)?.scrollIntoView({ block: 'center' });
-  }, [containerId, scannedReady]);
+    if (!containerId || !scannedReady || !scannedPosition || openedFor.current === containerId) return;
+    openedFor.current = containerId;
+    document.getElementById(`frasco-${containerId}`)?.scrollIntoView({ block: 'center' });
+    if (!scanBlocked) openSheet({ kind: 'issue', positionId: scannedPosition.id, productId, position: scannedPosition });
+  }, [containerId, scannedReady, scannedPosition, scanBlocked, openSheet, productId]);
   const allEntries = history.data?.pages.flatMap((page) => page.items) ?? [];
   const entries = allEntries.slice(0, 10);
   // Se muestran los 10 más recientes; si hay más, se dice y se enlaza a todos los movimientos.
@@ -640,6 +658,13 @@ export function ReagentsProductPage() {
             ) : null}
           </div>
         </div>
+        {/* Escaneado pero sin descarga posible: se dice por qué, con texto (ADR 0012, entrega 4). */}
+        {scanBlocked ? (
+          <p role="status" className="flex items-center gap-2 rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink">
+            <QrIcon className="size-4 shrink-0 text-ink-muted" aria-hidden />
+            {scanBlocked}
+          </p>
+        ) : null}
         {positions.isPending ? (
           <Skeleton className="h-44 rounded-card" />
         ) : positions.isError ? (

@@ -1,4 +1,4 @@
-import type { Operation } from '@platlab/contracts';
+import type { Operation, Position } from '@platlab/contracts';
 import {
   Button,
   Quantity,
@@ -273,7 +273,7 @@ export function ReagentsLayout() {
         <IssueSheet
           key={current.id}
           {...sheetProps('issue')}
-          positions={positionList}
+          positions={withPosition(positionList, current.request.position)}
           positionId={current.request.positionId}
           productId={current.request.productId}
           timeZone={me.workspace.timeZone}
@@ -307,6 +307,11 @@ export function ReagentsLayout() {
       ) : null}
     </div>
   );
+}
+
+/** La lista de frascos con el que llegó en la petición, si no estaba (la global llega por páginas). */
+function withPosition(list: Position[], position: Position | undefined): Position[] {
+  return position && !list.some((entry) => entry.id === position.id) ? [position, ...list] : list;
 }
 
 /** Indicador del Resumen que abre la lista que lo explica (ADR 0011): el enlace envuelve la tarjeta. */
