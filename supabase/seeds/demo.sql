@@ -319,8 +319,15 @@ select w.id, 'reagent', r.kind, r.name
  cross join (values
    ('issue', 'Práctica de Química General'), ('issue', 'Práctica de Análisis Químico'),
    ('issue', 'Preparación de soluciones'), ('issue', 'Proyecto de titulación'),
-   ('adjustment', 'Conteo mensual'), ('adjustment', 'Derrame'), ('adjustment', 'Error de registro')
+   ('adjustment', 'Conteo mensual'), ('adjustment', 'Derrame'), ('adjustment', 'Error de registro'),
+   ('disposal', 'Vencido'), ('disposal', 'Contaminado'), ('disposal', 'Envase dañado')
  ) as r (kind, name);
+
+-- Mínimos (ADR 0012, 05-10-2026): la Acetona, sin existencias, y el Hidróxido de sodio quedan bajo
+-- su mínimo; el Cloruro de sodio, por encima.
+update inventory.items set minimum_quantity = 1000 where id = 'da600000-0000-4000-8000-000000000005';
+update inventory.items set minimum_quantity = 1000 where id = 'da600000-0000-4000-8000-000000000003';
+update inventory.items set minimum_quantity = 500 where id = 'da600000-0000-4000-8000-000000000001';
 insert into inventory.destinations (workspace_id, item_kind, name)
 select w.id, 'reagent', d.name
   from (values ('da000000-0000-4000-8000-00000000000a'::uuid), ('db000000-0000-4000-8000-00000000000b'::uuid)) as w (id)

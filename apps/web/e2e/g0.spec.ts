@@ -521,6 +521,72 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await capture(admin, 'desktop-adjust', false);
 });
 
+test('mínimos y estado del lote: bajo mínimo, cuarentena con motivo y descarte con baja (ADR 0012, 05-10-2026)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await openReagents(admin, 'Facultad de Ciencias');
+  // «Bajo mínimo» reemplaza a «Reactivos» en el Resumen y abre el Inventario filtrado.
+  await admin.getByRole('link', { name: /^Bajo mínimo/ }).click();
+  await expect(admin).toHaveURL(/minimo=bajo/);
+  await expect(admin.getByRole('button', { name: /Bajo mínimo/, pressed: true })).toBeVisible();
+  await expect(admin.getByRole('link', { name: /Acetona/ })).toContainText('Bajo mínimo');
+  await expect(admin.getByRole('link', { name: /Hidróxido de sodio/ })).toContainText('Bajo mínimo');
+  await expect(admin.getByRole('link', { name: /Cloruro de sodio/ })).toHaveCount(0);
+  await expectAccessible(admin, 'inventario bajo mínimo');
+  await capture(admin, 'desktop-inventory-minimum', false);
+
+  // El Administrador cambia el mínimo desde la ficha; por encima del nuevo, deja de estar bajo mínimo.
+  await admin.getByRole('link', { name: /Hidróxido de sodio/ }).click();
+  const header = admin.getByRole('region', { name: 'Datos del reactivo' });
+  await expect(header).toContainText('Bajo mínimo');
+  await admin.getByRole('button', { name: 'Cambiar mínimo' }).click();
+  const minimum = admin.getByRole('dialog', { name: 'Mínimo del reactivo' });
+  await minimum.getByLabel('Mínimo', { exact: true }).fill('500');
+  await expectAccessible(admin, 'hoja de mínimo');
+  await minimum.getByRole('button', { name: 'Guardar mínimo' }).click();
+  await expect(minimum).toHaveCount(0);
+  await expect(header).toContainText(/Mínimo\s*500\s*g/);
+  await expect(header).not.toContainText('Bajo mínimo');
+
+  // Cuarentena con motivo: el frasco lo dice y deja de ofrecer la salida.
+  await goTo(admin, 'Inventario');
+  await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
+  const expired = admin.getByRole('article').filter({ hasText: 'H2SO4-2024-08-01' });
+  await expired.getByRole('button', { name: 'Estado del lote H2SO4-2024-08' }).click();
+  const lotSheet = admin.getByRole('dialog', { name: 'Estado del lote' });
+  await lotSheet.getByRole('radio', { name: /^En cuarentena/ }).check();
+  await lotSheet.getByLabel('Motivo', { exact: true }).fill('Revisión de la etiqueta');
+  await expectAccessible(admin, 'hoja de estado del lote');
+  await capture(admin, 'desktop-lot-condition', false);
+  await lotSheet.getByRole('button', { name: 'Guardar estado' }).click();
+  await expect(lotSheet).toHaveCount(0);
+  await expect(expired).toContainText('Lote en cuarentena');
+  await expect(expired).toContainText('Motivo: Revisión de la etiqueta');
+  await expect(expired.getByRole('button', { name: 'Salida' })).toHaveCount(0);
+
+  // Descartar es definitivo: muestra lo que se dará de baja, pide motivo y confirmación.
+  await expired.getByRole('button', { name: 'Estado del lote H2SO4-2024-08' }).click();
+  await lotSheet.getByRole('radio', { name: /^Descartar/ }).check();
+  await expect(lotSheet).toContainText('Se dará de baja todo lo que queda');
+  await expect(lotSheet).toContainText('H2SO4-2024-08-01');
+  await lotSheet.getByRole('button', { name: 'Descartar lote' }).click();
+  await expect(lotSheet.getByText('Confirma que entiendes que descartar es definitivo.')).toBeVisible();
+  await pick(lotSheet, 'Vencido');
+  await lotSheet.getByRole('checkbox').check();
+  await expectAccessible(admin, 'descarte del lote');
+  await capture(admin, 'desktop-lot-discard', false);
+  await lotSheet.getByRole('button', { name: 'Descartar lote' }).click();
+  await expect(lotSheet).toHaveCount(0);
+  // El frasco quedó en cero: se oculta con los vacíos y la baja queda en Movimientos.
+  await expect(admin.getByRole('article')).toHaveCount(2);
+  await goTo(admin, 'Movimientos');
+  await admin.getByRole('button', { name: 'Bajas', exact: true }).click();
+  await expect(admin).toHaveURL(/tipo=baja/);
+  const disposal = admin.locator('main').getByRole('listitem').filter({ hasText: 'H2SO4-2024-08-01' });
+  await expect(disposal).toContainText('Baja');
+  await expect(disposal).toContainText('Vencido');
+  await expectAccessible(admin, 'movimientos de baja');
+});
+
 test('stock insuficiente: la salida se rechaza en el formulario y el saldo no cambia', async ({ browser }) => {
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Instituto de Biotecnología');

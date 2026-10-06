@@ -99,7 +99,7 @@ export function usePositions(workspaceId: string, productId?: string) {
 
 /** Filtro del historial: un tipo y una ventana de días, la misma que la del gráfico del Resumen. */
 export interface OperationFilter {
-  type?: 'receipt' | 'issue' | 'adjustment' | undefined;
+  type?: 'receipt' | 'issue' | 'adjustment' | 'disposal' | undefined;
   days?: number | undefined;
   productId?: string | undefined;
 }

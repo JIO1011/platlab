@@ -21,10 +21,11 @@ import {
   Eye,
   FlaskConical,
   History,
-  Package,
+  PackageX,
   Plus,
   RefreshCw,
   Scale,
+  TrendingDown,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router';
@@ -45,7 +46,7 @@ import { QueryErrorState } from '../../app/states';
 import { TrendChart } from '../../app/trend-chart';
 import { useReagents, type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { purposeOf } from './operation-text';
-import { AdjustmentSheet, IssueSheet, NewProductSheet, ReceiptSheet } from './sheets';
+import { AdjustmentSheet, IssueSheet, LotSheet, MinimumSheet, NewProductSheet, ReceiptSheet } from './sheets';
 
 export { ReagentsInventoryPage, ReagentsProductPage } from './inventory';
 export { ReagentsRequestsPage } from './requests';
@@ -76,7 +77,7 @@ function useNow(intervalMs: number): number {
  * Filtro del historial en la URL, para que la cifra del Resumen abra exactamente su lista:
  * `?tipo=salida&dias=30` son las salidas de los últimos 30 días, la misma ventana del gráfico.
  */
-const typeParams = { ingreso: 'receipt', salida: 'issue', ajuste: 'adjustment' } as const;
+const typeParams = { ingreso: 'receipt', salida: 'issue', ajuste: 'adjustment', baja: 'disposal' } as const;
 
 function readOperationFilter(params: URLSearchParams): OperationFilter {
   const type = typeParams[params.get('tipo') as keyof typeof typeParams] as OperationFilter['type'];
@@ -112,6 +113,7 @@ export function ReagentsLayout() {
     adjustment: can('reagents.adjustment.create'),
     lists: can('reagents.catalog.manage'),
     approve: can('reagents.issue.approve'),
+    lot: can('reagents.lot.manage'),
   };
   const canResolve = module?.access.includes('resolve_pending') ?? false;
 
@@ -273,6 +275,23 @@ export function ReagentsLayout() {
           needsApproval={!allowed.approve}
         />
       ) : null}
+      {current?.request.kind === 'minimum' ? (
+        <MinimumSheet
+          key={current.id}
+          {...sheetProps('minimum')}
+          product={productList.find((entry) => entry.id === (current.request.kind === 'minimum' ? current.request.productId : ''))}
+        />
+      ) : null}
+      {current?.request.kind === 'lot' ? (
+        <LotSheet
+          key={current.id}
+          {...sheetProps('lot')}
+          productId={current.request.productId}
+          lotId={current.request.lotId}
+          canManageLists={allowed.lists}
+          requestsHref={`${base}/solicitudes`}
+        />
+      ) : null}
       {current?.request.kind === 'adjustment' ? (
         <AdjustmentSheet
           key={current.id}
@@ -401,7 +420,9 @@ export function ReagentsSummaryPage() {
         : pending === 1
           ? 'Tienes 1 solicitud de salida pendiente'
           : `Tienes ${pending} solicitudes de salida pendientes`;
+  const belowMinimum = counters.belowMinimum;
   const frascos = (n: number) => (n === 1 ? '1 frasco' : `${n} frascos`);
+  const reactivos = (n: number) => (n === 1 ? '1 reactivo' : `${n} reactivos`);
 
   return (
     // En una ventana: indicadores arriba y, debajo, dos columnas que llenan el resto. A la izquierda,
@@ -440,12 +461,21 @@ export function ReagentsSummaryPage() {
           tone={expiring === 0 ? 'neutral' : 'warning'}
           compact
         />
+        {/* Bajo mínimo (ADR 0012, 05-10-2026): existencia física por debajo del mínimo de cada reactivo.
+            El tamaño del inventario, que antes tenía su tarjeta, queda como dato secundario. */}
+        {/* Sin mínimos fijados, un 0 no quiere decir «todo bien»: se dice y no se filtra. */}
         <StatLink
-          to={`${base}/inventario`}
-          label="Reactivos"
-          value={counters.productsWithStock}
-          hint={`en ${frascos(counters.containersWithStock)}`}
-          icon={Package}
+          to={belowMinimum ? `${base}/inventario?minimo=bajo` : `${base}/inventario`}
+          label="Bajo mínimo"
+          value={belowMinimum}
+          hint={
+            counters.productsWithMinimum === 0
+              ? 'Sin mínimos fijados'
+              : `Inventario: ${reactivos(counters.productsWithStock)} · ${frascos(counters.containersWithStock)}`
+          }
+          hintTone="neutral"
+          icon={TrendingDown}
+          tone={belowMinimum === 0 ? 'neutral' : 'warning'}
           compact
         />
       </section>
@@ -530,6 +560,7 @@ const typeFilters = [
   { value: 'receipt', param: 'ingreso', label: 'Ingresos' },
   { value: 'issue', param: 'salida', label: 'Salidas' },
   { value: 'adjustment', param: 'ajuste', label: 'Ajustes' },
+  { value: 'disposal', param: 'baja', label: 'Bajas' },
 ] as const;
 
 const periodFilters = [
@@ -675,6 +706,7 @@ const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }
   receipt: { label: 'Ingreso', icon: ArrowDownToLine },
   issue: { label: 'Salida', icon: ArrowUpFromLine },
   adjustment: { label: 'Ajuste', icon: Scale },
+  disposal: { label: 'Baja', icon: PackageX },
 };
 
 /** Historial por días: cada día una tarjeta, cada fila un asiento que abre la ficha del reactivo. */

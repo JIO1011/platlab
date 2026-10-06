@@ -139,6 +139,11 @@ Cambio del 02-10-2026, decidido por el usuario:
 - Se mantienen los límites: nadie borra registros de negocio ni aprueba su propia solicitud.
 - En SQL, los permisos efectivos son las asignaciones vigentes más los del rol Administrador para la membresía propietaria, en un solo lugar (`core.effective_role_assignments`).
 
+Cambio del 05-10-2026, decidido por el usuario:
+- **Los roles valen para todo el espacio, no por laboratorio.** El Operador accede a todo Reactivos, con todas sus ubicaciones. La ubicación es un dato del registro (dónde está cada frasco), no un límite de acceso. Los laboratorios se gestionan en M4 Laboratorios.
+- Se confirman los papeles: el Propietario tiene control total; el Administrador decide y configura la operación, pero no invita personas ni asigna roles sin la delegación del propietario; el Operador hace los registros del día a día.
+- El campo técnico de ámbito (`core.role_assignments.location_id`) queda siempre nulo: no hay forma de asignarlo en el producto. Retirarlo del código queda pendiente.
+
 <a id="adr-0009"></a>
 ## ADR 0009 — Etapas de módulo y admisión de operaciones
 
@@ -309,6 +314,15 @@ Cambio del 05-10-2026, decidido por el usuario, sobre el Resumen y la caducidad:
   - Sigue sin editar, borrar ni «deshacer»: un error se corrige con un ajuste.
   - Sin tabla, `@tanstack/react-table` sale de las dependencias de la web (nadie la usaba). Vuelve, como indica el ADR 0010, cuando una pantalla necesite una tabla de verdad (ordenar, columnas); `Table` de `packages/ui` se conserva.
 
+Cambio del 05-10-2026, decidido por el usuario: **mínimos y estado del lote** (entrega 3 de R-01A).
+- **Mínimo por reactivo, para todo el espacio**, en su unidad base y opcional. Lo fija el Administrador al crear el reactivo o desde su ficha (`reagents.catalog.manage`).
+- **Bajo mínimo:** la existencia física del reactivo (todos sus frascos con saldo, incluidos los vencidos, los de lotes en cuarentena o bloqueados y lo apartado) es menor que su mínimo. Un reactivo con mínimo y sin existencias está bajo mínimo.
+- **En el Resumen, «Bajo mínimo» reemplaza a «Reactivos»**: los cuatro indicadores son de urgencia, y el total de reactivos y frascos pasa a texto pequeño dentro de esa tarjeta. El inventario marca cada reactivo bajo mínimo con texto y filtra por ellos (`?minimo=bajo`).
+- **Estado del lote:** el Administrador lo cambia entre habilitado, cuarentena y bloqueado, siempre con motivo (permiso nuevo `reagents.lot.manage`). Cada cambio queda en un historial que no se edita. En cuarentena o bloqueado no se registran salidas ni se aprueban solicitudes (las pendientes se pueden rechazar); ingresos y ajustes siguen permitidos.
+- **Descartar un lote es definitivo:** registra una operación de baja (tipo nuevo `disposal`) que lleva a cero todos sus frascos, con un motivo de la lista de bajas del laboratorio. Si hay salidas pendientes sobre el lote, primero se rechazan: nada se cancela en silencio. Un lote descartado no recibe ingresos ni cambia más de estado.
+- En Movimientos, la baja se ve como «Baja» y tiene su filtro.
+- La disposición por posición (cuarentena de un solo frasco) llega con retornos y custodia; hoy el estado es del lote.
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |
@@ -321,6 +335,7 @@ Cambio del 05-10-2026, decidido por el usuario, sobre el Resumen y la caducidad:
 | Reglas de Prácticas | Anticipación, cancelaciones, salas exclusivas, devoluciones químicas y quién declara el consumo al cerrar | P-04, antes de F3 |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
+| Ámbito por ubicación | Los roles valen para todo el espacio (ADR 0008, 05-10-2026). Retirar `location_id` de las asignaciones y simplificar las consultas que filtran por ámbito | Entrega aparte, antes de T-07 |
 | Escaneo con cámara | La etiqueta QR por frasco ya está decidida (ADR 0012). ¿Se escanea con la cámara del móvil, como en ReactiLab? | P-03 |
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
 | Conexión a PostgreSQL | ¿Conexión directa con el complemento IPv4 o Supavisor en modo sesión? | S-01 |

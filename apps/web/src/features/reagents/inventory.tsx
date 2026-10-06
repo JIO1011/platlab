@@ -18,6 +18,9 @@ import {
   Plus,
   Scale,
   Search,
+  Shield,
+  ShieldAlert,
+  TrendingDown,
   Wind,
   type LucideIcon,
 } from 'lucide-react';
@@ -62,13 +65,32 @@ function EmptyToggle({ count, shown, onToggle, noun }: { count: number; shown: b
   );
 }
 
-/** Filtros de caducidad (ADR 0012, 05-10-2026), en la URL: los indicadores del Resumen abren aquí. */
-const expiryFilters = {
-  vencidos: { label: 'Vencidos', has: (product: StockedProduct) => product.expiredContainers > 0 },
-  'por-vencer': { label: 'Por vencer', has: (product: StockedProduct) => product.expiringContainers > 0 },
+/**
+ * Filtros de avisos (ADR 0012, 05-10-2026), en la URL: los indicadores del Resumen abren aquí. Uno a
+ * la vez; cada uno con su parámetro, para que el enlace diga qué lista abre.
+ */
+const alertFilters = {
+  vencidos: {
+    param: ['caducidad', 'vencidos'],
+    label: 'Vencidos',
+    empty: 'Ningún reactivo tiene frascos vencidos con saldo.',
+    has: (product: StockedProduct) => product.expiredContainers > 0,
+  },
+  'por-vencer': {
+    param: ['caducidad', 'por-vencer'],
+    label: 'Por vencer',
+    empty: 'Ningún reactivo tiene frascos por vencer en los próximos 30 días.',
+    has: (product: StockedProduct) => product.expiringContainers > 0,
+  },
+  'bajo-minimo': {
+    param: ['minimo', 'bajo'],
+    label: 'Bajo mínimo',
+    empty: 'Ningún reactivo está por debajo de su mínimo.',
+    has: (product: StockedProduct) => product.belowMinimum,
+  },
 } as const;
-type ExpiryFilter = keyof typeof expiryFilters;
-const isExpiryFilter = (value: string | null): value is ExpiryFilter => value !== null && value in expiryFilters;
+type AlertFilter = keyof typeof alertFilters;
+const alertFilterKeys = Object.keys(alertFilters) as AlertFilter[];
 
 /** Píldora de filtro: se muestra si hay algo que filtrar o si ya está activa, para poder quitarla. */
 function FilterPill({ label, count, active, onToggle }: { label: string; count: number; active: boolean; onToggle: () => void }) {
@@ -98,20 +120,20 @@ export function ReagentsInventoryPage() {
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [showEmpty, setShowEmpty] = useState(false);
-  const expiryParam = params.get('caducidad');
-  const expiry = isExpiryFilter(expiryParam) ? expiryParam : null;
+  const active = alertFilterKeys.find((key) => params.get(alertFilters[key].param[0]) === alertFilters[key].param[1]) ?? null;
   const emptyCount = productList.filter((product) => product.balance === '0').length;
+  // Con un aviso activo se ven todos los que lo tienen, también sin existencias (un bajo mínimo puede estar en cero).
   const visible = productList.filter(
     (product) =>
       matches(product, query) &&
-      (expiry ? expiryFilters[expiry].has(product) : showEmpty || product.balance !== '0'),
+      (active ? alertFilters[active].has(product) : showEmpty || product.balance !== '0'),
   );
-  const toggleExpiry = (filter: ExpiryFilter) =>
+  const toggleAlert = (filter: AlertFilter) =>
     setParams(
       (current) => {
         const next = new URLSearchParams(current);
-        if (expiry === filter) next.delete('caducidad');
-        else next.set('caducidad', filter);
+        for (const key of alertFilterKeys) next.delete(alertFilters[key].param[0]);
+        if (active !== filter) next.set(alertFilters[filter].param[0], alertFilters[filter].param[1]);
         return next;
       },
       { replace: true },
@@ -165,16 +187,16 @@ export function ReagentsInventoryPage() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {(Object.keys(expiryFilters) as ExpiryFilter[]).map((filter) => (
+          {alertFilterKeys.map((filter) => (
             <FilterPill
               key={filter}
-              label={expiryFilters[filter].label}
-              count={productList.filter(expiryFilters[filter].has).length}
-              active={expiry === filter}
-              onToggle={() => toggleExpiry(filter)}
+              label={alertFilters[filter].label}
+              count={productList.filter(alertFilters[filter].has).length}
+              active={active === filter}
+              onToggle={() => toggleAlert(filter)}
             />
           ))}
-          {expiry ? null : (
+          {active ? null : (
             <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="sin existencias" />
           )}
         </div>
@@ -185,11 +207,7 @@ export function ReagentsInventoryPage() {
       </div>
       {visible.length === 0 ? (
         <p className="rounded-panel bg-surface px-4 py-8 text-center text-sm text-ink-muted shadow-raised">
-          {query.trim()
-            ? `Ningún reactivo coincide con «${query}».`
-            : expiry === 'vencidos'
-              ? 'Ningún reactivo tiene frascos vencidos con saldo.'
-              : 'Ningún reactivo tiene frascos por vencer en los próximos 30 días.'}
+          {query.trim() ? `Ningún reactivo coincide con «${query}».` : active ? alertFilters[active].empty : 'No hay reactivos con existencias.'}
         </p>
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-4">
@@ -207,7 +225,7 @@ export function ReagentsInventoryPage() {
 /**
  * Tarjeta de catálogo (ADR 0010, 04-10-2026; réplica de la de ReactiLab el 05-10-2026): fila de
  * rótulo (estado físico) y CAS en monoespaciado, el nombre, una línea y «Total» con la cantidad a
- * la izquierda y, a la derecha, la píldora de frascos. Los avisos de caducidad van a la derecha de
+ * la izquierda y, a la derecha, la píldora de frascos. Los avisos (bajo mínimo y caducidad) van a la derecha de
  * «Total» y los de existencias sustituyen a la píldora; todo con texto. Lleva el
  * icono del estado físico y el matraz del módulo de marca de agua.
  */
@@ -244,6 +262,12 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
         <div className="flex min-h-6 flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-muted">Total</p>
           <div className="flex flex-wrap justify-end gap-1.5">
+            {product.belowMinimum ? (
+              <Badge tone="warning" className="gap-1 whitespace-nowrap">
+                <TrendingDown className="size-3.5" aria-hidden />
+                Bajo mínimo
+              </Badge>
+            ) : null}
             {product.expiredContainers ? (
               <Badge tone="danger" className="gap-1 whitespace-nowrap">
                 <CalendarX className="size-3.5" aria-hidden />
@@ -349,6 +373,9 @@ function ContainerCard({
   // Con saldo pero menos del 1 %, se dice y se ve: un frasco casi vacío no es un frasco vacío.
   const percentText = percent === 0 && !empty ? '<1 %' : `${percent ?? 0} %`;
   const condition = conditionLabel[position.lot.condition];
+  // En cuarentena, bloqueado o descartado no hay salidas (ADR 0012): la tarjeta no las ofrece.
+  const canIssue = allowed.issue && available !== '0' && position.lot.condition === 'enabled';
+  const canChangeLot = allowed.lot && position.lot.condition !== 'discarded';
   const { supplierName, supplierLot } = position.lot;
   const soon = expiresOn !== null && !expired && expiresOn <= addDays(today, 30);
   return (
@@ -424,6 +451,12 @@ function ContainerCard({
           </p>
         </div>
       ) : null}
+      {/* Por qué el lote no está habilitado: el motivo que dio el Administrador al cambiarlo. */}
+      {condition && position.lot.conditionReason ? (
+        <p className="-mt-1 line-clamp-2 text-[13px] text-ink-muted" title={position.lot.conditionReason}>
+          <span className="font-medium text-ink">Motivo:</span> {position.lot.conditionReason}
+        </p>
+      ) : null}
       {/* El lote interno ya es el prefijo del código del frasco: no se repite en un recuadro. Dos
           columnas; si los recuadros son impares, el último ocupa la fila para no dejar un hueco. */}
       <div className="grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2">
@@ -445,9 +478,9 @@ function ContainerCard({
           </>
         ) : null}
       </div>
-      {(allowed.issue && available !== '0') || allowed.adjustment ? (
+      {canIssue || allowed.adjustment || canChangeLot ? (
         <div className="mt-auto flex gap-2 border-t border-line pt-3">
-          {allowed.issue && available !== '0' ? (
+          {canIssue ? (
             // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
             <Button
               size="sm"
@@ -469,6 +502,17 @@ function ContainerCard({
               onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}
             >
               <Scale aria-hidden />
+            </Button>
+          ) : null}
+          {canChangeLot ? (
+            <Button
+              size="sm"
+              aria-label={`Estado del lote ${position.lot.code}`}
+              title="Estado del lote: cuarentena, bloqueo o descarte"
+              className={cn('h-10 px-3 text-ink-muted hover:bg-surface-sunken hover:text-ink', !canIssue && 'ml-auto')}
+              onClick={() => onAction({ kind: 'lot', productId: position.product.id, lotId: position.lot.id })}
+            >
+              {condition ? <ShieldAlert aria-hidden /> : <Shield aria-hidden />}
             </Button>
           ) : null}
         </div>
@@ -555,6 +599,28 @@ export function ReagentsProductPage() {
                 : `en ${product.data.containersWithStock} frascos con saldo`}
           </span>
         </p>
+        {/* Mínimo para todo el espacio (ADR 0012, 05-10-2026): lo fija quien administra el catálogo. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+          {product.data.minimum ? (
+            <span className="text-ink-muted">
+              Mínimo <Quantity value={product.data.minimum} unit={product.data.baseUnit} className="font-semibold text-ink" />
+            </span>
+          ) : (
+            <span className="text-ink-muted">Sin mínimo</span>
+          )}
+          {product.data.belowMinimum ? (
+            <Badge tone="warning" className="gap-1.5 px-3 py-1 text-sm">
+              <TrendingDown className="size-4" aria-hidden />
+              Bajo mínimo
+            </Badge>
+          ) : null}
+          {allowed.product ? (
+            <Button variant="ghost" size="sm" className="text-action hover:bg-action-soft hover:text-action" onClick={() => openSheet({ kind: 'minimum', productId })}>
+              <TrendingDown aria-hidden />
+              {product.data.minimum ? 'Cambiar mínimo' : 'Fijar mínimo'}
+            </Button>
+          ) : null}
+        </div>
       </section>
 
       <section aria-labelledby="frascos" className="grid gap-4">

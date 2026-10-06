@@ -57,9 +57,9 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 | `core.identities` | Identidad de Auth con `(provider, provider_subject)` único |
 | `core.memberships` | Identidad dentro de un espacio y `status`; única por `(workspace_id, identity_id)` |
 | `core.principals` | Actor humano (por su membresía) o de servicio; un `CHECK` impide mezclar ambos |
-| `core.invitations` | Email, hash del token, expiración, roles y ámbitos propuestos y estado; se canjea en una transacción |
+| `core.invitations` | Email, hash del token, expiración, roles propuestos y estado; se canjea en una transacción |
 | `core.permissions`, `roles`, `role_permissions` | Catálogo global fijo, sincronizado desde los manifiestos |
-| `core.role_assignments` | Principal, rol, ámbito (todo el espacio o `location_id`) y vigencia |
+| `core.role_assignments` | Principal, rol y vigencia. Los roles valen para todo el espacio ([ADR 0008](05_decisiones.md#adr-0008), 05-10-2026): `location_id` queda nulo hasta retirarse |
 | `core.locations` | Árbol por `parent_id`: sede, edificio, sala, almacén, custodia o tránsito |
 | `core.module_definitions`, `module_dependencies` | Registro global de módulos |
 | `core.workspace_entitlements` | Módulo, vigencia, estado operativo, contrato y revisión aplicada |
@@ -84,17 +84,18 @@ Reglas:
 - **Estados del espacio.** `provisioning` puede no tener propietario; `trial` y `active` exigen un propietario activo.
 - **Delegación.** Una invitación no otorga permisos que el invitador no pueda delegar.
 - **Autoaprobación.** Está deshabilitada por defecto, incluso para el propietario.
-- **Ámbitos.** Se calculan con CTE recursiva sobre `parent_id`, sin ciclos ni padres de otro espacio. Mover el árbol se serializa y se audita.
-- **Permisos entre laboratorios.** Consultar el inventario institucional no autoriza salidas de otro laboratorio. Transferir exige permiso en el origen y recibir, en el destino.
+- **Árbol de ubicaciones.** Sin ciclos ni padres de otro espacio. Mover el árbol se serializa y se audita.
+- **Permisos entre laboratorios.** Los roles valen para todo el espacio ([ADR 0008](05_decisiones.md#adr-0008), 05-10-2026): quien opera Reactivos opera todas sus ubicaciones. Un traslado registra origen y destino, pero no exige permisos distintos en cada uno.
 - **Trabajos.** `platform.claim_jobs(limit)` es la única función `SECURITY DEFINER` para reclamar trabajos. Es estrecha, no lee datos de dominio y solo la ejecuta el rol del dispatcher.
 
 ## 4. Inventario y Reactivos
 
 | Tabla | Esencial |
 |---|---|
-| `inventory.items` | Código, nombre, `kind`, unidad base, modo de seguimiento y archivado |
+| `inventory.items` | Código, nombre, `kind`, unidad base, mínimo opcional (en la unidad base), modo de seguimiento y archivado |
 | `reagents.products` | Extensión 1:1 del item: CAS opcional, concentración, pureza, estado físico, peligros y SDS |
 | `inventory.lots` | Item (FK compuesta), proveedor y referencia, recepción, caducidad (puede ser desconocida) y condición |
+| `inventory.lot_condition_changes` | Historial del estado del lote: anterior y nuevo, motivo, actor y, al descartar, la operación de baja. No se edita ([ADR 0012](05_decisiones.md#adr-0012)) |
 | `inventory.containers` | Envase identificable (frasco): código, lote y cantidad inicial. En Reactivos, cada ingreso registra sus frascos ([ADR 0012](05_decisiones.md#adr-0012)); la apertura y la caducidad tras abrir, cuando el proceso lo exija |
 | `inventory.positions` | Item, lote, envase y retorno opcionales, ubicación, disposición, saldo, reservado y versión |
 | `inventory.operations` | Cabecera del movimiento: tipo, actor, motivo, fecha, correlación y referencia |
@@ -114,7 +115,8 @@ Reglas:
   - Existencia institucional: saldos físicos, incluidas custodia y tránsito.
   - Disponible: lo utilizable en lotes elegibles menos las reservas.
   - Consumo: solo un movimiento real confirmado.
-- **Condición del lote:** habilitado, cuarentena, bloqueado o descartado.
+- **Condición del lote:** habilitado, cuarentena, bloqueado o descartado. Cambia solo con motivo. Descartar es definitivo y da de baja todo el saldo del lote en una operación `disposal`; no procede con salidas pendientes sobre el lote.
+- **Bajo mínimo:** la existencia física del reactivo es menor que su mínimo ([ADR 0012](05_decisiones.md#adr-0012)).
 - **Disposición de la posición:** utilizable, cuarentena o restringida. Siempre prevalece la restricción más fuerte.
 - **Retornos:** van a cuarentena hasta verificarse. Un sobrante manipulado nunca se suma al lote original.
 - **Conteos:** si el conteo queda por debajo de lo reservado, se registra la discrepancia y se resuelven los compromisos antes de ajustar.

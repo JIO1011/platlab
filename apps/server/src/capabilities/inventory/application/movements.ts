@@ -14,7 +14,7 @@ import type { InventoryContext } from './context.js';
 
 const notFound = () => new AppError('NOT_FOUND', 'Recurso no encontrado');
 
-type OperationType = 'receipt' | 'issue' | 'adjustment';
+type OperationType = 'receipt' | 'issue' | 'adjustment' | 'disposal';
 
 /** Posición bloqueada para un movimiento: su ubicación decide el ámbito del permiso. */
 export interface LockedPosition {
@@ -103,6 +103,10 @@ export async function receiveContainers(
     ctx.client,
   );
   if (!reserved) throw notFound();
+  // Leído ya bajo el bloqueo del lote: un descarte simultáneo pudo confirmarse mientras se esperaba.
+  if (reserved.condition === 'discarded') {
+    throw new AppError('VALIDATION_FAILED', 'El lote está descartado');
+  }
   const containers = await insertContainers.run(
     {
       workspaceId: ctx.workspaceId,

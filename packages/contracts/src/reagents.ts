@@ -22,7 +22,8 @@ const adjustmentQuantity = z
   .regex(/^-?(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal distinta de cero');
 
 export const physicalState = z.enum(['solid', 'liquid', 'gas']);
-export const operationType = z.enum(['receipt', 'issue', 'adjustment']);
+/** `disposal`: la baja que acompaña al descarte de un lote (ADR 0012, 05-10-2026). */
+export const operationType = z.enum(['receipt', 'issue', 'adjustment', 'disposal']);
 
 // ---------------------------------------------------------------------------
 // Catálogo
@@ -35,6 +36,8 @@ export const createProductRequest = z
     baseUnit: unit,
     casNumber: z.string().regex(/^\d{2,7}-\d{2}-\d$/, 'CAS inválido').nullish(),
     physicalState: physicalState.nullish(),
+    /** Mínimo para todo el espacio, en la unidad base; opcional (ADR 0012, 05-10-2026). */
+    minimum: positiveQuantity.nullish(),
   })
   .strict();
 
@@ -45,7 +48,12 @@ export const product = z.object({
   baseUnit: z.string(),
   casNumber: z.string().nullable(),
   physicalState: physicalState.nullable(),
+  minimum: decimalString.nullable(),
 });
+
+/** PUT /products/:productId/minimum: null quita el mínimo. */
+export const setMinimumRequest = z.object({ minimum: positiveQuantity.nullable() }).strict();
+export const minimumResponse = z.object({ productId: z.uuid(), minimum: decimalString.nullable() });
 
 export const productParams = z.object({ workspaceId: z.uuid(), productId: z.uuid() });
 
@@ -66,6 +74,26 @@ export const lot = z.object({
   supplierName: z.string().nullable(),
   supplierLot: z.string().nullable(),
   expiresOn: z.string().nullable(),
+});
+
+export const lotParams = z.object({ workspaceId: z.uuid(), lotId: z.uuid() });
+
+/** Estado del lote que el Administrador elige, siempre con motivo; descartar va aparte. */
+export const lotConditionRequest = z
+  .object({ condition: z.enum(['enabled', 'quarantine', 'blocked']), reason: text(500) })
+  .strict();
+
+/** Descartar es definitivo: da de baja todo el saldo del lote con un motivo de la lista de bajas. */
+export const discardLotRequest = z.object({ reason: text(500) }).strict();
+
+export const lotConditionResponse = z.object({
+  lotId: z.uuid(),
+  condition: z.enum(['enabled', 'quarantine', 'blocked', 'discarded']),
+  changedAt: z.iso.datetime({ offset: true }),
+  /** La baja del descarte; null si no había saldo o si no es un descarte. */
+  operationId: z.uuid().nullable(),
+  /** Frascos que la baja llevó a cero. */
+  containers: z.number().int().nonnegative(),
 });
 
 // ---------------------------------------------------------------------------
@@ -209,7 +237,7 @@ export const operationListQuery = z
     locationId: z.uuid().optional(),
     positionId: z.uuid().optional(),
     /** Solo un tipo de movimiento, p. ej. las salidas que cuenta el gráfico del Resumen. */
-    type: z.enum(['receipt', 'issue', 'adjustment']).optional(),
+    type: operationType.optional(),
     /** Los últimos N días civiles en la zona del espacio, hoy incluido: la misma ventana del gráfico. */
     days: z.coerce.number().int().min(1).max(90).optional(),
   })
@@ -226,6 +254,8 @@ export const position = z.object({
     code: z.string(),
     expiresOn: z.string().nullable(),
     condition: lotCondition,
+    /** Motivo del último cambio de estado; null si el lote nunca cambió (ADR 0012, 05-10-2026). */
+    conditionReason: z.string().nullable(),
     /** Proveedor y su lote, tal como se registraron; null si no se conocen (ADR 0012, 05-10-2026). */
     supplierName: z.string().nullable(),
     supplierLot: z.string().nullable(),
@@ -276,6 +306,8 @@ export const stockedProduct = product.extend({
   /** Sus avisos de caducidad: frascos con saldo vencidos y por vencer (ADR 0012, 05-10-2026). */
   expiredContainers: z.number().int().nonnegative(),
   expiringContainers: z.number().int().nonnegative(),
+  /** Existencia física menor que su mínimo (ADR 0012, 05-10-2026); false si no tiene mínimo. */
+  belowMinimum: z.boolean(),
 });
 export const productList = list(stockedProduct);
 export const lotList = z.object({ items: z.array(lot.extend({ condition: z.string() })) });
@@ -294,6 +326,10 @@ export const reagentsSummary = z.object({
     /** Frascos con saldo vencidos y por vencer (ADR 0012, 05-10-2026; plazo en 02 §12). */
     expiredContainers: z.number().int().nonnegative(),
     expiringContainers: z.number().int().nonnegative(),
+    /** Reactivos con mínimo cuya existencia física es menor (ADR 0012, 05-10-2026). */
+    belowMinimum: z.number().int().nonnegative(),
+    /** Reactivos con mínimo fijado: sin ninguno, un «0 bajo mínimo» no significa «todo bien». */
+    productsWithMinimum: z.number().int().nonnegative(),
     /** Solicitudes pendientes: la bandeja de quien aprueba o las propias del Operador. */
     pendingRequests: z.number().int().nonnegative(),
   }),
@@ -305,7 +341,7 @@ export const reagentsSummary = z.object({
 // Motivos y destinos (ADR 0012): listas del espacio; la operación guarda el texto elegido
 // ---------------------------------------------------------------------------
 
-const reasonKind = z.enum(['issue', 'adjustment']);
+const reasonKind = z.enum(['issue', 'adjustment', 'disposal']);
 export const reasonListQuery = z.object({ kind: reasonKind }).strict();
 const listEntry = z.object({ id: z.uuid(), name: z.string() });
 export const entryList = z.object({ items: z.array(listEntry) });
@@ -328,5 +364,6 @@ export type IssueResponse = z.infer<typeof issueResponse>;
 export type StockedProduct = z.infer<typeof stockedProduct>;
 export type ReceiptResponse = z.infer<typeof receiptResponse>;
 export type ListEntry = z.infer<typeof listEntry>;
+export type LotConditionResponse = z.infer<typeof lotConditionResponse>;
 export type ReasonKind = z.infer<typeof reasonKind>;
 export type OperationList = z.infer<typeof operationList>;

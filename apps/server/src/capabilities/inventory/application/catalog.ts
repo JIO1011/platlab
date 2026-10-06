@@ -1,5 +1,5 @@
 import { AppError } from '../../../platform/errors.js';
-import { findItem, insertItem, insertLot } from '../infrastructure/inventory.queries.js';
+import { findItem, insertItem, insertLot, setItemMinimum } from '../infrastructure/inventory.queries.js';
 import { pgViolation, type InventoryContext } from './context.js';
 
 const notFound = () => new AppError('NOT_FOUND', 'Recurso no encontrado');
@@ -8,6 +8,8 @@ export interface NewItem {
   code: string;
   name: string;
   baseUnit: string;
+  /** Mínimo para todo el espacio, en la unidad base (ADR 0012); null si no tiene. */
+  minimum: string | null;
 }
 
 export interface ItemRecord {
@@ -15,16 +17,24 @@ export interface ItemRecord {
   code: string;
   name: string;
   baseUnit: string;
+  minimum: string | null;
 }
 
 export async function createItem(ctx: InventoryContext, input: NewItem): Promise<ItemRecord> {
   try {
     const [row] = await insertItem.run(
-      { workspaceId: ctx.workspaceId, kind: ctx.kind, code: input.code, name: input.name, baseUnit: input.baseUnit },
+      {
+        workspaceId: ctx.workspaceId,
+        kind: ctx.kind,
+        code: input.code,
+        name: input.name,
+        baseUnit: input.baseUnit,
+        minimum: input.minimum,
+      },
       ctx.client,
     );
     if (!row) throw new Error('La inserción del ítem no devolvió fila');
-    return { id: row.id, code: row.code, name: row.name, baseUnit: row.base_unit };
+    return { id: row.id, code: row.code, name: row.name, baseUnit: row.base_unit, minimum: row.minimum };
   } catch (error) {
     const violation = pgViolation(error);
     if (violation?.code === '23505' && violation.constraint === 'items_code') {
@@ -36,10 +46,16 @@ export async function createItem(ctx: InventoryContext, input: NewItem): Promise
 }
 
 /** Ítem activo del tipo del módulo; uno ajeno, de otro tipo o archivado no existe para él. */
-async function getItem(ctx: InventoryContext, itemId: string): Promise<ItemRecord> {
+async function getItem(ctx: InventoryContext, itemId: string): Promise<void> {
   const [row] = await findItem.run({ workspaceId: ctx.workspaceId, itemId, kind: ctx.kind }, ctx.client);
   if (!row) throw notFound();
-  return { id: row.id, code: row.code, name: row.name, baseUnit: row.base_unit };
+}
+
+/** Fija o quita el mínimo de un ítem activo del tipo del módulo (ADR 0012, 05-10-2026). */
+export async function setMinimum(ctx: InventoryContext, itemId: string, minimum: string | null): Promise<string | null> {
+  const [row] = await setItemMinimum.run({ workspaceId: ctx.workspaceId, itemId, kind: ctx.kind, minimum }, ctx.client);
+  if (!row) throw notFound();
+  return row.minimum;
 }
 
 export interface NewLot {

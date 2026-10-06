@@ -58,6 +58,7 @@ export async function listPositionPage(
         code: row.lot_code,
         expiresOn: row.expires_on,
         condition: row.lot_condition as Position['lot']['condition'],
+        conditionReason: row.lot_condition_reason ?? null,
         supplierName: row.supplier_name,
         supplierLot: row.supplier_lot,
       },

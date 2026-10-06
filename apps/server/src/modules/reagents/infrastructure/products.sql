@@ -14,11 +14,10 @@ SELECT
   i.base_unit,
   r.cas_number,
   r.physical_state,
-  (SELECT trim_scale(coalesce(sum(p.balance), 0))
-     FROM inventory.positions AS p
-    WHERE p.workspace_id = i.workspace_id
-      AND p.item_id = i.id
-      AND p.location_id = ANY (:locationIds!::uuid[])) AS "balance!",
+  trim_scale(i.minimum_quantity) AS minimum,
+  stock.balance AS "balance!",
+  -- Bajo mínimo (ADR 0012, 05-10-2026): existencia física, con vencidos, cuarentena y lo apartado.
+  (i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity) AS "below_minimum!",
   (SELECT count(*)
      FROM inventory.positions AS p
     WHERE p.workspace_id = i.workspace_id
@@ -46,6 +45,13 @@ SELECT
   lower(i.code) AS "sort_code!"
 FROM inventory.items AS i
 JOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id
+CROSS JOIN LATERAL (
+  SELECT trim_scale(coalesce(sum(p.balance), 0)) AS balance
+  FROM inventory.positions AS p
+  WHERE p.workspace_id = i.workspace_id
+    AND p.item_id = i.id
+    AND p.location_id = ANY (:locationIds!::uuid[])
+) AS stock
 WHERE i.workspace_id = :workspaceId!
   AND i.kind = 'reagent'
   AND i.archived_at IS NULL
@@ -58,6 +64,7 @@ LIMIT :limit!;
 -- Contadores del Resumen y de la tarjeta de Inicio: inventario que el miembro puede consultar, no
 -- filas del catálogo. Vencido y por vencer (ADR 0012, 05-10-2026): frascos con saldo, con «hoy» en
 -- la fecha civil del espacio; por vencer incluye hoy y los próximos :expiringDays días (02 §12).
+-- Bajo mínimo: reactivos activos con mínimo cuya existencia física es menor (ADR 0012, 05-10-2026).
 WITH stocked AS (
   SELECT p.item_id, l.expires_on
   FROM inventory.positions AS p
@@ -69,13 +76,27 @@ WITH stocked AS (
     AND p.location_id = ANY (:locationIds!::uuid[])
 ), today AS (
   SELECT (now() AT TIME ZONE :timeZone!)::date AS d
+), minimums AS (
+  SELECT i.minimum_quantity,
+         (SELECT coalesce(sum(p.balance), 0)
+            FROM inventory.positions AS p
+           WHERE p.workspace_id = i.workspace_id
+             AND p.item_id = i.id
+             AND p.location_id = ANY (:locationIds!::uuid[])) AS balance
+  FROM inventory.items AS i
+  WHERE i.workspace_id = :workspaceId!
+    AND i.kind = 'reagent'
+    AND i.archived_at IS NULL
+    AND i.minimum_quantity IS NOT NULL
 )
 SELECT
   (SELECT count(DISTINCT item_id) FROM stocked) AS "products_with_stock!",
   (SELECT count(*) FROM stocked) AS "containers_with_stock!",
   (SELECT count(*) FROM stocked, today WHERE stocked.expires_on < today.d) AS "expired_containers!",
   (SELECT count(*) FROM stocked, today
-    WHERE stocked.expires_on BETWEEN today.d AND today.d + :expiringDays!::int) AS "expiring_containers!";
+    WHERE stocked.expires_on BETWEEN today.d AND today.d + :expiringDays!::int) AS "expiring_containers!",
+  (SELECT count(*) FROM minimums WHERE balance < minimum_quantity) AS "below_minimum!",
+  (SELECT count(*) FROM minimums) AS "products_with_minimum!";
 
 /* @name listProductLots */
 -- Lotes de un reactivo del espacio, para elegirlos al registrar un ingreso.

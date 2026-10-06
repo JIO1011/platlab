@@ -1,11 +1,12 @@
 import { Quantity, cn } from '@platlab/ui';
-import { ArrowDownToLine, ArrowUpFromLine, CircleDot, Scale } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, CircleDot, PackageX, Scale } from 'lucide-react';
 import { formatDateTime, formatShortDateTime } from './format';
 
 const types: Record<string, { label: string; icon: typeof Scale }> = {
   receipt: { label: 'Ingreso', icon: ArrowDownToLine },
   issue: { label: 'Salida', icon: ArrowUpFromLine },
   adjustment: { label: 'Ajuste', icon: Scale },
+  disposal: { label: 'Baja', icon: PackageX },
 };
 
 export interface ActivityRowProps {

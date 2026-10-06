@@ -20,7 +20,7 @@ export const isApiError = (error: unknown, ...codes: Array<ApiError['code']>): e
 
 interface Request<S extends z.ZodType> {
   schema: S;
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PUT';
   body?: unknown;
   /** Misma clave en los reintentos de un mismo envío: el servidor no repite el efecto (02 §7). */
   idempotencyKey?: string;

@@ -115,7 +115,7 @@ describe('/me y /home según los módulos del espacio', () => {
     expect(me.modules.map((module) => module.code)).toEqual(['reagents']);
     const home = homeResponse.parse((await get(`/v1/workspaces/${a.id}/home`, adminA.subject)).json());
     expect(home.cards).toEqual([
-      { moduleCode: 'reagents', name: 'Reactivos', summary: { productsWithStock: 0, containersWithStock: 0, expiredContainers: 0, expiringContainers: 0, pendingRequests: 0 }, activity: [], trend: null },
+      { moduleCode: 'reagents', name: 'Reactivos', summary: { productsWithStock: 0, containersWithStock: 0, expiredContainers: 0, expiringContainers: 0, belowMinimum: 0, productsWithMinimum: 0, pendingRequests: 0 }, activity: [], trend: null },
     ]);
   });
 

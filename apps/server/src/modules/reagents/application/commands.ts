@@ -10,6 +10,8 @@ import type {
   IssueResponse,
   ListEntry,
   Lot,
+  LotConditionResponse,
+  lotConditionRequest,
   MovementResponse,
   Product,
   receiptRequest,
@@ -20,7 +22,9 @@ import {
   addReason,
   applyMovement,
   approveIssueRequest,
+  changeLotCondition,
   createItem,
+  discardLot,
   createLot as createInventoryLot,
   lockExistingPosition,
   receiveContainers,
@@ -28,6 +32,7 @@ import {
   requestIssue,
   retireDestination,
   retireReason,
+  setMinimum,
   type InventoryContext,
 } from '../../../capabilities/inventory/index.js';
 import { withIdempotency } from '../../../platform/idempotency/idempotency.js';
@@ -110,6 +115,7 @@ export function createProduct(
         code: input.code,
         name: input.name,
         baseUnit: input.baseUnit,
+        minimum: input.minimum ?? null,
       });
       const [detail] = await insertProductDetail.run(
         {
@@ -127,6 +133,7 @@ export function createProduct(
         baseUnit: item.baseUnit,
         casNumber: detail?.cas_number ?? null,
         physicalState: (detail?.physical_state ?? null) as Product['physicalState'],
+        minimum: item.minimum,
       };
       await recordAudit(access, {
         action: 'reagents.product.create',
@@ -137,6 +144,76 @@ export function createProduct(
       return product;
     },
   );
+}
+
+/** Fija o quita el mínimo de un reactivo, para todo el espacio (ADR 0012, 05-10-2026). */
+export function setProductMinimum(
+  pool: pg.Pool,
+  request: CommandRequest,
+  productId: string,
+  minimum: string | null,
+): Promise<{ productId: string; minimum: string | null }> {
+  return runCommand(
+    pool,
+    request,
+    'reagents.product.minimum',
+    { productId, minimum },
+    (access) => requireWorkspacePermission(access, 'reagents.catalog.manage'),
+    async (access) => {
+      const stored = await setMinimum(inventoryContext(access), productId, minimum);
+      await recordAudit(access, {
+        action: 'reagents.product.minimum',
+        entityType: 'inventory.item',
+        entityId: productId,
+        changes: { minimum: stored },
+      });
+      return { productId, minimum: stored };
+    },
+  );
+}
+
+const LOTS = 'reagents.lot.manage';
+
+/** Habilita, pone en cuarentena o bloquea un lote, con motivo (Administrador, ADR 0012). */
+export function setLotCondition(
+  pool: pg.Pool,
+  request: CommandRequest,
+  lotId: string,
+  input: z.infer<typeof lotConditionRequest>,
+): Promise<LotConditionResponse> {
+  return runCommand(pool, request, 'reagents.lot.condition', { lotId, ...input }, (access) => requireWorkspacePermission(access, LOTS), async (access) => {
+    const result = await changeLotCondition(inventoryContext(access), lotId, input);
+    await recordAudit(access, {
+      action: 'reagents.lot.condition',
+      entityType: 'inventory.lot',
+      entityId: lotId,
+      reason: input.reason,
+      changes: { condition: result.condition },
+    });
+    return result;
+  });
+}
+
+/** Descarta un lote: baja de todo su saldo, definitiva (Administrador, ADR 0012, 05-10-2026). */
+export function discardProductLot(
+  pool: pg.Pool,
+  request: CommandRequest,
+  lotId: string,
+  reason: string,
+): Promise<LotConditionResponse> {
+  return runCommand(pool, request, 'reagents.lot.discard', { lotId, reason }, (access) => requireWorkspacePermission(access, LOTS), async (access) => {
+    const result = await discardLot(inventoryContext(access), lotId, reason, (locationId) =>
+      requirePermissionAt(access, LOTS, locationId),
+    );
+    await recordAudit(access, {
+      action: 'reagents.lot.discard',
+      entityType: 'inventory.lot',
+      entityId: lotId,
+      reason,
+      changes: { condition: result.condition, operationId: result.operationId, containers: result.containers },
+    });
+    return result;
+  });
 }
 
 /** Crea un lote del producto; caducidad y lote del proveedor pueden quedar desconocidos. */

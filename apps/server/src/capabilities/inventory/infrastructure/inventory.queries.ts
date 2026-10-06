@@ -12,6 +12,7 @@ export interface IInsertItemParams {
   baseUnit: string;
   code: string;
   kind: string;
+  minimum?: string | null | void;
   name: string;
   workspaceId: string;
 }
@@ -21,6 +22,7 @@ export interface IInsertItemResult {
   base_unit: string;
   code: string;
   id: string;
+  minimum: string | null;
   name: string;
 }
 
@@ -30,17 +32,52 @@ export interface IInsertItemQuery {
   result: IInsertItemResult;
 }
 
-const insertItemIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"code":true,"name":true,"baseUnit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":80,"b":92}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":95,"b":100}]},{"name":"code","required":true,"transform":{"type":"scalar"},"locs":[{"a":103,"b":108}]},{"name":"name","required":true,"transform":{"type":"scalar"},"locs":[{"a":111,"b":116}]},{"name":"baseUnit","required":true,"transform":{"type":"scalar"},"locs":[{"a":119,"b":128}]}],"statement":"INSERT INTO inventory.items (workspace_id, kind, code, name, base_unit)\nVALUES (:workspaceId!, :kind!, :code!, :name!, :baseUnit!)\nRETURNING id, code, name, base_unit"};
+const insertItemIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"code":true,"name":true,"baseUnit":true,"minimum":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":98,"b":110}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":113,"b":118}]},{"name":"code","required":true,"transform":{"type":"scalar"},"locs":[{"a":121,"b":126}]},{"name":"name","required":true,"transform":{"type":"scalar"},"locs":[{"a":129,"b":134}]},{"name":"baseUnit","required":true,"transform":{"type":"scalar"},"locs":[{"a":137,"b":146}]},{"name":"minimum","required":false,"transform":{"type":"scalar"},"locs":[{"a":149,"b":156}]}],"statement":"INSERT INTO inventory.items (workspace_id, kind, code, name, base_unit, minimum_quantity)\nVALUES (:workspaceId!, :kind!, :code!, :name!, :baseUnit!, :minimum::numeric)\nRETURNING id, code, name, base_unit, trim_scale(minimum_quantity) AS minimum"};
 
 /**
  * Query generated from SQL:
  * ```
- * INSERT INTO inventory.items (workspace_id, kind, code, name, base_unit)
- * VALUES (:workspaceId!, :kind!, :code!, :name!, :baseUnit!)
- * RETURNING id, code, name, base_unit
+ * INSERT INTO inventory.items (workspace_id, kind, code, name, base_unit, minimum_quantity)
+ * VALUES (:workspaceId!, :kind!, :code!, :name!, :baseUnit!, :minimum::numeric)
+ * RETURNING id, code, name, base_unit, trim_scale(minimum_quantity) AS minimum
  * ```
  */
 export const insertItem = new PreparedQuery<IInsertItemParams,IInsertItemResult>(insertItemIR);
+
+
+/** 'SetItemMinimum' parameters type */
+export interface ISetItemMinimumParams {
+  itemId: string;
+  kind: string;
+  minimum?: string | null | void;
+  workspaceId: string;
+}
+
+/** 'SetItemMinimum' return type */
+export interface ISetItemMinimumResult {
+  id: string;
+  minimum: string | null;
+}
+
+/** 'SetItemMinimum' query type */
+export interface ISetItemMinimumQuery {
+  params: ISetItemMinimumParams;
+  result: ISetItemMinimumResult;
+}
+
+const setItemMinimumIR: any = {"usedParamSet":{"minimum":true,"workspaceId":true,"itemId":true,"kind":true},"params":[{"name":"minimum","required":false,"transform":{"type":"scalar"},"locs":[{"a":135,"b":142}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":197,"b":209}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":220,"b":227}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":240,"b":245}]}],"statement":"-- Mínimo para todo el espacio, en la unidad base (ADR 0012, 05-10-2026); null lo quita.\nUPDATE inventory.items\nSET minimum_quantity = :minimum::numeric, version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :itemId! AND kind = :kind! AND archived_at IS NULL\nRETURNING id, trim_scale(minimum_quantity) AS minimum"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Mínimo para todo el espacio, en la unidad base (ADR 0012, 05-10-2026); null lo quita.
+ * UPDATE inventory.items
+ * SET minimum_quantity = :minimum::numeric, version = version + 1
+ * WHERE workspace_id = :workspaceId! AND id = :itemId! AND kind = :kind! AND archived_at IS NULL
+ * RETURNING id, trim_scale(minimum_quantity) AS minimum
+ * ```
+ */
+export const setItemMinimum = new PreparedQuery<ISetItemMinimumParams,ISetItemMinimumResult>(setItemMinimumIR);
 
 
 /** 'FindItem' parameters type */
@@ -152,6 +189,150 @@ const findLotIR: any = {"usedParamSet":{"workspaceId":true,"lotId":true,"kind":t
 export const findLot = new PreparedQuery<IFindLotParams,IFindLotResult>(findLotIR);
 
 
+/** 'LockLot' parameters type */
+export interface ILockLotParams {
+  kind: string;
+  lotId: string;
+  workspaceId: string;
+}
+
+/** 'LockLot' return type */
+export interface ILockLotResult {
+  base_unit: string;
+  code: string;
+  condition: string;
+  id: string;
+  item_id: string;
+}
+
+/** 'LockLot' query type */
+export interface ILockLotQuery {
+  params: ILockLotParams;
+  result: ILockLotResult;
+}
+
+const lockLotIR: any = {"usedParamSet":{"workspaceId":true,"lotId":true,"kind":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":281,"b":293}]},{"name":"lotId","required":true,"transform":{"type":"scalar"},"locs":[{"a":306,"b":312}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":327,"b":332}]}],"statement":"-- Bloquea el lote antes de cambiar su estado o descartarlo: lote antes que posición (02 §6).\nSELECT l.id, l.item_id, l.code, l.condition, i.base_unit\nFROM inventory.lots AS l\nJOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id\nWHERE l.workspace_id = :workspaceId! AND l.id = :lotId! AND i.kind = :kind!\nFOR UPDATE OF l"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Bloquea el lote antes de cambiar su estado o descartarlo: lote antes que posición (02 §6).
+ * SELECT l.id, l.item_id, l.code, l.condition, i.base_unit
+ * FROM inventory.lots AS l
+ * JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
+ * WHERE l.workspace_id = :workspaceId! AND l.id = :lotId! AND i.kind = :kind!
+ * FOR UPDATE OF l
+ * ```
+ */
+export const lockLot = new PreparedQuery<ILockLotParams,ILockLotResult>(lockLotIR);
+
+
+/** 'LockLotPositions' parameters type */
+export interface ILockLotPositionsParams {
+  lotId: string;
+  workspaceId: string;
+}
+
+/** 'LockLotPositions' return type */
+export interface ILockLotPositionsResult {
+  balance: string;
+  id: string;
+  location_id: string;
+  reserved: string;
+}
+
+/** 'LockLotPositions' query type */
+export interface ILockLotPositionsQuery {
+  params: ILockLotPositionsParams;
+  result: ILockLotPositionsResult;
+}
+
+const lockLotPositionsIR: any = {"usedParamSet":{"workspaceId":true,"lotId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":239,"b":251}]},{"name":"lotId","required":true,"transform":{"type":"scalar"},"locs":[{"a":268,"b":274}]}],"statement":"-- Posiciones del lote con saldo o con algo apartado, bloqueadas en orden estable.\nSELECT p.id, p.location_id, trim_scale(p.balance) AS \"balance!\", trim_scale(p.reserved) AS \"reserved!\"\nFROM inventory.positions AS p\nWHERE p.workspace_id = :workspaceId! AND p.lot_id = :lotId! AND (p.balance > 0 OR p.reserved > 0)\nORDER BY p.id\nFOR UPDATE"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Posiciones del lote con saldo o con algo apartado, bloqueadas en orden estable.
+ * SELECT p.id, p.location_id, trim_scale(p.balance) AS "balance!", trim_scale(p.reserved) AS "reserved!"
+ * FROM inventory.positions AS p
+ * WHERE p.workspace_id = :workspaceId! AND p.lot_id = :lotId! AND (p.balance > 0 OR p.reserved > 0)
+ * ORDER BY p.id
+ * FOR UPDATE
+ * ```
+ */
+export const lockLotPositions = new PreparedQuery<ILockLotPositionsParams,ILockLotPositionsResult>(lockLotPositionsIR);
+
+
+/** 'UpdateLotCondition' parameters type */
+export interface IUpdateLotConditionParams {
+  condition: string;
+  lotId: string;
+  workspaceId: string;
+}
+
+/** 'UpdateLotCondition' return type */
+export interface IUpdateLotConditionResult {
+  id: string;
+}
+
+/** 'UpdateLotCondition' query type */
+export interface IUpdateLotConditionQuery {
+  params: IUpdateLotConditionParams;
+  result: IUpdateLotConditionResult;
+}
+
+const updateLotConditionIR: any = {"usedParamSet":{"condition":true,"workspaceId":true,"lotId":true},"params":[{"name":"condition","required":true,"transform":{"type":"scalar"},"locs":[{"a":38,"b":48}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":94,"b":106}]},{"name":"lotId","required":true,"transform":{"type":"scalar"},"locs":[{"a":117,"b":123}]}],"statement":"UPDATE inventory.lots\nSET condition = :condition!, version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :lotId!\nRETURNING id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE inventory.lots
+ * SET condition = :condition!, version = version + 1
+ * WHERE workspace_id = :workspaceId! AND id = :lotId!
+ * RETURNING id
+ * ```
+ */
+export const updateLotCondition = new PreparedQuery<IUpdateLotConditionParams,IUpdateLotConditionResult>(updateLotConditionIR);
+
+
+/** 'InsertLotConditionChange' parameters type */
+export interface IInsertLotConditionChangeParams {
+  fromCondition: string;
+  lotId: string;
+  operationId?: string | null | void;
+  principalId: string;
+  reason: string;
+  toCondition: string;
+  workspaceId: string;
+}
+
+/** 'InsertLotConditionChange' return type */
+export interface IInsertLotConditionChangeResult {
+  created_at: Date;
+  id: string;
+}
+
+/** 'InsertLotConditionChange' query type */
+export interface IInsertLotConditionChangeQuery {
+  params: IInsertLotConditionChangeParams;
+  result: IInsertLotConditionChangeResult;
+}
+
+const insertLotConditionChangeIR: any = {"usedParamSet":{"workspaceId":true,"lotId":true,"fromCondition":true,"toCondition":true,"reason":true,"principalId":true,"operationId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":243,"b":255}]},{"name":"lotId","required":true,"transform":{"type":"scalar"},"locs":[{"a":258,"b":264}]},{"name":"fromCondition","required":true,"transform":{"type":"scalar"},"locs":[{"a":267,"b":281}]},{"name":"toCondition","required":true,"transform":{"type":"scalar"},"locs":[{"a":284,"b":296}]},{"name":"reason","required":true,"transform":{"type":"scalar"},"locs":[{"a":299,"b":306}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":309,"b":321}]},{"name":"operationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":324,"b":335}]}],"statement":"-- El historial se escribe junto con el estado; la base comprueba al confirmar que coinciden.\nINSERT INTO inventory.lot_condition_changes\n  (workspace_id, lot_id, from_condition, to_condition, reason, actor_principal_id, operation_id)\nVALUES (:workspaceId!, :lotId!, :fromCondition!, :toCondition!, :reason!, :principalId!, :operationId)\nRETURNING id, created_at"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- El historial se escribe junto con el estado; la base comprueba al confirmar que coinciden.
+ * INSERT INTO inventory.lot_condition_changes
+ *   (workspace_id, lot_id, from_condition, to_condition, reason, actor_principal_id, operation_id)
+ * VALUES (:workspaceId!, :lotId!, :fromCondition!, :toCondition!, :reason!, :principalId!, :operationId)
+ * RETURNING id, created_at
+ * ```
+ */
+export const insertLotConditionChange = new PreparedQuery<IInsertLotConditionChangeParams,IInsertLotConditionChangeResult>(insertLotConditionChangeIR);
+
+
 /** 'FindLocation' parameters type */
 export interface IFindLocationParams {
   locationId: string;
@@ -191,6 +372,7 @@ export interface IReserveContainerSeqsParams {
 
 /** 'ReserveContainerSeqs' return type */
 export interface IReserveContainerSeqsResult {
+  condition: string;
   last: number;
 }
 
@@ -200,7 +382,7 @@ export interface IReserveContainerSeqsQuery {
   result: IReserveContainerSeqsResult;
 }
 
-const reserveContainerSeqsIR: any = {"usedParamSet":{"count":true,"workspaceId":true,"lotId":true},"params":[{"name":"count","required":true,"transform":{"type":"scalar"},"locs":[{"a":351,"b":357}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":385,"b":397}]},{"name":"lotId","required":true,"transform":{"type":"scalar"},"locs":[{"a":408,"b":414}]}],"statement":"-- Reparte números de frasco del lote: el UPDATE bloquea el lote, así que dos ingresos simultáneos\n-- reciben tramos distintos. Devuelve el último número del tramo reservado. Orden de bloqueo dentro\n-- de «datos» (02 §6): lote antes que posición; todo comando que bloquee ambos debe seguirlo.\nUPDATE inventory.lots\nSET container_seq = container_seq + :count!::int\nWHERE workspace_id = :workspaceId! AND id = :lotId!\nRETURNING container_seq AS \"last!\""};
+const reserveContainerSeqsIR: any = {"usedParamSet":{"count":true,"workspaceId":true,"lotId":true},"params":[{"name":"count","required":true,"transform":{"type":"scalar"},"locs":[{"a":351,"b":357}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":385,"b":397}]},{"name":"lotId","required":true,"transform":{"type":"scalar"},"locs":[{"a":408,"b":414}]}],"statement":"-- Reparte números de frasco del lote: el UPDATE bloquea el lote, así que dos ingresos simultáneos\n-- reciben tramos distintos. Devuelve el último número del tramo reservado. Orden de bloqueo dentro\n-- de «datos» (02 §6): lote antes que posición; todo comando que bloquee ambos debe seguirlo.\nUPDATE inventory.lots\nSET container_seq = container_seq + :count!::int\nWHERE workspace_id = :workspaceId! AND id = :lotId!\nRETURNING container_seq AS \"last!\", condition"};
 
 /**
  * Query generated from SQL:
@@ -211,7 +393,7 @@ const reserveContainerSeqsIR: any = {"usedParamSet":{"count":true,"workspaceId":
  * UPDATE inventory.lots
  * SET container_seq = container_seq + :count!::int
  * WHERE workspace_id = :workspaceId! AND id = :lotId!
- * RETURNING container_seq AS "last!"
+ * RETURNING container_seq AS "last!", condition
  * ```
  */
 export const reserveContainerSeqs = new PreparedQuery<IReserveContainerSeqsParams,IReserveContainerSeqsResult>(reserveContainerSeqsIR);
@@ -450,6 +632,7 @@ export interface IListPositionsResult {
   location_name: string;
   lot_code: string;
   lot_condition: string;
+  lot_condition_reason: string | null;
   lot_id: string;
   reserved: string;
   sort_item: string;
@@ -466,7 +649,7 @@ export interface IListPositionsQuery {
   result: IListPositionsResult;
 }
 
-const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"itemId":true,"afterId":true,"afterItem":true,"afterLot":true,"afterSeq":true,"afterLocation":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1184,"b":1196}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1213,"b":1218}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1247,"b":1259}]},{"name":"itemId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1277,"b":1283},{"a":1314,"b":1320}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1652,"b":1659},{"a":1839,"b":1846}]},{"name":"afterItem","required":false,"transform":{"type":"scalar"},"locs":[{"a":1766,"b":1775}]},{"name":"afterLot","required":false,"transform":{"type":"scalar"},"locs":[{"a":1784,"b":1792}]},{"name":"afterSeq","required":false,"transform":{"type":"scalar"},"locs":[{"a":1801,"b":1809}]},{"name":"afterLocation","required":false,"transform":{"type":"scalar"},"locs":[{"a":1817,"b":1830}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":1946,"b":1952}]}],"statement":"SELECT\n  p.id,\n  i.id AS item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  l.id AS lot_id,\n  l.code AS lot_code,\n  l.expires_on,\n  l.condition AS lot_condition,\n  l.supplier_name,\n  l.supplier_lot,\n  p.disposition,\n  c.id AS \"container_id?\",\n  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,\n  trim_scale(c.initial_quantity) AS container_initial_quantity,\n  c.created_at AS \"container_received_at?\",\n  loc.id AS location_id,\n  loc.code AS location_code,\n  loc.name AS location_name,\n  trim_scale(p.balance) AS \"balance!\",\n  trim_scale(p.reserved) AS \"reserved!\",\n  i.base_unit,\n  lower(i.code) AS \"sort_item!\",\n  lower(l.code) AS \"sort_lot!\",\n  coalesce(c.seq, 0) AS \"sort_seq!\",\n  lower(loc.code) AS \"sort_location!\"\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nWHERE p.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)\n  -- Un frasco trasladado deja su posición de origen vacía: solo se muestra donde está.\n  AND (p.container_id IS NULL OR p.balance > 0 OR NOT EXISTS (\n    SELECT 1 FROM inventory.positions AS other\n    WHERE other.workspace_id = p.workspace_id AND other.container_id = p.container_id AND other.balance > 0\n  ))\n  AND (\n    :afterId::uuid IS NULL\n    OR (lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id)\n       > (:afterItem::text, :afterLot::text, :afterSeq::int, :afterLocation::text, :afterId::uuid)\n  )\nORDER BY lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id\nLIMIT :limit!"};
+const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"itemId":true,"afterId":true,"afterItem":true,"afterLot":true,"afterSeq":true,"afterLocation":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1527,"b":1539}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1556,"b":1561}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1590,"b":1602}]},{"name":"itemId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1620,"b":1626},{"a":1657,"b":1663}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1995,"b":2002},{"a":2182,"b":2189}]},{"name":"afterItem","required":false,"transform":{"type":"scalar"},"locs":[{"a":2109,"b":2118}]},{"name":"afterLot","required":false,"transform":{"type":"scalar"},"locs":[{"a":2127,"b":2135}]},{"name":"afterSeq","required":false,"transform":{"type":"scalar"},"locs":[{"a":2144,"b":2152}]},{"name":"afterLocation","required":false,"transform":{"type":"scalar"},"locs":[{"a":2160,"b":2173}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":2289,"b":2295}]}],"statement":"SELECT\n  p.id,\n  i.id AS item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  l.id AS lot_id,\n  l.code AS lot_code,\n  l.expires_on,\n  l.condition AS lot_condition,\n  last_change.reason AS \"lot_condition_reason?\",\n  l.supplier_name,\n  l.supplier_lot,\n  p.disposition,\n  c.id AS \"container_id?\",\n  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,\n  trim_scale(c.initial_quantity) AS container_initial_quantity,\n  c.created_at AS \"container_received_at?\",\n  loc.id AS location_id,\n  loc.code AS location_code,\n  loc.name AS location_name,\n  trim_scale(p.balance) AS \"balance!\",\n  trim_scale(p.reserved) AS \"reserved!\",\n  i.base_unit,\n  lower(i.code) AS \"sort_item!\",\n  lower(l.code) AS \"sort_lot!\",\n  coalesce(c.seq, 0) AS \"sort_seq!\",\n  lower(loc.code) AS \"sort_location!\"\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\n-- Motivo del último cambio de estado del lote (ADR 0012, 05-10-2026).\nLEFT JOIN LATERAL (\n  SELECT ch.reason\n  FROM inventory.lot_condition_changes AS ch\n  WHERE ch.workspace_id = l.workspace_id AND ch.lot_id = l.id\n  ORDER BY ch.created_at DESC, ch.id DESC\n  LIMIT 1\n) AS last_change ON true\nWHERE p.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)\n  -- Un frasco trasladado deja su posición de origen vacía: solo se muestra donde está.\n  AND (p.container_id IS NULL OR p.balance > 0 OR NOT EXISTS (\n    SELECT 1 FROM inventory.positions AS other\n    WHERE other.workspace_id = p.workspace_id AND other.container_id = p.container_id AND other.balance > 0\n  ))\n  AND (\n    :afterId::uuid IS NULL\n    OR (lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id)\n       > (:afterItem::text, :afterLot::text, :afterSeq::int, :afterLocation::text, :afterId::uuid)\n  )\nORDER BY lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
@@ -480,6 +663,7 @@ const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"lo
  *   l.code AS lot_code,
  *   l.expires_on,
  *   l.condition AS lot_condition,
+ *   last_change.reason AS "lot_condition_reason?",
  *   l.supplier_name,
  *   l.supplier_lot,
  *   p.disposition,
@@ -502,6 +686,14 @@ const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"lo
  * JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
  * LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
  * JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+ * -- Motivo del último cambio de estado del lote (ADR 0012, 05-10-2026).
+ * LEFT JOIN LATERAL (
+ *   SELECT ch.reason
+ *   FROM inventory.lot_condition_changes AS ch
+ *   WHERE ch.workspace_id = l.workspace_id AND ch.lot_id = l.id
+ *   ORDER BY ch.created_at DESC, ch.id DESC
+ *   LIMIT 1
+ * ) AS last_change ON true
  * WHERE p.workspace_id = :workspaceId!
  *   AND i.kind = :kind!
  *   AND p.location_id = ANY (:locationIds!::uuid[])

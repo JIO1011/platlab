@@ -16,6 +16,7 @@ import {
   reagentsSummary,
   receiptResponse,
   entryList,
+  lotConditionResponse,
 } from '@platlab/contracts';
 import { buildApp } from '../../app.js';
 import { createPool } from '../../platform/db/pool.js';
@@ -52,7 +53,7 @@ afterAll(async () => {
 });
 
 interface Call {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PUT';
   body?: unknown;
   key?: string;
 }
@@ -209,7 +210,7 @@ describe('G0 · recorrido visible', () => {
       expect.objectContaining({
         moduleCode: 'reagents',
         name: 'Reactivos',
-        summary: { productsWithStock: 1, containersWithStock: 1, expiredContainers: 0, expiringContainers: 0, pendingRequests: 0 },
+        summary: { productsWithStock: 1, containersWithStock: 1, expiredContainers: 0, expiringContainers: 0, belowMinimum: 0, productsWithMinimum: 0, pendingRequests: 0 },
       }),
     ]);
     // Actividad reciente en Inicio: los mismos tres movimientos, del más reciente al más antiguo.
@@ -940,11 +941,12 @@ describe('R-01A · salidas con aprobación y reserva (ADR 0012)', () => {
   it('si el lote pasa a cuarentena después de pedirse, no se aprueba pero se puede rechazar', async () => {
     const { lab, positionId } = await stockedLab();
     const requestId = requestIdOf(await requestIssue(lab, positionId, '10'));
-    await admin.query(
-      `update inventory.lots set condition = 'quarantine'
-        where id = (select lot_id from inventory.positions where id = $1)`,
-      [positionId],
-    );
+    const { rows } = await admin.query<{ lot_id: string }>('select lot_id from inventory.positions where id = $1', [positionId]);
+    const quarantined = await call(lab.adminMember.subject, `${lab.base}/lots/${rows[0]!.lot_id}/condition`, {
+      method: 'POST',
+      body: { condition: 'quarantine', reason: 'Sospecha de contaminación' },
+    });
+    expect(quarantined.status).toBe(200);
     const approve = await call(lab.adminMember.subject, `${lab.base}/issue-requests/${requestId}/approve`, { method: 'POST' });
     expect(approve.status).toBe(400);
     expect(errorCode(approve.body)).toBe('VALIDATION_FAILED');
@@ -1068,5 +1070,191 @@ describe('R-01A · vencidos y por vencer (ADR 0012, 05-10-2026)', () => {
     const scoped = await addMember(admin, lab.workspace.id, { roles: [{ role: 'operator', locationId: lab.storage }] });
     const scopedSummary = reagentsSummary.parse((await call(scoped.subject, `${lab.base}/summary`)).body).summary;
     expect(scopedSummary).toMatchObject({ containersWithStock: 5, expiredContainers: 1, expiringContainers: 2 });
+  });
+});
+
+describe('R-01A · mínimos y estado del lote (ADR 0012, 05-10-2026)', () => {
+  const summaryOf = async (lab: Lab) =>
+    reagentsSummary.parse((await call(lab.adminMember.subject, `${lab.base}/summary`)).body).summary;
+  const productOf = async (lab: Lab, productId: string) =>
+    productList.parse((await call(lab.adminMember.subject, `${lab.base}/products`)).body).items.find(
+      (item) => item.id === productId,
+    )!;
+  const positionsOfLot = async (lab: Lab, lotId: string) =>
+    positionList.parse((await call(lab.adminMember.subject, `${lab.base}/positions`)).body).items.filter(
+      (position) => position.lot.id === lotId,
+    );
+  const setCondition = (lab: Lab, lotId: string, condition: string, reason: string | undefined, subject = lab.adminMember.subject) =>
+    call(subject, `${lab.base}/lots/${lotId}/condition`, { method: 'POST', body: { condition, ...(reason ? { reason } : {}) } });
+  const discard = (lab: Lab, lotId: string, subject = lab.adminMember.subject) =>
+    call(subject, `${lab.base}/lots/${lotId}/discard`, { method: 'POST', body: { reason: 'Contaminado' } });
+  const requestIssue = (lab: Lab, positionId: string, quantity: string) =>
+    call(lab.operator.subject, `${lab.base}/issues`, {
+      method: 'POST',
+      body: { positionId, quantity, unit: 'g', reason: 'Práctica', destination: 'Lab' },
+    });
+
+  it('el mínimo lo fija el Administrador; bajo mínimo cuenta la existencia física, con lo apartado y la cuarentena', async () => {
+    const lab = await createLab();
+    const created = await call(lab.adminMember.subject, `${lab.base}/products`, {
+      method: 'POST',
+      body: { code: `M-${uniqueSuffix()}`, name: 'Acetona', baseUnit: 'g', minimum: '50' },
+    });
+    expect(created.status).toBe(201);
+    const product = productContract.parse(created.body);
+    expect(product.minimum).toBe('50');
+    // Con mínimo y sin existencias, está bajo mínimo.
+    expect(await summaryOf(lab)).toMatchObject({ belowMinimum: 1, productsWithMinimum: 1 });
+    expect(await productOf(lab, product.id)).toMatchObject({ minimum: '50', belowMinimum: true });
+
+    const lot = lotContract.parse(
+      (await call(lab.adminMember.subject, `${lab.base}/products/${product.id}/lots`, { method: 'POST', body: { code: 'L-1' } })).body,
+    );
+    const first = receivedPosition(await receive(lab, lot.id, '30'));
+    expect(await productOf(lab, product.id)).toMatchObject({ balance: '30', belowMinimum: true });
+    await receive(lab, lot.id, '20', lab.otherStorage);
+    // Igual al mínimo no es «bajo»: 50 de 50.
+    expect(await productOf(lab, product.id)).toMatchObject({ balance: '50', belowMinimum: false });
+    expect(await summaryOf(lab)).toMatchObject({ belowMinimum: 0 });
+
+    // Lo apartado y un lote en cuarentena siguen siendo existencia física.
+    expect((await requestIssue(lab, first, '10')).status).toBe(201);
+    expect((await setCondition(lab, lot.id, 'quarantine', 'Revisión')).status).toBe(200);
+    expect(await productOf(lab, product.id)).toMatchObject({ belowMinimum: false });
+
+    // El Operador no fija mínimos; un mínimo de cero no es válido; null lo quita.
+    const denied = await call(lab.operator.subject, `${lab.base}/products/${product.id}/minimum`, { method: 'PUT', body: { minimum: '80' } });
+    expect(denied.status).toBe(403);
+    const zero = await call(lab.adminMember.subject, `${lab.base}/products/${product.id}/minimum`, { method: 'PUT', body: { minimum: '0' } });
+    expect(zero.status).toBe(400);
+    const raised = await call(lab.adminMember.subject, `${lab.base}/products/${product.id}/minimum`, { method: 'PUT', body: { minimum: '80.5' } });
+    expect(raised).toMatchObject({ status: 200, body: { productId: product.id, minimum: '80.5' } });
+    expect(await summaryOf(lab)).toMatchObject({ belowMinimum: 1 });
+    const cleared = await call(lab.adminMember.subject, `${lab.base}/products/${product.id}/minimum`, { method: 'PUT', body: { minimum: null } });
+    expect(cleared).toMatchObject({ status: 200, body: { minimum: null } });
+    expect(await productOf(lab, product.id)).toMatchObject({ minimum: null, belowMinimum: false });
+    expect(await summaryOf(lab)).toMatchObject({ belowMinimum: 0, productsWithMinimum: 0 });
+    expect(
+      await count(`select count(*) as n from core.audit_events where workspace_id = $1 and action = 'reagents.product.minimum'`, [lab.workspace.id]),
+    ).toBe(2);
+  });
+
+  it('cuarentena y bloqueo con motivo: sin salidas ni aprobaciones, con ingresos y ajustes, y un historial', async () => {
+    const lab = await createLab();
+    const { lot } = await createProductAndLot(lab);
+    const positionId = receivedPosition(await receive(lab, lot.id, '100'));
+
+    expect((await setCondition(lab, lot.id, 'quarantine', undefined)).status).toBe(400);
+    expect((await setCondition(lab, lot.id, 'quarantine', 'Sospecha', lab.operator.subject)).status).toBe(403);
+    const quarantined = await setCondition(lab, lot.id, 'quarantine', 'Sospecha de contaminación');
+    expect(quarantined.status).toBe(200);
+    expect(lotConditionResponse.parse(quarantined.body)).toMatchObject({ condition: 'quarantine', operationId: null });
+    expect((await setCondition(lab, lot.id, 'quarantine', 'Otra vez')).status).toBe(400);
+
+    const [position] = await positionsOfLot(lab, lot.id);
+    expect(position?.lot).toMatchObject({ condition: 'quarantine', conditionReason: 'Sospecha de contaminación' });
+
+    const issue = await call(lab.adminMember.subject, `${lab.base}/issues`, {
+      method: 'POST',
+      body: { positionId, quantity: '10', unit: 'g', reason: 'Práctica', destination: 'Lab' },
+    });
+    expect(issue.status).toBe(400);
+    expect(errorCode(issue.body)).toBe('VALIDATION_FAILED');
+    const adjustment = await call(lab.adminMember.subject, `${lab.base}/adjustments`, {
+      method: 'POST',
+      body: { positionId, quantity: '-1', unit: 'g', reason: 'Conteo' },
+    });
+    expect(adjustment.status).toBe(201);
+    expect((await receive(lab, lot.id, '10')).status).toBe(201);
+
+    expect((await setCondition(lab, lot.id, 'blocked', 'Retirado por el proveedor')).status).toBe(200);
+    expect((await setCondition(lab, lot.id, 'enabled', 'Verificado')).status).toBe(200);
+    const released = await call(lab.adminMember.subject, `${lab.base}/issues`, {
+      method: 'POST',
+      body: { positionId, quantity: '10', unit: 'g', reason: 'Práctica', destination: 'Lab' },
+    });
+    expect(released.status).toBe(201);
+
+    const history = await admin.query<{ from_condition: string; to_condition: string; reason: string }>(
+      `select from_condition, to_condition, reason from inventory.lot_condition_changes
+        where lot_id = $1 order by created_at, id`,
+      [lot.id],
+    );
+    expect(history.rows.map((row) => `${row.from_condition}→${row.to_condition}`)).toEqual([
+      'enabled→quarantine',
+      'quarantine→blocked',
+      'blocked→enabled',
+    ]);
+    expect(
+      await count(`select count(*) as n from core.audit_events where workspace_id = $1 and action = 'reagents.lot.condition'`, [lab.workspace.id]),
+    ).toBe(3);
+  });
+
+  it('descartar da de baja todo el saldo en una operación y es definitivo; con salidas pendientes no procede', async () => {
+    const lab = await createLab();
+    const { lot } = await createProductAndLot(lab);
+    const received = await call(lab.operator.subject, `${lab.base}/receipts`, {
+      method: 'POST',
+      body: { lotId: lot.id, locationId: lab.storage, containers: 2, quantity: '40', unit: 'g' },
+    });
+    expect(received.status).toBe(201);
+    const [first] = receiptResponse.parse(received.body).containers;
+    await receive(lab, lot.id, '15.5', lab.otherStorage);
+
+    // Una salida pendiente bloquea el descarte hasta que se rechaza: nada se cancela en silencio.
+    const pending = issueResponse.parse((await requestIssue(lab, first!.positionId, '10')).body);
+    if (pending.status !== 'pending') throw new Error('se esperaba una solicitud pendiente');
+    const blocked = await discard(lab, lot.id);
+    expect(blocked.status).toBe(400);
+    expect(errorCode(blocked.body)).toBe('VALIDATION_FAILED');
+    expect((await discard(lab, lot.id, lab.operator.subject)).status).toBe(403);
+    const rejected = await call(lab.adminMember.subject, `${lab.base}/issue-requests/${pending.requestId}/reject`, {
+      method: 'POST',
+      body: { reason: 'Lote contaminado' },
+    });
+    expect(rejected.status).toBe(200);
+
+    const discarded = await discard(lab, lot.id);
+    expect(discarded.status).toBe(201);
+    const result = lotConditionResponse.parse(discarded.body);
+    expect(result).toMatchObject({ condition: 'discarded', containers: 3 });
+    expect((await positionsOfLot(lab, lot.id)).every((position) => position.balance === '0')).toBe(true);
+
+    // Una sola operación de baja, con un asiento por frasco y el motivo; en el historial se ve como baja.
+    const disposals = operationList.parse((await call(lab.adminMember.subject, `${lab.base}/operations?type=disposal`)).body);
+    expect(disposals.items).toHaveLength(3);
+    expect(new Set(disposals.items.map((item) => item.id))).toEqual(new Set([result.operationId]));
+    expect(disposals.items.map((item) => item.quantity).sort()).toEqual(['-15.5', '-40', '-40']);
+    expect(disposals.items.every((item) => item.reason === 'Contaminado' && item.balanceAfter === '0')).toBe(true);
+
+    // Definitivo: ni otro estado, ni ingresos, ni otro descarte.
+    expect((await setCondition(lab, lot.id, 'enabled', 'Volver')).status).toBe(400);
+    expect((await receive(lab, lot.id, '5')).status).toBe(400);
+    expect((await discard(lab, lot.id)).status).toBe(400);
+
+    // Un lote sin saldo se descarta sin operación de baja.
+    const empty = lotContract.parse(
+      (await call(lab.adminMember.subject, `${lab.base}/products/${lot.productId}/lots`, { method: 'POST', body: { code: 'L-VACIO' } })).body,
+    );
+    const emptyDiscard = await discard(lab, empty.id);
+    expect(emptyDiscard.status).toBe(200);
+    expect(lotConditionResponse.parse(emptyDiscard.body)).toMatchObject({ operationId: null, containers: 0 });
+  });
+
+  it('un descarte y una solicitud simultáneos: el lote nunca queda descartado con algo apartado o con saldo', async () => {
+    const lab = await createLab();
+    const { lot } = await createProductAndLot(lab);
+    const positionId = receivedPosition(await receive(lab, lot.id, '100'));
+    const [discardResult, requestResult] = await Promise.all([discard(lab, lot.id), requestIssue(lab, positionId, '10')]);
+    const [position] = await positionsOfLot(lab, lot.id);
+    if (discardResult.status === 201) {
+      // La solicitud llegó tarde: el frasco ya no tiene saldo o el lote ya no admite salidas.
+      expect([400, 409]).toContain(requestResult.status);
+      expect(position).toMatchObject({ balance: '0', reserved: '0', lot: expect.objectContaining({ condition: 'discarded' }) });
+    } else {
+      expect(discardResult.status).toBe(400);
+      expect(requestResult.status).toBe(201);
+      expect(position).toMatchObject({ balance: '100', reserved: '10', lot: expect.objectContaining({ condition: 'enabled' }) });
+    }
   });
 });

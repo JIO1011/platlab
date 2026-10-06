@@ -10,7 +10,7 @@ import { useSession } from '../../app/session';
  * en cada reintento del mismo envío (02 §7): un doble clic o un reintento tras un corte nunca
  * registra dos veces. Sin actualización optimista: la tabla se refresca con lo confirmado.
  */
-export function useCommand<S extends z.ZodType>(workspaceId: string, path: string, schema: S) {
+export function useCommand<S extends z.ZodType>(workspaceId: string, path: string, schema: S, method: 'POST' | 'PUT' = 'POST') {
   const queryClient = useQueryClient();
   const reagentsKey = useReagentsKey(workspaceId);
   const user = useSession().session?.user.id ?? 'anónimo';
@@ -18,7 +18,7 @@ export function useCommand<S extends z.ZodType>(workspaceId: string, path: strin
 
   return useMutation({
     mutationFn: (body: unknown) =>
-      api(`/workspaces/${workspaceId}/reagents${path}`, { method: 'POST', body, idempotencyKey, schema }),
+      api(`/workspaces/${workspaceId}/reagents${path}`, { method, body, idempotencyKey, schema }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: reagentsKey }),

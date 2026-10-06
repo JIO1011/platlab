@@ -84,10 +84,12 @@ const toStockedProduct = (row: IListProductsResult): StockedProduct => ({
   baseUnit: row.base_unit,
   casNumber: row.cas_number,
   physicalState: row.physical_state as Product['physicalState'],
+  minimum: row.minimum,
   balance: row.balance,
   containersWithStock: row.containers_with_stock,
   expiredContainers: row.expired_containers,
   expiringContainers: row.expiring_containers,
+  belowMinimum: row.below_minimum,
 });
 
 /** Ficha de un reactivo (ADR 0012): su total y sus frascos con saldo en el ámbito del miembro. */
@@ -245,6 +247,8 @@ export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<Home
       containersWithStock: Number(row?.containers_with_stock ?? 0),
       expiredContainers: Number(row?.expired_containers ?? 0),
       expiringContainers: Number(row?.expiring_containers ?? 0),
+      belowMinimum: Number(row?.below_minimum ?? 0),
+      productsWithMinimum: Number(row?.products_with_minimum ?? 0),
       pendingRequests,
     },
     activity: recent.items.map((operation) => ({

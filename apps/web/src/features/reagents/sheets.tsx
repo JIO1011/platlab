@@ -1,14 +1,20 @@
 import {
   adjustmentRequest,
   createProductRequest,
+  discardLotRequest,
   issueRequest,
   issueResponse,
+  lotConditionRequest,
+  lotConditionResponse,
+  minimumResponse,
   movementResponse,
   product as productContract,
   receiptRequest,
   receiptResponse,
+  setMinimumRequest,
   type Position,
   type Product,
+  type StockedProduct,
 } from '@platlab/contracts';
 import {
   Button,
@@ -28,13 +34,14 @@ import {
   toast,
   type SelectOption,
 } from '@platlab/ui';
-import { ArrowDownToLine, ArrowUpFromLine, FlaskConical, Scale, type LucideIcon } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { ArrowDownToLine, ArrowRight, ArrowUpFromLine, FlaskConical, Scale, Shield, TrendingDown, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Controller, useForm, type FieldValues, type Path, type UseFormReturn } from 'react-hook-form';
+import { Link } from 'react-router';
 import type { z } from 'zod';
 import { isApiError } from '../../app/api';
 import { formatDate } from '../../app/format';
-import { useDestinations, useLots, useReasons, useReceiptLocations } from '../../app/queries';
+import { useDestinations, useLots, usePositions, useReasons, useReceiptLocations } from '../../app/queries';
 import { ChoiceField } from './choices';
 import { commandErrorMessage, fieldErrors, useCommand } from './commands';
 import { availableOf } from './stock';
@@ -85,6 +92,8 @@ function FormSheet({
   generalError,
   onSubmit,
   sections = false,
+  destructive = false,
+  submitDisabled = false,
   children,
 }: {
   title: string;
@@ -98,6 +107,10 @@ function FormSheet({
   onSubmit: () => void;
   /** Cada hijo es una sección separada por una línea, como el modal de salida de ReactiLab. */
   sections?: boolean;
+  /** Acción definitiva (descartar un lote): el botón de envío va en rojo, no en el acento. */
+  destructive?: boolean;
+  /** La acción no procede todavía (p. ej., un descarte con salidas pendientes): no se ofrece. */
+  submitDisabled?: boolean;
   children: ReactNode;
 }) {
   const formId = `form-${title.replace(/\s+/g, '-').toLowerCase()}`;
@@ -118,7 +131,13 @@ function FormSheet({
             form={formId}
             variant="primary"
             loading={pending}
-            className="h-12 flex-1 rounded-2xl bg-linear-to-r from-action to-action-deep text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep"
+            disabled={submitDisabled}
+            className={cn(
+              'h-12 flex-1 rounded-2xl text-base font-bold shadow-lg',
+              destructive
+                ? 'bg-danger shadow-danger/25 hover:bg-danger/90 active:bg-danger'
+                : 'bg-linear-to-r from-action to-action-deep shadow-action/25 hover:from-action-hover hover:to-action-deep',
+            )}
           >
             {submitLabel}
           </Button>
@@ -243,7 +262,7 @@ export function NewProductSheet({ workspaceId, open, onOpenChange }: SheetBasePr
   const command = useCommand(workspaceId, '/products', productContract);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const form = useForm({
-    defaultValues: { code: '', name: '', baseUnit: 'g', casNumber: '', physicalState: '' },
+    defaultValues: { code: '', name: '', baseUnit: 'g', casNumber: '', physicalState: '', minimum: '' },
   });
   const errors = form.formState.errors;
 
@@ -257,6 +276,7 @@ export function NewProductSheet({ workspaceId, open, onOpenChange }: SheetBasePr
         baseUnit: values.baseUnit,
         casNumber: values.casNumber.trim() || null,
         physicalState: values.physicalState || null,
+        minimum: values.minimum.trim() ? normalizeDecimalInput(values.minimum) : null,
       },
       form,
     );
@@ -313,6 +333,79 @@ export function NewProductSheet({ workspaceId, open, onOpenChange }: SheetBasePr
           />
         </Field>
       </div>
+      <Field
+        label="Mínimo"
+        optional
+        error={errors.minimum?.message}
+        hint="Avisa «Bajo mínimo» cuando la existencia total del reactivo, en todo el espacio, baje de esta cantidad."
+      >
+        <div className="relative">
+          <Input inputMode="decimal" autoComplete="off" className="pr-12" {...form.register('minimum')} />
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted">
+            {form.watch('baseUnit')}
+          </span>
+        </div>
+      </Field>
+    </FormSheet>
+  );
+}
+
+/**
+ * Mínimo del reactivo (ADR 0012, 05-10-2026): uno para todo el espacio, en su unidad base. Vacío lo
+ * quita. Se compara con la existencia física: todos sus frascos con saldo.
+ */
+export function MinimumSheet({ workspaceId, open, onOpenChange, product }: SheetBaseProps & { product: StockedProduct | undefined }) {
+  const command = useCommand(workspaceId, `/products/${product?.id ?? ''}/minimum`, minimumResponse, 'PUT');
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const form = useForm({ defaultValues: { minimum: product?.minimum ? toDecimalInput(product.minimum) : '' } });
+  const errors = form.formState.errors;
+
+  const submit = form.handleSubmit(async (values) => {
+    setGeneralError(null);
+    const raw = values.minimum.trim();
+    const payload = validate(setMinimumRequest, { minimum: raw ? normalizeDecimalInput(raw) : null }, form);
+    if (!payload || !product) return;
+    try {
+      await command.mutateAsync(payload);
+      toast.success(payload.minimum ? 'Mínimo guardado' : 'Mínimo quitado', {
+        description: payload.minimum ? `${product.name}: ${formatDecimal(payload.minimum)} ${product.baseUnit}` : product.name,
+      });
+      onOpenChange(false);
+    } catch (error) {
+      setGeneralError(commandErrorMessage(error));
+    }
+  });
+
+  return (
+    <FormSheet
+      icon={TrendingDown}
+      title="Mínimo del reactivo"
+      description="Un solo mínimo para todo el espacio. Cuando la existencia total baja de él, el reactivo se marca «Bajo mínimo»."
+      open={open}
+      onOpenChange={onOpenChange}
+      submitLabel="Guardar mínimo"
+      pending={command.isPending}
+      generalError={generalError}
+      onSubmit={() => void submit()}
+    >
+      {product ? (
+        <div className="flex items-baseline justify-between rounded-control bg-surface-sunken px-3 py-2.5 text-sm">
+          <span className="text-ink-muted">Existencia de {product.name}</span>
+          <Quantity value={product.balance} unit={product.baseUnit} className="font-semibold text-ink" />
+        </div>
+      ) : null}
+      <Field
+        label="Mínimo"
+        error={errors.minimum?.message}
+        hint="Cuenta todos los frascos con saldo, también los vencidos, los de lotes en cuarentena y lo apartado. Déjalo vacío para quitarlo."
+      >
+        <div className="relative">
+          <Input inputMode="decimal" autoComplete="off" className="pr-12" {...form.register('minimum')} />
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-muted">
+            {product?.baseUnit ?? ''}
+          </span>
+        </div>
+      </Field>
     </FormSheet>
   );
 }
@@ -931,6 +1024,251 @@ export function AdjustmentSheet({
           />
         )}
       />
+    </FormSheet>
+  );
+}
+
+type LotAction = 'enabled' | 'quarantine' | 'blocked' | 'discard';
+
+const lotConditionText: Record<Position['lot']['condition'], string> = {
+  enabled: 'Habilitado',
+  quarantine: 'En cuarentena',
+  blocked: 'Bloqueado',
+  discarded: 'Descartado',
+};
+
+const lotActions: Array<{ value: LotAction; label: string; description: string }> = [
+  { value: 'enabled', label: 'Habilitado', description: 'Se usa con normalidad: salidas y solicitudes.' },
+  { value: 'quarantine', label: 'En cuarentena', description: 'En revisión: sin salidas ni aprobaciones hasta liberarlo.' },
+  { value: 'blocked', label: 'Bloqueado', description: 'No usar: sin salidas ni aprobaciones. Se puede volver a habilitar.' },
+  { value: 'discard', label: 'Descartar', description: 'Definitivo: da de baja todo lo que queda en sus frascos.' },
+];
+
+/**
+ * Estado del lote (ADR 0012, 05-10-2026): el Administrador lo habilita, lo pone en cuarentena o lo
+ * bloquea, siempre con motivo, o lo descarta. Descartar es definitivo: la baja lleva a cero todos sus
+ * frascos, con un motivo de la lista de bajas, y no procede con salidas pendientes.
+ */
+export function LotSheet({
+  workspaceId,
+  open,
+  onOpenChange,
+  productId,
+  lotId,
+  canManageLists,
+  requestsHref,
+}: SheetBaseProps & { productId: string; lotId: string; canManageLists: boolean; requestsHref: string }) {
+  const positions = usePositions(workspaceId, productId);
+  // Un descarte es definitivo: la lista de lo que se dará de baja no puede quedarse en la primera página.
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = positions;
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const complete = positions.isSuccess && !hasNextPage;
+  const lotPositions = (positions.data?.pages.flatMap((page) => page.items) ?? []).filter((p) => p.lot.id === lotId);
+  const lot = lotPositions[0]?.lot;
+  const stocked = lotPositions.filter((p) => p.balance !== '0');
+  const pending = lotPositions.some((p) => p.reserved !== '0');
+  const changeCommand = useCommand(workspaceId, `/lots/${lotId}/condition`, lotConditionResponse);
+  const discardCommand = useCommand(workspaceId, `/lots/${lotId}/discard`, lotConditionResponse);
+  const disposalReasons = useReasons(workspaceId, 'disposal', open);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const form = useForm({
+    defaultValues: { action: '' as LotAction | '', reason: '', disposalReason: '', confirmed: false },
+  });
+  const action = form.watch('action');
+  const errors = form.formState.errors;
+  const options = lotActions.filter((option) => option.value !== lot?.condition);
+
+  const submit = form.handleSubmit(async (values) => {
+    setGeneralError(null);
+    if (!values.action) {
+      form.setError('action', { message: 'Elige el nuevo estado del lote.' });
+      return;
+    }
+    try {
+      if (values.action === 'discard') {
+        if (pending) {
+          setGeneralError('Este lote tiene salidas pendientes. Recházalas en Solicitudes antes de descartarlo.');
+          return;
+        }
+        if (!values.confirmed) {
+          form.setError('confirmed', { message: 'Confirma que entiendes que descartar es definitivo.' });
+          return;
+        }
+        const payload = validate(discardLotRequest, { reason: values.disposalReason.trim() }, form);
+        if (!payload) {
+          form.setError('disposalReason', { message: 'Elige el motivo de la baja.' });
+          return;
+        }
+        const result = await discardCommand.mutateAsync(payload);
+        toast.success(`Lote ${lot?.code ?? ''} descartado`, {
+          description:
+            result.containers === 0
+              ? 'No tenía saldo: solo cambió su estado.'
+              : result.containers === 1
+                ? '1 frasco dado de baja.'
+                : `${result.containers} frascos dados de baja.`,
+        });
+      } else {
+        const payload = validate(lotConditionRequest, { condition: values.action, reason: values.reason.trim() }, form);
+        if (!payload) return;
+        await changeCommand.mutateAsync(payload);
+        toast.success(`Lote ${lot?.code ?? ''}: ${lotConditionText[payload.condition].toLowerCase()}`);
+      }
+      onOpenChange(false);
+    } catch (error) {
+      setGeneralError(commandErrorMessage(error));
+    }
+  });
+
+  return (
+    <FormSheet
+      sections
+      icon={Shield}
+      title="Estado del lote"
+      description="Afecta a todos los frascos del lote. Cada cambio queda en el historial con su motivo."
+      open={open}
+      onOpenChange={onOpenChange}
+      submitLabel={action === 'discard' ? 'Descartar lote' : 'Guardar estado'}
+      destructive={action === 'discard'}
+      submitDisabled={action === 'discard' && (pending || !complete)}
+      pending={changeCommand.isPending || discardCommand.isPending}
+      generalError={generalError}
+      onSubmit={() => void submit()}
+    >
+      <div className="grid gap-1 text-sm">
+        <p className="flex flex-wrap items-baseline justify-between gap-x-3">
+          <span className="text-lg font-bold tabular-nums text-ink">Lote {lot?.code ?? '…'}</span>
+          <span className="text-ink-muted">
+            {lotPositions.length === 1 ? '1 frasco' : `${lotPositions.length} frascos`}
+          </span>
+        </p>
+        {lot ? (
+          <p className="text-ink-muted">
+            Estado actual: <span className="font-medium text-ink">{lotConditionText[lot.condition]}</span>
+            {lot.conditionReason ? ` · ${lot.conditionReason}` : ''}
+          </p>
+        ) : null}
+      </div>
+      {/* Envuelto: un <legend> ignora el relleno de la sección y quedaría pegado a la línea. */}
+      <div>
+        <fieldset className="grid gap-2" aria-describedby={errors.action ? 'lot-action-error' : undefined}>
+          <legend className={cn(sectionLabel, 'mb-1')}>Nuevo estado</legend>
+          {options.map((option) => (
+            <label
+              key={option.value}
+              className={cn(
+                'flex cursor-pointer items-start gap-3 rounded-control border border-line px-3 py-2.5 transition-colors has-checked:border-action has-checked:bg-action-soft has-focus-visible:outline-2 has-focus-visible:outline-action',
+                option.value === 'discard' && 'group/discard has-checked:border-danger has-checked:bg-danger-soft',
+              )}
+            >
+              <input
+                type="radio"
+                value={option.value}
+                className={cn('mt-1', option.value === 'discard' ? 'accent-[var(--color-danger)]' : 'accent-[var(--color-action)]')}
+                {...form.register('action')}
+              />
+              <span>
+                {/* El rojo llega solo al elegirlo: «Definitivo» ya lo dice con texto. */}
+                <span className={cn('block text-sm font-semibold text-ink', option.value === 'discard' && 'group-has-checked/discard:text-danger')}>
+                  {option.label}
+                </span>
+                <span className="block text-[13px] text-ink-muted">{option.description}</span>
+              </span>
+            </label>
+          ))}
+          {errors.action?.message ? (
+            <p id="lot-action-error" className="text-[13px] text-danger">
+              {errors.action.message}
+            </p>
+          ) : null}
+        </fieldset>
+      </div>
+      {action === 'discard' ? (
+        <div className="grid gap-4">
+          {pending ? (
+            // Con salidas pendientes el descarte no procede: se dice por qué y dónde resolverlo.
+            <div role="alert" className="flex gap-2 rounded-control bg-warning-soft px-3 py-2.5 text-sm text-warning">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <p>
+                Este lote tiene salidas pendientes. Recházalas antes de descartarlo: nada se cancela en silencio.{' '}
+                <Link
+                  to={requestsHref}
+                  onClick={() => onOpenChange(false)}
+                  className="inline-flex items-center gap-1 font-semibold underline underline-offset-2"
+                >
+                  Ir a Solicitudes
+                  <ArrowRight className="size-3.5" aria-hidden />
+                </Link>
+              </p>
+            </div>
+          ) : !complete ? (
+            <p role="status" className="rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted">
+              Cargando los frascos del lote…
+            </p>
+          ) : (
+            <div className="rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger">
+              <p className="flex gap-2 font-semibold">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                {stocked.length === 0 ? 'El lote no tiene saldo: solo cambiará su estado.' : 'Se dará de baja todo lo que queda:'}
+              </p>
+              {stocked.length > 0 ? (
+                <ul className="mt-1.5 grid gap-0.5 pl-6">
+                  {stocked.map((p) => (
+                    <li key={p.id} className="flex justify-between gap-3 tabular-nums">
+                      <span>
+                        {p.container?.code ?? p.lot.code} · {p.location.code}
+                      </span>
+                      <Quantity value={p.balance} unit={p.unit} className="font-semibold [&>span]:text-current" />
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          )}
+          {pending ? null : (
+            <>
+              <Controller
+                control={form.control}
+                name="disposalReason"
+                render={({ field }) => (
+                  <ChoiceField
+                    workspaceId={workspaceId}
+                    label="Motivo de la baja"
+                    hint="Queda en el historial de movimientos como «Baja»."
+                    error={errors.disposalReason?.message}
+                    options={disposalReasons.data?.items ?? []}
+                    loading={disposalReasons.isPending}
+                    value={field.value}
+                    onChange={field.onChange}
+                    canAdd={canManageLists}
+                    addPath="/reasons"
+                    addBody={(name) => ({ kind: 'disposal', name })}
+                    addLabel="Nuevo motivo"
+                  />
+                )}
+              />
+              <label className="flex items-start gap-2.5 text-sm text-ink">
+                <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-danger)]" {...form.register('confirmed')} />
+                <span>
+                  Entiendo que descartar es definitivo: el lote no vuelve a usarse ni a recibir frascos.
+                  {errors.confirmed?.message ? <span className="mt-1 block text-[13px] text-danger">{errors.confirmed.message}</span> : null}
+                </span>
+              </label>
+            </>
+          )}
+        </div>
+      ) : action ? (
+        <Field
+          label="Motivo"
+          labelClassName={sectionLabel}
+          error={errors.reason?.message}
+          hint="Obligatorio: se muestra en cada frasco del lote y queda en el historial."
+        >
+          <Input autoComplete="off" maxLength={500} {...form.register('reason')} />
+        </Field>
+      ) : null}
     </FormSheet>
   );
 }

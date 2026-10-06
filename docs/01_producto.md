@@ -28,7 +28,7 @@ Titular (universidad o empresa) ──contrata──► Espacio A ──► ubic
 ```
 
 - Cada contratación con operación propia es un espacio aislado. Existencias, reservas, miembros e informes nunca se comparten, aunque el titular sea el mismo.
-- Un espacio contiene varios laboratorios como ubicaciones, con permisos por ámbito.
+- Un espacio contiene varios laboratorios como ubicaciones. Los roles valen para todo el espacio, no por laboratorio ([ADR 0008](05_decisiones.md#adr-0008), cambio del 05-10-2026).
 - Una persona tiene una identidad y una membresía por espacio. Cambia de espacio de forma explícita y la pantalla se limpia.
 - La licencia pertenece al espacio, no a quien lo creó. Transferir la propiedad no mueve datos ni contratos.
 - El aislamiento se garantiza como describe [02 §5](02_arquitectura.md#5-aislamiento-entre-clientes).
@@ -39,7 +39,7 @@ M1 es obligatorio. Cada módulo se contrata por espacio y funciona con sus depen
 
 | Módulo | Qué resuelve | Operaciones principales | Requiere | Se construye en |
 |---|---|---|---|---|
-| M1 Núcleo | Espacio, personas y control | Miembros, invitaciones, roles y ámbitos, ubicaciones, suscripción, documentos, auditoría y avisos | — | F1a |
+| M1 Núcleo | Espacio, personas y control | Miembros, invitaciones, roles, ubicaciones, suscripción, documentos, auditoría y avisos | — | F1a |
 | M2 Reactivos | Qué hay, dónde y en qué estado | Catálogo químico (CAS, concentración, peligros, SDS), lotes, ingresos, salidas, ajustes, traslados, cuarentena y bajas; custodia y retorno; caducidad y mínimos; fiscalizados y su reporte | M1 | R-00 en F1a; F2 |
 | M3 Equipos | Activos y su condición | Tipos de equipo; ficha (marca, modelo, serie, ubicación, responsable, documentos), condición, traslado trazado, custodia, incidencias e historial | M1 | F2 |
 | M4 Laboratorios | Espacios físicos y agenda | Capacidad, responsable, horarios y cierres; reservas directas sin conflictos; tiempos de preparación y limpieza | M1 | F3 |
@@ -89,13 +89,13 @@ Hay dos planos que nunca se mezclan.
 | Plano | Actor | Qué hace | Límite |
 |---|---|---|---|
 | PlatLab | Equipo PlatLab | Desde la consola separada: titulares, espacios, contratos, módulos, límites, estados y diagnóstico | No ve inventarios ni actividades de clientes por defecto |
-| Espacio | Miembros con roles | Operan su institución según rol y ámbito | Solo entran a otro espacio si tienen membresía allí |
+| Espacio | Miembros con roles | Operan su institución según su rol | Solo entran a otro espacio si tienen membresía allí |
 
-Los roles del espacio salen de un catálogo fijo en código. Son combinables y cada asignación tiene un ámbito: todo el espacio o una parte del árbol de ubicaciones.
+Los roles del espacio salen de un catálogo fijo en código. Son combinables y valen para todo el espacio: la ubicación dice dónde está algo, no quién puede verlo ([ADR 0008](05_decisiones.md#adr-0008), cambio del 05-10-2026).
 
 | Rol | Propósito | Puede | No puede |
 |---|---|---|---|
-| Propietario | Gobierno de la cuenta; uno por espacio y transferible | Todo lo del Administrador en todo el espacio, sin asignación ([ADR 0008](05_decisiones.md#adr-0008), cambio del 02-10-2026); además, ver suscripción y uso, solicitar módulos, invitar miembros y asignar roles y ámbitos, configurar marca y ubicaciones, transferir la propiedad | Borrar registros, aprobar su propia solicitud o actuar como Responsable de fiscalizados sin que se le asigne ese rol |
+| Propietario | Gobierno de la cuenta; uno por espacio y transferible | Todo lo del Administrador en todo el espacio, sin asignación ([ADR 0008](05_decisiones.md#adr-0008), cambio del 02-10-2026); además, ver suscripción y uso, solicitar módulos, invitar miembros y asignar roles, configurar marca y ubicaciones, transferir la propiedad | Borrar registros, aprobar su propia solicitud o actuar como Responsable de fiscalizados sin que se le asigne ese rol |
 | Administrador | Decide y configura la operación | Todo lo del Operador; revisar solicitudes (aprobar, rechazar, pedir cambios, proponer ajustes, reubicar); catálogos, laboratorios, plantillas, mínimos, motivos y destinos; ajustes y bajas con motivo; reportes | Borrar registros, aprobar su propia solicitud o invitar miembros sin delegación del propietario |
 | Operador | Ejecuta el día a día | Ingresos, salidas (descargas), traslados, preparación, entregas y devoluciones; condición de equipos e incidencias; consultar toda la información operativa | Aprobar solicitudes, ajustar existencias, configurar o gestionar miembros |
 | Docente | Solicita actividades de docencia | Crear solicitudes desde plantillas, ver el catálogo solicitable con disponibilidad orientativa, aceptar o declinar propuestas, seguir sus actividades y reportar incidencias de ellas | Fijar la sala definitiva, tocar el inventario o ver solicitudes ajenas |
@@ -107,7 +107,7 @@ Reglas:
 - Nadie borra registros de negocio. Los catálogos se archivan, las solicitudes se cancelan o rechazan con motivo y los movimientos se corrigen con otro movimiento. Los datos solo se eliminan en el procedimiento de salida del cliente ([02 §11](02_arquitectura.md#11-datos-reales-y-salida-del-cliente)).
 - Los permisos forman una escalera: Propietario ⊇ Administrador ⊇ Operador. Al transferir la propiedad, los permisos del propietario pasan al nuevo propietario.
 - Una persona puede tener varios roles, por ejemplo Administrador y Operador en un laboratorio pequeño, y roles distintos en cada espacio.
-- El propietario puede delegar a un Administrador «gestionar miembros». Con esa delegación invita Operadores, Docentes y Estudiantes dentro de su ámbito, pero no Administradores.
+- El propietario puede delegar a un Administrador «gestionar miembros». Con esa delegación invita Operadores, Docentes y Estudiantes, pero no Administradores.
 - La interfaz oculta las acciones no permitidas y la API las rechaza igualmente.
 - Los alumnos de una práctica de clase no tienen cuenta en el alcance inicial; el docente solicita por el grupo.
 
@@ -116,7 +116,7 @@ Matriz de referencia (✔ incluido; — no incluido):
 | Capacidad | Prop. | Admin. | Oper. | Doc./Est. |
 |---|:-:|:-:|:-:|:-:|
 | Suscripción, uso y solicitud de módulos | ✔ | — | — | — |
-| Miembros, roles y ámbitos | ✔ | Delegable | — | — |
+| Miembros y roles | ✔ | Delegable | — | — |
 | Marca y ubicaciones | ✔ | ✔ | — | — |
 | Catálogos, laboratorios, plantillas y configuración de módulos | ✔ | ✔ | — | — |
 | Ingresos, salidas, traslados, entregas y devoluciones | ✔ | ✔ | ✔ | — |
@@ -184,7 +184,7 @@ Casos especiales:
 ### 6.4 Alta de un cliente y cambio de módulos
 
 1. El Equipo PlatLab registra titular, espacio y contrato, aplica el paquete (derechos y límites) e invita al propietario. El espacio queda en `provisioning`.
-2. El propietario acepta, configura marca y ubicaciones e invita a su equipo con rol y ámbito.
+2. El propietario acepta, configura marca y ubicaciones e invita a su equipo con su rol.
 3. La importación muestra una vista previa y concilia el inventario inicial antes de operar.
 4. Para cambiar módulos, el propietario lo solicita desde «Suscripción» y el Equipo PlatLab aplica el contrato. Desactivar bloquea operaciones nuevas, pero permite resolver pendientes y consultar.
 
