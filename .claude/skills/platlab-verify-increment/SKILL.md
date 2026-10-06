@@ -1,6 +1,6 @@
 ---
 name: platlab-verify-increment
-description: Ejecuta las comprobaciones de un incremento de PlatLab (tipos, lint, fronteras, código muerto, migraciones desde cero, PgTyped, pgTAP, pruebas de API, de concurrencia, Playwright y revisión de UI), las cruza con la evidencia que exige su puerta (G0, G1…) y reporta qué pasó, qué falló y qué no se verificó, guardando el informe en docs/desarrollo/evidencias/. Úsala siempre que el usuario quiera saber si un incremento o tarea (T-01…T-07, R-00, V-00) está listo, pida «verifica», «corre las pruebas», «¿pasa G0?» o «¿podemos cerrar la tarea?», o antes de marcar como hecha una entrega del roadmap, aunque no nombre esta skill.
+description: Ejecuta las comprobaciones de un incremento de PlatLab (tipos, lint, fronteras, código muerto, migraciones desde cero, PgTyped, pgTAP, pruebas de API, de concurrencia, Playwright y revisión de UI), las cruza con la evidencia que exige su puerta (G0, G1…) y reporta qué pasó, qué falló y qué no se verificó, registrando una fila en docs/desarrollo/evidencias/README.md. Úsala siempre que el usuario quiera saber si un incremento o tarea (T-01…T-07, R-00, V-00) está listo, pida «verifica», «corre las pruebas», «¿pasa G0?» o «¿podemos cerrar la tarea?», o antes de marcar como hecha una entrega del roadmap, aunque no nombre esta skill.
 ---
 
 # Verificar un incremento de PlatLab
@@ -53,28 +53,26 @@ Si una prueba pasa pero no demuestra el criterio (por ejemplo, RLS probada solo 
 
 ## 6. Informar y guardar la evidencia
 
-Usa esta plantilla en el chat y guarda el mismo contenido en `docs/desarrollo/evidencias/AAAA-MM-DD-<entrega>-<commit>.md`. Crea la carpeta si no existe. No sobrescribas informes anteriores: son el historial de la entrega.
+**En el chat**, un informe compacto de 15 líneas como máximo:
 
 ```markdown
-# Verificación — <entrega> (<puerta>)
-
-Fecha: <AAAA-MM-DD> · Commit: <sha> <(con cambios sin confirmar)> · Entorno: local
-Veredicto: Cumple / No cumple / Incompleto
-
-## Criterios de la puerta
-| # | Criterio | Estado | Evidencia (prueba o comando) |
-|---|---|---|---|
-
-## Comandos ejecutados
-| # | Comando | Resultado | Duración | Detalle |
-|---|---|---|---|---|
-
-## Fallos
-- <criterio o comando>: <salida relevante> → diagnóstico probable → corrección sugerida
-
-## No verificado
-- <criterio>: <motivo> → <qué haría falta: prueba, comando o servicio>
+<AAAA-MM-DD> · `<sha>` <(con cambios sin confirmar)> · **Cumple / No cumple / Incompleto**
+Criterios: N/M ✅ (lista solo los que no están en ✅, con su estado)
+Fallos: <criterio> → <diagnóstico> → <corrección sugerida>
+No verificado: <criterio> → <qué haría falta: prueba, comando o servicio>
 ```
+
+**En `docs/desarrollo/evidencias/README.md`**:
+
+- Añade una fila arriba del «Registro»: fecha, entrega, commit, veredicto, conteos de pruebas (`pgTAP 173 · int 102 · e2e 17`) y una nota.
+- Actualiza «Pendiente de verificar»: añade lo nuevo sin verificar y quita lo que esta verificación resolvió.
+- Al cerrar una puerta, añade o reemplaza su sección en «Puertas»: una línea por criterio → prueba con nombre.
+
+Reglas del archivo:
+
+- Nunca crees archivos nuevos en `evidencias/`. El historial es el Registro y git; no se crean archivos por entrega.
+- La nota tiene 100 caracteres como máximo. Sin duraciones.
+- Los comandos solo se anotan si fallaron o se omitieron; la lista completa vive en `references/checks.md`.
 
 Veredicto:
 
@@ -82,4 +80,4 @@ Veredicto:
 - **No cumple:** hay al menos un ❌.
 - **Incompleto:** no hay fallos, pero queda algún ⚠️.
 
-Nunca redondees un «Incompleto» a «Cumple». Cierra el mensaje con la ruta del informe guardado y, si hay fallos, sugiere ejecutar la skill `platlab-db-review` cuando el problema esté en migraciones, RLS o transacciones.
+Nunca redondees un «Incompleto» a «Cumple». Cierra el mensaje con la ruta de `docs/desarrollo/evidencias/README.md` y, si hay fallos, sugiere ejecutar la skill `platlab-db-review` cuando el problema esté en migraciones, RLS o transacciones.
