@@ -22,6 +22,8 @@ export {
 } from './access.js';
 export {
   adjustmentRequest,
+  countRequest,
+  countResponse,
   createDestinationRequest,
   createLotRequest,
   createReasonRequest,
@@ -61,6 +63,7 @@ export {
   stockedProduct,
   transferRequest,
   transferResponse,
+  type CountResponse,
   type IssueRequestItem,
   type IssueResponse,
   type ListEntry,

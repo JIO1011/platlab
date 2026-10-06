@@ -1,5 +1,7 @@
 import {
   adjustmentRequest,
+  countRequest,
+  countResponse,
   createProductRequest,
   issueRequest,
   issueResponse,
@@ -33,13 +35,13 @@ import {
   toast,
   type SelectOption,
 } from '@platlab/ui';
-import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, FlaskConical, Scale, TrendingDown, type LucideIcon } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, ClipboardCheck, FlaskConical, Scale, TrendingDown, type LucideIcon } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Controller, useForm, type FieldValues, type Path, type UseFormReturn } from 'react-hook-form';
 import type { z } from 'zod';
 import { isApiError } from '../../app/api';
 import { formatDate } from '../../app/format';
-import { useDestinations, useLots, useReasons, useReceiptLocations, useTransferLocations } from '../../app/queries';
+import { useCountLocations, useDestinations, useLots, usePositions, useReasons, useReceiptLocations, useTransferLocations } from '../../app/queries';
 import { ChoiceField } from './choices';
 import { commandErrorMessage, fieldErrors, useCommand } from './commands';
 import { availableOf } from './stock';
@@ -1078,6 +1080,158 @@ export function TransferSheet({ workspaceId, open, onOpenChange, position }: She
           )}
         />
       </Field>
+    </FormSheet>
+  );
+}
+
+/** Diferencia exacta entre lo contado y lo registrado; null si lo contado no es una cantidad válida. */
+function countDelta(raw: string, balance: string): string | null {
+  const counted = normalizeDecimalInput(raw);
+  if (!/^\d{1,15}(\.\d{1,9})?$/.test(counted)) return null;
+  return subtractDecimal(counted, balance);
+}
+
+/**
+ * Conteo de una ubicación (ADR 0012, entrega 4): se elige la ubicación, se anota lo que hay en cada
+ * frasco y se confirma. Solo los que no cuadran se ajustan, en un solo movimiento «Conteo». Un frasco
+ * sin anotar no se cuenta. Si alguien movió un frasco mientras se contaba, el servidor lo rechaza y
+ * la lista se vuelve a cargar con los saldos nuevos.
+ */
+export function CountSheet({ workspaceId, open, onOpenChange }: SheetBaseProps) {
+  const command = useCommand(workspaceId, '/counts', countResponse);
+  const locations = useCountLocations(workspaceId, open);
+  const [locationId, setLocationId] = useState('');
+  const [counts, setCounts] = useState<Record<string, string>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const positions = usePositions(workspaceId, undefined, locationId || undefined, open && Boolean(locationId));
+  // Un conteo cubre la ubicación entera: se cargan todas las páginas de frascos.
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = positions;
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const rows = (positions.data?.pages.flatMap((page) => page.items) ?? []).filter((p) => p.balance !== '0');
+  const filled = rows.filter((p) => (counts[p.id] ?? '').trim() !== '');
+  const differing = filled.filter((p) => {
+    const delta = countDelta(counts[p.id] ?? '', p.balance);
+    return delta !== null && delta !== '0';
+  });
+
+  async function submit() {
+    setGeneralError(null);
+    if (filled.length === 0) {
+      setGeneralError('Anota lo contado en al menos un frasco.');
+      return;
+    }
+    const parsed = countRequest.safeParse({
+      locationId,
+      lines: filled.map((p) => ({ positionId: p.id, expected: p.balance, counted: normalizeDecimalInput(counts[p.id] ?? '') })),
+    });
+    if (!parsed.success) {
+      setGeneralError('Revisa las cantidades: cada una debe ser un número de cero o más.');
+      return;
+    }
+    try {
+      const result = await command.mutateAsync(parsed.data);
+      toast.success('Conteo registrado', {
+        description:
+          result.adjusted === 0
+            ? 'Todo cuadra: no hubo ajustes.'
+            : result.adjusted === 1
+              ? '1 frasco ajustado con motivo «Conteo».'
+              : `${result.adjusted} frascos ajustados con motivo «Conteo».`,
+      });
+      onOpenChange(false);
+    } catch (error) {
+      setGeneralError(commandErrorMessage(error));
+      // Si un saldo cambió, la lista se vuelve a pedir: se ven los saldos nuevos sin perder lo anotado.
+      void positions.refetch();
+    }
+  }
+
+  return (
+    <FormSheet
+      sections
+      icon={ClipboardCheck}
+      title="Conteo"
+      description="Anota lo que hay en cada frasco. Solo los que no cuadran se ajustan, con motivo «Conteo»."
+      open={open}
+      onOpenChange={onOpenChange}
+      submitLabel={differing.length > 0 ? `Registrar conteo (${differing.length} ${differing.length === 1 ? 'ajuste' : 'ajustes'})` : 'Registrar conteo'}
+      pending={command.isPending}
+      generalError={generalError}
+      onSubmit={() => void submit()}
+    >
+      <Field label="Ubicación">
+        <Select
+          value={locationId || undefined}
+          onValueChange={(value) => {
+            setLocationId(value);
+            setCounts({});
+            setGeneralError(null);
+          }}
+          options={(locations.data?.items ?? []).map((location) => ({ value: location.id, label: `${location.name} · ${location.code}` }))}
+          placeholder={locations.isPending ? 'Cargando ubicaciones…' : 'Elige qué ubicación vas a contar'}
+        />
+      </Field>
+      {locationId ? (
+        positions.isPending || hasNextPage ? (
+          <p role="status" className="text-sm text-ink-muted">
+            Cargando los frascos de la ubicación…
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-ink-muted">Esta ubicación no tiene frascos con saldo.</p>
+        ) : (
+          <div className="grid gap-3">
+            <p className="flex justify-between text-[13px] text-ink-muted" aria-live="polite">
+              <span>
+                Contados {filled.length} de {rows.length}
+              </span>
+              <span>{differing.length === 0 ? 'Nada que ajustar' : differing.length === 1 ? '1 no cuadra' : `${differing.length} no cuadran`}</span>
+            </p>
+            <ul className="grid gap-2">
+              {rows.map((p) => {
+                const code = p.container?.code ?? p.lot.code;
+                const raw = counts[p.id] ?? '';
+                const delta = raw.trim() ? countDelta(raw, p.balance) : null;
+                return (
+                  <li key={p.id} className="flex items-center gap-3 rounded-control border border-line px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold tabular-nums text-ink">{code}</p>
+                      <p className="truncate text-[13px] text-ink-muted">{p.product.name}</p>
+                      <p className="text-[13px] text-ink-muted">
+                        Registrado <Quantity value={p.balance} unit={p.unit} className="font-semibold text-ink" />
+                      </p>
+                    </div>
+                    <div className="w-32 shrink-0 text-right">
+                      <div className="relative">
+                        <Input
+                          inputMode="decimal"
+                          autoComplete="off"
+                          aria-label={`Contado en ${code}`}
+                          placeholder="Contado"
+                          className="pr-10 text-right tabular-nums"
+                          value={raw}
+                          onChange={(event) => setCounts((current) => ({ ...current, [p.id]: event.target.value }))}
+                        />
+                        <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[13px] text-ink-muted">{p.unit}</span>
+                      </div>
+                      <p className="mt-1 min-h-5 text-[13px] tabular-nums">
+                        {raw.trim() === '' ? null : delta === null ? (
+                          <span className="text-danger">Cantidad no válida</span>
+                        ) : delta === '0' ? (
+                          <span className="text-ink-muted">Cuadra</span>
+                        ) : (
+                          <Quantity value={delta} unit={p.unit} signed className="font-semibold text-action [&>span]:text-current" />
+                        )}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )
+      ) : null}
     </FormSheet>
   );
 }

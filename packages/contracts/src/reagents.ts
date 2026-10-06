@@ -153,6 +153,31 @@ export const transferResponse = z.object({
   effectiveAt: z.iso.datetime({ offset: true }),
 });
 
+/** Cantidad contada o vista: cero o más, con hasta 15 enteros y 9 decimales. */
+const countQuantity = z.string().regex(/^\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal de cero o más');
+
+/**
+ * Conteo de una ubicación (ADR 0012, entrega 4): por frasco, el saldo que se vio al contar y lo que
+ * hay. Si un saldo cambió entretanto, el conteo se rechaza y se vuelve a cargar.
+ */
+export const countRequest = z
+  .object({
+    locationId: z.uuid(),
+    lines: z
+      .array(z.object({ positionId: z.uuid(), expected: countQuantity, counted: countQuantity }).strict())
+      .min(1)
+      .max(200)
+      .refine((lines) => new Set(lines.map((line) => line.positionId)).size === lines.length, 'Cada frasco se cuenta una vez'),
+  })
+  .strict();
+
+export const countResponse = z.object({
+  operationId: z.uuid().nullable(),
+  counted: z.number().int().nonnegative(),
+  adjusted: z.number().int().nonnegative(),
+  effectiveAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
 /** La respuesta de un movimiento indica la operación, la cantidad aplicada, el saldo y la unidad. */
 export const movementResponse = z.object({
   operationId: z.uuid(),
@@ -223,7 +248,7 @@ const page = {
 };
 
 export const productListQuery = z.object(page).strict();
-export const positionListQuery = z.object({ ...page, productId: z.uuid().optional() }).strict();
+export const positionListQuery = z.object({ ...page, productId: z.uuid().optional(), locationId: z.uuid().optional() }).strict();
 export const operationListQuery = z
   .object({
     ...page,
@@ -354,5 +379,6 @@ export type StockedProduct = z.infer<typeof stockedProduct>;
 export type ReceiptResponse = z.infer<typeof receiptResponse>;
 export type ListEntry = z.infer<typeof listEntry>;
 export type TransferResponse = z.infer<typeof transferResponse>;
+export type CountResponse = z.infer<typeof countResponse>;
 export type ReasonKind = z.infer<typeof reasonKind>;
 export type OperationList = z.infer<typeof operationList>;

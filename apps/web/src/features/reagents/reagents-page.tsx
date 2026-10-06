@@ -18,6 +18,7 @@ import {
   CalendarX,
   ChevronRight,
   CircleCheck,
+  ClipboardCheck,
   Clock,
   Eye,
   FlaskConical,
@@ -46,7 +47,7 @@ import { QueryErrorState } from '../../app/states';
 import { TrendChart } from '../../app/trend-chart';
 import { useReagents, type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { purposeOf } from './operation-text';
-import { AdjustmentSheet, IssueSheet, MinimumSheet, NewProductSheet, ReceiptSheet, TransferSheet } from './sheets';
+import { AdjustmentSheet, CountSheet, IssueSheet, MinimumSheet, NewProductSheet, ReceiptSheet, TransferSheet } from './sheets';
 
 export { ReagentsInventoryPage, ReagentsProductPage } from './inventory';
 export { ReagentsRequestsPage } from './requests';
@@ -144,6 +145,8 @@ export function ReagentsLayout() {
     { kind: 'product', label: 'Nuevo reactivo', icon: Plus, shown: allowed.product && !inProduct },
     { kind: 'receipt', label: 'Registrar ingreso', icon: ArrowDownToLine, shown: allowed.receipt },
     { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 && !inProduct },
+    // Conteo por ubicación (ADR 0012, entrega 4): tarea del inventario, no de cada reactivo.
+    { kind: 'count', label: 'Conteo', icon: ClipboardCheck, shown: allowed.adjustment && sectionPath === 'inventario' && !inProduct },
   ] as const;
   const visibleSecondary = secondaryActions.filter((action) => action.shown);
   // «Actualizado hace…» informa lo más antiguo de lo que la sección muestra, nunca lo más fresco.
@@ -282,6 +285,7 @@ export function ReagentsLayout() {
           product={productList.find((entry) => entry.id === (current.request.kind === 'minimum' ? current.request.productId : ''))}
         />
       ) : null}
+      {current?.request.kind === 'count' ? <CountSheet key={current.id} {...sheetProps('count')} /> : null}
       {current?.request.kind === 'transfer' ? (
         <TransferSheet
           key={current.id}

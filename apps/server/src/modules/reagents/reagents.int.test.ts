@@ -16,6 +16,7 @@ import {
   reagentsSummary,
   receiptResponse,
   entryList,
+  countResponse,
   transferResponse,
 } from '@platlab/contracts';
 import { buildApp } from '../../app.js';
@@ -1203,5 +1204,72 @@ describe('R-01A · traslados (ADR 0012, entrega 4)', () => {
       expect(issued.status).toBe(409);
       expect(stocked[0]).toMatchObject({ balance: '100', location: expect.objectContaining({ id: lab.otherStorage }) });
     }
+  });
+});
+
+describe('R-01A · conteo por ubicación (ADR 0012, entrega 4)', () => {
+  const countAt = (lab: Lab, locationId: string, lines: Array<{ positionId: string; expected: string; counted: string }>, subject = lab.adminMember.subject) =>
+    call(subject, `${lab.base}/counts`, { method: 'POST', body: { locationId, lines } });
+
+  async function countedLab() {
+    const lab = await createLab();
+    const { lot } = await createProductAndLot(lab);
+    const received = await call(lab.operator.subject, `${lab.base}/receipts`, {
+      method: 'POST',
+      body: { lotId: lot.id, locationId: lab.storage, containers: 2, quantity: '50', unit: 'g' },
+    });
+    const [first, second] = receiptResponse.parse(received.body).containers;
+    const elsewhere = receivedPosition(await receive(lab, lot.id, '30', lab.otherStorage));
+    return { lab, first: first!.positionId, second: second!.positionId, elsewhere };
+  }
+
+  it('los frascos que no cuadran se ajustan en una sola operación «Conteo»; si todo cuadra, no hay movimiento', async () => {
+    const { lab, first, second } = await countedLab();
+    const here = positionList.parse((await call(lab.adminMember.subject, `${lab.base}/positions?locationId=${lab.storage}`)).body);
+    expect(here.items.map((position) => position.id).sort()).toEqual([first, second].sort());
+    const locations = locationList.parse((await call(lab.adminMember.subject, `${lab.base}/count-locations`)).body);
+    expect(locations.items.map((location) => location.id)).toEqual(expect.arrayContaining([lab.storage]));
+
+    const counted = await countAt(lab, lab.storage, [
+      { positionId: first, expected: '50', counted: '48.5' },
+      { positionId: second, expected: '50', counted: '50' },
+    ]);
+    expect(counted.status).toBe(201);
+    expect(countResponse.parse(counted.body)).toMatchObject({ counted: 2, adjusted: 1 });
+    const adjustments = operationList.parse((await call(lab.adminMember.subject, `${lab.base}/operations?type=adjustment`)).body);
+    expect(adjustments.items).toEqual([expect.objectContaining({ positionId: first, quantity: '-1.5', balanceAfter: '48.5', reason: 'Conteo' })]);
+
+    const even = await countAt(lab, lab.storage, [{ positionId: first, expected: '48.5', counted: '48.5' }]);
+    expect(even.status).toBe(200);
+    expect(countResponse.parse(even.body)).toMatchObject({ operationId: null, adjusted: 0 });
+    expect(
+      await count(`select count(*) as n from core.audit_events where workspace_id = $1 and action = 'reagents.count.create'`, [lab.workspace.id]),
+    ).toBe(2);
+  });
+
+  it('un saldo que cambió mientras se contaba, lo contado bajo lo apartado u otra ubicación no escriben nada', async () => {
+    const { lab, first, second, elsewhere } = await countedLab();
+    const before = await operationsIn(lab.workspace.id);
+
+    const stale = await countAt(lab, lab.storage, [
+      { positionId: second, expected: '50', counted: '40' },
+      { positionId: first, expected: '60', counted: '55' },
+    ]);
+    expect(stale.status).toBe(400);
+    expect(errorCode(stale.body)).toBe('VALIDATION_FAILED');
+
+    await call(lab.operator.subject, `${lab.base}/issues`, {
+      method: 'POST',
+      body: { positionId: first, quantity: '10', unit: 'g', reason: 'Práctica', destination: 'Lab' },
+    });
+    expect((await countAt(lab, lab.storage, [{ positionId: first, expected: '50', counted: '5' }])).status).toBe(400);
+    expect((await countAt(lab, lab.storage, [{ positionId: elsewhere, expected: '30', counted: '20' }])).status).toBe(404);
+    expect((await countAt(lab, lab.storage, [{ positionId: second, expected: '50', counted: '40' }], lab.operator.subject)).status).toBe(403);
+    const duplicated = await countAt(lab, lab.storage, [
+      { positionId: second, expected: '50', counted: '40' },
+      { positionId: second, expected: '50', counted: '41' },
+    ]);
+    expect(duplicated.status).toBe(400);
+    expect(await operationsIn(lab.workspace.id)).toBe(before);
   });
 });

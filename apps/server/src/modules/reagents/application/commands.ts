@@ -2,6 +2,8 @@ import type pg from 'pg';
 import type { z } from 'zod';
 import type {
   adjustmentRequest,
+  countRequest,
+  CountResponse,
   createDestinationRequest,
   createLotRequest,
   createProductRequest,
@@ -22,6 +24,7 @@ import {
   addReason,
   applyMovement,
   approveIssueRequest,
+  countLocation,
   createItem,
   createLot as createInventoryLot,
   lockExistingPosition,
@@ -410,6 +413,29 @@ export function registerTransfer(
       entityType: 'inventory.operation',
       entityId: result.operationId,
       changes: { fromPositionId: result.fromPositionId, toPositionId: result.toPositionId, quantity: result.quantity, unit: result.unit },
+    });
+    return result;
+  });
+}
+
+/** Conteo de una ubicación: un ajuste «Conteo» con los frascos que no cuadran (Administrador, ADR 0012). */
+export function registerCount(
+  pool: pg.Pool,
+  request: CommandRequest,
+  input: z.infer<typeof countRequest>,
+): Promise<CountResponse> {
+  const permission = 'reagents.adjustment.create';
+  return runCommand(pool, request, 'reagents.count.create', input, (access) => requirePermission(access, permission), async (access) => {
+    const result = await countLocation(inventoryContext(access), input, (locationId) =>
+      requirePermissionAt(access, permission, locationId),
+    );
+    // El conteo queda auditado aunque todo cuadre: se sabe quién contó, dónde y cuándo.
+    await recordAudit(access, {
+      action: 'reagents.count.create',
+      entityType: 'core.location',
+      entityId: input.locationId,
+      reason: 'Conteo',
+      changes: { operationId: result.operationId, counted: result.counted, adjusted: result.adjusted },
     });
     return result;
   });

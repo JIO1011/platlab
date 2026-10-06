@@ -90,6 +90,23 @@ WHERE workspace_id = :workspaceId! AND item_id = :itemId! AND lot_id = :lotId! A
   AND location_id = :locationId! AND disposition = :disposition!
 FOR UPDATE;
 
+/* @name lockCountPosition */
+-- Una línea del conteo (ADR 0012, entrega 4) bajo el bloqueo del frasco: si su saldo sigue siendo
+-- el que se vio al contar, la diferencia con lo contado, y si lo contado queda bajo lo apartado.
+-- La aritmética ocurre aquí, en numeric.
+SELECT p.id, p.location_id,
+       (p.balance = :expected!::numeric) AS "unchanged!",
+       trim_scale(:counted!::numeric - p.balance) AS "delta!",
+       (:counted!::numeric < p.reserved) AS "below_reserved!",
+       CASE WHEN c.id IS NULL THEN l.code ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS "code!",
+       i.base_unit
+FROM inventory.positions AS p
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
+WHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND i.kind = :kind!
+FOR UPDATE OF p;
+
 /* @name insertOperation */
 -- La fecha efectiva la fija la base (el runtime no puede escribirla).
 INSERT INTO inventory.operations
@@ -152,6 +169,7 @@ WHERE p.workspace_id = :workspaceId!
   AND i.kind = :kind!
   AND p.location_id = ANY (:locationIds!::uuid[])
   AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)
+  AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)
   -- Un frasco trasladado deja su posición de origen vacía: solo se muestra donde está.
   AND (p.container_id IS NULL OR p.balance > 0 OR NOT EXISTS (
     SELECT 1 FROM inventory.positions AS other

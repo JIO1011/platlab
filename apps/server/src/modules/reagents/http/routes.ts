@@ -2,6 +2,7 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import {
   adjustmentRequest,
+  countRequest,
   createDestinationRequest,
   createLotRequest,
   createReasonRequest,
@@ -34,6 +35,7 @@ import {
   createReason,
   rejectRequest,
   registerAdjustment,
+  registerCount,
   registerIssue,
   registerReceipt,
   registerTransfer,
@@ -42,6 +44,7 @@ import {
 } from '../application/commands.js';
 import {
   getProduct,
+  listCountLocations,
   getSummary,
   listDestinations,
   listLots,
@@ -126,6 +129,15 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
     app.post('/transfers', async (request, reply) => {
       const input = transferRequest.parse(request.body);
       return reply.status(201).send(await registerTransfer(pool, commandRequest(request), input));
+    });
+
+    app.get('/count-locations', async (request) => listCountLocations(pool, queryRequest(request)));
+
+    app.post('/counts', async (request, reply) => {
+      const input = countRequest.parse(request.body);
+      const result = await registerCount(pool, commandRequest(request), input);
+      // Con ajustes hay movimiento nuevo (201); si todo cuadró, solo queda la auditoría (200).
+      return reply.status(result.operationId ? 201 : 200).send(result);
     });
 
     app.post('/adjustments', async (request, reply) => {

@@ -80,15 +80,20 @@ export function useProducts(workspaceId: string) {
   });
 }
 
-/** Frascos con su ubicación; con `productId`, solo los de un reactivo (su ficha, ADR 0012). */
-export function usePositions(workspaceId: string, productId?: string) {
+/**
+ * Frascos con su ubicación; con `productId`, solo los de un reactivo (su ficha, ADR 0012), y con
+ * `locationId`, solo los de una ubicación (el conteo, entrega 4).
+ */
+export function usePositions(workspaceId: string, productId?: string, locationId?: string, enabled = true) {
   const user = useUserKey();
   return useInfiniteQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'positions', productId ?? null],
+    queryKey: [...reagentsKey(user, workspaceId), 'positions', productId ?? null, locationId ?? null],
     initialPageParam: undefined as string | undefined,
+    enabled,
     queryFn: ({ pageParam }) => {
       const search = new URLSearchParams({ limit: '100' });
       if (productId) search.set('productId', productId);
+      if (locationId) search.set('locationId', locationId);
       if (pageParam) search.set('cursor', pageParam);
       return api(`/workspaces/${workspaceId}/reagents/positions?${search}`, { schema: positionList });
     },
@@ -166,6 +171,16 @@ export function useReceiptLocations(workspaceId: string, enabled: boolean) {
   return useQuery({
     queryKey: [...reagentsKey(user, workspaceId), 'receipt-locations'],
     queryFn: () => api(`/workspaces/${workspaceId}/reagents/receipt-locations`, { schema: locationList }),
+    enabled,
+  });
+}
+
+/** Ubicaciones que el miembro puede contar: donde puede ajustar (ADR 0012, entrega 4). */
+export function useCountLocations(workspaceId: string, enabled: boolean) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'count-locations'],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/count-locations`, { schema: locationList }),
     enabled,
   });
 }

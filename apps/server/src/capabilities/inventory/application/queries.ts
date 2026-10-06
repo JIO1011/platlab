@@ -29,7 +29,7 @@ export interface Page<T> {
 /** Saldos de las ubicaciones autorizadas, de producto a lote y ubicación (01 §7). */
 export async function listPositionPage(
   ctx: InventoryContext,
-  filter: { locationIds: string[]; itemId?: string | undefined; cursor?: string | undefined; limit: number },
+  filter: { locationIds: string[]; itemId?: string | undefined; locationId?: string | undefined; cursor?: string | undefined; limit: number },
 ): Promise<Page<Position>> {
   const after = decodeCursor(filter.cursor, 5);
   const rows = await listPositions.run(
@@ -38,6 +38,7 @@ export async function listPositionPage(
       kind: ctx.kind,
       locationIds: filter.locationIds,
       itemId: filter.itemId ?? null,
+      locationId: filter.locationId ?? null,
       afterItem: after?.[0] ?? null,
       afterLot: after?.[1] ?? null,
       afterSeq: after ? Number(after[2]) : null,

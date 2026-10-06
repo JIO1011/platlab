@@ -587,6 +587,31 @@ test('traslado: un frasco entero cambia de ubicación en un paso y Movimientos l
   await expectAccessible(admin, 'movimientos de traslado');
 });
 
+test('conteo: se anota lo que hay por ubicación y solo lo que no cuadra se ajusta (ADR 0012, entrega 4)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await openReagents(admin, 'Facultad de Ciencias');
+  await goTo(admin, 'Inventario');
+  await admin.getByRole('button', { name: 'Conteo', exact: true }).click();
+  const sheet = admin.getByRole('dialog', { name: 'Conteo' });
+  await choose(admin, 'Ubicación', /Almacén de reactivos/);
+  const counted = sheet.getByLabel('Contado en H2SO4-2026-02-01', { exact: true });
+  await counted.fill('995');
+  await expect(sheet.getByText(/−\s*5\s*mL|-5\s*mL/)).toBeVisible();
+  await sheet.getByLabel('Contado en H2SO4-2024-08-01', { exact: true }).fill('250');
+  await expect(sheet.getByText('Cuadra', { exact: true })).toBeVisible();
+  await expect(sheet).toContainText('1 no cuadra');
+  await expectAccessible(admin, 'hoja de conteo');
+  await capture(admin, 'desktop-count', false);
+  await sheet.getByRole('button', { name: 'Registrar conteo (1 ajuste)' }).click();
+  await expect(sheet).toHaveCount(0);
+
+  await goTo(admin, 'Movimientos');
+  await admin.getByRole('button', { name: 'Ajustes', exact: true }).click();
+  const row = admin.locator('main').getByRole('listitem').filter({ hasText: 'H2SO4-2026-02-01' }).filter({ hasText: 'Conteo' });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText(/995\s*mL/);
+});
+
 test('stock insuficiente: la salida se rechaza en el formulario y el saldo no cambia', async ({ browser }) => {
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Instituto de Biotecnología');

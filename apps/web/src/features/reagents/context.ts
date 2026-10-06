@@ -18,6 +18,7 @@ export type SheetRequest =
   | { kind: 'issue'; positionId?: string; productId?: string }
   | { kind: 'adjustment'; positionId?: string }
   | { kind: 'transfer'; positionId: string }
+  | { kind: 'count' }
   // Mínimo (ADR 0012, 05-10-2026): desde la ficha del reactivo.
   | { kind: 'minimum'; productId: string };
 

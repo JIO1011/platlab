@@ -475,6 +475,57 @@ const lockContainerPositionAtIR: any = {"usedParamSet":{"workspaceId":true,"item
 export const lockContainerPositionAt = new PreparedQuery<ILockContainerPositionAtParams,ILockContainerPositionAtResult>(lockContainerPositionAtIR);
 
 
+/** 'LockCountPosition' parameters type */
+export interface ILockCountPositionParams {
+  counted: string;
+  expected: string;
+  kind: string;
+  positionId: string;
+  workspaceId: string;
+}
+
+/** 'LockCountPosition' return type */
+export interface ILockCountPositionResult {
+  base_unit: string;
+  below_reserved: boolean;
+  code: string;
+  delta: string;
+  id: string;
+  location_id: string;
+  unchanged: boolean;
+}
+
+/** 'LockCountPosition' query type */
+export interface ILockCountPositionQuery {
+  params: ILockCountPositionParams;
+  result: ILockCountPositionResult;
+}
+
+const lockCountPositionIR: any = {"usedParamSet":{"expected":true,"counted":true,"workspaceId":true,"positionId":true,"kind":true},"params":[{"name":"expected","required":true,"transform":{"type":"scalar"},"locs":[{"a":287,"b":296}]},{"name":"counted","required":true,"transform":{"type":"scalar"},"locs":[{"a":343,"b":351},{"a":396,"b":404}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":888,"b":900}]},{"name":"positionId","required":true,"transform":{"type":"scalar"},"locs":[{"a":913,"b":924}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":939,"b":944}]}],"statement":"-- Una línea del conteo (ADR 0012, entrega 4) bajo el bloqueo del frasco: si su saldo sigue siendo\n-- el que se vio al contar, la diferencia con lo contado, y si lo contado queda bajo lo apartado.\n-- La aritmética ocurre aquí, en numeric.\nSELECT p.id, p.location_id,\n       (p.balance = :expected!::numeric) AS \"unchanged!\",\n       trim_scale(:counted!::numeric - p.balance) AS \"delta!\",\n       (:counted!::numeric < p.reserved) AS \"below_reserved!\",\n       CASE WHEN c.id IS NULL THEN l.code ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS \"code!\",\n       i.base_unit\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nWHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND i.kind = :kind!\nFOR UPDATE OF p"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Una línea del conteo (ADR 0012, entrega 4) bajo el bloqueo del frasco: si su saldo sigue siendo
+ * -- el que se vio al contar, la diferencia con lo contado, y si lo contado queda bajo lo apartado.
+ * -- La aritmética ocurre aquí, en numeric.
+ * SELECT p.id, p.location_id,
+ *        (p.balance = :expected!::numeric) AS "unchanged!",
+ *        trim_scale(:counted!::numeric - p.balance) AS "delta!",
+ *        (:counted!::numeric < p.reserved) AS "below_reserved!",
+ *        CASE WHEN c.id IS NULL THEN l.code ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS "code!",
+ *        i.base_unit
+ * FROM inventory.positions AS p
+ * JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+ * JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+ * LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
+ * WHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND i.kind = :kind!
+ * FOR UPDATE OF p
+ * ```
+ */
+export const lockCountPosition = new PreparedQuery<ILockCountPositionParams,ILockCountPositionResult>(lockCountPositionIR);
+
+
 /** 'InsertOperation' parameters type */
 export interface IInsertOperationParams {
   correlationId: string;
@@ -574,6 +625,7 @@ export interface IListPositionsParams {
   itemId?: string | null | void;
   kind: string;
   limit: NumberOrString;
+  locationId?: string | null | void;
   locationIds: stringArray;
   workspaceId: string;
 }
@@ -612,7 +664,7 @@ export interface IListPositionsQuery {
   result: IListPositionsResult;
 }
 
-const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"itemId":true,"afterId":true,"afterItem":true,"afterLot":true,"afterSeq":true,"afterLocation":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1152,"b":1164}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1181,"b":1186}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1215,"b":1227}]},{"name":"itemId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1245,"b":1251},{"a":1282,"b":1288}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1620,"b":1627},{"a":1807,"b":1814}]},{"name":"afterItem","required":false,"transform":{"type":"scalar"},"locs":[{"a":1734,"b":1743}]},{"name":"afterLot","required":false,"transform":{"type":"scalar"},"locs":[{"a":1752,"b":1760}]},{"name":"afterSeq","required":false,"transform":{"type":"scalar"},"locs":[{"a":1769,"b":1777}]},{"name":"afterLocation","required":false,"transform":{"type":"scalar"},"locs":[{"a":1785,"b":1798}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":1914,"b":1920}]}],"statement":"SELECT\n  p.id,\n  i.id AS item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  l.id AS lot_id,\n  l.code AS lot_code,\n  l.expires_on,\n  l.supplier_name,\n  l.supplier_lot,\n  p.disposition,\n  c.id AS \"container_id?\",\n  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,\n  trim_scale(c.initial_quantity) AS container_initial_quantity,\n  c.created_at AS \"container_received_at?\",\n  loc.id AS location_id,\n  loc.code AS location_code,\n  loc.name AS location_name,\n  trim_scale(p.balance) AS \"balance!\",\n  trim_scale(p.reserved) AS \"reserved!\",\n  i.base_unit,\n  lower(i.code) AS \"sort_item!\",\n  lower(l.code) AS \"sort_lot!\",\n  coalesce(c.seq, 0) AS \"sort_seq!\",\n  lower(loc.code) AS \"sort_location!\"\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nWHERE p.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)\n  -- Un frasco trasladado deja su posición de origen vacía: solo se muestra donde está.\n  AND (p.container_id IS NULL OR p.balance > 0 OR NOT EXISTS (\n    SELECT 1 FROM inventory.positions AS other\n    WHERE other.workspace_id = p.workspace_id AND other.container_id = p.container_id AND other.balance > 0\n  ))\n  AND (\n    :afterId::uuid IS NULL\n    OR (lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id)\n       > (:afterItem::text, :afterLot::text, :afterSeq::int, :afterLocation::text, :afterId::uuid)\n  )\nORDER BY lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id\nLIMIT :limit!"};
+const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"itemId":true,"locationId":true,"afterId":true,"afterItem":true,"afterLot":true,"afterSeq":true,"afterLocation":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1152,"b":1164}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1181,"b":1186}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1215,"b":1227}]},{"name":"itemId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1245,"b":1251},{"a":1282,"b":1288}]},{"name":"locationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1304,"b":1314},{"a":1349,"b":1359}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1691,"b":1698},{"a":1878,"b":1885}]},{"name":"afterItem","required":false,"transform":{"type":"scalar"},"locs":[{"a":1805,"b":1814}]},{"name":"afterLot","required":false,"transform":{"type":"scalar"},"locs":[{"a":1823,"b":1831}]},{"name":"afterSeq","required":false,"transform":{"type":"scalar"},"locs":[{"a":1840,"b":1848}]},{"name":"afterLocation","required":false,"transform":{"type":"scalar"},"locs":[{"a":1856,"b":1869}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":1985,"b":1991}]}],"statement":"SELECT\n  p.id,\n  i.id AS item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  l.id AS lot_id,\n  l.code AS lot_code,\n  l.expires_on,\n  l.supplier_name,\n  l.supplier_lot,\n  p.disposition,\n  c.id AS \"container_id?\",\n  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,\n  trim_scale(c.initial_quantity) AS container_initial_quantity,\n  c.created_at AS \"container_received_at?\",\n  loc.id AS location_id,\n  loc.code AS location_code,\n  loc.name AS location_name,\n  trim_scale(p.balance) AS \"balance!\",\n  trim_scale(p.reserved) AS \"reserved!\",\n  i.base_unit,\n  lower(i.code) AS \"sort_item!\",\n  lower(l.code) AS \"sort_lot!\",\n  coalesce(c.seq, 0) AS \"sort_seq!\",\n  lower(loc.code) AS \"sort_location!\"\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nWHERE p.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)\n  AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)\n  -- Un frasco trasladado deja su posición de origen vacía: solo se muestra donde está.\n  AND (p.container_id IS NULL OR p.balance > 0 OR NOT EXISTS (\n    SELECT 1 FROM inventory.positions AS other\n    WHERE other.workspace_id = p.workspace_id AND other.container_id = p.container_id AND other.balance > 0\n  ))\n  AND (\n    :afterId::uuid IS NULL\n    OR (lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id)\n       > (:afterItem::text, :afterLot::text, :afterSeq::int, :afterLocation::text, :afterId::uuid)\n  )\nORDER BY lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
@@ -651,6 +703,7 @@ const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"lo
  *   AND i.kind = :kind!
  *   AND p.location_id = ANY (:locationIds!::uuid[])
  *   AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)
+ *   AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)
  *   -- Un frasco trasladado deja su posición de origen vacía: solo se muestra donde está.
  *   AND (p.container_id IS NULL OR p.balance > 0 OR NOT EXISTS (
  *     SELECT 1 FROM inventory.positions AS other

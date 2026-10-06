@@ -8,6 +8,7 @@ import {
   insertContainers,
   insertOperation,
   lockContainerPositionAt,
+  lockCountPosition,
   lockPosition,
   lockTransferPosition,
   reserveContainerSeqs,
@@ -328,4 +329,70 @@ export async function transferContainer(
     unit: origin.base_unit,
     effectiveAt: operation.effective_at.toISOString(),
   };
+}
+
+export interface CountResult {
+  operationId: string | null;
+  /** Líneas contadas y, de ellas, frascos que no cuadraban y se ajustaron. */
+  counted: number;
+  adjusted: number;
+  effectiveAt: string | null;
+}
+
+/**
+ * Conteo de una ubicación (ADR 0012, entrega 4): cada línea dice qué saldo se vio y qué se contó.
+ * Bloquea los frascos en orden estable y, si alguno cambió mientras se contaba o lo contado queda bajo
+ * lo apartado, no escribe nada. Los que no cuadran se corrigen con un solo ajuste de motivo «Conteo»,
+ * un asiento por frasco; si todo cuadra, no hay movimiento.
+ */
+export async function countLocation(
+  ctx: InventoryContext,
+  input: { locationId: string; lines: Array<{ positionId: string; expected: string; counted: string }> },
+  authorize: (locationId: string) => Promise<void>,
+): Promise<CountResult> {
+  const [location] = await findLocation.run({ workspaceId: ctx.workspaceId, locationId: input.locationId }, ctx.client);
+  if (!location) throw notFound();
+  await authorize(location.id);
+
+  const lines = [...input.lines].sort((a, b) => a.positionId.localeCompare(b.positionId));
+  const checked = [];
+  for (const line of lines) {
+    const [row] = await lockCountPosition.run(
+      { workspaceId: ctx.workspaceId, positionId: line.positionId, kind: ctx.kind, expected: line.expected, counted: line.counted },
+      ctx.client,
+    );
+    if (!row || row.location_id !== location.id) throw notFound();
+    if (!row.unchanged) {
+      throw new AppError('VALIDATION_FAILED', `El saldo de ${row.code} cambió mientras contabas. Vuelve a cargar el conteo.`);
+    }
+    if (row.below_reserved) {
+      throw new AppError('VALIDATION_FAILED', `Lo contado en ${row.code} queda por debajo de lo apartado. Resuelve primero sus solicitudes.`);
+    }
+    checked.push(row);
+  }
+
+  const differing = checked.filter((row) => row.delta !== '0');
+  if (differing.length === 0) return { operationId: null, counted: checked.length, adjusted: 0, effectiveAt: null };
+  const [operation] = await insertOperation.run(
+    {
+      workspaceId: ctx.workspaceId,
+      type: 'adjustment',
+      principalId: ctx.principalId,
+      reason: 'Conteo',
+      destination: null,
+      reference: null,
+      correlationId: ctx.correlationId,
+      requestedBy: null,
+    },
+    ctx.client,
+  );
+  if (!operation) throw new Error('La operación no devolvió fila');
+  for (const row of differing) {
+    const [entry] = await applyEntry.run(
+      { workspaceId: ctx.workspaceId, operationId: operation.id, positionId: row.id, sign: '1', quantity: row.delta, unit: row.base_unit },
+      ctx.client,
+    );
+    if (!entry) throw new Error('El asiento del conteo no devolvió fila');
+  }
+  return { operationId: operation.id, counted: checked.length, adjusted: differing.length, effectiveAt: operation.effective_at.toISOString() };
 }
