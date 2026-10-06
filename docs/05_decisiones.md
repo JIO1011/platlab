@@ -330,6 +330,11 @@ Cambio del 05-10-2026, decidido por el usuario: **traslados, conteo y QR** (entr
   - **Escanear abre la descarga de ese frasco**, decidido por el usuario el mismo día: la hoja de salida con el frasco ya elegido (para el Operador, «Solicitar salida», con la aprobación de siempre). Si no se puede descargar (vacío, todo apartado o sin permiso), la ficha resalta el frasco y dice por qué.
   - El escaneo dentro de la app sigue pendiente (P-03).
 
+Cambio del 06-10-2026, decidido por el usuario: **encabezado de la ficha con menos ruido**. Las cuatro píldoras (CAS, estado, código, vencidos) y las dos filas sueltas (existencia y mínimo) pesaban igual y repetían avisos que ya están en cada frasco.
+- **Identidad en una línea de texto** bajo el nombre: código, CAS y estado físico, en gris y sin píldoras.
+- **Una banda con tres datos**, como los indicadores del Resumen: Existencia (la cifra principal), Mínimo (con «Fijar» o «Cambiar» para quien administra el catálogo; ámbar si está bajo mínimo) y Caducidad (vencidos en rojo, por vencer en ámbar, o «Sin vencidos ni por vencer» (solo afirma lo que cuenta: la caducidad sin confirmar se avisa en cada frasco)).
+- El color sigue contando solo un estado y siempre con texto. No cambia ningún dato, regla ni permiso.
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |
