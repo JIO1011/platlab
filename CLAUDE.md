@@ -43,6 +43,21 @@ Actúa como experto senior en desarrollo de software full-stack,arquitectura, in
 - context7 para documentación de librerías.
 - codebase-memory para analizar código local; hay una skill global.
 
+## Modelos y delegación
+
+| Rol | Quién | Hace |
+|---|---|---|
+| Planificar, evaluar y proponer | Sesión principal: Opus 5.5 en `xhigh` | Analiza (codebase-memory), propone y decide con el usuario, registra en `docs/05`, escribe el brief, revisa el diff, verifica (`platlab-verify-increment`), confirma y sube |
+| Implementar código | `platlab-implementer`: Opus 5.5 en `high` | Backend, SQL, contratos, pruebas, docs y skills |
+| Mejoras de UI/UX | `platlab-ui-implementer`: Sonnet 5.5 en `high`, con las skills de diseño | Pantallas, pulido, movimiento, avisos y móvil |
+| Revisar acabado de UI | `impeccable-finish-reviewer`: Sonnet 5.5 en `high` | Correcciones ordenadas; no edita |
+
+- **Impeccable corre en Sonnet 5.5 en `high`.** Sus comandos de ejecución y revisión (`audit`, `harden`, `polish`, `animate`, `layout`…) los lanza `platlab-ui-implementer`. La sesión principal solo usa `shape` para proponer. Los roles de documentar, producir imágenes y aplicar ediciones de `live` no tienen agente: la skill los ejecuta en línea (`reference/degraded/`) dentro del implementador de UI. Al actualizar la skill, revisar que `impeccable-finish-reviewer` conserve `model: claude-sonnet-5-5`.
+
+- **Brief autocontenido.** El subagente empieza sin contexto: objetivo, decisiones ya tomadas, archivos, criterios de aceptación, comandos y qué no tocar.
+- **Los subagentes no deciden ni cierran.** Si falta una decisión, se detienen y la reportan; no confirman ni suben.
+- **Lo trivial, en línea.** Un cambio de pocas líneas en un archivo lo hace la sesión principal: delegarlo cuesta más que hacerlo.
+
 ## Frontend (`apps/web`, `apps/console`, `packages/ui`)
 
 Empieza en el paso 5 del primer incremento. Antes de tocar código, se registra en `docs/05` el ADR 0010 (sistema de diseño). La dirección visual está en 01 «Dirección visual» y el stack, en 02 §2. Las skills viven en `.claude/skills/` y se usan sin esperar a que se pidan:
