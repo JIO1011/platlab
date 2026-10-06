@@ -16,6 +16,7 @@ import {
   reagentsSummary,
   receiptResponse,
   entryList,
+  transferResponse,
 } from '@platlab/contracts';
 import { buildApp } from '../../app.js';
 import { createPool } from '../../platform/db/pool.js';
@@ -1106,5 +1107,101 @@ describe('R-01A · mínimos (ADR 0012, 05-10-2026)', () => {
     expect(
       await count(`select count(*) as n from core.audit_events where workspace_id = $1 and action = 'reagents.product.minimum'`, [lab.workspace.id]),
     ).toBe(2);
+  });
+});
+
+describe('R-01A · traslados (ADR 0012, entrega 4)', () => {
+  const transfer = (lab: Lab, positionId: string, locationId: string, subject = lab.operator.subject) =>
+    call(subject, `${lab.base}/transfers`, { method: 'POST', body: { positionId, locationId } });
+  const stockOf = async (lab: Lab, lotId: string) =>
+    positionList.parse((await call(lab.adminMember.subject, `${lab.base}/positions`)).body).items.filter(
+      (position) => position.lot.id === lotId,
+    );
+
+  it('el Operador traslada un frasco entero en un paso, el historial lo muestra y puede volver', async () => {
+    const lab = await createLab();
+    const { lot } = await createProductAndLot(lab);
+    const positionId = receivedPosition(await receive(lab, lot.id, '100.5'));
+
+    const locations = locationList.parse((await call(lab.operator.subject, `${lab.base}/transfer-locations`)).body);
+    expect(locations.items.map((location) => location.id)).toEqual(expect.arrayContaining([lab.storage, lab.otherStorage]));
+
+    const moved = await transfer(lab, positionId, lab.otherStorage);
+    expect(moved.status).toBe(201);
+    const result = transferResponse.parse(moved.body);
+    expect(result).toMatchObject({ fromPositionId: positionId, quantity: '100.5', unit: 'g' });
+    // El frasco se ve solo donde está, con su código y todo su saldo.
+    const [here] = await stockOf(lab, lot.id);
+    expect(here).toMatchObject({ id: result.toPositionId, balance: '100.5', location: expect.objectContaining({ id: lab.otherStorage }) });
+    expect(await stockOf(lab, lot.id)).toHaveLength(1);
+
+    // Una operación con dos asientos: sale del origen y entra en el destino.
+    const history = operationList.parse((await call(lab.adminMember.subject, `${lab.base}/operations?type=transfer`)).body);
+    expect(history.items.map((item) => item.quantity).sort()).toEqual(['-100.5', '100.5']);
+    expect(new Set(history.items.map((item) => item.id))).toEqual(new Set([result.operationId]));
+
+    // Volver reutiliza la posición de origen; la misma ubicación no es un traslado.
+    const back = transferResponse.parse((await transfer(lab, result.toPositionId, lab.storage)).body);
+    expect(back.toPositionId).toBe(positionId);
+    expect((await transfer(lab, positionId, lab.storage)).status).toBe(400);
+    expect(
+      await count(`select count(*) as n from core.audit_events where workspace_id = $1 and action = 'reagents.transfer.create'`, [lab.workspace.id]),
+    ).toBe(2);
+  });
+
+  it('un frasco vacío o con salidas pendientes no se traslada; sin permiso o a otro espacio, tampoco', async () => {
+    const lab = await createLab();
+    const { lot } = await createProductAndLot(lab);
+    const positionId = receivedPosition(await receive(lab, lot.id, '50'));
+
+    const pending = issueResponse.parse(
+      (
+        await call(lab.operator.subject, `${lab.base}/issues`, {
+          method: 'POST',
+          body: { positionId, quantity: '10', unit: 'g', reason: 'Práctica', destination: 'Lab' },
+        })
+      ).body,
+    );
+    if (pending.status !== 'pending') throw new Error('se esperaba una solicitud pendiente');
+    const blocked = await transfer(lab, positionId, lab.otherStorage);
+    expect(blocked.status).toBe(400);
+    expect(errorCode(blocked.body)).toBe('VALIDATION_FAILED');
+    await call(lab.adminMember.subject, `${lab.base}/issue-requests/${pending.requestId}/reject`, { method: 'POST', body: { reason: 'No' } });
+
+    const outsider = await addMember(admin, lab.workspace.id, { roles: [] });
+    expect((await transfer(lab, positionId, lab.otherStorage, outsider.subject)).status).toBe(403);
+    const other = await createLab();
+    expect((await transfer(lab, positionId, other.storage)).status).toBe(404);
+
+    const emptied = await call(lab.adminMember.subject, `${lab.base}/issues`, {
+      method: 'POST',
+      body: { positionId, quantity: '50', unit: 'g', reason: 'Práctica', destination: 'Lab' },
+    });
+    expect(emptied.status).toBe(201);
+    expect((await transfer(lab, positionId, lab.otherStorage)).status).toBe(400);
+  });
+
+  it('un traslado y una salida simultáneos: el frasco nunca queda con saldo en dos lugares', async () => {
+    const lab = await createLab();
+    const { lot } = await createProductAndLot(lab);
+    const positionId = receivedPosition(await receive(lab, lot.id, '100'));
+    const [moved, issued] = await Promise.all([
+      transfer(lab, positionId, lab.otherStorage),
+      call(lab.adminMember.subject, `${lab.base}/issues`, {
+        method: 'POST',
+        body: { positionId, quantity: '30', unit: 'g', reason: 'Práctica', destination: 'Lab' },
+      }),
+    ]);
+    const stocked = await stockOf(lab, lot.id);
+    expect(stocked).toHaveLength(1);
+    expect(moved.status).toBe(201);
+    if (issued.status === 201) {
+      // La salida llegó antes: se trasladan los 70 que quedaban.
+      expect(stocked[0]).toMatchObject({ balance: '70', location: expect.objectContaining({ id: lab.otherStorage }) });
+    } else {
+      // El traslado llegó antes: la salida sobre el origen vacío no alcanza.
+      expect(issued.status).toBe(409);
+      expect(stocked[0]).toMatchObject({ balance: '100', location: expect.objectContaining({ id: lab.otherStorage }) });
+    }
   });
 });

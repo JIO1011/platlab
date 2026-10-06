@@ -9,6 +9,8 @@ import {
   receiptRequest,
   receiptResponse,
   setMinimumRequest,
+  transferRequest,
+  transferResponse,
   type Position,
   type Product,
   type StockedProduct,
@@ -31,13 +33,13 @@ import {
   toast,
   type SelectOption,
 } from '@platlab/ui';
-import { ArrowDownToLine, ArrowUpFromLine, FlaskConical, Scale, TrendingDown, type LucideIcon } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, FlaskConical, Scale, TrendingDown, type LucideIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Controller, useForm, type FieldValues, type Path, type UseFormReturn } from 'react-hook-form';
 import type { z } from 'zod';
 import { isApiError } from '../../app/api';
 import { formatDate } from '../../app/format';
-import { useDestinations, useLots, useReasons, useReceiptLocations } from '../../app/queries';
+import { useDestinations, useLots, useReasons, useReceiptLocations, useTransferLocations } from '../../app/queries';
 import { ChoiceField } from './choices';
 import { commandErrorMessage, fieldErrors, useCommand } from './commands';
 import { availableOf } from './stock';
@@ -1005,6 +1007,77 @@ export function AdjustmentSheet({
           />
         )}
       />
+    </FormSheet>
+  );
+}
+
+/**
+ * Traslado en un paso (ADR 0012, entrega 4): el frasco entero pasa a otra ubicación. Solo se elige el
+ * destino; el saldo viaja completo y el historial guarda origen y destino.
+ */
+export function TransferSheet({ workspaceId, open, onOpenChange, position }: SheetBaseProps & { position: Position | undefined }) {
+  const command = useCommand(workspaceId, '/transfers', transferResponse);
+  const locations = useTransferLocations(workspaceId, open);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const form = useForm({ defaultValues: { locationId: '' } });
+  const errors = form.formState.errors;
+  const options = (locations.data?.items ?? [])
+    .filter((location) => location.id !== position?.location.id)
+    .map((location) => ({ value: location.id, label: `${location.name} · ${location.code}` }));
+
+  const submit = form.handleSubmit(async (values) => {
+    setGeneralError(null);
+    const payload = validate(transferRequest, { positionId: position?.id ?? '', locationId: values.locationId }, form);
+    if (!payload || !position) return;
+    try {
+      await command.mutateAsync(payload);
+      const target = locations.data?.items.find((location) => location.id === payload.locationId);
+      toast.success(`Frasco ${position.container?.code ?? position.lot.code} trasladado`, {
+        description: target ? `Ahora está en ${target.name}.` : undefined,
+      });
+      onOpenChange(false);
+    } catch (error) {
+      setGeneralError(commandErrorMessage(error));
+    }
+  });
+
+  return (
+    <FormSheet
+      icon={ArrowLeftRight}
+      title="Trasladar frasco"
+      description="El frasco pasa entero a otra ubicación. El historial guarda de dónde salió y adónde llegó."
+      open={open}
+      onOpenChange={onOpenChange}
+      submitLabel="Trasladar frasco"
+      pending={command.isPending}
+      generalError={generalError}
+      onSubmit={() => void submit()}
+    >
+      {position ? (
+        <div className="grid gap-1 rounded-control bg-surface-sunken px-3 py-2.5 text-sm">
+          <p className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <span className="font-bold tabular-nums text-ink">{position.container?.code ?? position.lot.code}</span>
+            <Quantity value={position.balance} unit={position.unit} className="font-semibold text-ink" />
+          </p>
+          <p className="text-ink-muted">
+            {position.product.name} · ahora en <span className="text-ink">{position.location.name}</span>
+          </p>
+        </div>
+      ) : null}
+      <Field label="Ubicación de destino" error={errors.locationId?.message}>
+        <Controller
+          control={form.control}
+          name="locationId"
+          render={({ field }) => (
+            <Select
+              value={field.value || undefined}
+              onValueChange={field.onChange}
+              options={options}
+              placeholder={locations.isPending ? 'Cargando ubicaciones…' : 'Elige adónde va el frasco'}
+            />
+          )}
+        />
+      </Field>
     </FormSheet>
   );
 }

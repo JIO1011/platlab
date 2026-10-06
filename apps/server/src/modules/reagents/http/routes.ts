@@ -18,6 +18,7 @@ import {
   reasonListQuery,
   receiptRequest,
   setMinimumRequest,
+  transferRequest,
   workspaceParams,
 } from '@platlab/contracts';
 import { verifiedSubject } from '../../../platform/http/auth.js';
@@ -35,6 +36,7 @@ import {
   registerAdjustment,
   registerIssue,
   registerReceipt,
+  registerTransfer,
   setProductMinimum,
   type CommandRequest,
 } from '../application/commands.js';
@@ -49,6 +51,7 @@ import {
   listReasons,
   listReceiptLocations,
   listRequests,
+  listTransferLocations,
 } from '../application/queries.js';
 
 const queryRequest = (request: FastifyRequest) => ({
@@ -116,6 +119,13 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
     app.post('/issues', async (request, reply) => {
       const input = issueRequest.parse(request.body);
       return reply.status(201).send(await registerIssue(pool, commandRequest(request), input));
+    });
+
+    app.get('/transfer-locations', async (request) => listTransferLocations(pool, queryRequest(request)));
+
+    app.post('/transfers', async (request, reply) => {
+      const input = transferRequest.parse(request.body);
+      return reply.status(201).send(await registerTransfer(pool, commandRequest(request), input));
     });
 
     app.post('/adjustments', async (request, reply) => {

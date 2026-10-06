@@ -323,6 +323,11 @@ Cambio del 05-10-2026, decidido por el usuario: **mínimos** (entrega 3 de R-01A
   - Un frasco vencido, contaminado o roto se desecha con «Ajustar» a cero y un motivo de la lista («Vencido», «Contaminado»). Queda en el historial como ajuste, con su responsable. No hay un tipo de movimiento «baja».
   - La disposición por posición (cuarentena de un retorno) sigue en el diseño para custodia y retornos ([03 §4](03_datos.md#4-inventario-y-reactivos)).
 
+Cambio del 05-10-2026, decidido por el usuario: **traslados, conteo y QR** (entrega 4 de R-01A), en su versión simple.
+- **Traslado en un paso.** Se mueve un frasco entero, con todo su saldo, de una ubicación a otra. Es una operación `transfer` con dos asientos (sale del origen y entra en el destino) y queda en Movimientos como «Traslado». No hay borrador, aprobación ni tránsito. Lo registran el Operador y el Administrador (`reagents.transfer.create`). Un frasco vacío o con salidas pendientes no se traslada: primero se resuelven.
+- **Conteo por ubicación.** El Administrador elige una ubicación, anota lo que hay en cada frasco y confirma. Se registra un ajuste con motivo «Conteo» y un asiento por cada frasco que no cuadra. Si un saldo cambió mientras se contaba, se pide volver a cargar; si lo contado queda por debajo de lo apartado, primero se resuelven las solicitudes.
+- **Etiqueta con QR por frasco.** Lleva el código del frasco, el reactivo, el lote y la caducidad. El QR es un enlace a ese frasco en PlatLab, así que la cámara del móvil lo abre (tras iniciar sesión) sin escáner propio. Se imprime desde la ficha (todos sus frascos con saldo) o desde cada frasco. El escaneo dentro de la app sigue pendiente (P-03).
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |
@@ -336,7 +341,7 @@ Cambio del 05-10-2026, decidido por el usuario: **mínimos** (entrega 3 de R-01A
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
 | Ámbito por ubicación | Los roles valen para todo el espacio (ADR 0008, 05-10-2026). Retirar `location_id` de las asignaciones y simplificar las consultas que filtran por ámbito | Entrega aparte, antes de T-07 |
-| Escaneo con cámara | La etiqueta QR por frasco ya está decidida (ADR 0012). ¿Se escanea con la cámara del móvil, como en ReactiLab? | P-03 |
+| Escaneo con cámara | La etiqueta QR abre el frasco con la cámara del móvil (ADR 0012, entrega 4). ¿Hace falta además un escáner dentro de la app para registrar salidas en serie? | P-03 |
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
 | Conexión a PostgreSQL | ¿Conexión directa con el complemento IPv4 o Supavisor en modo sesión? | S-01 |
 | Credencial local del rol de runtime | `supabase/seed.sql` fija una contraseña de desarrollo. Antes de usar ramas de Supabase o staging, pasarla a una variable de entorno local o desactivar el seed fuera de local y CI | S-01 |

@@ -14,6 +14,8 @@ import type {
   Product,
   receiptRequest,
   ReceiptResponse,
+  transferRequest,
+  TransferResponse,
 } from '@platlab/contracts';
 import {
   addDestination,
@@ -29,6 +31,7 @@ import {
   retireDestination,
   retireReason,
   setMinimum,
+  transferContainer,
   type InventoryContext,
 } from '../../../capabilities/inventory/index.js';
 import { withIdempotency } from '../../../platform/idempotency/idempotency.js';
@@ -387,6 +390,29 @@ export function cancelRequest(pool: pg.Pool, request: CommandRequest, requestId:
     },
     'resolve_pending',
   );
+}
+
+/** Traslado de un frasco entero a otra ubicación, en un paso (Operador y Administrador, ADR 0012). */
+export function registerTransfer(
+  pool: pg.Pool,
+  request: CommandRequest,
+  input: z.infer<typeof transferRequest>,
+): Promise<TransferResponse> {
+  const permission = 'reagents.transfer.create';
+  return runCommand(pool, request, permission, input, (access) => requirePermission(access, permission), async (access) => {
+    const result = await transferContainer(
+      inventoryContext(access),
+      { positionId: input.positionId, locationId: input.locationId, reference: input.reference ?? null },
+      (locationId) => requirePermissionAt(access, permission, locationId),
+    );
+    await recordAudit(access, {
+      action: permission,
+      entityType: 'inventory.operation',
+      entityId: result.operationId,
+      changes: { fromPositionId: result.fromPositionId, toPositionId: result.toPositionId, quantity: result.quantity, unit: result.unit },
+    });
+    return result;
+  });
 }
 
 /** Ajuste con signo y motivo obligatorio (Administrador); corrige con otro movimiento, no edita. */

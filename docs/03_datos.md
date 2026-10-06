@@ -104,7 +104,7 @@ Reglas:
 | `inventory.custodies`, `custody_lines` | Entrega a un responsable y su conciliación |
 | `inventory.return_batches` | Retorno segregado hasta verificarlo o disponerlo |
 | `inventory.allocations` | Reservas: `held → fulfilled / released`. Una solicitud de salida del Operador aparta la cantidad hasta que se aprueba o se rechaza ([ADR 0012](05_decisiones.md#adr-0012)) |
-| `inventory.transfers`, `transfer_lines` | `draft → approved → in_transit → partially_received → received` |
+| Traslado | Sin tablas propias: una operación `transfer` con un asiento que vacía el frasco en el origen y otro que lo llena en el destino ([ADR 0012](05_decisiones.md#adr-0012), entrega 4). Un frasco tiene saldo en una sola posición |
 
 Reglas:
 

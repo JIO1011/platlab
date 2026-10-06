@@ -1,11 +1,12 @@
 import { Quantity, cn } from '@platlab/ui';
-import { ArrowDownToLine, ArrowUpFromLine, CircleDot, Scale } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, CircleDot, Scale } from 'lucide-react';
 import { formatDateTime, formatShortDateTime } from './format';
 
 const types: Record<string, { label: string; icon: typeof Scale }> = {
   receipt: { label: 'Ingreso', icon: ArrowDownToLine },
   issue: { label: 'Salida', icon: ArrowUpFromLine },
   adjustment: { label: 'Ajuste', icon: Scale },
+  transfer: { label: 'Traslado', icon: ArrowLeftRight },
 };
 
 export interface ActivityRowProps {
@@ -28,8 +29,9 @@ export function ActivityRow({ type, title, detail, quantity, unit, occurredAt, a
   const kind = types[type] ?? { label: type, icon: CircleDot };
   const Icon = kind.icon;
   // Como en ReactiLab (ADR 0010, 04-10-2026): lo que sale va en rojo suave y lo que entra, en verde
-  // suave; el ajuste toma el acento. El signo y el tipo siguen escritos: el color nunca es el único dato.
-  const tone = type === 'adjustment' ? 'accent' : quantity.startsWith('-') ? 'out' : 'in';
+  // suave; el ajuste y el traslado (no cambian la existencia del espacio) toman el acento. El signo y
+  // el tipo siguen escritos: el color nunca es el único dato.
+  const tone = type === 'adjustment' || type === 'transfer' ? 'accent' : quantity.startsWith('-') ? 'out' : 'in';
   return (
     <div className={cn('@container flex items-center gap-3.5', className)}>
       <span

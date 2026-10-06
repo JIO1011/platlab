@@ -68,6 +68,28 @@ JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
 WHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND i.kind = :kind!
 FOR UPDATE OF p;
 
+/* @name lockTransferPosition */
+-- El frasco que se traslada, bloqueado antes de leer su saldo (posición de origen primero, 02 §6).
+SELECT p.id, p.item_id, p.lot_id, p.container_id, p.location_id, p.disposition,
+       trim_scale(p.balance) AS "balance!", trim_scale(p.reserved) AS "reserved!", i.base_unit
+FROM inventory.positions AS p
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+WHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND i.kind = :kind!
+FOR UPDATE OF p;
+
+/* @name ensureContainerPosition */
+-- La posición del frasco en el destino: la de un traslado anterior o una nueva con saldo cero.
+INSERT INTO inventory.positions (workspace_id, item_id, lot_id, container_id, location_id, disposition)
+VALUES (:workspaceId!, :itemId!, :lotId!, :containerId!, :locationId!, :disposition!)
+ON CONFLICT (workspace_id, item_id, lot_id, container_id, location_id, disposition) DO NOTHING;
+
+/* @name lockContainerPositionAt */
+SELECT id
+FROM inventory.positions
+WHERE workspace_id = :workspaceId! AND item_id = :itemId! AND lot_id = :lotId! AND container_id = :containerId!
+  AND location_id = :locationId! AND disposition = :disposition!
+FOR UPDATE;
+
 /* @name insertOperation */
 -- La fecha efectiva la fija la base (el runtime no puede escribirla).
 INSERT INTO inventory.operations

@@ -99,7 +99,7 @@ export function usePositions(workspaceId: string, productId?: string) {
 
 /** Filtro del historial: un tipo y una ventana de días, la misma que la del gráfico del Resumen. */
 export interface OperationFilter {
-  type?: 'receipt' | 'issue' | 'adjustment' | undefined;
+  type?: 'receipt' | 'issue' | 'adjustment' | 'transfer' | undefined;
   days?: number | undefined;
   productId?: string | undefined;
 }
@@ -166,6 +166,16 @@ export function useReceiptLocations(workspaceId: string, enabled: boolean) {
   return useQuery({
     queryKey: [...reagentsKey(user, workspaceId), 'receipt-locations'],
     queryFn: () => api(`/workspaces/${workspaceId}/reagents/receipt-locations`, { schema: locationList }),
+    enabled,
+  });
+}
+
+/** Ubicaciones a las que el miembro puede trasladar un frasco (ADR 0012, entrega 4). */
+export function useTransferLocations(workspaceId: string, enabled: boolean) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'transfer-locations'],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/transfer-locations`, { schema: locationList }),
     enabled,
   });
 }

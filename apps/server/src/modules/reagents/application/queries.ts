@@ -298,3 +298,12 @@ export function listReceiptLocations(pool: pg.Pool, request: QueryRequest): Prom
     return { items: rows.map(({ id, code, name, kind }) => ({ id, code, name, kind })) };
   });
 }
+
+/** Ubicaciones a las que el miembro puede trasladar un frasco (ADR 0012, entrega 4). */
+export function listTransferLocations(pool: pg.Pool, request: QueryRequest): Promise<LocationList> {
+  return runQuery(pool, request, async (access) => {
+    const scope = await permissionScope(access, 'reagents.transfer.create');
+    const rows = await listLocationsIn.run({ workspaceId: access.workspace.id, locationIds: scope }, access.client);
+    return { items: rows.map(({ id, code, name, kind }) => ({ id, code, name, kind })) };
+  });
+}

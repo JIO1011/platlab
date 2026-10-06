@@ -17,14 +17,16 @@ export type SheetRequest =
   | { kind: 'receipt'; productId?: string }
   | { kind: 'issue'; positionId?: string; productId?: string }
   | { kind: 'adjustment'; positionId?: string }
+  | { kind: 'transfer'; positionId: string }
   // Mínimo (ADR 0012, 05-10-2026): desde la ficha del reactivo.
   | { kind: 'minimum'; productId: string };
 
 /**
  * Lo que el rol puede hacer hoy; `product` es administrar el catálogo (también el mínimo), `lists`,
- * motivos y destinos y `approve`, aprobar salidas (ADR 0012). Sin `approve`, la salida es una solicitud.
+ * motivos y destinos, `approve`, aprobar salidas, y `transfer`, trasladar frascos (ADR 0012). Sin
+ * `approve`, la salida es una solicitud.
  */
-export type Allowed = Record<'product' | 'receipt' | 'issue' | 'adjustment' | 'lists' | 'approve', boolean>;
+export type Allowed = Record<'product' | 'receipt' | 'issue' | 'adjustment' | 'lists' | 'approve' | 'transfer', boolean>;
 
 /** Lo que las secciones de la app de Reactivos comparten: datos ya pedidos, permisos y hojas. */
 export interface ReagentsContext {

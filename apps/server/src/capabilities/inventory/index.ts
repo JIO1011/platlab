@@ -12,7 +12,7 @@ export {
   retireDestination,
   retireReason,
 } from './application/lists.js';
-export { applyMovement, lockExistingPosition, receiveContainers } from './application/movements.js';
+export { applyMovement, lockExistingPosition, receiveContainers, transferContainer } from './application/movements.js';
 export { countOperationsPerDay, listOperationPage, listPositionPage } from './application/queries.js';
 export {
   approveIssueRequest,

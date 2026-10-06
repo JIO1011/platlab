@@ -139,7 +139,7 @@ La lista exacta de permisos vive en el manifiesto de cada módulo ([02 §4](02_a
 | Ingreso | Operador | Registra uno o más frascos de un lote en una ubicación; crea el lote si es nuevo |
 | Salida (descarga) | Operador | Resta de un frasco, con motivo y destino de las listas del laboratorio. La del Operador queda pendiente y aparta la cantidad hasta que el Administrador la aprueba; la del Administrador o del Propietario es directa. Se rechaza si no alcanza, y un frasco vencido se puede usar con advertencia ([ADR 0012](05_decisiones.md#adr-0012)) |
 | Ajuste | Administrador | Corrige un conteo con motivo; el saldo nunca se edita |
-| Traslado | Operador | Origen → tránsito → destino, con recepción y diferencias |
+| Traslado | Operador | Mueve un frasco entero de una ubicación a otra en un paso ([ADR 0012](05_decisiones.md#adr-0012), entrega 4) |
 | Baja de un frasco | Administrador | Ajuste a cero con motivo («Vencido», «Contaminado»); el lote no tiene estado propio ([ADR 0012](05_decisiones.md#adr-0012)) |
 | Entrega a custodia y retorno | Operador | Lo entregado sigue en la existencia institucional; el retorno queda segregado hasta verificarlo |
 | Preparación de soluciones | Operador | Si la solución se guarda, consume los insumos y crea un lote del producto preparado con su trazabilidad. Si se usa de inmediato, solo registra el consumo |

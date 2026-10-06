@@ -1,6 +1,7 @@
 import type { Position, StockedProduct } from '@platlab/contracts';
 import { Badge, Button, IconChip, Input, Quantity, Skeleton, StatePanel, cn, formatDecimal, ratioPercent } from '@platlab/ui';
 import {
+  ArrowLeftRight,
   ArrowRight,
   ArrowUpFromLine,
   Box,
@@ -364,6 +365,8 @@ function ContainerCard({
   // Con saldo pero menos del 1 %, se dice y se ve: un frasco casi vacío no es un frasco vacío.
   const percentText = percent === 0 && !empty ? '<1 %' : `${percent ?? 0} %`;
   const canIssue = allowed.issue && available !== '0';
+  // Se traslada el frasco entero; con salidas pendientes, primero se resuelven (ADR 0012, entrega 4).
+  const canTransfer = allowed.transfer && !empty && !reserved;
   const { supplierName, supplierLot } = position.lot;
   const soon = expiresOn !== null && !expired && expiresOn <= addDays(today, 30);
   return (
@@ -455,7 +458,7 @@ function ContainerCard({
           </>
         ) : null}
       </div>
-      {canIssue || allowed.adjustment ? (
+      {canIssue || canTransfer || allowed.adjustment ? (
         <div className="mt-auto flex gap-2 border-t border-line pt-3">
           {canIssue ? (
             // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
@@ -468,6 +471,17 @@ function ContainerCard({
               <ArrowUpFromLine aria-hidden />
               {/* Quien no aprueba pide la salida: la tarjeta no promete una acción inmediata (ADR 0012). */}
               {allowed.approve ? 'Salida' : 'Solicitar salida'}
+            </Button>
+          ) : null}
+          {canTransfer ? (
+            <Button
+              size="sm"
+              aria-label="Trasladar"
+              title="Trasladar el frasco a otra ubicación"
+              className={cn('h-10 px-3 text-ink-muted hover:bg-surface-sunken hover:text-ink', !canIssue && 'ml-auto')}
+              onClick={() => onAction({ kind: 'transfer', positionId: position.id })}
+            >
+              <ArrowLeftRight aria-hidden />
             </Button>
           ) : null}
           {allowed.adjustment ? (

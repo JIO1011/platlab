@@ -116,7 +116,7 @@ select set_eq(
 select results_eq(
   'select code from core.permissions where module_code = ''reagents'' order by code',
   array['reagents.adjustment.create', 'reagents.catalog.manage', 'reagents.catalog.read',
-        'reagents.issue.approve', 'reagents.issue.create', 'reagents.receipt.create'],
+        'reagents.issue.approve', 'reagents.issue.create', 'reagents.receipt.create', 'reagents.transfer.create'],
   'los permisos de Reactivos están en el catálogo');
 
 select ok(
@@ -125,8 +125,8 @@ select ok(
 
 select set_eq(
   'select permission_code from core.role_permissions where role_code = ''operator''',
-  array['reagents.catalog.read', 'reagents.receipt.create', 'reagents.issue.create'],
-  'el Operador no ajusta ni administra el catálogo (01 §5)');
+  array['reagents.catalog.read', 'reagents.receipt.create', 'reagents.issue.create', 'reagents.transfer.create'],
+  'el Operador traslada, pero no ajusta ni administra el catálogo (01 §5)');
 
 -- ---------------------------------------------------------------------------
 -- Aislamiento y tipos

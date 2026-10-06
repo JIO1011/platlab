@@ -559,6 +559,34 @@ test('mínimos: bajo mínimo en el Resumen y el Inventario, y el Administrador l
   await expect(adjustment.getByRole('radio', { name: 'Contaminado', exact: true })).toBeAttached();
 });
 
+test('traslado: un frasco entero cambia de ubicación en un paso y Movimientos lo muestra (ADR 0012, entrega 4)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await openReagents(admin, 'Facultad de Ciencias');
+  await goTo(admin, 'Inventario');
+  await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
+  const card = admin.getByRole('article').filter({ hasText: 'H2SO4-2026-09-01' });
+  await expect(card).toContainText('Almacén de reactivos');
+  await card.getByRole('button', { name: 'Trasladar' }).click();
+  const sheet = admin.getByRole('dialog', { name: 'Trasladar frasco' });
+  await expect(sheet).toContainText('H2SO4-2026-09-01');
+  await choose(admin, 'Ubicación de destino', /Laboratorio de Química/);
+  await expectAccessible(admin, 'hoja de traslado');
+  await capture(admin, 'desktop-transfer', false);
+  await sheet.getByRole('button', { name: 'Trasladar frasco' }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(card).toContainText('Laboratorio de Química');
+  await expect(card).toContainText(/1\.000/);
+
+  // Un asiento sale del origen y otro entra en el destino, con el tipo escrito.
+  await goTo(admin, 'Movimientos');
+  await admin.getByRole('button', { name: 'Traslados', exact: true }).click();
+  await expect(admin).toHaveURL(/tipo=traslado/);
+  const rows = admin.locator('main').getByRole('listitem').filter({ hasText: 'H2SO4-2026-09-01' });
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText('Traslado');
+  await expectAccessible(admin, 'movimientos de traslado');
+});
+
 test('stock insuficiente: la salida se rechaza en el formulario y el saldo no cambia', async ({ browser }) => {
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Instituto de Biotecnología');

@@ -363,6 +363,118 @@ const lockPositionIR: any = {"usedParamSet":{"workspaceId":true,"positionId":tru
 export const lockPosition = new PreparedQuery<ILockPositionParams,ILockPositionResult>(lockPositionIR);
 
 
+/** 'LockTransferPosition' parameters type */
+export interface ILockTransferPositionParams {
+  kind: string;
+  positionId: string;
+  workspaceId: string;
+}
+
+/** 'LockTransferPosition' return type */
+export interface ILockTransferPositionResult {
+  balance: string;
+  base_unit: string;
+  container_id: string | null;
+  disposition: string;
+  id: string;
+  item_id: string;
+  location_id: string;
+  lot_id: string;
+  reserved: string;
+}
+
+/** 'LockTransferPosition' query type */
+export interface ILockTransferPositionQuery {
+  params: ILockTransferPositionParams;
+  result: ILockTransferPositionResult;
+}
+
+const lockTransferPositionIR: any = {"usedParamSet":{"workspaceId":true,"positionId":true,"kind":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":410,"b":422}]},{"name":"positionId","required":true,"transform":{"type":"scalar"},"locs":[{"a":435,"b":446}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":461,"b":466}]}],"statement":"-- El frasco que se traslada, bloqueado antes de leer su saldo (posición de origen primero, 02 §6).\nSELECT p.id, p.item_id, p.lot_id, p.container_id, p.location_id, p.disposition,\n       trim_scale(p.balance) AS \"balance!\", trim_scale(p.reserved) AS \"reserved!\", i.base_unit\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nWHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND i.kind = :kind!\nFOR UPDATE OF p"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- El frasco que se traslada, bloqueado antes de leer su saldo (posición de origen primero, 02 §6).
+ * SELECT p.id, p.item_id, p.lot_id, p.container_id, p.location_id, p.disposition,
+ *        trim_scale(p.balance) AS "balance!", trim_scale(p.reserved) AS "reserved!", i.base_unit
+ * FROM inventory.positions AS p
+ * JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+ * WHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND i.kind = :kind!
+ * FOR UPDATE OF p
+ * ```
+ */
+export const lockTransferPosition = new PreparedQuery<ILockTransferPositionParams,ILockTransferPositionResult>(lockTransferPositionIR);
+
+
+/** 'EnsureContainerPosition' parameters type */
+export interface IEnsureContainerPositionParams {
+  containerId: string;
+  disposition: string;
+  itemId: string;
+  locationId: string;
+  lotId: string;
+  workspaceId: string;
+}
+
+/** 'EnsureContainerPosition' return type */
+export type IEnsureContainerPositionResult = void;
+
+/** 'EnsureContainerPosition' query type */
+export interface IEnsureContainerPositionQuery {
+  params: IEnsureContainerPositionParams;
+  result: IEnsureContainerPositionResult;
+}
+
+const ensureContainerPositionIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true,"lotId":true,"containerId":true,"locationId":true,"disposition":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":208,"b":220}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":223,"b":230}]},{"name":"lotId","required":true,"transform":{"type":"scalar"},"locs":[{"a":233,"b":239}]},{"name":"containerId","required":true,"transform":{"type":"scalar"},"locs":[{"a":242,"b":254}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":257,"b":268}]},{"name":"disposition","required":true,"transform":{"type":"scalar"},"locs":[{"a":271,"b":283}]}],"statement":"-- La posición del frasco en el destino: la de un traslado anterior o una nueva con saldo cero.\nINSERT INTO inventory.positions (workspace_id, item_id, lot_id, container_id, location_id, disposition)\nVALUES (:workspaceId!, :itemId!, :lotId!, :containerId!, :locationId!, :disposition!)\nON CONFLICT (workspace_id, item_id, lot_id, container_id, location_id, disposition) DO NOTHING"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- La posición del frasco en el destino: la de un traslado anterior o una nueva con saldo cero.
+ * INSERT INTO inventory.positions (workspace_id, item_id, lot_id, container_id, location_id, disposition)
+ * VALUES (:workspaceId!, :itemId!, :lotId!, :containerId!, :locationId!, :disposition!)
+ * ON CONFLICT (workspace_id, item_id, lot_id, container_id, location_id, disposition) DO NOTHING
+ * ```
+ */
+export const ensureContainerPosition = new PreparedQuery<IEnsureContainerPositionParams,IEnsureContainerPositionResult>(ensureContainerPositionIR);
+
+
+/** 'LockContainerPositionAt' parameters type */
+export interface ILockContainerPositionAtParams {
+  containerId: string;
+  disposition: string;
+  itemId: string;
+  locationId: string;
+  lotId: string;
+  workspaceId: string;
+}
+
+/** 'LockContainerPositionAt' return type */
+export interface ILockContainerPositionAtResult {
+  id: string;
+}
+
+/** 'LockContainerPositionAt' query type */
+export interface ILockContainerPositionAtQuery {
+  params: ILockContainerPositionAtParams;
+  result: ILockContainerPositionAtResult;
+}
+
+const lockContainerPositionAtIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true,"lotId":true,"containerId":true,"locationId":true,"disposition":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":56,"b":68}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":84,"b":91}]},{"name":"lotId","required":true,"transform":{"type":"scalar"},"locs":[{"a":106,"b":112}]},{"name":"containerId","required":true,"transform":{"type":"scalar"},"locs":[{"a":133,"b":145}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":167,"b":178}]},{"name":"disposition","required":true,"transform":{"type":"scalar"},"locs":[{"a":198,"b":210}]}],"statement":"SELECT id\nFROM inventory.positions\nWHERE workspace_id = :workspaceId! AND item_id = :itemId! AND lot_id = :lotId! AND container_id = :containerId!\n  AND location_id = :locationId! AND disposition = :disposition!\nFOR UPDATE"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT id
+ * FROM inventory.positions
+ * WHERE workspace_id = :workspaceId! AND item_id = :itemId! AND lot_id = :lotId! AND container_id = :containerId!
+ *   AND location_id = :locationId! AND disposition = :disposition!
+ * FOR UPDATE
+ * ```
+ */
+export const lockContainerPositionAt = new PreparedQuery<ILockContainerPositionAtParams,ILockContainerPositionAtResult>(lockContainerPositionAtIR);
+
+
 /** 'InsertOperation' parameters type */
 export interface IInsertOperationParams {
   correlationId: string;

@@ -22,7 +22,8 @@ const adjustmentQuantity = z
   .regex(/^-?(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal distinta de cero');
 
 export const physicalState = z.enum(['solid', 'liquid', 'gas']);
-export const operationType = z.enum(['receipt', 'issue', 'adjustment']);
+/** `transfer`: un frasco entero cambia de ubicación en un paso (ADR 0012, entrega 4). */
+export const operationType = z.enum(['receipt', 'issue', 'adjustment', 'transfer']);
 
 // ---------------------------------------------------------------------------
 // Catálogo
@@ -137,6 +138,20 @@ export const adjustmentRequest = z
     reason: text(500),
   })
   .strict();
+
+/** Traslado de un frasco entero a otra ubicación (ADR 0012, entrega 4). */
+export const transferRequest = z
+  .object({ positionId: z.uuid(), locationId: z.uuid(), reference: text(200).nullish() })
+  .strict();
+
+export const transferResponse = z.object({
+  operationId: z.uuid(),
+  fromPositionId: z.uuid(),
+  toPositionId: z.uuid(),
+  quantity: decimalString,
+  unit: z.string(),
+  effectiveAt: z.iso.datetime({ offset: true }),
+});
 
 /** La respuesta de un movimiento indica la operación, la cantidad aplicada, el saldo y la unidad. */
 export const movementResponse = z.object({
@@ -338,5 +353,6 @@ export type IssueResponse = z.infer<typeof issueResponse>;
 export type StockedProduct = z.infer<typeof stockedProduct>;
 export type ReceiptResponse = z.infer<typeof receiptResponse>;
 export type ListEntry = z.infer<typeof listEntry>;
+export type TransferResponse = z.infer<typeof transferResponse>;
 export type ReasonKind = z.infer<typeof reasonKind>;
 export type OperationList = z.infer<typeof operationList>;

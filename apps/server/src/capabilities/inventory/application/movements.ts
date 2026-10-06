@@ -1,12 +1,15 @@
 import { AppError } from '../../../platform/errors.js';
 import {
   applyEntry,
+  ensureContainerPosition,
   findLocation,
   findLot,
   insertContainerPosition,
   insertContainers,
   insertOperation,
+  lockContainerPositionAt,
   lockPosition,
+  lockTransferPosition,
   reserveContainerSeqs,
 } from '../infrastructure/inventory.queries.js';
 import { createLot, type NewLot } from './catalog.js';
@@ -14,7 +17,7 @@ import type { InventoryContext } from './context.js';
 
 const notFound = () => new AppError('NOT_FOUND', 'Recurso no encontrado');
 
-type OperationType = 'receipt' | 'issue' | 'adjustment';
+type OperationType = 'receipt' | 'issue' | 'adjustment' | 'transfer';
 
 /** Posición bloqueada para un movimiento: su ubicación decide el ámbito del permiso. */
 export interface LockedPosition {
@@ -241,6 +244,88 @@ export async function applyMovement(
     appliedQuantity: entry.quantity,
     balance: entry.balance_after,
     unit: position.baseUnit,
+    effectiveAt: operation.effective_at.toISOString(),
+  };
+}
+
+export interface TransferResult {
+  operationId: string;
+  fromPositionId: string;
+  toPositionId: string;
+  quantity: string;
+  unit: string;
+  effectiveAt: string;
+}
+
+/**
+ * Traslado en un paso (ADR 0012, entrega 4): el frasco entero pasa a otra ubicación. Bloquea la
+ * posición de origen, comprueba el permiso en el origen y en el destino, y escribe una operación con
+ * dos asientos: primero vacía el origen y después llena el destino (un frasco tiene saldo en un solo
+ * lugar). Un frasco vacío o con salidas pendientes no se traslada.
+ */
+export async function transferContainer(
+  ctx: InventoryContext,
+  input: { positionId: string; locationId: string; reference: string | null },
+  authorize: (locationId: string) => Promise<void>,
+): Promise<TransferResult> {
+  const [origin] = await lockTransferPosition.run(
+    { workspaceId: ctx.workspaceId, positionId: input.positionId, kind: ctx.kind },
+    ctx.client,
+  );
+  if (!origin) throw notFound();
+  await authorize(origin.location_id);
+  const [destination] = await findLocation.run({ workspaceId: ctx.workspaceId, locationId: input.locationId }, ctx.client);
+  if (!destination) throw notFound();
+  await authorize(destination.id);
+  if (!origin.container_id) throw new AppError('VALIDATION_FAILED', 'Solo se trasladan frascos');
+  if (destination.id === origin.location_id) throw new AppError('VALIDATION_FAILED', 'El frasco ya está en esa ubicación');
+  if (origin.balance === '0') throw new AppError('VALIDATION_FAILED', 'El frasco está vacío: no hay nada que trasladar');
+  if (origin.reserved !== '0') {
+    throw new AppError('VALIDATION_FAILED', 'El frasco tiene salidas pendientes. Resuélvelas antes de trasladarlo.');
+  }
+
+  const key = {
+    workspaceId: ctx.workspaceId,
+    itemId: origin.item_id,
+    lotId: origin.lot_id,
+    containerId: origin.container_id,
+    locationId: destination.id,
+    disposition: origin.disposition,
+  };
+  await ensureContainerPosition.run(key, ctx.client);
+  const [target] = await lockContainerPositionAt.run(key, ctx.client);
+  if (!target) throw new Error('La posición de destino no devolvió fila');
+
+  const [operation] = await insertOperation.run(
+    {
+      workspaceId: ctx.workspaceId,
+      type: 'transfer',
+      principalId: ctx.principalId,
+      reason: null,
+      destination: null,
+      reference: input.reference,
+      correlationId: ctx.correlationId,
+      requestedBy: null,
+    },
+    ctx.client,
+  );
+  if (!operation) throw new Error('La operación no devolvió fila');
+  const entry = (positionId: string, sign: '1' | '-1') =>
+    applyEntry.run(
+      { workspaceId: ctx.workspaceId, operationId: operation.id, positionId, sign, quantity: origin.balance, unit: origin.base_unit },
+      ctx.client,
+    );
+  const [out] = await entry(origin.id, '-1');
+  if (!out) throw new AppError('INSUFFICIENT_STOCK', 'Stock insuficiente en la posición');
+  const [into] = await entry(target.id, '1');
+  if (!into) throw new Error('El asiento de destino no devolvió fila');
+
+  return {
+    operationId: operation.id,
+    fromPositionId: origin.id,
+    toPositionId: target.id,
+    quantity: origin.balance,
+    unit: origin.base_unit,
     effectiveAt: operation.effective_at.toISOString(),
   };
 }

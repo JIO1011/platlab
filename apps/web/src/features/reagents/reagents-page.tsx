@@ -11,6 +11,7 @@ import {
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowDownToLine,
+  ArrowLeftRight,
   ArrowRight,
   ArrowUpFromLine,
   CalendarClock,
@@ -45,7 +46,7 @@ import { QueryErrorState } from '../../app/states';
 import { TrendChart } from '../../app/trend-chart';
 import { useReagents, type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { purposeOf } from './operation-text';
-import { AdjustmentSheet, IssueSheet, MinimumSheet, NewProductSheet, ReceiptSheet } from './sheets';
+import { AdjustmentSheet, IssueSheet, MinimumSheet, NewProductSheet, ReceiptSheet, TransferSheet } from './sheets';
 
 export { ReagentsInventoryPage, ReagentsProductPage } from './inventory';
 export { ReagentsRequestsPage } from './requests';
@@ -76,7 +77,7 @@ function useNow(intervalMs: number): number {
  * Filtro del historial en la URL, para que la cifra del Resumen abra exactamente su lista:
  * `?tipo=salida&dias=30` son las salidas de los últimos 30 días, la misma ventana del gráfico.
  */
-const typeParams = { ingreso: 'receipt', salida: 'issue', ajuste: 'adjustment' } as const;
+const typeParams = { ingreso: 'receipt', salida: 'issue', ajuste: 'adjustment', traslado: 'transfer' } as const;
 
 function readOperationFilter(params: URLSearchParams): OperationFilter {
   const type = typeParams[params.get('tipo') as keyof typeof typeParams] as OperationFilter['type'];
@@ -112,6 +113,7 @@ export function ReagentsLayout() {
     adjustment: can('reagents.adjustment.create'),
     lists: can('reagents.catalog.manage'),
     approve: can('reagents.issue.approve'),
+    transfer: can('reagents.transfer.create'),
   };
   const canResolve = module?.access.includes('resolve_pending') ?? false;
 
@@ -278,6 +280,13 @@ export function ReagentsLayout() {
           key={current.id}
           {...sheetProps('minimum')}
           product={productList.find((entry) => entry.id === (current.request.kind === 'minimum' ? current.request.productId : ''))}
+        />
+      ) : null}
+      {current?.request.kind === 'transfer' ? (
+        <TransferSheet
+          key={current.id}
+          {...sheetProps('transfer')}
+          position={positionList.find((entry) => entry.id === (current.request.kind === 'transfer' ? current.request.positionId : ''))}
         />
       ) : null}
       {current?.request.kind === 'adjustment' ? (
@@ -548,6 +557,7 @@ const typeFilters = [
   { value: 'receipt', param: 'ingreso', label: 'Ingresos' },
   { value: 'issue', param: 'salida', label: 'Salidas' },
   { value: 'adjustment', param: 'ajuste', label: 'Ajustes' },
+  { value: 'transfer', param: 'traslado', label: 'Traslados' },
 ] as const;
 
 const periodFilters = [
@@ -693,6 +703,7 @@ const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }
   receipt: { label: 'Ingreso', icon: ArrowDownToLine },
   issue: { label: 'Salida', icon: ArrowUpFromLine },
   adjustment: { label: 'Ajuste', icon: Scale },
+  transfer: { label: 'Traslado', icon: ArrowLeftRight },
 };
 
 /** Historial por días: cada día una tarjeta, cada fila un asiento que abre la ficha del reactivo. */
@@ -788,7 +799,7 @@ function MovementsView({
 function MovementRow({ operation, to, timeZone }: { operation: Operation; to: string; timeZone: string }) {
   const kind = typeLabel[operation.type];
   const Icon = kind.icon;
-  const tone = operation.type === 'adjustment' ? 'accent' : operation.quantity.startsWith('-') ? 'out' : 'in';
+  const tone = operation.type === 'adjustment' || operation.type === 'transfer' ? 'accent' : operation.quantity.startsWith('-') ? 'out' : 'in';
   const purpose = purposeOf(operation);
   const actor = operation.actor.displayName ?? 'Miembro anterior';
   const hour = hourOf(operation.effectiveAt, timeZone);

@@ -59,6 +59,8 @@ export {
   receiptResponse,
   setMinimumRequest,
   stockedProduct,
+  transferRequest,
+  transferResponse,
   type IssueRequestItem,
   type IssueResponse,
   type ListEntry,
@@ -76,4 +78,5 @@ export {
   type ReasonKind,
   type ReceiptResponse,
   type StockedProduct,
+  type TransferResponse,
 } from './reagents.js';
