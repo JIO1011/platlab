@@ -14,7 +14,7 @@ import type { InventoryContext } from './context.js';
 
 const notFound = () => new AppError('NOT_FOUND', 'Recurso no encontrado');
 
-type OperationType = 'receipt' | 'issue' | 'adjustment' | 'disposal';
+type OperationType = 'receipt' | 'issue' | 'adjustment';
 
 /** Posición bloqueada para un movimiento: su ubicación decide el ámbito del permiso. */
 export interface LockedPosition {
@@ -94,19 +94,12 @@ export async function receiveContainers(
   const [lot] = await findLot.run({ workspaceId: ctx.workspaceId, lotId, kind: ctx.kind }, ctx.client);
   if (!lot) throw notFound();
   requireBaseUnit(input.unit, lot.base_unit);
-  if (lot.condition === 'discarded') {
-    throw new AppError('VALIDATION_FAILED', 'El lote está descartado');
-  }
 
   const [reserved] = await reserveContainerSeqs.run(
     { workspaceId: ctx.workspaceId, lotId: lot.id, count: input.count },
     ctx.client,
   );
   if (!reserved) throw notFound();
-  // Leído ya bajo el bloqueo del lote: un descarte simultáneo pudo confirmarse mientras se esperaba.
-  if (reserved.condition === 'discarded') {
-    throw new AppError('VALIDATION_FAILED', 'El lote está descartado');
-  }
   const containers = await insertContainers.run(
     {
       workspaceId: ctx.workspaceId,
@@ -186,7 +179,7 @@ export async function lockExistingPosition(ctx: InventoryContext, positionId: st
     id: row.id,
     locationId: row.location_id,
     baseUnit: row.base_unit,
-    movable: row.condition === 'enabled' && row.disposition === 'usable',
+    movable: row.disposition === 'usable',
   };
 }
 
@@ -211,7 +204,7 @@ export async function applyMovement(
 ): Promise<MovementResult> {
   requireBaseUnit(input.unit, position.baseUnit);
   if (input.type === 'issue' && !position.movable) {
-    throw new AppError('VALIDATION_FAILED', 'El lote o la posición no están disponibles para salidas');
+    throw new AppError('VALIDATION_FAILED', 'El frasco no está disponible para salidas');
   }
   const [operation] = await insertOperation.run(
     {

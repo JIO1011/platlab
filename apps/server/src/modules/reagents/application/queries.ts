@@ -285,7 +285,6 @@ export function listLots(pool: pg.Pool, request: QueryRequest, productId: string
         supplierName: row.supplier_name,
         supplierLot: row.supplier_lot,
         expiresOn: row.expires_on,
-        condition: row.condition,
       })),
     };
   });

@@ -27,39 +27,10 @@ VALUES (:workspaceId!, :itemId!, :code!, :supplierName, :supplierLot, :expiresOn
 RETURNING id, item_id, code, supplier_name, supplier_lot, expires_on;
 
 /* @name findLot */
-SELECT l.id, l.item_id, l.code, l.condition, i.base_unit
+SELECT l.id, l.item_id, l.code, i.base_unit
 FROM inventory.lots AS l
 JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
 WHERE l.workspace_id = :workspaceId! AND l.id = :lotId! AND i.kind = :kind! AND i.archived_at IS NULL;
-
-/* @name lockLot */
--- Bloquea el lote antes de cambiar su estado o descartarlo: lote antes que posición (02 §6).
-SELECT l.id, l.item_id, l.code, l.condition, i.base_unit
-FROM inventory.lots AS l
-JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
-WHERE l.workspace_id = :workspaceId! AND l.id = :lotId! AND i.kind = :kind!
-FOR UPDATE OF l;
-
-/* @name lockLotPositions */
--- Posiciones del lote con saldo o con algo apartado, bloqueadas en orden estable.
-SELECT p.id, p.location_id, trim_scale(p.balance) AS "balance!", trim_scale(p.reserved) AS "reserved!"
-FROM inventory.positions AS p
-WHERE p.workspace_id = :workspaceId! AND p.lot_id = :lotId! AND (p.balance > 0 OR p.reserved > 0)
-ORDER BY p.id
-FOR UPDATE;
-
-/* @name updateLotCondition */
-UPDATE inventory.lots
-SET condition = :condition!, version = version + 1
-WHERE workspace_id = :workspaceId! AND id = :lotId!
-RETURNING id;
-
-/* @name insertLotConditionChange */
--- El historial se escribe junto con el estado; la base comprueba al confirmar que coinciden.
-INSERT INTO inventory.lot_condition_changes
-  (workspace_id, lot_id, from_condition, to_condition, reason, actor_principal_id, operation_id)
-VALUES (:workspaceId!, :lotId!, :fromCondition!, :toCondition!, :reason!, :principalId!, :operationId)
-RETURNING id, created_at;
 
 /* @name findLocation */
 SELECT id
@@ -73,7 +44,7 @@ WHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL
 UPDATE inventory.lots
 SET container_seq = container_seq + :count!::int
 WHERE workspace_id = :workspaceId! AND id = :lotId!
-RETURNING container_seq AS "last!", condition;
+RETURNING container_seq AS "last!";
 
 /* @name insertContainers */
 INSERT INTO inventory.containers (workspace_id, item_id, lot_id, seq, initial_quantity)
@@ -90,7 +61,7 @@ RETURNING id;
 
 /* @name lockPosition */
 -- Bloquea la posición antes de leer su saldo: salidas y ajustes descuentan bajo el mismo bloqueo.
-SELECT p.id, p.location_id, p.disposition, l.condition, l.expires_on, i.base_unit
+SELECT p.id, p.location_id, p.disposition, l.expires_on, i.base_unit
 FROM inventory.positions AS p
 JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
 JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
@@ -133,8 +104,6 @@ SELECT
   l.id AS lot_id,
   l.code AS lot_code,
   l.expires_on,
-  l.condition AS lot_condition,
-  last_change.reason AS "lot_condition_reason?",
   l.supplier_name,
   l.supplier_lot,
   p.disposition,
@@ -157,14 +126,6 @@ JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_i
 JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
 LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
 JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
--- Motivo del último cambio de estado del lote (ADR 0012, 05-10-2026).
-LEFT JOIN LATERAL (
-  SELECT ch.reason
-  FROM inventory.lot_condition_changes AS ch
-  WHERE ch.workspace_id = l.workspace_id AND ch.lot_id = l.id
-  ORDER BY ch.created_at DESC, ch.id DESC
-  LIMIT 1
-) AS last_change ON true
 WHERE p.workspace_id = :workspaceId!
   AND i.kind = :kind!
   AND p.location_id = ANY (:locationIds!::uuid[])

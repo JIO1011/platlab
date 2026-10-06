@@ -22,8 +22,7 @@ const adjustmentQuantity = z
   .regex(/^-?(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal distinta de cero');
 
 export const physicalState = z.enum(['solid', 'liquid', 'gas']);
-/** `disposal`: la baja que acompaña al descarte de un lote (ADR 0012, 05-10-2026). */
-export const operationType = z.enum(['receipt', 'issue', 'adjustment', 'disposal']);
+export const operationType = z.enum(['receipt', 'issue', 'adjustment']);
 
 // ---------------------------------------------------------------------------
 // Catálogo
@@ -74,26 +73,6 @@ export const lot = z.object({
   supplierName: z.string().nullable(),
   supplierLot: z.string().nullable(),
   expiresOn: z.string().nullable(),
-});
-
-export const lotParams = z.object({ workspaceId: z.uuid(), lotId: z.uuid() });
-
-/** Estado del lote que el Administrador elige, siempre con motivo; descartar va aparte. */
-export const lotConditionRequest = z
-  .object({ condition: z.enum(['enabled', 'quarantine', 'blocked']), reason: text(500) })
-  .strict();
-
-/** Descartar es definitivo: da de baja todo el saldo del lote con un motivo de la lista de bajas. */
-export const discardLotRequest = z.object({ reason: text(500) }).strict();
-
-export const lotConditionResponse = z.object({
-  lotId: z.uuid(),
-  condition: z.enum(['enabled', 'quarantine', 'blocked', 'discarded']),
-  changedAt: z.iso.datetime({ offset: true }),
-  /** La baja del descarte; null si no había saldo o si no es un descarte. */
-  operationId: z.uuid().nullable(),
-  /** Frascos que la baja llevó a cero. */
-  containers: z.number().int().nonnegative(),
 });
 
 // ---------------------------------------------------------------------------
@@ -243,8 +222,6 @@ export const operationListQuery = z
   })
   .strict();
 
-const lotCondition = z.enum(['enabled', 'quarantine', 'blocked', 'discarded']);
-
 /** Posición: un frasco (ADR 0012) en una ubicación; `container` es null solo en datos sin frasco. */
 export const position = z.object({
   id: z.uuid(),
@@ -253,9 +230,6 @@ export const position = z.object({
     id: z.uuid(),
     code: z.string(),
     expiresOn: z.string().nullable(),
-    condition: lotCondition,
-    /** Motivo del último cambio de estado; null si el lote nunca cambió (ADR 0012, 05-10-2026). */
-    conditionReason: z.string().nullable(),
     /** Proveedor y su lote, tal como se registraron; null si no se conocen (ADR 0012, 05-10-2026). */
     supplierName: z.string().nullable(),
     supplierLot: z.string().nullable(),
@@ -310,7 +284,7 @@ export const stockedProduct = product.extend({
   belowMinimum: z.boolean(),
 });
 export const productList = list(stockedProduct);
-export const lotList = z.object({ items: z.array(lot.extend({ condition: z.string() })) });
+export const lotList = z.object({ items: z.array(lot) });
 export const locationList = z.object({ items: z.array(location) });
 export const positionList = list(position);
 export const operationList = list(operation);
@@ -341,7 +315,7 @@ export const reagentsSummary = z.object({
 // Motivos y destinos (ADR 0012): listas del espacio; la operación guarda el texto elegido
 // ---------------------------------------------------------------------------
 
-const reasonKind = z.enum(['issue', 'adjustment', 'disposal']);
+const reasonKind = z.enum(['issue', 'adjustment']);
 export const reasonListQuery = z.object({ kind: reasonKind }).strict();
 const listEntry = z.object({ id: z.uuid(), name: z.string() });
 export const entryList = z.object({ items: z.array(listEntry) });
@@ -364,6 +338,5 @@ export type IssueResponse = z.infer<typeof issueResponse>;
 export type StockedProduct = z.infer<typeof stockedProduct>;
 export type ReceiptResponse = z.infer<typeof receiptResponse>;
 export type ListEntry = z.infer<typeof listEntry>;
-export type LotConditionResponse = z.infer<typeof lotConditionResponse>;
 export type ReasonKind = z.infer<typeof reasonKind>;
 export type OperationList = z.infer<typeof operationList>;

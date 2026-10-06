@@ -521,7 +521,7 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await capture(admin, 'desktop-adjust', false);
 });
 
-test('mínimos y estado del lote: bajo mínimo, cuarentena con motivo y descarte con baja (ADR 0012, 05-10-2026)', async ({ browser }) => {
+test('mínimos: bajo mínimo en el Resumen y el Inventario, y el Administrador lo cambia desde la ficha (ADR 0012, 05-10-2026)', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
   await openReagents(admin, 'Facultad de Ciencias');
   // «Bajo mínimo» reemplaza a «Reactivos» en el Resumen y abre el Inventario filtrado.
@@ -547,44 +547,16 @@ test('mínimos y estado del lote: bajo mínimo, cuarentena con motivo y descarte
   await expect(header).toContainText(/Mínimo\s*500\s*g/);
   await expect(header).not.toContainText('Bajo mínimo');
 
-  // Cuarentena con motivo: el frasco lo dice y deja de ofrecer la salida.
+
+  // Sin estado del lote (ADR 0012, 05-10-2026): un frasco vencido se desecha con un ajuste a cero y su motivo.
   await goTo(admin, 'Inventario');
   await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
   const expired = admin.getByRole('article').filter({ hasText: 'H2SO4-2024-08-01' });
-  await expired.getByRole('button', { name: 'Estado del lote H2SO4-2024-08' }).click();
-  const lotSheet = admin.getByRole('dialog', { name: 'Estado del lote' });
-  await lotSheet.getByRole('radio', { name: /^En cuarentena/ }).check();
-  await lotSheet.getByLabel('Motivo', { exact: true }).fill('Revisión de la etiqueta');
-  await expectAccessible(admin, 'hoja de estado del lote');
-  await capture(admin, 'desktop-lot-condition', false);
-  await lotSheet.getByRole('button', { name: 'Guardar estado' }).click();
-  await expect(lotSheet).toHaveCount(0);
-  await expect(expired).toContainText('Lote en cuarentena');
-  await expect(expired).toContainText('Motivo: Revisión de la etiqueta');
-  await expect(expired.getByRole('button', { name: 'Salida' })).toHaveCount(0);
-
-  // Descartar es definitivo: muestra lo que se dará de baja, pide motivo y confirmación.
-  await expired.getByRole('button', { name: 'Estado del lote H2SO4-2024-08' }).click();
-  await lotSheet.getByRole('radio', { name: /^Descartar/ }).check();
-  await expect(lotSheet).toContainText('Se dará de baja todo lo que queda');
-  await expect(lotSheet).toContainText('H2SO4-2024-08-01');
-  await lotSheet.getByRole('button', { name: 'Descartar lote' }).click();
-  await expect(lotSheet.getByText('Confirma que entiendes que descartar es definitivo.')).toBeVisible();
-  await pick(lotSheet, 'Vencido');
-  await lotSheet.getByRole('checkbox').check();
-  await expectAccessible(admin, 'descarte del lote');
-  await capture(admin, 'desktop-lot-discard', false);
-  await lotSheet.getByRole('button', { name: 'Descartar lote' }).click();
-  await expect(lotSheet).toHaveCount(0);
-  // El frasco quedó en cero: se oculta con los vacíos y la baja queda en Movimientos.
-  await expect(admin.getByRole('article')).toHaveCount(2);
-  await goTo(admin, 'Movimientos');
-  await admin.getByRole('button', { name: 'Bajas', exact: true }).click();
-  await expect(admin).toHaveURL(/tipo=baja/);
-  const disposal = admin.locator('main').getByRole('listitem').filter({ hasText: 'H2SO4-2024-08-01' });
-  await expect(disposal).toContainText('Baja');
-  await expect(disposal).toContainText('Vencido');
-  await expectAccessible(admin, 'movimientos de baja');
+  await expect(expired.getByRole('button', { name: /Estado del lote/ })).toHaveCount(0);
+  await expired.getByRole('button', { name: 'Ajustar' }).click();
+  const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
+  await expect(adjustment.getByRole('radio', { name: 'Vencido', exact: true })).toBeAttached();
+  await expect(adjustment.getByRole('radio', { name: 'Contaminado', exact: true })).toBeAttached();
 });
 
 test('stock insuficiente: la salida se rechaza en el formulario y el saldo no cambia', async ({ browser }) => {

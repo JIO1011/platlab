@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(82);
+select plan(69);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -76,7 +76,7 @@ set constraints all immediate;
 
 select tables_are('inventory',
   array['units', 'items', 'lots', 'positions', 'operations', 'entries', 'containers', 'reasons', 'destinations',
-        'allocations', 'lot_condition_changes'],
+        'allocations'],
   'inventory contiene las tablas de R-00 y de R-01A');
 select tables_are('reagents', array['products'], 'reagents contiene solo el detalle químico');
 
@@ -116,13 +116,12 @@ select set_eq(
 select results_eq(
   'select code from core.permissions where module_code = ''reagents'' order by code',
   array['reagents.adjustment.create', 'reagents.catalog.manage', 'reagents.catalog.read',
-        'reagents.issue.approve', 'reagents.issue.create', 'reagents.lot.manage', 'reagents.receipt.create'],
+        'reagents.issue.approve', 'reagents.issue.create', 'reagents.receipt.create'],
   'los permisos de Reactivos están en el catálogo');
 
 select ok(
-  exists (select 1 from core.role_permissions where role_code = 'admin' and permission_code = 'reagents.issue.approve')
-  and exists (select 1 from core.role_permissions where role_code = 'admin' and permission_code = 'reagents.lot.manage'),
-  'aprobar salidas y cambiar el estado del lote es del Administrador (ADR 0012)');
+  exists (select 1 from core.role_permissions where role_code = 'admin' and permission_code = 'reagents.issue.approve'),
+  'aprobar salidas es del Administrador (ADR 0012)');
 
 select set_eq(
   'select permission_code from core.role_permissions where role_code = ''operator''',
@@ -450,7 +449,7 @@ select throws_ok(
   $$ update inventory.positions set reserved = balance + 1 where id = 'a8000000-0000-4000-8000-000000000001' $$,
   '23514', null, 'el runtime no aparta más que el saldo');
 
--- R-01A, entrega 3 (ADR 0012, 05-10-2026): mínimo y estado del lote bajo el rol real.
+-- R-01A, entrega 3 (ADR 0012, 05-10-2026): mínimo bajo el rol real; el lote no tiene estado propio.
 select lives_ok(
   $$ update inventory.items set minimum_quantity = 50 where id = 'a6000000-0000-4000-8000-000000000001' $$,
   'el runtime fija el mínimo de un reactivo');
@@ -463,95 +462,10 @@ select throws_ok(
   $$ update inventory.items set name = 'Otro nombre' where id = 'a6000000-0000-4000-8000-000000000001' $$,
   '42501', null, 'del ítem, el runtime solo cambia el mínimo');
 
-select throws_ok(
-  $$ update inventory.lots set condition = 'quarantine' where id = 'a7000000-0000-4000-8000-000000000001' $$,
-  '23514', null, 'el estado del lote no cambia sin su registro con motivo');
-
-select throws_ok(
-  $$ insert into inventory.lot_condition_changes (workspace_id, lot_id, from_condition, to_condition, reason, actor_principal_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'a7000000-0000-4000-8000-000000000001', 'enabled', 'quarantine',
-             'En nombre de otra persona', 'a2000000-0000-4000-8000-000000000002') $$,
-  '42501', null, 'nadie registra un cambio de estado en nombre de otro');
-
-select lives_ok(
-  $$ insert into inventory.lot_condition_changes (workspace_id, lot_id, from_condition, to_condition, reason, actor_principal_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'a7000000-0000-4000-8000-000000000001', 'enabled', 'quarantine',
-             'Sospecha de contaminación', 'a2000000-0000-4000-8000-000000000001') $$,
-  'el runtime registra el cambio de estado con motivo');
-
-select lives_ok(
-  $$ update inventory.lots set condition = 'quarantine' where id = 'a7000000-0000-4000-8000-000000000001' $$,
-  'con su registro, el lote pasa a cuarentena');
-
-select throws_ok(
-  $$ update inventory.lot_condition_changes set reason = 'Otro motivo' $$,
-  '42501', null, 'el historial del estado del lote no se edita');
-
-select throws_ok(
-  $$ delete from inventory.lot_condition_changes $$,
-  '42501', null, 'el historial del estado del lote no se borra');
-
-select throws_ok(
-  $$ insert into inventory.operations (workspace_id, type, actor_principal_id, correlation_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'disposal', 'a2000000-0000-4000-8000-000000000001',
-             'ae000000-0000-4000-8000-000000000001') $$,
-  '23514', null, 'una baja exige motivo');
-
-select throws_ok(
-  $$ insert into inventory.lot_condition_changes (workspace_id, lot_id, from_condition, to_condition, reason, actor_principal_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'a7000000-0000-4000-8000-000000000001', 'quarantine', 'discarded',
-             'Contaminado', 'a2000000-0000-4000-8000-000000000001');
-     update inventory.lots set condition = 'discarded' where id = 'a7000000-0000-4000-8000-000000000001' $$,
-  '23514', null, 'un lote no queda descartado con saldo');
-
-select lives_ok(
-  $$ insert into inventory.operations (workspace_id, type, actor_principal_id, reason, correlation_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'disposal',
-             'a2000000-0000-4000-8000-000000000001', 'Contaminado', 'ae000000-0000-4000-8000-000000000002') $$,
-  'el runtime registra una baja con motivo');
-
-select throws_ok(
-  $$ insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
-     values ('a0000000-0000-4000-8000-00000000000a', (select id from inventory.operations where correlation_id = 'ae000000-0000-4000-8000-000000000002'),
-             'a8000000-0000-4000-8000-000000000001', 1, 1, 'g', 101) $$,
-  '23514', null, 'una baja no suma existencias');
-
-select lives_ok(
-  $$ with moved as (
-       update inventory.positions set balance = 0
-        where id = 'a8000000-0000-4000-8000-000000000001' returning id, balance)
-     insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
-     select 'a0000000-0000-4000-8000-00000000000a', (select id from inventory.operations where correlation_id = 'ae000000-0000-4000-8000-000000000002'), id, -100, -100, 'g', balance
-       from moved;
-     insert into inventory.lot_condition_changes
-       (workspace_id, lot_id, from_condition, to_condition, reason, actor_principal_id, operation_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'a7000000-0000-4000-8000-000000000001', 'quarantine', 'discarded',
-             'Contaminado', 'a2000000-0000-4000-8000-000000000001', (select id from inventory.operations where correlation_id = 'ae000000-0000-4000-8000-000000000002'));
-     update inventory.lots set condition = 'discarded' where id = 'a7000000-0000-4000-8000-000000000001' $$,
-  'la baja lleva el lote a cero y el lote queda descartado');
-
-select throws_ok(
-  $$ update inventory.lots set condition = 'enabled' where id = 'a7000000-0000-4000-8000-000000000001' $$,
-  '23514', null, 'un lote descartado no cambia de estado');
-
-select throws_ok(
-  $$ insert into inventory.lot_condition_changes (workspace_id, lot_id, from_condition, to_condition, reason, actor_principal_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'a7000000-0000-4000-8000-000000000001', 'discarded', 'enabled',
-             'Volver', 'a2000000-0000-4000-8000-000000000001') $$,
-  '23514', null, 'del estado descartado no se sale');
-
-select throws_ok(
-  $$ insert into inventory.operations (workspace_id, type, actor_principal_id, correlation_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'receipt', 'a2000000-0000-4000-8000-000000000001',
-             'ae000000-0000-4000-8000-000000000003');
-     with moved as (
-       update inventory.positions set balance = 1
-        where id = 'a8000000-0000-4000-8000-000000000001' returning id, balance)
-     insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
-     select 'a0000000-0000-4000-8000-00000000000a',
-            (select id from inventory.operations where correlation_id = 'ae000000-0000-4000-8000-000000000003'),
-            moved.id, 1, 1, 'g', moved.balance from moved $$,
-  '23514', null, 'un lote descartado no recibe existencias');
+select is(
+  (select count(*)::int from information_schema.columns
+    where table_schema = 'inventory' and table_name = 'lots' and column_name = 'condition'),
+  0, 'el lote no tiene estado propio: cada frasco se gestiona por separado (ADR 0012, 05-10-2026)');
 
 reset role;
 

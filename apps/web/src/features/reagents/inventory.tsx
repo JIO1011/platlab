@@ -18,8 +18,6 @@ import {
   Plus,
   Scale,
   Search,
-  Shield,
-  ShieldAlert,
   TrendingDown,
   Wind,
   type LucideIcon,
@@ -306,13 +304,6 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
   );
 }
 
-const conditionLabel: Record<Position['lot']['condition'], { text: string; tone: 'warning' | 'danger' } | null> = {
-  enabled: null,
-  quarantine: { text: 'Lote en cuarentena', tone: 'warning' },
-  blocked: { text: 'Lote bloqueado', tone: 'danger' },
-  discarded: { text: 'Lote descartado', tone: 'danger' },
-};
-
 /** Caducidad con texto, nunca solo con color: vencido, fecha o «sin confirmar» (01 §6.1). */
 function ExpiryBadge({ expiresOn, today }: { expiresOn: string | null; today: string }) {
   const icon = <Calendar className="size-3" aria-hidden />;
@@ -372,10 +363,7 @@ function ContainerCard({
   const available = availableOf(position);
   // Con saldo pero menos del 1 %, se dice y se ve: un frasco casi vacío no es un frasco vacío.
   const percentText = percent === 0 && !empty ? '<1 %' : `${percent ?? 0} %`;
-  const condition = conditionLabel[position.lot.condition];
-  // En cuarentena, bloqueado o descartado no hay salidas (ADR 0012): la tarjeta no las ofrece.
-  const canIssue = allowed.issue && available !== '0' && position.lot.condition === 'enabled';
-  const canChangeLot = allowed.lot && position.lot.condition !== 'discarded';
+  const canIssue = allowed.issue && available !== '0';
   const { supplierName, supplierLot } = position.lot;
   const soon = expiresOn !== null && !expired && expiresOn <= addDays(today, 30);
   return (
@@ -413,11 +401,6 @@ function ContainerCard({
           <h3 className="whitespace-nowrap text-lg font-bold tabular-nums leading-tight text-ink">
             {position.container?.code ?? position.lot.code}
           </h3>
-          {condition ? (
-            <Badge tone={condition.tone} className="mt-1.5 text-[12px]">
-              {condition.text}
-            </Badge>
-          ) : null}
         </div>
         <p className="ml-auto shrink-0 text-right">
           <span
@@ -451,12 +434,6 @@ function ContainerCard({
           </p>
         </div>
       ) : null}
-      {/* Por qué el lote no está habilitado: el motivo que dio el Administrador al cambiarlo. */}
-      {condition && position.lot.conditionReason ? (
-        <p className="-mt-1 line-clamp-2 text-[13px] text-ink-muted" title={position.lot.conditionReason}>
-          <span className="font-medium text-ink">Motivo:</span> {position.lot.conditionReason}
-        </p>
-      ) : null}
       {/* El lote interno ya es el prefijo del código del frasco: no se repite en un recuadro. Dos
           columnas; si los recuadros son impares, el último ocupa la fila para no dejar un hueco. */}
       <div className="grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2">
@@ -478,7 +455,7 @@ function ContainerCard({
           </>
         ) : null}
       </div>
-      {canIssue || allowed.adjustment || canChangeLot ? (
+      {canIssue || allowed.adjustment ? (
         <div className="mt-auto flex gap-2 border-t border-line pt-3">
           {canIssue ? (
             // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
@@ -502,17 +479,6 @@ function ContainerCard({
               onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}
             >
               <Scale aria-hidden />
-            </Button>
-          ) : null}
-          {canChangeLot ? (
-            <Button
-              size="sm"
-              aria-label={`Estado del lote ${position.lot.code}`}
-              title="Estado del lote: cuarentena, bloqueo o descarte"
-              className={cn('h-10 px-3 text-ink-muted hover:bg-surface-sunken hover:text-ink', !canIssue && 'ml-auto')}
-              onClick={() => onAction({ kind: 'lot', productId: position.product.id, lotId: position.lot.id })}
-            >
-              {condition ? <ShieldAlert aria-hidden /> : <Shield aria-hidden />}
             </Button>
           ) : null}
         </div>

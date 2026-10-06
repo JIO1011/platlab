@@ -16,7 +16,7 @@ SELECT
   r.physical_state,
   trim_scale(i.minimum_quantity) AS minimum,
   stock.balance AS "balance!",
-  -- Bajo mínimo (ADR 0012, 05-10-2026): existencia física, con vencidos, cuarentena y lo apartado.
+  -- Bajo mínimo (ADR 0012, 05-10-2026): existencia física, con los vencidos y lo apartado.
   (i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity) AS "below_minimum!",
   (SELECT count(*)
      FROM inventory.positions AS p
@@ -100,7 +100,7 @@ SELECT
 
 /* @name listProductLots */
 -- Lotes de un reactivo del espacio, para elegirlos al registrar un ingreso.
-SELECT l.id, l.item_id, l.code, l.supplier_name, l.supplier_lot, l.expires_on, l.condition
+SELECT l.id, l.item_id, l.code, l.supplier_name, l.supplier_lot, l.expires_on
 FROM inventory.lots AS l
 JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
 WHERE l.workspace_id = :workspaceId!

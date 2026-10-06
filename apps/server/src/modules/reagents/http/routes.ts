@@ -10,10 +10,7 @@ import {
   issueRequestParams,
   rejectIssueRequest,
   createProductRequest,
-  discardLotRequest,
   issueRequest,
-  lotConditionRequest,
-  lotParams,
   operationListQuery,
   positionListQuery,
   productListQuery,
@@ -34,12 +31,10 @@ import {
   createLot,
   createProduct,
   createReason,
-  discardProductLot,
   rejectRequest,
   registerAdjustment,
   registerIssue,
   registerReceipt,
-  setLotCondition,
   setProductMinimum,
   type CommandRequest,
 } from '../application/commands.js';
@@ -87,7 +82,7 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
       getProduct(pool, queryRequest(request), productParams.parse(request.params).productId),
     );
 
-    // Mínimo y estado del lote (ADR 0012, 05-10-2026): los decide el Administrador.
+    // Mínimo (ADR 0012, 05-10-2026): lo fija el Administrador.
     app.put('/products/:productId/minimum', async (request) =>
       setProductMinimum(
         pool,
@@ -96,21 +91,6 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
         setMinimumRequest.parse(request.body).minimum,
       ),
     );
-
-    app.post('/lots/:lotId/condition', async (request) =>
-      setLotCondition(pool, commandRequest(request), lotParams.parse(request.params).lotId, lotConditionRequest.parse(request.body)),
-    );
-
-    // Descartar crea una baja cuando el lote tiene saldo (201); sin saldo, solo cambia su estado.
-    app.post('/lots/:lotId/discard', async (request, reply) => {
-      const result = await discardProductLot(
-        pool,
-        commandRequest(request),
-        lotParams.parse(request.params).lotId,
-        discardLotRequest.parse(request.body).reason,
-      );
-      return reply.status(result.operationId ? 201 : 200).send(result);
-    });
 
     app.get('/products/:productId/lots', async (request) =>
       listLots(pool, queryRequest(request), productParams.parse(request.params).productId),

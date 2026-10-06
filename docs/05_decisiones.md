@@ -287,7 +287,7 @@ Decidido por el usuario el 02-10-2026, tomando ReactiLab como referencia de UX:
 - **Sugerencia FEFO.** La salida propone el frasco utilizable que vence antes, nunca el de menor cantidad.
 - **Motivos y destinos.** Son listas del espacio que administra el Administrador. La operación guarda el texto elegido, así que un cambio en la lista no altera la historia. Se archivan, nunca se borran.
 - **Salida rápida.** Atajos de cantidad (25 %, 50 % y todo el frasco) y la vista de lo que quedará.
-- **Orden.** R-01A (todo lo anterior, más caducidad, mínimos, estado del lote, traslados y conteo, sin dependencias externas) va antes de T-07. R-01B (SDS privada, avisos por correo y exportación) va después ([roadmap](04_roadmap.md)).
+- **Orden.** R-01A (todo lo anterior, más caducidad, mínimos, traslados y conteo, sin dependencias externas) va antes de T-07. R-01B (SDS privada, avisos por correo y exportación) va después ([roadmap](04_roadmap.md)).
 
 Motivo: el laboratorio ya trabaja por frasco con ReactiLab. El QR y el % restante por frasco, y el control de las salidas, son parte de su práctica. Se construye en la capacidad inventario para que Materiales lo herede.
 
@@ -300,7 +300,7 @@ Cambio del 05-10-2026, decidido por el usuario, sobre el Resumen y la caducidad:
 - **Acción rápida en banda compacta**, debajo de los indicadores. Conserva el degradado del ADR 0010 sin empujar los datos hacia abajo.
 - **El Resumen cabe en una ventana** en escritorio desde 1280 × 720. Debajo de los indicadores hay dos columnas: a la izquierda, la acción rápida y el gráfico, que crece con el alto disponible; a la derecha, la actividad reciente, a la misma altura que la acción rápida y con desplazamiento propio. En pantallas más bajas o más estrechas, el contenido fluye y la página se desplaza: entre 1024 y 1279 px de ancho hay dos columnas de igual ancho, y en el móvil, una.
 - **Vencido y por vencer.** Vencido: la caducidad del lote es anterior a hoy, en la zona del espacio. Por vencer: caduca entre hoy y los próximos 30 días ([02 §12](02_arquitectura.md#12-parámetros-iniciales)). Solo cuentan frascos con saldo, en las ubicaciones que el miembro puede consultar. Cada tarjeta del inventario dice sus vencidos y por vencer con texto, y el inventario filtra por ellos.
-- Resuelve el plazo de «por vencer» de la entrega 3 de R-01A. Quedan los mínimos y el estado del lote.
+- Resuelve el plazo de «por vencer» de la entrega 3 de R-01A. Quedan los mínimos.
 - **Ficha del reactivo (segundo nivel) con más datos por frasco**, decidido el 05-10-2026 tomando la tarjeta de frasco de ReactiLab (solo su aspecto).
   - Cada frasco muestra proveedor, ubicación y caducidad; código y saldo grandes; la barra de lo que queda con la cantidad inicial; y recuadros con el lote, el lote del proveedor, la fecha de ingreso y, si hay solicitudes pendientes, lo apartado y lo disponible.
   - Para eso, la lista de frascos (`/positions`) añade `lot.supplierName`, `lot.supplierLot` y `container.receivedAt`. Son datos que ya existen (03 §1); no cambia ninguna regla ni permiso.
@@ -314,14 +314,14 @@ Cambio del 05-10-2026, decidido por el usuario, sobre el Resumen y la caducidad:
   - Sigue sin editar, borrar ni «deshacer»: un error se corrige con un ajuste.
   - Sin tabla, `@tanstack/react-table` sale de las dependencias de la web (nadie la usaba). Vuelve, como indica el ADR 0010, cuando una pantalla necesite una tabla de verdad (ordenar, columnas); `Table` de `packages/ui` se conserva.
 
-Cambio del 05-10-2026, decidido por el usuario: **mínimos y estado del lote** (entrega 3 de R-01A).
+Cambio del 05-10-2026, decidido por el usuario: **mínimos** (entrega 3 de R-01A).
 - **Mínimo por reactivo, para todo el espacio**, en su unidad base y opcional. Lo fija el Administrador al crear el reactivo o desde su ficha (`reagents.catalog.manage`).
-- **Bajo mínimo:** la existencia física del reactivo (todos sus frascos con saldo, incluidos los vencidos, los de lotes en cuarentena o bloqueados y lo apartado) es menor que su mínimo. Un reactivo con mínimo y sin existencias está bajo mínimo.
+- **Bajo mínimo:** la existencia física del reactivo (todos sus frascos con saldo, incluidos los vencidos y lo apartado) es menor que su mínimo. Un reactivo con mínimo y sin existencias está bajo mínimo.
 - **En el Resumen, «Bajo mínimo» reemplaza a «Reactivos»**: los cuatro indicadores son de urgencia, y el total de reactivos y frascos pasa a texto pequeño dentro de esa tarjeta. El inventario marca cada reactivo bajo mínimo con texto y filtra por ellos (`?minimo=bajo`).
-- **Estado del lote:** el Administrador lo cambia entre habilitado, cuarentena y bloqueado, siempre con motivo (permiso nuevo `reagents.lot.manage`). Cada cambio queda en un historial que no se edita. En cuarentena o bloqueado no se registran salidas ni se aprueban solicitudes (las pendientes se pueden rechazar); ingresos y ajustes siguen permitidos.
-- **Descartar un lote es definitivo:** registra una operación de baja (tipo nuevo `disposal`) que lleva a cero todos sus frascos, con un motivo de la lista de bajas del laboratorio. Si hay salidas pendientes sobre el lote, primero se rechazan: nada se cancela en silencio. Un lote descartado no recibe ingresos ni cambia más de estado.
-- En Movimientos, la baja se ve como «Baja» y tiene su filtro.
-- La disposición por posición (cuarentena de un solo frasco) llega con retornos y custodia; hoy el estado es del lote.
+- **Sin estado del lote**, decidido el mismo día tras probarlo: no se necesita y agrega lógica. Se gestiona cada frasco por separado.
+  - El lote queda solo como dato: código, proveedor, lote del proveedor y caducidad. Sale el campo de condición de R-00 (habilitado, cuarentena, bloqueado, descartado) con sus comprobaciones, y no hay cuarentena, bloqueo ni descarte de lote.
+  - Un frasco vencido, contaminado o roto se desecha con «Ajustar» a cero y un motivo de la lista («Vencido», «Contaminado»). Queda en el historial como ajuste, con su responsable. No hay un tipo de movimiento «baja».
+  - La disposición por posición (cuarentena de un retorno) sigue en el diseño para custodia y retornos ([03 §4](03_datos.md#4-inventario-y-reactivos)).
 
 ## Pendientes
 

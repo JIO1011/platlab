@@ -14,7 +14,7 @@ import type { InventoryContext } from './context.js';
  * contexto decide cuál, así que compartir la capacidad nunca comparte derechos (02 §4). Son
  * ayudas para elegir: la operación guarda el texto elegido y archivar nunca cambia la historia.
  */
-export type ReasonKind = 'issue' | 'adjustment' | 'disposal';
+export type ReasonKind = 'issue' | 'adjustment';
 
 export interface ListEntry {
   id: string;

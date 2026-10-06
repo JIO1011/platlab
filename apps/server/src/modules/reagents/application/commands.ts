@@ -10,8 +10,6 @@ import type {
   IssueResponse,
   ListEntry,
   Lot,
-  LotConditionResponse,
-  lotConditionRequest,
   MovementResponse,
   Product,
   receiptRequest,
@@ -22,9 +20,7 @@ import {
   addReason,
   applyMovement,
   approveIssueRequest,
-  changeLotCondition,
   createItem,
-  discardLot,
   createLot as createInventoryLot,
   lockExistingPosition,
   receiveContainers,
@@ -170,50 +166,6 @@ export function setProductMinimum(
       return { productId, minimum: stored };
     },
   );
-}
-
-const LOTS = 'reagents.lot.manage';
-
-/** Habilita, pone en cuarentena o bloquea un lote, con motivo (Administrador, ADR 0012). */
-export function setLotCondition(
-  pool: pg.Pool,
-  request: CommandRequest,
-  lotId: string,
-  input: z.infer<typeof lotConditionRequest>,
-): Promise<LotConditionResponse> {
-  return runCommand(pool, request, 'reagents.lot.condition', { lotId, ...input }, (access) => requireWorkspacePermission(access, LOTS), async (access) => {
-    const result = await changeLotCondition(inventoryContext(access), lotId, input);
-    await recordAudit(access, {
-      action: 'reagents.lot.condition',
-      entityType: 'inventory.lot',
-      entityId: lotId,
-      reason: input.reason,
-      changes: { condition: result.condition },
-    });
-    return result;
-  });
-}
-
-/** Descarta un lote: baja de todo su saldo, definitiva (Administrador, ADR 0012, 05-10-2026). */
-export function discardProductLot(
-  pool: pg.Pool,
-  request: CommandRequest,
-  lotId: string,
-  reason: string,
-): Promise<LotConditionResponse> {
-  return runCommand(pool, request, 'reagents.lot.discard', { lotId, reason }, (access) => requireWorkspacePermission(access, LOTS), async (access) => {
-    const result = await discardLot(inventoryContext(access), lotId, reason, (locationId) =>
-      requirePermissionAt(access, LOTS, locationId),
-    );
-    await recordAudit(access, {
-      action: 'reagents.lot.discard',
-      entityType: 'inventory.lot',
-      entityId: lotId,
-      reason,
-      changes: { condition: result.condition, operationId: result.operationId, containers: result.containers },
-    });
-    return result;
-  });
 }
 
 /** Crea un lote del producto; caducidad y lote del proveedor pueden quedar desconocidos. */

@@ -12,7 +12,6 @@ export {
   retireDestination,
   retireReason,
 } from './application/lists.js';
-export { changeLotCondition, discardLot } from './application/lots.js';
 export { applyMovement, lockExistingPosition, receiveContainers } from './application/movements.js';
 export { countOperationsPerDay, listOperationPage, listPositionPage } from './application/queries.js';
 export {

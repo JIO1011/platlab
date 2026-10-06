@@ -84,7 +84,7 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 
 - Reactivos:
   - Importación y conciliación.
-  - Ajuste y conteo; cuarentena, caducidad y mínimos.
+  - Ajuste y conteo; caducidad y mínimos.
   - Motivos y destinos; SDS privada; traslados.
   - Envases, si el cliente los exige.
   - Preparaciones, si REG-01 confirma que el laboratorio almacena soluciones.
@@ -162,7 +162,7 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | O-01 | Consola del Equipo PlatLab | Aplicación separada, MFA en la API, contratos, derechos y límites auditados; los cambios de estado respetan el orden de bloqueo de la admisión | T-04, T-05, T-03B |
 | Q-01 | Cuotas y control de abuso | Reservas exactas en PostgreSQL, límites HTTP en memoria y reparto de trabajos | T-04, T-07 |
 | DP-01 | Datos reales y salida | Acuerdos, proveedores y procedimientos revisados; retención por repositorio | T-00 |
-| R-01A | Reactivos por frasco ([ADR 0012](05_decisiones.md#adr-0012)) | Frascos con código y QR; ficha en dos niveles; salida con atajos, FEFO y advertencia de vencido; motivos y destinos; salidas del Operador con aprobación y reserva; caducidad, mínimos y estado del lote; traslados y conteo. Todo en la capacidad inventario y probado con datos sintéticos | R-00 |
+| R-01A | Reactivos por frasco ([ADR 0012](05_decisiones.md#adr-0012)) | Frascos con código y QR; ficha en dos niveles; salida con atajos, FEFO y advertencia de vencido; motivos y destinos; salidas del Operador con aprobación y reserva; caducidad y mínimos; traslados y conteo. Todo en la capacidad inventario y probado con datos sintéticos | R-00 |
 | R-01B | Reactivos para el piloto | SDS privada, avisos por correo (aprobaciones, bajo mínimo, por vencer) y exportación; ajustes que exija el alcance pactado | R-01A, T-07, P-02 |
 | REG-02 | Trazabilidad y reporte fiscalizado | Perfil implementado, custodia y retorno si aplica, periodo conciliado y exportación revisada | REG-01, R-01A, T-07 |
 | E-01 | Equipos e incidencias | Tipos de equipo, activos, condición, traslados e historial; `incidents` separado de Core | T-04, T-05, T-07, P-02 |

@@ -320,7 +320,8 @@ select w.id, 'reagent', r.kind, r.name
    ('issue', 'Práctica de Química General'), ('issue', 'Práctica de Análisis Químico'),
    ('issue', 'Preparación de soluciones'), ('issue', 'Proyecto de titulación'),
    ('adjustment', 'Conteo mensual'), ('adjustment', 'Derrame'), ('adjustment', 'Error de registro'),
-   ('disposal', 'Vencido'), ('disposal', 'Contaminado'), ('disposal', 'Envase dañado')
+   -- Desechar un frasco es un ajuste a cero con motivo (ADR 0012, 05-10-2026).
+   ('adjustment', 'Vencido'), ('adjustment', 'Contaminado')
  ) as r (kind, name);
 
 -- Mínimos (ADR 0012, 05-10-2026): la Acetona, sin existencias, y el Hidróxido de sodio quedan bajo

@@ -40,7 +40,7 @@ M1 es obligatorio. Cada módulo se contrata por espacio y funciona con sus depen
 | Módulo | Qué resuelve | Operaciones principales | Requiere | Se construye en |
 |---|---|---|---|---|
 | M1 Núcleo | Espacio, personas y control | Miembros, invitaciones, roles, ubicaciones, suscripción, documentos, auditoría y avisos | — | F1a |
-| M2 Reactivos | Qué hay, dónde y en qué estado | Catálogo químico (CAS, concentración, peligros, SDS), lotes, ingresos, salidas, ajustes, traslados, cuarentena y bajas; custodia y retorno; caducidad y mínimos; fiscalizados y su reporte | M1 | R-00 en F1a; F2 |
+| M2 Reactivos | Qué hay, dónde y en qué estado | Catálogo químico (CAS, concentración, peligros, SDS), lotes, ingresos, salidas, ajustes, traslados y bajas (ajuste a cero con motivo); custodia y retorno; caducidad y mínimos; fiscalizados y su reporte | M1 | R-00 en F1a; F2 |
 | M3 Equipos | Activos y su condición | Tipos de equipo; ficha (marca, modelo, serie, ubicación, responsable, documentos), condición, traslado trazado, custodia, incidencias e historial | M1 | F2 |
 | M4 Laboratorios | Espacios físicos y agenda | Capacidad, responsable, horarios y cierres; reservas directas sin conflictos; tiempos de preparación y limpieza | M1 | F3 |
 | M5 Prácticas y Solicitudes | Operación central integrada | Plantillas, solicitudes de docencia e investigación, revisión, aprobación condicionada, preparación, ejecución, cierre e impresión | M1 + M4 | F3 |
@@ -140,7 +140,7 @@ La lista exacta de permisos vive en el manifiesto de cada módulo ([02 §4](02_a
 | Salida (descarga) | Operador | Resta de un frasco, con motivo y destino de las listas del laboratorio. La del Operador queda pendiente y aparta la cantidad hasta que el Administrador la aprueba; la del Administrador o del Propietario es directa. Se rechaza si no alcanza, y un frasco vencido se puede usar con advertencia ([ADR 0012](05_decisiones.md#adr-0012)) |
 | Ajuste | Administrador | Corrige un conteo con motivo; el saldo nunca se edita |
 | Traslado | Operador | Origen → tránsito → destino, con recepción y diferencias |
-| Cuarentena, bloqueo o baja | Administrador | Aísla o retira un lote o una posición con motivo |
+| Baja de un frasco | Administrador | Ajuste a cero con motivo («Vencido», «Contaminado»); el lote no tiene estado propio ([ADR 0012](05_decisiones.md#adr-0012)) |
 | Entrega a custodia y retorno | Operador | Lo entregado sigue en la existencia institucional; el retorno queda segregado hasta verificarlo |
 | Preparación de soluciones | Operador | Si la solución se guarda, consume los insumos y crea un lote del producto preparado con su trazabilidad. Si se usa de inmediato, solo registra el consumo |
 

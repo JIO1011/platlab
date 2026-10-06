@@ -21,7 +21,6 @@ import {
   Eye,
   FlaskConical,
   History,
-  PackageX,
   Plus,
   RefreshCw,
   Scale,
@@ -46,7 +45,7 @@ import { QueryErrorState } from '../../app/states';
 import { TrendChart } from '../../app/trend-chart';
 import { useReagents, type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { purposeOf } from './operation-text';
-import { AdjustmentSheet, IssueSheet, LotSheet, MinimumSheet, NewProductSheet, ReceiptSheet } from './sheets';
+import { AdjustmentSheet, IssueSheet, MinimumSheet, NewProductSheet, ReceiptSheet } from './sheets';
 
 export { ReagentsInventoryPage, ReagentsProductPage } from './inventory';
 export { ReagentsRequestsPage } from './requests';
@@ -77,7 +76,7 @@ function useNow(intervalMs: number): number {
  * Filtro del historial en la URL, para que la cifra del Resumen abra exactamente su lista:
  * `?tipo=salida&dias=30` son las salidas de los últimos 30 días, la misma ventana del gráfico.
  */
-const typeParams = { ingreso: 'receipt', salida: 'issue', ajuste: 'adjustment', baja: 'disposal' } as const;
+const typeParams = { ingreso: 'receipt', salida: 'issue', ajuste: 'adjustment' } as const;
 
 function readOperationFilter(params: URLSearchParams): OperationFilter {
   const type = typeParams[params.get('tipo') as keyof typeof typeParams] as OperationFilter['type'];
@@ -113,7 +112,6 @@ export function ReagentsLayout() {
     adjustment: can('reagents.adjustment.create'),
     lists: can('reagents.catalog.manage'),
     approve: can('reagents.issue.approve'),
-    lot: can('reagents.lot.manage'),
   };
   const canResolve = module?.access.includes('resolve_pending') ?? false;
 
@@ -280,16 +278,6 @@ export function ReagentsLayout() {
           key={current.id}
           {...sheetProps('minimum')}
           product={productList.find((entry) => entry.id === (current.request.kind === 'minimum' ? current.request.productId : ''))}
-        />
-      ) : null}
-      {current?.request.kind === 'lot' ? (
-        <LotSheet
-          key={current.id}
-          {...sheetProps('lot')}
-          productId={current.request.productId}
-          lotId={current.request.lotId}
-          canManageLists={allowed.lists}
-          requestsHref={`${base}/solicitudes`}
         />
       ) : null}
       {current?.request.kind === 'adjustment' ? (
@@ -560,7 +548,6 @@ const typeFilters = [
   { value: 'receipt', param: 'ingreso', label: 'Ingresos' },
   { value: 'issue', param: 'salida', label: 'Salidas' },
   { value: 'adjustment', param: 'ajuste', label: 'Ajustes' },
-  { value: 'disposal', param: 'baja', label: 'Bajas' },
 ] as const;
 
 const periodFilters = [
@@ -706,7 +693,6 @@ const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }
   receipt: { label: 'Ingreso', icon: ArrowDownToLine },
   issue: { label: 'Salida', icon: ArrowUpFromLine },
   adjustment: { label: 'Ajuste', icon: Scale },
-  disposal: { label: 'Baja', icon: PackageX },
 };
 
 /** Historial por días: cada día una tarjeta, cada fila un asiento que abre la ficha del reactivo. */

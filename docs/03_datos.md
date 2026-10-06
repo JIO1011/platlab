@@ -94,13 +94,12 @@ Reglas:
 |---|---|
 | `inventory.items` | Código, nombre, `kind`, unidad base, mínimo opcional (en la unidad base), modo de seguimiento y archivado |
 | `reagents.products` | Extensión 1:1 del item: CAS opcional, concentración, pureza, estado físico, peligros y SDS |
-| `inventory.lots` | Item (FK compuesta), proveedor y referencia, recepción, caducidad (puede ser desconocida) y condición |
-| `inventory.lot_condition_changes` | Historial del estado del lote: anterior y nuevo, motivo, actor y, al descartar, la operación de baja. No se edita ([ADR 0012](05_decisiones.md#adr-0012)) |
+| `inventory.lots` | Item (FK compuesta), proveedor y referencia, recepción y caducidad (puede ser desconocida). Sin estado propio: cada frasco se gestiona por separado ([ADR 0012](05_decisiones.md#adr-0012), 05-10-2026) |
 | `inventory.containers` | Envase identificable (frasco): código, lote y cantidad inicial. En Reactivos, cada ingreso registra sus frascos ([ADR 0012](05_decisiones.md#adr-0012)); la apertura y la caducidad tras abrir, cuando el proceso lo exija |
 | `inventory.positions` | Item, lote, envase y retorno opcionales, ubicación, disposición, saldo, reservado y versión |
 | `inventory.operations` | Cabecera del movimiento: tipo, actor, motivo, fecha, correlación y referencia |
 | `inventory.entries` | Asientos inmutables con signo por posición |
-| `inventory.reasons`, `destinations` | Listas de motivos (salida, ajuste, baja) y destinos que administra el laboratorio; desde R-01 |
+| `inventory.reasons`, `destinations` | Listas de motivos (salida y ajuste; desechar un frasco es un ajuste con motivo) y destinos que administra el laboratorio; desde R-01 |
 | `inventory.preparation_inputs` | Preparación: lote resultante y asientos de los insumos consumidos |
 | `inventory.custodies`, `custody_lines` | Entrega a un responsable y su conciliación |
 | `inventory.return_batches` | Retorno segregado hasta verificarlo o disponerlo |
@@ -115,9 +114,8 @@ Reglas:
   - Existencia institucional: saldos físicos, incluidas custodia y tránsito.
   - Disponible: lo utilizable en lotes elegibles menos las reservas.
   - Consumo: solo un movimiento real confirmado.
-- **Condición del lote:** habilitado, cuarentena, bloqueado o descartado. Cambia solo con motivo. Descartar es definitivo y da de baja todo el saldo del lote en una operación `disposal`; no procede con salidas pendientes sobre el lote.
 - **Bajo mínimo:** la existencia física del reactivo es menor que su mínimo ([ADR 0012](05_decisiones.md#adr-0012)).
-- **Disposición de la posición:** utilizable, cuarentena o restringida. Siempre prevalece la restricción más fuerte.
+- **Disposición de la posición:** utilizable, cuarentena o restringida; solo una posición utilizable admite salidas.
 - **Retornos:** van a cuarentena hasta verificarse. Un sobrante manipulado nunca se suma al lote original.
 - **Conteos:** si el conteo queda por debajo de lo reservado, se registra la discrepancia y se resuelven los compromisos antes de ajustar.
 - **Solicitudes de salida** ([ADR 0012](05_decisiones.md#adr-0012)):
