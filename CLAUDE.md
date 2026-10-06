@@ -133,6 +133,7 @@ Decidido el 05-10-2026:
 - Los espacios no comparten nada, aunque sean del mismo titular. Una vista consolidada para el titular queda pendiente para F0 y REG-01.
 - Los roles valen para todo el espacio, no por laboratorio: el Operador accede a todo Reactivos y la ubicación solo dice dónde está cada frasco. El ámbito técnico (`location_id`) queda nulo hasta retirarse (ADR 0008).
 - Entrega 3 de R-01A: un mínimo por reactivo para todo el espacio; «bajo mínimo» compara la existencia física (con vencidos y lo apartado) y reemplaza a «Reactivos» en el Resumen. El lote no tiene estado: cada frasco se gestiona por separado y se desecha con «Ajustar» a cero y motivo (ADR 0012).
+- Entrega 4 de R-01A, en su versión simple: traslado de un frasco entero en un paso (`transfer`, Operador y Administrador), conteo por ubicación que ajusta solo lo que no cuadra con motivo «Conteo», y etiqueta de 3 × 8 por hoja A4 con un QR que abre el frasco por un enlace corto (`/q/`) (ADR 0012).
 
 El modelo comercial sigue pendiente: la recomendación está en 01 §4 y debe confirmarla el usuario.
 
