@@ -1,6 +1,6 @@
 # PlatLab — hilo del proyecto
 
-Revisión: 2 de octubre de 2026. Estado: primer incremento cerrado; G0 de Reactivos superada y el módulo en etapa `pilot` (V-00). Sin infraestructura desplegada ni datos reales.
+Revisión: 7 de octubre de 2026. Estado: primer incremento cerrado; G0 de Reactivos superada y el módulo en etapa `pilot` (V-00). Sin infraestructura desplegada ni datos reales.
 
 ## Qué es
 
@@ -23,15 +23,16 @@ SaaS modular para gestionar laboratorios de varias instituciones: reactivos, equ
 2. Cada cliente usa uno o varios espacios de trabajo aislados (`core.workspaces`, `workspace_id`); los datos nunca se comparten entre espacios.
 3. Solo el Equipo PlatLab activa o desactiva módulos, mediante contrato; el propietario solicita cambios.
 4. La API autoriza cada operación; RLS y FKs compuestas son la segunda barrera. El navegador no accede directamente a las tablas.
-5. Roles del espacio: Propietario, Administrador, Operador, Docente, Estudiante (tesista) y Responsable de fiscalizados.
+5. Roles del espacio: Propietario, Administrador, Operador, Docente, Estudiante (tesista) y Responsable de fiscalizados. Los permisos forman una escalera (Propietario ⊇ Administrador ⊇ Operador) y valen para todo el espacio, no por laboratorio. «Operador» es el rol del laboratorio; el personal del proveedor es el Equipo PlatLab.
 6. Nadie borra registros de negocio: se archivan, cancelan o compensan.
 7. El inventario es un libro de movimientos con cantidades exactas; reservar, entregar y consumir son operaciones distintas.
 8. El docente propone desde una plantilla; el Administrador asigna sala y recursos y confirma.
-9. Las sustancias fiscalizadas son obligatorias desde el piloto del laboratorio interesado, que avanza por entregas.
+9. Las sustancias fiscalizadas son obligatorias desde el piloto del laboratorio interesado, que avanza por entregas. El laboratorio confirma calificación, responsable y reportes actuales; REG-01 verifica el proceso y el formato concretos.
 10. Stack: React + Vite, Node 24 + Fastify, `pg` + PgTyped, Supabase (PostgreSQL, Auth, Storage), Cloudflare y Render.
 11. Tres puertas: G0 demo sintética, G1 piloto con datos reales y G2 venta abierta.
 12. Cada módulo avanza por etapas (desarrollo → piloto → general) y solo se vende en etapa general. Una sola función de admisión, con dos ejes (espacio y módulo), gana lo más restrictivo y lee bajo bloqueo; separa operaciones nuevas, resolución de pendientes y consulta. Las capacidades compartidas se autorizan según el módulo dueño del recurso.
 13. No se fijan fechas, horas ni presupuestos contractuales sin evidencia.
+14. El producto completo son ocho módulos en varios paquetes, con espacios independientes y propietario transferible; se podrán agregar módulos nuevos.
 
 ## Mapa de documentos
 
@@ -70,4 +71,4 @@ Antecedentes: el [PRD](antecedentes/PRD_Plataforma_Gestion_Laboratorios.md), la 
 - Cada tema vive en un solo documento; los demás enlazan.
 - Una decisión nueva se registra en [05](05_decisiones.md) antes de cambiar código u otros documentos.
 - Los parámetros iniciales están solo en [02 §12](02_arquitectura.md#12-parámetros-iniciales); las fases y puertas, solo en [04](04_roadmap.md).
-- Al terminar T-01, registrar en `CLAUDE.md` los comandos reales.
+- Un cambio a una decisión se integra en el texto vigente del ADR y suma su fecha a su línea «Cambios»; no se añaden párrafos «Cambio del …». El historial queda en git.

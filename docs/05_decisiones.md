@@ -1,20 +1,20 @@
 # 05 — Decisiones y pendientes
 
-Revisión: 2 de octubre de 2026. Registro resumido de decisiones de arquitectura (ADR). Una decisión aceptada solo se reemplaza con otra que indique qué cambia. El texto completo anterior de los ADR 0001–0007 está en el commit `bc26fa8`.
+Revisión: 7 de octubre de 2026. Registro resumido de decisiones de arquitectura (ADR); cada ADR dice solo lo vigente. Una decisión aceptada solo se reemplaza con otra que indique qué cambia. El texto completo anterior de los ADR 0001–0007 está en el commit `bc26fa8`.
 
 | ADR | Tema | Estado |
 |---|---|---|
 | [0001](#adr-0001) | Espacios de trabajo y autorización | Aceptado el 28-09-2026 |
 | [0002](#adr-0002) | Contratos, derechos y límites | Aceptado el 28-09-2026 |
 | [0003](#adr-0003) | Refresco y protección de tráfico | Aceptado el 28-09-2026 |
-| [0004](#adr-0004) | Identidad y consola del Equipo PlatLab | Aceptado el 28-09-2026; nombres actualizados el 30-09-2026 |
+| [0004](#adr-0004) | Identidad y consola del Equipo PlatLab | Aceptado el 28-09-2026 |
 | [0005](#adr-0005) | Datos reales, respaldos y acceso privilegiado | Aceptado como criterio el 29-09-2026; las capacidades se validan antes de G1 |
 | [0006](#adr-0006) | SQL tipado y pruebas | Aceptado el 28-09-2026 |
-| [0007](#adr-0007) | Asignación y aprobación condicionada | Aceptado el 29-09-2026; actor actualizado el 30-09-2026 |
-| [0008](#adr-0008) | Roles y actores | Aceptado el 30-09-2026; propietario con los permisos del Administrador el 02-10-2026; la matriz detallada se valida en P-03 |
-| [0009](#adr-0009) | Etapas de módulo y admisión de operaciones | Aceptado el 30-09-2026; marca de ambiente el 01-10-2026 |
-| [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026; «precisión suave» y color por módulo el 02-10-2026 |
-| [0011](#adr-0011) | Inicio como tablero y cada módulo como app | Aceptado el 02-10-2026; entrada directa al último espacio el mismo día; selector de espacio en la barra lateral el 05-10-2026 |
+| [0007](#adr-0007) | Asignación y aprobación condicionada | Aceptado el 29-09-2026 |
+| [0008](#adr-0008) | Roles y actores | Aceptado el 30-09-2026; la matriz detallada se valida en P-03 |
+| [0009](#adr-0009) | Etapas de módulo y admisión de operaciones | Aceptado el 30-09-2026 |
+| [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026 |
+| [0011](#adr-0011) | Inicio como tablero y cada módulo como app | Aceptado el 02-10-2026 |
 | [0012](#adr-0012) | Reactivos por frasco y salidas con aprobación | Aceptado el 02-10-2026 |
 
 <a id="adr-0001"></a>
@@ -37,19 +37,15 @@ Motivo: un solo código para todos los clientes y un aislamiento verificable.
   1. Verifica staff, MFA, versión e idempotencia.
   2. Bloquea y valida las dependencias.
   3. Proyecta `core.workspace_entitlements` y `platform.workspace_limits` en una sola transacción auditada.
-- El comando también valida que la etapa de cada módulo corresponda al tipo de contrato ([ADR 0009](#adr-0009)).
+- También valida que la etapa de cada módulo corresponda al tipo de contrato ([ADR 0009](#adr-0009)).
 - El runtime solo lee derechos y límites efectivos. La expiración bloquea operaciones nuevas en cada petición; resolver pendientes y consultar siguen la admisión por dos ejes ([ADR 0009](#adr-0009)).
 - El estado operativo del módulo es independiente del derecho. Reducir una cuota bloquea el consumo nuevo, pero no borra datos.
 - Sin motor de cobros ni suscripciones solapadas en el MVP.
+- Alcance en F1a: el comando es una función SQL que solo ejecuta el rol de migraciones, desde fixtures y pruebas; la revisión lista módulos con vigencia, periodo de cierre y acceso de consulta. Llegan después: retirar módulos por revisión, la auditoría de staff y los límites (consola O-01), y los paquetes versionados (F1b).
 
 Motivo: una sola autoridad evita contradicciones entre contrato, paquete y permisos.
 
-Cambio del 30-09-2026: se aclara el efecto de la expiración, que la versión compacta había dejado ambiguo.
-
-Alcance en F1a (01-10-2026), según el primer incremento:
-- El comando es una función SQL que solo ejecuta el rol de migraciones, desde fixtures y pruebas.
-- La revisión lista módulos con vigencia, periodo de cierre y acceso de consulta.
-- Llegan después: retirar módulos por revisión, la auditoría de staff y los límites (consola O-01), y los paquetes versionados (F1b).
+Cambios: 30-09, 01-10-2026 (historial en git).
 
 <a id="adr-0003"></a>
 ## ADR 0003 — Refresco y protección de tráfico
@@ -70,8 +66,9 @@ Motivo: el sondeo general agotaba un límite único por espacio.
 - **Acceso.** Por correo en F1a y con OAuth de Google y Microsoft en F3 (Microsoft con `email` y `xms_edov`). OAuth no es SAML ni concede membresía, y nunca se da acceso por dominio de correo.
 - **Invitación con un solo correo.** La cuenta se confirma al canjearla. Nunca se usa `email_confirm: true` ni se acepta por GET.
 - **Consola.** `apps/console` en `console.<dominio>`, con la API común `/v1/console/*`. Exige JWT + `aal2` + staff activo + permiso; Cloudflare Access es opcional. Usa las tablas `platform.staff_accounts` y `platform.staff_audit_events`.
+- **Nombre.** El personal del proveedor es el «Equipo PlatLab» (`staff`), porque «Operador» es un rol del laboratorio.
 
-Cambio del 30-09-2026: el «operador del SaaS» pasa a llamarse «Equipo PlatLab» (`staff`), porque «Operador» es un rol del laboratorio.
+Cambios: 30-09-2026 (historial en git).
 
 <a id="adr-0005"></a>
 ## ADR 0005 — Datos reales, respaldos y acceso privilegiado
@@ -80,7 +77,7 @@ Cambio del 30-09-2026: el «operador del SaaS» pasa a llamarse «Equipo PlatLab
 - El encargo lo acepta un representante autorizado; no se presume que el propietario lo sea.
 - La retención de las copias se fija por repositorio antes de G1; ni 7 ni 30 días se dan por cumplimiento. La eliminación comunicada y el fin del encargo tienen términos propios (3 y 5 días), que se validan con asesoría.
 - Un registro minimizado de supresiones se vuelve a aplicar antes de abrir una restauración.
-- Recuperación: el usuario acepta el 30-09-2026 un RPO de 24 h durante las pruebas y el piloto. Se recomienda que el laboratorio conserve su registro actual durante el piloto para poder reconstruir. Operar con PlatLab como único registro exige PITR ([02 §12](02_arquitectura.md#12-parámetros-iniciales)).
+- Recuperación: RPO de 24 h aceptado durante las pruebas y el piloto (30-09-2026). Se recomienda que el laboratorio conserve su registro actual durante el piloto para poder reconstruir. Operar con PlatLab como único registro exige PITR ([02 §12](02_arquitectura.md#12-parámetros-iniciales)).
 - Tres caminos privilegiados:
   - La consola.
   - La automatización.
@@ -106,22 +103,28 @@ Motivo: el proveedor sí puede acceder por la infraestructura; ese acceso se con
 ## ADR 0007 — Asignación y aprobación condicionada
 
 - El solicitante (Docente o Estudiante) propone desde una plantilla la fecha o franja y los recursos. No asigna sala ni compromete recursos, y las sugerencias del sistema no aprueban ni reservan.
-- El Administrador, o quien tenga el permiso de revisión en ese ámbito, asigna sala y recursos del mismo espacio y confirma. Si respeta lo solicitado, no hace falta otra aceptación.
+- El Administrador, o quien tenga el permiso de revisión en ese ámbito, asigna sala y recursos del mismo espacio y confirma. Si respeta lo solicitado, no hace falta otra aceptación. Preparar y entregar corresponde al Operador.
 - Cambiar fecha o franja, cantidades, sustitutos o condiciones exige una revisión preaprobada con vencimiento. Si el solicitante la acepta, el servidor revalida y confirma en una transacción.
 - Si al aceptar hay un conflicto, la actividad queda en `accepted_pending_review` sin reservas parciales (savepoint). Un error técnico revierte todo.
 - La reubicación equivalente (misma fecha o franja, recursos y condiciones) se hace con un comando auditado y notificado, sin nueva aceptación.
 - El sistema nunca aprueba por su cuenta. La confirmación en lote ejecuta cada solicitud en su propia transacción e informa el resultado de cada una; un conflicto no bloquea a las demás.
 - Los equipos se solicitan por tipo y características, y el Administrador asigna el activo concreto. Pedir un activo específico exige una justificación.
 
-Cambio del 30-09-2026: quien revisa pasa de «técnico» a Administrador; preparar y entregar corresponde al Operador.
+Cambios: 30-09-2026 (historial en git).
 
 <a id="adr-0008"></a>
 ## ADR 0008 — Roles y actores
 
 - **Dos planos.** En el de PlatLab está el Equipo PlatLab, que usa la consola. En el del espacio están el Propietario, el Administrador, el Operador, el Docente, el Estudiante (tesista) y el rol especial Responsable de fiscalizados.
 - **Roles.** Son paquetes de permisos del catálogo fijo, combinables y asignados con un ámbito.
-- **Administrador y Operador.** El Administrador incluye todo lo del Operador, decide las solicitudes, configura los catálogos y aplica ajustes. El Operador ejecuta y consulta toda la información operativa.
-- **Propietario.** Gobierna suscripción, miembros y propiedad, y tiene en todo el espacio los permisos del Administrador (y por tanto los del Operador) sin que nadie se los asigne. No recibe el rol Responsable de fiscalizados salvo que se le asigne.
+- **Escalera de permisos: Propietario ⊇ Administrador ⊇ Operador.**
+  - El Operador ejecuta y consulta toda la información operativa y hace los registros del día a día.
+  - El Administrador incluye todo lo del Operador, decide las solicitudes, configura los catálogos y aplica ajustes. No invita personas ni asigna roles sin la delegación del propietario.
+  - El Propietario gobierna suscripción, miembros y propiedad. Tiene en todo el espacio los permisos del Administrador (y por tanto los del Operador) sin que nadie se los asigne ni pueda retirárselos mientras lo sea; al transferir la propiedad, pasan al nuevo propietario.
+  - En SQL, los permisos efectivos son las asignaciones vigentes más los del rol Administrador para la membresía propietaria, en un solo lugar (`core.effective_role_assignments`).
+- **Responsable de fiscalizados.** Es una designación aparte; el Propietario no la recibe salvo que se le asigne.
+- **Los roles valen para todo el espacio, no por laboratorio.** El Operador accede a todo Reactivos, con todas sus ubicaciones. La ubicación es un dato del registro (dónde está cada frasco), no un límite de acceso. Los laboratorios se gestionan en M4 Laboratorios.
+- **Ámbito técnico.** `core.role_assignments.location_id` queda siempre nulo: no hay forma de asignarlo en el producto. Retirarlo del código está pendiente.
 - **Límites.** Nadie borra registros de negocio y, por defecto, nadie aprueba su propia solicitud.
 - **Alumnos de clase.** No tienen cuenta en el alcance inicial.
 
@@ -132,17 +135,7 @@ Motivo:
 
 La matriz está en [01 §5](01_producto.md#5-actores-y-roles).
 
-Cambio del 02-10-2026, decidido por el usuario:
-- Los permisos forman una escalera: Propietario ⊇ Administrador ⊇ Operador.
-- El propietario ya no necesita el rol Administrador para operar. Los hereda por ser propietario, en todo el espacio y sin poder retirárselos mientras lo sea; al transferir la propiedad, pasan al nuevo propietario.
-- El rol Responsable de fiscalizados sigue siendo una designación aparte.
-- Se mantienen los límites: nadie borra registros de negocio ni aprueba su propia solicitud.
-- En SQL, los permisos efectivos son las asignaciones vigentes más los del rol Administrador para la membresía propietaria, en un solo lugar (`core.effective_role_assignments`).
-
-Cambio del 05-10-2026, decidido por el usuario:
-- **Los roles valen para todo el espacio, no por laboratorio.** El Operador accede a todo Reactivos, con todas sus ubicaciones. La ubicación es un dato del registro (dónde está cada frasco), no un límite de acceso. Los laboratorios se gestionan en M4 Laboratorios.
-- Se confirman los papeles: el Propietario tiene control total; el Administrador decide y configura la operación, pero no invita personas ni asigna roles sin la delegación del propietario; el Operador hace los registros del día a día.
-- El campo técnico de ámbito (`core.role_assignments.location_id`) queda siempre nulo: no hay forma de asignarlo en el producto. Retirarlo del código queda pendiente.
+Cambios: 02-10, 05-10-2026 (historial en git).
 
 <a id="adr-0009"></a>
 ## ADR 0009 — Etapas de módulo y admisión de operaciones
@@ -152,7 +145,8 @@ Cambio del 05-10-2026, decidido por el usuario:
   - `pilot`: además en espacios con contrato de piloto; se alcanza tras el G0 del módulo.
   - `general`: en cualquier paquete publicado; se alcanza tras el G2 del módulo.
 - **Contratos.** `apply_contract_revision` rechaza un módulo cuya etapa no corresponde al tipo de contrato, y el runtime lo vuelve a comprobar. La admisión de datos reales del espacio (G1) sigue siendo un control aparte.
-- **Admisión.** Cada comando declara su clase de acción: operación nueva, resolución de pendientes, o consulta y exportación. Una sola función evalúa dos ejes independientes, espacio y módulo, y admite solo lo que ambos permiten. Cualquier estado no listado se deniega. Se prueban todas las combinaciones ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
+- **Ambiente.** Se marca en la base (`platform.environment`), que nace como datos reales. Solo el seed local o de CI y el aprovisionamiento de staging o demo lo marcan como sintético. Si se olvida marcarlo, un módulo en `development` se deniega: el error siempre cae del lado seguro. Un contrato de tipo `demo` solo se admite en un ambiente sintético.
+- **Admisión de dos ejes con denegación por defecto.** Cada comando declara su clase de acción: operación nueva, resolución de pendientes, o consulta y exportación. Una sola función evalúa dos ejes independientes, espacio y módulo, y admite solo lo que ambos permiten. Cualquier estado no listado se deniega. Se prueban todas las combinaciones ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
 - **Módulo del recurso.** La admisión y el permiso se evalúan contra el módulo dueño del recurso, no contra la capacidad compartida. Las operaciones se exponen con rutas y permisos de ese módulo.
 - **Bloqueo.** La admisión lee espacio, derecho y membresía con bloqueo compartido en la misma consulta con la que decide. Los cambios de estado modifican esas filas y esperan a las operaciones en curso. El orden de bloqueo es fijo: espacio → derecho → membresía → datos.
 - **Plazos.** El contrato fija la duración del periodo de cierre y el alcance de la suspensión comercial; no se inventan plazos.
@@ -163,177 +157,112 @@ Motivo:
 - Las obligaciones abiertas (devoluciones, custodias) deben poder resolverse aunque venza el contrato.
 - Una decisión de autorización no puede quedar obsoleta por un cambio de estado concurrente.
 
-Cambio del 30-09-2026: la tabla única pasa a dos ejes con denegación por defecto, con rutas por módulo y admisión bajo bloqueo.
-
-Cambio del 01-10-2026: el ambiente se marca en la base (`platform.environment`), que nace como datos reales. Solo el seed local o de CI y el aprovisionamiento de staging o demo lo marcan como sintético. Si se olvida marcarlo, un módulo en `development` se deniega: el error siempre cae del lado seguro. Un contrato de tipo `demo` solo se admite en un ambiente sintético.
+Cambios: 30-09, 01-10-2026 (historial en git).
 
 <a id="adr-0010"></a>
 ## ADR 0010 — Sistema de diseño y movimiento
 
-- **Dirección.** Precisión operativa con calma: las pautas de Apple (HIG) aplicadas a una aplicación de trabajo. Parte de 01 «Dirección visual» y del stack de 02 §2; los documentos de diseño que generen las herramientas solo enlazan aquí, a 01 y a 02.
-- **Tokens.** Semánticos, en `packages/ui`. Solo tema claro, pero preparado para el oscuro. Inter, con cifras tabulares (`tabular-nums`) en cantidades y saldos.
-- **Componentes.** shadcn como código propio sobre Radix, TanStack Table para tablas, Sonner para avisos, cmdk para la salida rápida y hoja lateral o inferior para los formularios de movimiento.
+Medidas, patrones y estados: `DESIGN.md` y `packages/ui/src/styles.css` (solo enlazan aquí).
+
+- **Dirección.** Precisión operativa con calma: pautas de Apple (HIG) en una aplicación de trabajo, con el lenguaje visual de ReactiLab (solo el diseño; su código no se copia, por la licencia por aclarar, CLAUDE.md). Parte de 01 «Dirección visual» y 02 §2.
+- **Tokens.** Semánticos, en `packages/ui`. Solo tema claro, preparado para el oscuro. Inter con `tabular-nums` en cantidades y saldos. Neutros en escala pizarra con contraste AA.
+- **Componentes.** shadcn como código propio sobre Radix, TanStack Table para tablas, Sonner para avisos, cmdk para la salida rápida.
+- **Estructura (ReactiLab).** Barra lateral pegada al borde y de ancho completo, barra superior translúcida con borde (no flotan) y tarjetas de borde fino con sombra mínima que, si son enlace, se elevan al pasar el puntero. Indicadores con icono (de estado cuando hay estado, del acento si no) y actividad como línea de tiempo.
+- **Voz única.** Solo el acento invita a actuar. Excepción: la cantidad con signo de la actividad va en rojo suave (salida) o verde suave (ingreso), siempre con signo y tipo escritos.
+- **Acción rápida.** El Resumen de Reactivos abre con una tarjeta degradada del acento («Registrar movimiento») que sustituye a las acciones de la cabecera en esa sección. Su pastilla, resplandor y matraz de marca de agua son decoración pedida por el usuario y no se repiten en otras tarjetas.
+- **Descartado.** Imágenes 3D, vidrio, gráficos sin dato y métricas inventadas.
+- **Color por módulo.** Cada módulo tiene un acento que, dentro de su app, reemplaza al azul en el botón principal, los enlaces, el menú activo, el foco, los gráficos y el icono, y tiñe el brillo del lienzo.
+  - Inicio y plataforma siguen en azul PlatLab; cada tarjeta del Inicio lleva el color de su módulo; la marca PlatLab nunca cambia.
+  - Reactivos es índigo, como ReactiLab: `#4F46E5` (6,3:1 con blanco), con degradado hacia violeta.
+  - Cada color se valida para WCAG AA. Verde, ámbar y rojo son de estado: ningún módulo ni tipo de ítem los usa como color propio.
+  - Un juego de tokens por módulo (`[data-module]`) redefine los de acción; los componentes no cambian.
+- **Tarjetas de catálogo.** Un patrón común a todos los módulos (reactivos hoy; materiales y equipos después), con el componente compartido `IconChip`. Su icono sale de un dato que ya existe (el estado físico: sólido, líquido o gas) y nunca decora; un reactivo sin existencias pasa a chip neutro y píldora ámbar con texto e icono. Solo cambia la presentación.
+- **Ventanas de movimiento.** Nuevo reactivo, ingreso, salida y ajuste son una ventana centrada (como el modal de ReactiLab), no una hoja lateral.
+- **Densidad.** Dentro de un módulo el tamaño base baja de 16 a 15 px (`:root[data-module]`, en porcentaje para respetar la letra del navegador) y todo lo que está en `rem` se reduce por igual; el título de página baja un paso. Inicio y acceso no cambian.
+- **Ficha.** Sin «← Inventario»: el menú ya lleva al Inventario. Queda abierto darle una función propia (por ejemplo, una miga de pan en la barra superior).
 - **Movimiento.**
-  - Pulsación de 100–150 ms con CSS.
-  - Superposiciones de 150–200 ms que nacen de su origen.
+  - Pulsación de 100–150 ms con CSS; superposiciones de 150–200 ms que nacen de su origen.
   - Spring sin rebote para hojas y fichas.
   - Se respeta `prefers-reduced-motion`.
   - Nunca se animan filas, escritura ni bucles.
-- **Dominio por encima del estilo.** No hay UI optimista sobre existencias ni «deshacer» en un movimiento confirmado: se corrige con otro movimiento.
+- **Dominio por encima del estilo.** Sin UI optimista sobre existencias ni «deshacer» en un movimiento confirmado: se corrige con otro movimiento. Estados con texto y una acción primaria por pantalla.
 - **Verificación.** Playwright con axe (WCAG 2.2 AA) en CI. Antes de cerrar una entrega con UI: `impeccable audit`, `harden` y `polish`, y `review-animations`.
 - **Orden.** Tokens y estructura base → acceso, selector de espacio e Inicio → tablero de Reactivos y «Registrar salida».
 
 Motivo: una app que se usa todo el día necesita jerarquía clara, estados honestos y movimiento que explique, no que decore.
 
-Cambio del 02-10-2026, «precisión suave». Tomado de las referencias visuales que trajo el usuario:
-- Shell flotante, con navegación y barra superior como paneles.
-- Bordes más redondos (10/20/24 px), píldoras en pestañas y sombras suaves en capas.
-- Títulos y cifras más grandes.
-- Inicio en bloques con datos reales: resumen, actividad reciente y acciones rápidas según el rol.
-- Filas de actividad para el historial en el móvil.
-
-Se descartan sus imágenes 3D, el vidrio, los gráficos sin dato y las métricas inventadas. Se mantiene el azul de acción. Los valores viven en 01 «Dirección visual».
-
-Cambio del 02-10-2026, color por módulo, decidido por el usuario («Tematizar cada app»):
-- Cada módulo tiene un color de acento. Dentro de su app reemplaza al azul en el botón principal, los enlaces, el menú activo, el foco, los gráficos y el icono, y tiñe el brillo del lienzo.
-- El Inicio y la plataforma siguen en azul PlatLab, y cada tarjeta del Inicio lleva el color de su módulo.
-- La marca PlatLab nunca cambia de color.
-- Reactivos es lila: acento `#7C3AED` (5,7:1 con blanco), `#6D28D9` al pasar, `#5B21B6` al pulsar, fondo suave `#F1EAFE` y brillo del lienzo `#F1E9FF`.
-- Cada color se valida para WCAG AA antes de usarse. Verde, ámbar y rojo quedan reservados para los estados, así que ningún módulo los usa como acento.
-- Se implementa con un juego de tokens por módulo (`[data-module]`) que redefine los de acción; los componentes no cambian.
-
-Cambio del 04-10-2026, tarjetas de catálogo con icono y color, pedido por el usuario con dos referencias de ReactiLab:
-- Patrón común para las tarjetas de catálogo de todos los módulos (reactivos hoy; materiales y equipos después): chip de icono, rótulo en mayúsculas pequeñas, dato de identidad a la derecha, nombre, línea divisoria, cifra principal en el acento del módulo y píldora con icono.
-- El color sale del acento del módulo (chip, cifra, píldora y resalte al pasar el puntero). Verde, ámbar y rojo siguen reservados para los estados: ningún tipo de ítem tiene color propio, para que un color nunca sea ambiguo entre «es de este tipo» y «tiene este estado».
-- El icono del chip lo da un dato que ya existe (el estado físico del reactivo: sólido, líquido o gas) y nunca decora; un reactivo sin existencias pasa a chip neutro y píldora ámbar con texto e icono.
-- Solo cambia la presentación: ni datos, ni contratos, ni reglas.
-- Los textos de apoyo mantienen el contraste AA: no se usa el gris muy claro de la referencia.
-- Se implementa con un componente compartido, `IconChip`, en `packages/ui`.
-
-Cambio del 04-10-2026 (segundo), la interfaz toma el diseño de ReactiLab, pedido por el usuario («quiero que mantengas el diseño del mencionado proyecto»). Sustituye los puntos de «precisión suave» que lo contradicen:
-- **Estructura.** Barra lateral pegada al borde, de ancho completo, con borde derecho, el logotipo, una tarjeta de la persona con su rol, el rótulo «Menú principal», elementos con icono, el activo relleno con el acento y «Salir» al pie; barra superior translúcida con borde. Ya no flotan como paneles.
-- **Tarjetas.** Borde fino de 1 px más sombra mínima, esquinas de 24 px, y elevación de 4 px con sombra amplia al pasar el puntero. El lienzo es un gris pizarra claro; los neutros pasan a la escala pizarra de ReactiLab, con el contraste de texto validado para AA.
-- **Indicadores.** Etiqueta, cifra grande y una línea de estado con un icono de color a la derecha. El color del icono es de estado cuando hay estado (por aprobar en ámbar, «Al día» en verde) y del acento del módulo si no lo hay.
-- **Acción rápida.** El Resumen de Reactivos abre con una tarjeta degradada del acento («Registrar movimiento»), con las acciones de ingreso y salida; sustituye a las acciones de la cabecera en esa sección. Lleva, como en ReactiLab, la pastilla «Gestión rápida», un resplandor suave y el matraz como marca de agua: son decoración pedida por el usuario y no se repiten en otras tarjetas.
-- **Actividad.** Línea de tiempo con círculos de icono y cantidad con signo sobre un fondo suave.
-- **Colores de movimiento.** La cifra con signo de una salida va en rojo suave y la de un ingreso en verde suave, como en ReactiLab. El signo y el tipo siguen escritos, así que el color nunca es el único dato. Esto cambia la «voz única» del ADR 0010 solo en la cifra de la fila de actividad; los botones y enlaces siguen en el acento.
-- **Acento de Reactivos.** Pasa del lila al índigo de ReactiLab (`#4F46E5`, 6,3:1 con blanco), con el degradado hacia violeta. La plataforma y el Inicio siguen en azul.
-- **Ventanas emergentes.** Los formularios de movimiento (nuevo reactivo, ingreso, salida y ajuste) se conservan como ventanas emergentes, pero pasan de hoja lateral o inferior a una ventana centrada, como el modal de salida de ReactiLab: cabecera con cuadro de icono, título y cierre; secciones separadas por líneas con rótulos en mayúsculas; en la salida y el ajuste, el stock con su barra y la cantidad grande y centrada con atajos; motivo y destino en píldoras; y al pie, «Cancelar» y un botón ancho degradado. El formulario, la validación y la acción siguen igual. Sustituye lo dicho en este ADR sobre «hoja lateral o inferior».
-- Se mantiene todo lo demás: accesibilidad AA, estados con texto, una acción primaria por pantalla, sin UI optimista y sin tocar datos ni reglas.
-- Solo se toma el lenguaje visual. No se copia su código, que tiene la licencia por aclarar (CLAUDE.md).
-
-Cambio del 05-10-2026, decidido por el usuario, sobre la densidad:
-- **Dentro de un módulo, la escala baja.** El tamaño base pasa de 16 a 15 px (`:root[data-module]` en `styles.css`) y casi todo lo que está en `rem` (texto, espacios, botones, tarjetas, menús y hojas, que viven en portales) se reduce por igual; el título de página baja un paso. El Inicio y el acceso no cambian. Se usa un porcentaje, no píxeles, para respetar el tamaño de letra del navegador. Si hace falta más, se ajusta ese único valor.
-- **Se quita «← Inventario» de la ficha.** No aportaba: el menú ya lleva al Inventario. Queda abierto darle una función propia (por ejemplo, una miga de pan en la barra superior).
+Cambios: 02-10, 04-10, 05-10-2026 (historial en git).
 
 <a id="adr-0011"></a>
 ## ADR 0011 — Inicio como tablero y cada módulo como app
 
-- **Inicio.** Es un tablero con una tarjeta por cada módulo habilitado y visible para el rol.
-  - Cada tarjeta lleva dos o tres cifras.
-  - Lleva un gráfico pequeño solo si hay datos reales; sin datos, muestra un texto.
-  - Toda la tarjeta abre el módulo. Por eso sus cifras no son enlaces aparte: no se anidan enlaces.
-- **Módulo como app.** Al entrar a un módulo, el menú lateral muestra solo sus secciones: Resumen, Inventario, Movimientos, y las demás cuando su entrega exista.
-  - Desde ahí se vuelve al Inicio o se salta a otro módulo.
-  - El Resumen reúne las cifras, el gráfico y la actividad reciente del módulo. Allí cada cifra abre la lista que explica.
-  - Las acciones de registro van en la cabecera de la app, a un clic desde cualquier sección.
-- **Una sola aplicación.** Es una forma de navegar, no aplicaciones separadas: la misma sesión, la misma admisión y el mismo sistema de diseño.
-  - Cada módulo se descarga al abrirlo ([02 §8](02_arquitectura.md#8-frontend)).
-  - El manifiesto declara las secciones con su permiso ([02 §4](02_arquitectura.md#4-contrato-de-módulo)), y `/me` envía solo las permitidas.
-- **Lo transversal queda fuera de los módulos.**
-  - En el Inicio: los pendientes y la bandeja de aprobaciones.
-  - En la barra: la búsqueda y los avisos.
-  - En Administración: miembros, suscripción y ubicaciones.
-  - Los flujos entre módulos se resuelven con enlaces, y cada operación la ejecuta el módulo dueño del recurso ([ADR 0009](#adr-0009)).
-- **Gráficos.**
-  - Cuentan sucesos, como las salidas por día; nunca suman cantidades de unidades distintas.
-  - Usan la zona horaria del espacio y el ámbito del miembro.
-  - Tienen un resumen en texto para los lectores de pantalla.
+- **Inicio.** Tablero con una tarjeta por módulo habilitado y visible para el rol, con dos o tres cifras y un gráfico pequeño solo si hay datos reales (sin ellos, un texto). Toda la tarjeta abre el módulo, así que sus cifras no son enlaces aparte (no se anidan enlaces). Nombra el espacio en su subtítulo.
+- **Entrada directa.** Sin pantalla para elegir espacio: se abre el último usado en ese navegador (la primera vez, el primero de la lista). Todos los roles entran igual; cambia lo que cada uno puede hacer (Administración solo la ve el propietario).
+- **Módulo como app.** El menú lateral muestra solo sus secciones (Resumen, Inventario, Movimientos y las demás cuando su entrega exista); desde ahí se vuelve al Inicio o se salta a otro módulo.
+  - El Resumen reúne cifras, gráfico y actividad reciente; cada cifra abre la lista que explica.
+  - Las acciones de registro van en la cabecera de la app.
+  - La barra superior dice dónde se está (módulo › sección), no el espacio ni la persona.
+- **Una sola aplicación:** misma sesión, admisión y sistema de diseño. Cada módulo se descarga al abrirlo ([02 §8](02_arquitectura.md#8-frontend)). El manifiesto declara las secciones con su permiso ([02 §4](02_arquitectura.md#4-contrato-de-módulo)) y `/me` envía solo las permitidas.
+- **El espacio es quien contrata, no un laboratorio:** una facultad o un instituto ([01 §2](01_producto.md#2-clientes-espacios-y-aislamiento)). Química, Física y los demás laboratorios viven dentro: hoy como ubicaciones y, desde F3, como espacios físicos con agenda en M4 Laboratorios. La demo los nombra así.
+- **La tarjeta de la persona es el selector de espacio** y muestra quién eres, en qué espacio y con qué rol (depende del espacio). Con varios espacios, toda la tarjeta abre el menú, que lleva al Inicio del elegido. En el móvil, un botón con las iniciales abre el mismo menú con «Salir».
+- **Rol real en lugar de «Miembro».** `/me` envía los nombres de los roles vigentes solo para mostrarlos; no autorizan nada.
+- **Institución.** Se muestra en el menú solo si los espacios de la persona son de instituciones distintas. El nombre va en `core.workspaces.institution_name`, que fija el Equipo PlatLab. El runtime no lee `platform.customer_accounts` y el nombre jurídico no se muestra.
+- **Lo transversal queda fuera de los módulos:** pendientes y bandeja de aprobaciones, en el Inicio; búsqueda y avisos, en la barra; miembros, suscripción y ubicaciones, en Administración. Los flujos entre módulos son enlaces; cada operación la ejecuta el módulo dueño del recurso ([ADR 0009](#adr-0009)).
+- **Gráficos.** Cuentan sucesos, nunca suman cantidades de unidades distintas; usan la zona horaria del espacio y el ámbito del miembro; llevan resumen en texto.
 
-Motivo:
-- Los módulos se contratan por separado, y cada uno se entiende como una herramienta propia.
-- El Inicio da la vista de conjunto sin mezclar las operaciones.
+Motivo: los módulos se contratan por separado y cada uno se entiende como una herramienta propia; el Inicio da la vista de conjunto sin mezclar las operaciones. Reemplaza el menú común y las pestañas del tablero de 01 §7, y la regla de «no hay gráficos»; sigue la prohibición de gráficos sin datos reales (ADR 0010).
 
-Reemplaza el menú común con todos los módulos y las pestañas del tablero de 01 §7, y la regla de «no hay gráficos». Se mantiene la prohibición de gráficos sin datos reales del ADR 0010.
-
-Cambio del 02-10-2026, entrada directa, decidido por el usuario:
-- Al iniciar sesión no hay pantalla para elegir espacio. Se abre el último espacio usado en ese navegador; la primera vez, el primero de la lista.
-- Se cambia de espacio desde su nombre en la barra superior, que abre un menú con los demás y lleva al Inicio del elegido.
-- Así todos los roles entran igual. Lo que cambia es lo que cada uno puede hacer; Administración, por ejemplo, solo la ve el propietario.
-
-Cambio del 05-10-2026, decidido por el usuario:
-- **El espacio es quien contrata, no un laboratorio.** Es la unidad con operación propia, por ejemplo una facultad o un instituto ([01 §2](01_producto.md#2-clientes-espacios-y-aislamiento)). Química, Física y los demás laboratorios viven dentro del espacio: hoy como ubicaciones y, desde F3, como espacios físicos con agenda en M4 Laboratorios. La demo los nombra así.
-- **Dentro de un módulo, la barra superior dice dónde se está** (módulo › sección), no el nombre del espacio ni el de la persona, que ya están en su tarjeta. Reemplaza «desde su nombre en la barra superior» del cambio anterior.
-- **La tarjeta de la persona es el selector de espacio.** Muestra quién eres, en qué espacio y con qué rol: el rol depende del espacio. Con varios espacios, toda la tarjeta abre el menú; con uno, solo lo muestra. En el móvil, un botón con las iniciales, arriba a la derecha, abre el mismo menú con «Salir». El Inicio nombra el espacio en su subtítulo.
-- **Rol real en lugar de «Miembro».** `/me` envía los nombres de los roles vigentes del miembro, solo para mostrarlos; no autorizan nada.
-- **La institución aparece en el menú solo cuando los espacios de la persona son de instituciones distintas**, para distinguir, por ejemplo, dos «Facultad de Ciencias». El nombre visible va en `core.workspaces.institution_name`, que fija el Equipo PlatLab. El runtime sigue sin leer `platform.customer_accounts`, y el nombre jurídico no se muestra.
+Cambios: 02-10, 05-10-2026 (historial en git).
 
 <a id="adr-0012"></a>
 ## ADR 0012 — Reactivos por frasco y salidas con aprobación
 
-Decidido por el usuario el 02-10-2026, tomando ReactiLab como referencia de UX:
-- **Por frasco.** Cada ingreso de reactivo registra uno o más frascos (envases) de un mismo lote.
-  - Cada frasco tiene código propio (lote y número), cantidad inicial y QR.
-  - La posición es frasco más ubicación, y salidas, ajustes y traslados operan sobre un frasco.
+Toma ReactiLab como referencia de UX. Los patrones visuales están en `DESIGN.md`.
+
+- **Por frasco.** Cada ingreso registra uno o más frascos (envases) de un mismo lote, cada uno con código propio (lote y número), cantidad inicial y QR.
+  - La posición es frasco más ubicación; salidas, ajustes y traslados operan sobre un frasco.
   - El ingreso puede crear el lote en la misma ventana ([01 §6.1](01_producto.md#61-inventario-de-reactivos-m2)).
   - Resuelve la pregunta «Envases». La apertura y la caducidad tras abrir llegan si el laboratorio las pide.
-- **Dos niveles.** El inventario lista los reactivos con su total y sus avisos. La ficha de cada reactivo muestra sus frascos (lote, ubicación, caducidad y % restante), sus acciones y su historial.
+- **Lote sin estado.** Solo es un dato: código, proveedor, lote del proveedor y caducidad. No hay cuarentena, bloqueo ni descarte de lote.
+  - Un frasco vencido, contaminado o roto se desecha con «Ajustar» a cero y un motivo de la lista («Vencido», «Contaminado»); queda como ajuste, con su responsable. No existe un movimiento «baja».
+  - La disposición por posición (cuarentena de un retorno) sigue en el diseño para custodia y retornos ([03 §4](03_datos.md#4-inventario-y-reactivos)).
+- **Dos niveles.** El inventario lista reactivos con su total y avisos; la ficha muestra encabezado, frascos e historial.
+  - Frasco: proveedor, ubicación, caducidad, código, saldo con la barra de lo que queda, lote, lote del proveedor, ingreso y, con solicitudes pendientes, lo apartado y lo disponible (`/positions` añade `lot.supplierName`, `lot.supplierLot` y `container.receivedAt`).
+  - Acciones por frasco: Salida, Trasladar y Ajustar; la etiqueta se imprime desde la ficha. No hay «borrar».
+  - Encabezado: identidad en una línea (código, CAS, estado físico) y tres datos: Existencia, Mínimo (con «Fijar» o «Cambiar» para quien administra el catálogo) y Caducidad. «Sin vencidos ni por vencer» solo afirma lo que cuenta: la caducidad sin confirmar se avisa en cada frasco.
+  - Lo que PlatLab no modela (tara, peso neto, densidad, categoría, «controlado») no se muestra; «controlado» llega con fiscalizados.
 - **Salidas del Operador con aprobación.**
-  - La solicitud aparta la cantidad del frasco: una reserva `held`, de modo que nadie más dispone de ella.
-  - El Administrador o el Propietario la aprueba, la salida se confirma y la reserva pasa a `fulfilled`. O la rechaza con motivo, y pasa a `released`.
-  - Las salidas del Administrador y del Propietario son directas, y nadie aprueba su propia solicitud.
-  - Los ingresos son directos.
-- **Vencidos.** Se permite sacar de un frasco vencido, con una advertencia visible; el movimiento queda en el historial con la caducidad que tenía.
+  - La solicitud aparta la cantidad del frasco con una reserva `held`: nadie más dispone de ella.
+  - El Administrador o el Propietario la aprueba (la salida se confirma y la reserva pasa a `fulfilled`) o la rechaza con motivo (`released`).
+  - Las salidas del Administrador y del Propietario son directas, y nadie aprueba su propia solicitud. Los ingresos son directos.
+- **Vencidos.** Se permite sacar de un frasco vencido, con advertencia visible; el movimiento guarda la caducidad que tenía.
 - **Sugerencia FEFO.** La salida propone el frasco utilizable que vence antes, nunca el de menor cantidad.
-- **Motivos y destinos.** Son listas del espacio que administra el Administrador. La operación guarda el texto elegido, así que un cambio en la lista no altera la historia. Se archivan, nunca se borran.
 - **Salida rápida.** Atajos de cantidad (25 %, 50 % y todo el frasco) y la vista de lo que quedará.
-- **Orden.** R-01A (todo lo anterior, más caducidad, mínimos, traslados y conteo, sin dependencias externas) va antes de T-07. R-01B (SDS privada, avisos por correo y exportación) va después ([roadmap](04_roadmap.md)).
+- **Motivos y destinos.** Listas del espacio que administra el Administrador. La operación guarda el texto elegido, así que cambiar la lista no altera la historia. Se archivan, nunca se borran.
+- **Vencido y por vencer.** Vencido: la caducidad del lote es anterior a hoy, en la zona del espacio. Por vencer: caduca entre hoy y los próximos 30 días ([02 §12](02_arquitectura.md#12-parámetros-iniciales)). Solo cuentan frascos con saldo, en las ubicaciones que el miembro puede consultar. El inventario los dice con texto y filtra por ellos.
+- **Mínimo.** Uno por reactivo, para todo el espacio, en su unidad base y opcional; lo fija el Administrador al crear el reactivo o desde su ficha (`reagents.catalog.manage`). Bajo mínimo: la existencia física (todos los frascos con saldo, con vencidos y lo apartado) es menor que el mínimo; sin existencias y con mínimo, también. El inventario lo marca con texto y filtra por él (`?minimo=bajo`).
+- **Resumen.** Cuatro indicadores por urgencia: Por aprobar (o Mis solicitudes), Vencidos, Por vencer y Bajo mínimo (con el total de reactivos y frascos en texto pequeño). Cada uno abre la lista que lo explica: Solicitudes, o el Inventario filtrado.
+  - No hay «Ubicaciones» (contaba frascos) ni «Salidas» (el gráfico ya lleva su total). En el Inicio, el dato se dice «frascos».
+  - La acción rápida va en banda compacta bajo los indicadores; debajo, el gráfico y la actividad reciente. Cabe en una ventana de escritorio desde 1280 × 720 (`DESIGN.md`).
+- **Movimientos como libro por días.** Extiende la línea de tiempo del Resumen a pantalla completa.
+  - Filtros en píldoras: tipo (todos, ingresos, salidas, ajustes) y periodo (7, 30, 90 días o todo), en `?tipo=` y `?dias=`; la cifra del Resumen abre exactamente su lista.
+  - Asientos agrupados por día en la zona del espacio, con cantidad con signo y saldo. Cada fila abre la ficha (la lista añade `product.id`).
+  - Sin totales por día ni del periodo: la lista llega por páginas y un total en el navegador saldría incompleto sin avisarlo; si hacen falta, los calcula el servidor.
+  - Sin editar, borrar ni «deshacer»: un error se corrige con un ajuste.
+  - `@tanstack/react-table` sale de las dependencias de la web (no hay tablas); vuelve (ADR 0010) cuando una pantalla necesite una de verdad. `Table` de `packages/ui` se conserva.
+- **Traslado en un paso.** Mueve un frasco entero, con todo su saldo, a otra ubicación: una operación `transfer` con dos asientos (sale del origen, entra en el destino), visible en Movimientos como «Traslado». Sin borrador, aprobación ni tránsito. Lo registran el Operador y el Administrador (`reagents.transfer.create`). Un frasco vacío o con salidas pendientes no se traslada: primero se resuelven.
+- **Conteo por ubicación.** El Administrador elige una ubicación, anota lo que hay en cada frasco y confirma: un ajuste con motivo «Conteo» y un asiento por cada frasco que no cuadra. Si un saldo cambió mientras se contaba, se pide volver a cargar; si lo contado queda por debajo de lo apartado, primero se resuelven las solicitudes.
+- **Etiqueta con QR por frasco.** Lleva código, reactivo, lote y caducidad; se imprime a 3 × 8 por hoja A4 desde la ficha, eligiendo los frascos.
+  - Cada QR es único: identifica el espacio y el frasco y no sirve en otro espacio. Es un enlace corto (`/q/`) que la cámara del móvil abre, tras iniciar sesión, sin escáner propio.
+  - Escanear abre la descarga de ese frasco: la hoja de salida con el frasco elegido (para el Operador, «Solicitar salida», con la aprobación de siempre). Si no se puede descargar (vacío, todo apartado o sin permiso), la ficha resalta el frasco y dice por qué.
+  - El escaneo dentro de la app sigue pendiente (P-03).
+- **Orden.** R-01A (todo lo anterior, sin dependencias externas) va antes de T-07. R-01B (SDS privada, avisos por correo y exportación) va después ([roadmap](04_roadmap.md)).
 
-Motivo: el laboratorio ya trabaja por frasco con ReactiLab. El QR y el % restante por frasco, y el control de las salidas, son parte de su práctica. Se construye en la capacidad inventario para que Materiales lo herede.
+Motivo: el laboratorio ya trabaja por frasco con ReactiLab; el QR, el % restante y el control de las salidas son parte de su práctica. Se construye en la capacidad inventario para que Materiales lo herede.
 
 No se copia de ReactiLab: frasco, lote y código fusionados; ajustes sin signo; el borrado como baja; el saldo recortado a cero en silencio; la sugerencia por menor cantidad.
 
-Cambio del 05-10-2026, decidido por el usuario, sobre el Resumen y la caducidad:
-- **Indicadores del Resumen, arriba y por urgencia:** Por aprobar (o Mis solicitudes), Vencidos, Por vencer y Reactivos con existencias, con sus frascos como dato secundario. Cada uno abre la lista que lo explica: Solicitudes, o el Inventario filtrado.
-  - Sale «Ubicaciones»: contaba frascos, no ubicaciones. El dato pasa a «Reactivos» y, en el Inicio, se dice «frascos».
-  - Sale «Salidas»: repetía el total del gráfico, que ahora lo lleva en su cabecera.
-- **Acción rápida en banda compacta**, debajo de los indicadores. Conserva el degradado del ADR 0010 sin empujar los datos hacia abajo.
-- **El Resumen cabe en una ventana** en escritorio desde 1280 × 720. Debajo de los indicadores hay dos columnas: a la izquierda, la acción rápida y el gráfico, que crece con el alto disponible; a la derecha, la actividad reciente, a la misma altura que la acción rápida y con desplazamiento propio. En pantallas más bajas o más estrechas, el contenido fluye y la página se desplaza: entre 1024 y 1279 px de ancho hay dos columnas de igual ancho, y en el móvil, una.
-- **Vencido y por vencer.** Vencido: la caducidad del lote es anterior a hoy, en la zona del espacio. Por vencer: caduca entre hoy y los próximos 30 días ([02 §12](02_arquitectura.md#12-parámetros-iniciales)). Solo cuentan frascos con saldo, en las ubicaciones que el miembro puede consultar. Cada tarjeta del inventario dice sus vencidos y por vencer con texto, y el inventario filtra por ellos.
-- Resuelve el plazo de «por vencer» de la entrega 3 de R-01A. Quedan los mínimos.
-- **Ficha del reactivo (segundo nivel) con más datos por frasco**, decidido el 05-10-2026 tomando la tarjeta de frasco de ReactiLab (solo su aspecto).
-  - Cada frasco muestra proveedor, ubicación y caducidad; código y saldo grandes; la barra de lo que queda con la cantidad inicial; y recuadros con el lote, el lote del proveedor, la fecha de ingreso y, si hay solicitudes pendientes, lo apartado y lo disponible.
-  - Para eso, la lista de frascos (`/positions`) añade `lot.supplierName`, `lot.supplierLot` y `container.receivedAt`. Son datos que ya existen (03 §1); no cambia ninguna regla ni permiso.
-  - Las acciones son Salida y Ajustar. No hay «borrar», porque nadie borra registros de negocio, ni etiqueta QR todavía (llega con la entrega 4 de R-01A).
-  - Lo propio de ReactiLab que PlatLab no modela (tara, peso neto, densidad, categoría, «controlado») no se muestra; «controlado» llega con fiscalizados.
-- **Movimientos como libro por días**, decidido el 05-10-2026. ReactiLab no tiene un historial propio, así que se extiende la línea de tiempo del Resumen a pantalla completa.
-  - Filtros como píldoras, iguales a los del inventario: tipo (todos, ingresos, salidas, ajustes) y periodo (7, 30, 90 días o todo). Usan `?tipo=` y `?dias=`, así que la cifra del Resumen sigue abriendo exactamente su lista.
-  - Los asientos se agrupan por día en la zona del espacio («Hoy», «Ayer»), cada día en una tarjeta. Cada fila lleva hora, tipo con icono, reactivo con frasco y ubicación, motivo y destino, responsable (y quién pidió) y, a la derecha, la cantidad con signo y el saldo. Reemplaza a la tabla.
-  - Cada fila abre la ficha del reactivo. Para eso, la lista de movimientos añade `product.id` (dato que ya existe; no cambia reglas ni permisos).
-  - Sin totales por día ni indicadores del periodo: la lista llega por páginas y un total en el navegador saldría incompleto sin avisarlo. Si hacen falta, los calcula el servidor.
-  - Sigue sin editar, borrar ni «deshacer»: un error se corrige con un ajuste.
-  - Sin tabla, `@tanstack/react-table` sale de las dependencias de la web (nadie la usaba). Vuelve, como indica el ADR 0010, cuando una pantalla necesite una tabla de verdad (ordenar, columnas); `Table` de `packages/ui` se conserva.
-
-Cambio del 05-10-2026, decidido por el usuario: **mínimos** (entrega 3 de R-01A).
-- **Mínimo por reactivo, para todo el espacio**, en su unidad base y opcional. Lo fija el Administrador al crear el reactivo o desde su ficha (`reagents.catalog.manage`).
-- **Bajo mínimo:** la existencia física del reactivo (todos sus frascos con saldo, incluidos los vencidos y lo apartado) es menor que su mínimo. Un reactivo con mínimo y sin existencias está bajo mínimo.
-- **En el Resumen, «Bajo mínimo» reemplaza a «Reactivos»**: los cuatro indicadores son de urgencia, y el total de reactivos y frascos pasa a texto pequeño dentro de esa tarjeta. El inventario marca cada reactivo bajo mínimo con texto y filtra por ellos (`?minimo=bajo`).
-- **Sin estado del lote**, decidido el mismo día tras probarlo: no se necesita y agrega lógica. Se gestiona cada frasco por separado.
-  - El lote queda solo como dato: código, proveedor, lote del proveedor y caducidad. Sale el campo de condición de R-00 (habilitado, cuarentena, bloqueado, descartado) con sus comprobaciones, y no hay cuarentena, bloqueo ni descarte de lote.
-  - Un frasco vencido, contaminado o roto se desecha con «Ajustar» a cero y un motivo de la lista («Vencido», «Contaminado»). Queda en el historial como ajuste, con su responsable. No hay un tipo de movimiento «baja».
-  - La disposición por posición (cuarentena de un retorno) sigue en el diseño para custodia y retornos ([03 §4](03_datos.md#4-inventario-y-reactivos)).
-
-Cambio del 05-10-2026, decidido por el usuario: **traslados, conteo y QR** (entrega 4 de R-01A), en su versión simple.
-- **Traslado en un paso.** Se mueve un frasco entero, con todo su saldo, de una ubicación a otra. Es una operación `transfer` con dos asientos (sale del origen y entra en el destino) y queda en Movimientos como «Traslado». No hay borrador, aprobación ni tránsito. Lo registran el Operador y el Administrador (`reagents.transfer.create`). Un frasco vacío o con salidas pendientes no se traslada: primero se resuelven.
-- **Conteo por ubicación.** El Administrador elige una ubicación, anota lo que hay en cada frasco y confirma. Se registra un ajuste con motivo «Conteo» y un asiento por cada frasco que no cuadra. Si un saldo cambió mientras se contaba, se pide volver a cargar; si lo contado queda por debajo de lo apartado, primero se resuelven las solicitudes.
-- **Etiqueta con QR por frasco.** Lleva el código del frasco, el reactivo, el lote y la caducidad. Cada QR es único: identifica el espacio y el frasco, y no sirve en otro espacio. Es un enlace corto a PlatLab, así que la cámara del móvil lo abre (tras iniciar sesión) sin escáner propio. Se imprime desde la ficha, eligiendo los frascos.
-  - **Escanear abre la descarga de ese frasco**, decidido por el usuario el mismo día: la hoja de salida con el frasco ya elegido (para el Operador, «Solicitar salida», con la aprobación de siempre). Si no se puede descargar (vacío, todo apartado o sin permiso), la ficha resalta el frasco y dice por qué.
-  - El escaneo dentro de la app sigue pendiente (P-03).
-
-Cambio del 06-10-2026, decidido por el usuario: **encabezado de la ficha con menos ruido**. Las cuatro píldoras (CAS, estado, código, vencidos) y las dos filas sueltas (existencia y mínimo) pesaban igual y repetían avisos que ya están en cada frasco.
-- **Identidad en una línea de texto** bajo el nombre: código, CAS y estado físico, en gris y sin píldoras.
-- **Una banda con tres datos**, como los indicadores del Resumen: Existencia (la cifra principal), Mínimo (con «Fijar» o «Cambiar» para quien administra el catálogo; ámbar si está bajo mínimo) y Caducidad (vencidos en rojo, por vencer en ámbar, o «Sin vencidos ni por vencer» (solo afirma lo que cuenta: la caducidad sin confirmar se avisa en cada frasco)).
-- El color sigue contando solo un estado y siempre con texto. No cambia ningún dato, regla ni permiso.
+Cambios: 05-10, 06-10-2026 (historial en git).
 
 ## Pendientes
 
@@ -347,8 +276,8 @@ Cambio del 06-10-2026, decidido por el usuario: **encabezado de la ficha con men
 | Reglas de Prácticas | Anticipación, cancelaciones, salas exclusivas, devoluciones químicas y quién declara el consumo al cerrar | P-04, antes de F3 |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
-| Ámbito por ubicación | Los roles valen para todo el espacio (ADR 0008, 05-10-2026). Retirar `location_id` de las asignaciones y simplificar las consultas que filtran por ámbito | Entrega aparte, antes de T-07 |
-| Escaneo con cámara | La etiqueta QR abre el frasco con la cámara del móvil (ADR 0012, entrega 4). ¿Hace falta además un escáner dentro de la app para registrar salidas en serie? | P-03 |
+| Ámbito por ubicación | Los roles valen para todo el espacio (ADR 0008). Retirar `location_id` de las asignaciones y simplificar las consultas que filtran por ámbito | Entrega aparte, antes de T-07 |
+| Escaneo con cámara | La etiqueta QR abre el frasco con la cámara del móvil (ADR 0012). ¿Hace falta además un escáner dentro de la app para registrar salidas en serie? | P-03 |
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
 | Conexión a PostgreSQL | ¿Conexión directa con el complemento IPv4 o Supavisor en modo sesión? | S-01 |
 | Credencial local del rol de runtime | `supabase/seed.sql` fija una contraseña de desarrollo. Antes de usar ramas de Supabase o staging, pasarla a una variable de entorno local o desactivar el seed fuera de local y CI | S-01 |
