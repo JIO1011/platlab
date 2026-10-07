@@ -64,6 +64,7 @@ No verificado: <criterio> → <qué haría falta: prueba, comando o servicio>
 
 **En `docs/desarrollo/evidencias/README.md`**:
 
+- **Una sola fila por entrega, con el CI del mismo commit terminado** (`gh run list --commit <sha> --json status,conclusion`). Si el commit no está subido o el CI no terminó, informa en el chat y no escribas la fila todavía; escríbela cuando termine, con su resultado.
 - Añade una fila arriba del «Registro»: fecha, entrega, commit, veredicto, conteos de pruebas (`pgTAP 173 · int 102 · e2e 17`) y una nota.
 - Actualiza «Pendiente de verificar»: añade lo nuevo sin verificar y quita lo que esta verificación resolvió.
 - Al cerrar una puerta, añade o reemplaza su sección en «Puertas»: una línea por criterio → prueba con nombre.

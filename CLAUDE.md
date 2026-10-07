@@ -41,15 +41,20 @@ Actúa como experto senior en desarrollo de software full-stack,arquitectura, in
 
 ## Modelos y delegación
 
+Reparto por riesgo, no por capa (ADR 0013): todo cambio que pueda alterar saldos, permisos, datos, concurrencia o el contrato de la API va a Opus, esté en SQL, en el servidor o en la web. Lo demás, a Sonnet.
+
 | Rol | Quién | Hace |
 |---|---|---|
-| Planificar, evaluar y proponer | Sesión principal: Opus 5.5 en `xhigh` | Analiza (codebase-memory), propone y decide con el usuario, registra en `docs/05`, escribe el brief, revisa el diff, verifica (`platlab-verify-increment`), confirma y sube |
-| Implementar código delicado | `platlab-implementer`: Opus 5.5 en `high` | SQL y migraciones, permisos y aislamiento, concurrencia, cantidades y saldos, contratos de la API |
-| Docs, skills y cambios mecánicos | `platlab-implementer` lanzado con `model: sonnet` (Sonnet 5.5 en `high`) | Consolidar, resumir, renombrar, ajustar textos y pruebas sin lógica nueva |
-| Mejoras de UI/UX | `platlab-ui-implementer`: Sonnet 5.5 en `high`, con las skills de diseño | Pantallas, pulido, movimiento, avisos y móvil |
+| Orquestar | Sesión principal: Opus 5.5 en `xhigh` | Analiza (codebase-memory), diseña datos, flujos e invariantes, decide con el usuario, registra en `docs/05`, escribe el brief con sus casos de prueba, revisa lo delicado (`platlab-db-review`), juzga la verificación, confirma y sube |
+| Código delicado y sus pruebas | `platlab-implementer`: Opus 5.5 en `high`, con `platlab-db-review` cargada | SQL y migraciones, permisos y aislamiento, concurrencia, cantidades y saldos, contratos de la API y la lógica web que los usa; pgTAP, integración y concurrencia |
+| Presentación | `platlab-ui-implementer`: Sonnet 5.5 en `high`, con las skills de diseño | Pantallas, pulido, movimiento, avisos, móvil y e2e de UI |
+| Docs, mecánico y verificación | `platlab-assistant`: Sonnet 5.5 en `high` | Docs y skills, renombrar y consolidar, pruebas sin lógica nueva, ejecutar `platlab-verify-increment` y devolver el informe |
 | Revisar acabado de UI | `impeccable-finish-reviewer`: Sonnet 5.5 en `high` | Correcciones ordenadas; no edita |
 
+- **Escalada.** Un subagente no lanza otros. Los agentes Sonnet se detienen con «Bloqueo» si el cambio toca lo delicado, si la misma comprobación falla dos veces o si falta una decisión; la sesión principal lo reasigna a `platlab-implementer`. Las correcciones siguen con el mismo agente (`SendMessage`), no con uno nuevo.
+- **Puertas automáticas** (`.claude/settings.json`). Al terminar un implementador con cambios de código, `.claude/hooks/subagent-gate.sh` corre `typecheck`, `lint`, `deps` y `knip` y lo devuelve una vez si fallan. Están bloqueadas las escrituras remotas de Supabase y Cloudflare por MCP, `supabase link` y `db push`, y `git push --force`.
 - **Impeccable corre en Sonnet 5.5 en `high`.** Sus comandos de ejecución y revisión (`audit`, `harden`, `polish`, `animate`, `layout`…) los lanza `platlab-ui-implementer`. La sesión principal solo usa `shape` para proponer. Los roles de documentar, producir imágenes y aplicar ediciones de `live` no tienen agente: la skill los ejecuta en línea (`reference/degraded/`) dentro del implementador de UI. Al actualizar la skill, revisar que `impeccable-finish-reviewer` conserve `model: claude-sonnet-5-5`.
+- **Paquete para `impeccable-finish-reviewer`.** Además de capturas y archivos, el brief dice: «Construcción guiada por código que refina un sistema existente. Contrato de dirección: `DESIGN.md` y ADR 0010 de `docs/05`. No hay diseño de referencia, tarjeta QUALITY BAR, `state.json` ni semilla: las comprobaciones que los exigen no aplican y no son hallazgos».
 
 - **Brief autocontenido.** El subagente empieza sin contexto: objetivo, decisiones ya tomadas, archivos, criterios de aceptación, comandos y qué no tocar.
 - **Los subagentes no deciden ni cierran.** Si falta una decisión, se detienen y la reportan; no confirman ni suben.

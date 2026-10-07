@@ -16,6 +16,7 @@ Revisión: 7 de octubre de 2026. Registro resumido de decisiones de arquitectura
 | [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026 |
 | [0011](#adr-0011) | Inicio como tablero y cada módulo como app | Aceptado el 02-10-2026 |
 | [0012](#adr-0012) | Reactivos por frasco y salidas con aprobación | Aceptado el 02-10-2026 |
+| [0013](#adr-0013) | Delegación por riesgo y puertas del harness | Aceptado el 07-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -263,6 +264,20 @@ Motivo: el laboratorio ya trabaja por frasco con ReactiLab; el QR, el % restante
 No se copia de ReactiLab: frasco, lote y código fusionados; ajustes sin signo; el borrado como baja; el saldo recortado a cero en silencio; la sugerencia por menor cantidad.
 
 Cambios: 05-10, 06-10-2026 (historial en git).
+
+<a id="adr-0013"></a>
+## ADR 0013 — Delegación por riesgo y puertas del harness
+
+- **Orquestador:** la sesión principal (Opus 5.5 en `xhigh`). Diseña datos, flujos e invariantes, define en el brief los casos de prueba (permisos, concurrencia, saldos), revisa lo delicado, confirma y sube. Lo trivial lo hace en línea.
+- **Reparto por riesgo, no por capa.** Todo cambio que pueda alterar saldos, permisos, datos, concurrencia o el contrato de la API va a `platlab-implementer` (Opus 5.5 en `high`), esté en SQL, en el servidor o en la web, y ese agente escribe también sus pruebas. Lo demás va a Sonnet 5.5 en `high`: `platlab-ui-implementer` (presentación, movimiento, avisos y e2e de UI) y `platlab-assistant` (docs, cambios mecánicos, pruebas sin lógica nueva y ejecución de la verificación).
+- **Escalada.** Un subagente no lanza otros. Un agente Sonnet se detiene y reporta «Bloqueo» si el cambio toca lo delicado, si la misma comprobación falla dos veces o si falta una decisión; el orquestador lo reasigna. Las correcciones siguen con el mismo agente (`SendMessage`).
+- **Puertas automáticas** (`.claude/settings.json`):
+  - Al terminar un implementador con cambios de código corren `typecheck`, `lint`, `deps` y `knip`. Si fallan, el agente vuelve a trabajar una vez; si siguen fallando, termina y se avisa.
+  - Quedan bloqueadas las escrituras remotas de Supabase y Cloudflare por MCP, `supabase link` y `db push`, y `git push --force`.
+- **Revisor de UI.** `impeccable-finish-reviewer` recibe el paquete de PlatLab (`CLAUDE.md`, «Frontend»), porque PlatLab refina un sistema existente sin diseños de referencia ni semilla.
+- **Evidencia.** Una fila por entrega, cuando el CI del mismo commit terminó.
+
+Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las pruebas de invariantes son la especificación; una regla que depende del prompt se vuelve una puerta automática; y el contexto del orquestador se reserva para decidir. Reemplaza el reparto anterior de `CLAUDE.md` (Opus solo para código delicado y Sonnet por tipo de tarea).
 
 ## Pendientes
 
