@@ -16,7 +16,7 @@ Los comandos concretos se toman de `CLAUDE.md` y `package.json`; esta lista dice
 | 10 | Pruebas de concurrencia (conexiones reales) | Dos salidas de 60 g sobre 100 g; movimiento contra desactivación simultánea; duplicados idempotentes; pool sin fuga de contexto | Mocks o una sola conexión no demuestran nada aquí |
 | 11 | Playwright (un flujo por incremento) | Que la interfaz permite completar y entender el recorrido | Captura el resultado final, no solo que la página carga |
 | 12 | Compilación de apps y búsqueda de secretos en bundles | Que se puede desplegar sin filtrar credenciales | Variables `VITE_*` con secretos |
-| 13 | Revisión de UI (solo si cambian `apps/web`, `apps/console` o `packages/ui`) | `impeccable audit` sin hallazgos P0/P1, `review-animations` aprobado y axe sin violaciones WCAG 2.2 AA en el flujo de Playwright | Una auditoría que nadie ejecutó no cuenta: debe quedar anotada en el Registro |
+| 13 | Revisión de UI (solo si cambian `apps/web`, `apps/console` o `packages/ui`) | Por entrega: capturas de escritorio y móvil, `impeccable-finish-reviewer` en `ship` y axe sin violaciones WCAG 2.2 AA en el flujo de Playwright. Por puerta (G0, G1…), además: `impeccable audit` sin hallazgos P0/P1 y `review-animations` aprobado | Una revisión que nadie ejecutó no cuenta: debe quedar anotada en el Registro |
 
 ## Evidencia de G0 (primer tramo de Reactivos)
 

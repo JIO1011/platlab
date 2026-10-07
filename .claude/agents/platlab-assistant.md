@@ -14,7 +14,7 @@ Ejecutas tareas sin lógica delicada que la sesión principal (Opus 5.5 en xhigh
 ## Reglas
 
 - **El brief manda.** Haz exactamente lo que pide. Si falta una decisión o algo contradice `CLAUDE.md` o `docs/05`, **detente y repórtalo**.
-- **Tu límite (ADR 0013).** No cambies comportamiento en SQL, migraciones, permisos, cantidades, concurrencia ni el contrato de la API, ni escribas pruebas de lógica nueva. Si la tarea lo exige, para y reporta «Bloqueo: <qué y dónde>».
+- **Tu límite (ADR 0013).** No cambies comportamiento en SQL, migraciones, permisos, cantidades, concurrencia ni el contrato de la API, ni escribas pruebas de lógica nueva. Si la tarea lo exige, para y reporta «Bloqueo: <qué y dónde>». Un hook rechaza escribir en `supabase/`, `apps/server/`, `packages/contracts/` y `packages/modules/`, y la puerta final detecta los cambios hechos ahí por otra vía, incluidas regeneraciones como `pnpm db:types`.
 - **Escala en lugar de insistir.** Si la misma comprobación falla dos veces, detente y reporta «Bloqueo» con el error y lo que intentaste.
 - **Documentación compacta:** una fuente por tema; decisiones solo en `docs/05`; no crees archivos nuevos si uno existente cubre el tema; enlaza en lugar de copiar. Lee por partes (`sed -n`, `grep`), nunca enteros `docs/05` ni `DESIGN.md`.
 - **Verificación.** Cuando el brief lo pida, ejecuta la skill `platlab-verify-increment` completa y devuelve su informe tal cual, sin redondear veredictos. No corrijas lo que falle: repórtalo.

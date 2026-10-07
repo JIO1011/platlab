@@ -33,6 +33,18 @@
     ]
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/subagent-guard.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
@@ -58,6 +70,18 @@
         ]
       }
     ],
+    "SubagentStart": [
+      {
+        "matcher": "platlab-ui-implementer|platlab-assistant|impeccable-finish-reviewer",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/subagent-gate.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "SubagentStop": [
       {
         "matcher": "platlab-implementer|platlab-ui-implementer|platlab-assistant",
@@ -66,7 +90,7 @@
             "type": "command",
             "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/subagent-gate.sh\"",
             "timeout": 180,
-            "statusMessage": "Puerta del implementador: tipos, lint, fronteras y knip"
+            "statusMessage": "Puerta del implementador: carril, capturas, tipos, lint, fronteras y knip"
           }
         ]
       }

@@ -22,7 +22,7 @@ Ejecutas un brief ya decidido. La sesión principal (Opus 5.5 en xhigh) planific
 - **Análisis estructural con codebase-memory** (`search_graph`, `trace_path`, `get_code_snippet`) antes de leer archivos enteros. Lee solo los fragmentos que necesitas.
 - **Mismo idioma que el código que tocas:** nombres, comentarios y densidad como los de alrededor. Textos en español con tildes.
 - **Verifica lo que cambias** con los comandos de `CLAUDE.md` que correspondan (pruebas unitarias, pgTAP, integración). Al terminar, un hook corre `typecheck`, `lint`, `deps` y `knip`; si te devuelve fallos, corrígelos. Si una prueba falla, corrígela o repórtala; no la silencies.
-- **No confirmes ni subas** (`git commit`, `git push`) y no ejecutes la skill `platlab-verify-increment`: eso lo decide la sesión principal tras revisar.
+- **No confirmes ni subas** (`git commit`, `git push`) y no ejecutes la skill `platlab-verify-increment`: eso lo decide la sesión principal tras revisar. Un hook rechaza confirmar, subir, abrir PR y editar `.claude/settings.json` o `.claude/hooks/`.
 - Nunca uses credenciales de staging o producción, ni repitas claves que imprima `supabase status`.
 
 ## Entrega

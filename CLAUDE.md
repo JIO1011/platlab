@@ -52,9 +52,9 @@ Reparto por riesgo, no por capa (ADR 0013): todo cambio que pueda alterar saldos
 | Revisar acabado de UI | `impeccable-finish-reviewer`: Sonnet 5.5 en `high` | Correcciones ordenadas; no edita |
 
 - **Escalada.** Un subagente no lanza otros. Los agentes Sonnet se detienen con «Bloqueo» si el cambio toca lo delicado, si la misma comprobación falla dos veces o si falta una decisión; la sesión principal lo reasigna a `platlab-implementer`. Las correcciones siguen con el mismo agente (`SendMessage`), no con uno nuevo.
-- **Puertas automáticas** (`.claude/settings.json`). Al terminar un implementador con cambios de código, `.claude/hooks/subagent-gate.sh` corre `typecheck`, `lint`, `deps` y `knip` y lo devuelve una vez si fallan. Están bloqueadas las escrituras remotas de Supabase y Cloudflare por MCP, `supabase link` y `db push`, y `git push --force`.
+- **Puertas automáticas** (ADR 0013, `.claude/hooks/`). `subagent-guard.sh` impide que los implementadores confirmen, suban, abran PR o editen sus puertas, y que los agentes Sonnet escriban en `supabase/`, `apps/server/`, `packages/contracts/` o `packages/modules/`. Al terminar, `subagent-gate.sh` detecta lo delicado que un agente Sonnet cambió por otra vía, exige capturas si el implementador de UI cambió la interfaz y corre `typecheck`, `lint`, `deps` y `knip`; si algo falla, devuelve el trabajo una vez. Las escrituras remotas por MCP, `supabase link`, `db push` y `git push --force` se bloquean en local; en GitHub, una regla impide el force-push y el borrado de `main`.
 - **Impeccable corre en Sonnet 5.5 en `high`.** Sus comandos de ejecución y revisión (`audit`, `harden`, `polish`, `animate`, `layout`…) los lanza `platlab-ui-implementer`. La sesión principal solo usa `shape` para proponer. Los roles de documentar, producir imágenes y aplicar ediciones de `live` no tienen agente: la skill los ejecuta en línea (`reference/degraded/`) dentro del implementador de UI. Al actualizar la skill, revisar que `impeccable-finish-reviewer` conserve `model: claude-sonnet-5-5`.
-- **Paquete para `impeccable-finish-reviewer`.** Además de capturas y archivos, el brief dice: «Construcción guiada por código que refina un sistema existente. Contrato de dirección: `DESIGN.md` y ADR 0010 de `docs/05`. No hay diseño de referencia, tarjeta QUALITY BAR, `state.json` ni semilla: las comprobaciones que los exigen no aplican y no son hallazgos».
+- **Paquete para `impeccable-finish-reviewer`.** Se lo inyecta `subagent-gate.sh` al empezar: construcción guiada por código, contrato en `DESIGN.md` y ADR 0010, sin diseño de referencia, QUALITY BAR, `state.json` ni semilla, y reglas del dominio. El brief solo añade las capturas y los archivos.
 
 - **Brief autocontenido.** El subagente empieza sin contexto: objetivo, decisiones ya tomadas, archivos, criterios de aceptación, comandos y qué no tocar.
 - **Los subagentes no deciden ni cierran.** Si falta una decisión, se detienen y la reportan; no confirman ni suben.
@@ -70,10 +70,11 @@ La dirección visual está en 01 «Dirección visual», el stack en 02 §2 y el 
 | Momento | Skill |
 |---|---|
 | Antes de una pantalla o un flujo nuevo | `impeccable shape` (brief de UX confirmado por el usuario) |
-| Movimiento, gestos y hojas | `animate` + `apple-design` |
+| Movimiento, gestos y hojas | `animate` + `apple-design`; al terminar, `review-animations` |
 | Avisos | `ask-sonner` |
 | Una pieza que el stack no resuelve | `pick-ui-library`; la documentación se consulta con context7 |
-| Antes de cerrar una entrega con UI | `impeccable audit`, `harden` y `polish`, más `review-animations`; después, `platlab-verify-increment` |
+| Antes de cerrar una entrega con UI | Capturas de escritorio y móvil en `apps/web/.impeccable/review/` (la puerta las exige) e `impeccable-finish-reviewer`; después, `platlab-verify-increment` |
+| Antes de cerrar una puerta (G0, G1…) | `impeccable audit`, `harden` y `polish` sobre todo el frontend, más `review-animations` |
 
 - **Sin duplicar documentos.** `PRODUCT.md` y `DESIGN.md`, de `impeccable init` o `document`, solo enlazan a 01, 02 y al ADR 0010.
 - **Detector automático.** Los hooks de `.claude/settings.json` ejecutan el detector de impeccable al editar archivos de UI.

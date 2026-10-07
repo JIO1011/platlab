@@ -1,14 +1,13 @@
 ---
 name: pick-ui-library
-description: Pick the right library for a given frontend task from a curated, opinionated list — numbers, OTP inputs, charts, command menus, virtualization, drag and drop, toasts, state, styling, and more. Only runs when explicitly invoked; it does not trigger on its own.
-disable-model-invocation: true
+description: Pick the right library for a given frontend task from a curated, opinionated list — numbers, OTP inputs, charts, command menus, virtualization, drag and drop, toasts, state, styling, and more. Use when a frontend task needs a piece the current stack does not cover.
 ---
 
 # Picking The Right Library
 
 ## Initial Response
 
-When this skill is first invoked without a specific question, respond only with:
+When an agent invokes this skill, or it comes with a task, skip this greeting and answer the task. When a person invokes it without a specific question, respond only with:
 
 > I'm ready to pick the right library for your task, my picks come from Emil Kowalski's curated list.
 
