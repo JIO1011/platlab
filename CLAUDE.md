@@ -48,7 +48,8 @@ Actúa como experto senior en desarrollo de software full-stack,arquitectura, in
 | Rol | Quién | Hace |
 |---|---|---|
 | Planificar, evaluar y proponer | Sesión principal: Opus 5.5 en `xhigh` | Analiza (codebase-memory), propone y decide con el usuario, registra en `docs/05`, escribe el brief, revisa el diff, verifica (`platlab-verify-increment`), confirma y sube |
-| Implementar código | `platlab-implementer`: Opus 5.5 en `high` | Backend, SQL, contratos, pruebas, docs y skills |
+| Implementar código delicado | `platlab-implementer`: Opus 5.5 en `high` | SQL y migraciones, permisos y aislamiento, concurrencia, cantidades y saldos, contratos de la API |
+| Docs, skills y cambios mecánicos | `platlab-implementer` lanzado con `model: sonnet` (Sonnet 5.5 en `high`) | Consolidar, resumir, renombrar, ajustar textos y pruebas sin lógica nueva |
 | Mejoras de UI/UX | `platlab-ui-implementer`: Sonnet 5.5 en `high`, con las skills de diseño | Pantallas, pulido, movimiento, avisos y móvil |
 | Revisar acabado de UI | `impeccable-finish-reviewer`: Sonnet 5.5 en `high` | Correcciones ordenadas; no edita |
 
