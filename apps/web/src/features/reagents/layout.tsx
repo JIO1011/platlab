@@ -1,7 +1,7 @@
 import type { Position } from '@platlab/contracts';
-import { Button, cn } from '@platlab/ui';
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, cn } from '@platlab/ui';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
-import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, Eye, Plus, RefreshCw, Scale } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, ClipboardCheck, Eye, PackagePlus, Plus, RefreshCw, Scale } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Outlet, useLocation, useSearchParams } from 'react-router';
 import { moduleApps, useShell } from '../../app/app-shell';
@@ -20,6 +20,7 @@ import {
 import { QueryErrorState } from '../../app/states';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { AdjustmentSheet, CountSheet, IssueSheet, MinimumSheet, NewProductSheet, ReceiptSheet, TransferSheet } from './sheets';
+import { ReceiveSheet } from './prototype/receive-sheet';
 import { useNow } from './use-now';
 
 /**
@@ -102,13 +103,19 @@ export function ReagentsLayout() {
   const inProduct = detailId !== undefined;
   // En la página de etiquetas la tarea es imprimir: sin acciones de registro en la cabecera.
   const inLabels = pathname.endsWith('/etiquetas');
+  // Prototipo R-01D: «Ingresar reactivo» (el ingreso en un paso) sustituye a «Nuevo reactivo» y
+  // «Registrar ingreso» en la cabecera; las hojas de hoy pasan a «Más» para compararlas.
   const secondaryActions = [
+    { kind: 'ingress', label: inProduct ? 'Ingresar frascos' : 'Ingresar reactivo', icon: PackagePlus, shown: allowed.receipt },
+    { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 && !inProduct },
+  ] as const;
+  const moreActions = [
     { kind: 'product', label: 'Nuevo reactivo', icon: Plus, shown: allowed.product && !inProduct },
     { kind: 'receipt', label: 'Registrar ingreso', icon: ArrowDownToLine, shown: allowed.receipt },
-    { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 && !inProduct },
     // Conteo por ubicación (ADR 0012, entrega 4): tarea del inventario, no de cada reactivo.
     { kind: 'count', label: 'Conteo', icon: ClipboardCheck, shown: allowed.adjustment && sectionPath === 'inventario' && !inProduct },
   ] as const;
+  const visibleMore = moreActions.filter((action) => action.shown);
   const visibleSecondary = secondaryActions.filter((action) => action.shown);
   // «Actualizado hace…» informa lo más antiguo de lo que la sección muestra, nunca lo más fresco.
   const shown: Array<{ dataUpdatedAt: number }> =
@@ -168,12 +175,12 @@ export function ReagentsLayout() {
         </div>
         {/* En el Resumen, la tarjeta de acción rápida hace de acciones (ADR 0010, 04-10-2026); en Solicitudes, la tarea es decidir, y «Aprobar salida» es la primaria. */}
         {sectionPath !== '' && sectionPath !== 'solicitudes' && !inLabels ? (
-          <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
+          <div className="grid w-full grid-cols-[1fr_1fr_auto] gap-2 lg:flex lg:w-auto lg:flex-wrap">
             {visibleSecondary.map(({ kind, label, icon: Icon }, index) => (
               <Button
                 key={kind}
-                className={cn(index === visibleSecondary.length - 1 && index % 2 === 0 && 'col-span-2 lg:col-span-1')}
-                onClick={() => sheets.open(kind === 'receipt' && detailId ? { kind, productId: detailId } : { kind })}
+                className={cn('max-lg:h-[44px]', index === 0 && visibleSecondary.length === 1 && 'col-span-2 lg:col-span-1')}
+                onClick={() => sheets.open(kind === 'ingress' && detailId ? { kind, productId: detailId } : { kind })}
               >
                 <Icon aria-hidden />
                 {label}
@@ -182,12 +189,34 @@ export function ReagentsLayout() {
             {allowed.issue && positionList.length > 0 ? (
               <Button
                 variant="primary"
-                className="order-first col-span-2 lg:order-none"
+                className="order-first col-span-3 max-lg:h-[44px] lg:order-none"
                 onClick={() => sheets.open(detailId ? { kind: 'issue', productId: detailId } : { kind: 'issue' })}
               >
                 <ArrowUpFromLine aria-hidden />
                 {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
               </Button>
+            ) : null}
+            {visibleMore.length > 0 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="max-lg:h-[44px]">
+                    Más
+                    <ChevronDown aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {visibleMore.map(({ kind, label, icon: Icon }) => (
+                    <DropdownMenuItem
+                      key={kind}
+                      className="max-lg:h-[44px]"
+                      onSelect={() => sheets.open(kind === 'receipt' && detailId ? { kind, productId: detailId } : { kind })}
+                    >
+                      <Icon aria-hidden />
+                      {label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : null}
           </div>
         ) : null}
@@ -226,6 +255,15 @@ export function ReagentsLayout() {
         />
       </div>
 
+      {current?.request.kind === 'ingress' ? (
+        <ReceiveSheet
+          key={current.id}
+          {...sheetProps('ingress')}
+          products={productList}
+          productId={current.request.productId}
+          canCreate={allowed.product}
+        />
+      ) : null}
       {current?.request.kind === 'product' ? <NewProductSheet key={current.id} {...sheetProps('product')} /> : null}
       {current?.request.kind === 'receipt' ? (
         <ReceiptSheet key={current.id} {...sheetProps('receipt')} products={productList} productId={current.request.productId} base={base} />

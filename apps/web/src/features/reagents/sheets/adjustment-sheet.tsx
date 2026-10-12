@@ -1,11 +1,12 @@
 import { adjustmentRequest, movementResponse, type Position } from '@platlab/contracts';
-import { Field, Input, Quantity, Select, formatDecimal, sectionLabel, normalizeDecimalInput, toast } from '@platlab/ui';
+import { Field, Input, Quantity, Segmented, Select, formatDecimal, sectionLabel, normalizeDecimalInput, toast } from '@platlab/ui';
 import { Scale } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { isApiError } from '../../../app/api';
 import { useReasons } from '../queries';
 import { ChoiceField } from '../choices';
+import { balanceFromScale, simulatedWeightOf } from '../prototype/weight';
 import { commandErrorMessage, useCommand } from '../commands';
 import { type SheetBaseProps, validate, FormSheet, QuantityPreview, positionOption, byProductThenExpiry } from './shared';
 
@@ -26,6 +27,23 @@ export function AdjustmentSheet({
   const position = positions.find((p) => p.id === form.watch('positionId'));
   const direction = form.watch('direction');
   const errors = form.formState.errors;
+  // Prototipo R-01D: «Por peso» calcula el saldo con la balanza y solo cierra con un aviso de vista previa.
+  const [mode, setMode] = useState<'quantity' | 'weight'>('quantity');
+  const [scaleText, setScaleText] = useState('');
+  const [scaleError, setScaleError] = useState<string | undefined>(undefined);
+  const scaleWeight = normalizeDecimalInput(scaleText);
+  const weighed = position && /^\d{1,15}(\.\d{1,9})?$/.test(scaleWeight) ? balanceFromScale(position, scaleWeight) : null;
+  const hasTare = position ? simulatedWeightOf(position) !== null : false;
+
+  const submitWeight = () => {
+    if (!position) return setScaleError('Primero elige el frasco.');
+    if (!hasTare) return setScaleError('Este frasco aún no tiene tara: fíjala para ajustar por peso.');
+    if (!scaleWeight) return setScaleError('Escribe el peso que marca la balanza, por ejemplo 640,5.');
+    if (weighed === null) return setScaleError('Escribe el peso en gramos, por ejemplo 640,5.');
+    if ('error' in weighed) return setScaleError(weighed.error);
+    toast('Vista previa: aún no se guarda nada');
+    onOpenChange(false);
+  };
 
   const submit = form.handleSubmit(async (values) => {
     setGeneralError(null);
@@ -64,9 +82,22 @@ export function AdjustmentSheet({
       submitLabel="Registrar ajuste"
       pending={command.isPending}
       generalError={generalError}
-      onSubmit={() => void submit()}
+      onSubmit={() => (mode === 'weight' ? submitWeight() : void submit())}
     >
       <div className="grid grid-cols-1 gap-3">
+        <Segmented
+          label="Cómo se ajusta"
+          value={mode}
+          onValueChange={(next) => {
+            setMode(next);
+            setScaleError(undefined);
+          }}
+          options={[
+            { value: 'quantity', label: 'Por cantidad' },
+            { value: 'weight', label: 'Por peso' },
+          ]}
+          className="justify-self-start"
+        />
         <Field label="Frasco" error={errors.positionId?.message}>
           <Controller
             control={form.control}
@@ -88,6 +119,8 @@ export function AdjustmentSheet({
           </div>
         ) : null}
       </div>
+      {mode === 'quantity' ? (
+        <>
       <div className="grid grid-cols-1 gap-4">
         <fieldset className="grid gap-1.5">
           <legend className="text-sm font-medium text-ink">El conteo</legend>
@@ -148,6 +181,59 @@ export function AdjustmentSheet({
           />
         )}
       />
+        </>
+      ) : (
+        <>
+      <div className="grid grid-cols-1 gap-4">
+        <Field
+          label="Peso en balanza (g)"
+          className="text-center"
+          labelClassName={sectionLabel}
+          error={scaleError}
+          hint={
+            weighed && !('error' in weighed) && position ? (
+              <span role="status">
+                Saldo calculado <Quantity value={weighed.balance} unit={position.unit} className="font-medium text-ink" />
+                {' · '}
+                {/^-?0\.0+$/.test(weighed.difference) ? (
+                  'cuadra con el registrado'
+                ) : (
+                  <>
+                    diferencia <Quantity value={weighed.difference} unit={position.unit} signed className="font-medium text-ink" />
+                  </>
+                )}
+              </span>
+            ) : position && !hasTare ? (
+              'Este frasco aún no tiene tara: fíjala para ajustar por peso.'
+            ) : (
+              'Pesa el frasco con su tapa; se descuenta la tara.'
+            )
+          }
+        >
+          <div className="relative mx-auto w-full max-w-xs">
+            <Input
+              inputMode="decimal"
+              autoComplete="off"
+              className="h-14 rounded-none border-0 border-b-2 border-line-strong bg-transparent px-14 text-center text-4xl font-bold tabular-nums focus-visible:ring-0 aria-[invalid=true]:ring-0"
+              value={scaleText}
+              onChange={(event) => {
+                setScaleText(event.target.value);
+                setScaleError(undefined);
+              }}
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xl text-ink-muted">g</span>
+          </div>
+        </Field>
+      </div>
+      <div className="grid gap-1.5">
+        <span className={sectionLabel}>Motivo</span>
+        <p className="text-sm text-ink">
+          <span className="rounded-full bg-surface-sunken px-3 py-1 font-medium">Pesada</span>
+          <span className="ml-2 text-[13px] text-ink-muted">Se fija solo al ajustar por peso.</span>
+        </p>
+      </div>
+        </>
+      )}
     </FormSheet>
   );
 }

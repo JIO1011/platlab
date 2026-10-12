@@ -1,7 +1,7 @@
 import { type Position } from '@platlab/contracts';
 import { Button, Quantity, Sheet, cn, formatDecimal, normalizeDecimalInput, type SelectOption } from '@platlab/ui';
 import { type LucideIcon } from 'lucide-react';
-import { type ReactNode } from 'react';
+import { type ReactNode, type RefObject } from 'react';
 import { type FieldValues, type Path, type UseFormReturn } from 'react-hook-form';
 import { type z } from 'zod';
 import { formatDate } from '../../../app/format';
@@ -38,6 +38,8 @@ export function FormSheet({
   generalError,
   onSubmit,
   sections = false,
+  wide = false,
+  initialFocus,
   children,
 }: {
   title: string;
@@ -51,6 +53,9 @@ export function FormSheet({
   onSubmit: () => void;
   /** Cada hijo es una sección separada por una línea, como el modal de salida de ReactiLab. */
   sections?: boolean;
+  /** Ventana ancha (R-01D): formularios de dos columnas. */
+  wide?: boolean;
+  initialFocus?: RefObject<HTMLElement | null>;
   children: ReactNode;
 }) {
   const formId = `form-${title.replace(/\s+/g, '-').toLowerCase()}`;
@@ -61,6 +66,8 @@ export function FormSheet({
       title={title}
       description={description}
       icon={icon}
+      wide={wide}
+      initialFocus={initialFocus}
       footer={
         <>
           <Button variant="ghost" className="h-12 shrink-0 rounded-2xl px-5" onClick={() => onOpenChange(false)}>

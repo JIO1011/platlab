@@ -1,6 +1,7 @@
 import { X, type LucideIcon } from 'lucide-react';
 import { Dialog } from 'radix-ui';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
+import { cn } from '../lib/cn';
 
 export interface SheetProps {
   open: boolean;
@@ -12,6 +13,10 @@ export interface SheetProps {
   children: ReactNode;
   /** Acciones fijas al pie, siempre visibles aunque el formulario sea largo. */
   footer?: ReactNode;
+  /** Ventana ancha (hasta 40 rem) para formularios de dos columnas; por omisión, 32 rem. */
+  wide?: boolean;
+  /** Quién recibe el foco al abrir; por omisión, el primer control tabulable (Radix). */
+  initialFocus?: RefObject<HTMLElement | null> | undefined;
 }
 
 /**
@@ -20,12 +25,22 @@ export interface SheetProps {
  * acciones fijas al pie. Nace de su centro con una curva sin rebote; el foco queda atrapado
  * mientras está abierta. En pantallas pequeñas deja 16 px a cada lado y se desplaza por dentro.
  */
-export function Sheet({ open, onOpenChange, title, description, icon: Icon, children, footer }: SheetProps) {
+export function Sheet({ open, onOpenChange, title, description, icon: Icon, children, footer, wide = false, initialFocus }: SheetProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-ink/50 backdrop-blur-sm data-[state=closed]:animate-fade-out data-[state=open]:animate-fade-in" />
-        <Dialog.Content className="fixed inset-0 z-50 m-auto flex h-fit max-h-[90dvh] w-[calc(100vw-2rem)] max-w-lg flex-col overflow-hidden rounded-card bg-surface shadow-overlay outline-none data-[state=closed]:animate-modal-out data-[state=open]:animate-modal-in">
+        <Dialog.Content
+          onOpenAutoFocus={(event) => {
+            if (!initialFocus?.current) return;
+            event.preventDefault();
+            initialFocus.current.focus();
+          }}
+          className={cn(
+            'fixed inset-0 z-50 m-auto flex h-fit max-h-[90dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-card bg-surface shadow-overlay outline-none data-[state=closed]:animate-modal-out data-[state=open]:animate-modal-in',
+            wide ? 'max-w-[40rem]' : 'max-w-lg',
+          )}
+        >
           <header className="flex items-start justify-between gap-4 px-6 pb-4 pt-5">
             <div className="flex min-w-0 items-center gap-4">
               {Icon ? (

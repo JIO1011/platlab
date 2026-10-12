@@ -17,6 +17,8 @@ import type { MovementFilters, OperationQuery } from './movement-filters';
 export type SheetRequest =
   | { kind: 'product' }
   | { kind: 'receipt'; productId?: string }
+  // Prototipo R-01D: «Ingresar reactivo», el ingreso en un paso (solo interfaz).
+  | { kind: 'ingress'; productId?: string }
   // Con `position`, el frasco viaja en la petición (el de una etiqueta QR puede no estar en la lista global).
   | { kind: 'issue'; positionId?: string; productId?: string; position?: Position }
   | { kind: 'adjustment'; positionId?: string }

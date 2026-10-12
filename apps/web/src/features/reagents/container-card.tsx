@@ -1,9 +1,10 @@
 import type { Position } from '@platlab/contracts';
-import { Badge, Button, Quantity, cn, formatDecimal, ratioPercent } from '@platlab/ui';
+import { Badge, Button, Quantity, cn, formatDecimal, ratioPercent, toast } from '@platlab/ui';
 import { ArrowLeftRight, ArrowUpFromLine, Building2, Calendar, Check, MapPin, QrCode as QrIcon, Scale } from 'lucide-react';
 import { type ReactNode } from 'react';
 import { addDays, formatDate, formatInstantDate, relativeDays } from '../../app/format';
 import { type Allowed, type SheetRequest } from './context';
+import { weightFigures } from './prototype/weight';
 import { availableOf } from './stock';
 
 /** Caducidad con texto, nunca solo con color: vencido, fecha o «sin confirmar» (01 §6.1). */
@@ -29,6 +30,42 @@ function Tile({ label, children, tone = 'neutral' }: { label: string; children: 
       <p className="truncate text-[12px] leading-tight">{label}</p>
       <p className={cn('mt-0.5 truncate text-[13px] font-bold tabular-nums', tone === 'neutral' ? 'text-ink' : undefined)}>{children}</p>
     </div>
+  );
+}
+
+/**
+ * Prototipo R-01D: control por peso del frasco. Con tara (datos de ejemplo) muestra Tara, Peso neto y
+ * Bruto esperado en g; sin ella, un enlace discreto. Los pesos no son cantidades de inventario.
+ */
+function WeightRow({ position, canSet }: { position: Position; canSet: boolean }) {
+  const figures = weightFigures(position);
+  if (figures) {
+    return (
+      <dl className="grid grid-cols-3 gap-1.5">
+        {(
+          [
+            ['Tara', figures.tare],
+            ['Peso neto', figures.net],
+            ['Bruto esperado', figures.expectedGross],
+          ] as const
+        ).map(([label, grams]) => (
+          <div key={label} className="min-w-0 rounded-control bg-surface-sunken px-2 py-1.5 text-center">
+            <dt className="text-[12px] leading-tight text-ink-muted">{label}</dt>
+            <dd className="mt-0.5 text-[13px] font-bold tabular-nums text-ink">{formatDecimal(grams)} g</dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+  if (!canSet || position.balance === '0' || !['g', 'kg', 'mL', 'L'].includes(position.unit)) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => toast('Vista previa: aún no se guarda nada')}
+      className="-mx-1 inline-flex min-h-[44px] items-center self-start rounded-[6px] px-1 text-left text-[13px] text-ink-muted underline decoration-line-strong underline-offset-4 transition-colors hover:text-action hover:decoration-action sm:min-h-0 sm:py-0.5"
+    >
+      Fija el peso para controlar por balanza
+    </button>
   );
 }
 
@@ -171,6 +208,7 @@ export function ContainerCard({
           </>
         ) : null}
       </div>
+      <WeightRow position={position} canSet={allowed.adjustment} />
       {canIssue || canTransfer || allowed.adjustment ? (
         <div className="mt-auto flex gap-2 border-t border-line pt-3">
           {canIssue ? (

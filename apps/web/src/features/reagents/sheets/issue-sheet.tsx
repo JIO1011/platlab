@@ -23,6 +23,7 @@ import { formatDate } from '../../../app/format';
 import { useDestinations, useReasons } from '../queries';
 import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
+import { grossFor } from '../prototype/weight';
 import { availableOf } from '../stock';
 import { type SheetBaseProps, validate, FormSheet, expiryText, positionOption, byProductThenExpiry, isExpired } from './shared';
 import { fefoCandidates, fefoSuggestion } from './fefo';
@@ -80,6 +81,8 @@ export function IssueSheet({
   const available = position ? availableOf(position) : null;
   const remaining = available !== null && quantity ? subtractDecimal(available, quantity) : null;
   // Con algo apartado, las cifras dicen «disponible»: el saldo del frasco no es lo que se puede sacar.
+  // Prototipo R-01D: lo que marcaría la balanza con lo que quedará (solo frascos con datos de ejemplo).
+  const onScale = position && remaining !== null && !remaining.startsWith('-') ? grossFor(position, remaining) : null;
   const reservedNote = position && position.reserved !== '0' ? ' disponibles' : '';
   // La barra del stock cuenta lo que quedará (o lo disponible si aún no hay cantidad) frente a lo que entró.
   const barBase = remaining !== null && !remaining.startsWith('-') ? remaining : available;
@@ -204,6 +207,11 @@ export function IssueSheet({
                 <span>
                   Quedarán <Quantity value={remaining} unit={position.unit} className="font-medium text-ink" />
                   {reservedNote} en el frasco.
+                  {onScale ? (
+                    <span className="mt-0.5 block">
+                      En balanza: <span className="font-medium tabular-nums text-ink">{formatDecimal(onScale)} g</span>
+                    </span>
+                  ) : null}
                 </span>
               )
             ) : position && available !== null ? (
