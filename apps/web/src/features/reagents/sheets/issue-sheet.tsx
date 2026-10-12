@@ -20,7 +20,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { isApiError } from '../../../app/api';
 import { formatDate } from '../../../app/format';
-import { useDestinations, useReasons } from '../../../app/queries';
+import { useDestinations, useReasons } from '../queries';
 import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
 import { availableOf } from '../stock';

@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { isApiError } from '../../app/api';
 import { formatDateTime } from '../../app/format';
-import { useReagentsKey } from '../../app/queries';
+import { useReagentsKey } from './queries';
 import { QueryErrorState } from '../../app/states';
 import { commandErrorMessage, useCommand } from './commands';
 import { useReagents } from './context';

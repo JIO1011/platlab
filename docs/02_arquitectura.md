@@ -73,6 +73,7 @@ dependency-cruiser verifica en CI:
 - Core no importa módulos.
 - `domain` no importa HTTP ni infraestructura.
 - Los frontends no importan código del servidor y `web` no importa `console`.
+- En la web, una feature no importa otra; `app/` conoce los módulos solo por su registro (`app/modules.ts`) y el router.
 
 Cada esquema tiene un único propietario técnico, que es el único que escribe sus tablas ([03 §2](03_datos.md#2-esquemas)). Ese propietario es un módulo o una capacidad (inventario, agenda o incidencias). Los módulos usan una capacidad a través de sus comandos. Un caso de uso puede coordinar varios módulos y capacidades dentro de la misma transacción.
 
@@ -108,7 +109,7 @@ Para agregar un módulo:
 3. Crear la migración con esquema propio: `workspace_id`, FKs compuestas, RLS, grants y pruebas pgTAP.
 4. Implementar el servidor en `modules/<código>`, con comandos transaccionales y un plugin Fastify bajo `/v1/workspaces/:workspaceId/<ruta>`.
 5. Definir los contratos en `packages/contracts`.
-6. Crear la web en `features/<código>`: rutas diferidas, la app del módulo con su Resumen y sus secciones, y la tarjeta de Inicio ([ADR 0011](05_decisiones.md#adr-0011)).
+6. Crear la web en `features/<código>`: su descriptor (icono, marca y tarjeta de Inicio), sus rutas diferidas en un solo fragmento, sus consultas, y la app del módulo con su Resumen y sus secciones ([ADR 0011](05_decisiones.md#adr-0011)). Se registra con una línea en `app/modules.ts` y otra en el router; el shell no nombra módulos.
 7. Cubrir exportación, importación y disposición de sus datos.
 8. Crear una versión de paquete en la consola para venderlo; se habilita por contrato ([ADR 0002](05_decisiones.md#adr-0002)).
 9. Avanzar su etapa cuando supere la puerta correspondiente: pasa a `pilot` tras su G0 y a `general` tras su G2 ([04 §2](04_roadmap.md#2-puertas)).

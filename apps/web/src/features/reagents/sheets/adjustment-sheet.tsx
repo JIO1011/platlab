@@ -4,7 +4,7 @@ import { Scale } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { isApiError } from '../../../app/api';
-import { useReasons } from '../../../app/queries';
+import { useReasons } from '../queries';
 import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
 import { type SheetBaseProps, validate, FormSheet, QuantityPreview, positionOption, byProductThenExpiry } from './shared';

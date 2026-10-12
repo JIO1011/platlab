@@ -2,8 +2,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { z } from 'zod';
 import { api, isApiError } from '../../app/api';
-import { useReagentsKey, workspaceKey } from '../../app/queries';
+import { workspaceKey } from '../../app/queries';
 import { useSession } from '../../app/session';
+import { useReagentsKey } from './queries';
 
 /**
  * Envío de un comando de Reactivos. La clave idempotente nace al abrir la hoja y se reutiliza

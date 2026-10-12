@@ -6,9 +6,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import { api } from '../../app/api';
 import { formatDate } from '../../app/format';
-import { frascoCode, readFrascoCode } from '../../app/frasco-link';
+import { frascoCode, readFrascoCode } from './frasco-link';
 import { QrCode } from '../../app/qr-code';
-import { usePositions, useProduct } from '../../app/queries';
+import { usePositions, useProduct } from './queries';
 import { NotFound, PageLoading, QueryErrorState } from '../../app/states';
 import { useReagents } from './context';
 

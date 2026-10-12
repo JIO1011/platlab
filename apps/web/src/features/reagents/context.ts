@@ -9,7 +9,7 @@ import type {
 } from '@platlab/contracts';
 import type { InfiniteData, UseInfiniteQueryResult, UseQueryResult } from '@tanstack/react-query';
 import { useOutletContext } from 'react-router';
-import type { OperationFilter } from '../../app/queries';
+import type { OperationFilter } from './queries';
 
 /** Hoja de registro que se abre, con lo que ya se conoce (reactivo o frasco de origen). */
 export type SheetRequest =

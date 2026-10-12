@@ -26,6 +26,27 @@ module.exports = {
       to: { path: '^apps/console/' },
     },
     {
+      name: 'web-features-isolated',
+      severity: 'error',
+      comment: 'Una feature de la web no importa otra; lo común vive en app/ o en packages/ui.',
+      from: { path: '^apps/web/src/features/([^/]+)/' },
+      to: { path: '^apps/web/src/features/', pathNot: '^apps/web/src/features/$1/' },
+    },
+    {
+      name: 'web-shell-no-modules',
+      severity: 'error',
+      comment: 'app/ conoce las features solo por el router y el registro de módulos (app/modules.ts).',
+      from: { path: '^apps/web/src/app/', pathNot: '^apps/web/src/app/(router\\.tsx|modules\\.ts)$' },
+      to: { path: '^apps/web/src/features/' },
+    },
+    {
+      name: 'web-registry-descriptors',
+      severity: 'error',
+      comment: 'El registro solo importa el descriptor de cada módulo, no sus páginas.',
+      from: { path: '^apps/web/src/app/modules\\.ts$' },
+      to: { path: '^apps/web/src/features/', pathNot: '^apps/web/src/features/[^/]+/module\\.tsx?$' },
+    },
+    {
       name: 'domain-pure',
       severity: 'error',
       comment: 'domain no importa HTTP ni infraestructura.',
