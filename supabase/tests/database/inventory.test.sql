@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(69);
+select plan(71);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -116,8 +116,19 @@ select set_eq(
 select results_eq(
   'select code from core.permissions where module_code = ''reagents'' order by code',
   array['reagents.adjustment.create', 'reagents.catalog.manage', 'reagents.catalog.read',
-        'reagents.issue.approve', 'reagents.issue.create', 'reagents.receipt.create', 'reagents.transfer.create'],
+        'reagents.issue.approve', 'reagents.issue.create', 'reagents.receipt.create', 'reagents.report.read',
+        'reagents.transfer.create'],
   'los permisos de Reactivos están en el catálogo');
+
+select is(
+  (select module_code from core.permissions where code = 'reagents.report.read'),
+  'reagents',
+  'los reportes de Movimientos son un permiso del módulo Reactivos (ADR 0014)');
+
+select set_eq(
+  'select role_code from core.role_permissions where permission_code = ''reagents.report.read''',
+  array['admin'],
+  'solo el Administrador tiene los reportes; el Propietario los hereda (ADR 0008, 0014)');
 
 select ok(
   exists (select 1 from core.role_permissions where role_code = 'admin' and permission_code = 'reagents.issue.approve'),

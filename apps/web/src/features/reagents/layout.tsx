@@ -6,14 +6,16 @@ import { useMemo, useState } from 'react';
 import { Outlet, useLocation, useSearchParams } from 'react-router';
 import { moduleApps, useShell } from '../../app/app-shell';
 import { formatAgo } from '../../app/format';
+import { parseMovementFilters, toOperationQuery } from './movement-filters';
 import {
   useIssueRequests,
+  useOperationFacets,
   useOperations,
+  useOperationTotals,
   usePositions,
   useProducts,
   useReagentsKey,
   useReagentsSummary,
-  type OperationFilter,
 } from './queries';
 import { QueryErrorState } from '../../app/states';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
@@ -34,18 +36,6 @@ function useSheets() {
 }
 
 /**
- * Filtro del historial en la URL, para que la cifra del Resumen abra exactamente su lista:
- * `?tipo=salida&dias=30` son las salidas de los últimos 30 días, la misma ventana del gráfico.
- */
-const typeParams = { ingreso: 'receipt', salida: 'issue', ajuste: 'adjustment', traslado: 'transfer' } as const;
-
-function readOperationFilter(params: URLSearchParams): OperationFilter {
-  const type = typeParams[params.get('tipo') as keyof typeof typeParams] as OperationFilter['type'];
-  const days = Number(params.get('dias'));
-  return { type, days: Number.isInteger(days) && days >= 1 && days <= 90 ? days : undefined };
-}
-
-/**
  * La app de Reactivos (ADR 0011): una cabecera común con el título de la sección, las acciones que
  * permite el rol y las hojas de registro; cada sección se dibuja debajo. Las acciones viven aquí
  * para que registrar una salida esté a un clic desde cualquier sección.
@@ -56,10 +46,12 @@ export function ReagentsLayout() {
   const [params] = useSearchParams();
   const queryClient = useQueryClient();
   const reagentsKey = useReagentsKey(workspaceId);
-  const operationFilter = readOperationFilter(params);
+  // Filtros de Movimientos en la URL (ADR 0014): la cifra del Resumen abre exactamente su lista.
+  const movementFilters = useMemo(() => parseMovementFilters(params), [params]);
+  const operationQuery = toOperationQuery(movementFilters, me.workspace.timeZone);
   const products = useProducts(workspaceId);
   const positions = usePositions(workspaceId);
-  const operations = useOperations(workspaceId, operationFilter);
+  const operations = useOperations(workspaceId, operationQuery);
   const sheets = useSheets();
   const now = useNow(15_000);
 
@@ -93,6 +85,14 @@ export function ReagentsLayout() {
         : (section?.label ?? module?.name ?? 'Reactivos');
   const summary = useReagentsSummary(workspaceId, sectionPath === '');
   const requests = useIssueRequests(workspaceId, params.get('estado') === 'todas', sectionPath === 'solicitudes');
+  const operationFacets = useOperationFacets(workspaceId, operationQuery, '', sectionPath === 'movimientos');
+  const operationTotals = useOperationTotals(
+    workspaceId,
+    me,
+    operationQuery,
+    movementFilters.groupBy,
+    sectionPath === 'movimientos' && movementFilters.view === 'totals',
+  );
 
   const positionList = useMemo(() => positions.data?.pages.flatMap((page) => page.items) ?? [], [positions.data]);
   // Por debajo de 1024 px (móvil y tableta), la primaria ocupa su fila y las secundarias van de dos
@@ -213,7 +213,10 @@ export function ReagentsLayout() {
               positions,
               positionList,
               operations,
-              operationFilter,
+              movementFilters,
+              operationQuery,
+              operationFacets,
+              operationTotals,
               summary,
               requests,
               canResolve,

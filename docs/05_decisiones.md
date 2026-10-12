@@ -335,6 +335,7 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 | Ámbito por ubicación | Los roles valen para todo el espacio (ADR 0008). Retirar `location_id` de las asignaciones y simplificar las consultas que filtran por ámbito | Entrega aparte, antes de T-07 |
 | Escaneo con cámara | La etiqueta QR abre el frasco con la cámara del móvil (ADR 0012). ¿Hace falta además un escáner dentro de la app para registrar salidas en serie? | P-03 |
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
+| Libro sin filtros | La lista sin filtros (también la actividad del Resumen) entra por frascos y ordena todo el libro del espacio: unos 250 ms con 40 000 operaciones (medido en R-01C). ¿Índice o consulta distinta? | Antes de G1, con el escenario de carga (04 §4) |
 | Conexión a PostgreSQL | ¿Conexión directa con el complemento IPv4 o Supavisor en modo sesión? | S-01 |
 | Credencial local del rol de runtime | `supabase/seed.sql` fija una contraseña de desarrollo. Antes de usar ramas de Supabase o staging, pasarla a una variable de entorno local o desactivar el seed fuera de local y CI | S-01 |
 | Conectividad | Cortes reales y procedimiento de continuidad | F0 |

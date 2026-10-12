@@ -18,9 +18,11 @@ export const reagentsModule = defineModule({
     'reagents.issue.approve',
     'reagents.adjustment.create',
     'reagents.transfer.create',
+    'reagents.report.read',
   ],
   roleGrants: {
-    // Aprobar salidas (ADR 0012) es del Administrador; el Propietario lo hereda (ADR 0008).
+    // Aprobar salidas (ADR 0012) y los reportes (totales y exportación, ADR 0014) son del
+    // Administrador; el Propietario los hereda (ADR 0008).
     admin: [
       'reagents.catalog.read',
       'reagents.catalog.manage',
@@ -29,6 +31,7 @@ export const reagentsModule = defineModule({
       'reagents.issue.approve',
       'reagents.adjustment.create',
       'reagents.transfer.create',
+      'reagents.report.read',
     ],
     operator: ['reagents.catalog.read', 'reagents.receipt.create', 'reagents.issue.create', 'reagents.transfer.create'],
   },

@@ -81,6 +81,12 @@ async function pick(scope: Locator, name: string) {
   await expect(scope.getByRole('radio', { name, exact: true })).toBeChecked();
 }
 
+/** Marca una casilla o un radio del panel: lo marcado viene de la URL, así que se espera a que se asiente. */
+async function tick(control: Locator) {
+  await control.click();
+  await expect(control).toBeChecked();
+}
+
 async function choose(page: Page, label: string, option: RegExp | string) {
   await page.getByLabel(label, { exact: true }).click();
   await page.getByRole('option', { name: option }).click();
@@ -376,17 +382,21 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
   // El total de salidas va en la cabecera del gráfico (ADR 0012, 05-10-2026) y abre la lista.
   await admin.getByRole('link', { name: /\d+ salidas? en 30 días/ }).click();
   await expect(admin.getByRole('heading', { name: 'Movimientos', level: 1 })).toBeVisible();
-  // La lista llega filtrada como la cifra: solo salidas de los últimos 30 días, con sus píldoras activas.
-  await expect(admin.getByRole('button', { name: 'Salidas', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(admin.getByRole('button', { name: '30 días', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  const rows = admin.locator('main').getByRole('listitem');
+  // La lista llega filtrada como la cifra: solo salidas de los últimos 30 días, marcadas en el panel y en las fichas.
+  const filters = admin.getByRole('complementary', { name: 'Filtros' });
+  await expect(filters.getByRole('checkbox', { name: /^Salidas/ })).toBeChecked();
+  await expect(filters.getByRole('radio', { name: '30 días', exact: true })).toBeChecked();
+  const active = admin.getByRole('list', { name: 'Filtros activos' });
+  await expect(active.getByText('Tipo: Salidas')).toBeVisible();
+  await expect(active.getByText('Últimos 30 días')).toBeVisible();
+  const rows = admin.locator('main').getByRole('listitem').filter({ hasNot: admin.getByRole('button') });
   await expect(rows.first()).toBeVisible();
   for (const row of await rows.all()) await expect(row).toContainText('Salida');
   await expectAccessible(admin, 'movimientos filtrados');
   await capture(admin, 'desktop-movements-filtered', false);
-  await admin.getByRole('button', { name: 'Todos', exact: true }).click();
-  await admin.getByRole('button', { name: 'Todo', exact: true }).click();
+  await admin.getByRole('button', { name: 'Limpiar' }).click();
   await expect(admin).not.toHaveURL(/tipo=|dias=/);
+  await expect(admin.getByRole('list', { name: 'Filtros activos' })).toHaveCount(0);
   await expect(admin.locator('main').getByRole('listitem').first()).toBeVisible();
 
   // Vencidos abre el Inventario filtrado, y cada tarjeta dice sus avisos con texto (ADR 0012, 05-10-2026).
@@ -582,7 +592,7 @@ test('traslado: un frasco entero cambia de ubicación en un paso y Movimientos l
 
   // Un asiento sale del origen y otro entra en el destino, con el tipo escrito.
   await goTo(admin, 'Movimientos');
-  await admin.getByRole('button', { name: 'Traslados', exact: true }).click();
+  await tick(admin.getByRole('complementary', { name: 'Filtros' }).getByRole('checkbox', { name: /^Traslados/ }));
   await expect(admin).toHaveURL(/tipo=traslado/);
   const rows = admin.locator('main').getByRole('listitem').filter({ hasText: 'H2SO4-2026-09-01' });
   await expect(rows).toHaveCount(2);
@@ -633,7 +643,7 @@ test('conteo: se anota lo que hay por ubicación y solo lo que no cuadra se ajus
   await expect(sheet).toHaveCount(0);
 
   await goTo(admin, 'Movimientos');
-  await admin.getByRole('button', { name: 'Ajustes', exact: true }).click();
+  await tick(admin.getByRole('complementary', { name: 'Filtros' }).getByRole('checkbox', { name: /^Ajustes/ }));
   const row = admin.locator('main').getByRole('listitem').filter({ hasText: 'H2SO4-2026-02-01' }).filter({ hasText: 'Conteo' });
   await expect(row).toHaveCount(1);
   await expect(row).toContainText(/995\s*mL/);
@@ -824,4 +834,144 @@ test('sesión expirada: un token que la API rechaza cierra la sesión y vuelve a
   await expect(admin).toHaveURL(/\/acceso\?sesion=expirada/);
   await expect(admin.getByText('Tu sesión terminó. Vuelve a iniciar sesión para continuar.')).toBeVisible();
   await expectAccessible(admin, 'sesión expirada');
+});
+
+test('Movimientos como informe: el panel filtra por la URL, las fichas quitan y Totales abre Detalle (R-01C)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await openReagents(admin, 'Facultad de Ciencias');
+  await goTo(admin, 'Movimientos');
+  const panel = admin.getByRole('complementary', { name: 'Filtros' });
+  await expect(panel).toBeVisible();
+  await expect(admin.getByText(/^\d+ movimientos?$/).first()).toBeVisible();
+  await capture(admin, 'desktop-movements-panel', false);
+
+  // Marcar «Salidas» aplica al instante: cambia la URL, la ficha y la lista.
+  await tick(panel.getByRole('checkbox', { name: /^Salidas/ }));
+  await expect(admin).toHaveURL(/tipo=salida/);
+  const chips = admin.getByRole('list', { name: 'Filtros activos' });
+  await expect(chips.getByText('Tipo: Salidas', { exact: true })).toBeVisible();
+  // El orden de Tipo es fijo: marcar no mueve las filas.
+  await expect(panel.getByRole('group', { name: /^Tipo/ }).getByRole('checkbox').first()).toHaveAccessibleName(/^Ingresos/);
+  const ledger = admin.locator('main').getByRole('listitem').filter({ has: admin.getByRole('link') });
+  await expect(ledger.first()).toBeVisible();
+  for (const row of await ledger.all()) await expect(row).toContainText('Salida');
+  await tick(panel.getByRole('checkbox', { name: /^Ajustes/ }));
+  await expect(chips.getByText('Tipo: Salidas y Ajustes')).toBeVisible();
+  await tick(panel.getByRole('radio', { name: 'Este mes' }));
+  await expect(admin).toHaveURL(/periodo=mes/);
+  await expect(chips.getByText('Este mes', { exact: true })).toBeVisible();
+
+  // Desde–hasta: si la fecha inicial es mayor, el aviso queda en el campo y no se aplica.
+  await tick(panel.getByRole('radio', { name: 'Desde–hasta' }));
+  await panel.getByLabel('Desde', { exact: true }).fill('2026-03-15');
+  await panel.getByLabel('Hasta', { exact: true }).fill('2026-03-01');
+  await expect(panel.getByText('La fecha inicial es posterior a la final.')).toBeVisible();
+  await expect(admin).not.toHaveURL(/hasta=2026-03-01/);
+  await panel.getByLabel('Hasta', { exact: true }).fill('2026-03-20');
+  await expect(admin).toHaveURL(/desde=2026-03-15&hasta=2026-03-20/);
+  await expect(chips.getByText('15–20 mar', { exact: true })).toBeVisible();
+  await expectAccessible(admin, 'movimientos con panel');
+
+  // La × de la ficha quita ese grupo; «Limpiar» vuelve a Todo.
+  await chips.getByRole('button', { name: 'Quitar filtro de periodo' }).click();
+  await expect(admin).not.toHaveURL(/desde=|periodo=/);
+  await chips.getByRole('button', { name: 'Quitar filtro de tipo' }).click();
+  await expect(admin).not.toHaveURL(/tipo=/);
+  await expect(chips).toHaveCount(0);
+
+  // El panel se pliega y el navegador lo recuerda.
+  await admin.getByRole('button', { name: 'Ocultar filtros' }).click();
+  await expect(panel).toHaveCount(0);
+  await admin.reload();
+  await expect(admin.getByRole('button', { name: 'Filtros', exact: true })).toBeVisible();
+  await expect(panel).toHaveCount(0);
+  await admin.getByRole('button', { name: 'Filtros', exact: true }).click();
+  await expect(panel).toBeVisible();
+
+  // Totales: cifras por reactivo; cada fila abre Detalle con ese reactivo.
+  await admin.getByRole('button', { name: 'Totales', exact: true }).click();
+  await expect(admin).toHaveURL(/vista=totales/);
+  const table = admin.getByRole('table');
+  await expect(table).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: 'Neto' })).toBeVisible();
+  await expectAccessible(admin, 'movimientos totales');
+  await capture(admin, 'desktop-movements-totals', false);
+  await admin.getByLabel('Agrupar por').click();
+  await admin.getByRole('option', { name: 'Responsable' }).click();
+  await expect(admin).toHaveURL(/agrupar=responsable/);
+  await expect(admin.getByRole('heading', { name: 'Ana Administradora', level: 2 })).toBeVisible();
+  await admin.getByLabel('Agrupar por').click();
+  await admin.getByRole('option', { name: 'Reactivo' }).click();
+  await table.getByRole('link').first().click();
+  await expect(admin).toHaveURL(/reactivo=/);
+  await expect(admin).not.toHaveURL(/vista=/);
+  await expect(admin.getByRole('list', { name: 'Filtros activos' }).getByText(/^Reactivo: /)).toBeVisible();
+  await expect(admin.getByRole('button', { name: 'Detalle', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('Movimientos: quien no tiene reportes no ve Totales (R-01C)', async ({ browser }) => {
+  const operator = await signIn(browser, 'operador@demo.platlab.test');
+  await openReagents(operator, 'Facultad de Ciencias');
+  await goTo(operator, 'Movimientos');
+  await expect(operator.getByRole('complementary', { name: 'Filtros' })).toBeVisible();
+  await expect(operator.getByRole('button', { name: 'Totales', exact: true })).toHaveCount(0);
+  // Un enlace con vista=totales cae en Detalle.
+  await operator.goto(`${operator.url().split('?')[0]}?vista=totales`);
+  await expect(operator.getByRole('button', { name: 'Totales', exact: true })).toHaveCount(0);
+  await expect(operator.locator('main').getByRole('listitem').first()).toBeVisible();
+});
+
+test('Movimientos en el móvil: el cajón de filtros abre, se cierra con Esc y devuelve el foco (R-01C)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test', { width: 390, height: 844 });
+  await openReagents(admin, 'Facultad de Ciencias');
+  await goTo(admin, 'Movimientos');
+  await expect(admin.getByRole('complementary', { name: 'Filtros' })).toHaveCount(0);
+  const trigger = admin.getByRole('button', { name: 'Filtros', exact: true });
+  await trigger.click();
+  const drawer = admin.getByRole('dialog', { name: 'Filtros' });
+  await expect(drawer).toBeVisible();
+  // Áreas táctiles de 44 px reales (la raíz del módulo es de 15 px).
+  for (const target of [drawer.getByRole('button', { name: 'Cerrar' }), drawer.getByRole('checkbox', { name: /^Salidas/ }), drawer.getByRole('button', { name: /^Periodo/ })]) {
+    expect((await target.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(43.5);
+  }
+  await tick(drawer.getByRole('checkbox', { name: /^Salidas/ }));
+  await expect(admin).toHaveURL(/tipo=salida/);
+  await admin.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+  await expectAccessible(admin, 'cajón de filtros');
+  await capture(admin, 'mobile-movements-drawer', false);
+  await admin.keyboard.press('Escape');
+  await expect(drawer).toHaveCount(0);
+  await expect(admin.getByRole('button', { name: 'Filtros (1)' })).toBeFocused();
+
+  // La ficha abre el cajón en su grupo; «Ver N movimientos» lo cierra.
+  await admin.getByRole('button', { name: 'Tipo: Salidas', exact: true }).click();
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByRole('button', { name: /^Tipo/ })).toBeFocused();
+  await drawer.getByRole('button', { name: /^Ver \d+ movimientos?$/ }).click();
+  await expect(drawer).toHaveCount(0);
+  await expect(admin.getByRole('list', { name: 'Filtros activos' })).toBeVisible();
+  expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expectAccessible(admin, 'movimientos móvil');
+  await capture(admin, 'mobile-movements-filtered', false);
+
+  await admin.getByRole('button', { name: 'Totales', exact: true }).click();
+  await expect(admin.getByRole('list').filter({ hasText: 'Movimientos' }).first()).toBeVisible();
+  expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expectAccessible(admin, 'totales móvil');
+  await capture(admin, 'mobile-movements-totals', false);
+});
+
+test('Movimientos a 1280 px: el panel comparte la fila con la lista y Totales cabe (R-01C)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test', { width: 1280, height: 720 });
+  await openReagents(admin, 'Facultad de Ciencias');
+  await goTo(admin, 'Movimientos');
+  await expect(admin.getByRole('complementary', { name: 'Filtros' })).toBeVisible();
+  await tick(admin.getByRole('complementary', { name: 'Filtros' }).getByRole('checkbox', { name: /^Salidas/ }));
+  await expect(admin.locator('main').getByRole('listitem').first()).toBeVisible();
+  expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expectAccessible(admin, 'movimientos 1280');
+  await capture(admin, 'desktop-1280-movements-panel', false);
+  await admin.getByRole('button', { name: 'Totales', exact: true }).click();
+  await expect(admin.getByRole('table')).toBeVisible();
+  await capture(admin, 'desktop-1280-movements-totals', false);
 });

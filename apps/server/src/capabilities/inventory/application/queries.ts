@@ -1,6 +1,13 @@
-import type { Operation, Position } from '@platlab/contracts';
+import type { Operation, OperationFacets, OperationGroupBy, OperationTotals, Position } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
-import { countOperationsByDay, findContainerItem, listOperations, listPositions } from '../infrastructure/inventory.queries.js';
+import {
+  countOperationsByDay,
+  findContainerItem,
+  listOperations,
+  listPositions,
+  operationFacets,
+  operationTotals,
+} from '../infrastructure/inventory.queries.js';
 import type { InventoryContext } from './context.js';
 
 /** Cursor opaco para paginar por clave: el cliente no elige orden ni filtros arbitrarios. */
@@ -83,34 +90,57 @@ export async function listPositionPage(
   };
 }
 
+/**
+ * Filtros del libro (ADR 0014), comunes a la lista, los conteos por opción y los totales. Cada lista
+ * admite cualquiera de sus valores; sin lista, no filtra. `locationIds` es el ámbito autorizado y
+ * `filterLocationIds` solo lo estrecha. El periodo es `days` o `from`/`to` (días civiles en
+ * `timeZone`, ambos incluidos).
+ */
+export interface OperationFilter {
+  locationIds: string[];
+  types?: Operation['type'][] | undefined;
+  itemIds?: string[] | undefined;
+  /** Quien pidió la salida si hubo solicitud; si no, quien registró la operación. */
+  responsibleIds?: string[] | undefined;
+  destinations?: string[] | undefined;
+  reasons?: string[] | undefined;
+  filterLocationIds?: string[] | undefined;
+  positionId?: string | undefined;
+  /** Últimos N días civiles en `timeZone`, hoy incluido. */
+  days?: number | undefined;
+  from?: string | undefined;
+  to?: string | undefined;
+  timeZone: string;
+}
+
+function filterParams(ctx: InventoryContext, filter: OperationFilter) {
+  return {
+    workspaceId: ctx.workspaceId,
+    kind: ctx.kind,
+    locationIds: filter.locationIds,
+    types: filter.types ?? null,
+    itemIds: filter.itemIds ?? null,
+    responsibleIds: filter.responsibleIds ?? null,
+    destinations: filter.destinations ?? null,
+    reasons: filter.reasons ?? null,
+    filterLocationIds: filter.filterLocationIds ?? null,
+    positionId: filter.positionId ?? null,
+    days: filter.days ?? null,
+    fromDate: filter.from ?? null,
+    toDate: filter.to ?? null,
+    timeZone: filter.timeZone,
+  };
+}
+
 /** Historial de las ubicaciones autorizadas, del más reciente al más antiguo, con su responsable. */
 export async function listOperationPage(
   ctx: InventoryContext,
-  filter: {
-    locationIds: string[];
-    itemId?: string | undefined;
-    locationId?: string | undefined;
-    positionId?: string | undefined;
-    type?: Operation['type'] | undefined;
-    /** Últimos N días civiles en `timeZone`, hoy incluido. */
-    days?: number | undefined;
-    timeZone: string;
-    cursor?: string | undefined;
-    limit: number;
-  },
+  filter: OperationFilter & { cursor?: string | undefined; limit: number },
 ): Promise<Page<Operation>> {
   const before = decodeCursor(filter.cursor, 3);
   const rows = await listOperations.run(
     {
-      workspaceId: ctx.workspaceId,
-      kind: ctx.kind,
-      locationIds: filter.locationIds,
-      itemId: filter.itemId ?? null,
-      locationId: filter.locationId ?? null,
-      positionId: filter.positionId ?? null,
-      type: filter.type ?? null,
-      days: filter.days ?? null,
-      timeZone: filter.timeZone,
+      ...filterParams(ctx, filter),
       beforeAt: before?.[0] ?? null,
       beforeId: before?.[1] ?? null,
       beforeEntryId: before?.[2] ?? null,
@@ -143,6 +173,86 @@ export async function listOperationPage(
     nextCursor:
       rows.length > filter.limit && last ? encodeCursor([last.cursor_at, last.id, last.entry_id]) : null,
   };
+}
+
+/** Reactivos por grupo de opciones; con más, el grupo dice `more` y se busca dentro (ADR 0014). */
+const PRODUCT_OPTIONS = 300;
+
+/**
+ * Asientos por opción de cada filtro (ADR 0014): `total` con todos los filtros y cada grupo con todos
+ * menos el suyo. Una sola consulta: total y grupos salen de la misma instantánea.
+ */
+export async function operationFacetsOf(
+  ctx: InventoryContext,
+  filter: OperationFilter & { productQuery?: string | undefined },
+): Promise<OperationFacets> {
+  const rows = await operationFacets.run(
+    { ...filterParams(ctx, filter), productQuery: filter.productQuery ?? null, productLimit: PRODUCT_OPTIONS },
+    ctx.client,
+  );
+  const facets: OperationFacets = {
+    total: 0,
+    types: [],
+    products: { options: [], more: false },
+    responsibles: [],
+    destinations: [],
+    reasons: [],
+    locations: [],
+  };
+  let unselectedProducts = 0;
+  // Las filas llegan por grupo, por conteo descendente y luego por nombre.
+  for (const row of rows) {
+    const count = row.count;
+    if (row.facet === 'total') facets.total = count;
+    else if (row.facet === 'type' && row.value) facets.types.push({ value: row.value as Operation['type'], count });
+    else if (row.facet === 'product' && row.id && row.code && row.name) {
+      if (!row.selected && ++unselectedProducts > PRODUCT_OPTIONS) facets.products.more = true;
+      else facets.products.options.push({ id: row.id, code: row.code, name: row.name, count });
+    } else if (row.facet === 'responsible' && row.id) {
+      facets.responsibles.push({ principalId: row.id, displayName: row.name, count });
+    } else if (row.facet === 'destination' && row.value) facets.destinations.push({ value: row.value, count });
+    else if (row.facet === 'reason' && row.value) facets.reasons.push({ value: row.value, count });
+    else if (row.facet === 'location' && row.id && row.code && row.name) {
+      facets.locations.push({ id: row.id, code: row.code, name: row.name, count });
+    }
+  }
+  return facets;
+}
+
+/** Grupos de los totales; con más, la respuesta dice `truncated` (ADR 0014). */
+const MAX_TOTAL_GROUPS = 1000;
+
+/**
+ * Totales del libro filtrado (ADR 0014), por grupo y, dentro, por ítem en su unidad base: nunca se
+ * suman unidades distintas. Las cantidades llegan de SQL como cadenas decimales exactas.
+ */
+export async function operationTotalsOf(
+  ctx: InventoryContext,
+  filter: OperationFilter & { groupBy: OperationGroupBy },
+): Promise<OperationTotals> {
+  const rows = await operationTotals.run(
+    { ...filterParams(ctx, filter), groupBy: filter.groupBy, maxGroups: MAX_TOTAL_GROUPS },
+    ctx.client,
+  );
+  const groups: OperationTotals['groups'] = [];
+  let rank = 0;
+  for (const row of rows) {
+    if (row.group_rank !== rank) {
+      rank = row.group_rank;
+      groups.push({ key: row.group_id ?? row.group_text, label: row.label, count: row.group_count, rows: [] });
+    }
+    groups.at(-1)?.rows.push({
+      product: { id: row.item_id, code: row.item_code, name: row.item_name },
+      unit: row.base_unit,
+      count: row.count,
+      receipts: row.receipts,
+      issues: row.issues,
+      adjustments: row.adjustments,
+      net: row.net,
+      transfers: row.transfers,
+    });
+  }
+  return { groupBy: filter.groupBy, groups, truncated: (rows[0]?.groups_total ?? 0) > MAX_TOTAL_GROUPS };
 }
 
 /** Operaciones de un tipo por día, con ceros incluidos, para el gráfico de un resumen (ADR 0011). */

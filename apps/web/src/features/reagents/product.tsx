@@ -20,7 +20,7 @@ export function ReagentsProductPage() {
   const { workspaceId, me, base, allowed, openSheet } = useReagents();
   const product = useProduct(workspaceId, productId);
   const positions = usePositions(workspaceId, productId);
-  const history = useOperations(workspaceId, { productId });
+  const history = useOperations(workspaceId, { productId: [productId] });
   const [showEmpty, setShowEmpty] = useState(false);
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: me.workspace.timeZone }).format(new Date());
   const containers = useMemo(() => positions.data?.pages.flatMap((page) => page.items) ?? [], [positions.data]);

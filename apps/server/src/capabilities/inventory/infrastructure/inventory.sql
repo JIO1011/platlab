@@ -230,18 +230,29 @@ LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
 LEFT JOIN core.principals AS rqp ON rqp.workspace_id = o.workspace_id AND rqp.id = o.requested_by_principal_id
 LEFT JOIN core.memberships AS rqm ON rqm.workspace_id = rqp.workspace_id AND rqm.id = rqp.membership_id
 LEFT JOIN core.identities AS requester ON requester.id = rqm.identity_id
+-- Filtros del libro (ADR 0014), los mismos en operationFacets y operationTotals: si cambian aquí,
+-- cambian allí. `locationIds` es el ámbito del miembro; `filterLocationIds` solo lo estrecha.
 WHERE o.workspace_id = :workspaceId!
   AND i.kind = :kind!
   AND p.location_id = ANY (:locationIds!::uuid[])
-  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)
-  AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)
+  AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))
+  AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))
+  AND (
+    :responsibleIds::uuid[] IS NULL
+    OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[])
+  )
+  AND (:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]))
+  AND (:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]))
+  AND (:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]))
   AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)
-  AND (:type::text IS NULL OR o.type = :type::text)
   -- Misma ventana que countOperationsByDay: desde la medianoche local de hace N - 1 días.
   AND (
     :days::int IS NULL
     OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)
   )
+  -- Desde la medianoche local de `fromDate` hasta antes de la del día siguiente a `toDate`.
+  AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))
+  AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))
   AND (
     :beforeId::uuid IS NULL
     OR (o.effective_at, o.id, e.id) < (:beforeAt::timestamptz, :beforeId::uuid, :beforeEntryId::uuid)
@@ -284,6 +295,269 @@ FROM days AS d
 LEFT JOIN scoped AS s ON s.day = d.day
 GROUP BY d.day
 ORDER BY d.day;
+
+/* @name operationFacets */
+-- Asientos por opción de cada filtro de Movimientos (ADR 0014), en una sola lectura del libro para que
+-- el total y los grupos salgan de la misma instantánea. Faceta disyuntiva: cada grupo aplica todos los
+-- filtros menos el suyo, así marcar «Salidas» sigue contando los ingresos. Llegan las opciones con
+-- asientos y las elegidas aunque queden en cero (para poder quitarlas), pero nunca un reactivo de otro
+-- tipo, un principal de otro espacio ni una ubicación fuera del ámbito.
+WITH scoped AS MATERIALIZED (
+  SELECT
+    o.type,
+    p.item_id,
+    coalesce(o.requested_by_principal_id, o.actor_principal_id) AS responsible_id,
+    o.destination,
+    o.reason,
+    p.location_id,
+    coalesce(:types::text[] IS NULL OR o.type = ANY (:types::text[]), false) AS by_type,
+    coalesce(:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]), false) AS by_item,
+    coalesce(
+      :responsibleIds::uuid[] IS NULL
+      OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[]),
+      false
+    ) AS by_responsible,
+    coalesce(:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]), false) AS by_destination,
+    coalesce(:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]), false) AS by_reason,
+    coalesce(:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]), false) AS by_location
+  FROM inventory.operations AS o
+  JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id
+  JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id
+  JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+  WHERE o.workspace_id = :workspaceId!
+    AND i.kind = :kind!
+    AND p.location_id = ANY (:locationIds!::uuid[])
+    AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)
+    AND (
+      :days::int IS NULL
+      OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)
+    )
+    AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))
+    AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))
+),
+counted AS (
+  SELECT 'total' AS facet, NULL::uuid AS id, NULL::text AS value, count(*) AS n
+  FROM scoped
+  WHERE by_type AND by_item AND by_responsible AND by_destination AND by_reason AND by_location
+  UNION ALL
+  SELECT 'type', NULL, type, count(*)
+  FROM scoped
+  WHERE by_item AND by_responsible AND by_destination AND by_reason AND by_location
+  GROUP BY type
+  UNION ALL
+  SELECT 'product', item_id, NULL, count(*)
+  FROM scoped
+  WHERE by_type AND by_responsible AND by_destination AND by_reason AND by_location
+  GROUP BY item_id
+  UNION ALL
+  SELECT 'responsible', responsible_id, NULL, count(*)
+  FROM scoped
+  WHERE by_type AND by_item AND by_destination AND by_reason AND by_location
+  GROUP BY responsible_id
+  UNION ALL
+  SELECT 'destination', NULL, destination, count(*)
+  FROM scoped
+  WHERE destination IS NOT NULL AND by_type AND by_item AND by_responsible AND by_reason AND by_location
+  GROUP BY destination
+  UNION ALL
+  SELECT 'reason', NULL, reason, count(*)
+  FROM scoped
+  WHERE reason IS NOT NULL AND by_type AND by_item AND by_responsible AND by_destination AND by_location
+  GROUP BY reason
+  UNION ALL
+  SELECT 'location', location_id, NULL, count(*)
+  FROM scoped
+  WHERE by_type AND by_item AND by_responsible AND by_destination AND by_reason
+  GROUP BY location_id
+),
+selected AS (
+  SELECT 'type' AS facet, NULL::uuid AS id, v AS value FROM unnest(:types::text[]) AS v
+  UNION ALL SELECT 'product', v, NULL FROM unnest(:itemIds::uuid[]) AS v
+  UNION ALL SELECT 'responsible', v, NULL FROM unnest(:responsibleIds::uuid[]) AS v
+  UNION ALL SELECT 'destination', NULL, v FROM unnest(:destinations::text[]) AS v
+  UNION ALL SELECT 'reason', NULL, v FROM unnest(:reasons::text[]) AS v
+  UNION ALL SELECT 'location', v, NULL FROM unnest(:filterLocationIds::uuid[]) AS v
+),
+options AS (
+  SELECT
+    coalesce(c.facet, s.facet) AS facet,
+    coalesce(c.id, s.id) AS id,
+    coalesce(c.value, s.value) AS value,
+    coalesce(c.n, 0) AS n,
+    s.facet IS NOT NULL AS selected
+  FROM counted AS c
+  FULL JOIN selected AS s
+    ON s.facet = c.facet AND s.id IS NOT DISTINCT FROM c.id AND s.value IS NOT DISTINCT FROM c.value
+),
+named AS (
+  SELECT
+    op.facet,
+    op.id,
+    op.value,
+    op.n,
+    op.selected,
+    coalesce(item.code, loc.code) AS code,
+    CASE op.facet
+      WHEN 'product' THEN item.name
+      WHEN 'location' THEN loc.name
+      WHEN 'responsible' THEN ident.display_name
+      ELSE op.value
+    END AS name
+  FROM options AS op
+  LEFT JOIN inventory.items AS item
+    ON op.facet = 'product' AND item.workspace_id = :workspaceId! AND item.kind = :kind! AND item.id = op.id
+  LEFT JOIN core.locations AS loc
+    ON op.facet = 'location' AND loc.workspace_id = :workspaceId! AND loc.id = op.id
+       AND loc.id = ANY (:locationIds!::uuid[])
+  LEFT JOIN core.principals AS pr
+    ON op.facet = 'responsible' AND pr.workspace_id = :workspaceId! AND pr.id = op.id
+  LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+  LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
+  WHERE (op.facet <> 'product' OR item.id IS NOT NULL)
+    AND (op.facet <> 'location' OR loc.id IS NOT NULL)
+    AND (op.facet <> 'responsible' OR pr.id IS NOT NULL)
+),
+ranked AS (
+  -- Reactivos: los elegidos siempre; de los demás, los que coinciden con la búsqueda, uno más del
+  -- límite para saber si hay más.
+  SELECT
+    nd.*,
+    CASE WHEN nd.facet = 'product' AND NOT nd.selected THEN
+      row_number() OVER (PARTITION BY nd.facet, nd.selected ORDER BY nd.n DESC, lower(nd.name), nd.id)
+    END AS product_rank
+  FROM named AS nd
+  WHERE nd.facet <> 'product'
+     OR nd.selected
+     OR :productQuery::text IS NULL
+     OR strpos(lower(nd.code), lower(:productQuery::text)) > 0
+     OR strpos(lower(nd.name), lower(:productQuery::text)) > 0
+)
+SELECT
+  facet AS "facet!",
+  id,
+  value,
+  code,
+  name,
+  n::int AS "count!",
+  selected AS "selected!"
+FROM ranked
+WHERE product_rank IS NULL OR product_rank <= :productLimit!::int + 1
+ORDER BY facet, n DESC, lower(name), id, value;
+
+/* @name operationTotals */
+-- Totales del libro filtrado (ADR 0014), por reactivo, responsable, destino o mes en la zona del
+-- espacio. Cada fila es un reactivo dentro de su grupo, en su unidad base: nunca suma unidades
+-- distintas. Las sumas llevan signo y son exactas (numeric); un traslado se cuenta, pero no suma
+-- cantidad. Llegan los primeros `maxGroups` grupos y `groups_total` dice cuántos hay.
+WITH scoped AS (
+  SELECT
+    CASE :groupBy!::text
+      WHEN 'product' THEN p.item_id
+      WHEN 'responsible' THEN coalesce(o.requested_by_principal_id, o.actor_principal_id)
+    END AS group_id,
+    CASE :groupBy!::text
+      WHEN 'destination' THEN o.destination
+      WHEN 'month' THEN to_char(o.effective_at AT TIME ZONE :timeZone!, 'YYYY-MM')
+    END AS group_text,
+    p.item_id,
+    o.id AS operation_id,
+    o.type,
+    e.quantity
+  FROM inventory.operations AS o
+  JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id
+  JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id
+  JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+  WHERE o.workspace_id = :workspaceId!
+    AND i.kind = :kind!
+    AND p.location_id = ANY (:locationIds!::uuid[])
+    AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))
+    AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))
+    AND (
+      :responsibleIds::uuid[] IS NULL
+      OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[])
+    )
+    AND (:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]))
+    AND (:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]))
+    AND (:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]))
+    AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)
+    AND (
+      :days::int IS NULL
+      OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)
+    )
+    AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))
+    AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))
+),
+per_item AS (
+  SELECT
+    group_id,
+    group_text,
+    item_id,
+    count(*) AS n,
+    sum(quantity) FILTER (WHERE type = 'receipt') AS receipts,
+    sum(quantity) FILTER (WHERE type = 'issue') AS issues,
+    sum(quantity) FILTER (WHERE type = 'adjustment') AS adjustments,
+    coalesce(sum(quantity) FILTER (WHERE type <> 'transfer'), 0) AS net,
+    -- Un traslado son dos asientos (sale y entra) de una operación: se cuenta una vez (ADR 0014).
+    count(DISTINCT operation_id) FILTER (WHERE type = 'transfer') AS transfers
+  FROM scoped
+  GROUP BY group_id, group_text, item_id
+),
+labelled AS (
+  -- PARTITION BY agrupa los nulos juntos: las operaciones sin destino forman un solo grupo.
+  SELECT
+    pi.*,
+    sum(pi.n) OVER (PARTITION BY pi.group_id, pi.group_text) AS group_n,
+    CASE :groupBy!::text
+      WHEN 'product' THEN gi.name
+      WHEN 'responsible' THEN ident.display_name
+      WHEN 'destination' THEN coalesce(pi.group_text, 'Sin destino')
+      ELSE pi.group_text
+    END AS label
+  FROM per_item AS pi
+  LEFT JOIN inventory.items AS gi
+    ON :groupBy!::text = 'product' AND gi.workspace_id = :workspaceId! AND gi.id = pi.group_id
+  LEFT JOIN core.principals AS pr
+    ON :groupBy!::text = 'responsible' AND pr.workspace_id = :workspaceId! AND pr.id = pi.group_id
+  LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+  LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
+),
+ranked AS (
+  SELECT
+    l.*,
+    dense_rank() OVER (
+      ORDER BY
+        CASE WHEN :groupBy!::text = 'month' THEN l.group_text END DESC,
+        l.group_n DESC,
+        lower(l.label),
+        l.group_id,
+        l.group_text
+    ) AS group_rank
+  FROM labelled AS l
+),
+counted AS (
+  SELECT r.*, max(r.group_rank) OVER () AS groups_total FROM ranked AS r
+)
+SELECT
+  c.group_rank::int AS "group_rank!",
+  c.group_id,
+  c.group_text,
+  c.label,
+  c.group_n::int AS "group_count!",
+  c.groups_total::int AS "groups_total!",
+  i.id AS item_id,
+  i.code AS item_code,
+  i.name AS item_name,
+  i.base_unit,
+  c.n::int AS "count!",
+  trim_scale(c.receipts) AS receipts,
+  trim_scale(c.issues) AS issues,
+  trim_scale(c.adjustments) AS adjustments,
+  trim_scale(c.net) AS "net!",
+  c.transfers::int AS "transfers!"
+FROM counted AS c
+JOIN inventory.items AS i ON i.workspace_id = :workspaceId! AND i.id = c.item_id
+WHERE c.group_rank <= :maxGroups!::int
+ORDER BY c.group_rank, c.n DESC, lower(i.code), i.id;
 
 /* @name listReasons */
 SELECT id, name
