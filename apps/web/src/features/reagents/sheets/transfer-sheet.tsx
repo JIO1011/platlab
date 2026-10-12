@@ -3,7 +3,7 @@ import { Field, Quantity, Select, toast } from '@platlab/ui';
 import { ArrowLeftRight } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { useTransferLocations } from '../../../app/queries';
+import { useTransferLocations } from '../queries';
 import { commandErrorMessage, useCommand } from '../commands';
 import { type SheetBaseProps, validate, FormSheet } from './shared';
 

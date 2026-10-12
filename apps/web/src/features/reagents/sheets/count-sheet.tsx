@@ -2,7 +2,7 @@ import { countRequest, countResponse } from '@platlab/contracts';
 import { Field, Input, Quantity, Select, normalizeDecimalInput, subtractDecimal, toast } from '@platlab/ui';
 import { ClipboardCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useCountLocations, usePositions } from '../../../app/queries';
+import { useCountLocations, usePositions } from '../queries';
 import { commandErrorMessage, useCommand } from '../commands';
 import { type SheetBaseProps, FormSheet } from './shared';
 

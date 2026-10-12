@@ -2,17 +2,13 @@ import type { ModuleAccess, WorkspaceMeResponse } from '@platlab/contracts';
 import { Badge, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, cn } from '@platlab/ui';
 import {
   ArrowLeft,
-  ArrowLeftRight,
   Boxes,
   Check,
   ChevronRight,
   ChevronsUpDown,
-  FlaskConical,
   House,
-  Inbox,
   LayoutDashboard,
   LogOut,
-  Package,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
@@ -20,11 +16,10 @@ import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext, useP
 import type { WorkspaceSummary } from '@platlab/contracts';
 import { Wordmark } from './brand';
 import { rememberWorkspace } from './last-workspace';
+import { webModule } from './modules';
 import { useMyWorkspaces, useWorkspaceMe } from './queries';
 import { useSession } from './session';
 import { PageLoading, QueryErrorState } from './states';
-
-export const moduleIcons: Record<string, typeof Boxes> = { reagents: FlaskConical };
 
 export interface ShellContext {
   workspaceId: string;
@@ -42,13 +37,6 @@ export function moduleApps(me: WorkspaceMeResponse): ModuleApp[] {
   );
 }
 
-/** Icono de cada sección del manifiesto; sin entrada, el de módulo genérico. */
-const sectionIcons: Record<string, LucideIcon> = {
-  '': LayoutDashboard,
-  inventario: Package,
-  movimientos: ArrowLeftRight,
-  solicitudes: Inbox,
-};
 
 function NavItem({
   to,
@@ -106,7 +94,7 @@ function ModuleSwitcher({
   compact?: boolean;
 }) {
   const navigate = useNavigate();
-  const Icon = moduleIcons[current.code] ?? Boxes;
+  const Icon = webModule(current.code)?.Icon ?? Boxes;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -133,7 +121,7 @@ function ModuleSwitcher({
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-52">
         {apps.map((app) => {
-          const AppIcon = moduleIcons[app.code] ?? Boxes;
+          const AppIcon = webModule(app.code)?.Icon ?? Boxes;
           return (
             <DropdownMenuItem key={app.code} onSelect={() => navigate(`${base}/${app.path}`)}>
               {/* Cada módulo con su color, aunque el menú esté dentro del tema de otro. */}
@@ -351,14 +339,16 @@ export function AppShell() {
   const apps = moduleApps(me.data);
   const app = apps.find((entry) => entry.path === segment);
   const workspaceList = workspaces.data?.workspaces ?? [];
+  const descriptor = app ? webModule(app.code) : undefined;
 
+  // El Resumen tiene el mismo icono en todos los módulos; las demás secciones, el que declare el módulo.
   const sections = (compact: boolean) =>
     app?.sections.map((section) => (
       <NavItem
         key={section.path}
         to={section.path ? `${base}/${app.path}/${section.path}` : `${base}/${app.path}`}
         end={section.path === ''}
-        icon={sectionIcons[section.path] ?? FlaskConical}
+        icon={section.path === '' ? LayoutDashboard : (descriptor?.sectionIcons?.[section.path] ?? descriptor?.Icon ?? Boxes)}
         compact={compact}
       >
         {section.label}

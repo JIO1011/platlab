@@ -3,8 +3,9 @@ import { IconChip, Skeleton, StatePanel } from '@platlab/ui';
 import { ArrowRight, Boxes, LayoutGrid } from 'lucide-react';
 import { useId } from 'react';
 import { Link } from 'react-router';
-import { moduleApps, moduleIcons, useShell } from '../../app/app-shell';
+import { moduleApps, useShell } from '../../app/app-shell';
 import { ModuleMark } from '../../app/module-mark';
+import { webModule } from '../../app/modules';
 import { useHome } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
 import { Sparkline } from '../../app/trend-chart';
@@ -22,31 +23,6 @@ function greeting(timeZone: string): string {
   if (hour < 19) return 'Buenas tardes';
   return 'Buenas noches';
 }
-
-/** Cifras de cada módulo en su tarjeta, con claves propias de su resumen (01 §7). */
-const counters: Record<string, Array<{ key: string; label: (n: number) => string }>> = {
-  reagents: [
-    { key: 'productsWithStock', label: (n) => (n === 1 ? 'reactivo con existencias' : 'reactivos con existencias') },
-    { key: 'containersWithStock', label: (n) => (n === 1 ? 'frasco con existencias' : 'frascos con existencias') },
-  ],
-};
-
-/**
- * Lo pendiente de cada módulo, con las mismas palabras que el aviso de su Resumen: quien aprueba
- * ve lo que espera su decisión; quien pidió, lo que espera la de otro (ADR 0012).
- */
-const pendingLabels: Record<string, { permission: string; approver: (n: number) => string; requester: (n: number) => string }> = {
-  reagents: {
-    permission: 'reagents.issue.approve',
-    approver: (n) => (n === 1 ? '1 salida espera tu aprobación' : `${n} salidas esperan tu aprobación`),
-    requester: (n) => (n === 1 ? 'Tienes 1 solicitud de salida pendiente' : `Tienes ${n} solicitudes de salida pendientes`),
-  },
-};
-
-/** Qué cuenta el gráfico de cada módulo, para la frase que lo acompaña. */
-const trendNouns: Record<string, { one: string; many: string }> = {
-  reagents: { one: 'salida', many: 'salidas' },
-};
 
 type Card = HomeResponse['cards'][number];
 
@@ -113,11 +89,12 @@ function ModuleCard({ card }: { card: Card }) {
   const pendingId = useId();
   const app = moduleApps(me).find((entry) => entry.code === card.moduleCode);
   if (!app) return null;
-  const Icon = moduleIcons[card.moduleCode] ?? Boxes;
-  const noun = trendNouns[card.moduleCode] ?? { one: 'movimiento', many: 'movimientos' };
+  const descriptor = webModule(card.moduleCode);
+  const Icon = descriptor?.Icon ?? Boxes;
+  const noun = descriptor?.home.trendNoun ?? { one: 'movimiento', many: 'movimientos' };
   const trendTotal = card.trend?.points.reduce((sum, point) => sum + point.value, 0) ?? 0;
   const pending = card.summary?.['pendingRequests'] ?? 0;
-  const labels = pendingLabels[card.moduleCode];
+  const labels = descriptor?.home.pending;
   const pendingText = labels
     ? me.permissions.includes(labels.permission)
       ? labels.approver(pending)
@@ -154,7 +131,7 @@ function ModuleCard({ card }: { card: Card }) {
       ) : null}
       <div id={statsId} className="relative mt-auto pt-8">
         <dl className="grid grid-cols-2 gap-4">
-          {(counters[card.moduleCode] ?? []).map((counter) => {
+          {(descriptor?.home.counters ?? []).map((counter) => {
             const value = card.summary?.[counter.key] ?? 0;
             return (
               <div key={counter.key} className="flex flex-col-reverse gap-1">

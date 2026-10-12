@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { formatDate } from '../../../app/format';
-import { useLots, useReceiptLocations } from '../../../app/queries';
+import { useLots, useReceiptLocations } from '../queries';
 import { commandErrorMessage, useCommand } from '../commands';
 import { type SheetBaseProps, validate, FormSheet, QuantityPreview } from './shared';
 
