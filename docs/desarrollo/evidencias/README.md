@@ -37,6 +37,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Registro
 | Fecha | Entrega | Commit | Veredicto | Pruebas | Nota |
 |---|---|---|---|---|---|
+| 2026-10-12 | R-01C Movimientos como informe | `ff88008` | Cumple | unit 48 · pgTAP 175 · int 110 · e2e 21 | Criterios 4/4; revisor: 8 correcciones; `review-animations` aprobado (cajón); CI en verde |
 | 2026-10-06 | Encabezado de la ficha | `6d6bf34` | Incompleto | e2e 17 | Identidad en una línea y banda de tres datos; faltaba el CI (luego en verde) |
 | 2026-10-05 | R-01A completa | `9535d36` | Incompleto | unit 37 · pgTAP 173 · int 102 · e2e 17 | 9/9 criterios; falta la auditoría formal de UI y el QR físico |
 | 2026-10-05 | R-01A entrega 4 | `caad0fc` | Incompleto | unit 37 · pgTAP 173 · int 102 · e2e 17 | Traslado, conteo y QR; revisor: 11 correcciones; faltaba el CI y el papel |
