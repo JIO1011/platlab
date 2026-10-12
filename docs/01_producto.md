@@ -1,6 +1,6 @@
 # 01 — Producto
 
-Revisión: 30 de septiembre de 2026. Única fuente de módulos, roles, flujos y pantallas. Las reglas de datos están en [03](03_datos.md) y el orden de entrega en [04](04_roadmap.md).
+Revisión: 12 de octubre de 2026. Única fuente de módulos, roles, flujos y pantallas. Las reglas de datos están en [03](03_datos.md) y el orden de entrega en [04](04_roadmap.md).
 
 ## 1. Propósito
 
@@ -142,7 +142,7 @@ La lista exacta de permisos vive en el manifiesto de cada módulo ([02 §4](02_a
 | Traslado | Operador | Mueve un frasco entero de una ubicación a otra en un paso ([ADR 0012](05_decisiones.md#adr-0012), entrega 4) |
 | Baja de un frasco | Administrador | Ajuste a cero con motivo («Vencido», «Contaminado»); el lote no tiene estado propio ([ADR 0012](05_decisiones.md#adr-0012)) |
 | Entrega a custodia y retorno | Operador | Lo entregado sigue en la existencia institucional; el retorno queda segregado hasta verificarlo |
-| Preparación de soluciones | Operador | Si la solución se guarda, consume los insumos y crea un lote del producto preparado con su trazabilidad. Si se usa de inmediato, solo registra el consumo |
+| Preparación de soluciones (mejora posterior, [ADR 0014](05_decisiones.md#adr-0014)) | Operador | Si la solución se guarda, consume los insumos y crea un lote del producto preparado con su trazabilidad. Si se usa de inmediato, solo registra el consumo |
 
 Cantidades:
 
@@ -225,13 +225,13 @@ Un módulo por dentro, con Reactivos como ejemplo:
 │ Resumen        │ └────────────┘ └─────────────┘ └─────────────────────────┘ │
 │ Inventario     │ Actividad reciente                                         │
 │ Movimientos    │                                                            │
-│ Fiscalizados   │ Inventario: tabla producto → lotes → ubicaciones, con      │
-│ Documentos     │ filtros, orden y exportación                               │
-│ Configuración  │                                                            │
+│ Solicitudes    │ Inventario: tabla producto → lotes → ubicaciones, con      │
+│ Fiscalizados   │ filtros, orden y exportación                               │
+│                │                                                            │
 └────────────────┴───────────────────────────────────────────────────────────┘
 ```
 
-- El menú del módulo muestra solo las secciones que el rol puede usar y que ya existen. Fiscalizados, Documentos e Informes aparecen con su entrega.
+- El menú del módulo muestra solo las secciones que el rol puede usar y que ya existen. En Reactivos son cinco; los informes son Movimientos e Inventario filtrados, y Fiscalizados aparece con su entrega, solo para su responsable y el Administrador ([ADR 0014](05_decisiones.md#adr-0014)).
 - Los botones visibles dependen del permiso del usuario.
 - La ficha de producto reúne datos químicos, SDS, lotes, existencias por ubicación e historial.
 - Registrar una salida toma pocos pasos: buscar el producto, indicar la cantidad con atajos, elegir motivo y destino de listas y ver el saldo resultante.
@@ -285,5 +285,6 @@ Lecciones de ReactiLab (`/home/jio/Documentos/Inventario_V1`):
 - SSO SAML, hardware o lectores dedicados, IA e integraciones no definidas.
 - Expediente académico de estudiantes.
 - Envío automático de reportes a la autoridad.
+- Preparación de soluciones en Reactivos: mejora posterior a completar el módulo ([ADR 0014](05_decisiones.md#adr-0014)).
 
 Cada uno requiere una decisión y un alcance propios.
