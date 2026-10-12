@@ -20,9 +20,11 @@ export interface SelectProps {
   placeholder: string;
   id?: string;
   disabled?: boolean;
+  /** Ajusta el disparador (p. ej., su alto táctil en el móvil). */
+  triggerClassName?: string;
 }
 
-export function Select({ value, onValueChange, options, placeholder, disabled, ...explicit }: SelectProps) {
+export function Select({ value, onValueChange, options, placeholder, disabled, triggerClassName, ...explicit }: SelectProps) {
   const aria = { ...useFieldControl(), ...explicit };
   return (
     <SelectPrimitive.Root value={value ?? ''} onValueChange={onValueChange} disabled={disabled ?? false}>
@@ -33,6 +35,7 @@ export function Select({ value, onValueChange, options, placeholder, disabled, .
           'transition-[border-color,box-shadow] duration-150 hover:border-ink-subtle',
           'focus-visible:border-action focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action/20',
           'data-[placeholder]:text-ink-subtle aria-[invalid=true]:border-danger disabled:cursor-not-allowed disabled:bg-surface-sunken',
+          triggerClassName,
         )}
       >
         <span className="min-w-0 truncate">

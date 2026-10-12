@@ -378,7 +378,8 @@ export const operationFacets = z.object({
 /**
  * Totales del libro filtrado (ADR 0014), calculados en el servidor. Cada fila es un reactivo con su
  * unidad base: nunca se suman unidades distintas. Las sumas llevan signo y son null si el tipo no tiene
- * asientos; `net` es ingresos + salidas + ajustes. Un traslado se cuenta, pero no suma cantidad.
+ * asientos; `net` es ingresos + salidas + ajustes. `transfers` cuenta traslados (operaciones, no sus
+ * dos asientos) y no suma cantidad; `count` sí cuenta asientos, como las filas del libro.
  */
 const operationTotalsRow = z.object({
   product: productRef,

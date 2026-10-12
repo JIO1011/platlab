@@ -1566,7 +1566,7 @@ describe('R-01C · Movimientos como informe (ADR 0014)', () => {
     const byProduct = await totalsOf(subject, lab, 'groupBy=product');
     expect(byProduct.groups.map((group) => [group.key, group.count, group.rows])).toEqual([
       [a.id, 4, [expect.objectContaining({ unit: 'g', receipts: '100', issues: '-0.3', adjustments: '-0.5', net: '99.2', transfers: 0 })]],
-      [b.id, 3, [expect.objectContaining({ unit: 'mL', receipts: '50', issues: null, adjustments: null, net: '50', transfers: 2 })]],
+      [b.id, 3, [expect.objectContaining({ unit: 'mL', receipts: '50', issues: null, adjustments: null, net: '50', transfers: 1 })]],
     ]);
     // El neto cuadra con el saldo de los frascos.
     const positions = positionList.parse((await call(subject, `${lab.base}/positions`)).body).items;
@@ -1581,7 +1581,7 @@ describe('R-01C · Movimientos como informe (ADR 0014)', () => {
     ]);
     const unknown = byDestination.groups[0]!;
     expect(unknown.rows.map((row) => [row.product.id, row.unit, row.count, row.net, row.transfers])).toEqual([
-      [b.id, 'mL', 3, '50', 2],
+      [b.id, 'mL', 3, '50', 1],
       [a.id, 'g', 2, '99.5', 0],
     ]);
     for (const group of [...byProduct.groups, ...byDestination.groups]) {

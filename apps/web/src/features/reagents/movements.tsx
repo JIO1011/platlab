@@ -1,121 +1,224 @@
-import type { Operation } from '@platlab/contracts';
-import { Button, Quantity, Skeleton, StatePanel, cn } from '@platlab/ui';
-import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, ChevronRight, History, Scale } from 'lucide-react';
-import { useMemo } from 'react';
+import type { Operation, OperationGroupBy } from '@platlab/contracts';
+import { Button, Drawer, Field, Quantity, Segmented, Select, Skeleton, StatePanel, cn } from '@platlab/ui';
+import {
+  ArrowDownToLine,
+  ArrowLeftRight,
+  ArrowUpFromLine,
+  ChevronRight,
+  History,
+  Scale,
+  SlidersHorizontal,
+} from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { addDays } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
 import { useReagents } from './context';
+import { MovementChips } from './movement-chips';
 import { serializeMovementFilters, type MovementFilters } from './movement-filters';
+import { MovementFilterPanel, type FocusRequest } from './movement-panel';
+import {
+  activeGroups,
+  clearedGroup,
+  defaultOpenGroups,
+  movementsText,
+  periodText,
+  tight,
+  type FilterGroupId,
+} from './movement-text';
+import { MovementTotals } from './movement-totals';
 import { purposeOf } from './operation-text';
+import { canReadReports } from './queries';
+import { useMediaQuery, useStoredFlag } from './use-media-query';
 import { useNow } from './use-now';
 
-const typeFilters = [
-  { value: undefined, label: 'Todos' },
-  { value: 'receipt', label: 'Ingresos' },
-  { value: 'issue', label: 'Salidas' },
-  { value: 'adjustment', label: 'Ajustes' },
-  { value: 'transfer', label: 'Traslados' },
-] as const;
+const groupOptions: ReadonlyArray<{ value: OperationGroupBy; label: string }> = [
+  { value: 'product', label: 'Reactivo' },
+  { value: 'responsible', label: 'Responsable' },
+  { value: 'destination', label: 'Destino' },
+  { value: 'month', label: 'Mes' },
+];
+const isGroupBy = (value: string): value is OperationGroupBy => groupOptions.some((option) => option.value === value);
 
-const periodFilters = [
-  { days: undefined, label: 'Todo' },
-  { days: 7, label: '7 días' },
-  { days: 30, label: '30 días' },
-  { days: 90, label: '90 días' },
-] as const;
-
-/** Píldora de filtro con el estilo de las del inventario (que además llevan su cuenta); `aria-pressed` dice el estado, no solo el color. */
-function ChoicePill({ label, active, onSelect }: { label: string; active: boolean; onSelect: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onSelect}
-      className={cn(
-        'inline-flex h-9 items-center rounded-full px-3.5 text-sm font-medium transition-colors',
-        active ? 'bg-action-soft text-action' : 'bg-surface-sunken text-ink-muted hover:text-ink',
-      )}
-    >
-      {label}
-    </button>
-  );
-}
+const panelId = 'filtros-movimientos';
 
 /**
- * Movimientos (ADR 0012, 05-10-2026): el libro del módulo como una línea de tiempo por días, con la
- * misma fila que la actividad del Resumen. Los filtros viven en la URL, así que la cifra del Resumen
- * abre exactamente su lista.
+ * Movimientos como informe (R-01C, ADR 0014): el libro por días (Detalle) o sus totales, con el panel
+ * de filtros a la derecha (cajón desde la derecha por debajo de 1280 px). Los filtros viven en la URL:
+ * la cifra del Resumen abre exactamente su lista y un informe es un enlace. Se aplican al marcarlos.
  */
 export function ReagentsMovementsPage() {
-  const { me, base, operations, movementFilters } = useReagents();
+  const { workspaceId, me, base, operations, movementFilters: filters, operationQuery, operationFacets, operationTotals } = useReagents();
   const [, setParams] = useSearchParams();
-  const { types, period } = movementFilters;
-  const filtered =
-    types.length > 0 ||
-    period.kind !== 'all' ||
-    [movementFilters.productIds, movementFilters.responsibleIds, movementFilters.destinations, movementFilters.reasons, movementFilters.locationIds].some(
-      (list) => list.length > 0,
-    );
-  // Las píldoras eligen un tipo y una ventana de días; el panel de R-01C llegará con varios valores.
-  const activeType = types.length === 1 ? types[0] : types.length === 0 ? undefined : null;
-  const activeDays = period.kind === 'days' ? period.days : period.kind === 'all' ? undefined : null;
-  const select = (change: Partial<MovementFilters>) =>
-    setParams(serializeMovementFilters({ ...movementFilters, ...change }), { replace: true });
-  const periodIsStandard = periodFilters.some((entry) => entry.days === activeDays);
-  return (
-    <>
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6">
-        <div role="group" aria-label="Tipo de movimiento" className="flex flex-wrap items-center gap-2">
-          {typeFilters.map((filter) => (
-            <ChoicePill
-              key={filter.label}
-              label={filter.label}
-              active={activeType === filter.value}
-              onSelect={() => select({ types: filter.value ? [filter.value] : [] })}
-            />
-          ))}
-        </div>
-        <div role="group" aria-label="Periodo" className="flex flex-wrap items-center gap-2">
-          {periodFilters.map((period) => (
-            <ChoicePill
-              key={period.label}
-              label={period.label}
-              active={activeDays === period.days}
-              onSelect={() => select({ period: period.days === undefined ? { kind: 'all' } : { kind: 'days', days: period.days } })}
-            />
-          ))}
-          {/* Un enlace puede traer otro número de días (hasta 90): se muestra activo y se puede quitar. */}
-          {periodIsStandard || !activeDays ? null : (
-            <ChoicePill label={`${activeDays} días`} active onSelect={() => select({ period: { kind: 'all' } })} />
-          )}
-        </div>
-      </div>
+  const wide = useMediaQuery('(min-width: 80rem)');
+  const [panelOpen, setPanelOpen] = useStoredFlag('platlab.movimientos.filtros', true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<ReadonlySet<FilterGroupId>>(() => new Set(defaultOpenGroups));
+  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
+  const timeZone = me.workspace.timeZone;
+  const canReport = canReadReports(me);
+  const view = canReport ? filters.view : 'detail';
+  const apply = (change: Partial<MovementFilters>) =>
+    setParams(serializeMovementFilters({ ...filters, ...change }), { replace: true });
+  const active = activeGroups(filters);
+  const total = operationFacets.data?.total;
+  const currentYear = Number(dayKey(new Date(), timeZone).slice(0, 4));
+  const showPanel = wide && panelOpen;
+  // La lista anterior queda atenuada, sin saltos, mientras llega la respuesta de un filtro nuevo.
+  const stale = view === 'totals' ? operationTotals.isPlaceholderData : operations.isPlaceholderData;
+  const settled = operationFacets.data !== undefined && !operationFacets.isPlaceholderData;
+  const onFocusHandled = useCallback(() => setFocusRequest(null), []);
 
-      {operations.isPending ? (
-        <MovementsSkeleton />
-      ) : operations.isError ? (
-        <div className="rounded-card bg-surface shadow-raised">
-          <QueryErrorState error={operations.error} onRetry={() => void operations.refetch()} />
-        </div>
-      ) : (
-        <MovementsView
-          operations={operations.data.pages.flatMap((page) => page.items)}
-          base={base}
-          timeZone={me.workspace.timeZone}
-          filtered={filtered}
-          hasMore={operations.hasNextPage}
-          onClearFilters={() => setParams({}, { replace: true })}
-        />
-      )}
-      {operations.hasNextPage ? (
-        <div className="mt-5 text-center">
-          <Button variant="ghost" size="sm" loading={operations.isFetchingNextPage} onClick={() => void operations.fetchNextPage()}>
-            Cargar movimientos anteriores
+  const openGroup = (group: FilterGroupId) => {
+    setOpenGroups((previous) => new Set(previous).add(group));
+    setFocusRequest((previous) => ({ group, nonce: (previous?.nonce ?? 0) + 1 }));
+    if (wide) setPanelOpen(true);
+    else setDrawerOpen(true);
+  };
+  const toggleGroup = (group: FilterGroupId) =>
+    setOpenGroups((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(group)) next.add(group);
+      return next;
+    });
+  const clearAll = () =>
+    setParams(serializeMovementFilters({ ...filters, types: [], productIds: [], responsibleIds: [], destinations: [], reasons: [], locationIds: [], period: { kind: 'all' } }), {
+      replace: true,
+    });
+
+  const panel = (
+    <MovementFilterPanel
+      workspaceId={workspaceId}
+      filters={filters}
+      query={operationQuery}
+      facets={operationFacets}
+      openGroups={openGroups}
+      onToggleGroup={toggleGroup}
+      focusRequest={focusRequest}
+      onFocusHandled={onFocusHandled}
+      onChange={apply}
+    />
+  );
+  const filtersLabel = wide && panelOpen ? 'Ocultar filtros' : active.length > 0 ? `Filtros (${active.length})` : 'Filtros';
+
+  return (
+    <div className={cn(showPanel && 'grid grid-cols-[minmax(0,1fr)_18rem] items-start gap-6')}>
+      <div className="min-w-0">
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3">
+          <p className="min-w-0 basis-full text-sm text-ink-muted sm:flex-1 sm:basis-0">
+            {total === undefined ? (
+              <Skeleton className="h-5 w-52" />
+            ) : (
+              <>
+                <span className="text-base font-bold tabular-nums text-ink">{movementsText(total)}</span>
+                <span> · {periodText(filters.period, currentYear)}</span>
+              </>
+            )}
+          </p>
+          {canReport ? (
+            <Segmented
+              label="Vista"
+              value={view}
+              options={[
+                { value: 'detail', label: 'Detalle' },
+                { value: 'totals', label: 'Totales' },
+              ]}
+              onValueChange={(next) => apply({ view: next })}
+            />
+          ) : null}
+          <Button
+            size="sm"
+            className="ml-auto h-[44px] sm:ml-0 sm:h-8"
+            aria-expanded={wide ? panelOpen : undefined}
+            aria-controls={wide ? panelId : undefined}
+            aria-haspopup={wide ? undefined : 'dialog'}
+            onClick={() => (wide ? setPanelOpen(!panelOpen) : setDrawerOpen(true))}
+          >
+            <SlidersHorizontal aria-hidden />
+            {filtersLabel}
           </Button>
         </div>
+        {/* Anuncia el total al cambiar los filtros, sin mover el foco. */}
+        <p role="status" className="sr-only">
+          {settled && total !== undefined ? `${movementsText(total)}. ${periodText(filters.period, currentYear)}.` : ''}
+        </p>
+
+        {view === 'totals' ? (
+          <div className="mb-4 w-full max-w-[14rem]">
+            <Field label="Agrupar por">
+              <Select
+                value={filters.groupBy}
+                onValueChange={(next) => {
+                  if (isGroupBy(next)) apply({ groupBy: next });
+                }}
+                options={groupOptions.map((option) => ({ value: option.value, label: option.label }))}
+                placeholder="Reactivo"
+                triggerClassName="h-[44px] sm:h-10"
+              />
+            </Field>
+          </div>
+        ) : null}
+
+        <MovementChips
+          filters={filters}
+          facets={operationFacets.data}
+          currentYear={currentYear}
+          onOpen={openGroup}
+          onRemove={(group) => apply(clearedGroup(group))}
+          onClear={clearAll}
+        />
+
+        <div aria-busy={stale} className={cn('transition-opacity duration-150', stale && 'opacity-60')}>
+          {view === 'totals' ? (
+            <MovementTotals totals={operationTotals} filters={filters} base={base} />
+          ) : operations.isPending ? (
+            <MovementsSkeleton />
+          ) : operations.isError ? (
+            <div className="rounded-card bg-surface shadow-raised">
+              <QueryErrorState error={operations.error} onRetry={() => void operations.refetch()} />
+            </div>
+          ) : (
+            <MovementsView
+              operations={operations.data.pages.flatMap((page) => page.items)}
+              base={base}
+              timeZone={timeZone}
+              filtered={active.length > 0}
+              hasMore={operations.hasNextPage}
+              onClearFilters={clearAll}
+            />
+          )}
+        </div>
+        {view === 'detail' && operations.hasNextPage ? (
+          <div className="mt-5 text-center">
+            <Button variant="ghost" size="sm" loading={operations.isFetchingNextPage} onClick={() => void operations.fetchNextPage()}>
+              Cargar movimientos anteriores
+            </Button>
+          </div>
+        ) : null}
+      </div>
+
+      {showPanel ? (
+        <aside
+          id={panelId}
+          aria-label="Filtros"
+          className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain rounded-panel bg-surface p-2 shadow-raised"
+        >
+          {panel}
+        </aside>
       ) : null}
-    </>
+      <Drawer
+        open={drawerOpen && !wide}
+        onOpenChange={setDrawerOpen}
+        title="Filtros"
+        footer={
+          <Button variant="primary" className="h-[44px] w-full" onClick={() => setDrawerOpen(false)}>
+            {total === undefined ? 'Ver movimientos' : `Ver ${movementsText(total)}`}
+          </Button>
+        }
+      >
+        {panel}
+      </Drawer>
+    </div>
   );
 }
 
@@ -169,7 +272,7 @@ const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }
   transfer: { label: 'Traslado', icon: ArrowLeftRight },
 };
 
-/** Historial por días: cada día una tarjeta, cada fila un asiento que abre la ficha del reactivo. */
+/** Historial por días: cada día una tarjeta, cada fila un movimiento que abre la ficha del reactivo. */
 function MovementsView({
   operations,
   base,
@@ -203,8 +306,8 @@ function MovementsView({
         {filtered ? (
           <StatePanel
             icon={History}
-            title="Ningún movimiento con este filtro"
-            description="Cambia el tipo o el periodo para ver más del historial."
+            title="Sin movimientos con estos filtros"
+            description="Cambia o quita algún filtro para ver más del historial."
             action={
               <Button variant="secondary" size="sm" onClick={onClearFilters}>
                 Quitar filtros
@@ -237,7 +340,7 @@ function MovementsView({
               {/* La lista llega por páginas: el último día puede seguir en la siguiente, y su cuenta sería parcial. */}
               {hasMore && index === days.length - 1 ? null : (
                 <span className="ml-auto text-[13px] font-normal tabular-nums text-ink-muted">
-                  {day.items.length === 1 ? '1 asiento' : `${day.items.length} asientos`}
+                  {movementsText(day.items.length)}
                 </span>
               )}
             </h2>
@@ -279,13 +382,13 @@ function MovementRow({ operation, to, timeZone }: { operation: Operation; to: st
         <Icon className="size-[18px]" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-bold text-ink">{operation.product.name}</p>
-        <p className="text-[13px] text-ink-muted @lg:truncate">
+        <p className="line-clamp-2 break-words font-bold text-ink">{tight(operation.product.name)}</p>
+        <p className="line-clamp-2 text-[13px] text-ink-muted">
           {operation.container?.code ?? operation.lot.code} · {operation.location.code}
           {purpose ? ` · ${purpose}` : ''}
           {operation.reference ? ` · ${operation.reference}` : ''}
         </p>
-        <p className="text-[13px] text-ink-muted @lg:truncate">
+        <p className="truncate text-[13px] text-ink-muted">
           {kind.label}
           <span className="@lg:hidden"> · {hour}</span> · {actor}
           {/* Una salida aprobada (ADR 0012) lleva a quien la aprobó y a quien la pidió. */}

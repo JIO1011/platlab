@@ -12,11 +12,12 @@ import {
   stockedProduct,
   type OperationFacets,
   type OperationGroupBy,
+  type OperationList,
   type OperationTotals,
   type ReasonKind,
   type WorkspaceMeResponse,
 } from '@platlab/contracts';
-import { useInfiniteQuery, useQuery, type Query } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, type InfiniteData, type Query } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
 import { operationSearch, type OperationQuery } from './movement-filters';
@@ -85,6 +86,8 @@ export function useOperations(workspaceId: string, query: OperationQuery = {}) {
       return api(`/workspaces/${workspaceId}/reagents/operations?${search}`, { schema: operationList });
     },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
+    // Al cambiar un filtro, la lista anterior se queda (atenuada en la interfaz) hasta que llega la nueva.
+    placeholderData: keepWithinWorkspace<InfiniteData<OperationList, string | undefined>>(user, workspaceId),
     refetchInterval: jitteredPoll,
   });
 }
@@ -119,7 +122,7 @@ export function useOperationFacets(workspaceId: string, query: OperationQuery, p
 }
 
 /** Totales y exportación son reportes (ADR 0014): `reagents.report.read` en los permisos efectivos. */
-const canReadReports = (me: WorkspaceMeResponse) => me.permissions.includes('reagents.report.read');
+export const canReadReports = (me: WorkspaceMeResponse) => me.permissions.includes('reagents.report.read');
 
 /** Totales del libro filtrado, calculados en el servidor (ADR 0014); solo se piden con el permiso. */
 export function useOperationTotals(

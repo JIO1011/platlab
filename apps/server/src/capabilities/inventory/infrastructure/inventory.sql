@@ -460,6 +460,7 @@ WITH scoped AS (
       WHEN 'month' THEN to_char(o.effective_at AT TIME ZONE :timeZone!, 'YYYY-MM')
     END AS group_text,
     p.item_id,
+    o.id AS operation_id,
     o.type,
     e.quantity
   FROM inventory.operations AS o
@@ -496,7 +497,8 @@ per_item AS (
     sum(quantity) FILTER (WHERE type = 'issue') AS issues,
     sum(quantity) FILTER (WHERE type = 'adjustment') AS adjustments,
     coalesce(sum(quantity) FILTER (WHERE type <> 'transfer'), 0) AS net,
-    count(*) FILTER (WHERE type = 'transfer') AS transfers
+    -- Un traslado son dos asientos (sale y entra) de una operación: se cuenta una vez (ADR 0014).
+    count(DISTINCT operation_id) FILTER (WHERE type = 'transfer') AS transfers
   FROM scoped
   GROUP BY group_id, group_text, item_id
 ),

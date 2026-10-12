@@ -80,6 +80,9 @@
   --animate-modal-in: modal-in 200ms var(--ease-out-expo);
   --animate-modal-out: modal-out 150ms var(--ease-out-expo);
   --animate-pop-in: pop-in 160ms var(--ease-out-expo);
+  /* Cajón lateral (R-01C): entra en 260 ms con la curva de las hojas y sale en 180 ms. */
+  --animate-drawer-in: drawer-in 260ms var(--ease-sheet);
+  --animate-drawer-out: drawer-out 180ms var(--ease-sheet) forwards;
 
   @keyframes fade-in {
     from { opacity: 0; }
@@ -96,6 +99,14 @@
   @keyframes modal-out {
     from { opacity: 1; transform: scale(1); }
     to { opacity: 0; transform: scale(0.98); }
+  }
+  @keyframes drawer-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  @keyframes drawer-out {
+    from { transform: translateX(0); }
+    to { transform: translateX(100%); }
   }
   @keyframes pop-in {
     from { opacity: 0; transform: translateY(-4px) scale(0.98); }
@@ -146,6 +157,8 @@
     --animate-modal-in: fade-in 180ms var(--ease-out-expo);
     --animate-modal-out: fade-out 150ms var(--ease-out-expo);
     --animate-pop-in: fade-in 150ms var(--ease-out-expo);
+    --animate-drawer-in: fade-in 180ms var(--ease-out-expo);
+    --animate-drawer-out: fade-out 150ms var(--ease-out-expo) forwards;
   }
 }
 
