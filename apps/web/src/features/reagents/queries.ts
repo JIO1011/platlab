@@ -3,16 +3,23 @@ import {
   issueRequestList,
   locationList,
   lotList,
+  operationFacets,
   operationList,
+  operationTotals,
   positionList,
   productList,
   reagentsSummary,
   stockedProduct,
+  type OperationFacets,
+  type OperationGroupBy,
+  type OperationTotals,
   type ReasonKind,
+  type WorkspaceMeResponse,
 } from '@platlab/contracts';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, type Query } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
+import { operationSearch, type OperationQuery } from './movement-filters';
 
 const reagentsKey = (user: string, workspaceId: string) => [...workspaceKey(user, workspaceId), 'reagents'] as const;
 
@@ -62,28 +69,77 @@ export function usePositions(workspaceId: string, productId?: string, locationId
   });
 }
 
-/** Filtro del historial: un tipo y una ventana de días, la misma que la del gráfico del Resumen. */
-export interface OperationFilter {
-  type?: 'receipt' | 'issue' | 'adjustment' | 'transfer' | undefined;
-  days?: number | undefined;
-  productId?: string | undefined;
-}
-
-export function useOperations(workspaceId: string, filter: OperationFilter = {}) {
+/**
+ * El libro de Movimientos con sus filtros (ADR 0014); la clave lleva la consulta entera, ya con el
+ * periodo resuelto, así cada combinación tiene su caché.
+ */
+export function useOperations(workspaceId: string, query: OperationQuery = {}) {
   const user = useUserKey();
   return useInfiniteQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'operations', filter.type ?? null, filter.days ?? null, filter.productId ?? null],
+    queryKey: [...reagentsKey(user, workspaceId), 'operations', query],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => {
-      const search = new URLSearchParams({ limit: '50' });
-      if (filter.type) search.set('type', filter.type);
-      if (filter.days) search.set('days', String(filter.days));
-      if (filter.productId) search.set('productId', filter.productId);
+      const search = operationSearch(query);
+      search.set('limit', '50');
       if (pageParam) search.set('cursor', pageParam);
       return api(`/workspaces/${workspaceId}/reagents/operations?${search}`, { schema: operationList });
     },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     refetchInterval: jitteredPoll,
+  });
+}
+
+/**
+ * Conserva los datos anteriores mientras cambian los filtros, pero nunca los de otro usuario u otro
+ * espacio: la clave empieza por `['user', id, 'ws', workspaceId]`.
+ */
+function keepWithinWorkspace<T>(user: string, workspaceId: string) {
+  return (previous: T | undefined, previousQuery: Query<T, Error, T, readonly unknown[]> | undefined) =>
+    previousQuery?.queryKey[1] === user && previousQuery.queryKey[3] === workspaceId ? previous : undefined;
+}
+
+/**
+ * Asientos por opción de cada filtro (ADR 0014); `productQuery` busca dentro de los reactivos. Mientras
+ * cambian los filtros se conservan los conteos anteriores: el panel no parpadea.
+ */
+export function useOperationFacets(workspaceId: string, query: OperationQuery, productQuery = '', enabled = true) {
+  const user = useUserKey();
+  const search = productQuery.trim();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'operation-facets', query, search],
+    queryFn: () => {
+      const params = operationSearch(query);
+      if (search) params.set('productQuery', search);
+      return api(`/workspaces/${workspaceId}/reagents/operations/facets?${params}`, { schema: operationFacets });
+    },
+    placeholderData: keepWithinWorkspace<OperationFacets>(user, workspaceId),
+    refetchInterval: jitteredPoll,
+    enabled,
+  });
+}
+
+/** Totales y exportación son reportes (ADR 0014): `reagents.report.read` en los permisos efectivos. */
+const canReadReports = (me: WorkspaceMeResponse) => me.permissions.includes('reagents.report.read');
+
+/** Totales del libro filtrado, calculados en el servidor (ADR 0014); solo se piden con el permiso. */
+export function useOperationTotals(
+  workspaceId: string,
+  me: WorkspaceMeResponse,
+  query: OperationQuery,
+  groupBy: OperationGroupBy,
+  enabled = true,
+) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'operation-totals', query, groupBy],
+    queryFn: () => {
+      const params = operationSearch(query);
+      params.set('groupBy', groupBy);
+      return api(`/workspaces/${workspaceId}/reagents/operations/totals?${params}`, { schema: operationTotals });
+    },
+    placeholderData: keepWithinWorkspace<OperationTotals>(user, workspaceId),
+    refetchInterval: jitteredPoll,
+    enabled: enabled && canReadReports(me),
   });
 }
 

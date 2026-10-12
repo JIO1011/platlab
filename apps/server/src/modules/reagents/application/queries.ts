@@ -3,8 +3,12 @@ import type { z } from 'zod';
 import type {
   LocationList,
   LotList,
+  OperationFacets,
+  operationFacetsQuery,
   OperationList,
   operationListQuery,
+  OperationTotals,
+  operationTotalsQuery,
   PositionList,
   positionListQuery,
   ProductList,
@@ -22,8 +26,11 @@ import {
   listIssueRequests,
   listOperationPage,
   listPositionPage,
+  operationFacetsOf,
+  operationTotalsOf,
   pendingRequestCount,
   reasonsOf,
+  type OperationFilter,
 } from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
 import {
@@ -43,6 +50,8 @@ import {
 import { inventoryContext } from './commands.js';
 
 const READ = 'reagents.catalog.read';
+/** Totales y exportación de Movimientos: reportes del Administrador (ADR 0014, 01 §5). */
+const REPORT = 'reagents.report.read';
 /** Ventana del gráfico de salidas del resumen (ADR 0011). */
 const TREND_DAYS = 30;
 /** «Por vencer»: caduca entre hoy y los próximos días (02 §12, ADR 0012 del 05-10-2026). */
@@ -202,6 +211,26 @@ export function listPositions(
   );
 }
 
+/** Filtros de Movimientos (ADR 0014) sobre el ámbito dado: la ubicación elegida solo lo estrecha. */
+const operationFilter = (
+  access: WorkspaceAccess,
+  locationIds: string[],
+  query: z.infer<typeof operationFacetsQuery | typeof operationListQuery | typeof operationTotalsQuery>,
+): OperationFilter => ({
+  locationIds,
+  types: query.type,
+  itemIds: query.productId,
+  responsibleIds: query.responsibleId,
+  destinations: query.destination,
+  reasons: query.reason,
+  filterLocationIds: query.locationId,
+  positionId: query.positionId,
+  days: query.days,
+  from: query.from,
+  to: query.to,
+  timeZone: access.workspace.timeZone,
+});
+
 export function listOperations(
   pool: pg.Pool,
   request: QueryRequest,
@@ -209,17 +238,45 @@ export function listOperations(
 ): Promise<OperationList> {
   return runQuery(pool, request, async (access) =>
     listOperationPage(inventoryContext(access), {
-      locationIds: await permissionScope(access, READ),
-      itemId: query.productId,
-      locationId: query.locationId,
-      positionId: query.positionId,
-      type: query.type,
-      days: query.days,
-      timeZone: access.workspace.timeZone,
+      ...operationFilter(access, await permissionScope(access, READ), query),
       cursor: query.cursor,
       limit: query.limit,
     }),
   );
+}
+
+/** Conteo por opción de cada filtro de Movimientos (ADR 0014): lo ve quien ve el detalle. */
+export function listOperationFacets(
+  pool: pg.Pool,
+  request: QueryRequest,
+  query: z.infer<typeof operationFacetsQuery>,
+): Promise<OperationFacets> {
+  return runQuery(pool, request, async (access) =>
+    operationFacetsOf(inventoryContext(access), {
+      ...operationFilter(access, await permissionScope(access, READ), query),
+      productQuery: query.productQuery,
+    }),
+  );
+}
+
+/**
+ * Totales de Movimientos (ADR 0014): un reporte. Cubren las ubicaciones donde el miembro consulta y
+ * además tiene el reporte; nunca más que su ámbito de consulta.
+ */
+export function listOperationTotals(
+  pool: pg.Pool,
+  request: QueryRequest,
+  query: z.infer<typeof operationTotalsQuery>,
+): Promise<OperationTotals> {
+  return runQuery(pool, request, async (access) => {
+    await requirePermission(access, REPORT);
+    const reportScope = new Set(await permissionScope(access, REPORT));
+    const locationIds = (await permissionScope(access, READ)).filter((id) => reportScope.has(id));
+    return operationTotalsOf(inventoryContext(access), {
+      ...operationFilter(access, locationIds, query),
+      groupBy: query.groupBy,
+    });
+  });
 }
 
 /**

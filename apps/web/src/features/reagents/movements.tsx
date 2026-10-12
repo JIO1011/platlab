@@ -6,15 +6,16 @@ import { Link, useSearchParams } from 'react-router';
 import { addDays } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
 import { useReagents } from './context';
+import { serializeMovementFilters, type MovementFilters } from './movement-filters';
 import { purposeOf } from './operation-text';
 import { useNow } from './use-now';
 
 const typeFilters = [
-  { value: undefined, param: null, label: 'Todos' },
-  { value: 'receipt', param: 'ingreso', label: 'Ingresos' },
-  { value: 'issue', param: 'salida', label: 'Salidas' },
-  { value: 'adjustment', param: 'ajuste', label: 'Ajustes' },
-  { value: 'transfer', param: 'traslado', label: 'Traslados' },
+  { value: undefined, label: 'Todos' },
+  { value: 'receipt', label: 'Ingresos' },
+  { value: 'issue', label: 'Salidas' },
+  { value: 'adjustment', label: 'Ajustes' },
+  { value: 'transfer', label: 'Traslados' },
 ] as const;
 
 const periodFilters = [
@@ -47,16 +48,21 @@ function ChoicePill({ label, active, onSelect }: { label: string; active: boolea
  * abre exactamente su lista.
  */
 export function ReagentsMovementsPage() {
-  const { me, base, operations, operationFilter } = useReagents();
-  const [params, setParams] = useSearchParams();
-  const filtered = Boolean(operationFilter.type || operationFilter.days);
-  const select = (key: 'tipo' | 'dias', value: string | null) => {
-    const next = new URLSearchParams(params);
-    if (value === null) next.delete(key);
-    else next.set(key, value);
-    setParams(next, { replace: true });
-  };
-  const periodIsStandard = periodFilters.some((period) => period.days === operationFilter.days);
+  const { me, base, operations, movementFilters } = useReagents();
+  const [, setParams] = useSearchParams();
+  const { types, period } = movementFilters;
+  const filtered =
+    types.length > 0 ||
+    period.kind !== 'all' ||
+    [movementFilters.productIds, movementFilters.responsibleIds, movementFilters.destinations, movementFilters.reasons, movementFilters.locationIds].some(
+      (list) => list.length > 0,
+    );
+  // Las píldoras eligen un tipo y una ventana de días; el panel de R-01C llegará con varios valores.
+  const activeType = types.length === 1 ? types[0] : types.length === 0 ? undefined : null;
+  const activeDays = period.kind === 'days' ? period.days : period.kind === 'all' ? undefined : null;
+  const select = (change: Partial<MovementFilters>) =>
+    setParams(serializeMovementFilters({ ...movementFilters, ...change }), { replace: true });
+  const periodIsStandard = periodFilters.some((entry) => entry.days === activeDays);
   return (
     <>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6">
@@ -65,8 +71,8 @@ export function ReagentsMovementsPage() {
             <ChoicePill
               key={filter.label}
               label={filter.label}
-              active={operationFilter.type === filter.value}
-              onSelect={() => select('tipo', filter.param)}
+              active={activeType === filter.value}
+              onSelect={() => select({ types: filter.value ? [filter.value] : [] })}
             />
           ))}
         </div>
@@ -75,13 +81,13 @@ export function ReagentsMovementsPage() {
             <ChoicePill
               key={period.label}
               label={period.label}
-              active={operationFilter.days === period.days}
-              onSelect={() => select('dias', period.days === undefined ? null : String(period.days))}
+              active={activeDays === period.days}
+              onSelect={() => select({ period: period.days === undefined ? { kind: 'all' } : { kind: 'days', days: period.days } })}
             />
           ))}
           {/* Un enlace puede traer otro número de días (hasta 90): se muestra activo y se puede quitar. */}
-          {periodIsStandard || !operationFilter.days ? null : (
-            <ChoicePill label={`${operationFilter.days} días`} active onSelect={() => select('dias', null)} />
+          {periodIsStandard || !activeDays ? null : (
+            <ChoicePill label={`${activeDays} días`} active onSelect={() => select({ period: { kind: 'all' } })} />
           )}
         </div>
       </div>

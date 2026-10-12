@@ -1,6 +1,8 @@
 import type {
   IssueRequestItem,
   Operation,
+  OperationFacets,
+  OperationTotals,
   Position,
   ProductList,
   ReagentsSummary,
@@ -9,7 +11,7 @@ import type {
 } from '@platlab/contracts';
 import type { InfiniteData, UseInfiniteQueryResult, UseQueryResult } from '@tanstack/react-query';
 import { useOutletContext } from 'react-router';
-import type { OperationFilter } from './queries';
+import type { MovementFilters, OperationQuery } from './movement-filters';
 
 /** Hoja de registro que se abre, con lo que ya se conoce (reactivo o frasco de origen). */
 export type SheetRequest =
@@ -42,7 +44,13 @@ export interface ReagentsContext {
   positions: UseInfiniteQueryResult<InfiniteData<{ items: Position[] }>>;
   positionList: Position[];
   operations: UseInfiniteQueryResult<InfiniteData<{ items: Operation[] }>>;
-  operationFilter: OperationFilter;
+  /** Filtros de Movimientos leídos de la URL y su consulta a la API, con el periodo resuelto (ADR 0014). */
+  movementFilters: MovementFilters;
+  operationQuery: OperationQuery;
+  /** Conteo por opción de cada filtro; solo se pide en Movimientos. */
+  operationFacets: UseQueryResult<OperationFacets>;
+  /** Totales (reporte): solo con `reagents.report.read` y la vista Totales. */
+  operationTotals: UseQueryResult<OperationTotals>;
   summary: UseQueryResult<ReagentsSummary>;
   requests: UseQueryResult<{ canApprove: boolean; items: IssueRequestItem[] }>;
   /** Decidir solicitudes es resolver pendientes (ADR 0009): sigue permitido con el módulo en cierre. */

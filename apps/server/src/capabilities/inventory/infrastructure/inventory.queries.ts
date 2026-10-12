@@ -761,14 +761,19 @@ export interface IListOperationsParams {
   beforeEntryId?: string | null | void;
   beforeId?: string | null | void;
   days?: number | null | void;
-  itemId?: string | null | void;
+  destinations?: stringArray | null | void;
+  filterLocationIds?: stringArray | null | void;
+  fromDate?: string | null | void;
+  itemIds?: stringArray | null | void;
   kind: string;
   limit: NumberOrString;
-  locationId?: string | null | void;
   locationIds: stringArray;
   positionId?: string | null | void;
+  reasons?: stringArray | null | void;
+  responsibleIds?: stringArray | null | void;
   timeZone: string;
-  type?: string | null | void;
+  toDate?: string | null | void;
+  types?: stringArray | null | void;
   workspaceId: string;
 }
 
@@ -804,7 +809,7 @@ export interface IListOperationsQuery {
   result: IListOperationsResult;
 }
 
-const listOperationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"itemId":true,"locationId":true,"positionId":true,"type":true,"days":true,"timeZone":true,"beforeId":true,"beforeAt":true,"beforeEntryId":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2081,"b":2093}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":2110,"b":2115}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":2144,"b":2156}]},{"name":"itemId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2174,"b":2180},{"a":2211,"b":2217}]},{"name":"locationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2233,"b":2243},{"a":2278,"b":2288}]},{"name":"positionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2304,"b":2314},{"a":2340,"b":2350}]},{"name":"type","required":false,"transform":{"type":"scalar"},"locs":[{"a":2366,"b":2370},{"a":2398,"b":2402}]},{"name":"days","required":false,"transform":{"type":"scalar"},"locs":[{"a":2514,"b":2518},{"a":2601,"b":2605}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":2580,"b":2589},{"a":2642,"b":2651}]},{"name":"beforeId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2670,"b":2678},{"a":2757,"b":2765}]},{"name":"beforeAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":2733,"b":2741}]},{"name":"beforeEntryId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2774,"b":2787}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":2857,"b":2863}]}],"statement":"-- Un asiento por fila: un ingreso de varios frascos son varias filas de la misma operación. El\n-- cursor incluye el asiento para que una página nunca corte una operación a medias.\nSELECT\n  o.id,\n  e.id AS entry_id,\n  o.type,\n  o.effective_at,\n  -- Marca exacta (microsegundos, UTC) para el cursor; un Date de JavaScript la redondearía.\n  to_char(o.effective_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS \"cursor_at!\",\n  o.reason,\n  o.destination,\n  o.reference,\n  o.requested_by_principal_id,\n  o.actor_principal_id,\n  ident.display_name AS actor_name,\n  requester.display_name AS requester_name,\n  e.position_id,\n  trim_scale(e.quantity) AS \"quantity!\",\n  trim_scale(e.balance_after) AS \"balance_after!\",\n  p.item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  l.code AS lot_code,\n  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,\n  loc.code AS location_code,\n  i.base_unit\nFROM inventory.operations AS o\nJOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id\nJOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nLEFT JOIN core.principals AS rqp ON rqp.workspace_id = o.workspace_id AND rqp.id = o.requested_by_principal_id\nLEFT JOIN core.memberships AS rqm ON rqm.workspace_id = rqp.workspace_id AND rqm.id = rqp.membership_id\nLEFT JOIN core.identities AS requester ON requester.id = rqm.identity_id\nWHERE o.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)\n  AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)\n  AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)\n  AND (:type::text IS NULL OR o.type = :type::text)\n  -- Misma ventana que countOperationsByDay: desde la medianoche local de hace N - 1 días.\n  AND (\n    :days::int IS NULL\n    OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)\n  )\n  AND (\n    :beforeId::uuid IS NULL\n    OR (o.effective_at, o.id, e.id) < (:beforeAt::timestamptz, :beforeId::uuid, :beforeEntryId::uuid)\n  )\nORDER BY o.effective_at DESC, o.id DESC, e.id DESC\nLIMIT :limit!"};
+const listOperationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"types":true,"itemIds":true,"responsibleIds":true,"destinations":true,"reasons":true,"filterLocationIds":true,"positionId":true,"days":true,"timeZone":true,"fromDate":true,"toDate":true,"beforeId":true,"beforeAt":true,"beforeEntryId":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2275,"b":2287}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":2304,"b":2309}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":2338,"b":2350}]},{"name":"types","required":false,"transform":{"type":"scalar"},"locs":[{"a":2368,"b":2373},{"a":2408,"b":2413}]},{"name":"itemIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":2432,"b":2439},{"a":2477,"b":2484}]},{"name":"responsibleIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":2508,"b":2522},{"a":2614,"b":2628}]},{"name":"destinations","required":false,"transform":{"type":"scalar"},"locs":[{"a":2650,"b":2662},{"a":2704,"b":2716}]},{"name":"reasons","required":false,"transform":{"type":"scalar"},"locs":[{"a":2735,"b":2742},{"a":2779,"b":2786}]},{"name":"filterLocationIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":2805,"b":2822},{"a":2864,"b":2881}]},{"name":"positionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2900,"b":2910},{"a":2936,"b":2946}]},{"name":"days","required":false,"transform":{"type":"scalar"},"locs":[{"a":3058,"b":3062},{"a":3145,"b":3149}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":3124,"b":3133},{"a":3186,"b":3195},{"a":3388,"b":3397},{"a":3495,"b":3504}]},{"name":"fromDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":3302,"b":3310},{"a":3348,"b":3356}]},{"name":"toDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":3408,"b":3414},{"a":3452,"b":3458}]},{"name":"beforeId","required":false,"transform":{"type":"scalar"},"locs":[{"a":3520,"b":3528},{"a":3607,"b":3615}]},{"name":"beforeAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":3583,"b":3591}]},{"name":"beforeEntryId","required":false,"transform":{"type":"scalar"},"locs":[{"a":3624,"b":3637}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":3707,"b":3713}]}],"statement":"-- Un asiento por fila: un ingreso de varios frascos son varias filas de la misma operación. El\n-- cursor incluye el asiento para que una página nunca corte una operación a medias.\nSELECT\n  o.id,\n  e.id AS entry_id,\n  o.type,\n  o.effective_at,\n  -- Marca exacta (microsegundos, UTC) para el cursor; un Date de JavaScript la redondearía.\n  to_char(o.effective_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS \"cursor_at!\",\n  o.reason,\n  o.destination,\n  o.reference,\n  o.requested_by_principal_id,\n  o.actor_principal_id,\n  ident.display_name AS actor_name,\n  requester.display_name AS requester_name,\n  e.position_id,\n  trim_scale(e.quantity) AS \"quantity!\",\n  trim_scale(e.balance_after) AS \"balance_after!\",\n  p.item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  l.code AS lot_code,\n  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,\n  loc.code AS location_code,\n  i.base_unit\nFROM inventory.operations AS o\nJOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id\nJOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nLEFT JOIN core.principals AS rqp ON rqp.workspace_id = o.workspace_id AND rqp.id = o.requested_by_principal_id\nLEFT JOIN core.memberships AS rqm ON rqm.workspace_id = rqp.workspace_id AND rqm.id = rqp.membership_id\nLEFT JOIN core.identities AS requester ON requester.id = rqm.identity_id\n-- Filtros del libro (ADR 0014), los mismos en operationFacets y operationTotals: si cambian aquí,\n-- cambian allí. `locationIds` es el ámbito del miembro; `filterLocationIds` solo lo estrecha.\nWHERE o.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))\n  AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))\n  AND (\n    :responsibleIds::uuid[] IS NULL\n    OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[])\n  )\n  AND (:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]))\n  AND (:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]))\n  AND (:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]))\n  AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)\n  -- Misma ventana que countOperationsByDay: desde la medianoche local de hace N - 1 días.\n  AND (\n    :days::int IS NULL\n    OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)\n  )\n  -- Desde la medianoche local de `fromDate` hasta antes de la del día siguiente a `toDate`.\n  AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))\n  AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))\n  AND (\n    :beforeId::uuid IS NULL\n    OR (o.effective_at, o.id, e.id) < (:beforeAt::timestamptz, :beforeId::uuid, :beforeEntryId::uuid)\n  )\nORDER BY o.effective_at DESC, o.id DESC, e.id DESC\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
@@ -848,18 +853,29 @@ const listOperationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"l
  * LEFT JOIN core.principals AS rqp ON rqp.workspace_id = o.workspace_id AND rqp.id = o.requested_by_principal_id
  * LEFT JOIN core.memberships AS rqm ON rqm.workspace_id = rqp.workspace_id AND rqm.id = rqp.membership_id
  * LEFT JOIN core.identities AS requester ON requester.id = rqm.identity_id
+ * -- Filtros del libro (ADR 0014), los mismos en operationFacets y operationTotals: si cambian aquí,
+ * -- cambian allí. `locationIds` es el ámbito del miembro; `filterLocationIds` solo lo estrecha.
  * WHERE o.workspace_id = :workspaceId!
  *   AND i.kind = :kind!
  *   AND p.location_id = ANY (:locationIds!::uuid[])
- *   AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)
- *   AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)
+ *   AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))
+ *   AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))
+ *   AND (
+ *     :responsibleIds::uuid[] IS NULL
+ *     OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[])
+ *   )
+ *   AND (:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]))
+ *   AND (:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]))
+ *   AND (:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]))
  *   AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)
- *   AND (:type::text IS NULL OR o.type = :type::text)
  *   -- Misma ventana que countOperationsByDay: desde la medianoche local de hace N - 1 días.
  *   AND (
  *     :days::int IS NULL
  *     OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)
  *   )
+ *   -- Desde la medianoche local de `fromDate` hasta antes de la del día siguiente a `toDate`.
+ *   AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))
+ *   AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))
  *   AND (
  *     :beforeId::uuid IS NULL
  *     OR (o.effective_at, o.id, e.id) < (:beforeAt::timestamptz, :beforeId::uuid, :beforeEntryId::uuid)
@@ -935,6 +951,366 @@ const countOperationsByDayIR: any = {"usedParamSet":{"timeZone":true,"days":true
  * ```
  */
 export const countOperationsByDay = new PreparedQuery<ICountOperationsByDayParams,ICountOperationsByDayResult>(countOperationsByDayIR);
+
+
+/** 'OperationFacets' parameters type */
+export interface IOperationFacetsParams {
+  days?: number | null | void;
+  destinations?: stringArray | null | void;
+  filterLocationIds?: stringArray | null | void;
+  fromDate?: string | null | void;
+  itemIds?: stringArray | null | void;
+  kind: string;
+  locationIds: stringArray;
+  positionId?: string | null | void;
+  productLimit: number;
+  productQuery?: string | null | void;
+  reasons?: stringArray | null | void;
+  responsibleIds?: stringArray | null | void;
+  timeZone: string;
+  toDate?: string | null | void;
+  types?: stringArray | null | void;
+  workspaceId: string;
+}
+
+/** 'OperationFacets' return type */
+export interface IOperationFacetsResult {
+  code: string | null;
+  count: number;
+  facet: string;
+  id: string | null;
+  name: string | null;
+  selected: boolean;
+  value: string | null;
+}
+
+/** 'OperationFacets' query type */
+export interface IOperationFacetsQuery {
+  params: IOperationFacetsParams;
+  result: IOperationFacetsResult;
+}
+
+const operationFacetsIR: any = {"usedParamSet":{"types":true,"itemIds":true,"responsibleIds":true,"destinations":true,"reasons":true,"filterLocationIds":true,"workspaceId":true,"kind":true,"locationIds":true,"positionId":true,"days":true,"timeZone":true,"fromDate":true,"toDate":true,"productQuery":true,"productLimit":true},"params":[{"name":"types","required":false,"transform":{"type":"scalar"},"locs":[{"a":699,"b":704},{"a":739,"b":744},{"a":3645,"b":3650}]},{"name":"itemIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":788,"b":795},{"a":833,"b":840},{"a":3716,"b":3723}]},{"name":"responsibleIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":891,"b":905},{"a":999,"b":1013},{"a":3793,"b":3807}]},{"name":"destinations","required":false,"transform":{"type":"scalar"},"locs":[{"a":1075,"b":1087},{"a":1129,"b":1141},{"a":3877,"b":3889}]},{"name":"reasons","required":false,"transform":{"type":"scalar"},"locs":[{"a":1192,"b":1199},{"a":1236,"b":1243},{"a":3954,"b":3961}]},{"name":"filterLocationIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1289,"b":1306},{"a":1348,"b":1365},{"a":4028,"b":4045}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1724,"b":1736},{"a":4826,"b":4838},{"a":4969,"b":4981},{"a":5138,"b":5150}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1755,"b":1760},{"a":4856,"b":4861}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1791,"b":1803},{"a":5027,"b":5039}]},{"name":"positionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1823,"b":1833},{"a":1859,"b":1869}]},{"name":"days","required":false,"transform":{"type":"scalar"},"locs":[{"a":1894,"b":1898},{"a":1983,"b":1987}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":1962,"b":1971},{"a":2024,"b":2033},{"a":2137,"b":2146},{"a":2246,"b":2255}]},{"name":"fromDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":2051,"b":2059},{"a":2097,"b":2105}]},{"name":"toDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":2159,"b":2165},{"a":2203,"b":2209}]},{"name":"productQuery","required":false,"transform":{"type":"scalar"},"locs":[{"a":5932,"b":5944},{"a":5997,"b":6009},{"a":6060,"b":6072}]},{"name":"productLimit","required":true,"transform":{"type":"scalar"},"locs":[{"a":6253,"b":6266}]}],"statement":"-- Asientos por opción de cada filtro de Movimientos (ADR 0014), en una sola lectura del libro para que\n-- el total y los grupos salgan de la misma instantánea. Faceta disyuntiva: cada grupo aplica todos los\n-- filtros menos el suyo, así marcar «Salidas» sigue contando los ingresos. Llegan las opciones con\n-- asientos y las elegidas aunque queden en cero (para poder quitarlas), pero nunca un reactivo de otro\n-- tipo, un principal de otro espacio ni una ubicación fuera del ámbito.\nWITH scoped AS MATERIALIZED (\n  SELECT\n    o.type,\n    p.item_id,\n    coalesce(o.requested_by_principal_id, o.actor_principal_id) AS responsible_id,\n    o.destination,\n    o.reason,\n    p.location_id,\n    coalesce(:types::text[] IS NULL OR o.type = ANY (:types::text[]), false) AS by_type,\n    coalesce(:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]), false) AS by_item,\n    coalesce(\n      :responsibleIds::uuid[] IS NULL\n      OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[]),\n      false\n    ) AS by_responsible,\n    coalesce(:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]), false) AS by_destination,\n    coalesce(:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]), false) AS by_reason,\n    coalesce(:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]), false) AS by_location\n  FROM inventory.operations AS o\n  JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id\n  JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id\n  JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\n  WHERE o.workspace_id = :workspaceId!\n    AND i.kind = :kind!\n    AND p.location_id = ANY (:locationIds!::uuid[])\n    AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)\n    AND (\n      :days::int IS NULL\n      OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)\n    )\n    AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))\n    AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))\n),\ncounted AS (\n  SELECT 'total' AS facet, NULL::uuid AS id, NULL::text AS value, count(*) AS n\n  FROM scoped\n  WHERE by_type AND by_item AND by_responsible AND by_destination AND by_reason AND by_location\n  UNION ALL\n  SELECT 'type', NULL, type, count(*)\n  FROM scoped\n  WHERE by_item AND by_responsible AND by_destination AND by_reason AND by_location\n  GROUP BY type\n  UNION ALL\n  SELECT 'product', item_id, NULL, count(*)\n  FROM scoped\n  WHERE by_type AND by_responsible AND by_destination AND by_reason AND by_location\n  GROUP BY item_id\n  UNION ALL\n  SELECT 'responsible', responsible_id, NULL, count(*)\n  FROM scoped\n  WHERE by_type AND by_item AND by_destination AND by_reason AND by_location\n  GROUP BY responsible_id\n  UNION ALL\n  SELECT 'destination', NULL, destination, count(*)\n  FROM scoped\n  WHERE destination IS NOT NULL AND by_type AND by_item AND by_responsible AND by_reason AND by_location\n  GROUP BY destination\n  UNION ALL\n  SELECT 'reason', NULL, reason, count(*)\n  FROM scoped\n  WHERE reason IS NOT NULL AND by_type AND by_item AND by_responsible AND by_destination AND by_location\n  GROUP BY reason\n  UNION ALL\n  SELECT 'location', location_id, NULL, count(*)\n  FROM scoped\n  WHERE by_type AND by_item AND by_responsible AND by_destination AND by_reason\n  GROUP BY location_id\n),\nselected AS (\n  SELECT 'type' AS facet, NULL::uuid AS id, v AS value FROM unnest(:types::text[]) AS v\n  UNION ALL SELECT 'product', v, NULL FROM unnest(:itemIds::uuid[]) AS v\n  UNION ALL SELECT 'responsible', v, NULL FROM unnest(:responsibleIds::uuid[]) AS v\n  UNION ALL SELECT 'destination', NULL, v FROM unnest(:destinations::text[]) AS v\n  UNION ALL SELECT 'reason', NULL, v FROM unnest(:reasons::text[]) AS v\n  UNION ALL SELECT 'location', v, NULL FROM unnest(:filterLocationIds::uuid[]) AS v\n),\noptions AS (\n  SELECT\n    coalesce(c.facet, s.facet) AS facet,\n    coalesce(c.id, s.id) AS id,\n    coalesce(c.value, s.value) AS value,\n    coalesce(c.n, 0) AS n,\n    s.facet IS NOT NULL AS selected\n  FROM counted AS c\n  FULL JOIN selected AS s\n    ON s.facet = c.facet AND s.id IS NOT DISTINCT FROM c.id AND s.value IS NOT DISTINCT FROM c.value\n),\nnamed AS (\n  SELECT\n    op.facet,\n    op.id,\n    op.value,\n    op.n,\n    op.selected,\n    coalesce(item.code, loc.code) AS code,\n    CASE op.facet\n      WHEN 'product' THEN item.name\n      WHEN 'location' THEN loc.name\n      WHEN 'responsible' THEN ident.display_name\n      ELSE op.value\n    END AS name\n  FROM options AS op\n  LEFT JOIN inventory.items AS item\n    ON op.facet = 'product' AND item.workspace_id = :workspaceId! AND item.kind = :kind! AND item.id = op.id\n  LEFT JOIN core.locations AS loc\n    ON op.facet = 'location' AND loc.workspace_id = :workspaceId! AND loc.id = op.id\n       AND loc.id = ANY (:locationIds!::uuid[])\n  LEFT JOIN core.principals AS pr\n    ON op.facet = 'responsible' AND pr.workspace_id = :workspaceId! AND pr.id = op.id\n  LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n  LEFT JOIN core.identities AS ident ON ident.id = m.identity_id\n  WHERE (op.facet <> 'product' OR item.id IS NOT NULL)\n    AND (op.facet <> 'location' OR loc.id IS NOT NULL)\n    AND (op.facet <> 'responsible' OR pr.id IS NOT NULL)\n),\nranked AS (\n  -- Reactivos: los elegidos siempre; de los demás, los que coinciden con la búsqueda, uno más del\n  -- límite para saber si hay más.\n  SELECT\n    nd.*,\n    CASE WHEN nd.facet = 'product' AND NOT nd.selected THEN\n      row_number() OVER (PARTITION BY nd.facet, nd.selected ORDER BY nd.n DESC, lower(nd.name), nd.id)\n    END AS product_rank\n  FROM named AS nd\n  WHERE nd.facet <> 'product'\n     OR nd.selected\n     OR :productQuery::text IS NULL\n     OR strpos(lower(nd.code), lower(:productQuery::text)) > 0\n     OR strpos(lower(nd.name), lower(:productQuery::text)) > 0\n)\nSELECT\n  facet AS \"facet!\",\n  id,\n  value,\n  code,\n  name,\n  n::int AS \"count!\",\n  selected AS \"selected!\"\nFROM ranked\nWHERE product_rank IS NULL OR product_rank <= :productLimit!::int + 1\nORDER BY facet, n DESC, lower(name), id, value"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Asientos por opción de cada filtro de Movimientos (ADR 0014), en una sola lectura del libro para que
+ * -- el total y los grupos salgan de la misma instantánea. Faceta disyuntiva: cada grupo aplica todos los
+ * -- filtros menos el suyo, así marcar «Salidas» sigue contando los ingresos. Llegan las opciones con
+ * -- asientos y las elegidas aunque queden en cero (para poder quitarlas), pero nunca un reactivo de otro
+ * -- tipo, un principal de otro espacio ni una ubicación fuera del ámbito.
+ * WITH scoped AS MATERIALIZED (
+ *   SELECT
+ *     o.type,
+ *     p.item_id,
+ *     coalesce(o.requested_by_principal_id, o.actor_principal_id) AS responsible_id,
+ *     o.destination,
+ *     o.reason,
+ *     p.location_id,
+ *     coalesce(:types::text[] IS NULL OR o.type = ANY (:types::text[]), false) AS by_type,
+ *     coalesce(:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]), false) AS by_item,
+ *     coalesce(
+ *       :responsibleIds::uuid[] IS NULL
+ *       OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[]),
+ *       false
+ *     ) AS by_responsible,
+ *     coalesce(:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]), false) AS by_destination,
+ *     coalesce(:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]), false) AS by_reason,
+ *     coalesce(:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]), false) AS by_location
+ *   FROM inventory.operations AS o
+ *   JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id
+ *   JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id
+ *   JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+ *   WHERE o.workspace_id = :workspaceId!
+ *     AND i.kind = :kind!
+ *     AND p.location_id = ANY (:locationIds!::uuid[])
+ *     AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)
+ *     AND (
+ *       :days::int IS NULL
+ *       OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)
+ *     )
+ *     AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))
+ *     AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))
+ * ),
+ * counted AS (
+ *   SELECT 'total' AS facet, NULL::uuid AS id, NULL::text AS value, count(*) AS n
+ *   FROM scoped
+ *   WHERE by_type AND by_item AND by_responsible AND by_destination AND by_reason AND by_location
+ *   UNION ALL
+ *   SELECT 'type', NULL, type, count(*)
+ *   FROM scoped
+ *   WHERE by_item AND by_responsible AND by_destination AND by_reason AND by_location
+ *   GROUP BY type
+ *   UNION ALL
+ *   SELECT 'product', item_id, NULL, count(*)
+ *   FROM scoped
+ *   WHERE by_type AND by_responsible AND by_destination AND by_reason AND by_location
+ *   GROUP BY item_id
+ *   UNION ALL
+ *   SELECT 'responsible', responsible_id, NULL, count(*)
+ *   FROM scoped
+ *   WHERE by_type AND by_item AND by_destination AND by_reason AND by_location
+ *   GROUP BY responsible_id
+ *   UNION ALL
+ *   SELECT 'destination', NULL, destination, count(*)
+ *   FROM scoped
+ *   WHERE destination IS NOT NULL AND by_type AND by_item AND by_responsible AND by_reason AND by_location
+ *   GROUP BY destination
+ *   UNION ALL
+ *   SELECT 'reason', NULL, reason, count(*)
+ *   FROM scoped
+ *   WHERE reason IS NOT NULL AND by_type AND by_item AND by_responsible AND by_destination AND by_location
+ *   GROUP BY reason
+ *   UNION ALL
+ *   SELECT 'location', location_id, NULL, count(*)
+ *   FROM scoped
+ *   WHERE by_type AND by_item AND by_responsible AND by_destination AND by_reason
+ *   GROUP BY location_id
+ * ),
+ * selected AS (
+ *   SELECT 'type' AS facet, NULL::uuid AS id, v AS value FROM unnest(:types::text[]) AS v
+ *   UNION ALL SELECT 'product', v, NULL FROM unnest(:itemIds::uuid[]) AS v
+ *   UNION ALL SELECT 'responsible', v, NULL FROM unnest(:responsibleIds::uuid[]) AS v
+ *   UNION ALL SELECT 'destination', NULL, v FROM unnest(:destinations::text[]) AS v
+ *   UNION ALL SELECT 'reason', NULL, v FROM unnest(:reasons::text[]) AS v
+ *   UNION ALL SELECT 'location', v, NULL FROM unnest(:filterLocationIds::uuid[]) AS v
+ * ),
+ * options AS (
+ *   SELECT
+ *     coalesce(c.facet, s.facet) AS facet,
+ *     coalesce(c.id, s.id) AS id,
+ *     coalesce(c.value, s.value) AS value,
+ *     coalesce(c.n, 0) AS n,
+ *     s.facet IS NOT NULL AS selected
+ *   FROM counted AS c
+ *   FULL JOIN selected AS s
+ *     ON s.facet = c.facet AND s.id IS NOT DISTINCT FROM c.id AND s.value IS NOT DISTINCT FROM c.value
+ * ),
+ * named AS (
+ *   SELECT
+ *     op.facet,
+ *     op.id,
+ *     op.value,
+ *     op.n,
+ *     op.selected,
+ *     coalesce(item.code, loc.code) AS code,
+ *     CASE op.facet
+ *       WHEN 'product' THEN item.name
+ *       WHEN 'location' THEN loc.name
+ *       WHEN 'responsible' THEN ident.display_name
+ *       ELSE op.value
+ *     END AS name
+ *   FROM options AS op
+ *   LEFT JOIN inventory.items AS item
+ *     ON op.facet = 'product' AND item.workspace_id = :workspaceId! AND item.kind = :kind! AND item.id = op.id
+ *   LEFT JOIN core.locations AS loc
+ *     ON op.facet = 'location' AND loc.workspace_id = :workspaceId! AND loc.id = op.id
+ *        AND loc.id = ANY (:locationIds!::uuid[])
+ *   LEFT JOIN core.principals AS pr
+ *     ON op.facet = 'responsible' AND pr.workspace_id = :workspaceId! AND pr.id = op.id
+ *   LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+ *   LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
+ *   WHERE (op.facet <> 'product' OR item.id IS NOT NULL)
+ *     AND (op.facet <> 'location' OR loc.id IS NOT NULL)
+ *     AND (op.facet <> 'responsible' OR pr.id IS NOT NULL)
+ * ),
+ * ranked AS (
+ *   -- Reactivos: los elegidos siempre; de los demás, los que coinciden con la búsqueda, uno más del
+ *   -- límite para saber si hay más.
+ *   SELECT
+ *     nd.*,
+ *     CASE WHEN nd.facet = 'product' AND NOT nd.selected THEN
+ *       row_number() OVER (PARTITION BY nd.facet, nd.selected ORDER BY nd.n DESC, lower(nd.name), nd.id)
+ *     END AS product_rank
+ *   FROM named AS nd
+ *   WHERE nd.facet <> 'product'
+ *      OR nd.selected
+ *      OR :productQuery::text IS NULL
+ *      OR strpos(lower(nd.code), lower(:productQuery::text)) > 0
+ *      OR strpos(lower(nd.name), lower(:productQuery::text)) > 0
+ * )
+ * SELECT
+ *   facet AS "facet!",
+ *   id,
+ *   value,
+ *   code,
+ *   name,
+ *   n::int AS "count!",
+ *   selected AS "selected!"
+ * FROM ranked
+ * WHERE product_rank IS NULL OR product_rank <= :productLimit!::int + 1
+ * ORDER BY facet, n DESC, lower(name), id, value
+ * ```
+ */
+export const operationFacets = new PreparedQuery<IOperationFacetsParams,IOperationFacetsResult>(operationFacetsIR);
+
+
+/** 'OperationTotals' parameters type */
+export interface IOperationTotalsParams {
+  days?: number | null | void;
+  destinations?: stringArray | null | void;
+  filterLocationIds?: stringArray | null | void;
+  fromDate?: string | null | void;
+  groupBy: string;
+  itemIds?: stringArray | null | void;
+  kind: string;
+  locationIds: stringArray;
+  maxGroups: number;
+  positionId?: string | null | void;
+  reasons?: stringArray | null | void;
+  responsibleIds?: stringArray | null | void;
+  timeZone: string;
+  toDate?: string | null | void;
+  types?: stringArray | null | void;
+  workspaceId: string;
+}
+
+/** 'OperationTotals' return type */
+export interface IOperationTotalsResult {
+  adjustments: string | null;
+  base_unit: string;
+  count: number;
+  group_count: number;
+  group_id: string | null;
+  group_rank: number;
+  group_text: string | null;
+  groups_total: number;
+  issues: string | null;
+  item_code: string;
+  item_id: string;
+  item_name: string;
+  label: string | null;
+  net: string;
+  receipts: string | null;
+  transfers: number;
+}
+
+/** 'OperationTotals' query type */
+export interface IOperationTotalsQuery {
+  params: IOperationTotalsParams;
+  result: IOperationTotalsResult;
+}
+
+const operationTotalsIR: any = {"usedParamSet":{"groupBy":true,"timeZone":true,"workspaceId":true,"kind":true,"locationIds":true,"types":true,"itemIds":true,"responsibleIds":true,"destinations":true,"reasons":true,"filterLocationIds":true,"positionId":true,"days":true,"fromDate":true,"toDate":true,"maxGroups":true},"params":[{"name":"groupBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":414,"b":422},{"a":586,"b":594},{"a":2881,"b":2889},{"a":3154,"b":3162},{"a":3283,"b":3291},{"a":3628,"b":3636}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":706,"b":715},{"a":1907,"b":1916},{"a":1969,"b":1978},{"a":2082,"b":2091},{"a":2191,"b":2200}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1119,"b":1131},{"a":3204,"b":3216},{"a":3337,"b":3349},{"a":4417,"b":4429}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1150,"b":1155}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1186,"b":1198}]},{"name":"types","required":false,"transform":{"type":"scalar"},"locs":[{"a":1218,"b":1223},{"a":1258,"b":1263}]},{"name":"itemIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1284,"b":1291},{"a":1329,"b":1336}]},{"name":"responsibleIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1364,"b":1378},{"a":1472,"b":1486}]},{"name":"destinations","required":false,"transform":{"type":"scalar"},"locs":[{"a":1512,"b":1524},{"a":1566,"b":1578}]},{"name":"reasons","required":false,"transform":{"type":"scalar"},"locs":[{"a":1599,"b":1606},{"a":1643,"b":1650}]},{"name":"filterLocationIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1671,"b":1688},{"a":1730,"b":1747}]},{"name":"positionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1768,"b":1778},{"a":1804,"b":1814}]},{"name":"days","required":false,"transform":{"type":"scalar"},"locs":[{"a":1839,"b":1843},{"a":1928,"b":1932}]},{"name":"fromDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":1996,"b":2004},{"a":2042,"b":2050}]},{"name":"toDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":2104,"b":2110},{"a":2148,"b":2154}]},{"name":"maxGroups","required":true,"transform":{"type":"scalar"},"locs":[{"a":4474,"b":4484}]}],"statement":"-- Totales del libro filtrado (ADR 0014), por reactivo, responsable, destino o mes en la zona del\n-- espacio. Cada fila es un reactivo dentro de su grupo, en su unidad base: nunca suma unidades\n-- distintas. Las sumas llevan signo y son exactas (numeric); un traslado se cuenta, pero no suma\n-- cantidad. Llegan los primeros `maxGroups` grupos y `groups_total` dice cuántos hay.\nWITH scoped AS (\n  SELECT\n    CASE :groupBy!::text\n      WHEN 'product' THEN p.item_id\n      WHEN 'responsible' THEN coalesce(o.requested_by_principal_id, o.actor_principal_id)\n    END AS group_id,\n    CASE :groupBy!::text\n      WHEN 'destination' THEN o.destination\n      WHEN 'month' THEN to_char(o.effective_at AT TIME ZONE :timeZone!, 'YYYY-MM')\n    END AS group_text,\n    p.item_id,\n    o.type,\n    e.quantity\n  FROM inventory.operations AS o\n  JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id\n  JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id\n  JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\n  WHERE o.workspace_id = :workspaceId!\n    AND i.kind = :kind!\n    AND p.location_id = ANY (:locationIds!::uuid[])\n    AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))\n    AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))\n    AND (\n      :responsibleIds::uuid[] IS NULL\n      OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[])\n    )\n    AND (:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]))\n    AND (:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]))\n    AND (:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]))\n    AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)\n    AND (\n      :days::int IS NULL\n      OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)\n    )\n    AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))\n    AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))\n),\nper_item AS (\n  SELECT\n    group_id,\n    group_text,\n    item_id,\n    count(*) AS n,\n    sum(quantity) FILTER (WHERE type = 'receipt') AS receipts,\n    sum(quantity) FILTER (WHERE type = 'issue') AS issues,\n    sum(quantity) FILTER (WHERE type = 'adjustment') AS adjustments,\n    coalesce(sum(quantity) FILTER (WHERE type <> 'transfer'), 0) AS net,\n    count(*) FILTER (WHERE type = 'transfer') AS transfers\n  FROM scoped\n  GROUP BY group_id, group_text, item_id\n),\nlabelled AS (\n  -- PARTITION BY agrupa los nulos juntos: las operaciones sin destino forman un solo grupo.\n  SELECT\n    pi.*,\n    sum(pi.n) OVER (PARTITION BY pi.group_id, pi.group_text) AS group_n,\n    CASE :groupBy!::text\n      WHEN 'product' THEN gi.name\n      WHEN 'responsible' THEN ident.display_name\n      WHEN 'destination' THEN coalesce(pi.group_text, 'Sin destino')\n      ELSE pi.group_text\n    END AS label\n  FROM per_item AS pi\n  LEFT JOIN inventory.items AS gi\n    ON :groupBy!::text = 'product' AND gi.workspace_id = :workspaceId! AND gi.id = pi.group_id\n  LEFT JOIN core.principals AS pr\n    ON :groupBy!::text = 'responsible' AND pr.workspace_id = :workspaceId! AND pr.id = pi.group_id\n  LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n  LEFT JOIN core.identities AS ident ON ident.id = m.identity_id\n),\nranked AS (\n  SELECT\n    l.*,\n    dense_rank() OVER (\n      ORDER BY\n        CASE WHEN :groupBy!::text = 'month' THEN l.group_text END DESC,\n        l.group_n DESC,\n        lower(l.label),\n        l.group_id,\n        l.group_text\n    ) AS group_rank\n  FROM labelled AS l\n),\ncounted AS (\n  SELECT r.*, max(r.group_rank) OVER () AS groups_total FROM ranked AS r\n)\nSELECT\n  c.group_rank::int AS \"group_rank!\",\n  c.group_id,\n  c.group_text,\n  c.label,\n  c.group_n::int AS \"group_count!\",\n  c.groups_total::int AS \"groups_total!\",\n  i.id AS item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  i.base_unit,\n  c.n::int AS \"count!\",\n  trim_scale(c.receipts) AS receipts,\n  trim_scale(c.issues) AS issues,\n  trim_scale(c.adjustments) AS adjustments,\n  trim_scale(c.net) AS \"net!\",\n  c.transfers::int AS \"transfers!\"\nFROM counted AS c\nJOIN inventory.items AS i ON i.workspace_id = :workspaceId! AND i.id = c.item_id\nWHERE c.group_rank <= :maxGroups!::int\nORDER BY c.group_rank, c.n DESC, lower(i.code), i.id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Totales del libro filtrado (ADR 0014), por reactivo, responsable, destino o mes en la zona del
+ * -- espacio. Cada fila es un reactivo dentro de su grupo, en su unidad base: nunca suma unidades
+ * -- distintas. Las sumas llevan signo y son exactas (numeric); un traslado se cuenta, pero no suma
+ * -- cantidad. Llegan los primeros `maxGroups` grupos y `groups_total` dice cuántos hay.
+ * WITH scoped AS (
+ *   SELECT
+ *     CASE :groupBy!::text
+ *       WHEN 'product' THEN p.item_id
+ *       WHEN 'responsible' THEN coalesce(o.requested_by_principal_id, o.actor_principal_id)
+ *     END AS group_id,
+ *     CASE :groupBy!::text
+ *       WHEN 'destination' THEN o.destination
+ *       WHEN 'month' THEN to_char(o.effective_at AT TIME ZONE :timeZone!, 'YYYY-MM')
+ *     END AS group_text,
+ *     p.item_id,
+ *     o.type,
+ *     e.quantity
+ *   FROM inventory.operations AS o
+ *   JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id
+ *   JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id
+ *   JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+ *   WHERE o.workspace_id = :workspaceId!
+ *     AND i.kind = :kind!
+ *     AND p.location_id = ANY (:locationIds!::uuid[])
+ *     AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))
+ *     AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))
+ *     AND (
+ *       :responsibleIds::uuid[] IS NULL
+ *       OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[])
+ *     )
+ *     AND (:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]))
+ *     AND (:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]))
+ *     AND (:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]))
+ *     AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)
+ *     AND (
+ *       :days::int IS NULL
+ *       OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)
+ *     )
+ *     AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))
+ *     AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))
+ * ),
+ * per_item AS (
+ *   SELECT
+ *     group_id,
+ *     group_text,
+ *     item_id,
+ *     count(*) AS n,
+ *     sum(quantity) FILTER (WHERE type = 'receipt') AS receipts,
+ *     sum(quantity) FILTER (WHERE type = 'issue') AS issues,
+ *     sum(quantity) FILTER (WHERE type = 'adjustment') AS adjustments,
+ *     coalesce(sum(quantity) FILTER (WHERE type <> 'transfer'), 0) AS net,
+ *     count(*) FILTER (WHERE type = 'transfer') AS transfers
+ *   FROM scoped
+ *   GROUP BY group_id, group_text, item_id
+ * ),
+ * labelled AS (
+ *   -- PARTITION BY agrupa los nulos juntos: las operaciones sin destino forman un solo grupo.
+ *   SELECT
+ *     pi.*,
+ *     sum(pi.n) OVER (PARTITION BY pi.group_id, pi.group_text) AS group_n,
+ *     CASE :groupBy!::text
+ *       WHEN 'product' THEN gi.name
+ *       WHEN 'responsible' THEN ident.display_name
+ *       WHEN 'destination' THEN coalesce(pi.group_text, 'Sin destino')
+ *       ELSE pi.group_text
+ *     END AS label
+ *   FROM per_item AS pi
+ *   LEFT JOIN inventory.items AS gi
+ *     ON :groupBy!::text = 'product' AND gi.workspace_id = :workspaceId! AND gi.id = pi.group_id
+ *   LEFT JOIN core.principals AS pr
+ *     ON :groupBy!::text = 'responsible' AND pr.workspace_id = :workspaceId! AND pr.id = pi.group_id
+ *   LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+ *   LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
+ * ),
+ * ranked AS (
+ *   SELECT
+ *     l.*,
+ *     dense_rank() OVER (
+ *       ORDER BY
+ *         CASE WHEN :groupBy!::text = 'month' THEN l.group_text END DESC,
+ *         l.group_n DESC,
+ *         lower(l.label),
+ *         l.group_id,
+ *         l.group_text
+ *     ) AS group_rank
+ *   FROM labelled AS l
+ * ),
+ * counted AS (
+ *   SELECT r.*, max(r.group_rank) OVER () AS groups_total FROM ranked AS r
+ * )
+ * SELECT
+ *   c.group_rank::int AS "group_rank!",
+ *   c.group_id,
+ *   c.group_text,
+ *   c.label,
+ *   c.group_n::int AS "group_count!",
+ *   c.groups_total::int AS "groups_total!",
+ *   i.id AS item_id,
+ *   i.code AS item_code,
+ *   i.name AS item_name,
+ *   i.base_unit,
+ *   c.n::int AS "count!",
+ *   trim_scale(c.receipts) AS receipts,
+ *   trim_scale(c.issues) AS issues,
+ *   trim_scale(c.adjustments) AS adjustments,
+ *   trim_scale(c.net) AS "net!",
+ *   c.transfers::int AS "transfers!"
+ * FROM counted AS c
+ * JOIN inventory.items AS i ON i.workspace_id = :workspaceId! AND i.id = c.item_id
+ * WHERE c.group_rank <= :maxGroups!::int
+ * ORDER BY c.group_rank, c.n DESC, lower(i.code), i.id
+ * ```
+ */
+export const operationTotals = new PreparedQuery<IOperationTotalsParams,IOperationTotalsResult>(operationTotalsIR);
 
 
 /** 'ListReasons' parameters type */

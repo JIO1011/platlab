@@ -140,6 +140,7 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
       'reagents.issue.approve',
       'reagents.issue.create',
       'reagents.receipt.create',
+      'reagents.report.read',
       'reagents.transfer.create',
     ]);
     expect(body.modules).toEqual([
@@ -176,6 +177,7 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
       'reagents.issue.approve',
       'reagents.issue.create',
       'reagents.receipt.create',
+      'reagents.report.read',
       'reagents.transfer.create',
     ]);
   });

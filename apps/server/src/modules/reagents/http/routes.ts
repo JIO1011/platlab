@@ -13,7 +13,9 @@ import {
   rejectIssueRequest,
   createProductRequest,
   issueRequest,
+  operationFacetsQuery,
   operationListQuery,
+  operationTotalsQuery,
   positionListQuery,
   productListQuery,
   productParams,
@@ -50,7 +52,9 @@ import {
   getSummary,
   listDestinations,
   listLots,
+  listOperationFacets,
   listOperations,
+  listOperationTotals,
   listPositions,
   listProducts,
   listReasons,
@@ -203,6 +207,15 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
 
     app.get('/operations', async (request) =>
       listOperations(pool, queryRequest(request), operationListQuery.parse(request.query)),
+    );
+
+    // Movimientos como informe (ADR 0014): conteo por opción de cada filtro y totales (reporte).
+    app.get('/operations/facets', async (request) =>
+      listOperationFacets(pool, queryRequest(request), operationFacetsQuery.parse(request.query)),
+    );
+
+    app.get('/operations/totals', async (request) =>
+      listOperationTotals(pool, queryRequest(request), operationTotalsQuery.parse(request.query)),
     );
   };
 }
