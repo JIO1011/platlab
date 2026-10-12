@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalación reproducible
+        run: pnpm install --frozen-lockfile
+
+      - name: Tipos
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Fronteras del monolito
+        run: pnpm deps
+
+      - name: Código muerto
+        run: pnpm knip
+
+      - name: Pruebas unitarias
+        run: pnpm test
+
+      # Solo Supabase local (PostgreSQL + Auth con clave ES256 efímera); nunca un proyecto remoto.
+      - name: Base y Auth locales desde cero (migraciones + seed)
+        run: pnpm db:start
+
+      - name: PgTyped sin diferencias
+        run: |
+          pnpm db:types
+          git diff --exit-code -- 'apps/server/src/**/*.queries.ts'
+
+      - name: pgTAP
+        run: pnpm test:db
+
+      - name: Integración con el rol de runtime y Auth local
+        run: pnpm test:int
+
+      - name: Compilación de la web
+        run: pnpm --filter @platlab/web build
+
+      - name: Navegador para Playwright
+        run: pnpm --filter @platlab/web exec playwright install --with-deps chromium
+
+      # Recorrido de G0 con axe (WCAG 2.2 AA) contra la API y la vista previa locales.
+      - name: Flujo de G0 en el navegador (Playwright + axe)
+        run: pnpm e2e
+
+      - name: Informe de Playwright
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 7

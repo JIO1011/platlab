@@ -1,0 +1,210 @@
+/*
+  Tokens semánticos de PlatLab (ADR 0010, 01 «Dirección visual»). Solo tema claro; los nombres
+  describen el papel, no el color, para poder añadir el tema oscuro sin tocar componentes.
+  La aplicación importa este archivo después de `@import "tailwindcss"`.
+*/
+/* Un tablero que cabe en una ventana (ADR 0012, 05-10-2026): escritorio desde 1280 × 720. Por
+   debajo, el contenido fluye y la página se desplaza. */
+@custom-variant fit (@media (min-width: 80rem) and (min-height: 45rem));
+/* Con alto de sobra (desde 864 px), el mismo tablero respira: más espacio y acción rápida más alta.
+   Antes, el gráfico se quedaría sin alto legible. */
+@custom-variant fit-tall (@media (min-width: 80rem) and (min-height: 54rem));
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Escala tipográfica de precisión suave: titulares y cifras grandes, cuerpo legible. */
+  --text-display: clamp(2rem, 1.4rem + 1.6vw, 2.75rem);
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 700;
+  --text-metric: 2.5rem;
+  --text-metric--line-height: 1;
+  --text-metric--letter-spacing: -0.03em;
+  --text-metric--font-weight: 600;
+  --text-metric-sm: 2.125rem;
+  --text-metric-sm--line-height: 1;
+  --text-metric-sm--letter-spacing: -0.03em;
+  --text-metric-sm--font-weight: 600;
+  --text-body-lg: 0.9375rem;
+  --text-body-lg--line-height: 1.45;
+
+  /* Escala pizarra de ReactiLab (ADR 0010, 04-10-2026), con el contraste de texto validado para AA. */
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f1f5f9;
+  --color-ink: #1e293b;
+  --color-ink-muted: #475569;
+  --color-ink-subtle: #5b6b7f;
+  --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+
+  --color-action: #1f5f96;
+  --color-action-hover: #1a5182;
+  --color-action-pressed: #15426b;
+  --color-action-soft: #e6eef7;
+  /* Extremo del degradado de la tarjeta de acción rápida: el acento se oscurece hacia su vecino. */
+  --color-action-deep: #15426b;
+  --color-on-action: #ffffff;
+  /* La marca PlatLab no cambia con el tema del módulo (ADR 0010, color por módulo). */
+  --color-brand: #1f5f96;
+  /* Brillo del lienzo arriba a la izquierda; cada módulo lo tiñe con su color. */
+  --color-canvas-glow: #ffffff;
+
+  --color-success: #1d7a46;
+  --color-success-soft: #e5f3ea;
+  --color-warning: #8a5a00;
+  --color-warning-soft: #fdf2d8;
+  --color-danger: #b42318;
+  --color-danger-soft: #fcebe9;
+
+  /* Diseño de ReactiLab (ADR 0010, 04-10-2026): esquinas amplias, borde fino con sombra mínima y
+     elevación al pasar el puntero. El borde va dentro de la sombra (un anillo de 1 px) para no
+     cambiar el tamaño de nada. */
+  --radius-control: 12px;
+  --radius-panel: 16px;
+  --radius-card: 24px;
+
+  --shadow-raised: 0 0 0 1px var(--color-line), 0 1px 2px rgb(15 23 42 / 0.05);
+  --shadow-float: 0 0 0 1px var(--color-line), 0 18px 40px -16px rgb(15 23 42 / 0.18);
+  --shadow-overlay: 0 24px 48px -16px rgb(15 23 42 / 0.28), 0 4px 12px -4px rgb(15 23 42 / 0.12);
+
+  /* Movimiento (ADR 0010): pulsación corta, superposiciones desde su origen, hojas sin rebote. */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Entradas y salidas con curva de salida; la salida, más corta: el sistema responde rápido. */
+  --animate-fade-in: fade-in 180ms var(--ease-out-expo);
+  --animate-fade-out: fade-out 150ms var(--ease-out-expo);
+  /* Ventana emergente centrada (ADR 0010, 04-10-2026): nace de su centro y sale más corta. */
+  --animate-modal-in: modal-in 200ms var(--ease-out-expo);
+  --animate-modal-out: modal-out 150ms var(--ease-out-expo);
+  --animate-pop-in: pop-in 160ms var(--ease-out-expo);
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes modal-out {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.98); }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    /* Un brillo muy leve desde arriba a la izquierda da profundidad a los paneles flotantes. */
+    background: radial-gradient(1100px 620px at 0% 0%, var(--color-canvas-glow) 0%, transparent 62%) fixed, var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background-color: var(--color-action-soft);
+    color: var(--color-ink);
+  }
+  input,
+  textarea {
+    caret-color: var(--color-action);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-action);
+    outline-offset: 2px;
+  }
+  * {
+    scrollbar-color: var(--color-line-strong) transparent;
+    scrollbar-width: thin;
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+}
+
+/*
+  Movimiento reducido: menos y más suave, no cero. Se conservan los fundidos que ayudan a entender
+  qué apareció; se quitan los desplazamientos y los cambios de escala.
+*/
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --animate-modal-in: fade-in 180ms var(--ease-out-expo);
+    --animate-modal-out: fade-out 150ms var(--ease-out-expo);
+    --animate-pop-in: fade-in 150ms var(--ease-out-expo);
+  }
+}
+
+/*
+  Densidad de las apps de módulo (ADR 0010, 05-10-2026): dentro de un módulo, el tamaño base baja de
+  16 a 15 px y casi todo lo que está en rem (texto, espacios, botones, tarjetas, menús y hojas) se
+  reduce por igual; el título de página, además, baja un paso. Se marca con el mismo `data-module`
+  que el tema, así que alcanza también a los portales. El porcentaje respeta el tamaño de letra que
+  el usuario haya elegido en el navegador.
+*/
+:root[data-module] {
+  font-size: 93.75%;
+  --text-display: clamp(1.75rem, 1.3rem + 1.2vw, 2.25rem);
+}
+
+/*
+ * Temas de módulo (ADR 0010, cambio del 02-10-2026). Dentro de su app, cada módulo redefine el
+ * acento: los componentes siguen usando los tokens de acción y aquí solo cambian sus valores. Se
+ * marca con `data-module` en <html> (las hojas y los menús viven en portales) o en un bloque, como
+ * una tarjeta del Inicio. Cada acento se valida para WCAG AA con texto blanco; verde, ámbar y rojo
+ * quedan reservados para los estados.
+ */
+[data-module='reagents'] {
+  /* Índigo de ReactiLab: 6,3:1 con blanco; el texto #4F46E5 sobre #EEF2FF, 5,6:1. */
+  --color-action: #4f46e5;
+  --color-action-hover: #4338ca;
+  --color-action-pressed: #3730a3;
+  --color-action-soft: #eef2ff;
+  --color-action-deep: #6d28d9;
+  --color-canvas-glow: #eef0ff;
+}
+
+/*
+ * Impresión de etiquetas (ADR 0012, entrega 4): si la página tiene una zona `.print-area`, solo
+ * ella se imprime, sin el menú, la barra ni las acciones.
+ */
+@media print {
+  body:has(.print-area) * {
+    visibility: hidden;
+  }
+  /* Misma base de especificidad que la regla anterior, más la clase: así gana. */
+  body:has(.print-area) .print-area,
+  body:has(.print-area) .print-area * {
+    visibility: visible;
+  }
+  /* Los contenedores de la zona no la desplazan ni la recortan: se posiciona respecto de la hoja. */
+  body:has(.print-area) :has(.print-area) {
+    position: static !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+  body:has(.print-area) .print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+  }
+  /* Márgenes de la hoja A4 adhesiva de 3 × 8 etiquetas de 63,5 × 33,9 mm. */
+  @page {
+    size: A4;
+    margin: 12.9mm 7.2mm;
+  }
+}
