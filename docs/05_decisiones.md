@@ -1,6 +1,6 @@
 # 05 — Decisiones y pendientes
 
-Revisión: 7 de octubre de 2026. Registro resumido de decisiones de arquitectura (ADR); cada ADR dice solo lo vigente. Una decisión aceptada solo se reemplaza con otra que indique qué cambia. El texto completo anterior de los ADR 0001–0007 está en el commit `bc26fa8`.
+Revisión: 12 de octubre de 2026. Registro resumido de decisiones de arquitectura (ADR); cada ADR dice solo lo vigente. Una decisión aceptada solo se reemplaza con otra que indique qué cambia. El texto completo anterior de los ADR 0001–0007 está en el commit `bc26fa8`.
 
 | ADR | Tema | Estado |
 |---|---|---|
@@ -17,6 +17,7 @@ Revisión: 7 de octubre de 2026. Registro resumido de decisiones de arquitectura
 | [0011](#adr-0011) | Inicio como tablero y cada módulo como app | Aceptado el 02-10-2026 |
 | [0012](#adr-0012) | Reactivos por frasco y salidas con aprobación | Aceptado el 02-10-2026 |
 | [0013](#adr-0013) | Delegación por riesgo y puertas del harness | Aceptado el 07-10-2026 |
+| [0014](#adr-0014) | Reactivos completo: cinco secciones, Movimientos como informe y avisos comunes | Aceptado el 12-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -282,13 +283,50 @@ Cambios: 05-10, 06-10-2026 (historial en git).
 
 Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las pruebas de invariantes son la especificación; una regla que depende del prompt se vuelve una puerta automática; y el contexto del orquestador se reserva para decidir. Reemplaza el reparto anterior de `CLAUDE.md` (Opus solo para código delicado y Sonnet por tipo de tarea). La revisión del harness del 07-10-2026 añadió los rechazos, la comparación de contenido, las capturas, el paquete del revisor y el cierre de UI por puerta: el cierre de R-01A nunca se ejecutó (una de sus skills no se podía invocar) y `main` no tenía protección.
 
+<a id="adr-0014"></a>
+
+## ADR 0014 — Reactivos completo: cinco secciones, Movimientos como informe y avisos comunes
+
+- **Cinco secciones:** Resumen, Inventario, Movimientos, Solicitudes y Fiscalizados. No hay Informes, Documentos ni Configuración:
+  - Los informes son Movimientos e Inventario filtrados (abajo).
+  - Cada documento vive donde se usa. La SDS va en la ficha del reactivo y en la hoja de salida, y el Inventario filtra «Sin SDS». La factura o la guía va en el ingreso, y las autorizaciones en Fiscalizados. La carpeta de SDS para una inspección se obtiene exportando las de los reactivos filtrados.
+  - Motivos y destinos: el Administrador los añade y los archiva desde la misma lista donde los elige ([ADR 0012](#adr-0012)). En Movimientos son filtros.
+- **Movimientos como informe (R-01C).** Lo que se filtra es lo que se exporta. Los filtros van en la URL, así que un informe es un enlace.
+  - **Panel de filtros a la derecha**, plegable. Filtra por periodo (todo, 7 y 30 días, este mes, mes anterior, desde–hasta), tipo, reactivo (con búsqueda), responsable, destino, motivo y ubicación.
+    - **Responsable** es quien pidió la salida si hubo solicitud y, si no, quien la registró: responde «¿qué consumió Ana?».
+    - Cada filtro admite varios valores.
+    - Cada opción muestra cuántos movimientos tiene con los demás filtros aplicados, y solo aparecen las que tienen resultados. Lo calcula el servidor. Dentro de un grupo, el conteo no considera lo marcado en ese mismo grupo, para poder sumar opciones.
+  - Los filtros activos se ven como fichas sobre la lista, con quitar y «Limpiar», aunque el panel esté plegado. Por debajo de 1280 px el panel se abre con un botón «Filtros (n)»; en el móvil, como hoja.
+  - **Dos vistas:** Detalle (el libro por días) y Totales por reactivo, responsable, destino o mes. Los totales los calcula el servidor y, dentro de cada grupo, separan por reactivo y unidad: nunca suman unidades distintas. Los traslados se cuentan, pero no suman cantidad. Cada fila abre el Detalle con ese filtro.
+  - **Quién ve qué:** Detalle y filtros, todos los que ven Movimientos. Totales y exportación son «reportes» ([01 §5](01_producto.md#5-actores-y-roles)): permiso `reagents.report.read`, del Administrador, que el Propietario hereda.
+  - **«Exportar a Excel»** (`.xlsx`) llega con R-01B.
+    - Exporta la vista filtrada, con los filtros, el espacio, la fecha y quién lo generó en el encabezado.
+    - Se genera en el worker y queda en la auditoría.
+    - Exportan el Administrador y el Propietario ([01 §5](01_producto.md#5-actores-y-roles)); el Operador consulta.
+    - El Inventario exporta igual su vista filtrada.
+- **Fiscalizados** (REG-02, tras REG-01). Sección solo para el Responsable de fiscalizados y el Administrador. Contiene:
+  - el perfil de cada sustancia;
+  - la autorización, con sitios y cupos, y un aviso al acercarse al cupo;
+  - la custodia y el retorno;
+  - el reporte del periodo: borrador, revisión y exportación, y se sube a SISALEM a mano.
+
+  En la operación diaria solo se ven la etiqueta «Fiscalizado» y su filtro en Movimientos.
+- **Avisos comunes en Core.** Un solo sistema para todos los módulos.
+  - Cada módulo declara sus tipos de aviso en su manifiesto y los emite por outbox (T-07). El envío, la campana y las preferencias son comunes.
+  - Preferencias por persona en «Mis avisos», desde la tarjeta de la persona: agrupadas por módulo, por correo o en la app, con valores por defecto según el rol. No hay configuración por módulo.
+  - Cada correo trae un enlace para darse de baja.
+- **Preparación de soluciones:** mejora posterior a completar Reactivos ([01 §8](01_producto.md#8-fuera-del-alcance-inicial)). Su diseño en [03 §4](03_datos.md#4-inventario-y-reactivos) se conserva.
+- **Orden.** Reactivos se completa antes de abrir otro módulo: R-01C, la entrega de ámbito por ubicación (Pendientes), T-07, R-01B y REG-02 cuando REG-01 esté validado ([roadmap](04_roadmap.md)).
+
+Motivo: menos secciones hacen la app más simple. El laboratorio piensa un informe como un filtro de Excel sobre el libro, y documentos y avisos son transversales: se resuelven donde ocurren o una sola vez para todos los módulos. El panel va a la derecha porque la izquierda ya tiene el menú del módulo: se lee menú, luego lista y luego refinar. Reemplaza las secciones Informes, Documentos y Configuración del boceto de [01 §7](01_producto.md#7-cómo-se-ve-la-plataforma).
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |
 |---|---|---|
 | Fiscalizados | Sustancias, concentraciones, cupos, sitios, custodia, formato vigente del reporte y si las salidas reguladas requieren aprobación | REG-01 (F0) |
 | Espacios del piloto | ¿Una o varias unidades operan el inventario? ¿La calificación abarca varias? ¿Necesita el titular una vista consolidada de sus espacios (informes o traslados entre ellos)? Hoy los espacios no comparten nada, aunque sean del mismo titular; abrirlo exige una decisión nueva | F0, con REG-01 |
-| Soluciones preparadas | El diseño ya está decidido (03 §4). Falta saber si el laboratorio almacena soluciones y si siguen siendo fiscalizadas | REG-01 |
+| Soluciones preparadas | Mejora posterior a completar Reactivos (ADR 0014); el diseño ya está decidido (03 §4). Falta saber si el laboratorio almacena soluciones y si siguen siendo fiscalizadas | REG-01 |
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
 | Reglas de Prácticas | Anticipación, cancelaciones, salas exclusivas, devoluciones químicas y quién declara el consumo al cerrar | P-04, antes de F3 |
