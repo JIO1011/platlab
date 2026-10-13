@@ -20,7 +20,7 @@ import {
 import { QueryErrorState } from '../../app/states';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { AdjustmentSheet, CountSheet, IssueSheet, MinimumSheet, NewProductSheet, ReceiptSheet, TransferSheet } from './sheets';
-import { WizardSheet } from './prototype/wizard-sheet';
+import { IngressSheet } from './prototype/ingress-sheet';
 import { useNow } from './use-now';
 
 /**
@@ -256,14 +256,13 @@ export function ReagentsLayout() {
       </div>
 
       {current?.request.kind === 'ingress' ? (
-        <WizardSheet
+        <IngressSheet
           key={current.id}
           {...sheetProps('ingress')}
           workspaceId={workspaceId}
           products={productList}
           productId={current.request.productId}
           canCreate={allowed.product}
-          base={base}
         />
       ) : null}
       {current?.request.kind === 'product' ? <NewProductSheet key={current.id} {...sheetProps('product')} /> : null}

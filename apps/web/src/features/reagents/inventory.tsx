@@ -1,7 +1,7 @@
 import type { StockedProduct } from '@platlab/contracts';
 import { Badge, Button, IconChip, Input, Quantity, Skeleton, StatePanel, cn } from '@platlab/ui';
-import { ControlledMark, isControlled } from './prototype/controlled';
-import { CalendarClock, CalendarX, CircleAlert, FlaskConical, Layers, Plus, Search, TrendingDown } from 'lucide-react';
+import { isControlled } from './prototype/controlled';
+import { CalendarClock, CalendarX, CircleAlert, FlaskConical, Layers, Lock, Plus, Search, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ModuleMark } from '../../app/module-mark';
@@ -196,13 +196,22 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
         code="reagents"
         className="pointer-events-none absolute -bottom-5 -right-3 size-32 rotate-12 text-surface-sunken transition-[color,transform] duration-500 group-hover:text-action-soft motion-safe:group-hover:scale-110"
       />
-      <div className="relative flex items-start gap-3">
+      {isControlled(product.code) ? (
+        <span
+          role="img"
+          aria-label="Controlado"
+          title="Controlado"
+          className="absolute right-3 top-3 inline-flex size-7 items-center justify-center rounded-full bg-action-soft text-action ring-1 ring-action/25"
+        >
+          <Lock className="size-3.5" aria-hidden />
+        </span>
+      ) : null}
+      <div className={cn('relative flex items-start gap-3', isControlled(product.code) && 'pr-6')}>
         <IconChip icon={(state && physicalStateIcon[state]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} />
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-[12px] font-semibold uppercase tracking-wide text-ink-muted">
             <span className="inline-flex items-center gap-1.5">
               {(state && physicalStateLabel[state]) ?? 'Reactivo'}
-              {isControlled(product.code) ? <ControlledMark /> : null}
             </span>
             {product.casNumber ? (
               <span className="ml-auto font-mono text-[12px] font-medium normal-case tracking-normal tabular-nums text-ink-subtle">

@@ -9,7 +9,8 @@ export interface PillOption<T extends string> {
 
 /**
  * Opciones cortas como píldoras de radio nativas (flechas del teclado y lectores de pantalla), como el
- * motivo y el destino de las ventanas de movimiento. 44 px de alto por debajo de 640 px, en px.
+ * motivo y el destino de las ventanas de movimiento. Segmentados pequeños: 36 px de alto y 44 px por
+ * debajo de 640 px, en px.
  */
 export function RadioPills<T extends string>({
   legend,
@@ -19,6 +20,7 @@ export function RadioPills<T extends string>({
   error,
   hint,
   optional = false,
+  required = false,
   onClear,
   action,
 }: {
@@ -29,6 +31,7 @@ export function RadioPills<T extends string>({
   error?: string | undefined;
   hint?: ReactNode;
   optional?: boolean;
+  required?: boolean;
   /** Volver a pulsar la elegida la quita (campos opcionales). */
   onClear?: () => void;
   /** Acción a la derecha del rótulo (p. ej., «Añadir»). */
@@ -38,24 +41,30 @@ export function RadioPills<T extends string>({
   return (
     <div className="grid content-start gap-1.5">
       <div className="flex items-center justify-between gap-3">
-        <span id={`${id}-legend`} className="text-sm font-medium text-ink">
+        <span id={`${id}-legend`} className="text-[13px] font-semibold text-ink">
           {legend}
           {optional ? <span className="ml-1 font-normal text-ink-subtle">(opcional)</span> : null}
+          {required ? (
+            <span aria-hidden className="ml-0.5">
+              *
+            </span>
+          ) : null}
         </span>
         {action}
       </div>
       <div
         role="radiogroup"
         aria-labelledby={`${id}-legend`}
+        aria-required={required ? true : undefined}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
-        className="flex flex-wrap gap-2"
+        className="flex flex-wrap gap-1.5"
       >
         {options.map((option) => (
           <label
             key={option.value}
             className={cn(
-              'inline-flex min-h-[44px] cursor-pointer items-center rounded-full border px-4 text-sm font-medium transition-colors duration-150 sm:min-h-9 sm:px-3.5',
+              'inline-flex min-h-[44px] cursor-pointer items-center rounded-full border px-3.5 text-[13px] font-medium transition-colors duration-150 sm:min-h-9 sm:px-3',
               'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-action',
               value === option.value
                 ? 'border-action/40 bg-action-soft text-action'

@@ -5,6 +5,7 @@ interface FieldControl {
   id: string;
   'aria-invalid': true | undefined;
   'aria-describedby': string | undefined;
+  'aria-required': true | undefined;
 }
 
 const FieldContext = createContext<FieldControl | null>(null);
@@ -24,6 +25,8 @@ export interface FieldProps {
   /** Error de validación o del servidor: nombra el problema y cómo resolverlo. */
   error?: string | undefined;
   optional?: boolean;
+  /** Obligatorio: asterisco visible y `aria-required` en el control. */
+  required?: boolean;
   className?: string;
   /** Estilo del rótulo; por defecto, el de un campo. */
   labelClassName?: string;
@@ -33,7 +36,7 @@ export interface FieldProps {
 /** Rótulo de sección de las ventanas emergentes (como ReactiLab): pequeño, en mayúsculas y atenuado. */
 export const sectionLabel = 'text-xs font-semibold uppercase tracking-wider text-ink-muted';
 
-export function Field({ label, hint, error, optional = false, className, labelClassName, children }: FieldProps) {
+export function Field({ label, hint, error, optional = false, required = false, className, labelClassName, children }: FieldProps) {
   const id = useId();
   const hintId = hint && !error ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
@@ -41,6 +44,7 @@ export function Field({ label, hint, error, optional = false, className, labelCl
     id,
     'aria-invalid': error ? true : undefined,
     'aria-describedby': [hintId, errorId].filter(Boolean).join(' ') || undefined,
+    'aria-required': required ? true : undefined,
   };
 
   return (
@@ -48,6 +52,11 @@ export function Field({ label, hint, error, optional = false, className, labelCl
       <label htmlFor={id} className={cn('text-sm font-medium text-ink', labelClassName)}>
         {label}
         {optional ? <span className="ml-1 font-normal text-ink-subtle">(opcional)</span> : null}
+        {required ? (
+          <span aria-hidden className="ml-0.5">
+            *
+          </span>
+        ) : null}
       </label>
       <FieldContext.Provider value={control}>{children}</FieldContext.Provider>
       {hintId ? (

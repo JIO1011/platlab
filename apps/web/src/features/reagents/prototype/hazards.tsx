@@ -39,11 +39,11 @@ function Pictogram({ icon: Icon, className }: { icon: LucideIcon; className?: st
   );
 }
 
-/** Selección múltiple de los nueve pictogramas; cada ficha dice su nombre y si está marcada. */
+/** Selección múltiple de los nueve pictogramas: fichas pequeñas que se ajustan a la fila; cada una dice su nombre y si está marcada. */
 export function HazardPicker({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
   const toggle = (id: string) => onChange(value.includes(id) ? value.filter((item) => item !== id) : [...value, id]);
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+    <div className="flex flex-wrap gap-1.5">
       {hazards.map((hazard) => {
         const pressed = value.includes(hazard.id);
         return (
@@ -53,14 +53,14 @@ export function HazardPicker({ value, onChange }: { value: string[]; onChange: (
             aria-pressed={pressed}
             onClick={() => toggle(hazard.id)}
             className={cn(
-              'relative flex min-h-[44px] items-center gap-2 rounded-control border px-2 py-1.5 text-left text-[13px] leading-tight transition-colors duration-150 ease-out-expo sm:min-h-12',
+              'inline-flex min-h-[44px] items-center gap-1.5 rounded-full border py-1 pl-1.5 pr-2.5 text-left text-[13px] leading-tight transition-colors duration-150 ease-out-expo sm:min-h-9',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action',
-              pressed ? 'border-action bg-action-soft font-semibold text-ink' : 'border-line bg-surface text-ink-muted hover:border-line-strong hover:bg-surface-sunken hover:text-ink',
+              pressed ? 'border-action/40 bg-action-soft font-semibold text-ink' : 'border-line bg-surface text-ink-muted hover:border-line-strong hover:bg-surface-sunken hover:text-ink',
             )}
           >
-            <Pictogram icon={hazard.icon} />
-            <span className="min-w-0 flex-1 text-balance">{hazard.label}</span>
-            {pressed ? <Check className="size-4 shrink-0 text-action" strokeWidth={3} aria-hidden /> : null}
+            <Pictogram icon={hazard.icon} className="size-5 [&_svg:last-child]:size-2.5" />
+            {hazard.label}
+            {pressed ? <Check className="size-3.5 shrink-0 text-action" strokeWidth={3} aria-hidden /> : null}
           </button>
         );
       })}

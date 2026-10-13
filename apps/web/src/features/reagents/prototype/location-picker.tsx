@@ -4,10 +4,10 @@ import { MapPin, Plus } from 'lucide-react';
 import { useId, useMemo, useState, type KeyboardEvent, type RefObject } from 'react';
 import { fold, type Place } from './wizard-model';
 
-const MAX_RESULTS = 6;
+const MAX_RESULTS = 4;
 
 /**
- * «¿Dónde los guardas?»: la ubicación se escribe y se elige por su ruta («Sede central › Almacén»).
+ * «Ubicación»: la ubicación se escribe y se elige por su ruta («Sede central › Almacén»).
  * Las últimas usadas van como fichas. Quien administra el catálogo puede crear una nueva dentro de
  * otra; en el prototipo solo se añade a la lista local y se elige.
  */
@@ -72,21 +72,24 @@ export function LocationPicker({
 
   const labelId = `${id}-label`;
   return (
-    <div className="grid grid-cols-1 gap-2">
-      <span id={labelId} className="text-base font-semibold text-ink">
-        ¿Dónde los guardas?
+    <div className="grid grid-cols-1 content-start gap-1.5">
+      <span id={labelId} className="text-[13px] font-semibold text-ink">
+        Ubicación
+        <span aria-hidden className="ml-0.5">
+          *
+        </span>
       </span>
 
       {chosen ? (
-        <div className="flex items-center gap-3 rounded-panel border border-action/40 bg-action-soft px-4 py-3">
-          <MapPin className="size-5 shrink-0 text-action" aria-hidden />
+        <div className="flex items-center gap-2 rounded-control border border-action/40 bg-action-soft py-1.5 pl-3 pr-1.5">
+          <MapPin className="size-4 shrink-0 text-action" aria-hidden />
           <p className="min-w-0 flex-1">
-            <span className="block text-[15px] font-semibold text-ink">{chosen.name}</span>
+            <span className="block text-sm font-semibold text-ink">{chosen.name}</span>
             <span className="block truncate text-[13px] text-ink-muted">{chosen.route}</span>
           </p>
           <Button
             size="sm"
-            variant="secondary"
+            variant="ghost"
             className="shrink-0 max-sm:h-[44px]"
             onClick={() => {
               onChange('');
@@ -105,9 +108,9 @@ export function LocationPicker({
                   <button
                     type="button"
                     onClick={() => pick(place.id)}
-                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink transition-colors duration-150 hover:border-line-strong hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:min-h-9"
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-[13px] font-medium text-ink transition-colors duration-150 hover:border-line-strong hover:bg-surface-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:min-h-8"
                   >
-                    <MapPin className="size-3.5 text-ink-muted" aria-hidden />
+                    <MapPin className="size-3 text-ink-muted" aria-hidden />
                     {place.name}
                   </button>
                 </li>
@@ -128,8 +131,8 @@ export function LocationPicker({
                 aria-describedby={error ? `${id}-error` : undefined}
                 autoComplete="off"
                 spellCheck={false}
-                placeholder="Escribe: estante, laboratorio, almacén…"
-                className="h-12 w-full rounded-control border border-line-strong bg-surface px-4 text-base text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-ink-subtle hover:border-ink-subtle focus-visible:border-action focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action/20 aria-[invalid=true]:border-danger"
+                placeholder="Estante, laboratorio, almacén…"
+                className="h-[44px] w-full rounded-control border border-line-strong bg-surface px-3 text-sm text-ink transition-[border-color,box-shadow] duration-150 placeholder:text-ink-subtle hover:border-ink-subtle focus-visible:border-action focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action/20 aria-[invalid=true]:border-danger sm:h-9"
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value);
@@ -137,7 +140,7 @@ export function LocationPicker({
                 }}
                 onKeyDown={onKeyDown}
               />
-              <ul id={`${id}-list`} role="listbox" aria-label="Ubicaciones" className="overflow-hidden rounded-panel border border-line bg-surface p-1 shadow-raised">
+              <ul id={`${id}-list`} role="listbox" aria-label="Ubicaciones" className="max-h-48 overflow-y-auto rounded-control border border-line bg-surface p-1">
                 {matches.map((place, index) => (
                   <li
                     key={place.id}
@@ -146,7 +149,7 @@ export function LocationPicker({
                     aria-selected={index === activeIndex}
                     onMouseMove={() => setActive(index)}
                     onClick={() => choose(index)}
-                    className={cn('flex min-h-[48px] cursor-pointer items-center gap-2 rounded-control px-3 py-1.5 text-sm', index === activeIndex && 'bg-action-soft')}
+                    className={cn('flex min-h-[44px] cursor-pointer items-center gap-2 rounded-[8px] px-2.5 py-1 text-[13px] sm:min-h-9', index === activeIndex && 'bg-action-soft')}
                   >
                     <MapPin className="size-4 shrink-0 text-ink-muted" aria-hidden />
                     <span className="min-w-0 break-words text-ink">{place.route}</span>
@@ -159,7 +162,7 @@ export function LocationPicker({
                     aria-selected={matches.length === activeIndex}
                     onMouseMove={() => setActive(matches.length)}
                     onClick={() => choose(matches.length)}
-                    className={cn('flex min-h-[48px] cursor-pointer items-center gap-2 rounded-control px-3 py-1.5 text-sm font-medium text-action', matches.length === activeIndex && 'bg-action-soft')}
+                    className={cn('flex min-h-[44px] cursor-pointer items-center gap-2 rounded-[8px] px-2.5 py-1 text-[13px] sm:min-h-9 font-medium text-action', matches.length === activeIndex && 'bg-action-soft')}
                   >
                     <Plus className="size-4 shrink-0" aria-hidden />
                     <span className="min-w-0 break-words">Crear «{text}» dentro de…</span>
@@ -169,8 +172,8 @@ export function LocationPicker({
               {total === 0 ? <p className="px-1 text-sm text-ink-muted">Ninguna ubicación coincide con «{text}».</p> : null}
             </>
           ) : (
-            <div className="grid gap-3 rounded-panel bg-surface-sunken/60 p-4">
-              <p className="text-sm font-medium text-ink">
+            <div className="grid gap-3 rounded-control bg-surface-sunken p-3">
+              <p className="text-[13px] font-semibold text-ink">
                 Crear «{creating}» dentro de
               </p>
               <Select

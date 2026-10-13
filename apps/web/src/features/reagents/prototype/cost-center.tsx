@@ -69,7 +69,7 @@ export function CostCenter({
             placeholder="Nombre del área"
             autoComplete="off"
             autoFocus
-            className="max-sm:h-[44px]"
+            className="max-sm:h-[44px] sm:h-9"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
@@ -83,7 +83,7 @@ export function CostCenter({
               }
             }}
           />
-          <Button type="button" className="max-sm:h-[44px]" onClick={save} disabled={!draft.trim()}>
+          <Button type="button" className="max-sm:h-[44px] sm:h-9" onClick={save} disabled={!draft.trim()}>
             Guardar
           </Button>
         </div>

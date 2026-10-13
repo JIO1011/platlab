@@ -3,8 +3,6 @@ import type { StockedProduct } from '@platlab/contracts';
 import { checkCas } from './cas';
 import type { SdsKind } from './catalog-sample';
 
-export type Step = 'product' | 'new' | 'bottles' | 'details' | 'done';
-
 /** Reactivo nuevo tal como se escribe en el asistente (nada de esto se guarda en el prototipo). */
 export interface Draft {
   name: string;
