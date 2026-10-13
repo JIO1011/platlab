@@ -1,6 +1,6 @@
 import { X, type LucideIcon } from 'lucide-react';
 import { Dialog } from 'radix-ui';
-import type { ReactNode, RefObject } from 'react';
+import { useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { cn } from '../lib/cn';
 
 export interface SheetProps {
@@ -28,6 +28,17 @@ export interface SheetProps {
  * mientras está abierta. En pantallas pequeñas deja 16 px a cada lado y se desplaza por dentro.
  */
 export function Sheet({ open, onOpenChange, title, description, icon: Icon, children, footer, wide = false, compact = false, initialFocus }: SheetProps) {
+  // En `compact`, una sombra al pie del cuerpo avisa de que queda contenido abajo: un centinela al final
+  // del cuerpo la apaga cuando se ve entero (IntersectionObserver; sin él, no hay sombra).
+  const [body, setBody] = useState<HTMLDivElement | null>(null);
+  const [end, setEnd] = useState<HTMLDivElement | null>(null);
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    if (!compact || !body || !end || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(([entry]) => setMore(entry ? !entry.isIntersecting : false), { root: body });
+    observer.observe(end);
+    return () => observer.disconnect();
+  }, [compact, body, end]);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -87,7 +98,24 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
               <X className="size-5" aria-hidden />
             </Dialog.Close>
           </header>
-          <div className={cn('relative min-h-0 flex-1 overflow-y-auto', compact ? 'px-4 py-4 sm:px-5' : 'border-t border-line px-6 py-4')}>{children}</div>
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <div
+              ref={setBody}
+              className={cn('relative min-h-0 flex-1 overflow-y-auto', compact ? 'px-4 pb-6 pt-4 sm:px-5' : 'border-t border-line px-6 py-4')}
+            >
+              {children}
+              {compact ? <div ref={setEnd} aria-hidden className="h-px" /> : null}
+            </div>
+            {compact ? (
+              <div
+                aria-hidden
+                className={cn(
+                  'pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-linear-to-t from-ink/12 to-transparent transition-opacity duration-150 ease-out-expo motion-reduce:transition-none',
+                  more ? 'opacity-100' : 'opacity-0',
+                )}
+              />
+            ) : null}
+          </div>
           {footer ? (
             <footer
               className={cn(

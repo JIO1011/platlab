@@ -9,6 +9,7 @@ import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
 import { type SheetRequest } from '../context';
 import { formatGrams, hasTare, isPositiveQuantity, scaleBalance } from '../weight';
+import { fieldLabel } from '../ingress/filled';
 import { type SheetBaseProps, validate, FormSheet, QuantityPreview, positionOption, byProductThenExpiry } from './shared';
 
 export function AdjustmentSheet({
@@ -149,10 +150,11 @@ export function AdjustmentSheet({
           <Field
             label="Peso en balanza (g)"
             className="text-center"
-            labelClassName={sectionLabel}
+            labelClassName={fieldLabel}
             error={scaleError}
             hint={
-              weighed && 'belowTare' in weighed ? (
+              <>
+              {weighed && 'belowTare' in weighed ? (
                 <span className="font-medium text-danger">El peso es menor que la tara ({formatGrams(weighed.belowTare)}).</span>
               ) : weighed && position ? (
                 <span role="status">
@@ -167,8 +169,10 @@ export function AdjustmentSheet({
                   )}
                 </span>
               ) : (
-                'Pesa el frasco con su tapa; se descuenta la tara. El motivo queda como «Pesada».'
-              )
+                'Pesa el frasco con su tapa; se descuenta la tara.'
+              )}
+              <span className="block">El motivo queda como «Pesada».</span>
+              </>
             }
           >
             <div className="relative mx-auto w-full max-w-xs">

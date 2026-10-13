@@ -2,11 +2,11 @@ import { cn } from '@platlab/ui';
 import { MapPin, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Combobox, type ComboOption } from './combobox';
-import { FilledInput, fieldLabel } from './filled';
+import { fieldLabel } from './filled';
 import { childrenOf, levelOneParent, recentFirst, type Place } from './model';
 
 const LEVELS = 3;
-const placeholders = ['Laboratorio, bodega…', 'Estante, armario…', 'Nivel, repisa…'];
+const placeholders = ['Laboratorio, bodega…', 'Estante, armario…', 'Nivel, repisa… (opcional)'];
 
 /**
  * «Ubicación» por niveles (ADR 0015): hasta tres campos en una fila (apilados en el móvil), cada uno
@@ -89,7 +89,7 @@ export function LocationPicker({
           *
         </span>
       </label>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
         {Array.from({ length: shown }, (_, level) => {
           const done = chosen[level];
           const common = {
@@ -101,36 +101,31 @@ export function LocationPicker({
             'aria-busy': creating && !done ? (true as const) : undefined,
           };
           return (
-            <div key={level} className="flex items-center gap-1.5 sm:min-w-0 sm:flex-1">
+            <div key={level} className={cn('flex items-center gap-1.5', done ? 'max-w-full' : 'min-w-40 flex-1')}>
               {level > 0 ? (
                 <span aria-hidden className="text-ink-subtle max-sm:hidden">
                   ›
                 </span>
               ) : null}
-              <div className="relative min-w-0 flex-1">
+              <div className={cn('relative min-w-0', done ? 'max-w-full' : 'flex-1')}>
                 {done ? (
-                  <>
-                    <FilledInput
-                      {...common}
-                      readOnly
-                      tabIndex={-1}
-                      value={done.name}
-                      title={done.name}
-                      className="truncate pr-11 font-medium text-ink read-only:text-ink sm:pr-10"
-                      ref={(node) => {
-                        inputs.current[level] = node;
-                      }}
-                    />
+                  // El nombre elegido se lee entero: si no cabe, baja de línea en vez de cortarse.
+                  <div
+                    role="group"
+                    aria-label={`Ubicación, nivel ${level + 1}: ${done.name}`}
+                    className="flex min-h-[44px] max-w-full items-stretch rounded-control bg-surface-sunken text-sm font-medium text-ink sm:min-h-[36px]"
+                  >
+                    <span className="min-w-0 self-center break-words py-1 pl-3 pr-1">{done.name}</span>
                     <button
                       type="button"
                       aria-label={`Quitar «${done.name}»`}
                       title="Quitar"
                       onClick={() => clear(level)}
-                      className="absolute inset-y-0 right-0 flex w-[44px] items-center justify-center rounded-r-control text-ink-muted transition-colors duration-150 hover:bg-action-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-action sm:w-[36px]"
+                      className="flex w-[44px] shrink-0 items-center justify-center rounded-r-control text-ink-muted transition-colors duration-150 hover:bg-action-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-action sm:w-[36px]"
                     >
                       <X className="size-4" aria-hidden />
                     </button>
-                  </>
+                  </div>
                 ) : (
                   <Combobox
                     value={text}

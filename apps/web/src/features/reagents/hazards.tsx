@@ -1,39 +1,30 @@
 import type { hazard } from '@platlab/contracts';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, cn } from '@platlab/ui';
-import { Bomb, Check, Cylinder, Fish, Flame, FlameKindling, HeartPulse, Plus, Skull, TestTube, TriangleAlert, X, type LucideIcon } from 'lucide-react';
+import { Check, Plus, X } from 'lucide-react';
 import type { z } from 'zod';
 
 export type Hazard = z.infer<typeof hazard>;
 
 /**
- * Excepción de color: el rojo del borde del rombo es normativo del SGA (pictogramas de peligro),
- * no un color de estado ni de acento. El significado va siempre en el texto contiguo.
+ * Los nueve pictogramas oficiales del SGA (ADR 0015), en su orden. Son los SVG de la ONU (dominio
+ * público) minificados en `public/ghs/`; el rojo del borde es normativo y no un color de estado.
+ * Se sirven con `<img>`, nunca en línea. El significado va siempre en el texto contiguo.
  */
-const SGA_RED = '#e30613';
-
-/** Los nueve pictogramas SGA (ADR 0015), en su orden. Lucide no los trae: se aproxima el símbolo. */
-const hazards: ReadonlyArray<{ id: Hazard; label: string; icon: LucideIcon }> = [
-  { id: 'GHS01', label: 'Explosivo', icon: Bomb },
-  { id: 'GHS02', label: 'Inflamable', icon: Flame },
-  { id: 'GHS03', label: 'Comburente', icon: FlameKindling },
-  { id: 'GHS04', label: 'Gas a presión', icon: Cylinder },
-  { id: 'GHS05', label: 'Corrosivo', icon: TestTube },
-  { id: 'GHS06', label: 'Toxicidad aguda', icon: Skull },
-  { id: 'GHS07', label: 'Irritante o nocivo', icon: TriangleAlert },
-  { id: 'GHS08', label: 'Peligro para la salud', icon: HeartPulse },
-  { id: 'GHS09', label: 'Peligro para el medio ambiente', icon: Fish },
+const hazards: ReadonlyArray<{ id: Hazard; label: string; file: string }> = [
+  { id: 'GHS01', label: 'Explosivo', file: 'ghs01.svg' },
+  { id: 'GHS02', label: 'Inflamable', file: 'ghs02.svg' },
+  { id: 'GHS03', label: 'Comburente', file: 'ghs03.svg' },
+  { id: 'GHS04', label: 'Gas a presión', file: 'ghs04.svg' },
+  { id: 'GHS05', label: 'Corrosivo', file: 'ghs05.svg' },
+  { id: 'GHS06', label: 'Toxicidad aguda', file: 'ghs06.svg' },
+  { id: 'GHS07', label: 'Irritante o nocivo', file: 'ghs07.svg' },
+  { id: 'GHS08', label: 'Peligro para la salud', file: 'ghs08.svg' },
+  { id: 'GHS09', label: 'Peligro para el medio ambiente', file: 'ghs09.svg' },
 ];
 
-/** Rombo del SGA con su símbolo dentro; decorativo, el nombre va aparte. */
-function Pictogram({ icon: Icon, className }: { icon: LucideIcon; className?: string | undefined }) {
-  return (
-    <span aria-hidden className={cn('relative inline-flex size-5 shrink-0 items-center justify-center', className)}>
-      <svg viewBox="0 0 40 40" className="absolute inset-0 size-full!">
-        <polygon points="20,2.5 37.5,20 20,37.5 2.5,20" fill="var(--color-surface)" stroke={SGA_RED} strokeWidth="3.2" strokeLinejoin="miter" />
-      </svg>
-      <Icon className="relative size-2.5 text-ink" strokeWidth={2} />
-    </span>
-  );
+/** Pictograma oficial. `alt` vacío cuando el nombre ya está en el texto contiguo. */
+function Pictogram({ file, alt = '', className }: { file: string; alt?: string; className?: string | undefined }) {
+  return <img src={`${import.meta.env.BASE_URL}ghs/${file}`} alt={alt} draggable={false} className={cn('size-6 shrink-0 select-none', className)} />;
 }
 
 /**
@@ -54,9 +45,9 @@ export function HazardSelect({ value, onChange }: { value: Hazard[]; onChange: (
             type="button"
             onClick={() => toggle(entry.id)}
             aria-label={`Quitar ${entry.label}`}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-surface-sunken py-1 pl-1.5 pr-2.5 text-[13px] text-ink transition-colors duration-150 hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:min-h-[36px]"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-surface-sunken py-1 pl-1 pr-2.5 text-[13px] text-ink transition-colors duration-150 hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:min-h-[36px]"
           >
-            <Pictogram icon={entry.icon} />
+            <Pictogram file={entry.file} />
             {entry.label}
             <X className="size-3.5 shrink-0 text-ink-muted" aria-hidden />
           </button>
@@ -91,7 +82,7 @@ export function HazardSelect({ value, onChange }: { value: Hazard[]; onChange: (
                 >
                   {checked ? <Check className="size-3! text-on-action!" strokeWidth={3} /> : null}
                 </span>
-                <Pictogram icon={entry.icon} />
+                <Pictogram file={entry.file} />
                 <span className="text-ink">{entry.label}</span>
               </DropdownMenuItem>
             );
@@ -108,11 +99,10 @@ export function HazardGlyphs({ ids, large = false, className }: { ids: readonly 
   if (found.length === 0) return null;
   const names = found.map((entry) => entry.label).join(', ');
   return (
-    <span className={cn('inline-flex items-center gap-1', className)} title={names}>
+    <span className={cn('inline-flex flex-wrap items-center gap-1.5', className)} title={names}>
       {found.map((entry) => (
-        <Pictogram key={entry.id} icon={entry.icon} className={large ? 'size-7 [&>svg:last-child]:size-3.5' : undefined} />
+        <Pictogram key={entry.id} file={entry.file} alt={entry.label} className={large ? 'size-9' : undefined} />
       ))}
-      <span className="sr-only">Peligros: {names}</span>
     </span>
   );
 }

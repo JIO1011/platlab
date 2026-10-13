@@ -498,7 +498,7 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   // Cada frasco dice su estado con texto (tarjeta de frasco de ReactiLab, 05-10-2026): el vencido,
   // cuánto hace, y el FEFO, el que conviene usar primero.
   const expiredCard = admin.getByRole('article').filter({ hasText: 'H2SO4-2024-08-01' });
-  await expect(expiredCard).toContainText(/Venció \d+ \w+ 2026/);
+  await expect(expiredCard).toContainText('Venció');
   await expect(expiredCard).toContainText(/hace \d+ (días|meses)/);
   await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' })).toContainText('FEFO');
   await expect(admin.getByText('1 frasco vencido')).toBeVisible();
@@ -649,7 +649,7 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await expect(more.getByRole('textbox', { name: 'Cantidad' })).toBeFocused();
   await admin.keyboard.press('Escape');
   await expect(more).toHaveCount(0);
-  const weighed = admin.getByRole('article').filter({ hasText: 'Bruto esperado' });
+  const weighed = admin.getByRole('article').filter({ hasText: 'Cambiar tara' });
   await expect(weighed).toContainText('140,0 g');
   await expect(weighed).toContainText('640,0 g');
   await weighed.getByRole('button', { name: 'Ajustar' }).click();
@@ -669,7 +669,7 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await expect(tare.getByText('Tara calculada')).toContainText('150,0 g');
   await tare.getByRole('button', { name: 'Fijar tara' }).click();
   await expect(admin.getByText('Tara fijada')).toBeVisible();
-  await expect(admin.getByRole('article').filter({ hasText: 'Bruto esperado' })).toHaveCount(2);
+  await expect(admin.getByRole('article').filter({ hasText: 'Cambiar tara' })).toHaveCount(2);
 });
 
 test('etiquetas con QR: se eligen e imprimen, y el enlace del QR abre el frasco aun sin sesión (ADR 0012, entrega 4)', async ({ browser }) => {

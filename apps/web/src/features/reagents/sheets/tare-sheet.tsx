@@ -1,10 +1,11 @@
 import { setTareRequest, tareResponse, type Position } from '@platlab/contracts';
-import { Field, Input, Quantity, normalizeDecimalInput, sectionLabel, toDecimalInput, toast } from '@platlab/ui';
+import { Field, Input, Quantity, normalizeDecimalInput, toDecimalInput, toast } from '@platlab/ui';
 import { Scale } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { commandErrorMessage, useCommand } from '../commands';
 import { formatGrams, isPositiveQuantity, isVolume, tareOf } from '../weight';
+import { fieldLabel } from '../ingress/filled';
 import { type SheetBaseProps, validate, FormSheet } from './shared';
 
 /**
@@ -75,7 +76,7 @@ export function TareSheet({
       <Field
         label="Peso en balanza (g)"
         className="text-center"
-        labelClassName={sectionLabel}
+        labelClassName={fieldLabel}
         error={errors.grossWeight?.message}
         hint={
           tooLight ? (

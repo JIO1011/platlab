@@ -39,6 +39,9 @@ import { WeightFields } from './weight-section';
 const densityInput = (product: StockedProduct | undefined | null) => (product?.density ? toDecimalInput(product.density) : '');
 
 /** Lo más largo que busca el servidor; un nombre más largo se busca por su principio. */
+/** Obligatorios que pueden faltar: su nombre en el pie y el orden en que se ven en la hoja. */
+const missingLabels = { name: 'Nombre', cas: 'CAS', quantity: 'Cantidad', placeId: 'Ubicación', state: 'Estado físico' } as const;
+const missingOrder = ['name', 'cas', 'quantity', 'placeId', 'state'] as const;
 const MAX_SEARCH = 100;
 const MIN_SEARCH = 2;
 
@@ -150,7 +153,9 @@ export function IngressSheet({
   if (creating && casRequired(draft.state) && !draft.cas.trim()) empty.add('cas');
   if (!form.quantity.trim()) empty.add('quantity');
   if (!form.placeId) empty.add('placeId');
-  const missing = empty.size;
+  // Lo que falta, con su nombre y en el orden en que se ve la hoja.
+  const missingFields = missingOrder.filter((key) => empty.has(key));
+  const missing = missingFields.length;
   const toReview = (Object.keys(issues) as Array<keyof Errors>).filter((key) => issues[key] && !empty.has(key)).length;
   const errors = attempted ? issues : serverErrors;
 
@@ -229,10 +234,31 @@ export function IngressSheet({
     }
   };
 
+  /** Lleva el foco al primer campo que falta: la etiqueta apunta a su control. */
+  const focusMissing = () => {
+    const first = missingFields[0];
+    if (!first) return;
+    const wanted = missingLabels[first];
+    const label = Array.from(bodyRef.current?.querySelectorAll('label') ?? []).find((node) => node.textContent?.trim().startsWith(wanted));
+    const target = label?.htmlFor ? document.getElementById(label.htmlFor) : null;
+    target?.focus();
+  };
   const bottlesLabel = countValid(count) ? `${count} ${count === 1 ? 'frasco' : 'frascos'}` : 'frascos';
   const status =
     missing > 0 ? (
-      <span>{missing === 1 ? 'Falta 1 campo' : `Faltan ${missing} campos`} *</span>
+      missing > 2 ? (
+        <button
+          type="button"
+          onClick={focusMissing}
+          className="-my-2 inline-flex min-h-[44px] items-center rounded-[6px] font-medium text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:text-action hover:decoration-action focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:min-h-0 sm:py-2"
+        >
+          Faltan {missing} campos
+        </button>
+      ) : (
+        <span>
+          {missing === 1 ? 'Falta' : 'Faltan'}: {missingFields.map((key) => missingLabels[key]).join(', ')}
+        </span>
+      )
     ) : toReview > 0 ? (
       <span>
         Revisa {toReview} {toReview === 1 ? 'dato' : 'datos'}

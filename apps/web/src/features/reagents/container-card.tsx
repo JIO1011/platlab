@@ -1,24 +1,31 @@
 import type { Position } from '@platlab/contracts';
 import { Badge, Button, Quantity, cn, formatDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowLeftRight, ArrowUpFromLine, Building2, Calendar, Check, MapPin, QrCode as QrIcon, Scale } from 'lucide-react';
+import { ArrowUpFromLine, Building2, Calendar, Check, MapPin, QrCode as QrIcon } from 'lucide-react';
 import { formatGrams, gramsPerUnit, weightFigures } from './weight';
 import { type ReactNode } from 'react';
 import { addDays, formatDate, formatInstantDate, relativeDays } from '../../app/format';
 import { type Allowed, type SheetRequest } from './context';
 import { availableOf } from './stock';
 
-/** Caducidad con texto, nunca solo con color: vencido, fecha o «sin confirmar» (01 §6.1). */
-function ExpiryBadge({ expiresOn, today }: { expiresOn: string | null; today: string }) {
-  const icon = <Calendar className="size-3" aria-hidden />;
-  if (expiresOn === null) return <Badge tone="warning" className="gap-1 text-[11px]">{icon}Caducidad sin confirmar</Badge>;
-  if (expiresOn < today) return <Badge tone="danger" className="gap-1 text-[11px]">{icon}Venció {formatDate(expiresOn)}</Badge>;
-  return <Badge className="gap-1 text-[11px]">{icon}Caduca {formatDate(expiresOn)}</Badge>;
+/**
+ * Caducidad sin confirmar: lo único que pide un aviso propio. Con fecha, ya la dicen el recuadro
+ * «Vence en…» y su estado (01 §6.1); no se repite en una etiqueta.
+ */
+function ExpiryBadge({ expiresOn }: { expiresOn: string | null }) {
+  if (expiresOn !== null) return null;
+  return (
+    <Badge tone="warning" className="gap-1 text-[11px]">
+      <Calendar className="size-3" aria-hidden />
+      Caducidad sin confirmar
+    </Badge>
+  );
 }
 
 /** Recuadro de dato de un frasco: etiqueta pequeña y valor, como los de la tarjeta de ReactiLab. */
-function Tile({ label, children, tone = 'neutral' }: { label: string; children: ReactNode; tone?: 'neutral' | 'accent' | 'danger' | 'warning' }) {
+function Tile({ label, children, tone = 'neutral', title }: { label: string; children: ReactNode; tone?: 'neutral' | 'accent' | 'danger' | 'warning'; title?: string }) {
   return (
     <div
+      title={title}
       className={cn(
         'min-w-0 rounded-control px-2 py-1.5 text-center',
         tone === 'accent' && 'bg-action-soft text-action',
@@ -45,23 +52,24 @@ function WeightRow({ position, canSet, onAction }: { position: Position; canSet:
   if (figures) {
     return (
       <div className="grid gap-1">
-        <dl className="grid grid-cols-3 gap-1.5">
+        {/* Tres datos en una línea; si no caben, envuelven por dato y no por palabra. */}
+        <dl className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[12px] tabular-nums">
           {(
             [
               ['Tara', figures.tare],
-              ['Peso neto', figures.net],
-              ['Bruto esperado', figures.expectedGross],
+              ['Neto', figures.net],
+              ['Bruto', figures.expectedGross],
             ] as const
           ).map(([label, grams]) => (
-            <div key={label} className="min-w-0 rounded-control bg-surface-sunken px-2 py-1.5 text-center">
-              <dt className="text-[12px] leading-tight text-ink-muted">{label}</dt>
-              <dd className="mt-0.5 text-[13px] font-bold tabular-nums text-ink">{formatGrams(grams)}</dd>
+            <div key={label} className="flex gap-1 whitespace-nowrap">
+              <dt className="text-ink-muted">{label}</dt>
+              <dd className="font-bold text-ink">{formatGrams(grams)}</dd>
             </div>
           ))}
         </dl>
         {canSet ? (
-          <button type="button" onClick={setTare} className="self-start rounded-[6px] px-1 text-[13px] font-medium text-action hover:text-action-hover">
-            Fijar tara
+          <button type="button" onClick={setTare} className="-mx-1 min-h-[44px] justify-self-start rounded-[6px] px-1 text-[13px] font-medium text-action hover:text-action-hover sm:min-h-0">
+            Cambiar tara
           </button>
         ) : null}
       </div>
@@ -156,7 +164,7 @@ export function ContainerCard({
           <MapPin className="size-3" aria-hidden />
           {position.location.name}
         </Badge>
-        <ExpiryBadge expiresOn={expiresOn} today={today} />
+        <ExpiryBadge expiresOn={expiresOn} />
       </div>
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
         <div className="min-w-0">
@@ -202,8 +210,9 @@ export function ContainerCard({
       <div className="grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2">
         {position.container ? <Tile label="Ingresó">{formatInstantDate(position.container.receivedAt, timeZone)}</Tile> : null}
         {expiresOn ? (
-          <Tile label={expired ? 'Venció' : 'Vence'} tone={expired ? 'danger' : soon ? 'warning' : 'neutral'}>
+          <Tile label={expired ? 'Venció' : 'Vence'} tone={expired ? 'danger' : soon ? 'warning' : 'neutral'} title={formatDate(expiresOn)}>
             {relativeDays(expiresOn, today)}
+            <span className="sr-only"> ({formatDate(expiresOn)})</span>
           </Tile>
         ) : null}
         {reserved ? (
@@ -219,13 +228,13 @@ export function ContainerCard({
       </div>
       <WeightRow position={position} canSet={allowed.adjustment} onAction={onAction} />
       {canIssue || canTransfer || allowed.adjustment ? (
-        <div className="mt-auto flex gap-2 border-t border-line pt-3">
+        <div className="mt-auto flex flex-wrap gap-2 border-t border-line pt-3">
           {canIssue ? (
             // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
             <Button
               size="sm"
               variant={recommended ? 'primary' : 'secondary'}
-              className={cn('h-10 flex-1 font-bold', !recommended && 'border-action/30 text-action hover:bg-action-soft')}
+              className={cn('h-10 min-w-[7.5rem] flex-1 font-bold', !recommended && 'border-action/30 text-action hover:bg-action-soft')}
               onClick={() => onAction({ kind: 'issue', positionId: position.id })}
             >
               <ArrowUpFromLine aria-hidden />
@@ -236,23 +245,23 @@ export function ContainerCard({
           {canTransfer ? (
             <Button
               size="sm"
-              aria-label="Trasladar"
+              variant="ghost"
               title="Trasladar el frasco a otra ubicación"
-              className={cn('h-10 px-3 text-ink-muted hover:bg-surface-sunken hover:text-ink', !canIssue && 'ml-auto')}
+              className="h-10 px-2.5"
               onClick={() => onAction({ kind: 'transfer', position })}
             >
-              <ArrowLeftRight aria-hidden />
+              Trasladar
             </Button>
           ) : null}
           {allowed.adjustment ? (
             <Button
               size="sm"
-              aria-label="Ajustar"
+              variant="ghost"
               title="Ajustar existencias"
-              className="h-10 px-3 text-ink-muted hover:bg-surface-sunken hover:text-ink"
+              className="h-10 px-2.5"
               onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}
             >
-              <Scale aria-hidden />
+              Ajustar
             </Button>
           ) : null}
         </div>

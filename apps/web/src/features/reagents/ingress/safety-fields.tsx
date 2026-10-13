@@ -1,6 +1,6 @@
 import { physicalState, type StockedProduct } from '@platlab/contracts';
 import { Field, Select, cn } from '@platlab/ui';
-import { Lock } from 'lucide-react';
+import { Lock, LockOpen } from 'lucide-react';
 import { useId } from 'react';
 import { ControlledMark } from '../controlled';
 import { HazardGlyphs, HazardSelect } from '../hazards';
@@ -97,30 +97,15 @@ export function SafetyFields({
 
 /** Lo que el catálogo ya dice de un reactivo, en una línea: estado, peligros, si es controlado y su ficha. */
 function CatalogSummary({ product }: { product: StockedProduct }) {
-  const dot = (
-    <span aria-hidden className="text-ink-subtle">
-      ·
-    </span>
-  );
+  // Sin separadores: cada dato es un elemento con su espacio, y al envolver no queda ninguno suelto.
   return (
     <div className="grid gap-1.5">
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-ink">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-ink">
         <span>{(product.physicalState && physicalStateLabel[product.physicalState]) ?? 'Estado sin indicar'}</span>
-        {product.hazards.length > 0 ? (
-          <>
-            {dot}
-            <HazardGlyphs ids={product.hazards} />
-          </>
-        ) : null}
-        {product.controlled ? (
-          <>
-            {dot}
-            <ControlledMark withText />
-          </>
-        ) : null}
-        {dot}
+        {product.hazards.length > 0 ? <HazardGlyphs ids={product.hazards} /> : null}
+        {product.controlled ? <ControlledMark withText /> : null}
         <span>{product.sdsKind ? `Ficha de seguridad: ${sdsLabels[product.sdsKind].toLowerCase()}` : 'Ficha de seguridad sin indicar'}</span>
-      </p>
+      </div>
       <p className="text-[13px] text-ink-muted">Del catálogo</p>
     </div>
   );
@@ -145,7 +130,7 @@ function ControlledSwitch({ checked, onChange }: { checked: boolean; onChange: (
           'flex w-full items-center gap-2 rounded-control border px-3 text-left text-sm transition-colors duration-150 hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action',
         )}
       >
-        <Lock className="size-4 shrink-0 text-action" aria-hidden />
+        {checked ? <Lock className="size-4 shrink-0 text-action" aria-hidden /> : <LockOpen className="size-4 shrink-0 text-ink-muted" aria-hidden />}
         <span className="min-w-0 flex-1 text-ink">{checked ? 'Controlado' : 'No controlado'}</span>
         <span aria-hidden className={cn('relative h-5 w-9 shrink-0 rounded-full transition-colors duration-150 motion-reduce:transition-none', checked ? 'bg-action' : 'bg-line-strong')}>
           <span
