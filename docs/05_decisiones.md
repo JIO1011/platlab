@@ -281,6 +281,11 @@ Cambios: 05-10, 06-10, 12-10-2026 (historial en git).
 - **Revisor de UI.** Un hook `SubagentStart` le da a `impeccable-finish-reviewer` el paquete de PlatLab: refina un sistema existente sin diseño de referencia, tarjeta QUALITY BAR ni semilla, y esas comprobaciones no aplican.
 - **Cierre de UI.** Por entrega: capturas de escritorio y móvil, `review-animations` si cambió el movimiento e `impeccable-finish-reviewer`. Por puerta (G0, G1…): `impeccable audit`, `harden` y `polish` sobre todo el frontend, más `review-animations`. Las skills que el flujo exige deben poder invocarse: `review-animations` y `pick-ui-library` no llevan `disable-model-invocation`.
 - **Evidencia.** Una fila por entrega, cuando el CI del mismo commit terminó.
+- **Economía de tokens (13-10-2026).** Medido: arrancar un subagente costaba ~40k tokens antes del brief (MCP heredados, skills y `CLAUDE.md`), y R-01D sumó ~1,2M en subagentes.
+  - La orquestación sale de `CLAUDE.md` a `.claude/orquestacion.md`, que solo recibe la sesión principal (hook `SessionStart`).
+  - Cada agente declara sus herramientas (`tools`, sin MCP ajenos). Los que no tocan lo delicado no cargan `CLAUDE.md` (`omitClaudeMd`). `platlab-assistant` pasa a `medium`, y los implementadores a 60 turnos.
+  - Las pruebas corren una sola vez. El implementador corre las dirigidas y `pnpm check`; el CI del PR, las suites y el e2e. La verificación la hace la sesión principal con el log del CI.
+  - Briefs de 40 líneas y entregas de 40 turnos como máximo; hasta ~20 líneas, en línea; una sola ronda de capturas.
 
 Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las pruebas de invariantes son la especificación; una regla que depende del prompt se vuelve una puerta automática; y el contexto del orquestador se reserva para decidir. Reemplaza el reparto anterior de `CLAUDE.md` (Opus solo para código delicado y Sonnet por tipo de tarea). La revisión del harness del 07-10-2026 añadió los rechazos, la comparación de contenido, las capturas, el paquete del revisor y el cierre de UI por puerta: el cierre de R-01A nunca se ejecutó (una de sus skills no se podía invocar) y `main` no tenía protección.
 
