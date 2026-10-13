@@ -505,7 +505,7 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await expect(admin.getByText('1 frasco vencido')).toBeVisible();
   await expect(admin.getByText('de 250 mL')).toBeVisible();
   await expect(expiredCard).toContainText('Vencido');
-  await expect(admin.getByRole('region', { name: 'Datos del reactivo' })).toContainText('Vencidos');
+  await expect(admin.getByRole('complementary', { name: 'Resumen del reactivo' })).toContainText('Vencidos');
   // Una sola primaria: «Registrar salida» de la cabecera; en la ficha el ingreso es de ese reactivo.
   await expect(admin.getByRole('button', { name: 'Ingresar reactivo' })).toHaveCount(0);
   await expect(admin.getByRole('button', { name: 'Ingresar frascos' })).toBeVisible();
@@ -552,7 +552,7 @@ test('mínimos: bajo mínimo en el Resumen y el Inventario, y el Administrador l
 
   // El Administrador cambia el mínimo desde la ficha; por encima del nuevo, deja de estar bajo mínimo.
   await admin.getByRole('link', { name: /Hidróxido de sodio/ }).click();
-  const header = admin.getByRole('region', { name: 'Datos del reactivo' });
+  const header = admin.getByRole('complementary', { name: 'Resumen del reactivo' });
   await expect(header).toContainText('Bajo mínimo');
   await admin.getByRole('button', { name: 'Cambiar mínimo' }).click();
   const minimum = admin.getByRole('dialog', { name: 'Mínimo del reactivo' });
