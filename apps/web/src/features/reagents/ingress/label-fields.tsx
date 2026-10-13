@@ -14,13 +14,14 @@ const stepper =
 
 /**
  * «Datos de la etiqueta» (ADR 0015): lo que se copia del frasco. El nombre es el buscador del
- * catálogo: al elegir un reactivo existente, CAS y unidad vienen de su ficha en solo lectura; si no,
+ * catálogo (desde 2 letras, lo que encontró el servidor; antes, los recientes): al elegir un reactivo existente, CAS y unidad vienen de su ficha en solo lectura; si no,
  * es un reactivo nuevo y se escriben. El código lo sugiere el servidor y los frascos se numeran a partir
  * de él; con más de uno, el campo muestra a la derecha dónde termina la numeración.
  */
 export function LabelFields({
   existing,
   products,
+  results,
   recentIds,
   draft,
   onDraft,
@@ -39,7 +40,10 @@ export function LabelFields({
   onCreate,
 }: {
   existing: StockedProduct | null;
+  /** La lista cargada: los recientes primero, mientras no se busca. */
   products: StockedProduct[];
+  /** Lo que encontró el servidor para el nombre escrito; `null` si aún no se busca. */
+  results: StockedProduct[] | null;
   recentIds: string[];
   draft: Draft;
   onDraft: (patch: Partial<Draft>) => void;
@@ -60,9 +64,10 @@ export function LabelFields({
   onPick: (product: StockedProduct) => void;
   onCreate: () => void;
 }) {
+  const candidates = useMemo(() => results ?? recentFirst(products, recentIds), [results, products, recentIds]);
   const productOptions = useMemo<ComboOption[]>(
     () =>
-      recentFirst(products, recentIds).map((product) => ({
+      candidates.map((product) => ({
         id: product.id,
         label: product.name,
         keywords: `${product.code} ${product.casNumber ?? ''}`,
@@ -74,7 +79,7 @@ export function LabelFields({
           </span>
         ),
       })),
-    [products, recentIds],
+    [candidates],
   );
   const brandOptions = useMemo<ComboOption[]>(() => brands.map((brand) => ({ id: brand, label: brand })), [brands]);
 
@@ -92,7 +97,7 @@ export function LabelFields({
           onChange={onName}
           options={productOptions}
           onPick={(option) => {
-            const product = products.find((entry) => entry.id === option.id);
+            const product = candidates.find((entry) => entry.id === option.id);
             if (product) onPick(product);
           }}
           canCreate={canCreate}

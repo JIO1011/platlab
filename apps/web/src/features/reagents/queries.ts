@@ -15,6 +15,7 @@ import {
   type OperationGroupBy,
   type OperationList,
   type OperationTotals,
+  type ProductList,
   type ReasonKind,
   type WorkspaceMeResponse,
 } from '@platlab/contracts';
@@ -46,6 +47,21 @@ export function useProducts(workspaceId: string) {
     queryKey: [...reagentsKey(user, workspaceId), 'products'],
     queryFn: () => api(`/workspaces/${workspaceId}/reagents/products?limit=100`, { schema: productList }),
     refetchInterval: jitteredPoll,
+  });
+}
+
+/**
+ * Reactivos cuyo nombre, código o CAS contiene `q`, sin distinguir mayúsculas ni tildes: el buscador
+ * del ingreso. Cada búsqueda queda en caché; mientras llega la nueva se conserva la anterior.
+ */
+export function useProductSearch(workspaceId: string, q: string, enabled: boolean) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'products', 'search', q],
+    queryFn: () =>
+      api(`/workspaces/${workspaceId}/reagents/products?${new URLSearchParams({ q, limit: '20' })}`, { schema: productList }),
+    enabled: enabled && q.length >= 2,
+    placeholderData: keepWithinWorkspace<ProductList>(user, workspaceId),
   });
 }
 
@@ -148,11 +164,12 @@ export function useOperationTotals(
 }
 
 /** Ficha de un reactivo: su total, sus frascos con saldo en el ámbito del miembro y si su unidad aún cambia. */
-export function useProduct(workspaceId: string, productId: string) {
+export function useProduct(workspaceId: string, productId: string, enabled = true) {
   const user = useUserKey();
   return useQuery({
     queryKey: [...reagentsKey(user, workspaceId), 'product', productId],
     queryFn: () => api(`/workspaces/${workspaceId}/reagents/products/${productId}`, { schema: productDetail }),
+    enabled,
   });
 }
 

@@ -3,6 +3,7 @@ import {
   casRequired,
   catalogFields,
   childrenOf,
+  draftOf,
   emptyBottles,
   emptyDraft,
   lastSuffix,
@@ -44,6 +45,28 @@ describe('datos de catálogo', () => {
     const draft = { ...emptyDraft, name: ' Etanol ', state: 'liquid' as const, cas: '64-17-5', sds: 'physical' as const, sdsUrl: 'https://x.y', density: '0,789' };
     expect(catalogFields(draft)).toMatchObject({ name: 'Etanol', sdsKind: 'physical', sdsUrl: null, density: null });
     expect(catalogFields({ ...draft, unit: 'mL', sds: 'digital' })).toMatchObject({ sdsUrl: 'https://x.y', density: '0.789' });
+  });
+
+  it('al editar conserva la unidad del reactivo aunque no esté en la lista: cambiar otro dato no la toca', () => {
+    const legacy = {
+      id: '00000000-0000-4000-8000-000000000001',
+      code: 'AZUL',
+      name: 'Azul de metileno',
+      baseUnit: 'mg',
+      casNumber: '61-73-4',
+      physicalState: 'solid' as const,
+      minimum: null,
+      hazards: [],
+      controlled: false,
+      sdsKind: null,
+      sdsUrl: null,
+      density: null,
+    };
+    const draft = draftOf(legacy);
+    expect(draft.unit).toBe('mg');
+    // La hoja envía solo lo que difiere de la ficha: con otro nombre, la unidad sigue igual y no se envía.
+    expect(catalogFields({ ...draft, name: 'Azul de metileno 1 %' }).baseUnit).toBe(catalogFields(draft).baseUnit);
+    expect(draftOf({ ...legacy, baseUnit: 'u' }).unit).toBe('u');
   });
 });
 

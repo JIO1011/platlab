@@ -16,6 +16,8 @@ export const errorCodes = [
   'INSUFFICIENT_STOCK',
   // El código de frasco ya existe en el espacio (ADR 0015); el mensaje lo nombra.
   'CODE_TAKEN',
+  // El nombre ya es de otro reactivo activo, sin tildes ni mayúsculas (ADR 0015); el mensaje lo nombra.
+  'NAME_TAKEN',
   // Otra persona ya aprobó, rechazó o canceló la solicitud (ADR 0012).
   'REQUEST_RESOLVED',
   'IDEMPOTENCY_KEY_REUSED',

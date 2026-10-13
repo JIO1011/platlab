@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(46);
+select plan(48);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -221,6 +221,12 @@ select is(
 
 select ok(has_function_privilege('platlab_api', 'inventory.grams_per_unit(text, numeric)', 'execute'),
   'el runtime calcula con el factor de peso');
+
+select ok(has_function_privilege('platlab_api', 'inventory.fold_text(text)', 'execute'),
+  'el runtime pliega nombres para buscar y no repetirlos');
+
+select is(inventory.fold_text(E'  Ácido \t CLORHÍDRICO   Ñu '), 'acido clorhidrico nu',
+  'el plegado quita tildes, mayúsculas y espacios de más');
 
 select lives_ok(
   $$ insert into inventory.areas (workspace_id, item_kind, name) values ('a0000000-0000-4000-8000-00000000000a', 'reagent', 'Docencia') $$,

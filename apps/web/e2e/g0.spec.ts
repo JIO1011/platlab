@@ -640,6 +640,15 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   // En la ficha, el frasco pesado muestra su tara; «Por peso» registra el saldo que marca la balanza.
   await goTo(admin, 'Inventario');
   await admin.getByRole('link', { name: new RegExp(name) }).click();
+  // Desde la ficha, «Ingresar frascos» trae su reactivo ya elegido, con los datos del catálogo.
+  await admin.getByRole('button', { name: 'Ingresar frascos' }).click();
+  const more = admin.getByRole('dialog', { name: 'Ingresar reactivo' });
+  await expect(more.getByRole('combobox', { name: 'Nombre' })).toHaveValue(name);
+  await expect(more.getByRole('textbox', { name: 'CAS' })).toHaveValue('50-99-7');
+  await expect(more.getByRole('textbox', { name: 'CAS' })).toHaveAttribute('readonly', '');
+  await expect(more.getByRole('textbox', { name: 'Cantidad' })).toBeFocused();
+  await admin.keyboard.press('Escape');
+  await expect(more).toHaveCount(0);
   const weighed = admin.getByRole('article').filter({ hasText: 'Bruto esperado' });
   await expect(weighed).toContainText('140,0 g');
   await expect(weighed).toContainText('640,0 g');

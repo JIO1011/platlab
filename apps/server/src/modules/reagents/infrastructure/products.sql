@@ -29,6 +29,13 @@ WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]) AND con
 
 /* @name listProducts */
 -- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.
+-- Con :q, solo los reactivos cuyo nombre, código o CAS lo contienen, plegados con inventory.fold_text
+-- (código y CAS son ASCII por su CHECK). `\`, `%` y `_` se escapan con `\` (el escape por omisión de
+-- LIKE; chr(92), porque PgTyped no admite `\` en un literal) y cuentan como texto.
+WITH search AS (
+  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),
+           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
+)
 SELECT
   i.id,
   i.code,
@@ -79,10 +86,15 @@ CROSS JOIN LATERAL (
     AND p.item_id = i.id
     AND p.location_id = ANY (:locationIds!::uuid[])
 ) AS stock
+CROSS JOIN search
 WHERE i.workspace_id = :workspaceId!
   AND i.kind = 'reagent'
   AND i.archived_at IS NULL
   AND (:productId::uuid IS NULL OR i.id = :productId::uuid)
+  AND (search.pattern IS NULL
+       OR inventory.fold_text(i.name) LIKE search.pattern
+       OR lower(i.code) LIKE search.pattern
+       OR r.cas_number LIKE search.pattern)
   AND (:afterId::uuid IS NULL OR (lower(i.code), i.id) > (:afterCode::text, :afterId::uuid))
 ORDER BY lower(i.code), i.id
 LIMIT :limit!;

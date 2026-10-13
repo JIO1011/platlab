@@ -461,13 +461,13 @@ describe('G0 · módulos y tipo de ítem', () => {
   });
 });
 
-async function waitForRuntimeLock(): Promise<void> {
+async function waitForRuntimeLock(waiting = 1): Promise<void> {
   const deadline = Date.now() + 3_000;
   while (Date.now() < deadline) {
     const { rows } = await admin.query<{ n: string }>(
       `select count(*) as n from pg_stat_activity where wait_event_type = 'Lock' and usename = 'platlab_api'`,
     );
-    if (Number(rows[0]!.n) > 0) return;
+    if (Number(rows[0]!.n) >= waiting) return;
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
   throw new Error('El runtime no quedó esperando el bloqueo');
@@ -546,10 +546,37 @@ describe('G0 · concurrencia', () => {
     expect(await count('select count(*) as n from inventory.lots where workspace_id = $1', [lab.workspace.id])).toBe(1);
   });
 
-  it('dos altas simultáneas de reactivos con el mismo nombre reciben códigos distintos', async () => {
+  it('dos altas simultáneas del mismo nombre: se crea una y la otra recibe NAME_TAKEN (ADR 0015)', async () => {
     const lab = await createLab();
-    const results = await Promise.all([createProduct(lab, 'g', 'Acetona'), createProduct(lab, 'g', 'Acetona')]);
-    expect(results.map((product) => product.code).sort()).toEqual(['ACETONA', 'ACETONA-2']);
+    const create = (name: string) =>
+      call(lab.adminMember.subject, `${lab.base}/products`, {
+        method: 'POST',
+        body: { name, baseUnit: 'g', casNumber: '7647-14-5', physicalState: 'solid' },
+      });
+    // Las dos esperan el bloqueo del catálogo a la vez; al soltarlo, la segunda ve la primera.
+    const other = await admin.connect();
+    let results: Array<{ status: number; body: unknown }>;
+    try {
+      await other.query('BEGIN');
+      await other.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [`inventory.items/${lab.workspace.id}`]);
+      const pending = Promise.all([create('Acetona'), create('ACETONA')]);
+      await waitForRuntimeLock(2);
+      await other.query('COMMIT');
+      results = await pending;
+    } finally {
+      await other.query('ROLLBACK').catch(() => undefined);
+      other.release();
+    }
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    expect(errorCode(results.find((r) => r.status === 409)!.body)).toBe('NAME_TAKEN');
+    expect(
+      await count(`select count(*) as n from inventory.items where workspace_id = $1 and inventory.fold_text(name) = 'acetona'`, [
+        lab.workspace.id,
+      ]),
+    ).toBe(1);
+    // Dos nombres distintos que dan el mismo código siguen recibiendo códigos distintos.
+    const codes = await Promise.all([createProduct(lab, 'g', 'Acetona 99 %'), createProduct(lab, 'g', 'Acetona 99')]);
+    expect(codes.map((product) => product.code).sort()).toEqual(['ACETONA-99', 'ACETONA-99-2']);
   });
 
   it('dos altas simultáneas de la misma ubicación devuelven la misma', async () => {
@@ -686,11 +713,11 @@ describe('validación y consultas', () => {
     expect(await operationsIn(lab.workspace.id)).toBe(before);
   });
 
-  it('el código del reactivo es automático: sin tildes y con -2 si el nombre se repite (ADR 0015)', async () => {
+  it('el código del reactivo es automático: sin tildes y con -2 si otro nombre da el mismo (ADR 0015)', async () => {
     const create = (body: Record<string, unknown>) => call(lab.adminMember.subject, `${lab.base}/products`, { method: 'POST', body });
     const acid = { name: 'Ácido clorhídrico 37 %', casNumber: '7647-01-0', physicalState: 'liquid', baseUnit: 'mL' };
     const first = await create(acid);
-    const second = await create(acid);
+    const second = await create({ ...acid, name: 'Ácido clorhídrico 37' });
     expect([first.status, second.status]).toEqual([201, 201]);
     expect([productContract.parse(first.body).code, productContract.parse(second.body).code]).toEqual([
       'ACIDO-CLORHIDRICO-37',
@@ -702,7 +729,55 @@ describe('validación y consultas', () => {
     // El CAS se valida con su dígito de control y solo una mezcla puede no tenerlo.
     expect((await create({ ...acid, casNumber: '7647-01-1' })).status).toBe(400);
     expect((await create({ ...acid, casNumber: null })).status).toBe(400);
-    expect((await create({ ...acid, casNumber: null, physicalState: 'mixture' })).status).toBe(201);
+    expect((await create({ ...acid, name: 'Mezcla clorhídrica', casNumber: null, physicalState: 'mixture' })).status).toBe(201);
+  });
+
+  it('un nombre ya usado en el catálogo no se repite, sin tildes, mayúsculas ni espacios de más (ADR 0015)', async () => {
+    const create = (name: string) =>
+      call(lab.adminMember.subject, `${lab.base}/products`, {
+        method: 'POST',
+        body: { name, casNumber: '7732-18-5', physicalState: 'liquid', baseUnit: 'mL' },
+      });
+    const water = await create('Agua destilada');
+    expect(water.status).toBe(201);
+    const rejected = async (response: { status: number; body: unknown }) => {
+      expect(response.status).toBe(409);
+      expect(errorResponse.parse(response.body).error).toEqual({
+        code: 'NAME_TAKEN',
+        message: 'Ya existe «Agua destilada» en el catálogo: elígelo de la lista',
+      });
+    };
+    const before = await auditsIn(lab.workspace.id);
+    await rejected(await create('Agua destilada'));
+    await rejected(await create('ÁGUA   DESTILADA'));
+    // Desde el ingreso, con un reactivo nuevo, tampoco: no queda ni el reactivo ni el frasco.
+    await rejected(
+      await call(lab.adminMember.subject, `${lab.base}/receipts`, {
+        method: 'POST',
+        body: {
+          newProduct: { name: 'agua destilada', casNumber: '7732-18-5', physicalState: 'liquid', baseUnit: 'mL' },
+          locationId: lab.storage,
+          quantity: '1',
+          unit: 'mL',
+          codes: freshCodes(),
+        },
+      }),
+    );
+    expect(await auditsIn(lab.workspace.id)).toBe(before);
+    expect(
+      await count(`select count(*) as n from inventory.items where workspace_id = $1 and inventory.fold_text(name) = 'agua destilada'`, [
+        lab.workspace.id,
+      ]),
+    ).toBe(1);
+
+    // Renombrar a un nombre de otro reactivo se rechaza; a sí mismo con otras mayúsculas, no.
+    const rename = (productId: string, name: string) =>
+      call(lab.adminMember.subject, `${lab.base}/products/${productId}`, { method: 'PATCH', body: { name } });
+    const other = productContract.parse((await create('Agua desionizada')).body);
+    await rejected(await rename(other.id, 'agua  Destilada'));
+    const self = await rename(productContract.parse(water.body).id, 'AGUA DESTILADA');
+    expect(self.status).toBe(200);
+    expect(productContract.parse(self.body).name).toBe('AGUA DESTILADA');
   });
 
   it('las listas se paginan con un cursor opaco y rechazan uno manipulado', async () => {
@@ -729,6 +804,81 @@ describe('validación y consultas', () => {
     );
     const all = operationList.parse((await call(lab.operator.subject, `${lab.base}/operations?limit=50`)).body);
     expect([...history.items, ...rest.items].map((o) => o.id)).toEqual(all.items.map((o) => o.id));
+  });
+});
+
+describe('R-01D · buscar reactivos en el catálogo', () => {
+  let lab: Lab;
+
+  beforeAll(async () => {
+    lab = await createLab();
+    for (const body of [
+      { name: 'Ácido acético', casNumber: '64-19-7', physicalState: 'liquid', baseUnit: 'mL' },
+      { name: 'Acetona', casNumber: '67-64-1', physicalState: 'liquid', baseUnit: 'mL' },
+      { name: 'Etanol 96 %', casNumber: '64-17-5', physicalState: 'liquid', baseUnit: 'mL' },
+      { name: 'Etanol 96 puro', casNumber: null, physicalState: 'mixture', baseUnit: 'mL' },
+      { name: 'Sulfato de cobre', casNumber: '7758-98-7', physicalState: 'solid', baseUnit: 'g' },
+    ]) {
+      expect((await call(lab.adminMember.subject, `${lab.base}/products`, { method: 'POST', body })).status).toBe(201);
+    }
+  });
+
+  const list = async (search: string) => {
+    const response = await call(lab.operator.subject, `${lab.base}/products${search}`);
+    expect(response.status).toBe(200);
+    return productList.parse(response.body);
+  };
+  const names = async (q: string) => (await list(`?q=${encodeURIComponent(q)}`)).items.map((item) => item.name);
+
+  it('busca por nombre sin distinguir mayúsculas ni tildes, a ambos lados', async () => {
+    expect(await names('ácido')).toEqual(['Ácido acético']);
+    expect(await names('ACIDO ACETICO')).toEqual(['Ácido acético']);
+    // Guardado sin tilde y escrito con ella.
+    expect(await names('acétona')).toEqual(['Acetona']);
+    expect(await names('  aceto  ')).toEqual(['Acetona']);
+  });
+
+  it('busca por código y por CAS', async () => {
+    expect(await names('acido-ac')).toEqual(['Ácido acético']);
+    expect(await names('64-19')).toEqual(['Ácido acético']);
+    expect(await names('64-17')).toEqual(['Etanol 96 %']);
+  });
+
+  it('`%`, `_` y `\\` cuentan como texto, no como comodines', async () => {
+    expect(await names('96 %')).toEqual(['Etanol 96 %']);
+    expect(await names('de_c')).toEqual([]);
+    expect(await names('de c')).toEqual(['Sulfato de cobre']);
+    // Sin escapar, «\%» sería un «%» literal y encontraría «Etanol 96 %».
+    expect(await names('96 \\')).toEqual([]);
+  });
+
+  it('pagina con el cursor y en el orden de siempre', async () => {
+    const first = await list('?q=etanol&limit=1');
+    expect(first.items.map((item) => item.name)).toEqual(['Etanol 96 %']);
+    const second = await list(`?q=etanol&limit=1&cursor=${first.nextCursor}`);
+    expect(second.items.map((item) => item.name)).toEqual(['Etanol 96 puro']);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  it.each([
+    ['una sola letra', 'a'],
+    ['una letra rodeada de espacios', '  a  '],
+    ['más de 100 caracteres', 'a'.repeat(101)],
+  ])('una búsqueda con %s se rechaza como datos inválidos', async (_case, q) => {
+    const response = await call(lab.operator.subject, `${lab.base}/products?q=${encodeURIComponent(q)}`);
+    expect(response.status).toBe(400);
+    expect(errorCode(response.body)).toBe('VALIDATION_FAILED');
+  });
+
+  it('sin `q` lista todo el catálogo por código, como antes', async () => {
+    const all = await list('?limit=100');
+    expect(all.items.map((item) => item.code)).toEqual([
+      'ACETONA',
+      'ACIDO-ACETICO',
+      'ETANOL-96',
+      'ETANOL-96-PURO',
+      'SULFATO-DE-COBRE',
+    ]);
   });
 });
 

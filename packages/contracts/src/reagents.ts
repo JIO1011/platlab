@@ -354,7 +354,8 @@ const page = {
   limit: z.coerce.number().int().min(1).max(100).default(50),
 };
 
-export const productListQuery = z.object(page).strict();
+/** `q`: busca en nombre, código o CAS, sin distinguir mayúsculas ni tildes (el buscador del ingreso). */
+export const productListQuery = z.object({ ...page, q: z.string().trim().min(2).max(100).optional() }).strict();
 export const positionListQuery = z.object({ ...page, productId: z.uuid().optional(), locationId: z.uuid().optional() }).strict();
 /** Valores por filtro: como mucho los de una página de opciones (02 §12 no fija otro límite). */
 const MAX_FILTER_VALUES = 100;

@@ -45,6 +45,45 @@ const insertItemIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"code"
 export const insertItem = new PreparedQuery<IInsertItemParams,IInsertItemResult>(insertItemIR);
 
 
+/** 'ItemNameTaken' parameters type */
+export interface IItemNameTakenParams {
+  exceptId?: string | null | void;
+  kind: string;
+  name: string;
+  workspaceId: string;
+}
+
+/** 'ItemNameTaken' return type */
+export interface IItemNameTakenResult {
+  name: string;
+}
+
+/** 'ItemNameTaken' query type */
+export interface IItemNameTakenQuery {
+  params: IItemNameTakenParams;
+  result: IItemNameTakenResult;
+}
+
+const itemNameTakenIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"name":true,"exceptId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":227,"b":239}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":254,"b":259}]},{"name":"name","required":true,"transform":{"type":"scalar"},"locs":[{"a":341,"b":346}]},{"name":"exceptId","required":false,"transform":{"type":"scalar"},"locs":[{"a":356,"b":364},{"a":389,"b":397}]}],"statement":"-- Otro ítem activo del mismo tipo con el mismo nombre plegado (ADR 0015). Se consulta bajo el\n-- bloqueo del catálogo del espacio, que serializa altas y cambios de nombre.\nSELECT name\nFROM inventory.items\nWHERE workspace_id = :workspaceId!\n  AND kind = :kind!\n  AND archived_at IS NULL\n  AND inventory.fold_text(name) = inventory.fold_text(:name!)\n  AND (:exceptId::uuid IS NULL OR id <> :exceptId::uuid)\nLIMIT 1"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Otro ítem activo del mismo tipo con el mismo nombre plegado (ADR 0015). Se consulta bajo el
+ * -- bloqueo del catálogo del espacio, que serializa altas y cambios de nombre.
+ * SELECT name
+ * FROM inventory.items
+ * WHERE workspace_id = :workspaceId!
+ *   AND kind = :kind!
+ *   AND archived_at IS NULL
+ *   AND inventory.fold_text(name) = inventory.fold_text(:name!)
+ *   AND (:exceptId::uuid IS NULL OR id <> :exceptId::uuid)
+ * LIMIT 1
+ * ```
+ */
+export const itemNameTaken = new PreparedQuery<IItemNameTakenParams,IItemNameTakenResult>(itemNameTakenIR);
+
+
 /** 'ItemCodesLike' parameters type */
 export interface IItemCodesLikeParams {
   base: string;

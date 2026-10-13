@@ -4,6 +4,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { FacetList, type FacetOption } from './facet-list';
+import { fold } from './fold';
 import type { MovementFilters, OperationQuery } from './movement-filters';
 import { filterGroups, noName, selectedCount, tight, typeOrder, typePlural, type FilterGroupId } from './movement-text';
 import { useDebouncedValue } from './use-media-query';
@@ -15,9 +16,6 @@ export interface FocusRequest {
 }
 
 const toggle = (list: readonly string[], key: string): string[] => (list.includes(key) ? list.filter((item) => item !== key) : [...list, key]);
-
-/** Sin tildes ni mayúsculas, para que «acido» encuentre «Ácido». */
-const fold = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
 /** Un grupo del panel: `fieldset` con su rótulo como `legend`, plegable, con cuántos hay marcados. */
 function FilterGroup({

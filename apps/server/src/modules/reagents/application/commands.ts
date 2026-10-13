@@ -214,7 +214,7 @@ export function updateProduct(
     (access) => requireWorkspacePermission(access, CATALOG),
     async (access) => {
       const ctx = inventoryContext(access);
-      const item = await lockItem(ctx, productId);
+      const item = await lockItem(ctx, productId, { rename: input.name !== undefined });
       const before = toProduct(item, await productDetailOf(access, productId));
       const after: Product = { ...before, ...definedFields(input), hazards: sortedHazards(input.hazards ?? before.hazards) };
       const violation = productRuleViolation(after, { cas: input.casNumber !== undefined || input.physicalState !== undefined });

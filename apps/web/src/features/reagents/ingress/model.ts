@@ -19,13 +19,13 @@ export type SdsKind = z.infer<typeof sdsKind>;
 
 /** Unidades de un reactivo (ADR 0015): las que admiten control por peso. */
 export const productUnits = ['g', 'kg', 'mL', 'L'] as const;
-type ProductUnit = (typeof productUnits)[number];
 
 /** Datos de catálogo tal como se escriben: un reactivo nuevo en el ingreso o la ficha al editarla. */
 export interface Draft {
   name: string;
   cas: string;
-  unit: ProductUnit;
+  /** Una de `productUnits` al crear; al editar, la del reactivo aunque sea anterior a esa lista (mg, u…). */
+  unit: string;
   state: PhysicalState | '';
   controlled: boolean;
   hazards: Hazard[];
@@ -42,7 +42,7 @@ export function draftOf(product: Product): Draft {
   return {
     name: product.name,
     cas: product.casNumber ?? '',
-    unit: productUnits.find((unit) => unit === product.baseUnit) ?? 'g',
+    unit: product.baseUnit,
     state: product.physicalState ?? '',
     controlled: product.controlled,
     hazards: product.hazards,
@@ -226,9 +226,6 @@ export function levelOneOf(places: readonly Place[], placeId: string): string {
   }
   return current?.id ?? placeId;
 }
-
-/** Sin tildes y en minúsculas, para que «acido» encuentre «Ácido». */
-export const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
 /** Los recientes primero, en su orden, y después el resto. */
 export function recentFirst<T extends { id: string }>(items: readonly T[], recentIds: readonly string[]): T[] {

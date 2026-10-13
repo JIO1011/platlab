@@ -10,6 +10,18 @@ INSERT INTO inventory.items (workspace_id, kind, code, name, base_unit)
 VALUES (:workspaceId!, :kind!, :code!, :name!, :baseUnit!)
 RETURNING id, code, name, base_unit, trim_scale(minimum_quantity) AS minimum;
 
+/* @name itemNameTaken */
+-- Otro ítem activo del mismo tipo con el mismo nombre plegado (ADR 0015). Se consulta bajo el
+-- bloqueo del catálogo del espacio, que serializa altas y cambios de nombre.
+SELECT name
+FROM inventory.items
+WHERE workspace_id = :workspaceId!
+  AND kind = :kind!
+  AND archived_at IS NULL
+  AND inventory.fold_text(name) = inventory.fold_text(:name!)
+  AND (:exceptId::uuid IS NULL OR id <> :exceptId::uuid)
+LIMIT 1;
+
 /* @name itemCodesLike */
 -- Códigos del espacio, de cualquier tipo, iguales al propuesto o con un sufijo «-N».
 SELECT code

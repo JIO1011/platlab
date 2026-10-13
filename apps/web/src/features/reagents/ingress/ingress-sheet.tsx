@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router';
 import { isApiError } from '../../../app/api';
 import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
-import { useAreas, useBrands, useCodeSuggestion, useReceiptLocations } from '../queries';
+import { useAreas, useBrands, useCodeSuggestion, useProduct, useProductSearch, useReceiptLocations } from '../queries';
 import { FormSheet, type SheetBaseProps } from '../sheets/shared';
 import { useDebouncedValue } from '../use-media-query';
 import { isVolume } from '../weight';
@@ -38,12 +38,17 @@ import { WeightFields } from './weight-section';
 
 const densityInput = (product: StockedProduct | undefined | null) => (product?.density ? toDecimalInput(product.density) : '');
 
+/** Lo más largo que busca el servidor; un nombre más largo se busca por su principio. */
+const MAX_SEARCH = 100;
+const MIN_SEARCH = 2;
+
 /**
  * «Ingresar reactivo» (ADR 0015): un solo formulario por secciones, a la manera de ReactiLab. «Datos
  * de la etiqueta» al abrir; «Control por peso», «Dónde se guarda» y «Clasificación y seguridad» se
  * despliegan al escribir el nombre. Un reactivo del catálogo se elige por su nombre; uno nuevo y las
- * ubicaciones nuevas solo los crea quien administra el catálogo. El servidor numera los códigos,
- * calcula la tara y decide; la ventana no anticipa existencias.
+ * ubicaciones nuevas solo los crea quien administra el catálogo. El nombre se busca en el servidor
+ * (todo el catálogo, no solo lo cargado); la lista cargada solo da los recientes. El servidor numera
+ * los códigos, calcula la tara y decide; la ventana no anticipa existencias.
  */
 export function IngressSheet({
   workspaceId,
@@ -55,7 +60,9 @@ export function IngressSheet({
   canManageLists,
   base,
 }: SheetBaseProps & {
+  /** La lista ya cargada: de ella salen los recientes. */
   products: StockedProduct[];
+  /** Desde la ficha: su reactivo viene elegido. */
   productId: string | undefined;
   /** Crear reactivos y ubicaciones: `reagents.catalog.manage`. */
   canCreate: boolean;
@@ -63,15 +70,26 @@ export function IngressSheet({
   base: string;
 }) {
   const navigate = useNavigate();
-  const initial = productId ? products.find((product) => product.id === productId) : undefined;
+  // La ficha ya cargó su reactivo: suele venir de la caché, así que está desde la primera vista.
+  const preset = useProduct(workspaceId, productId ?? '', productId !== undefined).data;
+  const [initial] = useState(preset);
   const [recents] = useState(() => readRecents(workspaceId));
   const [existing, setExisting] = useState<StockedProduct | null>(initial ?? null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [form, setForm] = useState<BottlesForm>(() => ({ ...emptyBottles, density: densityInput(initial) }));
   const [attempted, setAttempted] = useState(false);
   const [revealed, setRevealed] = useState(initial !== undefined);
+  // Si no estaba en caché, se elige al llegar, salvo que ya se haya escrito o elegido otro.
+  const [presetPending, setPresetPending] = useState(productId !== undefined && initial === undefined);
+  if (presetPending && preset) {
+    setPresetPending(false);
+    if (!existing && draft.name === '') {
+      setExisting(preset);
+      setForm((previous) => ({ ...previous, code: null, density: densityInput(preset) }));
+    }
+  }
   const [generalError, setGeneralError] = useState<string | null>(null);
-  // Lo que respondió el servidor (código ocupado, ubicación no creada): se borra al cambiar los datos.
+  // Lo que respondió el servidor (nombre o código ocupado, ubicación no creada): se borra al cambiar los datos.
   const [serverErrors, setServerErrors] = useState<Errors>({});
   const nameRef = useRef<HTMLInputElement>(null);
   const casRef = useRef<HTMLInputElement>(null);
@@ -97,6 +115,13 @@ export function IngressSheet({
     open && form.code === null,
   );
   const code = form.code ?? (name ? (suggestion.data?.codes[0] ?? '') : '');
+  // El buscador: lo escrito, con espera breve. «Crear» espera a la respuesta de lo escrito, para no
+  // ofrecerlo mientras llega un reactivo que ya se llama así.
+  const typing = existing ? '' : name.slice(0, MAX_SEARCH);
+  const term = existing ? '' : typedName.slice(0, MAX_SEARCH);
+  const search = useProductSearch(workspaceId, term, open);
+  const results = typing.length >= MIN_SEARCH ? (search.data?.items ?? []) : null;
+  const searched = typing.length < MIN_SEARCH || (term === typing && (search.isError || (search.isSuccess && !search.isPlaceholderData)));
   const codes = seriesOf(code, count);
   const volume = isVolume(unit);
   // La densidad de un reactivo nuevo va a su ficha; la de uno existente, solo a estos frascos.
@@ -143,6 +168,7 @@ export function IngressSheet({
   const changeName = (text: string) => {
     setExisting(null);
     patchDraft({ name: text });
+    setServerErrors({});
   };
 
   const createPlace = async (placeName: string, parentId: string | null): Promise<Place | null> => {
@@ -195,7 +221,8 @@ export function IngressSheet({
       });
       onOpenChange(false);
     } catch (error) {
-      if (isApiError(error, 'CODE_TAKEN')) {
+      if (isApiError(error, 'NAME_TAKEN')) setServerErrors({ name: error.message });
+      else if (isApiError(error, 'CODE_TAKEN')) {
         setServerErrors({ code: commandErrorMessage(error) });
         if (form.code === null) void suggestion.refetch();
       } else setGeneralError(commandErrorMessage(error));
@@ -240,6 +267,7 @@ export function IngressSheet({
           <LabelFields
             existing={existing}
             products={products}
+            results={results}
             recentIds={recents.products}
             draft={draft}
             onDraft={patchDraft}
@@ -250,7 +278,7 @@ export function IngressSheet({
             codes={codes}
             brands={brands.data?.items ?? []}
             errors={errors}
-            canCreate={canCreate}
+            canCreate={canCreate && searched}
             nameRef={nameRef}
             casRef={casRef}
             quantityRef={quantityRef}

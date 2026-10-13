@@ -1,10 +1,11 @@
 import { AppError } from '../../../platform/errors.js';
-import { freeCodeFor } from '../../../platform/db/codes.js';
+import { freeCodeFor, lockKey } from '../../../platform/db/codes.js';
 import {
   insertItem,
   insertLot,
   itemCodesLike,
   itemHasMovements,
+  itemNameTaken,
   lockItem as lockItemQuery,
   reserveLotSeq,
   setItemMinimum,
@@ -23,18 +24,32 @@ export interface ItemRecord {
   minimum: string | null;
 }
 
+/** Bloqueo del catálogo del espacio: serializa las altas y los cambios de nombre de sus ítems. */
+const catalogLock = (ctx: InventoryContext) => `inventory.items/${ctx.workspaceId}`;
+
+/**
+ * Un nombre no se repite entre los ítems activos del tipo (ADR 0015), sin tildes, mayúsculas ni
+ * espacios de más: el existente se elige de la lista. Se llama con el bloqueo del catálogo tomado.
+ */
+async function requireFreeName(ctx: InventoryContext, name: string, exceptId: string | null): Promise<void> {
+  const [taken] = await itemNameTaken.run({ workspaceId: ctx.workspaceId, kind: ctx.kind, name, exceptId }, ctx.client);
+  if (taken) throw new AppError('NAME_TAKEN', `Ya existe «${taken.name}» en el catálogo: elígelo de la lista`);
+}
+
 /**
  * Crea un ítem del tipo del módulo con código automático a partir del nombre (ADR 0015): el bloqueo
- * de códigos del espacio serializa las altas, así dos con el mismo nombre reciben códigos distintos.
+ * del catálogo serializa las altas, así un nombre repetido se rechaza y dos nombres que dan el mismo
+ * código reciben códigos distintos.
  */
 export async function createItem(ctx: InventoryContext, input: { name: string; baseUnit: string }): Promise<ItemRecord> {
   const code = await freeCodeFor(ctx.client, {
-    lockKey: `inventory.items/${ctx.workspaceId}`,
+    lockKey: catalogLock(ctx),
     name: input.name,
     fallback: 'ITEM',
     takenLike: async (base) =>
       (await itemCodesLike.run({ workspaceId: ctx.workspaceId, base }, ctx.client)).map((row) => row.code),
   });
+  await requireFreeName(ctx, input.name, null);
   const [row] = await insertItem.run(
     { workspaceId: ctx.workspaceId, kind: ctx.kind, code, name: input.name, baseUnit: input.baseUnit },
     ctx.client,
@@ -56,8 +71,12 @@ export async function hasMovements(ctx: InventoryContext, itemId: string): Promi
   return row?.has_movements ?? false;
 }
 
-/** Ítem activo del tipo del módulo, bloqueado para editarlo; uno ajeno o archivado no existe. */
-export async function lockItem(ctx: InventoryContext, itemId: string): Promise<ItemRecord> {
+/**
+ * Ítem activo del tipo del módulo, bloqueado para editarlo; uno ajeno o archivado no existe. Con
+ * `rename`, toma antes el bloqueo del catálogo (el mismo orden que un alta) para cambiar el nombre.
+ */
+export async function lockItem(ctx: InventoryContext, itemId: string, { rename = false } = {}): Promise<ItemRecord> {
+  if (rename) await lockKey(ctx.client, catalogLock(ctx));
   const [row] = await lockItemQuery.run({ workspaceId: ctx.workspaceId, itemId, kind: ctx.kind }, ctx.client);
   if (!row) throw notFound();
   return { id: row.id, code: row.code, name: row.name, baseUnit: row.base_unit, minimum: row.minimum };
@@ -65,7 +84,8 @@ export async function lockItem(ctx: InventoryContext, itemId: string): Promise<I
 
 /**
  * Cambia nombre y unidad de un ítem ya bloqueado con `lockItem` y sube su versión. La unidad solo
- * cambia mientras no haya movimientos (ADR 0015); el código no cambia.
+ * cambia mientras no haya movimientos (ADR 0015); el código no cambia. Un nombre nuevo exige haberlo
+ * bloqueado con `rename` y no puede ser el de otro ítem.
  */
 export async function updateItemFields(
   ctx: InventoryContext,
@@ -75,6 +95,7 @@ export async function updateItemFields(
   if (fields.baseUnit !== item.baseUnit && (await hasMovements(ctx, item.id))) {
     throw new AppError('VALIDATION_FAILED', 'La unidad no cambia: el reactivo ya tiene movimientos');
   }
+  if (fields.name !== item.name) await requireFreeName(ctx, fields.name, item.id);
   const [row] = await updateItem.run(
     { workspaceId: ctx.workspaceId, itemId: item.id, kind: ctx.kind, name: fields.name, baseUnit: fields.baseUnit },
     ctx.client,
