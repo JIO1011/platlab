@@ -15,7 +15,7 @@ export { StatCard, type StatCardProps } from './components/stat-card';
 export { StatePanel } from './components/state-panel';
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/table';
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
-export { Toaster, toast } from './components/toaster';
+export { Toaster, toast, sheetToasterId } from './components/toaster';
 export { cn } from './lib/cn';
 export {
   addDecimal,

@@ -15,7 +15,7 @@ import {
   toast,
   type SelectOption,
 } from '@platlab/ui';
-import { ArrowUpFromLine } from 'lucide-react';
+import { ArrowUpFromLine, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { isApiError } from '../../../app/api';
@@ -133,20 +133,29 @@ export function IssueSheet({
     <FormSheet
       sections
       icon={ArrowUpFromLine}
-      title={needsApproval ? 'Solicitar salida' : 'Registrar salida'}
+      // Como el modal de ReactiLab: el reactivo es el título y el frasco elegido, su código.
+      title={position?.product.name ?? (needsApproval ? 'Solicitar salida' : 'Registrar salida')}
       description={
-        needsApproval
-          ? 'La cantidad queda apartada del frasco hasta que un Administrador apruebe la salida.'
-          : 'Descuenta de un frasco. El saldo se confirma al registrar.'
+        position ? (
+          <span className="font-mono tabular-nums">{position.container?.code ?? position.lot.code}</span>
+        ) : (
+          'Elige el frasco del que sale.'
+        )
       }
       open={open}
       onOpenChange={onOpenChange}
-      submitLabel={needsApproval ? 'Enviar solicitud' : 'Registrar salida'}
+      submitLabel={needsApproval ? 'Enviar solicitud' : 'Confirmar salida'}
+      fullWidthSubmit
       pending={command.isPending}
       generalError={generalError}
       onSubmit={() => void submit()}
     >
       <div className="grid grid-cols-1 gap-3">
+        {needsApproval ? (
+          <p className="rounded-control bg-action-soft px-3 py-2.5 text-sm text-ink">
+            Solicitud de salida: la cantidad queda apartada del frasco hasta que un Administrador apruebe la salida.
+          </p>
+        ) : null}
         <Field label="Frasco" error={errors.positionId?.message}>
           <Controller
             control={form.control}
@@ -197,6 +206,17 @@ export function IssueSheet({
               <div className="h-full rounded-full bg-action transition-[width] duration-300" style={{ width: `${stockPercent}%` }} />
             </div>
           ) : null}
+          {remaining !== null && !remaining.startsWith('-') ? (
+            <p className="mt-1.5 text-right text-sm font-medium text-success">
+              Quedarán <Quantity value={remaining} unit={position.unit} className="font-semibold" />
+              {reservedNote} en el frasco.
+              {onScale ? (
+                <span className="mt-0.5 block">
+                  En balanza: <span className="font-semibold tabular-nums">{formatGrams(onScale)}</span>
+                </span>
+              ) : null}
+            </p>
+          ) : null}
         </div>
       ) : null}
         <Field
@@ -211,17 +231,7 @@ export function IssueSheet({
                   No alcanza: el frasco tiene {formatDecimal(available)} {position.unit}
                   {reservedNote}.
                 </span>
-              ) : (
-                <span>
-                  Quedarán <Quantity value={remaining} unit={position.unit} className="font-medium text-ink" />
-                  {reservedNote} en el frasco.
-                  {onScale ? (
-                    <span className="mt-0.5 block">
-                      En balanza: <span className="font-medium tabular-nums text-ink">{formatGrams(onScale)}</span>
-                    </span>
-                  ) : null}
-                </span>
-              )
+              ) : undefined
             ) : position && available !== null ? (
               <span>
                 Hay <Quantity value={available} unit={position.unit} className="font-medium text-ink" />
@@ -304,6 +314,7 @@ export function IssueSheet({
             addPath="/destinations"
             addBody={(name) => ({ name })}
             addLabel="Nuevo destino"
+            icon={MapPin}
           />
         )}
       />
