@@ -18,6 +18,7 @@ Revisión: 12 de octubre de 2026. Registro resumido de decisiones de arquitectur
 | [0012](#adr-0012) | Reactivos por frasco y salidas con aprobación | Aceptado el 02-10-2026 |
 | [0013](#adr-0013) | Delegación por riesgo y puertas del harness | Aceptado el 07-10-2026 |
 | [0014](#adr-0014) | Reactivos completo: cinco secciones, Movimientos como informe y avisos comunes | Aceptado el 12-10-2026 |
+| [0015](#adr-0015) | Ingreso en un paso, control por peso y controlados | Aceptado el 12-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -232,7 +233,7 @@ Toma ReactiLab como referencia de UX. Los patrones visuales están en `DESIGN.md
   - Frasco: proveedor, ubicación, caducidad, código, saldo con la barra de lo que queda, lote, lote del proveedor, ingreso y, con solicitudes pendientes, lo apartado y lo disponible (`/positions` añade `lot.supplierName`, `lot.supplierLot` y `container.receivedAt`).
   - Acciones por frasco: Salida, Trasladar y Ajustar; la etiqueta se imprime desde la ficha. No hay «borrar».
   - Encabezado: identidad en una línea (código, CAS, estado físico) y tres datos: Existencia, Mínimo (con «Fijar» o «Cambiar» para quien administra el catálogo) y Caducidad. «Sin vencidos ni por vencer» solo afirma lo que cuenta: la caducidad sin confirmar se avisa en cada frasco.
-  - Lo que PlatLab no modela (tara, peso neto, densidad, categoría, «controlado») no se muestra; «controlado» llega con fiscalizados.
+  - Lo que PlatLab no modela (categoría) no se muestra. Tara, densidad y «Controlado» se modelan desde el [ADR 0015](#adr-0015).
 - **Salidas del Operador con aprobación.**
   - La solicitud aparta la cantidad del frasco con una reserva `held`: nadie más dispone de ella.
   - El Administrador o el Propietario la aprueba (la salida se confirma y la reserva pasa a `fulfilled`) o la rechaza con motivo (`released`).
@@ -264,7 +265,7 @@ Motivo: el laboratorio ya trabaja por frasco con ReactiLab; el QR, el % restante
 
 No se copia de ReactiLab: frasco, lote y código fusionados; ajustes sin signo; el borrado como baja; el saldo recortado a cero en silencio; la sugerencia por menor cantidad.
 
-Cambios: 05-10, 06-10-2026 (historial en git).
+Cambios: 05-10, 06-10, 12-10-2026 (historial en git).
 
 <a id="adr-0013"></a>
 ## ADR 0013 — Delegación por riesgo y puertas del harness
@@ -319,6 +320,54 @@ Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las p
 - **Orden.** Reactivos se completa antes de abrir otro módulo: R-01C, la entrega de ámbito por ubicación (Pendientes), T-07, R-01B y REG-02 cuando REG-01 esté validado ([roadmap](04_roadmap.md)).
 
 Motivo: menos secciones hacen la app más simple. El laboratorio piensa un informe como un filtro de Excel sobre el libro, y documentos y avisos son transversales: se resuelven donde ocurren o una sola vez para todos los módulos. El panel va a la derecha porque la izquierda ya tiene el menú del módulo: se lee menú, luego lista y luego refinar. Reemplaza las secciones Informes, Documentos y Configuración del boceto de [01 §7](01_producto.md#7-cómo-se-ve-la-plataforma).
+
+<a id="adr-0015"></a>
+
+## ADR 0015 — Ingreso en un paso, control por peso y controlados
+
+- **Una ventana «Ingresar reactivo»** reemplaza «Nuevo reactivo» y «Registrar ingreso». Es un formulario por secciones, al estilo de ReactiLab:
+  - **Datos de la etiqueta:**
+    - Nombre: busca en el catálogo o crea, en el mismo campo.
+    - CAS: obligatorio, salvo en mezclas.
+    - Marca, código, cantidad con su unidad, número de frascos y caducidad.
+  - **Control por peso** (opcional).
+  - **Dónde se guarda:** área o departamento, y ubicación.
+  - **Clasificación y seguridad.**
+
+  Las tres últimas secciones aparecen al escribir el nombre. Las sugerencias salen solo al escribir, desde 2 letras. Con un reactivo existente, sus datos de catálogo se rellenan y no se editan ahí.
+- **Reactivo (catálogo):**
+  - estado físico: sólido, líquido, acuoso, mezcla o gas;
+  - peligros: los 9 pictogramas SGA;
+  - **controlado**: lo marca el Administrador, nunca el sistema por el CAS;
+  - ficha de seguridad por reactivo: digital (con enlace; el PDF llega con T-07), solo en físico o no tiene;
+  - densidad (g/mL), para los que se miden en volumen;
+  - unidad g, kg, mL o L, que no cambia tras el primer movimiento;
+  - código del reactivo, automático.
+
+  El mínimo se fija en la ficha, no en el ingreso.
+- **Frasco: código propio, único en el espacio.**
+  - Se sugiere a partir del nombre (`ACE-001`) o sigue la serie del reactivo (`AC-BIO-001` → `AC-BIO-002`), y es editable.
+  - Varios frascos se numeran en serie.
+  - Los códigos existentes se conservan, y el QR no cambia.
+- **Lote:** guarda la marca (antes «proveedor») y la caducidad. No se piden ni el lote del fabricante ni el código del lote: el lote interno es automático.
+- **Área o departamento:** lista propia del espacio. Se amplía desde el mismo selector y se guarda en el ingreso.
+- **Ubicación por niveles:** hasta 3 campos (laboratorio o bodega › estante › nivel).
+  - Cada campo sugiere los hijos del anterior.
+  - Con «+» o Enter se crea la ubicación y se abre el nivel siguiente. Solo crean ubicaciones el Administrador y el Propietario.
+  - Se crean ubicaciones de Core desde la API.
+- **Control por peso:**
+  - **Tara** = peso bruto del frasco lleno − cantidad × densidad (en masa: − cantidad).
+  - En la ficha, cada frasco muestra Tara · Peso neto · Bruto esperado; la salida, «En balanza».
+  - «Ajustar» ofrece «Por peso»: un ajuste con motivo «Pesada», con el saldo redondeado a centésimas.
+  - Cálculos exactos (`numeric`).
+- **Controlado:**
+  - candado en la tarjeta del inventario y «🔒 Controlado» en la ficha;
+  - filtro «Controlados» y aviso en la salida;
+  - en la interfaz reemplaza «Fiscalizado»: la sección de REG-02 se llamará «Controlados» ([ADR 0014](#adr-0014)).
+- **Conteo** sale de la interfaz. Se conserva en el servidor para conciliar el inventario de G1.
+- **Referencia visual:** el prototipo de la rama `proto/r-01d-ingreso`, que no se fusiona.
+
+Motivo: quien registra tiene el frasco en la mano y llena lo que lee, de arriba abajo; separar el catálogo y el ingreso en dos ventanas lo hacía lento. La tara permite comprobar con la balanza lo que dice el sistema. «Controlado» se entiende igual en universidades, empresas y uso individual. Cambia el [ADR 0012](#adr-0012) (tara, densidad, código de frasco y ventanas de registro) y el término del [ADR 0014](#adr-0014).
 
 ## Pendientes
 
