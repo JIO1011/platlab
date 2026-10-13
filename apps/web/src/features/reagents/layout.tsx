@@ -1,7 +1,7 @@
 import type { Position } from '@platlab/contracts';
 import { Button, cn } from '@platlab/ui';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
-import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, Eye, Plus, RefreshCw, Scale } from 'lucide-react';
+import { ArrowUpFromLine, ClipboardCheck, Eye, RefreshCw, Scale } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Outlet, useLocation, useSearchParams } from 'react-router';
 import { moduleApps, useShell } from '../../app/app-shell';
@@ -19,7 +19,7 @@ import {
 } from './queries';
 import { QueryErrorState } from '../../app/states';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
-import { AdjustmentSheet, CountSheet, IssueSheet, MinimumSheet, NewProductSheet, ReceiptSheet, TransferSheet } from './sheets';
+import { AdjustmentSheet, CountSheet, IssueSheet, MinimumSheet, TransferSheet } from './sheets';
 import { useNow } from './use-now';
 
 /**
@@ -60,7 +60,6 @@ export function ReagentsLayout() {
   const can = (permission: string) => canOperate && me.permissions.includes(permission);
   const allowed: Allowed = {
     product: can('reagents.catalog.manage'),
-    receipt: can('reagents.receipt.create'),
     issue: can('reagents.issue.create'),
     adjustment: can('reagents.adjustment.create'),
     lists: can('reagents.catalog.manage'),
@@ -97,14 +96,12 @@ export function ReagentsLayout() {
   const positionList = useMemo(() => positions.data?.pages.flatMap((page) => page.items) ?? [], [positions.data]);
   // Por debajo de 1024 px (móvil y tableta), la primaria ocupa su fila y las secundarias van de dos
   // en dos: si son impares, la última toma la fila entera para no dejar un hueco.
-  // En la ficha (ADR 0012) las acciones se acotan a ese reactivo: ingreso y salida con él ya
-  // elegido; «Nuevo reactivo» no corresponde y «Ajustar» vive en cada frasco.
+  // En la ficha (ADR 0012) las acciones se acotan a ese reactivo: la salida con él ya elegido;
+  // «Ajustar» vive en cada frasco.
   const inProduct = detailId !== undefined;
   // En la página de etiquetas la tarea es imprimir: sin acciones de registro en la cabecera.
   const inLabels = pathname.endsWith('/etiquetas');
   const secondaryActions = [
-    { kind: 'product', label: 'Nuevo reactivo', icon: Plus, shown: allowed.product && !inProduct },
-    { kind: 'receipt', label: 'Registrar ingreso', icon: ArrowDownToLine, shown: allowed.receipt },
     { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 && !inProduct },
     // Conteo por ubicación (ADR 0012, entrega 4): tarea del inventario, no de cada reactivo.
     { kind: 'count', label: 'Conteo', icon: ClipboardCheck, shown: allowed.adjustment && sectionPath === 'inventario' && !inProduct },
@@ -173,7 +170,7 @@ export function ReagentsLayout() {
               <Button
                 key={kind}
                 className={cn(index === visibleSecondary.length - 1 && index % 2 === 0 && 'col-span-2 lg:col-span-1')}
-                onClick={() => sheets.open(kind === 'receipt' && detailId ? { kind, productId: detailId } : { kind })}
+                onClick={() => sheets.open({ kind })}
               >
                 <Icon aria-hidden />
                 {label}
@@ -226,10 +223,6 @@ export function ReagentsLayout() {
         />
       </div>
 
-      {current?.request.kind === 'product' ? <NewProductSheet key={current.id} {...sheetProps('product')} /> : null}
-      {current?.request.kind === 'receipt' ? (
-        <ReceiptSheet key={current.id} {...sheetProps('receipt')} products={productList} productId={current.request.productId} base={base} />
-      ) : null}
       {current?.request.kind === 'issue' ? (
         <IssueSheet
           key={current.id}

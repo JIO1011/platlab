@@ -2,7 +2,6 @@ import {
   entryList,
   issueRequestList,
   locationList,
-  lotList,
   operationFacets,
   operationList,
   operationTotals,
@@ -173,24 +172,6 @@ export function useDestinations(workspaceId: string, enabled = true) {
     queryFn: () => api(`/workspaces/${workspaceId}/reagents/destinations`, { schema: entryList }),
     enabled,
     staleTime: 60_000,
-  });
-}
-
-export function useLots(workspaceId: string, productId: string | undefined) {
-  const user = useUserKey();
-  return useQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'lots', productId],
-    queryFn: () => api(`/workspaces/${workspaceId}/reagents/products/${productId}/lots`, { schema: lotList }),
-    enabled: Boolean(productId),
-  });
-}
-
-export function useReceiptLocations(workspaceId: string, enabled: boolean) {
-  const user = useUserKey();
-  return useQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'receipt-locations'],
-    queryFn: () => api(`/workspaces/${workspaceId}/reagents/receipt-locations`, { schema: locationList }),
-    enabled,
   });
 }
 

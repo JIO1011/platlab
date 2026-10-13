@@ -5,9 +5,9 @@ import {
   homeResponse,
   issueRequestList,
   issueResponse,
+  location,
   locationList,
   lotList,
-  lot as lotContract,
   movementResponse,
   operationFacets,
   operationList,
@@ -15,6 +15,10 @@ import {
   type Operation,
   positionList,
   product as productContract,
+  productDetail,
+  tareResponse,
+  containerCodeSuggestion,
+  brandList,
   productList,
   reagentsSummary,
   receiptResponse,
@@ -58,7 +62,7 @@ afterAll(async () => {
 });
 
 interface Call {
-  method?: 'GET' | 'POST' | 'PUT';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
   body?: unknown;
   key?: string;
 }
@@ -103,26 +107,31 @@ async function createLab(): Promise<Lab> {
   };
 }
 
-/** El Administrador crea un reactivo y un lote por la API. */
-async function createProductAndLot(lab: Lab, unit = 'g') {
+/** El Administrador crea un reactivo por la API; el código es automático (ADR 0015). */
+async function createProduct(lab: Lab, unit = 'g', name = 'Cloruro de sodio') {
   const created = await call(lab.adminMember.subject, `${lab.base}/products`, {
     method: 'POST',
-    body: { code: `R-${uniqueSuffix()}`, name: 'Cloruro de sodio', baseUnit: unit, casNumber: '7647-14-5' },
+    body: { name, baseUnit: unit, casNumber: '7647-14-5', physicalState: unit === 'g' || unit === 'kg' ? 'solid' : 'liquid' },
   });
   expect(created.status).toBe(201);
-  const product = productContract.parse(created.body);
-  const lotCreated = await call(lab.adminMember.subject, `${lab.base}/products/${product.id}/lots`, {
-    method: 'POST',
-    body: { code: 'L-001', expiresOn: null },
-  });
-  expect(lotCreated.status).toBe(201);
-  return { product, lot: lotContract.parse(lotCreated.body) };
+  return productContract.parse(created.body);
 }
 
-async function receive(lab: Lab, lotId: string, quantity: string, location = lab.storage, subject = lab.operator.subject) {
+/** Códigos de frasco únicos para un ingreso de prueba. */
+const freshCodes = (count = 1) => Array.from({ length: count }, () => `F-${uniqueSuffix()}`);
+
+/** Ingreso de un frasco (ADR 0015): cada ingreso abre un lote nuevo del reactivo. */
+async function receive(
+  lab: Lab,
+  productId: string,
+  quantity: string,
+  location = lab.storage,
+  subject = lab.operator.subject,
+  extra: Record<string, unknown> = {},
+) {
   return call(subject, `${lab.base}/receipts`, {
     method: 'POST',
-    body: { lotId, locationId: location, quantity, unit: 'g' },
+    body: { productId, locationId: location, quantity, unit: 'g', codes: freshCodes(), ...extra },
   });
 }
 
@@ -141,15 +150,20 @@ const auditsIn = (workspaceId: string) =>
 describe('G0 · recorrido visible', () => {
   it('ingreso de 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con historial y responsables', async () => {
     const lab = await createLab();
-    const { product, lot } = await createProductAndLot(lab);
-    expect(lot).toMatchObject({ productId: product.id, expiresOn: null, supplierLot: null });
+    const product = await createProduct(lab);
+    expect(product).toMatchObject({ code: 'CLORURO-DE-SODIO', hazards: [], controlled: false, sdsKind: null, density: null });
 
-    const receipt = await receive(lab, lot.id, '100');
+    const receipt = await receive(lab, product.id, '100', lab.storage, lab.operator.subject, { codes: ['NAC-001'] });
     expect(receipt.status).toBe(201);
     const received = receiptResponse.parse(receipt.body);
-    expect(received).toMatchObject({ type: 'receipt', lot: { id: lot.id, code: 'L-001' }, unit: 'g' });
+    expect(received).toMatchObject({
+      type: 'receipt',
+      product: { id: product.id, code: 'CLORURO-DE-SODIO' },
+      lot: { code: 'L-001' },
+      unit: 'g',
+    });
     expect(received.containers).toEqual([
-      expect.objectContaining({ code: 'L-001-01', quantity: '100', balance: '100' }),
+      expect.objectContaining({ code: 'NAC-001', quantity: '100', balance: '100', tare: null }),
     ]);
     const receiptBody = { positionId: received.containers[0]!.positionId };
 
@@ -188,7 +202,7 @@ describe('G0 · recorrido visible', () => {
         id: receiptBody.positionId,
         balance: '79.5',
         unit: 'g',
-        container: expect.objectContaining({ code: 'L-001-01', initialQuantity: '100' }),
+        container: expect.objectContaining({ code: 'NAC-001', initialQuantity: '100', tare: null, density: null }),
       }),
     ]);
     const catalog = productList.parse((await call(lab.operator.subject, `${lab.base}/products`)).body);
@@ -256,15 +270,15 @@ describe('G0 · recorrido visible', () => {
 describe('G0 · aislamiento entre A y B', () => {
   let a: Lab;
   let b: Lab;
-  let bLot: string;
+  let bProduct: string;
   let bPosition: string;
   let shared: string;
 
   beforeAll(async () => {
     a = await createLab();
     b = await createLab();
-    bLot = (await createProductAndLot(b)).lot.id;
-    bPosition = receivedPosition(await receive(b, bLot, '50'));
+    bProduct = (await createProduct(b)).id;
+    bPosition = receivedPosition(await receive(b, bProduct, '50'));
     // Una misma identidad: Operador en A y Administrador en B.
     shared = `sub-shared-${uniqueSuffix()}`;
     await addMember(admin, a.workspace.id, { subject: shared, roles: [{ role: 'operator' }] });
@@ -277,11 +291,11 @@ describe('G0 · aislamiento entre A y B', () => {
     expect(errorCode(response.body)).toBe('ACCESS_DENIED');
   });
 
-  it('pertenecer a ambos no permite usar un lote, una ubicación o una posición de B en un comando de A', async () => {
-    const aLot = (await createProductAndLot(a)).lot.id;
+  it('pertenecer a ambos no permite usar un reactivo, una ubicación o una posición de B en un comando de A', async () => {
+    const aProduct = (await createProduct(a)).id;
     const attempts = [
-      await receive(a, bLot, '1', a.storage, shared),
-      await receive(a, aLot, '1', b.storage, shared),
+      await receive(a, bProduct, '1', a.storage, shared),
+      await receive(a, aProduct, '1', b.storage, shared),
       await call(shared, `${a.base}/issues`, {
         method: 'POST',
         body: { positionId: bPosition, quantity: '1', unit: 'g', reason: 'Cruce', destination: 'Otro espacio' },
@@ -299,34 +313,30 @@ describe('G0 · aislamiento entre A y B', () => {
   it('las listas de A no incluyen datos de B', async () => {
     const products = productList.parse((await call(shared, `${a.base}/products`)).body);
     const positions = positionList.parse((await call(shared, `${a.base}/positions`)).body);
-    expect(products.items.every((p) => p.id !== bLot)).toBe(true);
+    expect(products.items.every((p) => p.id !== bProduct)).toBe(true);
     expect(positions.items.find((p) => p.id === bPosition)).toBeUndefined();
   });
 });
 
 describe('G0 · roles', () => {
   let lab: Lab;
-  let lotId: string;
   let productId: string;
 
   beforeAll(async () => {
     lab = await createLab();
-    ({
-      lot: { id: lotId },
-      product: { id: productId },
-    } = await createProductAndLot(lab));
+    productId = (await createProduct(lab)).id;
   });
 
   it('un miembro sin rol no registra movimientos ni consulta el inventario', async () => {
     const member = await addMember(admin, lab.workspace.id);
-    const receipt = await receive(lab, lotId, '1', lab.storage, member.subject);
+    const receipt = await receive(lab, productId, '1', lab.storage, member.subject);
     expect(receipt.status).toBe(403);
     expect((await call(member.subject, `${lab.base}/positions`)).status).toBe(403);
   });
 
   it('el propietario opera como Administrador sin asignación: ingresa y ajusta (ADR 0008, 02-10-2026)', async () => {
     const owner = lab.workspace.owner.subject;
-    const receipt = await receive(lab, lotId, '5', lab.storage, owner);
+    const receipt = await receive(lab, productId, '5', lab.storage, owner);
     expect(receipt.status).toBe(201);
     const positionId = receivedPosition(receipt);
     const adjustment = await call(owner, `${lab.base}/adjustments`, {
@@ -337,34 +347,34 @@ describe('G0 · roles', () => {
     expect((await call(owner, `${lab.base}/positions`)).status).toBe(200);
   });
 
-  it('el Operador registra ingresos y salidas, pero no productos, lotes ni ajustes', async () => {
+  it('el Operador registra ingresos y salidas, pero no productos, fichas ni ajustes', async () => {
     const product = await call(lab.operator.subject, `${lab.base}/products`, {
       method: 'POST',
-      body: { code: `OP-${uniqueSuffix()}`, name: 'No permitido', baseUnit: 'g' },
+      body: { name: 'No permitido', baseUnit: 'g', physicalState: 'mixture' },
     });
-    const lot = await call(lab.operator.subject, `${lab.base}/products/${productId}/lots`, {
-      method: 'POST',
-      body: { code: 'L-OP' },
+    const edit = await call(lab.operator.subject, `${lab.base}/products/${productId}`, {
+      method: 'PATCH',
+      body: { controlled: true },
     });
-    for (const response of [product, lot]) {
+    for (const response of [product, edit]) {
       expect(response.status).toBe(403);
       expect(errorCode(response.body)).toBe('ACCESS_DENIED');
     }
-    expect((await receive(lab, lotId, '5')).status).toBe(201);
+    expect((await receive(lab, productId, '5')).status).toBe(201);
   });
 
   it('un Operador con ámbito en un almacén no opera ni ve el otro', async () => {
     const scoped = await addMember(admin, lab.workspace.id, {
       roles: [{ role: 'operator', locationId: lab.storage }],
     });
-    const otherPosition = receivedPosition(await receive(lab, lotId, '10', lab.otherStorage));
+    const otherPosition = receivedPosition(await receive(lab, productId, '10', lab.otherStorage));
     const issue = await call(scoped.subject, `${lab.base}/issues`, {
       method: 'POST',
       body: { positionId: otherPosition, quantity: '1', unit: 'g', reason: 'Práctica', destination: 'Lab' },
     });
     expect(issue.status).toBe(403);
-    expect((await receive(lab, lotId, '1', lab.otherStorage, scoped.subject)).status).toBe(403);
-    expect((await receive(lab, lotId, '1', lab.storage, scoped.subject)).status).toBe(201);
+    expect((await receive(lab, productId, '1', lab.otherStorage, scoped.subject)).status).toBe(403);
+    expect((await receive(lab, productId, '1', lab.storage, scoped.subject)).status).toBe(201);
     const positions = positionList.parse((await call(scoped.subject, `${lab.base}/positions`)).body);
     expect(positions.items.every((p) => p.location.id === lab.storage)).toBe(true);
   });
@@ -378,7 +388,7 @@ describe('G0 · módulos y tipo de ítem', () => {
       await call(adminC.subject, `/workspaces/${c.id}/reagents/products`),
       await call(adminC.subject, `/workspaces/${c.id}/reagents/receipts`, {
         method: 'POST',
-        body: { lotId: randomUUID(), locationId: randomUUID(), quantity: '1', unit: 'g' },
+        body: { productId: randomUUID(), locationId: randomUUID(), quantity: '1', unit: 'g', codes: freshCodes() },
       }),
     ]) {
       expect(response.status).toBe(403);
@@ -407,11 +417,11 @@ describe('G0 · módulos y tipo de ítem', () => {
     const products = productList.parse((await call(lab.adminMember.subject, `${lab.base}/products`)).body);
     expect(products.items.map((p) => p.id)).not.toContain(materialId);
     const attempts = [
-      await call(lab.adminMember.subject, `${lab.base}/products/${materialId}/lots`, {
-        method: 'POST',
-        body: { code: 'L-X' },
+      await call(lab.adminMember.subject, `${lab.base}/products/${materialId}`, {
+        method: 'PATCH',
+        body: { name: 'Pipeta' },
       }),
-      await receive(lab, lot.rows[0]!.id, '1', lab.storage, lab.adminMember.subject),
+      await receive(lab, materialId, '1', lab.storage, lab.adminMember.subject),
       await call(lab.adminMember.subject, `${lab.base}/adjustments`, {
         method: 'POST',
         body: { positionId: position.rows[0]!.id, quantity: '1', unit: 'g', reason: 'Conteo' },
@@ -422,8 +432,8 @@ describe('G0 · módulos y tipo de ítem', () => {
 
   it('una salida lanzada a la vez que la desactivación del módulo no queda confirmada después', async () => {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
-    const positionId = receivedPosition(await receive(lab, lot.id, '100'));
+    const product = await createProduct(lab);
+    const positionId = receivedPosition(await receive(lab, product.id, '100'));
     const before = await operationsIn(lab.workspace.id);
 
     const other = await admin.connect();
@@ -467,8 +477,8 @@ async function waitForRuntimeLock(): Promise<void> {
 describe('G0 · concurrencia', () => {
   it('dos salidas de 60 g sobre 100 g: una confirma, la otra recibe stock insuficiente y quedan 40 g', async () => {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
-    const positionId = receivedPosition(await receive(lab, lot.id, '100'));
+    const product = await createProduct(lab);
+    const positionId = receivedPosition(await receive(lab, product.id, '100'));
     // Salidas directas: las registra quien puede aprobar (ADR 0012).
     const issue = () =>
       call(lab.adminMember.subject, `${lab.base}/issues`, {
@@ -490,29 +500,28 @@ describe('G0 · concurrencia', () => {
     ).toBe(1);
   });
 
-  it('dos ingresos simultáneos al mismo lote reciben números de frasco distintos', async () => {
+  it('dos ingresos simultáneos del mismo reactivo abren lotes distintos (ADR 0015)', async () => {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
-    const results = await Promise.all([receive(lab, lot.id, '10'), receive(lab, lot.id, '15')]);
+    const product = await createProduct(lab);
+    const results = await Promise.all([receive(lab, product.id, '10'), receive(lab, product.id, '15')]);
     expect(results.map((r) => r.status)).toEqual([201, 201]);
+    expect(results.map((r) => receiptResponse.parse(r.body).lot.code).sort()).toEqual(['L-001', 'L-002']);
     const positions = positionList.parse((await call(lab.operator.subject, `${lab.base}/positions`)).body);
-    expect(positions.items.map((p) => p.container?.code).sort()).toEqual(['L-001-01', 'L-001-02']);
     expect(positions.items.map((p) => p.balance).sort()).toEqual(['10', '15']);
   });
 
   it('un ingreso de varios frascos es una operación con un asiento por frasco', async () => {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
-    const response = await call(lab.operator.subject, `${lab.base}/receipts`, {
-      method: 'POST',
-      body: { lotId: lot.id, locationId: lab.storage, containers: 3, quantity: '250', unit: 'g' },
+    const product = await createProduct(lab);
+    const response = await receive(lab, product.id, '250', lab.storage, lab.operator.subject, {
+      codes: ['LAB-7', 'LAB-8', 'LAB-9'],
     });
     expect(response.status).toBe(201);
     const received = receiptResponse.parse(response.body);
     expect(received.containers.map((c) => [c.code, c.balance])).toEqual([
-      ['L-001-01', '250'],
-      ['L-001-02', '250'],
-      ['L-001-03', '250'],
+      ['LAB-7', '250'],
+      ['LAB-8', '250'],
+      ['LAB-9', '250'],
     ]);
     const history = operationList.parse((await call(lab.operator.subject, `${lab.base}/operations?limit=2`)).body);
     expect(history.items.map((item) => item.id)).toEqual([received.operationId, received.operationId]);
@@ -524,45 +533,45 @@ describe('G0 · concurrencia', () => {
     expect(new Set([...history.items, ...next.items].map((item) => item.entryId)).size).toBe(3);
   });
 
-  it('el ingreso puede crear el lote en la misma transacción (01 §6.1)', async () => {
+  it('dos ingresos simultáneos con el mismo código: uno completo y el otro CODE_TAKEN sin efectos', async () => {
     const lab = await createLab();
-    const { product } = await createProductAndLot(lab);
-    const response = await call(lab.operator.subject, `${lab.base}/receipts`, {
-      method: 'POST',
-      body: {
-        productId: product.id,
-        newLot: { code: 'L-NUEVO', expiresOn: '2027-01-31' },
-        locationId: lab.storage,
-        quantity: '40',
-        unit: 'g',
-      },
-    });
-    expect(response.status).toBe(201);
-    expect(receiptResponse.parse(response.body)).toMatchObject({ lot: { code: 'L-NUEVO' } });
-    const lots = lotList.parse((await call(lab.operator.subject, `${lab.base}/products/${product.id}/lots`)).body);
-    expect(lots.items.map((l) => l.code).sort()).toEqual(['L-001', 'L-NUEVO']);
-    // Lote existente y lote nuevo a la vez es ambiguo: se rechaza.
-    const ambiguous = await call(lab.operator.subject, `${lab.base}/receipts`, {
-      method: 'POST',
-      body: { lotId: lots.items[0]!.id, productId: product.id, newLot: { code: 'L-X' }, locationId: lab.storage, quantity: '1', unit: 'g' },
-    });
-    expect(ambiguous.status).toBe(400);
-    // Un lote nuevo para un reactivo de otro espacio no encuentra el reactivo: 404, sin revelar nada.
-    const other = await createLab();
-    const foreign = await createProductAndLot(other);
-    const crossed = await call(lab.operator.subject, `${lab.base}/receipts`, {
-      method: 'POST',
-      body: { productId: foreign.product.id, newLot: { code: 'L-AJENO' }, locationId: lab.storage, quantity: '1', unit: 'g' },
-    });
-    expect(crossed.status).toBe(404);
+    const product = await createProduct(lab);
+    const ingress = (codes: string[]) => receive(lab, product.id, '5', lab.storage, lab.operator.subject, { codes });
+    const results = await Promise.all([ingress(['DUP-1', 'DUP-2']), ingress(['dup-2', 'DUP-3'])]);
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    const rejected = results.find((r) => r.status === 409)!;
+    expect(errorCode(rejected.body)).toBe('CODE_TAKEN');
+    expect(errorResponse.parse(rejected.body).error.message).toMatch(/DUP-2|dup-2/);
+    expect(await operationsIn(lab.workspace.id)).toBe(1);
+    expect(await count('select count(*) as n from inventory.containers where workspace_id = $1', [lab.workspace.id])).toBe(2);
+    expect(await count('select count(*) as n from inventory.lots where workspace_id = $1', [lab.workspace.id])).toBe(1);
+  });
+
+  it('dos altas simultáneas de reactivos con el mismo nombre reciben códigos distintos', async () => {
+    const lab = await createLab();
+    const results = await Promise.all([createProduct(lab, 'g', 'Acetona'), createProduct(lab, 'g', 'Acetona')]);
+    expect(results.map((product) => product.code).sort()).toEqual(['ACETONA', 'ACETONA-2']);
+  });
+
+  it('dos altas simultáneas de la misma ubicación devuelven la misma', async () => {
+    const lab = await createLab();
+    const create = () =>
+      call(lab.adminMember.subject, `${lab.base}/locations`, { method: 'POST', body: { name: 'Bodega norte', parentId: null } });
+    const results = await Promise.all([create(), create()]);
+    expect(results.map((r) => r.status)).toEqual([201, 201]);
+    const [first, second] = results.map((r) => location.parse(r.body));
+    expect(first!.id).toBe(second!.id);
+    expect(
+      await count('select count(*) as n from core.locations where workspace_id = $1 and name = $2', [lab.workspace.id, 'Bodega norte']),
+    ).toBe(1);
   });
 });
 
 describe('G0 · idempotencia y rollback', () => {
   it('repetir un ingreso con la misma clave no añade asientos ni auditoría; con otra cantidad se rechaza', async () => {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
-    const body = { lotId: lot.id, locationId: lab.storage, quantity: '100', unit: 'g' };
+    const product = await createProduct(lab);
+    const body = { productId: product.id, locationId: lab.storage, quantity: '100', unit: 'g', codes: freshCodes() };
     const key = `ingreso-${uniqueSuffix()}`;
     const audits = await auditsIn(lab.workspace.id);
 
@@ -584,8 +593,8 @@ describe('G0 · idempotencia y rollback', () => {
 
   it('duplicados simultáneos con la misma clave producen un solo movimiento', async () => {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
-    const body = { lotId: lot.id, locationId: lab.storage, quantity: '7', unit: 'g' };
+    const product = await createProduct(lab);
+    const body = { productId: product.id, locationId: lab.storage, quantity: '7', unit: 'g', codes: freshCodes() };
     const key = `simultaneo-${uniqueSuffix()}`;
     const results = await Promise.all(
       [1, 2, 3].map(() => call(lab.operator.subject, `${lab.base}/receipts`, { method: 'POST', body, key })),
@@ -597,7 +606,7 @@ describe('G0 · idempotencia y rollback', () => {
 
   it('un fallo provocado antes del commit no deja movimiento, auditoría de éxito ni saldo parcial', async () => {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
+    const product = await createProduct(lab);
     const audits = await auditsIn(lab.workspace.id);
     const trigger = `fail_${uniqueSuffix().replace(/-/g, '')}`;
     // Fallo en el último paso de la escritura, solo para este espacio.
@@ -610,7 +619,7 @@ describe('G0 · idempotencia y rollback', () => {
       create trigger ${trigger} after insert on inventory.entries
         for each row execute function inventory.${trigger}();`);
     try {
-      const failed = await receive(lab, lot.id, '100');
+      const failed = await receive(lab, product.id, '100');
       expect(failed.status).toBe(500);
       expect(errorCode(failed.body)).toBe('INTERNAL');
     } finally {
@@ -622,19 +631,19 @@ describe('G0 · idempotencia y rollback', () => {
       await count('select count(*) as n from inventory.positions where workspace_id = $1', [lab.workspace.id]),
     ).toBe(0);
 
-    expect((await receive(lab, lot.id, '100')).status).toBe(201);
+    expect((await receive(lab, product.id, '100')).status).toBe(201);
   });
 });
 
 describe('validación y consultas', () => {
   let lab: Lab;
-  let lotId: string;
+  let productId: string;
   let positionId: string;
 
   beforeAll(async () => {
     lab = await createLab();
-    lotId = (await createProductAndLot(lab)).lot.id;
-    positionId = receivedPosition(await receive(lab, lotId, '10'));
+    productId = (await createProduct(lab)).id;
+    positionId = receivedPosition(await receive(lab, productId, '10'));
   });
 
   it.each([
@@ -644,8 +653,12 @@ describe('validación y consultas', () => {
     ['notación científica', { quantity: '1e3' }],
     ['más de nueve decimales', { quantity: '1.0000000001' }],
     ['un campo no previsto', { actorId: randomUUID() }],
+    ['un código repetido en la solicitud', { codes: ['REP-1', 'rep-1'] }],
+    ['un código con formato inválido', { codes: ['-X'] }],
+    ['sin códigos', { codes: [] }],
+    ['un reactivo del catálogo y uno nuevo a la vez', { newProduct: { name: 'Otro', physicalState: 'mixture', baseUnit: 'g' } }],
   ])('un ingreso con %s se rechaza como datos inválidos', async (_case, override) => {
-    const body = { lotId, locationId: lab.storage, quantity: '1', unit: 'g', ...override };
+    const body = { productId, locationId: lab.storage, quantity: '1', unit: 'g', codes: freshCodes(), ...override };
     const response = await call(lab.operator.subject, `${lab.base}/receipts`, { method: 'POST', body });
     expect(response.status).toBe(400);
     expect(errorCode(response.body)).toBe('VALIDATION_FAILED');
@@ -674,21 +687,27 @@ describe('validación y consultas', () => {
     expect(await operationsIn(lab.workspace.id)).toBe(before);
   });
 
-  it('un código de producto repetido se rechaza sin distinguir mayúsculas', async () => {
-    const code = `DUP-${uniqueSuffix()}`;
-    const create = (value: string) =>
-      call(lab.adminMember.subject, `${lab.base}/products`, {
-        method: 'POST',
-        body: { code: value, name: 'Duplicado', baseUnit: 'g' },
-      });
-    expect((await create(code)).status).toBe(201);
-    const repeated = await create(code.toLowerCase());
-    expect(repeated.status).toBe(400);
-    expect(errorCode(repeated.body)).toBe('VALIDATION_FAILED');
+  it('el código del reactivo es automático: sin tildes y con -2 si el nombre se repite (ADR 0015)', async () => {
+    const create = (body: Record<string, unknown>) => call(lab.adminMember.subject, `${lab.base}/products`, { method: 'POST', body });
+    const acid = { name: 'Ácido clorhídrico 37 %', casNumber: '7647-01-0', physicalState: 'liquid', baseUnit: 'mL' };
+    const first = await create(acid);
+    const second = await create(acid);
+    expect([first.status, second.status]).toEqual([201, 201]);
+    expect([productContract.parse(first.body).code, productContract.parse(second.body).code]).toEqual([
+      'ACIDO-CLORHIDRICO-37',
+      'ACIDO-CLORHIDRICO-37-2',
+    ]);
+    // Un código propio no se acepta: lo decide el servidor.
+    const withCode = await create({ ...acid, code: 'PROPIO' });
+    expect(withCode.status).toBe(400);
+    // El CAS se valida con su dígito de control y solo una mezcla puede no tenerlo.
+    expect((await create({ ...acid, casNumber: '7647-01-1' })).status).toBe(400);
+    expect((await create({ ...acid, casNumber: null })).status).toBe(400);
+    expect((await create({ ...acid, casNumber: null, physicalState: 'mixture' })).status).toBe(201);
   });
 
   it('las listas se paginan con un cursor opaco y rechazan uno manipulado', async () => {
-    await receive(lab, lotId, '1', lab.otherStorage);
+    await receive(lab, productId, '1', lab.otherStorage);
     const first = positionList.parse((await call(lab.operator.subject, `${lab.base}/positions?limit=1`)).body);
     expect(first.items).toHaveLength(1);
     expect(first.nextCursor).not.toBeNull();
@@ -717,9 +736,12 @@ describe('validación y consultas', () => {
 describe('consultas de apoyo a la interfaz', () => {
   it('lista los lotes de un reactivo y las ubicaciones donde el miembro puede registrar ingresos', async () => {
     const lab = await createLab();
-    const { product, lot } = await createProductAndLot(lab);
+    const product = await createProduct(lab);
+    const receipt = receiptResponse.parse(
+      (await receive(lab, product.id, '1', lab.storage, lab.operator.subject, { brand: 'Merck', area: 'Docencia' })).body,
+    );
     const lots = lotList.parse((await call(lab.operator.subject, `${lab.base}/products/${product.id}/lots`)).body);
-    expect(lots.items).toEqual([expect.objectContaining({ id: lot.id, code: 'L-001' })]);
+    expect(lots.items).toEqual([{ id: receipt.lot.id, productId: product.id, code: 'L-001', brand: 'Merck', area: 'Docencia', expiresOn: null }]);
 
     const scoped = await addMember(admin, lab.workspace.id, {
       roles: [{ role: 'operator', locationId: lab.storage }],
@@ -728,6 +750,7 @@ describe('consultas de apoyo a la interfaz', () => {
     expect(scopedLocations.items.map((l) => l.id)).toEqual([lab.storage]);
     const allLocations = locationList.parse((await call(lab.adminMember.subject, `${lab.base}/receipt-locations`)).body);
     expect(allLocations.items.map((l) => l.id)).toEqual(expect.arrayContaining([lab.storage, lab.otherStorage]));
+    expect(allLocations.items.find((l) => l.id === lab.storage)?.parentId).toEqual(expect.any(String));
   });
 
   it('los lotes de un ítem de otro tipo no se listan', async () => {
@@ -814,8 +837,8 @@ describe('R-01A · salidas con aprobación y reserva (ADR 0012)', () => {
 
   async function stockedLab(quantity = '100') {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
-    const positionId = receivedPosition(await receive(lab, lot.id, quantity));
+    const product = await createProduct(lab);
+    const positionId = receivedPosition(await receive(lab, product.id, quantity, lab.storage, lab.operator.subject, { codes: ['NAC-001'] }));
     return { lab, positionId };
   }
 
@@ -852,7 +875,7 @@ describe('R-01A · salidas con aprobación y reserva (ADR 0012)', () => {
         quantity: '30',
         reason: 'Práctica',
         destination: 'Laboratorio 1',
-        container: { code: 'L-001-01' },
+        container: { code: 'NAC-001' },
         requester: expect.objectContaining({ displayName: 'Operador' }),
         mine: false,
         decider: null,
@@ -1008,7 +1031,7 @@ describe('R-01A · salidas con aprobación y reserva (ADR 0012)', () => {
 describe('R-01A · vencidos y por vencer (ADR 0012, 05-10-2026)', () => {
   it('cuenta frascos con saldo vencidos y por vencer en 30 días, en la fecha del espacio y en el ámbito', async () => {
     const lab = await createLab();
-    const { product } = await createProductAndLot(lab);
+    const product = await createProduct(lab);
     // La fecha civil del espacio la da la propia base: la prueba no depende del reloj del runner.
     const day = async (offset: number) =>
       (
@@ -1018,15 +1041,9 @@ describe('R-01A · vencidos y por vencer (ADR 0012, 05-10-2026)', () => {
         )
       ).rows[0]!.d;
     const receiveNew = async (code: string, offset: number | null, location = lab.storage) => {
-      const response = await call(lab.adminMember.subject, `${lab.base}/receipts`, {
-        method: 'POST',
-        body: {
-          productId: product.id,
-          newLot: { code, expiresOn: offset === null ? null : await day(offset) },
-          locationId: location,
-          quantity: '10',
-          unit: 'g',
-        },
+      const response = await receive(lab, product.id, '10', location, lab.adminMember.subject, {
+        codes: [code],
+        expiresOn: offset === null ? null : await day(offset),
       });
       expect(response.status).toBe(201);
       return receivedPosition(response);
@@ -1072,23 +1089,17 @@ describe('R-01A · mínimos (ADR 0012, 05-10-2026)', () => {
 
   it('el mínimo lo fija el Administrador; bajo mínimo cuenta la existencia física, con lo apartado', async () => {
     const lab = await createLab();
-    const created = await call(lab.adminMember.subject, `${lab.base}/products`, {
-      method: 'POST',
-      body: { code: `M-${uniqueSuffix()}`, name: 'Acetona', baseUnit: 'g', minimum: '50' },
-    });
-    expect(created.status).toBe(201);
-    const product = productContract.parse(created.body);
-    expect(product.minimum).toBe('50');
+    const product = await createProduct(lab, 'g', 'Acetona');
+    expect(product.minimum).toBeNull();
+    const fixed = await call(lab.adminMember.subject, `${lab.base}/products/${product.id}/minimum`, { method: 'PUT', body: { minimum: '50' } });
+    expect(fixed).toMatchObject({ status: 200, body: { minimum: '50' } });
     // Con mínimo y sin existencias, está bajo mínimo.
     expect(await summaryOf(lab)).toMatchObject({ belowMinimum: 1, productsWithMinimum: 1 });
     expect(await productOf(lab, product.id)).toMatchObject({ minimum: '50', belowMinimum: true });
 
-    const lot = lotContract.parse(
-      (await call(lab.adminMember.subject, `${lab.base}/products/${product.id}/lots`, { method: 'POST', body: { code: 'L-1' } })).body,
-    );
-    const first = receivedPosition(await receive(lab, lot.id, '30'));
+    const first = receivedPosition(await receive(lab, product.id, '30'));
     expect(await productOf(lab, product.id)).toMatchObject({ balance: '30', belowMinimum: true });
-    await receive(lab, lot.id, '20', lab.otherStorage);
+    await receive(lab, product.id, '20', lab.otherStorage);
     // Igual al mínimo no es «bajo»: 50 de 50.
     expect(await productOf(lab, product.id)).toMatchObject({ balance: '50', belowMinimum: false });
     expect(await summaryOf(lab)).toMatchObject({ belowMinimum: 0 });
@@ -1111,22 +1122,22 @@ describe('R-01A · mínimos (ADR 0012, 05-10-2026)', () => {
     expect(await summaryOf(lab)).toMatchObject({ belowMinimum: 0, productsWithMinimum: 0 });
     expect(
       await count(`select count(*) as n from core.audit_events where workspace_id = $1 and action = 'reagents.product.minimum'`, [lab.workspace.id]),
-    ).toBe(2);
+    ).toBe(3);
   });
 });
 
 describe('R-01A · traslados (ADR 0012, entrega 4)', () => {
   const transfer = (lab: Lab, positionId: string, locationId: string, subject = lab.operator.subject) =>
     call(subject, `${lab.base}/transfers`, { method: 'POST', body: { positionId, locationId } });
-  const stockOf = async (lab: Lab, lotId: string) =>
+  const stockOf = async (lab: Lab, productId: string) =>
     positionList.parse((await call(lab.adminMember.subject, `${lab.base}/positions`)).body).items.filter(
-      (position) => position.lot.id === lotId,
+      (position) => position.product.id === productId,
     );
 
   it('el Operador traslada un frasco entero en un paso, el historial lo muestra y puede volver', async () => {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
-    const positionId = receivedPosition(await receive(lab, lot.id, '100.5'));
+    const product = await createProduct(lab);
+    const positionId = receivedPosition(await receive(lab, product.id, '100.5'));
 
     const locations = locationList.parse((await call(lab.operator.subject, `${lab.base}/transfer-locations`)).body);
     expect(locations.items.map((location) => location.id)).toEqual(expect.arrayContaining([lab.storage, lab.otherStorage]));
@@ -1136,9 +1147,9 @@ describe('R-01A · traslados (ADR 0012, entrega 4)', () => {
     const result = transferResponse.parse(moved.body);
     expect(result).toMatchObject({ fromPositionId: positionId, quantity: '100.5', unit: 'g' });
     // El frasco se ve solo donde está, con su código y todo su saldo.
-    const [here] = await stockOf(lab, lot.id);
+    const [here] = await stockOf(lab, product.id);
     expect(here).toMatchObject({ id: result.toPositionId, balance: '100.5', location: expect.objectContaining({ id: lab.otherStorage }) });
-    expect(await stockOf(lab, lot.id)).toHaveLength(1);
+    expect(await stockOf(lab, product.id)).toHaveLength(1);
 
     // Una operación con dos asientos: sale del origen y entra en el destino.
     const history = operationList.parse((await call(lab.adminMember.subject, `${lab.base}/operations?type=transfer`)).body);
@@ -1156,8 +1167,8 @@ describe('R-01A · traslados (ADR 0012, entrega 4)', () => {
 
   it('un frasco vacío o con salidas pendientes no se traslada; sin permiso o a otro espacio, tampoco', async () => {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
-    const positionId = receivedPosition(await receive(lab, lot.id, '50'));
+    const product = await createProduct(lab);
+    const positionId = receivedPosition(await receive(lab, product.id, '50'));
 
     const pending = issueResponse.parse(
       (
@@ -1188,8 +1199,8 @@ describe('R-01A · traslados (ADR 0012, entrega 4)', () => {
 
   it('un traslado y una salida simultáneos: el frasco nunca queda con saldo en dos lugares', async () => {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
-    const positionId = receivedPosition(await receive(lab, lot.id, '100'));
+    const product = await createProduct(lab);
+    const positionId = receivedPosition(await receive(lab, product.id, '100'));
     const [moved, issued] = await Promise.all([
       transfer(lab, positionId, lab.otherStorage),
       call(lab.adminMember.subject, `${lab.base}/issues`, {
@@ -1197,7 +1208,7 @@ describe('R-01A · traslados (ADR 0012, entrega 4)', () => {
         body: { positionId, quantity: '30', unit: 'g', reason: 'Práctica', destination: 'Lab' },
       }),
     ]);
-    const stocked = await stockOf(lab, lot.id);
+    const stocked = await stockOf(lab, product.id);
     expect(stocked).toHaveLength(1);
     expect(moved.status).toBe(201);
     if (issued.status === 201) {
@@ -1217,13 +1228,10 @@ describe('R-01A · conteo por ubicación (ADR 0012, entrega 4)', () => {
 
   async function countedLab() {
     const lab = await createLab();
-    const { lot } = await createProductAndLot(lab);
-    const received = await call(lab.operator.subject, `${lab.base}/receipts`, {
-      method: 'POST',
-      body: { lotId: lot.id, locationId: lab.storage, containers: 2, quantity: '50', unit: 'g' },
-    });
+    const product = await createProduct(lab);
+    const received = await receive(lab, product.id, '50', lab.storage, lab.operator.subject, { codes: freshCodes(2) });
     const [first, second] = receiptResponse.parse(received.body).containers;
-    const elsewhere = receivedPosition(await receive(lab, lot.id, '30', lab.otherStorage));
+    const elsewhere = receivedPosition(await receive(lab, product.id, '30', lab.otherStorage));
     return { lab, first: first!.positionId, second: second!.positionId, elsewhere };
   }
 
@@ -1281,8 +1289,8 @@ describe('R-01A · conteo por ubicación (ADR 0012, entrega 4)', () => {
 describe('R-01A · enlace de la etiqueta QR (ADR 0012, entrega 4)', () => {
   it('resuelve el reactivo de un frasco del espacio; uno de otro espacio no existe para él', async () => {
     const lab = await createLab();
-    const { product, lot } = await createProductAndLot(lab);
-    const received = receiptResponse.parse((await receive(lab, lot.id, '10')).body);
+    const product = await createProduct(lab);
+    const received = receiptResponse.parse((await receive(lab, product.id, '10')).body);
     const containerId = received.containers[0]!.containerId;
 
     const found = await call(lab.operator.subject, `${lab.base}/containers/${containerId}`);
@@ -1335,13 +1343,10 @@ describe('R-01C · Movimientos como informe (ADR 0014)', () => {
    */
   async function reportLab() {
     const lab = await createLab();
-    const a = await createProductAndLot(lab);
-    const b = await createProductAndLot(lab, 'mL');
-    const aPosition = receivedPosition(await receive(lab, a.lot.id, '100'));
-    const bReceipt = await call(lab.adminMember.subject, `${lab.base}/receipts`, {
-      method: 'POST',
-      body: { lotId: b.lot.id, locationId: lab.storage, quantity: '50', unit: 'mL' },
-    });
+    const a = await createProduct(lab);
+    const b = await createProduct(lab, 'mL', 'Etanol');
+    const aPosition = receivedPosition(await receive(lab, a.id, '100'));
+    const bReceipt = await receive(lab, b.id, '50', lab.storage, lab.adminMember.subject, { unit: 'mL' });
     expect(bReceipt.status).toBe(201);
     const bPosition = receivedPosition(bReceipt);
     const direct = await call(lab.adminMember.subject, `${lab.base}/issues`, {
@@ -1371,7 +1376,7 @@ describe('R-01C · Movimientos como informe (ADR 0014)', () => {
       body: { positionId: bPosition, locationId: lab.otherStorage },
     });
     expect(moved.status).toBe(201);
-    return { lab, a: a.product, b: b.product };
+    return { lab, a, b };
   }
 
   /** Fija la fecha de las operaciones de un reactivo, como dueño: el runtime no puede retrofechar. */
@@ -1634,5 +1639,310 @@ describe('R-01C · Movimientos como informe (ADR 0014)', () => {
     const summary = reagentsSummary.parse((await call(lab.operator.subject, `${lab.base}/summary`)).body);
     expect(summary.activity.map((item) => item.id)).toEqual(list.items.slice(0, 6).map((item) => item.entryId));
     expect(summary.trend?.points.reduce((sum, point) => sum + point.value, 0)).toBe(2);
+  });
+});
+
+describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () => {
+  const acetone = { name: 'Acetona', casNumber: '67-64-1', physicalState: 'liquid', baseUnit: 'mL', hazards: ['GHS07', 'GHS02'], controlled: true, density: '0.79' };
+  const productsIn = (workspaceId: string) => count('select count(*) as n from inventory.items where workspace_id = $1', [workspaceId]);
+  const auditOf = async (workspaceId: string, action: string) =>
+    (
+      await admin.query<{ changes: Record<string, unknown> }>(
+        'select changes from core.audit_events where workspace_id = $1 and action = $2 order by occurred_at desc',
+        [workspaceId, action],
+      )
+    ).rows;
+  const ingress = (lab: Lab, body: Record<string, unknown>, subject = lab.adminMember.subject) =>
+    call(subject, `${lab.base}/receipts`, { method: 'POST', body: { locationId: lab.storage, codes: freshCodes(), ...body } });
+  const positionsOf = async (lab: Lab, productId: string) =>
+    positionList.parse((await call(lab.adminMember.subject, `${lab.base}/positions?productId=${productId}`)).body).items;
+
+  it('el Administrador ingresa un reactivo nuevo: código automático, lote L-001, frascos con sus códigos y auditoría', async () => {
+    const lab = await createLab();
+    const response = await ingress(lab, {
+      newProduct: acetone,
+      brand: 'Merck',
+      area: 'Docencia',
+      expiresOn: '2027-05-31',
+      quantity: '500',
+      unit: 'mL',
+      codes: ['ACE-001', 'ACE-002', 'ACE-003'],
+      reference: 'Factura 12',
+    });
+    expect(response.status).toBe(201);
+    const received = receiptResponse.parse(response.body);
+    expect(received).toMatchObject({ product: { code: 'ACETONA', name: 'Acetona' }, lot: { code: 'L-001' }, unit: 'mL' });
+    expect(received.containers.map(({ code, balance, tare }) => [code, balance, tare])).toEqual([
+      ['ACE-001', '500', null],
+      ['ACE-002', '500', null],
+      ['ACE-003', '500', null],
+    ]);
+    const detail = productDetail.parse((await call(lab.operator.subject, `${lab.base}/products/${received.product.id}`)).body);
+    expect(detail).toMatchObject({
+      code: 'ACETONA',
+      hazards: ['GHS02', 'GHS07'],
+      controlled: true,
+      density: '0.79',
+      balance: '1500',
+      containersWithStock: 3,
+      unitEditable: false,
+    });
+    const positions = await positionsOf(lab, received.product.id);
+    expect(positions.map((position) => [position.container?.code, position.product.controlled, position.lot.brand, position.lot.area])).toEqual([
+      ['ACE-001', true, 'Merck', 'Docencia'],
+      ['ACE-002', true, 'Merck', 'Docencia'],
+      ['ACE-003', true, 'Merck', 'Docencia'],
+    ]);
+    expect(await auditOf(lab.workspace.id, 'reagents.product.create')).toHaveLength(1);
+    const [receiptAudit] = await auditOf(lab.workspace.id, 'reagents.receipt.create');
+    expect(receiptAudit?.changes).toMatchObject({ productId: received.product.id, lotId: received.lot.id });
+  });
+
+  it('el Operador no crea reactivos desde el ingreso; con uno del catálogo, sí ingresa', async () => {
+    const lab = await createLab();
+    const before = await productsIn(lab.workspace.id);
+    const denied = await ingress(lab, { newProduct: acetone, quantity: '1', unit: 'mL' }, lab.operator.subject);
+    expect(denied.status).toBe(403);
+    expect(errorCode(denied.body)).toBe('ACCESS_DENIED');
+    expect(await productsIn(lab.workspace.id)).toBe(before);
+    expect(await operationsIn(lab.workspace.id)).toBe(0);
+    const product = await createProduct(lab);
+    expect((await ingress(lab, { productId: product.id, quantity: '1', unit: 'g' }, lab.operator.subject)).status).toBe(201);
+  });
+
+  it('un código de frasco ya usado en el espacio, en cualquier mayúscula, responde CODE_TAKEN sin dejar nada', async () => {
+    const lab = await createLab();
+    const product = await createProduct(lab);
+    expect((await ingress(lab, { productId: product.id, quantity: '1', unit: 'g', codes: ['NAC-001'] })).status).toBe(201);
+    const operations = await operationsIn(lab.workspace.id);
+    const lots = await count('select count(*) as n from inventory.lots where workspace_id = $1', [lab.workspace.id]);
+    const taken = await ingress(lab, { newProduct: { ...acetone, name: 'Otro' }, quantity: '1', unit: 'mL', codes: ['NAC-009', 'nac-001'] });
+    expect(taken.status).toBe(409);
+    expect(errorCode(taken.body)).toBe('CODE_TAKEN');
+    expect(errorResponse.parse(taken.body).error.message).toBe('El código nac-001 ya existe en el espacio');
+    expect(await operationsIn(lab.workspace.id)).toBe(operations);
+    expect(await count('select count(*) as n from inventory.lots where workspace_id = $1', [lab.workspace.id])).toBe(lots);
+    expect(await productsIn(lab.workspace.id)).toBe(1);
+    // El mismo código en otro espacio no choca.
+    const other = await createLab();
+    const otherProduct = await createProduct(other);
+    expect((await ingress(other, { productId: otherProduct.id, quantity: '1', unit: 'g', codes: ['NAC-001'] })).status).toBe(201);
+  });
+
+  it('la tara se calcula exacta: volumen con densidad, masa en kg; sin densidad o con tara ≤ 0 se rechaza', async () => {
+    const lab = await createLab();
+    const acid = { name: 'Ácido clorhídrico 37 %', casNumber: '7647-01-0', physicalState: 'liquid', baseUnit: 'L' };
+    const liters = await ingress(lab, { newProduct: acid, quantity: '2.5', unit: 'L', weight: { grossWeight: '3395.0', density: '1.19' } });
+    expect(liters.status).toBe(201);
+    const litersReceipt = receiptResponse.parse(liters.body);
+    expect(litersReceipt.containers[0]?.tare).toBe('420');
+    expect((await positionsOf(lab, litersReceipt.product.id))[0]?.container).toMatchObject({ tare: '420', density: '1.19' });
+
+    const kilos = await ingress(lab, {
+      newProduct: { name: 'Cloruro de sodio', casNumber: '7647-14-5', physicalState: 'solid', baseUnit: 'kg' },
+      quantity: '1',
+      unit: 'kg',
+      weight: { grossWeight: '1180.5', density: '2' },
+    });
+    const kilosReceipt = receiptResponse.parse(kilos.body);
+    expect(kilosReceipt.containers[0]?.tare).toBe('180.5');
+    expect((await positionsOf(lab, kilosReceipt.product.id))[0]?.container).toMatchObject({ tare: '180.5', density: null });
+
+    // Sin densidad enviada, la del reactivo.
+    const withProductDensity = await ingress(lab, { newProduct: acetone, quantity: '500', unit: 'mL', weight: { grossWeight: '530' } });
+    expect(receiptResponse.parse(withProductDensity.body).containers[0]?.tare).toBe('135');
+
+    const operations = await operationsIn(lab.workspace.id);
+    const noDensity = await ingress(lab, { productId: litersReceipt.product.id, quantity: '1', unit: 'L', weight: { grossWeight: '2000' } });
+    expect(noDensity.status).toBe(400);
+    expect(errorResponse.parse(noDensity.body).error.message).toBe('Indica la densidad para calcular la tara');
+    const zeroTare = await ingress(lab, { productId: litersReceipt.product.id, quantity: '2.5', unit: 'L', weight: { grossWeight: '2975', density: '1.19' } });
+    expect(zeroTare.status).toBe(400);
+    expect(await operationsIn(lab.workspace.id)).toBe(operations);
+  });
+
+  it('el ajuste por peso deja el saldo de la balanza en centésimas, con motivo «Pesada»; los casos inválidos no escriben', async () => {
+    const lab = await createLab();
+    const product = await createProduct(lab);
+    const weighed = receiptResponse.parse((await receive(lab, product.id, '1000', lab.storage, lab.operator.subject, { weight: { grossWeight: '1140' } })).body);
+    const positionId = weighed.containers[0]!.positionId;
+    const byWeight = (grossWeight: string, subject = lab.adminMember.subject, id = positionId) =>
+      call(subject, `${lab.base}/adjustments/by-weight`, { method: 'POST', body: { positionId: id, grossWeight } });
+
+    const adjusted = await byWeight('1000.456');
+    expect(adjusted.status).toBe(201);
+    expect(movementResponse.parse(adjusted.body)).toMatchObject({ type: 'adjustment', appliedQuantity: '-139.54', balance: '860.46' });
+    const [entry] = operationList.parse((await call(lab.adminMember.subject, `${lab.base}/operations?type=adjustment`)).body).items;
+    expect(entry).toMatchObject({ reason: 'Pesada', reference: 'Peso en balanza: 1000.456 g' });
+
+    const operations = await operationsIn(lab.workspace.id);
+    const expectFailure = async (response: { status: number; body: unknown }, status: number, code: string, message?: string) => {
+      expect(response.status).toBe(status);
+      expect(errorCode(response.body)).toBe(code);
+      if (message) expect(errorResponse.parse(response.body).error.message).toBe(message);
+    };
+    await expectFailure(await byWeight('1000.46'), 400, 'VALIDATION_FAILED', 'El saldo ya coincide con el peso');
+    await expectFailure(await byWeight('139.99'), 400, 'VALIDATION_FAILED', 'El peso es menor que la tara');
+    await expectFailure(await byWeight('900', lab.operator.subject), 403, 'ACCESS_DENIED');
+    const untared = receivedPosition(await receive(lab, product.id, '10'));
+    await expectFailure(await byWeight('500', lab.adminMember.subject, untared), 400, 'VALIDATION_FAILED');
+    // Lo apartado por una solicitud no se ajusta por debajo.
+    const pending = await call(lab.operator.subject, `${lab.base}/issues`, {
+      method: 'POST',
+      body: { positionId, quantity: '800', unit: 'g', reason: 'Práctica', destination: 'Lab' },
+    });
+    expect(issueResponse.parse(pending.body).status).toBe('pending');
+    await expectFailure(await byWeight('900'), 409, 'INSUFFICIENT_STOCK');
+    expect(await operationsIn(lab.workspace.id)).toBe(operations + 1);
+  });
+
+  it('fijar la tara usa el saldo actual, la densidad de reserva y audita los valores anteriores', async () => {
+    const lab = await createLab();
+    const created = receiptResponse.parse((await ingress(lab, { newProduct: acetone, quantity: '500', unit: 'mL' })).body);
+    const containerId = created.containers[0]!.containerId;
+    const setTare = (body: Record<string, unknown>, subject = lab.adminMember.subject, id = containerId) =>
+      call(subject, `${lab.base}/containers/${id}/tare`, { method: 'PUT', body });
+
+    // Sin densidad enviada ni en el frasco: la del reactivo (0.79).
+    const first = await setTare({ grossWeight: '530' });
+    expect(first.status).toBe(200);
+    expect(tareResponse.parse(first.body)).toEqual({ containerId, tare: '135', density: '0.79' });
+    // Con densidad enviada, reemplaza la tara y la densidad.
+    expect(tareResponse.parse((await setTare({ grossWeight: '530', density: '0.8' })).body)).toEqual({ containerId, tare: '130', density: '0.8' });
+    // Sin densidad enviada: la del frasco (0.8), no la del reactivo.
+    expect(tareResponse.parse((await setTare({ grossWeight: '540' })).body)).toEqual({ containerId, tare: '140', density: '0.8' });
+    const [audit] = await auditOf(lab.workspace.id, 'reagents.container.tare');
+    expect(audit?.changes).toMatchObject({ tare: { from: '130', to: '140' }, density: { from: '0.8', to: '0.8' } });
+
+    // Con saldo cero, la tara es el peso.
+    const emptied = await call(lab.adminMember.subject, `${lab.base}/issues`, {
+      method: 'POST',
+      body: { positionId: created.containers[0]!.positionId, quantity: '500', unit: 'mL', reason: 'Práctica', destination: 'Lab' },
+    });
+    expect(emptied.status).toBe(201);
+    expect(tareResponse.parse((await setTare({ grossWeight: '133.5' })).body).tare).toBe('133.5');
+
+    expect((await setTare({ grossWeight: '100' }, lab.operator.subject)).status).toBe(403);
+    expect((await setTare({ grossWeight: '100' }, lab.adminMember.subject, randomUUID())).status).toBe(404);
+    // En volumen sin ninguna densidad, y con tara ≤ 0, se rechaza.
+    const plain = await createProduct(lab, 'mL', 'Agua destilada');
+    const water = receiptResponse.parse((await receive(lab, plain.id, '100', lab.storage, lab.operator.subject, { unit: 'mL' })).body);
+    expect((await setTare({ grossWeight: '200' }, lab.adminMember.subject, water.containers[0]!.containerId)).status).toBe(400);
+    expect((await setTare({ grossWeight: '79', density: '0.8' }, lab.adminMember.subject, water.containers[0]!.containerId)).status).toBe(400);
+  });
+
+  it('la ficha se edita por partes; la unidad no cambia con movimientos y el Operador no edita', async () => {
+    const lab = await createLab();
+    const product = await createProduct(lab, 'g', 'Sulfato de cobre');
+    const patch = (body: Record<string, unknown>, subject = lab.adminMember.subject, id = product.id) =>
+      call(subject, `${lab.base}/products/${id}`, { method: 'PATCH', body });
+
+    const edited = await patch({ hazards: ['GHS09', 'GHS05'], controlled: true, sdsKind: 'digital', sdsUrl: 'https://ejemplo.org/sds.pdf' });
+    expect(edited.status).toBe(200);
+    expect(productContract.parse(edited.body)).toMatchObject({ code: product.code, hazards: ['GHS05', 'GHS09'], controlled: true, sdsKind: 'digital' });
+    const [audit] = await auditOf(lab.workspace.id, 'reagents.product.update');
+    expect(audit?.changes).toEqual({
+      hazards: { from: [], to: ['GHS05', 'GHS09'] },
+      controlled: { from: false, to: true },
+      sdsKind: { from: null, to: 'digital' },
+      sdsUrl: { from: null, to: 'https://ejemplo.org/sds.pdf' },
+    });
+
+    // Sin movimientos la unidad cambia; el enlace sin ficha digital y el CAS ausente fuera de una mezcla, no.
+    expect(productDetail.parse((await call(lab.adminMember.subject, `${lab.base}/products/${product.id}`)).body).unitEditable).toBe(true);
+    expect((await patch({ baseUnit: 'kg' })).status).toBe(200);
+    expect((await patch({ sdsKind: 'physical' })).status).toBe(400);
+    expect((await patch({ casNumber: null })).status).toBe(400);
+    expect((await patch({ casNumber: null, physicalState: 'mixture' })).status).toBe(200);
+    expect((await patch({})).status).toBe(400);
+
+    expect((await receive(lab, product.id, '1', lab.storage, lab.operator.subject, { unit: 'kg' })).status).toBe(201);
+    expect(productDetail.parse((await call(lab.adminMember.subject, `${lab.base}/products/${product.id}`)).body).unitEditable).toBe(false);
+    const unit = await patch({ baseUnit: 'g' });
+    expect(unit.status).toBe(400);
+    expect(errorCode(unit.body)).toBe('VALIDATION_FAILED');
+    expect((await patch({ name: 'Sulfato de cobre pentahidratado' })).status).toBe(200);
+
+    const denied = await patch({ controlled: false }, lab.operator.subject);
+    expect(denied.status).toBe(403);
+    expect(errorCode(denied.body)).toBe('ACCESS_DENIED');
+    const other = await createLab();
+    expect((await patch({ controlled: false }, lab.adminMember.subject, (await createProduct(other)).id)).status).toBe(404);
+  });
+
+  it('sugiere la serie del reactivo, una a partir del nombre y salta los códigos ocupados', async () => {
+    const lab = await createLab();
+    const suggest = async (query: string, subject = lab.operator.subject) => {
+      const response = await call(subject, `${lab.base}/container-codes/suggestion?${query}`);
+      return { status: response.status, codes: response.status === 200 ? containerCodeSuggestion.parse(response.body).codes : [] };
+    };
+    const product = await createProduct(lab);
+    expect((await suggest(`productId=${product.id}&count=2`)).codes).toEqual(['CLO-001', 'CLO-002']);
+    expect((await suggest('name=Acetona')).codes).toEqual(['ACE-001']);
+
+    await receive(lab, product.id, '1', lab.storage, lab.operator.subject, { codes: ['AC-BIO-001'] });
+    expect((await suggest(`productId=${product.id}&count=2`)).codes).toEqual(['AC-BIO-002', 'AC-BIO-003']);
+    // Otro reactivo ocupa AC-BIO-003: la serie salta hasta la primera libre.
+    const other = await createProduct(lab, 'g', 'Otro');
+    await receive(lab, other.id, '1', lab.storage, lab.operator.subject, { codes: ['ac-bio-003'] });
+    expect((await suggest(`productId=${product.id}&count=2`)).codes).toEqual(['AC-BIO-004', 'AC-BIO-005']);
+
+    expect((await suggest('count=2')).status).toBe(400);
+    const foreign = await createProduct(await createLab());
+    expect((await suggest(`productId=${foreign.id}`)).status).toBe(404);
+  });
+
+  it('crea ubicaciones en tres niveles con su tipo; la repetida devuelve la misma y nadie más las crea', async () => {
+    const lab = await createLab();
+    const create = (body: Record<string, unknown>, subject = lab.adminMember.subject) =>
+      call(subject, `${lab.base}/locations`, { method: 'POST', body });
+    const created = async (body: Record<string, unknown>) => {
+      const response = await create(body);
+      expect(response.status).toBe(201);
+      return location.parse(response.body);
+    };
+    const room = await created({ name: 'Bodega química', parentId: null });
+    expect(room).toMatchObject({ code: 'BODEGA-QUIMICA', kind: 'room', parentId: null });
+    const shelf = await created({ name: 'Estante A', parentId: room.id });
+    expect(shelf).toMatchObject({ code: 'ESTANTE-A', kind: 'storage', parentId: room.id });
+    const level = await created({ name: 'Nivel 1', parentId: shelf.id });
+    expect(level).toMatchObject({ code: 'NIVEL-1', kind: 'storage', parentId: shelf.id });
+    // Bajo la sede del laboratorio, una sala; repetida sin distinguir mayúsculas, la misma.
+    const site = (await admin.query<{ parent_id: string }>('select parent_id from core.locations where id = $1', [lab.storage])).rows[0]!.parent_id;
+    expect(await created({ name: 'Sala 2', parentId: site })).toMatchObject({ kind: 'room' });
+    expect((await created({ name: 'estante a', parentId: room.id })).id).toBe(shelf.id);
+    // El mismo nombre bajo otro padre es otra ubicación, con otro código.
+    expect(await created({ name: 'Estante A', parentId: level.id })).toMatchObject({ code: 'ESTANTE-A-2' });
+
+    const denied = await create({ name: 'Del Operador', parentId: null }, lab.operator.subject);
+    expect(denied.status).toBe(403);
+    expect(errorCode(denied.body)).toBe('ACCESS_DENIED');
+    const foreign = await createLab();
+    expect((await create({ name: 'Cruzada', parentId: foreign.storage })).status).toBe(404);
+    const custody = await addLocation(admin, lab.workspace.id, { kind: 'custody' });
+    expect((await create({ name: 'Dentro', parentId: custody })).status).toBe(400);
+    // La nueva ubicación sirve para el ingreso y llega con su padre.
+    const locations = locationList.parse((await call(lab.adminMember.subject, `${lab.base}/receipt-locations`)).body);
+    expect(locations.items.find((item) => item.id === level.id)).toMatchObject({ parentId: shelf.id });
+  });
+
+  it('las áreas se administran como los destinos y las marcas usadas se sugieren, recientes primero', async () => {
+    const lab = await createLab();
+    const area = await call(lab.adminMember.subject, `${lab.base}/areas`, { method: 'POST', body: { name: 'Investigación' } });
+    expect(area.status).toBe(201);
+    const entry = entryList.shape.items.element.parse(area.body);
+    const again = await call(lab.adminMember.subject, `${lab.base}/areas`, { method: 'POST', body: { name: 'investigación' } });
+    expect(entryList.shape.items.element.parse(again.body).id).toBe(entry.id);
+    expect((await call(lab.operator.subject, `${lab.base}/areas`, { method: 'POST', body: { name: 'Docencia' } })).status).toBe(403);
+    expect(entryList.parse((await call(lab.operator.subject, `${lab.base}/areas`)).body).items).toEqual([entry]);
+    expect((await call(lab.adminMember.subject, `${lab.base}/areas/${entry.id}/archive`, { method: 'POST' })).status).toBe(200);
+    expect(entryList.parse((await call(lab.operator.subject, `${lab.base}/areas`)).body).items).toEqual([]);
+
+    const product = await createProduct(lab);
+    for (const brand of ['Merck', 'Sigma', 'merck']) {
+      expect((await receive(lab, product.id, '1', lab.storage, lab.operator.subject, { brand })).status).toBe(201);
+    }
+    const brands = brandList.parse((await call(lab.operator.subject, `${lab.base}/brands`)).body);
+    expect(brands.items).toEqual(['merck', 'Sigma']);
   });
 });

@@ -308,8 +308,8 @@ select set_config('platlab.workspace_id', 'a0000000-0000-4000-8000-00000000000a'
 
 select throws_ok(
   $$ insert into core.locations (workspace_id, kind, code, name)
-     values ('a0000000-0000-4000-8000-00000000000a', 'room', 'NUEVA', 'Nueva') $$,
-  '42501', null, 'el runtime no crea ubicaciones en T-02/T-03');
+     values ('b0000000-0000-4000-8000-00000000000b', 'room', 'NUEVA', 'Nueva') $$,
+  '42501', null, 'el runtime no crea ubicaciones en otro espacio (ADR 0015)');
 
 select throws_ok(
   $$ delete from core.memberships where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,

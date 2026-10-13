@@ -1,9 +1,31 @@
 /* Detalle químico de Reactivos (03 §4): extensión 1:1 de un ítem `reagent` de inventario. */
 
 /* @name insertProductDetail */
-INSERT INTO reagents.products (workspace_id, item_id, cas_number, physical_state)
-VALUES (:workspaceId!, :itemId!, :casNumber, :physicalState)
-RETURNING cas_number, physical_state;
+INSERT INTO reagents.products
+  (workspace_id, item_id, cas_number, physical_state, hazards, controlled, sds_kind, sds_url, density)
+VALUES
+  (:workspaceId!, :itemId!, :casNumber, :physicalState!, :hazards!::text[], :controlled!, :sdsKind, :sdsUrl, :density::numeric)
+RETURNING cas_number, physical_state, hazards, controlled, sds_kind, sds_url, trim_scale(density) AS density;
+
+/* @name findProductDetail */
+-- La ficha química de un reactivo del espacio (ADR 0015).
+SELECT cas_number, physical_state, hazards, controlled, sds_kind, sds_url, trim_scale(density) AS density
+FROM reagents.products
+WHERE workspace_id = :workspaceId! AND item_id = :itemId!;
+
+/* @name updateProductDetail */
+-- Escribe la ficha ya combinada; el comando la edita con el ítem bloqueado.
+UPDATE reagents.products
+SET cas_number = :casNumber, physical_state = :physicalState, hazards = :hazards!::text[], controlled = :controlled!,
+    sds_kind = :sdsKind, sds_url = :sdsUrl, density = :density::numeric
+WHERE workspace_id = :workspaceId! AND item_id = :itemId!
+RETURNING item_id;
+
+/* @name listControlled */
+-- Qué reactivos son controlados (ADR 0015), para marcar sus frascos.
+SELECT item_id
+FROM reagents.products
+WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]) AND controlled;
 
 /* @name listProducts */
 -- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.
@@ -14,6 +36,11 @@ SELECT
   i.base_unit,
   r.cas_number,
   r.physical_state,
+  r.hazards,
+  r.controlled,
+  r.sds_kind,
+  r.sds_url,
+  trim_scale(r.density) AS density,
   trim_scale(i.minimum_quantity) AS minimum,
   stock.balance AS "balance!",
   -- Bajo mínimo (ADR 0012, 05-10-2026): existencia física, con los vencidos y lo apartado.
@@ -99,8 +126,8 @@ SELECT
   (SELECT count(*) FROM minimums) AS "products_with_minimum!";
 
 /* @name listProductLots */
--- Lotes de un reactivo del espacio, para elegirlos al registrar un ingreso.
-SELECT l.id, l.item_id, l.code, l.supplier_name, l.supplier_lot, l.expires_on
+-- Lotes de un reactivo del espacio.
+SELECT l.id, l.item_id, l.code, l.brand, l.area, l.expires_on
 FROM inventory.lots AS l
 JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
 WHERE l.workspace_id = :workspaceId!
@@ -111,7 +138,7 @@ ORDER BY l.expires_on NULLS LAST, lower(l.code), l.id
 LIMIT 200;
 
 /* @name listLocationsIn */
-SELECT id, code, name, kind
+SELECT id, code, name, kind, parent_id
 FROM core.locations
 WHERE workspace_id = :workspaceId!
   AND id = ANY (:locationIds!::uuid[])

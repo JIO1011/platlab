@@ -71,7 +71,7 @@ export function ContainerCard({
   const canIssue = allowed.issue && available !== '0';
   // Se traslada el frasco entero; con salidas pendientes, primero se resuelven (ADR 0012, entrega 4).
   const canTransfer = allowed.transfer && !empty && !reserved;
-  const { supplierName, supplierLot } = position.lot;
+  const { brand } = position.lot;
   const soon = expiresOn !== null && !expired && expiresOn <= addDays(today, 30);
   return (
     <article
@@ -99,10 +99,10 @@ export function ContainerCard({
         </span>
       ) : null}
       <div className="flex flex-wrap gap-1.5">
-        {supplierName ? (
+        {brand ? (
           <Badge className="gap-1 text-[12px]">
             <Building2 className="size-3" aria-hidden />
-            {supplierName}
+            {brand}
           </Badge>
         ) : null}
         <Badge className="gap-1 text-[12px]">
@@ -153,7 +153,6 @@ export function ContainerCard({
       {/* El lote interno ya es el prefijo del código del frasco: no se repite en un recuadro. Dos
           columnas; si los recuadros son impares, el último ocupa la fila para no dejar un hueco. */}
       <div className="grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2">
-        {supplierLot ? <Tile label="Lote del proveedor">{supplierLot}</Tile> : null}
         {position.container ? <Tile label="Ingresó">{formatInstantDate(position.container.receivedAt, timeZone)}</Tile> : null}
         {expiresOn ? (
           <Tile label={expired ? 'Venció' : 'Vence'} tone={expired ? 'danger' : soon ? 'warning' : 'neutral'}>

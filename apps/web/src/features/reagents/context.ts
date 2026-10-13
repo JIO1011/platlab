@@ -15,8 +15,6 @@ import type { MovementFilters, OperationQuery } from './movement-filters';
 
 /** Hoja de registro que se abre, con lo que ya se conoce (reactivo o frasco de origen). */
 export type SheetRequest =
-  | { kind: 'product' }
-  | { kind: 'receipt'; productId?: string }
   // Con `position`, el frasco viaja en la petición (el de una etiqueta QR puede no estar en la lista global).
   | { kind: 'issue'; positionId?: string; productId?: string; position?: Position }
   | { kind: 'adjustment'; positionId?: string }
@@ -31,7 +29,7 @@ export type SheetRequest =
  * motivos y destinos, `approve`, aprobar salidas, y `transfer`, trasladar frascos (ADR 0012). Sin
  * `approve`, la salida es una solicitud.
  */
-export type Allowed = Record<'product' | 'receipt' | 'issue' | 'adjustment' | 'lists' | 'approve' | 'transfer', boolean>;
+export type Allowed = Record<'product' | 'issue' | 'adjustment' | 'lists' | 'approve' | 'transfer', boolean>;
 
 /** Lo que las secciones de la app de Reactivos comparten: datos ya pedidos, permisos y hojas. */
 export interface ReagentsContext {

@@ -8,15 +8,25 @@ export type stringArray = (string)[];
 /** 'InsertProductDetail' parameters type */
 export interface IInsertProductDetailParams {
   casNumber?: string | null | void;
+  controlled: boolean;
+  density?: string | null | void;
+  hazards: stringArray;
   itemId: string;
-  physicalState?: string | null | void;
+  physicalState: string;
+  sdsKind?: string | null | void;
+  sdsUrl?: string | null | void;
   workspaceId: string;
 }
 
 /** 'InsertProductDetail' return type */
 export interface IInsertProductDetailResult {
   cas_number: string | null;
+  controlled: boolean;
+  density: string | null;
+  hazards: stringArray;
   physical_state: string | null;
+  sds_kind: string | null;
+  sds_url: string | null;
 }
 
 /** 'InsertProductDetail' query type */
@@ -25,17 +35,127 @@ export interface IInsertProductDetailQuery {
   result: IInsertProductDetailResult;
 }
 
-const insertProductDetailIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true,"casNumber":true,"physicalState":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":90,"b":102}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":105,"b":112}]},{"name":"casNumber","required":false,"transform":{"type":"scalar"},"locs":[{"a":115,"b":124}]},{"name":"physicalState","required":false,"transform":{"type":"scalar"},"locs":[{"a":127,"b":140}]}],"statement":"INSERT INTO reagents.products (workspace_id, item_id, cas_number, physical_state)\nVALUES (:workspaceId!, :itemId!, :casNumber, :physicalState)\nRETURNING cas_number, physical_state"};
+const insertProductDetailIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true,"casNumber":true,"physicalState":true,"hazards":true,"controlled":true,"sdsKind":true,"sdsUrl":true,"density":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":143,"b":155}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":158,"b":165}]},{"name":"casNumber","required":false,"transform":{"type":"scalar"},"locs":[{"a":168,"b":177}]},{"name":"physicalState","required":true,"transform":{"type":"scalar"},"locs":[{"a":180,"b":194}]},{"name":"hazards","required":true,"transform":{"type":"scalar"},"locs":[{"a":197,"b":205}]},{"name":"controlled","required":true,"transform":{"type":"scalar"},"locs":[{"a":216,"b":227}]},{"name":"sdsKind","required":false,"transform":{"type":"scalar"},"locs":[{"a":230,"b":237}]},{"name":"sdsUrl","required":false,"transform":{"type":"scalar"},"locs":[{"a":240,"b":246}]},{"name":"density","required":false,"transform":{"type":"scalar"},"locs":[{"a":249,"b":256}]}],"statement":"INSERT INTO reagents.products\n  (workspace_id, item_id, cas_number, physical_state, hazards, controlled, sds_kind, sds_url, density)\nVALUES\n  (:workspaceId!, :itemId!, :casNumber, :physicalState!, :hazards!::text[], :controlled!, :sdsKind, :sdsUrl, :density::numeric)\nRETURNING cas_number, physical_state, hazards, controlled, sds_kind, sds_url, trim_scale(density) AS density"};
 
 /**
  * Query generated from SQL:
  * ```
- * INSERT INTO reagents.products (workspace_id, item_id, cas_number, physical_state)
- * VALUES (:workspaceId!, :itemId!, :casNumber, :physicalState)
- * RETURNING cas_number, physical_state
+ * INSERT INTO reagents.products
+ *   (workspace_id, item_id, cas_number, physical_state, hazards, controlled, sds_kind, sds_url, density)
+ * VALUES
+ *   (:workspaceId!, :itemId!, :casNumber, :physicalState!, :hazards!::text[], :controlled!, :sdsKind, :sdsUrl, :density::numeric)
+ * RETURNING cas_number, physical_state, hazards, controlled, sds_kind, sds_url, trim_scale(density) AS density
  * ```
  */
 export const insertProductDetail = new PreparedQuery<IInsertProductDetailParams,IInsertProductDetailResult>(insertProductDetailIR);
+
+
+/** 'FindProductDetail' parameters type */
+export interface IFindProductDetailParams {
+  itemId: string;
+  workspaceId: string;
+}
+
+/** 'FindProductDetail' return type */
+export interface IFindProductDetailResult {
+  cas_number: string | null;
+  controlled: boolean;
+  density: string | null;
+  hazards: stringArray;
+  physical_state: string | null;
+  sds_kind: string | null;
+  sds_url: string | null;
+}
+
+/** 'FindProductDetail' query type */
+export interface IFindProductDetailQuery {
+  params: IFindProductDetailParams;
+  result: IFindProductDetailResult;
+}
+
+const findProductDetailIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":209,"b":221}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":237,"b":244}]}],"statement":"-- La ficha química de un reactivo del espacio (ADR 0015).\nSELECT cas_number, physical_state, hazards, controlled, sds_kind, sds_url, trim_scale(density) AS density\nFROM reagents.products\nWHERE workspace_id = :workspaceId! AND item_id = :itemId!"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- La ficha química de un reactivo del espacio (ADR 0015).
+ * SELECT cas_number, physical_state, hazards, controlled, sds_kind, sds_url, trim_scale(density) AS density
+ * FROM reagents.products
+ * WHERE workspace_id = :workspaceId! AND item_id = :itemId!
+ * ```
+ */
+export const findProductDetail = new PreparedQuery<IFindProductDetailParams,IFindProductDetailResult>(findProductDetailIR);
+
+
+/** 'UpdateProductDetail' parameters type */
+export interface IUpdateProductDetailParams {
+  casNumber?: string | null | void;
+  controlled: boolean;
+  density?: string | null | void;
+  hazards: stringArray;
+  itemId: string;
+  physicalState?: string | null | void;
+  sdsKind?: string | null | void;
+  sdsUrl?: string | null | void;
+  workspaceId: string;
+}
+
+/** 'UpdateProductDetail' return type */
+export interface IUpdateProductDetailResult {
+  item_id: string;
+}
+
+/** 'UpdateProductDetail' query type */
+export interface IUpdateProductDetailQuery {
+  params: IUpdateProductDetailParams;
+  result: IUpdateProductDetailResult;
+}
+
+const updateProductDetailIR: any = {"usedParamSet":{"casNumber":true,"physicalState":true,"hazards":true,"controlled":true,"sdsKind":true,"sdsUrl":true,"density":true,"workspaceId":true,"itemId":true},"params":[{"name":"casNumber","required":false,"transform":{"type":"scalar"},"locs":[{"a":119,"b":128}]},{"name":"physicalState","required":false,"transform":{"type":"scalar"},"locs":[{"a":148,"b":161}]},{"name":"hazards","required":true,"transform":{"type":"scalar"},"locs":[{"a":174,"b":182}]},{"name":"controlled","required":true,"transform":{"type":"scalar"},"locs":[{"a":206,"b":217}]},{"name":"sdsKind","required":false,"transform":{"type":"scalar"},"locs":[{"a":235,"b":242}]},{"name":"sdsUrl","required":false,"transform":{"type":"scalar"},"locs":[{"a":255,"b":261}]},{"name":"density","required":false,"transform":{"type":"scalar"},"locs":[{"a":274,"b":281}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":313,"b":325}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":341,"b":348}]}],"statement":"-- Escribe la ficha ya combinada; el comando la edita con el ítem bloqueado.\nUPDATE reagents.products\nSET cas_number = :casNumber, physical_state = :physicalState, hazards = :hazards!::text[], controlled = :controlled!,\n    sds_kind = :sdsKind, sds_url = :sdsUrl, density = :density::numeric\nWHERE workspace_id = :workspaceId! AND item_id = :itemId!\nRETURNING item_id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Escribe la ficha ya combinada; el comando la edita con el ítem bloqueado.
+ * UPDATE reagents.products
+ * SET cas_number = :casNumber, physical_state = :physicalState, hazards = :hazards!::text[], controlled = :controlled!,
+ *     sds_kind = :sdsKind, sds_url = :sdsUrl, density = :density::numeric
+ * WHERE workspace_id = :workspaceId! AND item_id = :itemId!
+ * RETURNING item_id
+ * ```
+ */
+export const updateProductDetail = new PreparedQuery<IUpdateProductDetailParams,IUpdateProductDetailResult>(updateProductDetailIR);
+
+
+/** 'ListControlled' parameters type */
+export interface IListControlledParams {
+  itemIds: stringArray;
+  workspaceId: string;
+}
+
+/** 'ListControlled' return type */
+export interface IListControlledResult {
+  item_id: string;
+}
+
+/** 'ListControlled' query type */
+export interface IListControlledQuery {
+  params: IListControlledParams;
+  result: IListControlledResult;
+}
+
+const listControlledIR: any = {"usedParamSet":{"workspaceId":true,"itemIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":129,"b":141}]},{"name":"itemIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":162,"b":170}]}],"statement":"-- Qué reactivos son controlados (ADR 0015), para marcar sus frascos.\nSELECT item_id\nFROM reagents.products\nWHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]) AND controlled"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Qué reactivos son controlados (ADR 0015), para marcar sus frascos.
+ * SELECT item_id
+ * FROM reagents.products
+ * WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]) AND controlled
+ * ```
+ */
+export const listControlled = new PreparedQuery<IListControlledParams,IListControlledResult>(listControlledIR);
 
 
 /** 'ListProducts' parameters type */
@@ -58,12 +178,17 @@ export interface IListProductsResult {
   cas_number: string | null;
   code: string;
   containers_with_stock: number;
+  controlled: boolean;
+  density: string | null;
   expired_containers: number;
   expiring_containers: number;
+  hazards: stringArray;
   id: string;
   minimum: string | null;
   name: string;
   physical_state: string | null;
+  sds_kind: string | null;
+  sds_url: string | null;
   sort_code: string;
 }
 
@@ -73,7 +198,7 @@ export interface IListProductsQuery {
   result: IListProductsResult;
 }
 
-const listProductsIR: any = {"usedParamSet":{"locationIds":true,"timeZone":true,"expiringDays":true,"workspaceId":true,"productId":true,"afterId":true,"afterCode":true,"limit":true},"params":[{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":630,"b":642},{"a":1056,"b":1068},{"a":1437,"b":1449},{"a":2002,"b":2014}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":1124,"b":1133},{"a":1511,"b":1520},{"a":1580,"b":1589}]},{"name":"expiringDays","required":true,"transform":{"type":"scalar"},"locs":[{"a":1600,"b":1613}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2059,"b":2071}]},{"name":"productId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2133,"b":2142},{"a":2168,"b":2177}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2193,"b":2200},{"a":2262,"b":2269}]},{"name":"afterCode","required":false,"transform":{"type":"scalar"},"locs":[{"a":2244,"b":2253}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":2314,"b":2320}]}],"statement":"-- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.\nSELECT\n  i.id,\n  i.code,\n  i.name,\n  i.base_unit,\n  r.cas_number,\n  r.physical_state,\n  trim_scale(i.minimum_quantity) AS minimum,\n  stock.balance AS \"balance!\",\n  -- Bajo mínimo (ADR 0012, 05-10-2026): existencia física, con los vencidos y lo apartado.\n  (i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity) AS \"below_minimum!\",\n  (SELECT count(*)\n     FROM inventory.positions AS p\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND p.location_id = ANY (:locationIds!::uuid[]))::int AS \"containers_with_stock!\",\n  -- Avisos de caducidad (ADR 0012, 05-10-2026): frascos con saldo; «hoy» es la fecha civil del espacio.\n  (SELECT count(*)\n     FROM inventory.positions AS p\n     JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND p.location_id = ANY (:locationIds!::uuid[])\n      AND l.expires_on < (now() AT TIME ZONE :timeZone!)::date)::int AS \"expired_containers!\",\n  (SELECT count(*)\n     FROM inventory.positions AS p\n     JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND p.location_id = ANY (:locationIds!::uuid[])\n      AND l.expires_on BETWEEN (now() AT TIME ZONE :timeZone!)::date\n                           AND (now() AT TIME ZONE :timeZone!)::date + :expiringDays!::int)::int AS \"expiring_containers!\",\n  lower(i.code) AS \"sort_code!\"\nFROM inventory.items AS i\nJOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id\nCROSS JOIN LATERAL (\n  SELECT trim_scale(coalesce(sum(p.balance), 0)) AS balance\n  FROM inventory.positions AS p\n  WHERE p.workspace_id = i.workspace_id\n    AND p.item_id = i.id\n    AND p.location_id = ANY (:locationIds!::uuid[])\n) AS stock\nWHERE i.workspace_id = :workspaceId!\n  AND i.kind = 'reagent'\n  AND i.archived_at IS NULL\n  AND (:productId::uuid IS NULL OR i.id = :productId::uuid)\n  AND (:afterId::uuid IS NULL OR (lower(i.code), i.id) > (:afterCode::text, :afterId::uuid))\nORDER BY lower(i.code), i.id\nLIMIT :limit!"};
+const listProductsIR: any = {"usedParamSet":{"locationIds":true,"timeZone":true,"expiringDays":true,"workspaceId":true,"productId":true,"afterId":true,"afterCode":true,"limit":true},"params":[{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":722,"b":734},{"a":1148,"b":1160},{"a":1529,"b":1541},{"a":2094,"b":2106}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":1216,"b":1225},{"a":1603,"b":1612},{"a":1672,"b":1681}]},{"name":"expiringDays","required":true,"transform":{"type":"scalar"},"locs":[{"a":1692,"b":1705}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2151,"b":2163}]},{"name":"productId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2225,"b":2234},{"a":2260,"b":2269}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2285,"b":2292},{"a":2354,"b":2361}]},{"name":"afterCode","required":false,"transform":{"type":"scalar"},"locs":[{"a":2336,"b":2345}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":2406,"b":2412}]}],"statement":"-- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.\nSELECT\n  i.id,\n  i.code,\n  i.name,\n  i.base_unit,\n  r.cas_number,\n  r.physical_state,\n  r.hazards,\n  r.controlled,\n  r.sds_kind,\n  r.sds_url,\n  trim_scale(r.density) AS density,\n  trim_scale(i.minimum_quantity) AS minimum,\n  stock.balance AS \"balance!\",\n  -- Bajo mínimo (ADR 0012, 05-10-2026): existencia física, con los vencidos y lo apartado.\n  (i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity) AS \"below_minimum!\",\n  (SELECT count(*)\n     FROM inventory.positions AS p\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND p.location_id = ANY (:locationIds!::uuid[]))::int AS \"containers_with_stock!\",\n  -- Avisos de caducidad (ADR 0012, 05-10-2026): frascos con saldo; «hoy» es la fecha civil del espacio.\n  (SELECT count(*)\n     FROM inventory.positions AS p\n     JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND p.location_id = ANY (:locationIds!::uuid[])\n      AND l.expires_on < (now() AT TIME ZONE :timeZone!)::date)::int AS \"expired_containers!\",\n  (SELECT count(*)\n     FROM inventory.positions AS p\n     JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND p.location_id = ANY (:locationIds!::uuid[])\n      AND l.expires_on BETWEEN (now() AT TIME ZONE :timeZone!)::date\n                           AND (now() AT TIME ZONE :timeZone!)::date + :expiringDays!::int)::int AS \"expiring_containers!\",\n  lower(i.code) AS \"sort_code!\"\nFROM inventory.items AS i\nJOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id\nCROSS JOIN LATERAL (\n  SELECT trim_scale(coalesce(sum(p.balance), 0)) AS balance\n  FROM inventory.positions AS p\n  WHERE p.workspace_id = i.workspace_id\n    AND p.item_id = i.id\n    AND p.location_id = ANY (:locationIds!::uuid[])\n) AS stock\nWHERE i.workspace_id = :workspaceId!\n  AND i.kind = 'reagent'\n  AND i.archived_at IS NULL\n  AND (:productId::uuid IS NULL OR i.id = :productId::uuid)\n  AND (:afterId::uuid IS NULL OR (lower(i.code), i.id) > (:afterCode::text, :afterId::uuid))\nORDER BY lower(i.code), i.id\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
@@ -86,6 +211,11 @@ const listProductsIR: any = {"usedParamSet":{"locationIds":true,"timeZone":true,
  *   i.base_unit,
  *   r.cas_number,
  *   r.physical_state,
+ *   r.hazards,
+ *   r.controlled,
+ *   r.sds_kind,
+ *   r.sds_url,
+ *   trim_scale(r.density) AS density,
  *   trim_scale(i.minimum_quantity) AS minimum,
  *   stock.balance AS "balance!",
  *   -- Bajo mínimo (ADR 0012, 05-10-2026): existencia física, con los vencidos y lo apartado.
@@ -214,12 +344,12 @@ export interface IListProductLotsParams {
 
 /** 'ListProductLots' return type */
 export interface IListProductLotsResult {
+  area: string | null;
+  brand: string | null;
   code: string;
   expires_on: string | null;
   id: string;
   item_id: string;
-  supplier_lot: string | null;
-  supplier_name: string | null;
 }
 
 /** 'ListProductLots' query type */
@@ -228,13 +358,13 @@ export interface IListProductLotsQuery {
   result: IListProductLotsResult;
 }
 
-const listProductLotsIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":285,"b":297}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":317,"b":324}]}],"statement":"-- Lotes de un reactivo del espacio, para elegirlos al registrar un ingreso.\nSELECT l.id, l.item_id, l.code, l.supplier_name, l.supplier_lot, l.expires_on\nFROM inventory.lots AS l\nJOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id\nWHERE l.workspace_id = :workspaceId!\n  AND l.item_id = :itemId!\n  AND i.kind = 'reagent'\n  AND i.archived_at IS NULL\nORDER BY l.expires_on NULLS LAST, lower(l.code), l.id\nLIMIT 200"};
+const listProductLotsIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":229,"b":241}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":261,"b":268}]}],"statement":"-- Lotes de un reactivo del espacio.\nSELECT l.id, l.item_id, l.code, l.brand, l.area, l.expires_on\nFROM inventory.lots AS l\nJOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id\nWHERE l.workspace_id = :workspaceId!\n  AND l.item_id = :itemId!\n  AND i.kind = 'reagent'\n  AND i.archived_at IS NULL\nORDER BY l.expires_on NULLS LAST, lower(l.code), l.id\nLIMIT 200"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Lotes de un reactivo del espacio, para elegirlos al registrar un ingreso.
- * SELECT l.id, l.item_id, l.code, l.supplier_name, l.supplier_lot, l.expires_on
+ * -- Lotes de un reactivo del espacio.
+ * SELECT l.id, l.item_id, l.code, l.brand, l.area, l.expires_on
  * FROM inventory.lots AS l
  * JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
  * WHERE l.workspace_id = :workspaceId!
@@ -260,6 +390,7 @@ export interface IListLocationsInResult {
   id: string;
   kind: string;
   name: string;
+  parent_id: string | null;
 }
 
 /** 'ListLocationsIn' query type */
@@ -268,12 +399,12 @@ export interface IListLocationsInQuery {
   result: IListLocationsInResult;
 }
 
-const listLocationsInIR: any = {"usedParamSet":{"workspaceId":true,"locationIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":69,"b":81}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":99,"b":111}]}],"statement":"SELECT id, code, name, kind\nFROM core.locations\nWHERE workspace_id = :workspaceId!\n  AND id = ANY (:locationIds!::uuid[])\n  AND archived_at IS NULL\nORDER BY lower(code), id"};
+const listLocationsInIR: any = {"usedParamSet":{"workspaceId":true,"locationIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":80,"b":92}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":110,"b":122}]}],"statement":"SELECT id, code, name, kind, parent_id\nFROM core.locations\nWHERE workspace_id = :workspaceId!\n  AND id = ANY (:locationIds!::uuid[])\n  AND archived_at IS NULL\nORDER BY lower(code), id"};
 
 /**
  * Query generated from SQL:
  * ```
- * SELECT id, code, name, kind
+ * SELECT id, code, name, kind, parent_id
  * FROM core.locations
  * WHERE workspace_id = :workspaceId!
  *   AND id = ANY (:locationIds!::uuid[])

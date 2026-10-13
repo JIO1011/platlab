@@ -367,6 +367,21 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 - **Conteo** sale de la interfaz. Se conserva en el servidor para conciliar el inventario de G1.
 - **Referencia visual:** el prototipo de la rama `proto/r-01d-ingreso`, que no se fusiona.
 
+**Implementación (12-10-2026):**
+
+- **Editar la ficha** (Administrador y Propietario): nombre, CAS, estado, peligros, controlado, ficha de seguridad y densidad. La unidad, solo sin movimientos.
+- **Fijar tara** en la ficha (quien ajusta): tara = peso en balanza − saldo × densidad. Reemplaza la anterior y queda en la auditoría.
+- **Densidad por frasco.** La del reactivo se sugiere; cada frasco guarda la tara y la densidad con que se calculó. Corregir la ficha no cambia frascos ya pesados.
+- **Cálculos en el servidor.** Tara, ajuste por peso y fijar tara se calculan en SQL; el navegador solo los anticipa. Un peso menor que la tara se rechaza.
+- **Reactivo nuevo desde el ingreso:** exige el permiso de catálogo. El Operador elige del catálogo.
+- **Códigos.**
+  - Reactivo: automático a partir del nombre (`ACETONA`, `ACIDO-CLORHIDRICO-37`).
+  - Lote: automático por reactivo (`L-001`).
+  - Frasco: el servidor sugiere la serie libre, acepta la editada y rechaza un código repetido.
+  - Los frascos existentes conservan «lote-NN».
+- **Área:** lista del módulo, como los destinos; el ingreso guarda el texto en el lote.
+- **Ubicaciones:** se crean por la ruta de Reactivos con su permiso de catálogo, porque Core no tiene permisos propios. Un nombre repetido bajo el mismo padre devuelve la existente.
+
 Motivo: quien registra tiene el frasco en la mano y llena lo que lee, de arriba abajo; separar el catálogo y el ingreso en dos ventanas lo hacía lento. La tara permite comprobar con la balanza lo que dice el sistema. «Controlado» se entiende igual en universidades, empresas y uso individual. Cambia el [ADR 0012](#adr-0012) (tara, densidad, código de frasco y ventanas de registro) y el término del [ADR 0014](#adr-0014).
 
 ## Pendientes

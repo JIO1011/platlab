@@ -1,6 +1,6 @@
 import type { StockedProduct } from '@platlab/contracts';
-import { Badge, Button, IconChip, Input, Quantity, Skeleton, StatePanel, cn } from '@platlab/ui';
-import { CalendarClock, CalendarX, CircleAlert, FlaskConical, Layers, Plus, Search, TrendingDown } from 'lucide-react';
+import { Badge, IconChip, Input, Quantity, Skeleton, StatePanel, cn } from '@platlab/ui';
+import { CalendarClock, CalendarX, CircleAlert, FlaskConical, Layers, Search, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ModuleMark } from '../../app/module-mark';
@@ -64,7 +64,7 @@ function FilterPill({ label, count, active, onToggle }: { label: string; count: 
  * y sus avisos de caducidad. Toda la tarjeta abre su ficha, el segundo nivel.
  */
 export function ReagentsInventoryPage() {
-  const { base, allowed, products, productList, openSheet } = useReagents();
+  const { base, allowed, products, productList } = useReagents();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [showEmpty, setShowEmpty] = useState(false);
@@ -106,14 +106,6 @@ export function ReagentsInventoryPage() {
             allowed.product
               ? 'Crea el primer reactivo del catálogo; después registra sus frascos con un ingreso.'
               : 'Cuando alguien con permiso cree reactivos en el catálogo, aparecerán aquí.'
-          }
-          action={
-            allowed.product ? (
-              <Button variant="primary" onClick={() => openSheet({ kind: 'product' })}>
-                <Plus aria-hidden />
-                Nuevo reactivo
-              </Button>
-            ) : undefined
           }
         />
       </div>

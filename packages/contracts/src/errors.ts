@@ -14,6 +14,8 @@ export const errorCodes = [
   'VALIDATION_FAILED',
   'NOT_FOUND',
   'INSUFFICIENT_STOCK',
+  // El código de frasco ya existe en el espacio (ADR 0015); el mensaje lo nombra.
+  'CODE_TAKEN',
   // Otra persona ya aprobó, rechazó o canceló la solicitud (ADR 0012).
   'REQUEST_RESOLVED',
   'IDEMPOTENCY_KEY_REUSED',
