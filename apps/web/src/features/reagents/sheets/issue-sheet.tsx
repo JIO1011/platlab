@@ -1,11 +1,12 @@
 import { issueRequest, issueResponse, type Position } from '@platlab/contracts';
 import {
+  Band,
   Button,
   Field,
   Input,
   Quantity,
   Select,
-  cn,
+  StockLevelBar,
   formatDecimal,
   ratioPercent,
   sectionLabel,
@@ -220,22 +221,11 @@ export function IssueSheet({
         </div>
       ) : null}
       {position && available !== null ? (
-        <div>
-          <div className="mb-2.5 flex items-center justify-between gap-3">
-            <span className={sectionLabel}>{position.reserved === '0' ? 'Stock actual' : 'Stock disponible'}</span>
-            <Quantity value={available} unit={position.unit} className="text-lg font-bold text-ink" />
-          </div>
-          {stockPercent !== null ? (
-            <div role="img" aria-label={`Nivel del frasco: ${stockPercent} %`} className="h-2 overflow-hidden rounded-full bg-ink/10">
-              <div
-                className={cn(
-                  'h-full rounded-full transition-[width,background-color] duration-300',
-                  stockPercent > 50 ? 'bg-success' : stockPercent >= 20 ? 'bg-warning' : 'bg-danger',
-                )}
-                style={{ width: `${stockPercent}%` }}
-              />
-            </div>
-          ) : null}
+        <Band
+          label={position.reserved === '0' ? 'Stock actual' : 'Stock disponible'}
+          aside={<Quantity value={available} unit={position.unit} className="text-lg font-bold text-ink" />}
+        >
+          {stockPercent !== null ? <StockLevelBar percent={stockPercent} /> : null}
           {remaining === null || !remaining.startsWith('-') ? (
             <div className="mt-2 text-right">
               <p className="text-sm text-ink-muted">
@@ -255,7 +245,7 @@ export function IssueSheet({
               ) : null}
             </div>
           ) : null}
-        </div>
+        </Band>
       ) : null}
       <div className="grid grid-cols-1 gap-4">
         <Field
