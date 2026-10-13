@@ -10,6 +10,7 @@ import { purposeOf, responsibleOf } from './operation-text';
 import { fefoCandidates } from './sheets';
 import { availableOf } from './stock';
 import { ContainerCard } from './container-card';
+import { ControlledMark, isControlled } from './prototype/controlled';
 import { EmptyToggle, physicalStateIcon, physicalStateLabel } from './product-parts';
 
 /** Rótulo de cada dato de la banda de la ficha. */
@@ -95,6 +96,12 @@ export function ReagentsProductPage() {
             <StateIcon className="size-4" aria-hidden />
             {state ? physicalStateLabel[state] : 'Estado sin indicar'}
           </span>
+          {isControlled(product.data.code) ? (
+            <>
+              <span aria-hidden>·</span>
+              <ControlledMark withText />
+            </>
+          ) : null}
         </p>
         {/* Banda de tres datos, como los indicadores del Resumen (ADR 0012, 06-10-2026). En el móvil, la
             existencia ocupa el ancho y los otros dos van en dos columnas. */}

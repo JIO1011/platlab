@@ -3,11 +3,12 @@ import { Button, Input } from '@platlab/ui';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { RadioPills } from './radio-pills';
+import { defaultAreas } from './wizard-model';
 
-const defaultCenters = ['Proyecto interno', 'Proyecto externo'];
+
 
 /**
- * Centro de costo o proyecto: píldoras con las opciones de ejemplo y «Añadir» para escribir otra.
+ * Área o departamento: píldoras con las opciones de ejemplo y «Añadir» para escribir otra.
  * La nota de la derecha explica la regla real y solo existe en el prototipo.
  */
 export function CostCenter({
@@ -23,7 +24,7 @@ export function CostCenter({
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
-  const options = [...defaultCenters, ...extras].map((name) => ({ value: name, label: name }));
+  const options = [...defaultAreas, ...extras].map((name) => ({ value: name, label: name }));
 
   const save = () => {
     const name = draft.trim();
@@ -37,7 +38,7 @@ export function CostCenter({
   return (
     <div className="grid gap-2">
       <RadioPills
-        legend="Centro de costo o proyecto"
+        legend="Área o departamento"
         optional
         value={value}
         options={options}
@@ -45,7 +46,7 @@ export function CostCenter({
         onClear={() => onChange('')}
         hint={
           <span className="inline-block rounded-[6px] border border-dashed border-line-strong px-2 py-0.5 text-[12px]">
-            Prototipo: aparece solo si el espacio define opciones
+            Prototipo: aparece solo si el espacio define áreas
           </span>
         }
         action={
@@ -64,8 +65,8 @@ export function CostCenter({
       {adding ? (
         <div className="flex gap-2">
           <Input
-            aria-label="Nuevo centro de costo o proyecto"
-            placeholder="Nombre del proyecto"
+            aria-label="Nueva área o departamento"
+            placeholder="Nombre del área"
             autoComplete="off"
             autoFocus
             className="max-sm:h-[44px]"

@@ -23,6 +23,7 @@ import { formatDate } from '../../../app/format';
 import { useDestinations, useReasons } from '../queries';
 import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
+import { ControlledMark, isControlled } from '../prototype/controlled';
 import { grossFor } from '../prototype/weight';
 import { availableOf } from '../stock';
 import { type SheetBaseProps, validate, FormSheet, expiryText, positionOption, byProductThenExpiry, isExpired } from './shared';
@@ -159,6 +160,12 @@ export function IssueSheet({
             )}
           />
         </Field>
+        {position && isControlled(position.product.code) ? (
+          <p className="flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted">
+            <ControlledMark withText />
+            Sujeta a fiscalización: esta salida se reporta.
+          </p>
+        ) : null}
         {position && isExpired(position, today) ? (
           <p role="alert" className="rounded-control bg-warning-soft px-3 py-2.5 text-sm text-warning">
             Este frasco venció el {formatDate(position.lot.expiresOn ?? '')}. Puedes registrar la salida; quedará en el

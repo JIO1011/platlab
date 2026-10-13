@@ -13,8 +13,8 @@ export interface SheetProps {
   children: ReactNode;
   /** Acciones fijas al pie, siempre visibles aunque el formulario sea largo. */
   footer?: ReactNode;
-  /** Ventana ancha (hasta 40 rem) para formularios de dos columnas; por omisión, 32 rem. */
-  wide?: boolean;
+  /** Ventana ancha: `true`, hasta 40 rem; `'xl'`, hasta 56 rem (asistente con vista previa). Por omisión, 32 rem. */
+  wide?: boolean | 'xl';
   /** Quién recibe el foco al abrir; por omisión, el primer control tabulable (Radix). */
   initialFocus?: RefObject<HTMLElement | null> | undefined;
 }
@@ -38,7 +38,7 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
           }}
           className={cn(
             'fixed inset-0 z-50 m-auto flex h-fit max-h-[90dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-card bg-surface shadow-overlay outline-none data-[state=closed]:animate-modal-out data-[state=open]:animate-modal-in',
-            wide ? 'max-w-[40rem]' : 'max-w-lg',
+            wide === 'xl' ? 'max-w-[56rem]' : wide ? 'max-w-[40rem]' : 'max-w-lg',
           )}
         >
           <header className="flex items-start justify-between gap-4 px-6 pb-4 pt-5">

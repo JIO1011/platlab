@@ -85,3 +85,17 @@ export function HazardTags({ ids }: { ids: string[] }) {
     </ul>
   );
 }
+
+/** Pictogramas pequeños en fila (resultados de búsqueda, vista previa); los nombres van en texto para lectores. */
+export function HazardGlyphs({ ids, className }: { ids: string[]; className?: string }) {
+  const found = hazards.filter((hazard) => ids.includes(hazard.id));
+  if (found.length === 0) return null;
+  return (
+    <span className={cn('inline-flex items-center gap-1', className)} title={found.map((hazard) => hazard.label).join(', ')}>
+      {found.map((hazard) => (
+        <Pictogram key={hazard.id} icon={hazard.icon} className="size-5 [&_svg:last-child]:size-2.5" />
+      ))}
+      <span className="sr-only">Peligros: {found.map((hazard) => hazard.label).join(', ')}</span>
+    </span>
+  );
+}

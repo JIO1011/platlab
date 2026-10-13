@@ -12,6 +12,3 @@ const sample: Record<string, { hazards: string[]; sds: SdsKind }> = {
 };
 
 export const sampleOf = (cas: string | null) => (cas ? sample[cas] : undefined) ?? { hazards: [], sds: null };
-
-export const sdsText = (sds: SdsKind | null) =>
-  sds === 'digital' ? 'Digital' : sds === 'physical' ? 'Solo en físico' : sds === 'none' ? 'No tiene' : 'Sin registrar';

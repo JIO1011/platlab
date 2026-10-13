@@ -1,5 +1,6 @@
 import type { StockedProduct } from '@platlab/contracts';
 import { Badge, Button, IconChip, Input, Quantity, Skeleton, StatePanel, cn } from '@platlab/ui';
+import { ControlledMark, isControlled } from './prototype/controlled';
 import { CalendarClock, CalendarX, CircleAlert, FlaskConical, Layers, Plus, Search, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -68,12 +69,15 @@ export function ReagentsInventoryPage() {
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [showEmpty, setShowEmpty] = useState(false);
+  // Prototipo R-01D: «Controlados» se filtra en local con datos simulados.
+  const [controlledOnly, setControlledOnly] = useState(false);
   const active = alertFilterKeys.find((key) => params.get(alertFilters[key].param[0]) === alertFilters[key].param[1]) ?? null;
   const emptyCount = productList.filter((product) => product.balance === '0').length;
   // Con un aviso activo se ven todos los que lo tienen, también sin existencias (un bajo mínimo puede estar en cero).
   const visible = productList.filter(
     (product) =>
       matches(product, query) &&
+      (!controlledOnly || isControlled(product.code)) &&
       (active ? alertFilters[active].has(product) : showEmpty || product.balance !== '0'),
   );
   const toggleAlert = (filter: AlertFilter) =>
@@ -135,6 +139,7 @@ export function ReagentsInventoryPage() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <FilterPill label="Controlados" count={productList.filter((product) => isControlled(product.code)).length} active={controlledOnly} onToggle={() => setControlledOnly(!controlledOnly)} />
           {alertFilterKeys.map((filter) => (
             <FilterPill
               key={filter}
@@ -195,7 +200,10 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
         <IconChip icon={(state && physicalStateIcon[state]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} />
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-[12px] font-semibold uppercase tracking-wide text-ink-muted">
-            <span>{(state && physicalStateLabel[state]) ?? 'Reactivo'}</span>
+            <span className="inline-flex items-center gap-1.5">
+              {(state && physicalStateLabel[state]) ?? 'Reactivo'}
+              {isControlled(product.code) ? <ControlledMark /> : null}
+            </span>
             {product.casNumber ? (
               <span className="ml-auto font-mono text-[12px] font-medium normal-case tracking-normal tabular-nums text-ink-subtle">
                 CAS: {product.casNumber}
