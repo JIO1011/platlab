@@ -9,7 +9,7 @@ import { Combobox, type ComboOption } from './combobox';
 import { ControlledMark, isControlled } from './controlled';
 import { FilledInput, QuantityInput, fieldGrid, fieldLabel, filled } from './filled';
 import { HazardGlyphs } from './hazards';
-import { MAX_BOTTLES, bottleCode, countOf, countValid, type BottlesForm, type Draft, type Errors } from './wizard-model';
+import { MAX_BOTTLES, casOptional, countOf, countValid, lastSuffix, type BottlesForm, type Draft, type Errors } from './wizard-model';
 
 const units = ['g', 'kg', 'mL', 'L'] as const;
 const stepper =
@@ -18,7 +18,8 @@ const stepper =
 /**
  * «Datos de la etiqueta»: lo que se copia del frasco. El nombre es el buscador del catálogo: al
  * elegir un reactivo existente, CAS y unidad se rellenan en solo lectura («Del catálogo»); si no,
- * es un reactivo nuevo y se escriben. El código viene sugerido y los frascos se numeran a partir de él.
+ * es un reactivo nuevo y se escriben. El código viene sugerido y los frascos se numeran a partir de él;
+ * con más de un frasco, el campo muestra a la derecha dónde termina la numeración.
  */
 export function LabelFields({
   existing,
@@ -80,8 +81,7 @@ export function LabelFields({
   const unit = existing ? existing.baseUnit : draft.unit;
   const count = countOf(form.count);
   const step = (delta: number) => onForm({ count: String(Math.min(MAX_BOTTLES, Math.max(1, (count ?? 1) + delta))) });
-  const first = bottleCode(code, 0);
-  const preview = !countValid(count) || code.trim() === '' ? null : count === 1 ? first : `${first} … ${String(count).padStart(2, '0')}`;
+  const last = countValid(count) ? lastSuffix(code, count) : null;
 
   return (
     <div className={fieldGrid}>
@@ -103,7 +103,7 @@ export function LabelFields({
 
       <Field
         label="CAS"
-        required={!existing}
+        required={!existing && !casOptional(draft)}
         labelClassName={fieldLabel}
         error={errors.cas}
         hint={
@@ -132,29 +132,25 @@ export function LabelFields({
         />
       </Field>
 
-      <Field
-        label="Código"
-        labelClassName={fieldLabel}
-        hint={
-          <>
-            <span className="block">Sugerido; puedes cambiarlo</span>
-            {preview ? (
-              <span className="block">
-                Frascos: <span className="font-medium tabular-nums text-ink">{preview}</span>
-              </span>
-            ) : null}
-          </>
-        }
-      >
-        <FilledInput autoComplete="off" spellCheck={false} className="tabular-nums" value={code} onChange={(event) => onForm({ code: event.target.value })} />
-      </Field>
-
       <Field label="Marca" labelClassName={fieldLabel}>
         <Combobox value={form.brand} onChange={(brand) => onForm({ brand })} options={brandOptions} onPick={(option) => onForm({ brand: option.label })} canCreate />
       </Field>
 
-      <Field label="Lote del fabricante" labelClassName={fieldLabel}>
-        <FilledInput autoComplete="off" spellCheck={false} value={form.supplierLot} onChange={(event) => onForm({ supplierLot: event.target.value })} />
+      <Field label="Código" labelClassName={fieldLabel} error={errors.code}>
+        <div className="relative">
+          <FilledInput
+            autoComplete="off"
+            spellCheck={false}
+            className={cn('tabular-nums', last && 'pr-16')}
+            value={code}
+            onChange={(event) => onForm({ code: event.target.value })}
+          />
+          {last ? (
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm tabular-nums text-ink-subtle">
+              → {last}
+            </span>
+          ) : null}
+        </div>
       </Field>
 
       <Field label="Cantidad" required labelClassName={fieldLabel} error={errors.quantity}>

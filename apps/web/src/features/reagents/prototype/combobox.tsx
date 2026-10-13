@@ -1,7 +1,7 @@
 // Prototipo R-01D: solo interfaz
 import { Input, cn } from '@platlab/ui';
 import { Plus } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { filled } from './filled';
 import { fold } from './wizard-model';
 
@@ -18,6 +18,9 @@ export interface ComboOption {
 
 const MAX_RESULTS = 6;
 const MIN_CHARS = 2;
+
+const addButton =
+  'absolute inset-y-0 right-0 flex w-[44px] items-center justify-center rounded-r-control text-action transition-colors duration-150 hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-action sm:w-[36px]';
 
 /** El texto de la opción con lo que coincide en negrita (sin tildes ni mayúsculas). */
 function Highlight({ text, needle }: { text: string; needle: string }) {
@@ -37,6 +40,10 @@ function Highlight({ text, needle }: { text: string; needle: string }) {
  * Campo de texto con sugerencias. El menú solo aparece al escribir (desde 2 letras) o con la flecha
  * abajo, con 6 resultados como máximo; la última opción, «+ Crear «texto»», conserva lo escrito.
  * Esc y el clic fuera lo cierran. Enter elige la opción activa y nunca envía el formulario.
+ *
+ * Con `inlineCreate`, crear es un botón «+» dentro del campo, a la derecha, que aparece cuando lo
+ * escrito no coincide con ninguna opción; Enter también crea, salvo que se haya movido la selección
+ * con las flechas o el ratón. `openOnFocus` abre las sugerencias al enfocar, desde la primera letra.
  */
 export function Combobox({
   value,
@@ -49,6 +56,10 @@ export function Combobox({
   inputRef,
   readOnly = false,
   className,
+  inlineCreate = false,
+  openOnFocus = false,
+  menuClassName,
+  inputProps,
 }: {
   value: string;
   onChange: (text: string) => void;
@@ -61,25 +72,36 @@ export function Combobox({
   inputRef?: RefObject<HTMLInputElement | null>;
   readOnly?: boolean;
   className?: string;
+  inlineCreate?: boolean;
+  openOnFocus?: boolean;
+  menuClassName?: string;
+  /** Atributos extra del campo (nombre accesible, `id`, `aria-invalid`…). */
+  inputProps?: Omit<ComponentProps<typeof Input>, 'value' | 'onChange' | 'ref'>;
 }) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [forced, setForced] = useState(false);
   const [active, setActive] = useState(0);
+  const [moved, setMoved] = useState(false);
   const text = value.trim();
   const needle = fold(text);
-  const asked = text.length >= MIN_CHARS || forced;
+  const minChars = openOnFocus ? 1 : MIN_CHARS;
+  const asked = text.length >= minChars || forced;
 
   const matches = useMemo(() => {
     if (!asked) return [];
-    const found = text.length >= MIN_CHARS ? options.filter((option) => fold(`${option.label} ${option.keywords ?? ''}`).includes(needle)) : options;
+    const found = text.length >= minChars ? options.filter((option) => fold(`${option.label} ${option.keywords ?? ''}`).includes(needle)) : options;
     return found.slice(0, MAX_RESULTS);
-  }, [asked, options, needle, text.length]);
+  }, [asked, options, needle, text.length, minChars]);
   const offerNew = canCreate && text !== '' && !options.some((option) => fold(option.label) === needle);
-  const total = matches.length + (offerNew ? 1 : 0);
-  const visible = open && asked && !readOnly;
+  const rowNew = offerNew && !inlineCreate;
+  const total = matches.length + (rowNew ? 1 : 0);
+  // Con «+» en el campo, un texto sin coincidencias no abre un menú vacío.
+  const visible = open && asked && !readOnly && !(inlineCreate && offerNew && matches.length === 0);
   const activeIndex = Math.min(active, Math.max(total - 1, 0));
+  // Con Enter creando, no se resalta una coincidencia que Enter no va a elegir.
+  const highlighted = (index: number) => index === activeIndex && (moved || !(inlineCreate && offerNew));
 
   useEffect(() => {
     if (!visible) return undefined;
@@ -93,7 +115,12 @@ export function Combobox({
   const choose = (index: number) => {
     const option = matches[index];
     if (option) onPick(option);
-    else if (offerNew) onCreate?.(text);
+    else if (rowNew) onCreate?.(text);
+    setOpen(false);
+  };
+
+  const create = () => {
+    onCreate?.(text);
     setOpen(false);
   };
 
@@ -104,11 +131,15 @@ export function Combobox({
         setOpen(true);
         setForced(true);
         setActive(0);
-      } else if (total > 0) setActive((activeIndex + (event.key === 'ArrowDown' ? 1 : -1) + total) % total);
+      } else if (total > 0) {
+        setMoved(true);
+        setActive((activeIndex + (event.key === 'ArrowDown' ? 1 : -1) + total) % total);
+      }
     } else if (event.key === 'Enter') {
       // Enter elige; dentro del formulario no debe enviar nada.
       event.preventDefault();
-      if (visible && total > 0) choose(activeIndex);
+      if (inlineCreate && offerNew && !moved) create();
+      else if (visible && total > 0) choose(activeIndex);
     } else if (event.key === 'Escape' && visible) {
       event.preventDefault();
       setOpen(false);
@@ -129,32 +160,49 @@ export function Combobox({
         spellCheck={false}
         readOnly={readOnly}
         placeholder={placeholder}
-        className={cn(filled, className)}
+        {...inputProps}
+        className={cn(filled, inlineCreate && offerNew && 'pr-11 sm:pr-10', className)}
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
           setOpen(true);
           setForced(false);
           setActive(0);
+          setMoved(false);
+        }}
+        onFocus={() => {
+          if (!openOnFocus || readOnly) return;
+          setOpen(true);
+          setForced(true);
+          setActive(0);
+          setMoved(false);
         }}
         onKeyDown={onKeyDown}
       />
+      {inlineCreate && offerNew && !readOnly ? (
+        <button type="button" tabIndex={-1} aria-label={`Crear «${text}»`} title={`Crear «${text}»`} onMouseDown={(event) => event.preventDefault()} onClick={create} className={addButton}>
+          <Plus className="size-4" aria-hidden />
+        </button>
+      ) : null}
       {visible ? (
         <ul
           id={`${id}-list`}
           role="listbox"
-          className="absolute inset-x-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-control border border-line bg-surface p-1 shadow-overlay motion-safe:animate-pop-in"
+          className={cn('absolute inset-x-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-control border border-line bg-surface p-1 shadow-overlay motion-safe:animate-pop-in', menuClassName)}
         >
           {matches.map((option, index) => (
             <li
               key={option.id}
               id={`${id}-${index}`}
               role="option"
-              aria-selected={index === activeIndex}
+              aria-selected={highlighted(index)}
               onMouseDown={(event) => event.preventDefault()}
-              onMouseMove={() => setActive(index)}
+              onMouseMove={() => {
+                setMoved(true);
+                setActive(index);
+              }}
               onClick={() => choose(index)}
-              className={cn(row, index === activeIndex && 'bg-action-soft')}
+              className={cn(row, highlighted(index) && 'bg-action-soft')}
             >
               {option.leading}
               <span className="min-w-0 flex-1">
@@ -166,7 +214,7 @@ export function Combobox({
               {option.trailing}
             </li>
           ))}
-          {offerNew ? (
+          {rowNew ? (
             <li
               id={`${id}-${matches.length}`}
               role="option"

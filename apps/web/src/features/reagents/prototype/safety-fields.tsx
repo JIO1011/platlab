@@ -1,10 +1,10 @@
 // Prototipo R-01D: solo interfaz
 import type { StockedProduct } from '@platlab/contracts';
-import { Field, Select, formatDecimal } from '@platlab/ui';
+import { Field, Select, cn } from '@platlab/ui';
 import { Lock } from 'lucide-react';
 import { sampleOf, type SdsKind } from './catalog-sample';
 import { ControlledMark, isControlled } from './controlled';
-import { FilledInput, QuantityInput, fieldGrid, fieldLabel, filled } from './filled';
+import { FilledInput, fieldGrid, fieldLabel, filled } from './filled';
 import { HazardGlyphs, HazardSelect } from './hazards';
 import { physicalStateLabel } from '../product-parts';
 import type { Draft, Errors } from './wizard-model';
@@ -21,7 +21,7 @@ const sdsOptions = (Object.keys(sdsLabels) as SdsKind[]).map((value) => ({ value
 
 /**
  * «Clasificación y seguridad». Un reactivo nuevo se clasifica aquí: estado físico, si es controlado,
- * peligros, ficha de seguridad y mínimo. Uno existente ya está clasificado en el catálogo, así que
+ * peligros y ficha de seguridad. Uno existente ya está clasificado en el catálogo, así que
  * la sección es una sola línea de resumen.
  */
 export function SafetyFields({
@@ -60,8 +60,6 @@ export function SafetyFields({
           ) : null}
           {dot}
           <span>{sample.sds ? `Ficha: ${sdsLabels[sample.sds].toLowerCase()}` : 'Sin ficha'}</span>
-          {dot}
-          <span>{existing.minimum ? `Mínimo ${formatDecimal(existing.minimum)} ${existing.baseUnit}` : 'Sin mínimo'}</span>
         </p>
         <p className="text-[13px] text-ink-muted">Del catálogo</p>
       </div>
@@ -74,13 +72,7 @@ export function SafetyFields({
         <Field label="Estado físico" required labelClassName={fieldLabel} error={errors.state}>
           <Select value={draft.state || undefined} onValueChange={(state) => onDraft({ state })} options={states} placeholder="Elige cómo es" triggerClassName={filled} />
         </Field>
-        <label className="flex min-h-[44px] cursor-pointer items-center gap-2.5 self-end rounded-control px-1 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-action sm:min-h-[36px]">
-          <input type="checkbox" className="size-4 shrink-0 accent-action" checked={draft.controlled} onChange={(event) => onDraft({ controlled: event.target.checked })} />
-          <Lock className="size-4 shrink-0 text-action" aria-hidden />
-          <span className="text-sm font-medium text-ink">
-            Controlado <span className="font-normal text-ink-muted">(sujeta a fiscalización)</span>
-          </span>
-        </label>
+        <ControlledSwitch checked={draft.controlled} onChange={(controlled) => onDraft({ controlled })} />
       </div>
 
       <div role="group" aria-labelledby="peligros-legend" className="grid gap-1.5">
@@ -94,15 +86,40 @@ export function SafetyFields({
         <Field label="Ficha de seguridad" labelClassName={fieldLabel}>
           <Select value={draft.sds || undefined} onValueChange={(sds) => onDraft({ sds: sds as SdsKind })} options={sdsOptions} placeholder="Elige una opción" triggerClassName={filled} />
         </Field>
-        <Field label="Mínimo" labelClassName={fieldLabel} error={errors.min} hint="Avisa cuando queden menos existencias.">
-          <QuantityInput unit={draft.unit} placeholder="Sin mínimo" value={draft.min} onChange={(event) => onDraft({ min: event.target.value })} />
-        </Field>
         {draft.sds === 'digital' ? (
-          <Field label="Enlace a la ficha" labelClassName={fieldLabel} error={errors.sdsUrl} hint="El PDF se podrá subir más adelante." className="sm:col-span-2">
+          <Field label="Enlace a la ficha" labelClassName={fieldLabel} error={errors.sdsUrl} hint="El PDF se podrá subir más adelante.">
             <FilledInput type="url" inputMode="url" autoComplete="off" placeholder="https://" value={draft.sdsUrl} onChange={(event) => onDraft({ sdsUrl: event.target.value })} />
           </Field>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * «Controlado» como interruptor con candado, en un campo relleno como los demás. El estado se lee
+ * en el texto («Sujeto a fiscalización» o «No controlado»), no solo en el color de la pista.
+ */
+function ControlledSwitch({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <div className="grid content-start gap-1.5">
+      <span id="controlado-label" className={fieldLabel}>
+        Controlado
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-labelledby="controlado-label"
+        onClick={() => onChange(!checked)}
+        className={cn(filled, 'flex w-full items-center gap-2 rounded-control border px-3 text-left text-sm transition-colors duration-150 hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action')}
+      >
+        <Lock className="size-4 shrink-0 text-action" aria-hidden />
+        <span className="min-w-0 flex-1 text-ink">{checked ? 'Sujeto a fiscalización' : 'No controlado'}</span>
+        <span aria-hidden className={cn('relative h-5 w-9 shrink-0 rounded-full transition-colors duration-150 motion-reduce:transition-none', checked ? 'bg-action' : 'bg-line-strong')}>
+          <span className={cn('absolute left-0.5 top-0.5 size-4 rounded-full bg-surface shadow-sm transition-transform duration-150 ease-out-expo motion-reduce:transition-none', checked && 'translate-x-4')} />
+        </span>
+      </button>
     </div>
   );
 }

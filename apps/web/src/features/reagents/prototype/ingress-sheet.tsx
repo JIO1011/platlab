@@ -3,7 +3,7 @@ import type { StockedProduct } from '@platlab/contracts';
 import { Button, Sheet, normalizeDecimalInput, toast } from '@platlab/ui';
 import { CircleCheck, MapPin, PackagePlus, Scale, ShieldAlert, Tag } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
-import { useReceiptLocations } from '../queries';
+import { usePositions, useReceiptLocations } from '../queries';
 import { checkCas } from './cas';
 import { CostCenter } from './cost-center';
 import { fieldGrid } from './filled';
@@ -15,12 +15,16 @@ import { SafetyFields } from './safety-fields';
 import { knownDensity as densityOf, receiptWeight } from './weight';
 import { WeightFields } from './weight-section';
 import {
+  casOptional,
   countOf,
   countValid,
   defaultAreas,
   emptyDraft,
+  freeCodeIfTaken,
+  newProductCode,
+  nextCode,
   sampleBrands,
-  suggestedCode,
+  takenSet,
   toPlaces,
   validateBottles,
   validateNew,
@@ -35,11 +39,9 @@ const initialForm: BottlesForm = {
   count: '1',
   code: null,
   placeId: '',
-  placeText: '',
   noExpiry: false,
   expiresOn: '',
   brand: '',
-  supplierLot: '',
   area: '',
   fullWeight: '',
   density: '',
@@ -79,11 +81,18 @@ export function IngressSheet({
   const nameRef = useRef<HTMLInputElement>(null);
   const casRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
-  const placeRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   const locations = useReceiptLocations(workspaceId, open);
   const places = useMemo(() => [...toPlaces(locations.data?.items ?? []), ...localPlaces], [locations.data, localPlaces]);
+  // Códigos reales de los frascos cargados: los del reactivo elegido numeran el siguiente y todos detectan choques.
+  const ofProduct = usePositions(workspaceId, existing?.id, undefined, open && existing !== null);
+  const allPositions = usePositions(workspaceId, undefined, undefined, open);
+  const productCodes = useMemo(() => (ofProduct.data?.pages ?? []).flatMap((page) => page.items.flatMap((item) => (item.container ? [item.container.code] : []))), [ofProduct.data]);
+  const taken = useMemo(
+    () => takenSet([...productCodes, ...(allPositions.data?.pages ?? []).flatMap((page) => page.items.flatMap((item) => (item.container ? [item.container.code] : [])))]),
+    [productCodes, allPositions.data],
+  );
 
   const patch = (next: Partial<BottlesForm>) => setForm((previous) => ({ ...previous, ...next }));
   const patchDraft = (next: Partial<Draft>) => setDraft((previous) => ({ ...previous, ...next }));
@@ -92,7 +101,9 @@ export function IngressSheet({
   const name = existing ? existing.name : draft.name.trim();
   const quantity = normalizeDecimalInput(form.quantity);
   const count = countOf(form.count);
-  const code = form.code ?? suggestedCode(name);
+  const suggested = existing ? (ofProduct.isPending ? '' : (nextCode(productCodes) ?? newProductCode(existing.name))) : newProductCode(name);
+  const code = form.code ?? suggested;
+  const freeCode = freeCodeIfTaken(code, countValid(count) ? count : 1, taken);
   const known = existing ? densityOf(existing.casNumber) : null;
   const weight = receiptWeight({ unit, quantity, full: normalizeDecimalInput(form.fullWeight), density: normalizeDecimalInput(form.density), knownDensity: known });
   const extraAreas = remembered.extraAreas;
@@ -103,21 +114,24 @@ export function IngressSheet({
   const showRest = revealed;
 
   const newIssues: Errors = existing ? {} : validateNew(draft);
-  const casMissing = !existing && checkCas(draft.cas) === 'empty';
+  const casMissing = !existing && !casOptional(draft) && checkCas(draft.cas) === 'empty';
   const newMissing = existing ? 0 : [!draft.name.trim(), !draft.state, casMissing].filter(Boolean).length;
   const catalogIssue = !existing && !canCreate && name !== '';
   const bottleIssues = validateBottles(form, quantity, form.placeId);
   const missing = newMissing + Object.keys(bottleIssues).length;
-  const otherIssues = Object.keys(newIssues).length - newMissing + (catalogIssue ? 1 : 0) + (weight.error ? 1 : 0);
+  const otherIssues = Object.keys(newIssues).length - newMissing + (catalogIssue ? 1 : 0) + (weight.error ? 1 : 0) + (freeCode ? 1 : 0);
 
+  // El choque de códigos se avisa al escribir, sin esperar a confirmar.
+  const codeError: Errors = freeCode ? { code: `Ya existe; libre: ${freeCode}` } : {};
   const errors: Errors = attempted
     ? {
+        ...codeError,
         ...newIssues,
         ...(catalogIssue ? { name: 'Elige un reactivo del catálogo; no puedes crear uno nuevo.' } : {}),
         ...bottleIssues,
         ...(weight.error ? { weight: weight.error } : {}),
       }
-    : {};
+    : codeError;
 
   const pick = (product: StockedProduct) => {
     setExisting(product);
@@ -127,12 +141,10 @@ export function IngressSheet({
     setExisting(null);
     patchDraft({ name: text });
   };
-  const createPlace = (placeName: string, parentId: string) => {
-    const parent = places.find((entry) => entry.id === parentId);
-    const route = parent ? `${parent.route} › ${placeName}` : placeName;
-    const id = `local-${Date.now()}`;
-    setLocalPlaces((previous) => [...previous, { id, name: placeName, route, local: true }]);
-    patch({ placeId: id, placeText: route });
+  const createPlace = (placeName: string, parentId: string | null): Place => {
+    const place: Place = { id: `local-${Date.now()}-${localPlaces.length}`, name: placeName, parentId, local: true };
+    setLocalPlaces((previous) => [...previous, place]);
+    return place;
   };
 
   const focusFirstInvalid = () =>
@@ -254,14 +266,13 @@ export function IngressSheet({
                 <Section icon={MapPin} title="Dónde se guarda">
                   <div className={fieldGrid}>
                     <LocationPicker
+                      className="sm:col-span-2"
                       places={places}
                       recentIds={remembered.recentLocations}
-                      text={form.placeText}
-                      onChange={(placeId, placeText) => patch({ placeId, placeText })}
+                      onChange={(placeId) => patch({ placeId })}
                       canCreate={canCreate}
                       onCreate={createPlace}
                       error={errors.placeId}
-                      inputRef={placeRef}
                     />
                     <CostCenter value={form.area} extras={extraAreas} onChange={(area) => patch({ area })} />
                   </div>
