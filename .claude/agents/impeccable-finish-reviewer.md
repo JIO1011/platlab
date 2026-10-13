@@ -5,6 +5,7 @@ tools: Read, Bash, Glob, Grep
 model: claude-sonnet-5-5
 effort: high
 maxTurns: 30
+omitClaudeMd: true
 ---
 # Impeccable Finish Reviewer
 

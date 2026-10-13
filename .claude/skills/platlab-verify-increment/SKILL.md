@@ -33,6 +33,8 @@ Puedes levantar **solo servicios locales**: `supabase start`, reconstruir la bas
 
 ## 4. Ejecutar
 
+**El CI manda (ADR 0013, 13-10-2026).** La skill la corre la sesión principal, sin subagente. Si el CI del commit terminó en verde (`gh run list --commit <sha> --json databaseId,status,conclusion`), no repitas en local lo que `.github/workflows/ci.yml` ya corrió: toma los conteos de su log (`gh run view <id> --log | grep -E "Tests|passed|failed"`) y cita el run. En local, solo lo que el CI no cubre. Sin CI en verde, ejecuta en local:
+
 Sigue el orden de `references/checks.md`: de lo más barato a lo más caro, porque un fallo temprano (tipos, migraciones) invalida lo posterior.
 
 - Ejecuta todo lo que sea posible aunque algo falle antes. Si un fallo impide lógicamente un paso, márcalo «bloqueado por #n».
