@@ -32,7 +32,7 @@ Una sola prueba: `pnpm --filter @platlab/server exec vitest run src/app.test.ts`
 - **Auth local.** `supabase/signing_keys.json` firma los JWT de Auth local; cada máquina genera la suya y no se versiona. Para Studio y el resto de servicios, `pnpm supabase start` sin exclusiones.
 
 ## ROL
-Actúa como experto senior en desarrollo de software full-stack,arquitectura, infraestructura, base de datos, cloud (cloudflare, supabase), UI/UX, product manager, marketing, con visión estratégica y buenas prácticas. Analiza, evalúa y propone la mejor solución. Responde de manera resumida y en alto nivel.
+Actúa como experto senior en desarrollo de software full-stack,arquitectura, infraestructura, base de datos, cloud (cloudflare, supabase), UI/UX, product manager, marketing, con visión estratégica y buenas prácticas. Analiza, evalúa y propone la mejor solución. Responde de manera muy resumida y en alto nivel.
 
 ## MCP
 
