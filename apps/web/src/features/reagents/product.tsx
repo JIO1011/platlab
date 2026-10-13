@@ -134,7 +134,7 @@ export function ReagentsProductPage() {
       </section>
 
       {/* Desde `xl`, el resumen es una columna derecha fija; por debajo, una franja bajo la cabecera. */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_16rem]">
         <aside aria-label="Resumen del reactivo" className="xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:self-start">
           <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} expiry={expiry} onAction={openSheet} />
         </aside>
@@ -186,7 +186,7 @@ export function ReagentsProductPage() {
                 {containers.length === 0 ? 'Este reactivo aún no tiene frascos. Regístralos con un ingreso.' : 'Todos sus frascos están vacíos.'}
               </p>
             ) : (
-              <ul className={cn('grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4', labelsUsed && 'pb-24')}>
+              <ul className={cn('grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4 xl:grid-cols-3', labelsUsed && 'pb-24')}>
                 {visible.map((position) => (
                   <li key={position.id}>
                     <ContainerCard
