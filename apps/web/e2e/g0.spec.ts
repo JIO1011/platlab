@@ -128,8 +128,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await ingress.getByRole('textbox', { name: 'Cantidad' }).fill('100');
   await ingress.getByRole('combobox', { name: 'Ubicación' }).fill('Almacén');
   await admin.getByRole('option', { name: /Almacén de reactivos/ }).click();
-  await ingress.getByRole('combobox', { name: 'Estado físico' }).click();
-  await admin.getByRole('option', { name: 'Sólido' }).click();
+  await pick(ingress, 'Sólido');
   await expect(ingress.getByRole('status').filter({ hasText: 'Listo: 1 frasco' })).toBeVisible();
   await expectAccessible(admin, 'ingresar reactivo');
   await capture(admin, 'desktop-sheet', false);
@@ -154,8 +153,10 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   // ADR 0012: la salida del Operador es una solicitud que aparta la cantidad hasta que se aprueba.
   await frasco.getByRole('button', { name: 'Salida' }).click();
   const issue = operator.getByRole('dialog', { name: product.name });
-  await issue.getByLabel('Cantidad', { exact: true }).fill('20');
+  await issue.getByLabel('Cantidad a retirar', { exact: true }).fill('20');
   await expect(issue.getByText('Quedarán')).toContainText('80');
+  // Un solo frasco con saldo: no hay nada que elegir, el selector no aparece.
+  await expect(issue.getByLabel('Frasco', { exact: true })).toHaveCount(0);
   await pick(issue, 'Práctica de Química General');
   await pick(issue, 'Laboratorio de Química');
   await expectAccessible(operator, 'hoja de salida');
@@ -203,14 +204,12 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await expectAccessible(admin, 'ficha del reactivo');
   await capture(admin, 'desktop-product');
 
-  // El selector de frascos agrupa por reactivo: el de esta prueba aparece una sola vez.
+  // Con un solo frasco con saldo, la hoja de salida no ofrece selector: el reactivo es el título.
   await admin.getByRole('button', { name: 'Registrar salida' }).click();
   const issueSheet = admin.getByRole('dialog', { name: product.name });
-  await issueSheet.getByLabel('Frasco').click();
-  await expect(admin.getByRole('group', { name: product.name })).toHaveCount(1);
-  await expect(admin.getByRole('group', { name: product.name }).getByRole('option')).toHaveCount(1);
-  await capture(admin, 'desktop-select', false);
-  await admin.keyboard.press('Escape');
+  await expect(issueSheet.getByLabel('Frasco', { exact: true })).toHaveCount(0);
+  // Sin cantidad, «Confirmar salida» está deshabilitado.
+  await expect(issueSheet.getByRole('button', { name: 'Confirmar salida' })).toBeDisabled();
   await admin.keyboard.press('Escape');
   await expect(issueSheet).toHaveCount(0);
 
@@ -445,9 +444,10 @@ test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelaci
   await issue.getByRole('button', { name: 'Todo el frasco' }).click();
   // El atajo escribe la cantidad sin separador de miles: más de 1.000 mL no se lee como decimal.
   // Con tara (ADR 0015), además lo que marcará la balanza: solo el frasco vacío.
-  await expect(issue.getByText(/^Quedarán/)).toHaveText(/^Quedarán 0\s*mL en el frasco\.En balanza: 420,0 g$/);
-  // El ácido clorhídrico es controlado: la salida lo avisa (ADR 0015).
-  await expect(issue.getByRole('status').filter({ hasText: 'Este reactivo es controlado.' })).toBeVisible();
+  await expect(issue.getByText(/^Quedarán/)).toHaveText(/^Quedarán:\s*0\s*mL$/);
+  await expect(issue.getByText(/^En balanza/)).toHaveText('En balanza: 420,0 g');
+  // El ácido clorhídrico es controlado: la cabecera lo marca con su ficha (ADR 0015).
+  await expect(issue.getByText('Controlado', { exact: true })).toBeVisible();
   await pick(issue, 'Preparación de soluciones');
   await pick(issue, 'Laboratorio de Física');
   await issue.getByRole('button', { name: 'Enviar solicitud' }).click();
@@ -615,8 +615,7 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await expect(ingress.getByLabel('Tara (calculada, g)')).toHaveValue('140,0');
   await ingress.getByRole('combobox', { name: 'Ubicación' }).fill('Almacén');
   await admin.getByRole('option', { name: /Almacén de reactivos/ }).click();
-  await ingress.getByRole('combobox', { name: 'Estado físico' }).click();
-  await admin.getByRole('option', { name: 'Sólido' }).click();
+  await pick(ingress, 'Sólido');
   await ingress.getByRole('button', { name: 'Ingresar 1 frasco' }).click();
   await expect(admin.getByText('Frasco ingresado')).toBeVisible();
 
@@ -744,14 +743,14 @@ test('stock insuficiente: la salida se rechaza en el formulario y el saldo no ca
 
   await ethanol.getByRole('button', { name: 'Salida' }).click();
   const issue = operator.getByRole('dialog');
-  await issue.getByLabel('Cantidad', { exact: true }).fill('100000');
+  await issue.getByLabel('Cantidad a retirar', { exact: true }).fill('100000');
   // Antes de enviar ya se ve que no alcanza; el servidor lo confirma igual.
   await expect(issue.getByText('No alcanza: el frasco tiene 500 mL.')).toBeVisible();
   await pick(issue, 'Práctica de Química General');
   await pick(issue, 'Laboratorio de Física');
   await issue.getByRole('button', { name: 'Confirmar salida' }).click();
   await expect(issue.getByText('No alcanza: el frasco tiene 500 mL.')).toBeVisible();
-  await expect(issue.getByLabel('Cantidad', { exact: true })).toHaveAttribute('aria-invalid', 'true');
+  await expect(issue.getByLabel('Cantidad a retirar', { exact: true })).toHaveAttribute('aria-invalid', 'true');
   await expectAccessible(operator, 'hoja con stock insuficiente');
   await capture(operator, 'desktop-insufficient', false);
 

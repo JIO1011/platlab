@@ -1,7 +1,7 @@
 import type { hazard } from '@platlab/contracts';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, cn } from '@platlab/ui';
-import { Check, Plus, X } from 'lucide-react';
+import { cn } from '@platlab/ui';
 import type { z } from 'zod';
+import { pillStyles } from './pills';
 
 export type Hazard = z.infer<typeof hazard>;
 
@@ -28,67 +28,24 @@ function Pictogram({ file, alt = '', className }: { file: string; alt?: string; 
 }
 
 /**
- * Selección múltiple de peligros: los elegidos se ven como pictogramas con su nombre (un toque los
- * quita) y «Añadir» abre un menú con los nueve, cada uno con su casilla.
+ * Selección múltiple de peligros: los nueve pictogramas, cada uno en una píldora con su nombre y una
+ * casilla (para lectores y teclado); los elegidos, en índigo-50. Se guardan en el orden del SGA.
  */
 export function HazardSelect({ value, onChange }: { value: Hazard[]; onChange: (next: Hazard[]) => void }) {
-  // Se guardan en el orden del SGA, como los muestra la ficha.
   const toggle = (id: Hazard) =>
     onChange(hazards.map((entry) => entry.id).filter((entry) => (entry === id ? !value.includes(id) : value.includes(entry))));
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {hazards
-        .filter((entry) => value.includes(entry.id))
-        .map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            onClick={() => toggle(entry.id)}
-            aria-label={`Quitar ${entry.label}`}
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-surface-sunken py-1 pl-1 pr-2.5 text-[13px] text-ink transition-colors duration-150 hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:min-h-[36px]"
-          >
+    <div className="flex flex-wrap gap-2">
+      {hazards.map((entry) => {
+        const checked = value.includes(entry.id);
+        return (
+          <label key={entry.id} className={cn(pillStyles(checked, 'auto'), 'gap-2 py-1 pl-1.5 pr-3')}>
+            <input type="checkbox" className="sr-only" checked={checked} onChange={() => toggle(entry.id)} />
             <Pictogram file={entry.file} />
             {entry.label}
-            <X className="size-3.5 shrink-0 text-ink-muted" aria-hidden />
-          </button>
-        ))}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-dashed border-line-strong px-3 text-[13px] font-medium text-action transition-colors duration-150 hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:min-h-[36px]"
-          >
-            <Plus className="size-3.5" aria-hidden />
-            Añadir
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="max-h-[min(24rem,var(--radix-dropdown-menu-content-available-height))] min-w-64 overflow-y-auto">
-          {hazards.map((entry) => {
-            const checked = value.includes(entry.id);
-            return (
-              <DropdownMenuItem
-                key={entry.id}
-                role="menuitemcheckbox"
-                aria-checked={checked}
-                onSelect={(event) => {
-                  event.preventDefault();
-                  toggle(entry.id);
-                }}
-                className="max-sm:h-[44px]"
-              >
-                <span
-                  aria-hidden
-                  className={cn('inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border', checked ? 'border-action bg-action' : 'border-line-strong bg-surface')}
-                >
-                  {checked ? <Check className="size-3! text-on-action!" strokeWidth={3} /> : null}
-                </span>
-                <Pictogram file={entry.file} />
-                <span className="text-ink">{entry.label}</span>
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </label>
+        );
+      })}
     </div>
   );
 }

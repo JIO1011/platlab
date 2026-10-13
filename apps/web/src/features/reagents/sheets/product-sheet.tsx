@@ -1,13 +1,14 @@
 import { product as productSchema, updateProductRequest, type ProductDetail } from '@platlab/contracts';
-import { Field, Select, toast } from '@platlab/ui';
-import { CircleCheck, PencilLine, TriangleAlert } from 'lucide-react';
+import { Field, toast } from '@platlab/ui';
+import { CircleCheck, PencilLine, Save, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { isApiError } from '../../../app/api';
 import { commandErrorMessage, useCommand } from '../commands';
 import { checkCas } from '../ingress/cas';
-import { FilledInput, fieldGrid, fieldLabel, filled } from '../ingress/filled';
+import { FilledInput, fieldGrid, fieldLabel } from '../ingress/filled';
 import { casRequired, catalogFields, draftOf, productUnits, validateDraft, type Draft, type Errors } from '../ingress/model';
 import { SafetyFields } from '../ingress/safety-fields';
+import { PillField } from '../pills';
 import { type SheetBaseProps, FormSheet } from './shared';
 
 /** Las unidades admitidas y, si es otra (un reactivo anterior: mg, u…), también la suya, para mostrarla. */
@@ -57,7 +58,10 @@ export function ProductSheet({ workspaceId, open, onOpenChange, product }: Sheet
 
   return (
     <FormSheet
-      compact
+      sections
+      wide
+      fullWidthSubmit
+      submitIcon={Save}
       icon={PencilLine}
       title="Editar reactivo"
       description="* Campos obligatorios"
@@ -101,20 +105,16 @@ export function ProductSheet({ workspaceId, open, onOpenChange, product }: Sheet
               </span>
             </div>
           </Field>
-          <Field
+          <PillField
             label="Unidad"
             labelClassName={fieldLabel}
+            size="sm"
+            value={draft.unit}
+            options={unitOptions(initial.unit)}
+            onChange={(unit) => patchDraft({ unit })}
+            disabled={!product.unitEditable}
             hint={product.unitEditable ? undefined : 'No cambia: el reactivo ya tiene movimientos.'}
-          >
-            <Select
-              value={draft.unit}
-              onValueChange={(unit) => patchDraft({ unit })}
-              options={unitOptions(initial.unit)}
-              placeholder="Elige la unidad"
-              disabled={!product.unitEditable}
-              triggerClassName={filled}
-            />
-          </Field>
+          />
         </div>
         <SafetyFields existing={null} draft={draft} onDraft={patchDraft} errors={errors} withDensity />
       </div>

@@ -272,13 +272,17 @@ export function IngressSheet({
 
   return (
     <FormSheet
-      compact
+      flush
+      wide
+      fullWidthSubmit
       icon={PackagePlus}
+      submitIcon={PackagePlus}
       title="Ingresar reactivo"
       description="* Campos obligatorios"
       open={open}
       onOpenChange={onOpenChange}
       submitLabel={`Ingresar ${bottlesLabel}`}
+      submitDisabled={missing > 0}
       pending={receipt.isPending}
       generalError={generalError}
       status={status}

@@ -182,6 +182,12 @@ Medidas, patrones y estados: `DESIGN.md` y `packages/ui/src/styles.css` (solo en
 - **Tarjetas de catálogo.** Un patrón común a todos los módulos (reactivos hoy; materiales y equipos después), con el componente compartido `IconChip`. Su icono sale de un dato que ya existe (el estado físico: sólido, líquido o gas) y nunca decora; un reactivo sin existencias pasa a chip neutro y píldora ámbar con texto e icono. Solo cambia la presentación.
 - **Ventanas de movimiento.** Nuevo reactivo, ingreso, salida y ajuste son una ventana centrada (como el modal de ReactiLab), no una hoja lateral.
 - **Densidad.** Dentro de un módulo el tamaño base baja de 16 a 15 px (`:root[data-module]`, en porcentaje para respetar la letra del navegador) y todo lo que está en `rem` se reduce por igual; el título de página baja un paso. Inicio y acceso no cambian.
+- **Ventanas como ReactiLab (13-10-2026).** Material de vidrio esmerilado (translúcido con desenfoque y fondo sólido sin soporte), bandas separadas por líneas de borde a borde y botón principal alto con icono. En «Registrar salida»:
+  - cabecera con el icono del módulo, el reactivo y el frasco;
+  - barra de stock con color por nivel y su texto;
+  - cantidad grande sin subrayado;
+  - «Todo» como enlace;
+  - etiquetas claras de ancho parejo.
 - **Ficha.** Sin «← Inventario»: el menú ya lleva al Inventario. Queda abierto darle una función propia (por ejemplo, una miga de pan en la barra superior).
 - **Movimiento.**
   - Pulsación de 100–150 ms con CSS; superposiciones de 150–200 ms que nacen de su origen.

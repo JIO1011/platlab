@@ -3,6 +3,7 @@ import { Field, Select, cn } from '@platlab/ui';
 import { Lock, LockOpen } from 'lucide-react';
 import { useId } from 'react';
 import { ControlledMark } from '../controlled';
+import { PillField } from '../pills';
 import { HazardGlyphs, HazardSelect } from '../hazards';
 import { physicalStateLabel } from '../product-parts';
 import { isVolume } from '../weight';
@@ -37,15 +38,16 @@ export function SafetyFields({
   return (
     <div className="grid gap-3">
       <div className={fieldGrid}>
-        <Field label="Estado físico" required labelClassName={fieldLabel} error={errors.state}>
-          <Select
-            value={draft.state || undefined}
-            onValueChange={(state) => onDraft({ state: physicalState.options.find((entry) => entry === state) ?? '' })}
-            options={states}
-            placeholder="Elige cómo es"
-            triggerClassName={filled}
-          />
-        </Field>
+        <PillField
+          label="Estado físico"
+          required
+          labelClassName={fieldLabel}
+          className="sm:col-span-2"
+          value={draft.state}
+          options={states}
+          onChange={(state) => onDraft({ state: physicalState.options.find((entry) => entry === state) ?? '' })}
+          error={errors.state}
+        />
         <ControlledSwitch checked={draft.controlled} onChange={(controlled) => onDraft({ controlled })} />
       </div>
 

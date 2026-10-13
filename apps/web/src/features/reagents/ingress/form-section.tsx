@@ -1,4 +1,4 @@
-import { cn } from '@platlab/ui';
+import { cn, sectionLabel } from '@platlab/ui';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useId, useState, type ReactNode } from 'react';
 
@@ -37,8 +37,8 @@ function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
 
 /**
  * Aparición progresiva de una sección: entra plegada a 0fr y se despliega en el cuadro siguiente.
- * El espacio que la separa de la anterior vive dentro (`pt-4`), para que no salte al montarla.
- * `instant` la monta ya desplegada (al abrir la ventana con un reactivo elegido).
+ * El espacio y la línea que la separan de la anterior viven dentro de la sección, para que no salten
+ * al montarla. `instant` la monta ya desplegada (al abrir la ventana con un reactivo elegido).
  */
 export function Reveal({ children, instant = false }: { children: ReactNode; instant?: boolean }) {
   const [shown, setShown] = useState(instant);
@@ -54,15 +54,14 @@ export function Reveal({ children, instant = false }: { children: ReactNode; ins
     };
   }, [shown]);
   return (
-    <Collapse open={shown}>
-      <div className="pt-4">{children}</div>
-    </Collapse>
+    <Collapse open={shown}>{children}</Collapse>
   );
 }
 
 /**
- * Sección plana del formulario: sin tarjeta, separada de la anterior por una línea. El título va en
- * 14 px seminegrita con un icono de acento.
+ * Banda del formulario (como las de la salida): de borde a borde, separada de la anterior por una
+ * línea y con `py-5`. El rótulo va en mayúsculas grises con un icono pequeño; la marca «Opcional»,
+ * en gris a la derecha. Va dentro de un contenedor que sale del relleno del cuerpo (`-mx-6`).
  */
 export function Section({
   icon: Icon,
@@ -80,12 +79,14 @@ export function Section({
 }) {
   const id = useId();
   return (
-    <section aria-labelledby={id} className={cn(divided && 'border-t border-line pt-4')}>
-      <h3 id={id} className="mb-3 flex items-center gap-2 text-[14px] font-semibold text-ink">
-        <Icon className="size-4 shrink-0 text-action" aria-hidden />
-        {title}
-        {badge ? <span className="rounded-full border border-line-strong px-2 py-px text-xs font-medium text-ink-muted">{badge}</span> : null}
-      </h3>
+    <section aria-labelledby={id} className={cn('px-6 py-5', divided && 'border-t border-line')}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 id={id} className={cn(sectionLabel, 'flex items-center gap-2')}>
+          <Icon className="size-3.5 shrink-0" aria-hidden />
+          {title}
+        </h3>
+        {badge ? <span className="text-xs font-medium text-ink-muted">{badge}</span> : null}
+      </div>
       {children}
     </section>
   );
