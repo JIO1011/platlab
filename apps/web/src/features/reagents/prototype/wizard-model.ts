@@ -1,5 +1,5 @@
 // Prototipo R-01D: solo interfaz
-import type { StockedProduct } from '@platlab/contracts';
+import { normalizeDecimalInput } from '@platlab/ui';
 import { checkCas } from './cas';
 import type { SdsKind } from './catalog-sample';
 
@@ -13,11 +13,11 @@ export interface Draft {
   hazards: string[];
   sds: SdsKind | '';
   sdsUrl: string;
+  /** Mínimo de existencias, en la unidad del reactivo. */
+  min: string;
 }
 
-export const emptyDraft: Draft = { name: '', cas: '', unit: '', state: '', controlled: false, hazards: [], sds: '', sdsUrl: '' };
-
-export type Selection = { kind: 'existing'; product: StockedProduct } | { kind: 'new' } | null;
+export const emptyDraft: Draft = { name: '', cas: '', unit: 'g', state: '', controlled: false, hazards: [], sds: '', sdsUrl: '', min: '' };
 
 /** Ubicación con su ruta («Sede central › Almacén de reactivos»). */
 export interface Place {
@@ -44,13 +44,16 @@ export function toPlaces(locations: Array<{ id: string; name: string; kind: stri
 export interface BottlesForm {
   quantity: string;
   count: string;
+  /** Código de los frascos; `null` mientras se usa el sugerido. */
+  code: string | null;
   placeId: string;
+  /** Lo que se ve en el campo Ubicación (la ruta de la elegida o lo que se escribe). */
+  placeText: string;
   noExpiry: boolean;
   expiresOn: string;
   brand: string;
   supplierLot: string;
   area: string;
-  weightOpen: boolean;
   fullWeight: string;
   density: string;
 }
@@ -61,7 +64,7 @@ const decimal = /^\d{1,15}(\.\d{1,9})?$/;
 export const countOf = (text: string) => (/^\d{1,3}$/.test(text.trim()) ? Number(text.trim()) : null);
 export const countValid = (count: number | null): count is number => count !== null && count >= 1 && count <= MAX_BOTTLES;
 
-export type Errors = Partial<Record<'name' | 'unit' | 'state' | 'cas' | 'sdsUrl' | 'quantity' | 'count' | 'placeId' | 'weight', string>>;
+export type Errors = Partial<Record<'name' | 'unit' | 'state' | 'cas' | 'sdsUrl' | 'min' | 'quantity' | 'count' | 'placeId' | 'weight', string>>;
 
 export function validateNew(draft: Draft): Errors {
   const errors: Errors = {};
@@ -69,7 +72,10 @@ export function validateNew(draft: Draft): Errors {
   if (!draft.unit) errors.unit = 'Elige cómo se mide.';
   if (!draft.state) errors.state = 'Elige cómo es.';
   const cas = checkCas(draft.cas);
-  if (cas === 'invalid' || cas === 'partial') errors.cas = 'Revisa el CAS: su dígito de control no coincide.';
+  if (cas === 'empty') errors.cas = 'Escribe el CAS, como 7647-14-5.';
+  else if (cas === 'invalid' || cas === 'partial') errors.cas = 'Revisa el CAS: su dígito de control no coincide.';
+  const min = normalizeDecimalInput(draft.min);
+  if (min && (!decimal.test(min) || /^0+(\.0+)?$/.test(min))) errors.min = 'Escribe una cantidad mayor que cero, como 5 o 2,5.';
   if (draft.sds === 'digital' && draft.sdsUrl.trim() && !/^https?:\/\/\S+\.\S+/.test(draft.sdsUrl.trim())) {
     errors.sdsUrl = 'Escribe el enlace completo, por ejemplo https://….';
   }
@@ -86,7 +92,7 @@ export function validateBottles(form: BottlesForm, quantity: string, placeId: st
 }
 
 /** Código de muestra de un frasco (el real lo genera el servidor al guardar). */
-export function sampleCode(name: string, index: number): string {
+function sampleCode(name: string, index: number): string {
   const prefix = name
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
@@ -101,3 +107,9 @@ export const defaultAreas = ['Docencia', 'Investigación'];
 
 /** Sin tildes y en minúsculas, para que «acido» encuentre «Ácido». */
 export const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+/** Código sugerido para los frascos de un reactivo, sin el número de frasco («HEXA-2026»). */
+export const suggestedCode = (name: string) => sampleCode(name, 0).slice(0, -3);
+
+/** Código de un frasco: el código común y su número («HEXA-2026-03»). */
+export const bottleCode = (base: string, index: number) => `${base.trim()}-${String(index + 1).padStart(2, '0')}`;

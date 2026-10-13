@@ -38,6 +38,11 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
             event.preventDefault();
             initialFocus.current.focus();
           }}
+          onEscapeKeyDown={(event) => {
+            // Con un menú de sugerencias abierto, Esc cierra solo el menú.
+            const focused = document.activeElement;
+            if (focused instanceof HTMLElement && focused.getAttribute('role') === 'combobox' && focused.getAttribute('aria-expanded') === 'true') event.preventDefault();
+          }}
           className={cn(
             'fixed inset-0 z-50 m-auto flex h-fit max-h-[90dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-card bg-surface shadow-overlay outline-none data-[state=closed]:animate-modal-out data-[state=open]:animate-modal-in',
             wide ? 'max-w-[40rem]' : 'max-w-lg',
@@ -82,7 +87,7 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
               <X className="size-5" aria-hidden />
             </Dialog.Close>
           </header>
-          <div className={cn('min-h-0 flex-1 overflow-y-auto', compact ? 'bg-surface-sunken/50 px-4 py-3 sm:px-5' : 'border-t border-line px-6 py-4')}>{children}</div>
+          <div className={cn('relative min-h-0 flex-1 overflow-y-auto', compact ? 'px-4 py-4 sm:px-5' : 'border-t border-line px-6 py-4')}>{children}</div>
           {footer ? (
             <footer
               className={cn(

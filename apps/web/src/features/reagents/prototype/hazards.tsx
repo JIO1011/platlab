@@ -1,6 +1,6 @@
 // Prototipo R-01D: solo interfaz
-import { cn } from '@platlab/ui';
-import { Bomb, Check, Cylinder, Fish, Flame, FlameKindling, HeartPulse, Skull, TestTube, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, cn } from '@platlab/ui';
+import { Bomb, Check, Cylinder, Fish, Flame, FlameKindling, HeartPulse, Plus, Skull, TestTube, TriangleAlert, X, type LucideIcon } from 'lucide-react';
 
 /**
  * Excepción de color: el rojo del borde del rombo es normativo del SGA (pictogramas de peligro),
@@ -31,7 +31,7 @@ const hazards: Hazard[] = [
 function Pictogram({ icon: Icon, className }: { icon: LucideIcon; className?: string }) {
   return (
     <span aria-hidden className={cn('relative inline-flex size-9 shrink-0 items-center justify-center', className)}>
-      <svg viewBox="0 0 40 40" className="absolute inset-0 size-full">
+      <svg viewBox="0 0 40 40" className="absolute inset-0 size-full!">
         <polygon points="20,2.5 37.5,20 20,37.5 2.5,20" fill="var(--color-surface)" stroke={SGA_RED} strokeWidth="3.2" strokeLinejoin="miter" />
       </svg>
       <Icon className="relative size-[18px] text-ink" strokeWidth={2} />
@@ -39,50 +39,67 @@ function Pictogram({ icon: Icon, className }: { icon: LucideIcon; className?: st
   );
 }
 
-/** Selección múltiple de los nueve pictogramas: fichas pequeñas que se ajustan a la fila; cada una dice su nombre y si está marcada. */
-export function HazardPicker({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
+/**
+ * Selección múltiple de peligros: los elegidos se ven como pictogramas pequeños con su nombre (un
+ * toque los quita) y «Añadir» abre un menú con los nueve, cada uno con su casilla.
+ */
+export function HazardSelect({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
   const toggle = (id: string) => onChange(value.includes(id) ? value.filter((item) => item !== id) : [...value, id]);
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {hazards.map((hazard) => {
-        const pressed = value.includes(hazard.id);
-        return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {hazards
+        .filter((hazard) => value.includes(hazard.id))
+        .map((hazard) => (
           <button
             key={hazard.id}
             type="button"
-            aria-pressed={pressed}
             onClick={() => toggle(hazard.id)}
-            className={cn(
-              'inline-flex min-h-[44px] items-center gap-1.5 rounded-full border py-1 pl-1.5 pr-2.5 text-left text-[13px] leading-tight transition-colors duration-150 ease-out-expo sm:min-h-9',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action',
-              pressed ? 'border-action/40 bg-action-soft font-semibold text-ink' : 'border-line bg-surface text-ink-muted hover:border-line-strong hover:bg-surface-sunken hover:text-ink',
-            )}
+            aria-label={`Quitar ${hazard.label}`}
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-surface-sunken py-1 pl-1.5 pr-2.5 text-[13px] text-ink transition-colors duration-150 hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:min-h-[36px]"
           >
             <Pictogram icon={hazard.icon} className="size-5 [&_svg:last-child]:size-2.5" />
             {hazard.label}
-            {pressed ? <Check className="size-3.5 shrink-0 text-action" strokeWidth={3} aria-hidden /> : null}
+            <X className="size-3.5 shrink-0 text-ink-muted" aria-hidden />
           </button>
-        );
-      })}
+        ))}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-dashed border-line-strong px-3 text-[13px] font-medium text-action transition-colors duration-150 hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:min-h-[36px]"
+          >
+            <Plus className="size-3.5" aria-hidden />
+            Añadir
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="max-h-[min(24rem,var(--radix-dropdown-menu-content-available-height))] min-w-64 overflow-y-auto">
+          {hazards.map((hazard) => {
+            const checked = value.includes(hazard.id);
+            return (
+              <DropdownMenuItem
+                key={hazard.id}
+                role="menuitemcheckbox"
+                aria-checked={checked}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  toggle(hazard.id);
+                }}
+                className="max-sm:h-[44px]"
+              >
+                <span
+                  aria-hidden
+                  className={cn('inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border', checked ? 'border-action bg-action' : 'border-line-strong bg-surface')}
+                >
+                  {checked ? <Check className="size-3! text-on-action!" strokeWidth={3} /> : null}
+                </span>
+                <Pictogram icon={hazard.icon} className="size-5 [&_svg:last-child]:size-2.5" />
+                <span className="text-ink">{hazard.label}</span>
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
-  );
-}
-
-/** Los peligros ya registrados de un reactivo: rombo pequeño y nombre, en una línea que se parte. */
-export function HazardTags({ ids }: { ids: string[] }) {
-  if (ids.length === 0) return <span className="text-[13px] text-ink-muted">Sin peligros registrados</span>;
-  return (
-    <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
-      {ids.map((id) => {
-        const hazard = hazards.find((entry) => entry.id === id);
-        return hazard ? (
-          <li key={id} className="inline-flex items-center gap-1.5 text-[13px] text-ink">
-            <Pictogram icon={hazard.icon} className="size-6 [&_svg:last-child]:size-3" />
-            {hazard.label}
-          </li>
-        ) : null;
-      })}
-    </ul>
   );
 }
 
