@@ -1,5 +1,5 @@
-import { Quantity, Skeleton, StatePanel, cn } from '@platlab/ui';
-import { ArrowRight, CalendarClock, CalendarX, FlaskConical, History, QrCode as QrIcon, TrendingDown } from 'lucide-react';
+import { Quantity, Skeleton, StatePanel, cn, formatDecimal } from '@platlab/ui';
+import { ArrowRight, CalendarClock, CalendarX, ExternalLink, FlaskConical, History, PencilLine, QrCode as QrIcon, TrendingDown } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
@@ -10,6 +10,9 @@ import { purposeOf, responsibleOf } from './operation-text';
 import { fefoCandidates } from './sheets';
 import { availableOf } from './stock';
 import { ContainerCard } from './container-card';
+import { ControlledMark } from './controlled';
+import { HazardGlyphs } from './hazards';
+import { sdsLabels } from './ingress/safety-fields';
 import { EmptyToggle, physicalStateIcon, physicalStateLabel } from './product-parts';
 
 /** Rótulo de cada dato de la banda de la ficha. */
@@ -79,23 +82,48 @@ export function ReagentsProductPage() {
     <div className="grid gap-6">
       <section aria-label="Datos del reactivo" className="grid gap-4">
         {/* La identidad es un subtítulo, no un grupo de píldoras: el color se reserva para los avisos. */}
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
           <span className="tabular-nums">
             <span className="sr-only">Código </span>
             {product.data.code}
           </span>
-          {product.data.casNumber ? (
-            <>
-              <span aria-hidden>·</span>
-              <span className="font-mono tabular-nums">CAS {product.data.casNumber}</span>
-            </>
-          ) : null}
-          <span aria-hidden>·</span>
+          {product.data.casNumber ? <span className="font-mono tabular-nums">CAS {product.data.casNumber}</span> : null}
           <span className="inline-flex items-center gap-1.5">
             <StateIcon className="size-4" aria-hidden />
             {state ? physicalStateLabel[state] : 'Estado sin indicar'}
           </span>
-        </p>
+          {product.data.controlled ? <ControlledMark withText /> : null}
+          {allowed.product ? (
+            <button
+              type="button"
+              className="ml-auto inline-flex min-h-8 items-center gap-1.5 rounded-control px-1 text-sm font-medium text-action hover:text-action-hover"
+              onClick={() => openSheet({ kind: 'product', product: product.data })}
+            >
+              <PencilLine className="size-4" aria-hidden />
+              Editar
+            </button>
+          ) : null}
+        </div>
+        {/* Seguridad (ADR 0015): pictogramas, ficha de seguridad y densidad, como los registra el catálogo. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-muted">
+          {product.data.hazards.length > 0 ? <HazardGlyphs ids={product.data.hazards} large /> : <span>Sin pictogramas</span>}
+          {product.data.sdsKind === 'digital' && product.data.sdsUrl ? (
+            <a
+              href={product.data.sdsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-action hover:text-action-hover"
+            >
+              Ficha de seguridad
+              <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+          ) : (
+            <span>
+              {product.data.sdsKind ? `Ficha de seguridad: ${sdsLabels[product.data.sdsKind].toLowerCase()}` : 'Ficha de seguridad sin indicar'}
+            </span>
+          )}
+          {product.data.density ? <span className="tabular-nums">Densidad {formatDecimal(product.data.density)} g/mL</span> : null}
+        </div>
         {/* Banda de tres datos, como los indicadores del Resumen (ADR 0012, 06-10-2026). En el móvil, la
             existencia ocupa el ancho y los otros dos van en dos columnas. */}
         <dl className="grid grid-cols-2 overflow-hidden rounded-card bg-surface shadow-raised sm:grid-cols-[1.5fr_1fr_1fr]">

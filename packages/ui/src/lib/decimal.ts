@@ -69,6 +69,14 @@ export function subtractDecimal(a: string, b: string): string | null {
   return fromUnits(left - right);
 }
 
+/** a + b con exactitud; null si alguna no es una cadena decimal válida. */
+export function addDecimal(a: string, b: string): string | null {
+  const left = toUnits(a);
+  const right = toUnits(b);
+  if (left === null || right === null) return null;
+  return fromUnits(left + right);
+}
+
 /** Qué porcentaje de `whole` es `part`, entero de 0 a 100 (barra de «% restante» de un frasco). */
 export function ratioPercent(part: string, whole: string): number | null {
   const numerator = toUnits(part);
@@ -76,4 +84,51 @@ export function ratioPercent(part: string, whole: string): number | null {
   if (numerator === null || denominator === null || denominator <= 0n) return null;
   const percent = (numerator * 100n) / denominator;
   return Number(percent < 0n ? 0n : percent > 100n ? 100n : percent);
+}
+
+/** n / d redondeado a entero con la mitad alejándose de cero (la mitad «hacia arriba» en positivos). */
+function roundedQuotient(numerator: bigint, denominator: bigint): bigint {
+  const negative = numerator < 0n !== denominator < 0n;
+  const n = numerator < 0n ? -numerator : numerator;
+  const d = denominator < 0n ? -denominator : denominator;
+  const quotient = (2n * n + d) / (2n * d);
+  return negative ? -quotient : quotient;
+}
+
+/** Entero con `decimals` decimales implícitos → cadena con exactamente esos decimales («-2.10»). */
+function fixed(scaled: bigint, decimals: number): string {
+  const negative = scaled < 0n;
+  const absolute = negative ? -scaled : scaled;
+  const base = 10n ** BigInt(decimals);
+  const integer = absolute / base;
+  const fraction = decimals > 0 ? `.${(absolute % base).toString().padStart(decimals, '0')}` : '';
+  return `${negative && absolute !== 0n ? '-' : ''}${integer}${fraction}`;
+}
+
+const validDecimals = (decimals: number) => Number.isInteger(decimals) && decimals >= 0 && decimals <= SCALE;
+
+/**
+ * Redondea a `decimals` (0 a 9) con la mitad hacia arriba y devuelve la cadena con esos decimales
+ * exactos («43.5949», 2 → «43.59»); null si no es una cadena decimal válida.
+ */
+export function roundDecimal(value: string, decimals: number): string | null {
+  const units = toUnits(value);
+  if (units === null || !validDecimals(decimals)) return null;
+  return fixed(roundedQuotient(units, 10n ** BigInt(SCALE - decimals)), decimals);
+}
+
+/** a × b con exactitud, redondeado a `decimals`; null si alguna no es válida. Nunca pasa por `number`. */
+export function multiplyDecimal(a: string, b: string, decimals: number): string | null {
+  const left = toUnits(a);
+  const right = toUnits(b);
+  if (left === null || right === null || !validDecimals(decimals)) return null;
+  return fixed(roundedQuotient(left * right, 10n ** BigInt(2 * SCALE - decimals)), decimals);
+}
+
+/** a ÷ b con exactitud, redondeado a `decimals`; null si alguna no es válida o b es cero. */
+export function divideDecimal(a: string, b: string, decimals: number): string | null {
+  const left = toUnits(a);
+  const right = toUnits(b);
+  if (left === null || right === null || right === 0n || !validDecimals(decimals)) return null;
+  return fixed(roundedQuotient(left * 10n ** BigInt(decimals), right), decimals);
 }

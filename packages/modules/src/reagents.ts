@@ -35,7 +35,7 @@ export const reagentsModule = defineModule({
     ],
     operator: ['reagents.catalog.read', 'reagents.receipt.create', 'reagents.issue.create', 'reagents.transfer.create'],
   },
-  // Las demás secciones (Informes, Fiscalizados, Documentos, Configuración) llegan con su entrega.
+  // Las demás secciones (Informes, Controlados, Documentos, Configuración) llegan con su entrega.
   nav: [
     {
       path: 'reactivos',

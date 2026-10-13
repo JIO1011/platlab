@@ -1,12 +1,41 @@
 /* Detalle químico de Reactivos (03 §4): extensión 1:1 de un ítem `reagent` de inventario. */
 
 /* @name insertProductDetail */
-INSERT INTO reagents.products (workspace_id, item_id, cas_number, physical_state)
-VALUES (:workspaceId!, :itemId!, :casNumber, :physicalState)
-RETURNING cas_number, physical_state;
+INSERT INTO reagents.products
+  (workspace_id, item_id, cas_number, physical_state, hazards, controlled, sds_kind, sds_url, density)
+VALUES
+  (:workspaceId!, :itemId!, :casNumber, :physicalState!, :hazards!::text[], :controlled!, :sdsKind, :sdsUrl, :density::numeric)
+RETURNING cas_number, physical_state, hazards, controlled, sds_kind, sds_url, trim_scale(density) AS density;
+
+/* @name findProductDetail */
+-- La ficha química de un reactivo del espacio (ADR 0015).
+SELECT cas_number, physical_state, hazards, controlled, sds_kind, sds_url, trim_scale(density) AS density
+FROM reagents.products
+WHERE workspace_id = :workspaceId! AND item_id = :itemId!;
+
+/* @name updateProductDetail */
+-- Escribe la ficha ya combinada; el comando la edita con el ítem bloqueado.
+UPDATE reagents.products
+SET cas_number = :casNumber, physical_state = :physicalState, hazards = :hazards!::text[], controlled = :controlled!,
+    sds_kind = :sdsKind, sds_url = :sdsUrl, density = :density::numeric
+WHERE workspace_id = :workspaceId! AND item_id = :itemId!
+RETURNING item_id;
+
+/* @name listControlled */
+-- Qué reactivos son controlados (ADR 0015), para marcar sus frascos.
+SELECT item_id
+FROM reagents.products
+WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]) AND controlled;
 
 /* @name listProducts */
 -- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.
+-- Con :q, solo los reactivos cuyo nombre, código o CAS lo contienen, plegados con inventory.fold_text
+-- (código y CAS son ASCII por su CHECK). `\`, `%` y `_` se escapan con `\` (el escape por omisión de
+-- LIKE; chr(92), porque PgTyped no admite `\` en un literal) y cuentan como texto.
+WITH search AS (
+  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),
+           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
+)
 SELECT
   i.id,
   i.code,
@@ -14,6 +43,11 @@ SELECT
   i.base_unit,
   r.cas_number,
   r.physical_state,
+  r.hazards,
+  r.controlled,
+  r.sds_kind,
+  r.sds_url,
+  trim_scale(r.density) AS density,
   trim_scale(i.minimum_quantity) AS minimum,
   stock.balance AS "balance!",
   -- Bajo mínimo (ADR 0012, 05-10-2026): existencia física, con los vencidos y lo apartado.
@@ -52,10 +86,15 @@ CROSS JOIN LATERAL (
     AND p.item_id = i.id
     AND p.location_id = ANY (:locationIds!::uuid[])
 ) AS stock
+CROSS JOIN search
 WHERE i.workspace_id = :workspaceId!
   AND i.kind = 'reagent'
   AND i.archived_at IS NULL
   AND (:productId::uuid IS NULL OR i.id = :productId::uuid)
+  AND (search.pattern IS NULL
+       OR inventory.fold_text(i.name) LIKE search.pattern
+       OR lower(i.code) LIKE search.pattern
+       OR r.cas_number LIKE search.pattern)
   AND (:afterId::uuid IS NULL OR (lower(i.code), i.id) > (:afterCode::text, :afterId::uuid))
 ORDER BY lower(i.code), i.id
 LIMIT :limit!;
@@ -98,20 +137,8 @@ SELECT
   (SELECT count(*) FROM minimums WHERE balance < minimum_quantity) AS "below_minimum!",
   (SELECT count(*) FROM minimums) AS "products_with_minimum!";
 
-/* @name listProductLots */
--- Lotes de un reactivo del espacio, para elegirlos al registrar un ingreso.
-SELECT l.id, l.item_id, l.code, l.supplier_name, l.supplier_lot, l.expires_on
-FROM inventory.lots AS l
-JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
-WHERE l.workspace_id = :workspaceId!
-  AND l.item_id = :itemId!
-  AND i.kind = 'reagent'
-  AND i.archived_at IS NULL
-ORDER BY l.expires_on NULLS LAST, lower(l.code), l.id
-LIMIT 200;
-
 /* @name listLocationsIn */
-SELECT id, code, name, kind
+SELECT id, code, name, kind, parent_id
 FROM core.locations
 WHERE workspace_id = :workspaceId!
   AND id = ANY (:locationIds!::uuid[])

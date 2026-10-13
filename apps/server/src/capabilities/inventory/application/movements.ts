@@ -1,20 +1,25 @@
 import { AppError } from '../../../platform/errors.js';
 import {
   applyEntry,
+  computeTare,
   ensureContainerPosition,
   findLocation,
-  findLot,
   insertContainerPosition,
   insertContainers,
   insertOperation,
   lockContainerPositionAt,
+  lockContainerStock,
   lockCountPosition,
   lockPosition,
   lockTransferPosition,
   reserveContainerSeqs,
+  setContainerTare,
+  takenContainerCode,
+  weighPosition,
+  type IInsertContainersParams,
 } from '../infrastructure/inventory.queries.js';
-import { createLot, type NewLot } from './catalog.js';
-import type { InventoryContext } from './context.js';
+import { openLot, type LotDetails } from './catalog.js';
+import { pgViolation, type InventoryContext } from './context.js';
 
 const notFound = () => new AppError('NOT_FOUND', 'Recurso no encontrado');
 
@@ -45,8 +50,43 @@ function requireBaseUnit(unit: string, baseUnit: string): void {
   }
 }
 
-/** Código visible de un frasco: «código del lote-NN» (ADR 0012). */
-const containerCode = (lotCode: string, seq: number) => `${lotCode}-${String(seq).padStart(2, '0')}`;
+/**
+ * Tara de un frasco (ADR 0015): su peso en g con `quantity` dentro, calculado en la base. Devuelve
+ * también la densidad que se guarda con ella (null en masa).
+ */
+async function tareFor(
+  ctx: InventoryContext,
+  input: { grossWeight: string; quantity: string; unit: string; density: string | null },
+): Promise<{ tare: string; density: string | null }> {
+  const [row] = await computeTare.run(input, ctx.client);
+  if (!row?.tare) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      row?.dimension === 'volume' ? 'Indica la densidad para calcular la tara' : 'Esta unidad no admite control por peso',
+    );
+  }
+  if (!row.positive) throw new AppError('VALIDATION_FAILED', 'El peso no alcanza para el contenido: la tara sería cero o menos');
+  return { tare: row.tare, density: row.density };
+}
+
+/**
+ * Inserta los frascos; si un código ya existe en el espacio (containers_code), vuelve al punto previo
+ * para averiguar cuál, porque bajo RLS el error no muestra la clave, y responde CODE_TAKEN. La
+ * transacción entera se revierte después: nada queda a medias.
+ */
+async function insertCodedContainers(ctx: InventoryContext, params: IInsertContainersParams) {
+  await ctx.client.query('SAVEPOINT container_codes');
+  try {
+    return await insertContainers.run(params, ctx.client);
+  } catch (error) {
+    const violation = pgViolation(error);
+    if (violation?.code !== '23505' || violation.constraint !== 'containers_code') throw error;
+    await ctx.client.query('ROLLBACK TO SAVEPOINT container_codes');
+    const [taken] = await takenContainerCode.run({ workspaceId: ctx.workspaceId, codes: params.codes }, ctx.client);
+    const code = params.codes.find((candidate) => candidate.toLowerCase() === taken?.code) ?? taken?.code;
+    throw new AppError('CODE_TAKEN', code ? `El código ${code} ya existe en el espacio` : 'Uno de los códigos ya existe en el espacio');
+  }
+}
 
 interface ReceivedContainer {
   containerId: string;
@@ -54,11 +94,13 @@ interface ReceivedContainer {
   positionId: string;
   quantity: string;
   balance: string;
+  tare: string | null;
 }
 
 export interface ReceiptResult {
   operationId: string;
   type: 'receipt';
+  product: { id: string; code: string; name: string };
   lot: { id: string; code: string };
   unit: string;
   effectiveAt: string;
@@ -66,21 +108,23 @@ export interface ReceiptResult {
 }
 
 interface ReceiptInput {
-  /** Un lote existente del ítem, o uno nuevo que se crea en la misma transacción (01 §6.1). */
-  lot: { id: string } | { itemId: string; create: NewLot };
+  itemId: string;
+  lot: LotDetails;
   locationId: string;
-  /** Frascos iguales del mismo lote; cada uno entra con `quantity`. */
-  count: number;
+  /** Un frasco por código, cada uno con `quantity`. */
+  codes: string[];
   quantity: string;
   unit: string;
+  /** Peso en g de un frasco lleno y la densidad para pasar el volumen a gramos (ADR 0015). */
+  weight: { grossWeight: string; density: string | null } | null;
   reference: string | null;
 }
 
 /**
- * Ingreso por frascos (ADR 0012): una operación con un asiento por frasco. Valida lote y ubicación
- * en el espacio y para el tipo del módulo; después de `authorize` (el módulo comprueba su permiso
- * en la ubicación) reserva los números de frasco en el lote, que queda bloqueado, y crea cada
- * frasco con su posición llena.
+ * Ingreso en un paso (ADR 0015): un lote nuevo del ítem y un frasco por código, en una operación con
+ * un asiento por frasco. Valida la ubicación en el espacio; después de `authorize` (el módulo comprueba
+ * su permiso en ella) abre el lote, que bloquea el ítem, calcula la tara si hay peso y crea cada frasco
+ * con su posición llena. Un código repetido en el espacio no deja nada a medias: CODE_TAKEN.
  */
 export async function receiveContainers(
   ctx: InventoryContext,
@@ -94,27 +138,25 @@ export async function receiveContainers(
   if (!location) throw notFound();
   await authorize(location.id);
 
-  const lotId = 'id' in input.lot ? input.lot.id : (await createLot(ctx, input.lot.itemId, input.lot.create)).id;
-  const [lot] = await findLot.run({ workspaceId: ctx.workspaceId, lotId, kind: ctx.kind }, ctx.client);
-  if (!lot) throw notFound();
-  requireBaseUnit(input.unit, lot.base_unit);
+  const lot = await openLot(ctx, input.itemId, input.lot);
+  requireBaseUnit(input.unit, lot.item.baseUnit);
+  const weighed = input.weight
+    ? await tareFor(ctx, { grossWeight: input.weight.grossWeight, quantity: input.quantity, unit: lot.item.baseUnit, density: input.weight.density })
+    : null;
 
-  const [reserved] = await reserveContainerSeqs.run(
-    { workspaceId: ctx.workspaceId, lotId: lot.id, count: input.count },
-    ctx.client,
-  );
+  const count = input.codes.length;
+  const [reserved] = await reserveContainerSeqs.run({ workspaceId: ctx.workspaceId, lotId: lot.id, count }, ctx.client);
   if (!reserved) throw notFound();
-  const containers = await insertContainers.run(
-    {
-      workspaceId: ctx.workspaceId,
-      itemId: lot.item_id,
-      lotId: lot.id,
-      quantity: input.quantity,
-      firstSeq: reserved.last - input.count + 1,
-      lastSeq: reserved.last,
-    },
-    ctx.client,
-  );
+  const containers = await insertCodedContainers(ctx, {
+    workspaceId: ctx.workspaceId,
+    itemId: lot.item.id,
+    lotId: lot.id,
+    codes: input.codes,
+    firstSeq: reserved.last - count + 1,
+    quantity: input.quantity,
+    tare: weighed?.tare ?? null,
+    density: weighed?.density ?? null,
+  });
 
   const [operation] = await insertOperation.run(
     {
@@ -136,7 +178,7 @@ export async function receiveContainers(
     const [position] = await insertContainerPosition.run(
       {
         workspaceId: ctx.workspaceId,
-        itemId: lot.item_id,
+        itemId: lot.item.id,
         lotId: lot.id,
         containerId: container.id,
         locationId: location.id,
@@ -158,21 +200,95 @@ export async function receiveContainers(
     if (!entry) throw new Error('El asiento del ingreso no devolvió fila');
     received.push({
       containerId: container.id,
-      code: containerCode(lot.code, container.seq),
+      code: container.code,
       positionId: position.id,
       quantity: entry.quantity,
       balance: entry.balance_after,
+      tare: container.tare,
     });
   }
 
   return {
     operationId: operation.id,
     type: 'receipt',
+    product: { id: lot.item.id, code: lot.item.code, name: lot.item.name },
     lot: { id: lot.id, code: lot.code },
-    unit: lot.base_unit,
+    unit: lot.item.baseUnit,
     effectiveAt: operation.effective_at.toISOString(),
     containers: received,
   };
+}
+
+export interface TareResult {
+  containerId: string;
+  tare: string;
+  density: string | null;
+  previous: { tare: string | null; density: string | null };
+}
+
+/**
+ * Fija la tara de un frasco con su peso actual (ADR 0015): tara = peso − saldo pasado a gramos. Bloquea
+ * en modo compartido sus posiciones, comprueba el permiso en la del saldo con `authorize` y guarda la
+ * densidad usada: la enviada, la del frasco o `fallbackDensity` (la del ítem).
+ */
+export async function setTare(
+  ctx: InventoryContext,
+  input: {
+    containerId: string;
+    grossWeight: string;
+    density: string | null;
+    /** Densidad del ítem, si el frasco no tiene una; solo se pide cuando hace falta. */
+    fallbackDensity: (itemId: string) => Promise<string | null>;
+  },
+  authorize: (locationId: string) => Promise<void>,
+): Promise<TareResult> {
+  const [stock] = await lockContainerStock.run(
+    { workspaceId: ctx.workspaceId, containerId: input.containerId, kind: ctx.kind },
+    ctx.client,
+  );
+  if (!stock) throw notFound();
+  await authorize(stock.location_id);
+  const weighed = await tareFor(ctx, {
+    grossWeight: input.grossWeight,
+    quantity: stock.balance,
+    unit: stock.base_unit,
+    density: input.density ?? stock.density ?? (await input.fallbackDensity(stock.item_id)),
+  });
+  const [updated] = await setContainerTare.run(
+    { workspaceId: ctx.workspaceId, containerId: stock.id, tare: weighed.tare, density: weighed.density },
+    ctx.client,
+  );
+  if (!updated) throw notFound();
+  return {
+    containerId: stock.id,
+    tare: updated.tare,
+    density: updated.density,
+    previous: { tare: stock.tare, density: stock.density },
+  };
+}
+
+/**
+ * Ajuste por peso (ADR 0015) sobre la posición ya bloqueada: el saldo que marca la balanza con la tara
+ * del frasco, redondeado a centésimas, queda como un ajuste con motivo «Pesada». Como todo ajuste,
+ * nunca deja el saldo bajo lo apartado.
+ */
+export async function adjustByWeight(
+  ctx: InventoryContext,
+  position: LockedPosition,
+  grossWeight: string,
+): Promise<MovementResult> {
+  const [weighed] = await weighPosition.run({ workspaceId: ctx.workspaceId, positionId: position.id, grossWeight }, ctx.client);
+  if (!weighed?.tare) throw new AppError('VALIDATION_FAILED', 'El frasco no tiene tara: fíjala antes de ajustar por peso');
+  if (weighed.below_tare) throw new AppError('VALIDATION_FAILED', 'El peso es menor que la tara');
+  if (weighed.delta === null) throw new AppError('VALIDATION_FAILED', 'Esta unidad no admite control por peso');
+  if (weighed.delta === '0') throw new AppError('VALIDATION_FAILED', 'El saldo ya coincide con el peso');
+  return applyMovement(ctx, position, {
+    type: 'adjustment',
+    quantity: weighed.delta,
+    unit: position.baseUnit,
+    reason: 'Pesada',
+    reference: `Peso en balanza: ${grossWeight} g`,
+  });
 }
 
 /** Bloquea una posición existente del tipo del módulo antes de leer o descontar su saldo. */

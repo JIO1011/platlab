@@ -50,9 +50,9 @@ insert into inventory.positions (id, workspace_id, item_id, lot_id, location_id)
   ('b8000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', 'b6000000-0000-4000-8000-000000000001', 'b7000000-0000-4000-8000-000000000001', 'b3000000-0000-4000-8000-000000000001');
 
 -- R-01A (ADR 0012): un frasco por lote en A y en B, y un motivo de B.
-insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, initial_quantity) values
-  ('ac000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000001', 1, 500),
-  ('bc000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', 'b6000000-0000-4000-8000-000000000001', 'b7000000-0000-4000-8000-000000000001', 1, 500);
+insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, code, initial_quantity) values
+  ('ac000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000001', 1, 'L-001-01', 500),
+  ('bc000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', 'b6000000-0000-4000-8000-000000000001', 'b7000000-0000-4000-8000-000000000001', 1, 'L-001-01', 500);
 insert into inventory.reasons (workspace_id, item_kind, kind, name) values
   ('b0000000-0000-4000-8000-00000000000b', 'reagent', 'issue', 'Motivo de B');
 
@@ -76,7 +76,7 @@ set constraints all immediate;
 
 select tables_are('inventory',
   array['units', 'items', 'lots', 'positions', 'operations', 'entries', 'containers', 'reasons', 'destinations',
-        'allocations'],
+        'allocations', 'areas'],
   'inventory contiene las tablas de R-00 y de R-01A');
 select tables_are('reagents', array['products'], 'reagents contiene solo el detalle químico');
 
@@ -243,21 +243,21 @@ select throws_ok(
 -- ---------------------------------------------------------------------------
 
 select throws_ok(
-  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, initial_quantity)
+  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, code, initial_quantity)
      values ('a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001',
-             'a7000000-0000-4000-8000-000000000002', 1, 10) $$,
+             'a7000000-0000-4000-8000-000000000002', 1, 'T-1', 10) $$,
   '23503', null, 'un frasco pertenece a un lote de su mismo ítem');
 
 select throws_ok(
-  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, initial_quantity)
+  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, code, initial_quantity)
      values ('a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001',
-             'a7000000-0000-4000-8000-000000000001', 1, 10) $$,
+             'a7000000-0000-4000-8000-000000000001', 1, 'T-2', 10) $$,
   '23505', null, 'el número de frasco no se repite dentro del lote');
 
 select throws_ok(
-  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, initial_quantity)
+  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, code, initial_quantity)
      values ('a0000000-0000-4000-8000-00000000000a', 'a6000000-0000-4000-8000-000000000001',
-             'a7000000-0000-4000-8000-000000000001', 2, 0) $$,
+             'a7000000-0000-4000-8000-000000000001', 2, 'T-3', 0) $$,
   '23514', null, 'un frasco entra con una cantidad mayor que cero');
 
 select throws_ok(
@@ -360,8 +360,8 @@ select throws_ok(
   '42501', null, 'las operaciones no se borran');
 
 select throws_ok(
-  $$ update inventory.items set name = 'Otro' $$,
-  '42501', null, 'el runtime no edita el catálogo en R-00');
+  $$ update inventory.items set code = 'OTRO' $$,
+  '42501', null, 'el código de un ítem no cambia (ADR 0015)');
 
 select throws_ok(
   $$ update inventory.positions set location_id = 'a3000000-0000-4000-8000-000000000001' $$,
@@ -377,9 +377,9 @@ select set_eq('select id from inventory.containers', array['ac000000-0000-4000-8
   'con contexto A solo se ven los frascos de A');
 
 select throws_ok(
-  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, initial_quantity)
+  $$ insert into inventory.containers (workspace_id, item_id, lot_id, seq, code, initial_quantity)
      values ('b0000000-0000-4000-8000-00000000000b', 'b6000000-0000-4000-8000-000000000001',
-             'b7000000-0000-4000-8000-000000000001', 2, 10) $$,
+             'b7000000-0000-4000-8000-000000000001', 2, 'T-4', 10) $$,
   '42501', null, 'el runtime no crea frascos en otro espacio');
 
 select throws_ok(
@@ -470,8 +470,8 @@ select throws_ok(
   '23514', null, 'un mínimo es mayor que cero');
 
 select throws_ok(
-  $$ update inventory.items set name = 'Otro nombre' where id = 'a6000000-0000-4000-8000-000000000001' $$,
-  '42501', null, 'del ítem, el runtime solo cambia el mínimo');
+  $$ update inventory.items set kind = 'material' where id = 'a6000000-0000-4000-8000-000000000001' $$,
+  '42501', null, 'del ítem, el runtime no cambia el tipo');
 
 select is(
   (select count(*)::int from information_schema.columns

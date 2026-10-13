@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addDecimal,
+  divideDecimal,
   formatDecimal,
+  multiplyDecimal,
   normalizeDecimalInput,
   percentOfDecimal,
   ratioPercent,
+  roundDecimal,
   subtractDecimal,
   toDecimalInput,
 } from './decimal';
@@ -67,5 +71,47 @@ describe('ratioPercent', () => {
     expect(ratioPercent('120', '100')).toBe(100);
     expect(ratioPercent('0', '500')).toBe(0);
     expect(ratioPercent('5', '0')).toBeNull();
+  });
+});
+
+describe('roundDecimal', () => {
+  it('redondea la mitad hacia arriba y conserva los decimales pedidos', () => {
+    expect(roundDecimal('43.5949', 2)).toBe('43.59');
+    expect(roundDecimal('0.125', 2)).toBe('0.13');
+    expect(roundDecimal('2.5', 0)).toBe('3');
+    expect(roundDecimal('140', 1)).toBe('140.0');
+    expect(roundDecimal('-2.105', 2)).toBe('-2.11');
+    expect(roundDecimal('-0.004', 2)).toBe('0.00');
+    expect(roundDecimal('abc', 2)).toBeNull();
+    expect(roundDecimal('1', 10)).toBeNull();
+  });
+});
+
+describe('multiplyDecimal', () => {
+  it('multiplica sin pasar por number', () => {
+    expect(multiplyDecimal('500', '0.789', 1)).toBe('394.5');
+    expect(multiplyDecimal('45.69', '1.19', 1)).toBe('54.4');
+    expect(multiplyDecimal('0.1', '0.2', 2)).toBe('0.02');
+    expect(multiplyDecimal('0.15', '0.1', 2)).toBe('0.02');
+    expect(multiplyDecimal('-3', '1.5', 1)).toBe('-4.5');
+    expect(multiplyDecimal('3', 'x', 1)).toBeNull();
+  });
+});
+
+describe('divideDecimal', () => {
+  it('divide con redondeo y rechaza dividir entre cero', () => {
+    expect(divideDecimal('51.9', '1.19', 2)).toBe('43.61');
+    expect(divideDecimal('10', '3', 2)).toBe('3.33');
+    expect(divideDecimal('-2.5', '1.19', 2)).toBe('-2.10');
+    expect(divideDecimal('1', '0', 2)).toBeNull();
+    expect(divideDecimal('1', '2', 0)).toBe('1');
+  });
+});
+
+describe('addDecimal', () => {
+  it('suma con exactitud', () => {
+    expect(addDecimal('0.1', '0.2')).toBe('0.3');
+    expect(addDecimal('140', '-54.3711')).toBe('85.6289');
+    expect(addDecimal('1', 'x')).toBeNull();
   });
 });

@@ -21,7 +21,11 @@ const adjustmentQuantity = z
   .string()
   .regex(/^-?(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal distinta de cero');
 
-export const physicalState = z.enum(['solid', 'liquid', 'gas']);
+export const physicalState = z.enum(['solid', 'liquid', 'aqueous', 'mixture', 'gas']);
+/** Los nueve pictogramas SGA (ADR 0015). */
+export const hazard = z.enum(['GHS01', 'GHS02', 'GHS03', 'GHS04', 'GHS05', 'GHS06', 'GHS07', 'GHS08', 'GHS09']);
+/** Ficha de seguridad: digital (con enlace), solo en físico o no tiene; null es «sin dato». */
+export const sdsKind = z.enum(['digital', 'physical', 'none']);
 /** `transfer`: un frasco entero cambia de ubicación en un paso (ADR 0012, entrega 4). */
 export const operationType = z.enum(['receipt', 'issue', 'adjustment', 'transfer']);
 
@@ -29,17 +33,89 @@ export const operationType = z.enum(['receipt', 'issue', 'adjustment', 'transfer
 // Catálogo
 // ---------------------------------------------------------------------------
 
-export const createProductRequest = z
+/** Dígito de control del CAS: suma ponderada de los demás dígitos, de derecha a izquierda, módulo 10. */
+function casCheckDigitMatches(cas: string): boolean {
+  const digits = cas.replace(/-/g, '');
+  const body = [...digits.slice(0, -1)].reverse();
+  const sum = body.reduce((total, digit, index) => total + Number(digit) * (index + 1), 0);
+  return sum % 10 === Number(digits.at(-1));
+}
+
+const casNumber = z
+  .string()
+  .regex(/^\d{2,7}-\d{2}-\d$/, 'CAS inválido')
+  .refine(casCheckDigitMatches, 'El dígito de control del CAS no coincide');
+/** Unidades de un reactivo (ADR 0015): las que admiten control por peso. */
+const productUnit = z.enum(['g', 'kg', 'mL', 'L']);
+const hazards = z
+  .array(hazard)
+  .max(9)
+  .refine((values) => new Set(values).size === values.length, 'Cada pictograma va una vez');
+const sdsUrl = z.string().trim().max(2000).regex(/^https?:\/\//, 'El enlace empieza por http:// o https://');
+
+interface ProductRuleFields {
+  casNumber?: string | null | undefined;
+  physicalState?: string | null | undefined;
+  sdsKind?: string | null | undefined;
+  sdsUrl?: string | null | undefined;
+}
+
+/**
+ * Reglas de la ficha que cruzan campos (ADR 0015): el CAS es obligatorio salvo en mezclas y el enlace
+ * de la ficha de seguridad solo acompaña a una digital. Las aplican el alta y la edición, esta sobre
+ * la ficha ya combinada y con la del CAS solo si cambian el CAS o el estado (`cas: false` la omite).
+ * Devuelve el primer incumplimiento o null.
+ */
+export function productRuleViolation(fields: ProductRuleFields, { cas = true } = {}): string | null {
+  if (cas && !fields.casNumber && fields.physicalState !== 'mixture') return 'Indica el CAS: solo una mezcla puede no tenerlo';
+  if (fields.sdsUrl && fields.sdsKind !== 'digital') return 'El enlace solo acompaña a una ficha de seguridad digital';
+  return null;
+}
+
+const productRules = (value: ProductRuleFields, context: z.RefinementCtx) => {
+  const message = productRuleViolation(value);
+  if (message) context.addIssue({ code: 'custom', message });
+};
+
+/**
+ * Reactivo nuevo (ADR 0015), del catálogo o desde el ingreso. El código es automático a partir del
+ * nombre; el mínimo se fija en la ficha.
+ */
+export const newProduct = z
   .object({
-    code,
     name: text(200),
-    baseUnit: unit,
-    casNumber: z.string().regex(/^\d{2,7}-\d{2}-\d$/, 'CAS inválido').nullish(),
-    physicalState: physicalState.nullish(),
-    /** Mínimo para todo el espacio, en la unidad base; opcional (ADR 0012, 05-10-2026). */
-    minimum: positiveQuantity.nullish(),
+    casNumber: casNumber.nullish(),
+    physicalState,
+    baseUnit: productUnit,
+    hazards: hazards.default([]),
+    controlled: z.boolean().default(false),
+    sdsKind: sdsKind.nullish(),
+    sdsUrl: sdsUrl.nullish(),
+    /** g/mL, para pesar los frascos que se miden en volumen. */
+    density: positiveQuantity.nullish(),
   })
-  .strict();
+  .strict()
+  .superRefine(productRules);
+
+/**
+ * PATCH /products/:productId (ADR 0015): cambia solo los campos enviados, al menos uno. La unidad
+ * solo cambia mientras el reactivo no tenga movimientos.
+ */
+export const updateProductRequest = z
+  .object({
+    name: text(200),
+    casNumber: casNumber.nullable(),
+    physicalState,
+    hazards,
+    controlled: z.boolean(),
+    sdsKind: sdsKind.nullable(),
+    sdsUrl: sdsUrl.nullable(),
+    density: positiveQuantity.nullable(),
+    baseUnit: productUnit,
+  })
+  .partial()
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, 'Indica al menos un campo');
 
 export const product = z.object({
   id: z.uuid(),
@@ -49,6 +125,11 @@ export const product = z.object({
   casNumber: z.string().nullable(),
   physicalState: physicalState.nullable(),
   minimum: decimalString.nullable(),
+  hazards: z.array(hazard),
+  controlled: z.boolean(),
+  sdsKind: sdsKind.nullable(),
+  sdsUrl: z.string().nullable(),
+  density: decimalString.nullable(),
 });
 
 /** PUT /products/:productId/minimum: null quita el mínimo. */
@@ -61,68 +142,78 @@ export const containerResponse = z.object({ containerId: z.uuid(), productId: z.
 
 export const productParams = z.object({ workspaceId: z.uuid(), productId: z.uuid() });
 
-/** Si la caducidad o el lote del proveedor se desconocen, se envían como null (quedan desconocidos). */
-export const createLotRequest = z
-  .object({
-    code,
-    supplierName: text(200).nullish(),
-    supplierLot: text(100).nullish(),
-    expiresOn: z.iso.date().nullish(),
-  })
-  .strict();
-
-export const lot = z.object({
-  id: z.uuid(),
-  productId: z.uuid(),
-  code: z.string(),
-  supplierName: z.string().nullable(),
-  supplierLot: z.string().nullable(),
-  expiresOn: z.string().nullable(),
-});
-
 // ---------------------------------------------------------------------------
 // Movimientos
 // ---------------------------------------------------------------------------
 
 /**
- * Ingreso por frascos (ADR 0012): `containers` frascos iguales de `quantity` cada uno. El lote es
- * uno existente (`lotId`) o uno nuevo del reactivo (`productId` + `newLot`), creado en la misma
- * transacción (01 §6.1).
+ * Ingreso en un paso (ADR 0015): un reactivo del catálogo (`productId`) o uno nuevo (`newProduct`,
+ * exige el permiso de catálogo), un lote nuevo con código automático y un frasco por código, cada uno
+ * de `quantity`. Con `weight`, el peso en g de un frasco lleno: el servidor calcula la tara.
  */
 export const receiptRequest = z
   .object({
-    lotId: z.uuid().optional(),
     productId: z.uuid().optional(),
-    newLot: createLotRequest.optional(),
-    locationId: z.uuid(),
-    containers: z.number().int().min(1).max(50).default(1),
+    newProduct: newProduct.optional(),
+    brand: text(200).nullish(),
+    expiresOn: z.iso.date().nullish(),
     quantity: positiveQuantity,
     unit,
+    codes: z
+      .array(code)
+      .min(1)
+      .max(50)
+      .refine(
+        (codes) => new Set(codes.map((value) => value.toLowerCase())).size === codes.length,
+        'Cada frasco lleva un código distinto',
+      ),
+    area: text(200).nullish(),
+    locationId: z.uuid(),
+    weight: z.object({ grossWeight: positiveQuantity, density: positiveQuantity.nullish() }).strict().nullish(),
     reference: text(200).nullish(),
   })
   .strict()
-  .refine((value) => (value.lotId ? !value.newLot && !value.productId : Boolean(value.newLot && value.productId)), {
-    message: 'Indica un lote existente o los datos de un lote nuevo del reactivo',
-    path: ['lotId'],
+  .refine((value) => (value.productId === undefined) !== (value.newProduct === undefined), {
+    message: 'Indica un reactivo del catálogo o los datos de uno nuevo',
+    path: ['productId'],
   });
 
-/** Frasco creado por un ingreso, con su posición y su saldo. */
+/** Frasco creado por un ingreso, con su posición, su saldo y su tara (null sin control por peso). */
 const receivedContainer = z.object({
   containerId: z.uuid(),
   code: z.string(),
   positionId: z.uuid(),
   quantity: decimalString,
   balance: decimalString,
+  tare: decimalString.nullable(),
 });
 
 export const receiptResponse = z.object({
   operationId: z.uuid(),
   type: z.literal('receipt'),
+  product: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
   lot: z.object({ id: z.uuid(), code: z.string() }),
   unit: z.string(),
   effectiveAt: z.iso.datetime({ offset: true }),
   containers: z.array(receivedContainer).min(1),
 });
+
+/** GET /container-codes/suggestion: la serie del reactivo o una nueva a partir del nombre. */
+export const containerCodeSuggestionQuery = z
+  .object({
+    productId: z.uuid().optional(),
+    name: text(200).optional(),
+    count: z.coerce.number().int().min(1).max(50).default(1),
+  })
+  .strict()
+  .refine((value) => value.productId !== undefined || value.name !== undefined, {
+    message: 'Indica el reactivo o su nombre',
+    path: ['productId'],
+  });
+export const containerCodeSuggestion = z.object({ codes: z.array(z.string()).min(1) });
+
+/** GET /brands: marcas ya usadas en los lotes, las más recientes primero. */
+export const brandList = z.object({ items: z.array(z.string()) });
 
 export const issueRequest = z
   .object({
@@ -142,6 +233,18 @@ export const adjustmentRequest = z
     reason: text(500),
   })
   .strict();
+
+/**
+ * Ajuste por peso (ADR 0015): con el peso del frasco en la balanza, el servidor calcula el saldo
+ * (redondeado a centésimas) y registra un ajuste con motivo «Pesada».
+ */
+export const weightAdjustmentRequest = z.object({ positionId: z.uuid(), grossWeight: positiveQuantity }).strict();
+
+/** PUT /containers/:containerId/tare: peso en g del frasco con su saldo actual. */
+export const setTareRequest = z
+  .object({ grossWeight: positiveQuantity, density: positiveQuantity.nullish() })
+  .strict();
+export const tareResponse = z.object({ containerId: z.uuid(), tare: decimalString, density: decimalString.nullable() });
 
 /** Traslado de un frasco entero a otra ubicación (ADR 0012, entrega 4). */
 export const transferRequest = z
@@ -251,7 +354,8 @@ const page = {
   limit: z.coerce.number().int().min(1).max(100).default(50),
 };
 
-export const productListQuery = z.object(page).strict();
+/** `q`: busca en nombre, código o CAS, sin distinguir mayúsculas ni tildes (el buscador del ingreso). */
+export const productListQuery = z.object({ ...page, q: z.string().trim().min(2).max(100).optional() }).strict();
 export const positionListQuery = z.object({ ...page, productId: z.uuid().optional(), locationId: z.uuid().optional() }).strict();
 /** Valores por filtro: como mucho los de una página de opciones (02 §12 no fija otro límite). */
 const MAX_FILTER_VALUES = 100;
@@ -314,17 +418,25 @@ export const operationTotalsQuery = periodRules(z.object({ ...operationFilterFie
 /** Posición: un frasco (ADR 0012) en una ubicación; `container` es null solo en datos sin frasco. */
 export const position = z.object({
   id: z.uuid(),
-  product: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
+  product: z.object({ id: z.uuid(), code: z.string(), name: z.string(), controlled: z.boolean() }),
   lot: z.object({
     id: z.uuid(),
     code: z.string(),
     expiresOn: z.string().nullable(),
-    /** Proveedor y su lote, tal como se registraron; null si no se conocen (ADR 0012, 05-10-2026). */
-    supplierName: z.string().nullable(),
-    supplierLot: z.string().nullable(),
+    /** Marca y área, tal como se registraron; null si no se conocen (ADR 0015). */
+    brand: z.string().nullable(),
+    area: z.string().nullable(),
   }),
   container: z
-    .object({ id: z.uuid(), code: z.string(), initialQuantity: decimalString, receivedAt: z.iso.datetime({ offset: true }) })
+    .object({
+      id: z.uuid(),
+      code: z.string(),
+      initialQuantity: decimalString,
+      receivedAt: z.iso.datetime({ offset: true }),
+      /** Tara en g y densidad en g/mL con que se calculó; null sin control por peso (ADR 0015). */
+      tare: decimalString.nullable(),
+      density: decimalString.nullable(),
+    })
     .nullable(),
   disposition: z.enum(['usable', 'quarantine', 'restricted']),
   location: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
@@ -414,7 +526,19 @@ const list = <T extends z.ZodType>(item: T) =>
   z.object({ items: z.array(item), nextCursor: z.string().nullable() });
 
 /** Ubicación donde el miembro puede registrar el movimiento (su ámbito y descendencia). */
-export const location = z.object({ id: z.uuid(), code: z.string(), name: z.string(), kind: z.string() });
+export const location = z.object({
+  id: z.uuid(),
+  code: z.string(),
+  name: z.string(),
+  kind: z.string(),
+  parentId: z.uuid().nullable(),
+});
+
+/**
+ * POST /locations (ADR 0015): una ubicación bajo otra, o en la raíz; el tipo y el código los decide el
+ * servidor. Un nombre activo repetido bajo el mismo padre devuelve la existente.
+ */
+export const createLocationRequest = z.object({ name: text(200), parentId: z.uuid().nullable() }).strict();
 
 /** Reactivo con su total y sus frascos con saldo en las ubicaciones que el miembro puede consultar. */
 export const stockedProduct = product.extend({
@@ -427,7 +551,8 @@ export const stockedProduct = product.extend({
   belowMinimum: z.boolean(),
 });
 export const productList = list(stockedProduct);
-export const lotList = z.object({ items: z.array(lot) });
+/** Ficha (GET /products/:productId): además, si la unidad aún puede cambiar (sin movimientos). */
+export const productDetail = stockedProduct.extend({ unitEditable: z.boolean() });
 export const locationList = z.object({ items: z.array(location) });
 export const positionList = list(position);
 export const operationList = list(operation);
@@ -455,7 +580,7 @@ export const reagentsSummary = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Motivos y destinos (ADR 0012): listas del espacio; la operación guarda el texto elegido
+// Motivos, destinos (ADR 0012) y áreas (ADR 0015): listas del espacio; se guarda el texto elegido
 // ---------------------------------------------------------------------------
 
 const reasonKind = z.enum(['issue', 'adjustment']);
@@ -463,16 +588,18 @@ export const reasonListQuery = z.object({ kind: reasonKind }).strict();
 const listEntry = z.object({ id: z.uuid(), name: z.string() });
 export const entryList = z.object({ items: z.array(listEntry) });
 export const createReasonRequest = z.object({ kind: reasonKind, name: text(120) }).strict();
-export const createDestinationRequest = z.object({ name: text(120) }).strict();
+/** Alta de un destino o de un área: listas con solo un nombre. */
+export const createEntryRequest = z.object({ name: text(120) }).strict();
 export const entryParams = z.object({ workspaceId: z.uuid(), entryId: z.uuid() });
 
 export type Product = z.infer<typeof product>;
-export type Lot = z.infer<typeof lot>;
 export type MovementResponse = z.infer<typeof movementResponse>;
 export type Position = z.infer<typeof position>;
 export type Operation = z.infer<typeof operation>;
 export type ProductList = z.infer<typeof productList>;
-export type LotList = z.infer<typeof lotList>;
+export type ProductDetail = z.infer<typeof productDetail>;
+export type Location = z.infer<typeof location>;
+export type TareResponse = z.infer<typeof tareResponse>;
 export type LocationList = z.infer<typeof locationList>;
 export type PositionList = z.infer<typeof positionList>;
 export type ReagentsSummary = z.infer<typeof reagentsSummary>;

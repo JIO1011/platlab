@@ -1,8 +1,8 @@
 import { Skeleton, StatCard, type StatCardProps } from '@platlab/ui';
 import {
-  ArrowDownToLine,
   ArrowRight,
   ArrowUpFromLine,
+  PackagePlus,
   CalendarClock,
   CalendarX,
   CircleCheck,
@@ -71,11 +71,11 @@ function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canI
           {allowed.receipt ? (
             <button
               type="button"
-              onClick={() => openSheet({ kind: 'receipt' })}
+              onClick={() => openSheet({ kind: 'ingress' })}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-control border border-white/40 px-5 text-sm font-medium backdrop-blur-sm transition-colors duration-150 hover:bg-white/10"
             >
-              <ArrowDownToLine className="size-[18px]" aria-hidden />
-              Registrar ingreso
+              <PackagePlus className="size-[18px]" aria-hidden />
+              Ingresar reactivo
             </button>
           ) : null}
         </div>

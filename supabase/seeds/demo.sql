@@ -126,14 +126,14 @@ select platform.apply_contract_revision('db500000-0000-4000-8000-000000000001', 
 
 insert into inventory.items (id, workspace_id, kind, code, name, base_unit) values
   ('db600000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'reagent', 'ETOH-96', 'Etanol 96 %', 'mL');
-insert into reagents.products (workspace_id, item_id, cas_number, physical_state) values
-  ('db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', '64-17-5', 'liquid');
-insert into inventory.lots (id, workspace_id, item_id, code, supplier_name, expires_on) values
-  ('db700000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', 'ETOH-2026-01', 'Proveedor sintético', '2027-06-30');
+insert into reagents.products (workspace_id, item_id, cas_number, physical_state, hazards, density) values
+  ('db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', '64-17-5', 'liquid', '{GHS02,GHS07}', 0.789);
+insert into inventory.lots (id, workspace_id, item_id, code, brand, expires_on) values
+  ('db700000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', 'ETOH-2026-01', 'Marca sintética', '2027-06-30');
 -- Un frasco de 500 mL (ADR 0012): el lote reparte su número.
 update inventory.lots set container_seq = 1 where id = 'db700000-0000-4000-8000-000000000001';
-insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, initial_quantity) values
-  ('dbc00000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', 'db700000-0000-4000-8000-000000000001', 1, 500);
+insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, code, initial_quantity) values
+  ('dbc00000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', 'db700000-0000-4000-8000-000000000001', 1, 'ETOH-2026-01-01', 500);
 insert into inventory.positions (id, workspace_id, item_id, lot_id, container_id, location_id) values
   ('db800000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'db600000-0000-4000-8000-000000000001', 'db700000-0000-4000-8000-000000000001', 'dbc00000-0000-4000-8000-000000000001', 'db300000-0000-4000-8000-000000000002');
 insert into inventory.operations (id, workspace_id, type, actor_principal_id, reference, correlation_id) values
@@ -158,21 +158,23 @@ insert into inventory.items (id, workspace_id, kind, code, name, base_unit) valu
   ('da600000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'reagent', 'NACL', 'Cloruro de sodio', 'g'),
   ('da600000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'reagent', 'HCL-37', 'Ácido clorhídrico 37 %', 'mL'),
   ('da600000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'reagent', 'NAOH', 'Hidróxido de sodio', 'g');
-insert into reagents.products (workspace_id, item_id, cas_number, physical_state) values
-  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', '7647-14-5', 'solid'),
-  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', '7647-01-0', 'liquid'),
-  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', '1310-73-2', 'solid');
-insert into inventory.lots (id, workspace_id, item_id, code, supplier_name, expires_on) values
-  ('da700000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'NACL-2026-03', 'Proveedor sintético', '2028-03-31'),
-  ('da700000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'HCL-2026-01', 'Proveedor sintético', '2027-01-15'),
-  ('da700000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', 'NAOH-2025-11', 'Proveedor sintético', '2026-11-20');
+-- Ficha (ADR 0015): pictogramas SGA, densidad de los líquidos y el ácido clorhídrico controlado.
+insert into reagents.products (workspace_id, item_id, cas_number, physical_state, hazards, controlled, density) values
+  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', '7647-14-5', 'solid', '{}', false, null),
+  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', '7647-01-0', 'liquid', '{GHS05,GHS07}', true, 1.19),
+  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', '1310-73-2', 'solid', '{GHS05}', false, null);
+insert into inventory.lots (id, workspace_id, item_id, code, brand, expires_on) values
+  ('da700000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'NACL-2026-03', 'Marca sintética', '2028-03-31'),
+  ('da700000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'HCL-2026-01', 'Marca sintética', '2027-01-15'),
+  ('da700000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', 'NAOH-2025-11', 'Marca sintética', '2026-11-20');
 -- Frascos (ADR 0012): NaCl en 2 frascos de 1000 g, HCl en 2 de 2500 mL y NaOH en 1 de 1000 g.
-insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, initial_quantity) values
-  ('dac00000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'da700000-0000-4000-8000-000000000001', 1, 1000),
-  ('dac00000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'da700000-0000-4000-8000-000000000001', 2, 1000),
-  ('dac00000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'da700000-0000-4000-8000-000000000002', 1, 2500),
-  ('dac00000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'da700000-0000-4000-8000-000000000002', 2, 2500),
-  ('dac00000-0000-4000-8000-000000000005', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', 'da700000-0000-4000-8000-000000000003', 1, 1000);
+-- Con control por peso (ADR 0015): el primer frasco de NaCl (masa) y el primero de HCl (volumen).
+insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, code, initial_quantity, tare, density) values
+  ('dac00000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'da700000-0000-4000-8000-000000000001', 1, 'NACL-2026-03-01', 1000, 140, null),
+  ('dac00000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000001', 'da700000-0000-4000-8000-000000000001', 2, 'NACL-2026-03-02', 1000, null, null),
+  ('dac00000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'da700000-0000-4000-8000-000000000002', 1, 'HCL-2026-01-01', 2500, 420, 1.19),
+  ('dac00000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000002', 'da700000-0000-4000-8000-000000000002', 2, 'HCL-2026-01-02', 2500, null, null),
+  ('dac00000-0000-4000-8000-000000000005', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000003', 'da700000-0000-4000-8000-000000000003', 1, 'NAOH-2025-11-01', 1000, null, null);
 update inventory.lots set container_seq = 2 where id in ('da700000-0000-4000-8000-000000000001', 'da700000-0000-4000-8000-000000000002');
 update inventory.lots set container_seq = 1 where id = 'da700000-0000-4000-8000-000000000003';
 insert into inventory.positions (id, workspace_id, item_id, lot_id, container_id, location_id)
@@ -259,19 +261,20 @@ $$;
 insert into inventory.items (id, workspace_id, kind, code, name, base_unit) values
   ('da600000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'reagent', 'H2SO4', 'Ácido sulfúrico 98 %', 'mL'),
   ('da600000-0000-4000-8000-000000000005', 'da000000-0000-4000-8000-00000000000a', 'reagent', 'ACETONA', 'Acetona', 'mL');
-insert into reagents.products (workspace_id, item_id, cas_number, physical_state) values
-  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', '7664-93-9', 'liquid'),
-  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000005', '67-64-1', 'liquid');
-insert into inventory.lots (id, workspace_id, item_id, code, supplier_name, expires_on, container_seq) values
-  ('da700000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'H2SO4-2024-08', 'Proveedor sintético', '2026-08-31', 1),
-  ('da700000-0000-4000-8000-000000000005', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'H2SO4-2026-02', 'Proveedor sintético', '2026-12-31', 1),
-  ('da700000-0000-4000-8000-000000000006', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'H2SO4-2026-09', 'Proveedor sintético', '2028-09-30', 1),
-  ('da700000-0000-4000-8000-000000000007', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000005', 'ACE-2026-01', 'Proveedor sintético', '2027-03-31', 1);
-insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, initial_quantity) values
-  ('dac00000-0000-4000-8000-000000000006', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'da700000-0000-4000-8000-000000000004', 1, 250),
-  ('dac00000-0000-4000-8000-000000000007', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'da700000-0000-4000-8000-000000000005', 1, 1000),
-  ('dac00000-0000-4000-8000-000000000008', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'da700000-0000-4000-8000-000000000006', 1, 1000),
-  ('dac00000-0000-4000-8000-000000000009', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000005', 'da700000-0000-4000-8000-000000000007', 1, 500);
+insert into reagents.products (workspace_id, item_id, cas_number, physical_state, hazards, controlled, density) values
+  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', '7664-93-9', 'liquid', '{GHS05}', false, 1.84),
+  ('da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000005', '67-64-1', 'liquid', '{GHS02,GHS07}', true, 0.79);
+insert into inventory.lots (id, workspace_id, item_id, code, brand, expires_on, container_seq) values
+  ('da700000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'H2SO4-2024-08', 'Marca sintética', '2026-08-31', 1),
+  ('da700000-0000-4000-8000-000000000005', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'H2SO4-2026-02', 'Marca sintética', '2026-12-31', 1),
+  ('da700000-0000-4000-8000-000000000006', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'H2SO4-2026-09', 'Marca sintética', '2028-09-30', 1),
+  ('da700000-0000-4000-8000-000000000007', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000005', 'ACE-2026-01', 'Marca sintética', '2027-03-31', 1);
+-- La Acetona, agotada, conserva su tara (ADR 0015).
+insert into inventory.containers (id, workspace_id, item_id, lot_id, seq, code, initial_quantity, tare, density) values
+  ('dac00000-0000-4000-8000-000000000006', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'da700000-0000-4000-8000-000000000004', 1, 'H2SO4-2024-08-01', 250, null, null),
+  ('dac00000-0000-4000-8000-000000000007', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'da700000-0000-4000-8000-000000000005', 1, 'H2SO4-2026-02-01', 1000, null, null),
+  ('dac00000-0000-4000-8000-000000000008', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000004', 'da700000-0000-4000-8000-000000000006', 1, 'H2SO4-2026-09-01', 1000, null, null),
+  ('dac00000-0000-4000-8000-000000000009', 'da000000-0000-4000-8000-00000000000a', 'da600000-0000-4000-8000-000000000005', 'da700000-0000-4000-8000-000000000007', 1, 'ACE-2026-01-01', 500, 135, 0.79);
 insert into inventory.positions (id, workspace_id, item_id, lot_id, container_id, location_id)
 select ('da800000-0000-4000-8000-00000000000' || right(c.id::text, 1))::uuid, c.workspace_id, c.item_id, c.lot_id, c.id,
        'da300000-0000-4000-8000-000000000002'
@@ -333,6 +336,12 @@ insert into inventory.destinations (workspace_id, item_kind, name)
 select w.id, 'reagent', d.name
   from (values ('da000000-0000-4000-8000-00000000000a'::uuid), ('db000000-0000-4000-8000-00000000000b'::uuid)) as w (id)
  cross join (values ('Laboratorio de Química'), ('Laboratorio de Física'), ('Bodega central')) as d (name);
+
+-- Áreas o departamentos de A y B (ADR 0015): se eligen en el ingreso y se guardan en el lote.
+insert into inventory.areas (workspace_id, item_kind, name)
+select w.id, 'reagent', a.name
+  from (values ('da000000-0000-4000-8000-00000000000a'::uuid), ('db000000-0000-4000-8000-00000000000b'::uuid)) as w (id)
+ cross join (values ('Docencia'), ('Investigación')) as a (name);
 
 -- Una solicitud de salida pendiente del Operador en la Facultad de Ciencias (ADR 0012): aparta 50 g del primer
 -- frasco de NaCl hasta que la Administradora la apruebe o la rechace.

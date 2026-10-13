@@ -1,5 +1,6 @@
 import type {
   IssueRequestItem,
+  ProductDetail,
   Operation,
   OperationFacets,
   OperationTotals,
@@ -15,21 +16,24 @@ import type { MovementFilters, OperationQuery } from './movement-filters';
 
 /** Hoja de registro que se abre, con lo que ya se conoce (reactivo o frasco de origen). */
 export type SheetRequest =
-  | { kind: 'product' }
-  | { kind: 'receipt'; productId?: string }
+  // «Ingresar reactivo» (ADR 0015): con `productId`, desde su ficha y con él ya elegido.
+  | { kind: 'ingress'; productId?: string }
   // Con `position`, el frasco viaja en la petición (el de una etiqueta QR puede no estar en la lista global).
   | { kind: 'issue'; positionId?: string; productId?: string; position?: Position }
   | { kind: 'adjustment'; positionId?: string }
   // El frasco viaja en la petición: la lista global de frascos puede no incluirlo (llega por páginas).
   | { kind: 'transfer'; position: Position }
-  | { kind: 'count' }
-  // Mínimo (ADR 0012, 05-10-2026): desde la ficha del reactivo.
-  | { kind: 'minimum'; productId: string };
+  // Tara de un frasco (ADR 0015): desde su tarjeta o desde el ajuste por peso.
+  | { kind: 'tare'; position: Position }
+  // Mínimo (ADR 0012, 05-10-2026) y edición de la ficha (ADR 0015): desde la ficha del reactivo.
+  | { kind: 'minimum'; productId: string }
+  | { kind: 'product'; product: ProductDetail };
 
 /**
- * Lo que el rol puede hacer hoy; `product` es administrar el catálogo (también el mínimo), `lists`,
- * motivos y destinos, `approve`, aprobar salidas, y `transfer`, trasladar frascos (ADR 0012). Sin
- * `approve`, la salida es una solicitud.
+ * Lo que el rol puede hacer hoy; `product` es administrar el catálogo (también el mínimo, crear
+ * reactivos y ubicaciones desde el ingreso y editar la ficha), `receipt`, ingresar frascos, `lists`,
+ * motivos, destinos y áreas, `approve`, aprobar salidas, y `transfer`, trasladar frascos (ADR 0012 y
+ * 0015). Sin `approve`, la salida es una solicitud.
  */
 export type Allowed = Record<'product' | 'receipt' | 'issue' | 'adjustment' | 'lists' | 'approve' | 'transfer', boolean>;
 

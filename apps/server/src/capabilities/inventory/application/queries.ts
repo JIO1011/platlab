@@ -33,11 +33,14 @@ export interface Page<T> {
   nextCursor: string | null;
 }
 
+/** Posición vista desde la capacidad: lo propio del tipo de ítem (controlado…) lo añade el módulo. */
+export type StockPosition = Omit<Position, 'product'> & { product: Omit<Position['product'], 'controlled'> };
+
 /** Saldos de las ubicaciones autorizadas, de producto a lote y ubicación (01 §7). */
 export async function listPositionPage(
   ctx: InventoryContext,
   filter: { locationIds: string[]; itemId?: string | undefined; locationId?: string | undefined; cursor?: string | undefined; limit: number },
-): Promise<Page<Position>> {
+): Promise<Page<StockPosition>> {
   const after = decodeCursor(filter.cursor, 5);
   const rows = await listPositions.run(
     {
@@ -65,8 +68,8 @@ export async function listPositionPage(
         id: row.lot_id,
         code: row.lot_code,
         expiresOn: row.expires_on,
-        supplierName: row.supplier_name,
-        supplierLot: row.supplier_lot,
+        brand: row.brand,
+        area: row.area,
       },
       container:
         row.container_id && row.container_code && row.container_initial_quantity && row.container_received_at
@@ -75,6 +78,8 @@ export async function listPositionPage(
               code: row.container_code,
               initialQuantity: row.container_initial_quantity,
               receivedAt: row.container_received_at.toISOString(),
+              tare: row.container_tare,
+              density: row.container_density,
             }
           : null,
       disposition: row.disposition as Position['disposition'],

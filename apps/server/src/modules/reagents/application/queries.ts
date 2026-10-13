@@ -1,8 +1,8 @@
 import type pg from 'pg';
 import type { z } from 'zod';
 import type {
+  containerCodeSuggestionQuery,
   LocationList,
-  LotList,
   OperationFacets,
   operationFacetsQuery,
   OperationList,
@@ -11,6 +11,7 @@ import type {
   operationTotalsQuery,
   PositionList,
   positionListQuery,
+  ProductDetail,
   ProductList,
   productListQuery,
   Product,
@@ -20,9 +21,11 @@ import type {
   StockedProduct,
 } from '@platlab/contracts';
 import {
+  brandsOf,
   containerItem,
   countOperationsPerDay,
-  destinationsOf,
+  entriesOf,
+  hasMovements,
   listIssueRequests,
   listOperationPage,
   listPositionPage,
@@ -30,6 +33,8 @@ import {
   operationTotalsOf,
   pendingRequestCount,
   reasonsOf,
+  suggestContainerCodes,
+  type NamedList,
   type OperationFilter,
 } from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
@@ -42,14 +47,15 @@ import {
 } from '../../core/index.js';
 import {
   homeSummary,
+  listControlled,
   listLocationsIn,
-  listProductLots,
   listProducts as listProductsQuery,
   type IListProductsResult,
 } from '../infrastructure/products.queries.js';
 import { inventoryContext } from './commands.js';
 
 const READ = 'reagents.catalog.read';
+const RECEIPT = 'reagents.receipt.create';
 /** Totales y exportación de Movimientos: reportes del Administrador (ADR 0014, 01 §5). */
 const REPORT = 'reagents.report.read';
 /** Ventana del gráfico de salidas del resumen (ADR 0011). */
@@ -95,6 +101,11 @@ const toStockedProduct = (row: IListProductsResult): StockedProduct => ({
   casNumber: row.cas_number,
   physicalState: row.physical_state as Product['physicalState'],
   minimum: row.minimum,
+  hazards: row.hazards as Product['hazards'],
+  controlled: row.controlled,
+  sdsKind: row.sds_kind as Product['sdsKind'],
+  sdsUrl: row.sds_url,
+  density: row.density,
   balance: row.balance,
   containersWithStock: row.containers_with_stock,
   expiredContainers: row.expired_containers,
@@ -102,14 +113,18 @@ const toStockedProduct = (row: IListProductsResult): StockedProduct => ({
   belowMinimum: row.below_minimum,
 });
 
-/** Ficha de un reactivo (ADR 0012): su total y sus frascos con saldo en el ámbito del miembro. */
-export function getProduct(pool: pg.Pool, request: QueryRequest, productId: string): Promise<StockedProduct> {
+/**
+ * Ficha de un reactivo (ADR 0012): su total y sus frascos con saldo en el ámbito del miembro, y si su
+ * unidad aún puede cambiar (ADR 0015).
+ */
+export function getProduct(pool: pg.Pool, request: QueryRequest, productId: string): Promise<ProductDetail> {
   return runQuery(pool, request, async (access) => {
     const [row] = await listProductsQuery.run(
       {
         workspaceId: access.workspace.id,
         locationIds: await permissionScope(access, READ),
         productId,
+        q: null,
         afterCode: null,
         afterId: null,
         limit: 1,
@@ -119,7 +134,7 @@ export function getProduct(pool: pg.Pool, request: QueryRequest, productId: stri
       access.client,
     );
     if (!row) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
-    return toStockedProduct(row);
+    return { ...toStockedProduct(row), unitEditable: !(await hasMovements(inventoryContext(access), productId)) };
   });
 }
 
@@ -158,8 +173,31 @@ export function listReasons(pool: pg.Pool, request: QueryRequest, kind: ReasonKi
   return runQuery(pool, request, async (access) => ({ items: await reasonsOf(inventoryContext(access), kind) }));
 }
 
-export function listDestinations(pool: pg.Pool, request: QueryRequest): Promise<{ items: ListEntry[] }> {
-  return runQuery(pool, request, async (access) => ({ items: await destinationsOf(inventoryContext(access)) }));
+/** Destinos o áreas del espacio (ADR 0012, 0015). */
+export function listEntries(pool: pg.Pool, request: QueryRequest, list: NamedList): Promise<{ items: ListEntry[] }> {
+  return runQuery(pool, request, async (access) => ({ items: await entriesOf(inventoryContext(access), list) }));
+}
+
+/** Marcas ya usadas, para sugerirlas al registrar un ingreso (ADR 0015). */
+export function listBrands(pool: pg.Pool, request: QueryRequest): Promise<{ items: string[] }> {
+  return runQuery(pool, request, async (access) => {
+    await requirePermission(access, RECEIPT);
+    return { items: await brandsOf(inventoryContext(access)) };
+  });
+}
+
+/** Códigos libres para los frascos de un ingreso (ADR 0015): los comprueba de nuevo al guardar. */
+export function suggestCodes(
+  pool: pg.Pool,
+  request: QueryRequest,
+  query: z.infer<typeof containerCodeSuggestionQuery>,
+): Promise<{ codes: string[] }> {
+  return runQuery(pool, request, async (access) => {
+    await requirePermission(access, RECEIPT);
+    return {
+      codes: await suggestContainerCodes(inventoryContext(access), { itemId: query.productId, name: query.name, count: query.count }),
+    };
+  });
 }
 
 /** El catálogo del espacio no depende de la ubicación; las existencias sí se filtran por ámbito. */
@@ -175,6 +213,7 @@ export function listProducts(
         workspaceId: access.workspace.id,
         locationIds: await permissionScope(access, READ),
         productId: null,
+        q: query.q ?? null,
         afterCode: after?.[0] ?? null,
         afterId: after?.[1] ?? null,
         limit: query.limit + 1,
@@ -200,15 +239,27 @@ export function listPositions(
   request: QueryRequest,
   query: z.infer<typeof positionListQuery>,
 ): Promise<PositionList> {
-  return runQuery(pool, request, async (access) =>
-    listPositionPage(inventoryContext(access), {
+  return runQuery(pool, request, async (access) => {
+    const page = await listPositionPage(inventoryContext(access), {
       locationIds: await permissionScope(access, READ),
       itemId: query.productId,
       locationId: query.locationId,
       cursor: query.cursor,
       limit: query.limit,
-    }),
-  );
+    });
+    // «Controlado» es de la ficha química (ADR 0015): lo añade el módulo, no la capacidad.
+    const itemIds = [...new Set(page.items.map((position) => position.product.id))];
+    const controlled = new Set(
+      (await listControlled.run({ workspaceId: access.workspace.id, itemIds }, access.client)).map((row) => row.item_id),
+    );
+    return {
+      ...page,
+      items: page.items.map((position) => ({
+        ...position,
+        product: { ...position.product, controlled: controlled.has(position.product.id) },
+      })),
+    };
+  });
 }
 
 /** Filtros de Movimientos (ADR 0014) sobre el ámbito dado: la ubicación elegida solo lo estrecha. */
@@ -332,49 +383,25 @@ export function getSummary(pool: pg.Pool, request: QueryRequest): Promise<HomeCo
   return runQuery(pool, request, reagentsHomeSummary);
 }
 
-/** Lotes de un reactivo; uno de otro espacio o de otro tipo no tiene lotes visibles. */
-export function listLots(pool: pg.Pool, request: QueryRequest, productId: string): Promise<LotList> {
+/** Ubicaciones donde el miembro tiene el permiso: la interfaz no ofrece las demás. */
+function locationsWith(pool: pg.Pool, request: QueryRequest, permission: string): Promise<LocationList> {
   return runQuery(pool, request, async (access) => {
-    const rows = await listProductLots.run({ workspaceId: access.workspace.id, itemId: productId }, access.client);
-    return {
-      items: rows.map((row) => ({
-        id: row.id,
-        productId: row.item_id,
-        code: row.code,
-        supplierName: row.supplier_name,
-        supplierLot: row.supplier_lot,
-        expiresOn: row.expires_on,
-      })),
-    };
+    const scope = await permissionScope(access, permission);
+    const rows = await listLocationsIn.run({ workspaceId: access.workspace.id, locationIds: scope }, access.client);
+    return { items: rows.map(({ id, code, name, kind, parent_id }) => ({ id, code, name, kind, parentId: parent_id })) };
   });
 }
 
-/** Ubicaciones donde el miembro puede registrar ingresos: la interfaz no ofrece las demás. */
-export function listReceiptLocations(pool: pg.Pool, request: QueryRequest): Promise<LocationList> {
-  return runQuery(pool, request, async (access) => {
-    const scope = await permissionScope(access, 'reagents.receipt.create');
-    const rows = await listLocationsIn.run({ workspaceId: access.workspace.id, locationIds: scope }, access.client);
-    return { items: rows.map(({ id, code, name, kind }) => ({ id, code, name, kind })) };
-  });
-}
+/** Donde el miembro registra ingresos; con `parentId`, la web arma los niveles (ADR 0015). */
+export const listReceiptLocations = (pool: pg.Pool, request: QueryRequest) => locationsWith(pool, request, RECEIPT);
 
-/** Ubicaciones a las que el miembro puede trasladar un frasco (ADR 0012, entrega 4). */
-export function listTransferLocations(pool: pg.Pool, request: QueryRequest): Promise<LocationList> {
-  return runQuery(pool, request, async (access) => {
-    const scope = await permissionScope(access, 'reagents.transfer.create');
-    const rows = await listLocationsIn.run({ workspaceId: access.workspace.id, locationIds: scope }, access.client);
-    return { items: rows.map(({ id, code, name, kind }) => ({ id, code, name, kind })) };
-  });
-}
+/** Adonde el miembro puede trasladar un frasco (ADR 0012, entrega 4). */
+export const listTransferLocations = (pool: pg.Pool, request: QueryRequest) =>
+  locationsWith(pool, request, 'reagents.transfer.create');
 
-/** Ubicaciones que el miembro puede contar: donde puede ajustar existencias (ADR 0012, entrega 4). */
-export function listCountLocations(pool: pg.Pool, request: QueryRequest): Promise<LocationList> {
-  return runQuery(pool, request, async (access) => {
-    const scope = await permissionScope(access, 'reagents.adjustment.create');
-    const rows = await listLocationsIn.run({ workspaceId: access.workspace.id, locationIds: scope }, access.client);
-    return { items: rows.map(({ id, code, name, kind }) => ({ id, code, name, kind })) };
-  });
-}
+/** Lo que el miembro puede contar: donde puede ajustar existencias (ADR 0012, entrega 4). */
+export const listCountLocations = (pool: pg.Pool, request: QueryRequest) =>
+  locationsWith(pool, request, 'reagents.adjustment.create');
 
 /** Reactivo de un frasco: el enlace corto de su etiqueta QR lleva a su ficha (ADR 0012, entrega 4). */
 export function getContainer(pool: pg.Pool, request: QueryRequest, containerId: string): Promise<{ containerId: string; productId: string }> {

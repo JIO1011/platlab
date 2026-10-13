@@ -2,17 +2,18 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import {
   adjustmentRequest,
+  containerCodeSuggestionQuery,
   containerParams,
   countRequest,
-  createDestinationRequest,
-  createLotRequest,
+  createEntryRequest,
+  createLocationRequest,
   createReasonRequest,
   entryParams,
   issueRequestListQuery,
   issueRequestParams,
   rejectIssueRequest,
-  createProductRequest,
   issueRequest,
+  newProduct,
   operationFacetsQuery,
   operationListQuery,
   operationTotalsQuery,
@@ -22,36 +23,43 @@ import {
   reasonListQuery,
   receiptRequest,
   setMinimumRequest,
+  setTareRequest,
   transferRequest,
+  updateProductRequest,
+  weightAdjustmentRequest,
   workspaceParams,
 } from '@platlab/contracts';
+import type { NamedList } from '../../../capabilities/inventory/index.js';
 import { verifiedSubject } from '../../../platform/http/auth.js';
 import { idempotencyKey } from '../../../platform/http/idempotency-key.js';
 import {
   approveRequest,
-  archiveDestination,
+  archiveEntry,
   archiveReason,
   cancelRequest,
-  createDestination,
-  createLot,
+  createEntry,
   createProduct,
   createReason,
+  createWorkspaceLocation,
   rejectRequest,
   registerAdjustment,
   registerCount,
   registerIssue,
   registerReceipt,
   registerTransfer,
+  registerWeightAdjustment,
+  setContainerTare,
   setProductMinimum,
+  updateProduct,
   type CommandRequest,
 } from '../application/commands.js';
 import {
   getContainer,
   getProduct,
+  listBrands,
   listCountLocations,
   getSummary,
-  listDestinations,
-  listLots,
+  listEntries,
   listOperationFacets,
   listOperations,
   listOperationTotals,
@@ -61,7 +69,14 @@ import {
   listReceiptLocations,
   listRequests,
   listTransferLocations,
+  suggestCodes,
 } from '../application/queries.js';
+
+/** Listas con solo un nombre, por su ruta: destinos de salida (ADR 0012) y áreas (ADR 0015). */
+const namedLists: Array<[path: string, list: NamedList]> = [
+  ['destinations', 'destination'],
+  ['areas', 'area'],
+];
 
 const queryRequest = (request: FastifyRequest) => ({
   subject: verifiedSubject(request),
@@ -86,12 +101,22 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
     );
 
     app.post('/products', async (request, reply) => {
-      const input = createProductRequest.parse(request.body);
+      const input = newProduct.parse(request.body);
       return reply.status(201).send(await createProduct(pool, commandRequest(request), input));
     });
 
     app.get('/products/:productId', async (request) =>
       getProduct(pool, queryRequest(request), productParams.parse(request.params).productId),
+    );
+
+    // Ficha editable (ADR 0015): la edita el Administrador; la unidad, solo sin movimientos.
+    app.patch('/products/:productId', async (request) =>
+      updateProduct(
+        pool,
+        commandRequest(request),
+        productParams.parse(request.params).productId,
+        updateProductRequest.parse(request.body),
+      ),
     );
 
     // Mínimo (ADR 0012, 05-10-2026): lo fija el Administrador.
@@ -104,21 +129,33 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
       ),
     );
 
-    app.get('/products/:productId/lots', async (request) =>
-      listLots(pool, queryRequest(request), productParams.parse(request.params).productId),
+    app.get('/receipt-locations', async (request) => listReceiptLocations(pool, queryRequest(request)));
+
+    // Ubicaciones de Core creadas desde el ingreso (ADR 0015), con el permiso de catálogo.
+    app.post('/locations', async (request, reply) => {
+      const input = createLocationRequest.parse(request.body);
+      return reply.status(201).send(await createWorkspaceLocation(pool, commandRequest(request), input));
+    });
+
+    app.get('/container-codes/suggestion', async (request) =>
+      suggestCodes(pool, queryRequest(request), containerCodeSuggestionQuery.parse(request.query)),
     );
 
-    app.get('/receipt-locations', async (request) => listReceiptLocations(pool, queryRequest(request)));
+    app.get('/brands', async (request) => listBrands(pool, queryRequest(request)));
 
     app.get('/containers/:containerId', async (request) =>
       getContainer(pool, queryRequest(request), containerParams.parse(request.params).containerId),
     );
 
-    app.post('/products/:productId/lots', async (request, reply) => {
-      const { productId } = productParams.parse(request.params);
-      const input = createLotRequest.parse(request.body);
-      return reply.status(201).send(await createLot(pool, commandRequest(request), productId, input));
-    });
+    // Tara del frasco (ADR 0015): la fija quien ajusta, con el peso que marca la balanza.
+    app.put('/containers/:containerId/tare', async (request) =>
+      setContainerTare(
+        pool,
+        commandRequest(request),
+        containerParams.parse(request.params).containerId,
+        setTareRequest.parse(request.body),
+      ),
+    );
 
     app.get('/positions', async (request) =>
       listPositions(pool, queryRequest(request), positionListQuery.parse(request.query)),
@@ -155,7 +192,12 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
       return reply.status(201).send(await registerAdjustment(pool, commandRequest(request), input));
     });
 
-    // Motivos y destinos (ADR 0012): los consulta quien registra; los administra el Administrador.
+    app.post('/adjustments/by-weight', async (request, reply) => {
+      const input = weightAdjustmentRequest.parse(request.body);
+      return reply.status(201).send(await registerWeightAdjustment(pool, commandRequest(request), input));
+    });
+
+    // Motivos, destinos y áreas (ADR 0012, 0015): los consulta quien registra; los administra el Administrador.
     app.get('/reasons', async (request) =>
       listReasons(pool, queryRequest(request), reasonListQuery.parse(request.query).kind),
     );
@@ -169,16 +211,18 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
       archiveReason(pool, commandRequest(request), entryParams.parse(request.params).entryId),
     );
 
-    app.get('/destinations', async (request) => listDestinations(pool, queryRequest(request)));
+    for (const [path, list] of namedLists) {
+      app.get(`/${path}`, async (request) => listEntries(pool, queryRequest(request), list));
 
-    app.post('/destinations', async (request, reply) => {
-      const input = createDestinationRequest.parse(request.body);
-      return reply.status(201).send(await createDestination(pool, commandRequest(request), input));
-    });
+      app.post(`/${path}`, async (request, reply) => {
+        const input = createEntryRequest.parse(request.body);
+        return reply.status(201).send(await createEntry(pool, commandRequest(request), list, input));
+      });
 
-    app.post('/destinations/:entryId/archive', async (request) =>
-      archiveDestination(pool, commandRequest(request), entryParams.parse(request.params).entryId),
-    );
+      app.post(`/${path}/:entryId/archive`, async (request) =>
+        archiveEntry(pool, commandRequest(request), list, entryParams.parse(request.params).entryId),
+      );
+    }
 
     // Solicitudes de salida (ADR 0012): bandeja de quien aprueba o «mis solicitudes».
     app.get('/issue-requests', async (request) =>

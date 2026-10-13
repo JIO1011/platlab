@@ -93,13 +93,13 @@ Reglas:
 | Tabla | Esencial |
 |---|---|
 | `inventory.items` | Código, nombre, `kind`, unidad base, mínimo opcional (en la unidad base), modo de seguimiento y archivado |
-| `reagents.products` | Extensión 1:1 del item: CAS opcional, concentración, pureza, estado físico, peligros y SDS |
-| `inventory.lots` | Item (FK compuesta), proveedor y referencia, recepción y caducidad (puede ser desconocida). Sin estado propio: cada frasco se gestiona por separado ([ADR 0012](05_decisiones.md#adr-0012), 05-10-2026) |
-| `inventory.containers` | Envase identificable (frasco): código, lote y cantidad inicial. En Reactivos, cada ingreso registra sus frascos ([ADR 0012](05_decisiones.md#adr-0012)); la apertura y la caducidad tras abrir, cuando el proceso lo exija |
+| `reagents.products` | Extensión 1:1 del item: CAS (obligatorio salvo en mezclas), estado físico (sólido, líquido, acuoso, mezcla, gas), pictogramas SGA, controlado, ficha de seguridad (digital con enlace, física o ninguna) y densidad en g/mL ([ADR 0015](05_decisiones.md#adr-0015)) |
+| `inventory.lots` | Item (FK compuesta), código automático, marca, área y caducidad (puede ser desconocida). Sin estado propio: cada frasco se gestiona por separado ([ADR 0012](05_decisiones.md#adr-0012), 05-10-2026) |
+| `inventory.containers` | Envase identificable (frasco): código propio y único en el espacio, lote, cantidad inicial y, con control por peso, tara en g y la densidad con que se calculó ([ADR 0015](05_decisiones.md#adr-0015)). La apertura y la caducidad tras abrir, cuando el proceso lo exija |
 | `inventory.positions` | Item, lote, envase y retorno opcionales, ubicación, disposición, saldo, reservado y versión |
 | `inventory.operations` | Cabecera del movimiento: tipo, actor, motivo, fecha, correlación y referencia |
 | `inventory.entries` | Asientos inmutables con signo por posición |
-| `inventory.reasons`, `destinations` | Listas de motivos (salida y ajuste; desechar un frasco es un ajuste con motivo) y destinos que administra el laboratorio; desde R-01 |
+| `inventory.reasons`, `destinations`, `areas` | Listas de motivos (salida y ajuste; desechar un frasco es un ajuste con motivo), destinos y áreas o departamentos que administra el laboratorio; desde R-01 |
 | `inventory.preparation_inputs` | Preparación: lote resultante y asientos de los insumos consumidos |
 | `inventory.custodies`, `custody_lines` | Entrega a un responsable y su conciliación |
 | `inventory.return_batches` | Retorno segregado hasta verificarlo o disponerlo |

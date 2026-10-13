@@ -1,44 +1,55 @@
 import type pg from 'pg';
 import type { z } from 'zod';
-import type {
-  adjustmentRequest,
-  countRequest,
-  CountResponse,
-  createDestinationRequest,
-  createLotRequest,
-  createProductRequest,
-  createReasonRequest,
-  issueRequest,
-  IssueResponse,
-  ListEntry,
-  Lot,
-  MovementResponse,
-  Product,
-  receiptRequest,
-  ReceiptResponse,
-  transferRequest,
-  TransferResponse,
+import {
+  productRuleViolation,
+  type adjustmentRequest,
+  type countRequest,
+  type CountResponse,
+  type createEntryRequest,
+  type createLocationRequest,
+  type createReasonRequest,
+  type issueRequest,
+  type IssueResponse,
+  type ListEntry,
+  type Location,
+  type MovementResponse,
+  type newProduct,
+  type Product,
+  type receiptRequest,
+  type ReceiptResponse,
+  type setTareRequest,
+  type TareResponse,
+  type transferRequest,
+  type TransferResponse,
+  type updateProductRequest,
+  type weightAdjustmentRequest,
 } from '@platlab/contracts';
 import {
-  addDestination,
+  addEntry,
   addReason,
+  adjustByWeight,
   applyMovement,
   approveIssueRequest,
   countLocation,
   createItem,
-  createLot as createInventoryLot,
   lockExistingPosition,
+  lockItem,
   receiveContainers,
   releaseIssueRequest,
   requestIssue,
-  retireDestination,
+  retireEntry,
   retireReason,
   setMinimum,
+  setTare,
   transferContainer,
+  updateItemFields,
   type InventoryContext,
+  type NamedList,
 } from '../../../capabilities/inventory/index.js';
+import { AppError } from '../../../platform/errors.js';
 import { withIdempotency } from '../../../platform/idempotency/idempotency.js';
 import {
+  createLocation,
   hasPermissionAt,
   recordAudit,
   requirePermission,
@@ -47,7 +58,12 @@ import {
   withModuleAccess,
   type WorkspaceAccess,
 } from '../../core/index.js';
-import { insertProductDetail } from '../infrastructure/products.queries.js';
+import {
+  findProductDetail,
+  insertProductDetail,
+  updateProductDetail,
+  type IFindProductDetailResult,
+} from '../infrastructure/products.queries.js';
 
 /** Petición ya autenticada: el actor y el espacio salen del contexto verificado, nunca del cuerpo. */
 export interface CommandRequest {
@@ -63,6 +79,9 @@ export const inventoryContext = (access: WorkspaceAccess): InventoryContext => (
   correlationId: access.correlationId,
   kind: 'reagent',
 });
+
+/** Catálogo: alta y edición de reactivos, listas y ubicaciones (Administrador y Propietario). */
+const CATALOG = 'reagents.catalog.manage';
 
 /**
  * Una transacción por comando (primer incremento): admisión de Reactivos para operación nueva,
@@ -100,50 +119,131 @@ function runCommand<T>(
   );
 }
 
-/** Crea el ítem y su detalle químico mínimo en una transacción (Administrador, todo el espacio). */
-export function createProduct(
-  pool: pg.Pool,
-  request: CommandRequest,
-  input: z.infer<typeof createProductRequest>,
-): Promise<Product> {
+// ---------------------------------------------------------------------------
+// Catálogo (ADR 0015): alta con código automático y ficha editable
+// ---------------------------------------------------------------------------
+
+/** Pictogramas sin repetir y en su orden oficial, para comparar y mostrar siempre igual. */
+const sortedHazards = (hazards: readonly string[]) => [...new Set(hazards)].sort() as Product['hazards'];
+
+const toProduct = (
+  item: { id: string; code: string; name: string; baseUnit: string; minimum: string | null },
+  detail: IFindProductDetailResult,
+): Product => ({
+  id: item.id,
+  code: item.code,
+  name: item.name,
+  baseUnit: item.baseUnit,
+  casNumber: detail.cas_number,
+  physicalState: detail.physical_state as Product['physicalState'],
+  minimum: item.minimum,
+  hazards: detail.hazards as Product['hazards'],
+  controlled: detail.controlled,
+  sdsKind: detail.sds_kind as Product['sdsKind'],
+  sdsUrl: detail.sds_url,
+  density: detail.density,
+});
+
+/** Crea el ítem con código automático y su ficha química, y lo audita; quien llama ya autorizó. */
+async function insertProduct(access: WorkspaceAccess, input: z.infer<typeof newProduct>): Promise<Product> {
+  const item = await createItem(inventoryContext(access), { name: input.name, baseUnit: input.baseUnit });
+  const [detail] = await insertProductDetail.run(
+    {
+      workspaceId: access.workspace.id,
+      itemId: item.id,
+      casNumber: input.casNumber ?? null,
+      physicalState: input.physicalState,
+      hazards: sortedHazards(input.hazards),
+      controlled: input.controlled,
+      sdsKind: input.sdsKind ?? null,
+      sdsUrl: input.sdsUrl ?? null,
+      density: input.density ?? null,
+    },
+    access.client,
+  );
+  if (!detail) throw new Error('La ficha del reactivo no devolvió fila');
+  const product = toProduct(item, detail);
+  await recordAudit(access, {
+    action: 'reagents.product.create',
+    entityType: 'inventory.item',
+    entityId: item.id,
+    changes: { ...product },
+  });
+  return product;
+}
+
+/** Alta de un reactivo en el catálogo (Administrador, todo el espacio). */
+export function createProduct(pool: pg.Pool, request: CommandRequest, input: z.infer<typeof newProduct>): Promise<Product> {
   return runCommand(
     pool,
     request,
     'reagents.product.create',
     input,
-    (access) => requireWorkspacePermission(access, 'reagents.catalog.manage'),
+    (access) => requireWorkspacePermission(access, CATALOG),
+    (access) => insertProduct(access, input),
+  );
+}
+
+/** Solo los campos enviados: en una edición parcial, lo ausente conserva su valor. */
+const definedFields = <T extends object>(value: T) =>
+  Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined)) as {
+    [K in keyof T]?: Exclude<T[K], undefined>;
+  };
+
+async function productDetailOf(access: WorkspaceAccess, itemId: string): Promise<IFindProductDetailResult> {
+  const [detail] = await findProductDetail.run({ workspaceId: access.workspace.id, itemId }, access.client);
+  if (!detail) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
+  return detail;
+}
+
+/**
+ * Edita la ficha (ADR 0015) con el ítem bloqueado: cambia solo lo enviado, valida las reglas sobre la
+ * ficha combinada (el CAS, si el cambio toca CAS o estado) y audita lo que cambió, antes y después.
+ */
+export function updateProduct(
+  pool: pg.Pool,
+  request: CommandRequest,
+  productId: string,
+  input: z.infer<typeof updateProductRequest>,
+): Promise<Product> {
+  return runCommand(
+    pool,
+    request,
+    'reagents.product.update',
+    { productId, ...input },
+    (access) => requireWorkspacePermission(access, CATALOG),
     async (access) => {
-      const item = await createItem(inventoryContext(access), {
-        code: input.code,
-        name: input.name,
-        baseUnit: input.baseUnit,
-        minimum: input.minimum ?? null,
-      });
-      const [detail] = await insertProductDetail.run(
+      const ctx = inventoryContext(access);
+      const item = await lockItem(ctx, productId, { rename: input.name !== undefined });
+      const before = toProduct(item, await productDetailOf(access, productId));
+      const after: Product = { ...before, ...definedFields(input), hazards: sortedHazards(input.hazards ?? before.hazards) };
+      const violation = productRuleViolation(after, { cas: input.casNumber !== undefined || input.physicalState !== undefined });
+      if (violation) throw new AppError('VALIDATION_FAILED', violation);
+
+      await updateItemFields(ctx, item, { name: after.name, baseUnit: after.baseUnit });
+      const [updated] = await updateProductDetail.run(
         {
           workspaceId: access.workspace.id,
-          itemId: item.id,
-          casNumber: input.casNumber ?? null,
-          physicalState: input.physicalState ?? null,
+          itemId: productId,
+          casNumber: after.casNumber,
+          physicalState: after.physicalState,
+          hazards: after.hazards,
+          controlled: after.controlled,
+          sdsKind: after.sdsKind,
+          sdsUrl: after.sdsUrl,
+          density: after.density,
         },
         access.client,
       );
-      const product: Product = {
-        id: item.id,
-        code: item.code,
-        name: item.name,
-        baseUnit: item.baseUnit,
-        casNumber: detail?.cas_number ?? null,
-        physicalState: (detail?.physical_state ?? null) as Product['physicalState'],
-        minimum: item.minimum,
-      };
-      await recordAudit(access, {
-        action: 'reagents.product.create',
-        entityType: 'inventory.item',
-        entityId: item.id,
-        changes: { ...product },
-      });
-      return product;
+      if (!updated) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
+      const fields = Object.keys(input) as Array<keyof typeof input>;
+      const changes = Object.fromEntries(
+        fields
+          .filter((field) => JSON.stringify(before[field]) !== JSON.stringify(after[field]))
+          .map((field) => [field, { from: before[field], to: after[field] }]),
+      );
+      await recordAudit(access, { action: 'reagents.product.update', entityType: 'inventory.item', entityId: productId, changes });
+      return after;
     },
   );
 }
@@ -160,7 +260,7 @@ export function setProductMinimum(
     request,
     'reagents.product.minimum',
     { productId, minimum },
-    (access) => requireWorkspacePermission(access, 'reagents.catalog.manage'),
+    (access) => requireWorkspacePermission(access, CATALOG),
     async (access) => {
       const stored = await setMinimum(inventoryContext(access), productId, minimum);
       await recordAudit(access, {
@@ -174,41 +274,30 @@ export function setProductMinimum(
   );
 }
 
-/** Crea un lote del producto; caducidad y lote del proveedor pueden quedar desconocidos. */
-export function createLot(
+/**
+ * Crea una ubicación de Core desde Reactivos (ADR 0015): Core no tiene permisos propios, así que la
+ * crea quien administra el catálogo, en todo el espacio. Un nombre repetido devuelve la existente.
+ */
+export function createWorkspaceLocation(
   pool: pg.Pool,
   request: CommandRequest,
-  productId: string,
-  input: z.infer<typeof createLotRequest>,
-): Promise<Lot> {
+  input: z.infer<typeof createLocationRequest>,
+): Promise<Location> {
   return runCommand(
     pool,
     request,
-    'reagents.lot.create',
-    { productId, ...input },
-    (access) => requireWorkspacePermission(access, 'reagents.catalog.manage'),
+    'reagents.location.create',
+    input,
+    (access) => requireWorkspacePermission(access, CATALOG),
     async (access) => {
-      const lot = await createInventoryLot(inventoryContext(access), productId, {
-        code: input.code,
-        supplierName: input.supplierName ?? null,
-        supplierLot: input.supplierLot ?? null,
-        expiresOn: input.expiresOn ?? null,
-      });
-      const result: Lot = {
-        id: lot.id,
-        productId: lot.itemId,
-        code: lot.code,
-        supplierName: lot.supplierName,
-        supplierLot: lot.supplierLot,
-        expiresOn: lot.expiresOn,
-      };
+      const { created, ...location } = await createLocation(access, input);
       await recordAudit(access, {
-        action: 'reagents.lot.create',
-        entityType: 'inventory.lot',
-        entityId: lot.id,
-        changes: { ...result },
+        action: 'reagents.location.create',
+        entityType: 'core.location',
+        entityId: location.id,
+        changes: { ...location, created },
       });
-      return result;
+      return location;
     },
   );
 }
@@ -228,9 +317,13 @@ async function auditMovement(access: WorkspaceAccess, permission: string, result
   });
 }
 
+/** Densidad del reactivo (g/mL) para pasar su volumen a gramos; null si no la tiene. */
+const productDensity = async (access: WorkspaceAccess, productId: string) => (await productDetailOf(access, productId)).density;
+
 /**
- * Ingreso por frascos (ADR 0012): uno o más frascos iguales de un lote existente o de uno nuevo,
- * que se crea en la misma transacción (01 §6.1). Lo registran el Operador y el Administrador.
+ * Ingreso en un paso (ADR 0015): un reactivo del catálogo o uno nuevo (solo con el permiso de
+ * catálogo), un lote automático y un frasco por código, con su tara si llega el peso. Todo en una
+ * transacción: un código repetido o un permiso que falta no deja nada creado.
  */
 export function registerReceipt(
   pool: pg.Pool,
@@ -238,27 +331,29 @@ export function registerReceipt(
   input: z.infer<typeof receiptRequest>,
 ): Promise<ReceiptResponse> {
   const permission = 'reagents.receipt.create';
-  return runCommand(pool, request, permission, input, (access) => requirePermission(access, permission), async (access) => {
-    const lot =
-      input.lotId !== undefined
-        ? { id: input.lotId }
-        : {
-            itemId: input.productId ?? '',
-            create: {
-              code: input.newLot?.code ?? '',
-              supplierName: input.newLot?.supplierName ?? null,
-              supplierLot: input.newLot?.supplierLot ?? null,
-              expiresOn: input.newLot?.expiresOn ?? null,
-            },
-          };
+  const authorize = async (access: WorkspaceAccess) => {
+    await requirePermission(access, permission);
+    if (input.newProduct) await requireWorkspacePermission(access, CATALOG);
+  };
+  return runCommand(pool, request, permission, input, authorize, async (access) => {
+    const created = input.newProduct ? await insertProduct(access, input.newProduct) : null;
+    const productId = created?.id ?? input.productId ?? '';
+    const weight = input.weight
+      ? {
+          grossWeight: input.weight.grossWeight,
+          density: input.weight.density ?? (created ? created.density : await productDensity(access, productId)),
+        }
+      : null;
     const result = await receiveContainers(
       inventoryContext(access),
       {
-        lot,
+        itemId: productId,
+        lot: { brand: input.brand ?? null, area: input.area ?? null, expiresOn: input.expiresOn ?? null },
         locationId: input.locationId,
-        count: input.containers,
+        codes: input.codes,
         quantity: input.quantity,
         unit: input.unit,
+        weight,
         reference: input.reference ?? null,
       },
       (locationId) => requirePermissionAt(access, permission, locationId),
@@ -269,9 +364,16 @@ export function registerReceipt(
       entityId: result.operationId,
       reason: null,
       changes: {
+        productId: result.product.id,
         lotId: result.lot.id,
         unit: result.unit,
-        containers: result.containers.map(({ containerId, positionId, quantity }) => ({ containerId, positionId, quantity })),
+        containers: result.containers.map(({ containerId, code, positionId, quantity, tare }) => ({
+          containerId,
+          code,
+          positionId,
+          quantity,
+          tare,
+        })),
       },
     });
     return result;
@@ -463,18 +565,79 @@ export function registerAdjustment(
   });
 }
 
-// ---------------------------------------------------------------------------
-// Motivos y destinos (ADR 0012): los administra el Administrador; se archivan, no se borran
-// ---------------------------------------------------------------------------
+/**
+ * Ajuste por peso (ADR 0015): con el peso del frasco en la balanza y su tara, la base calcula el saldo
+ * y registra un ajuste «Pesada» bajo el bloqueo de la posición, como cualquier ajuste.
+ */
+export function registerWeightAdjustment(
+  pool: pg.Pool,
+  request: CommandRequest,
+  input: z.infer<typeof weightAdjustmentRequest>,
+): Promise<MovementResponse> {
+  const permission = 'reagents.adjustment.create';
+  return runCommand(pool, request, 'reagents.adjustment.weight', input, (access) => requirePermission(access, permission), async (access) => {
+    const ctx = inventoryContext(access);
+    const position = await lockExistingPosition(ctx, input.positionId);
+    await requirePermissionAt(access, permission, position.locationId);
+    const result = await adjustByWeight(ctx, position, input.grossWeight);
+    await auditMovement(access, permission, result, 'Pesada');
+    return result;
+  });
+}
 
-const LISTS = 'reagents.catalog.manage';
+/**
+ * Fija la tara de un frasco (ADR 0015): la fija quien ajusta en su ubicación. Reemplaza la anterior y
+ * la auditoría guarda ambas, con sus densidades.
+ */
+export function setContainerTare(
+  pool: pg.Pool,
+  request: CommandRequest,
+  containerId: string,
+  input: z.infer<typeof setTareRequest>,
+): Promise<TareResponse> {
+  const permission = 'reagents.adjustment.create';
+  return runCommand(
+    pool,
+    request,
+    'reagents.container.tare',
+    { containerId, ...input },
+    (access) => requirePermission(access, permission),
+    async (access) => {
+      const result = await setTare(
+        inventoryContext(access),
+        {
+          containerId,
+          grossWeight: input.grossWeight,
+          density: input.density ?? null,
+          fallbackDensity: (itemId) => productDensity(access, itemId),
+        },
+        (locationId) => requirePermissionAt(access, permission, locationId),
+      );
+      await recordAudit(access, {
+        action: 'reagents.container.tare',
+        entityType: 'inventory.container',
+        entityId: containerId,
+        changes: {
+          grossWeight: input.grossWeight,
+          tare: { from: result.previous.tare, to: result.tare },
+          density: { from: result.previous.density, to: result.density },
+        },
+      });
+      return { containerId: result.containerId, tare: result.tare, density: result.density };
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Motivos, destinos (ADR 0012) y áreas (ADR 0015): las administra el Administrador; se archivan
+// ---------------------------------------------------------------------------
 
 export function createReason(
   pool: pg.Pool,
   request: CommandRequest,
   input: z.infer<typeof createReasonRequest>,
 ): Promise<ListEntry> {
-  return runCommand(pool, request, 'reagents.reason.create', input, (access) => requireWorkspacePermission(access, LISTS), async (access) => {
+  return runCommand(pool, request, 'reagents.reason.create', input, (access) => requireWorkspacePermission(access, CATALOG), async (access) => {
     const entry = await addReason(inventoryContext(access), input.kind, input.name);
     await recordAudit(access, {
       action: 'reagents.reason.create',
@@ -487,39 +650,33 @@ export function createReason(
 }
 
 export function archiveReason(pool: pg.Pool, request: CommandRequest, id: string): Promise<{ id: string }> {
-  return runCommand(pool, request, 'reagents.reason.archive', { id }, (access) => requireWorkspacePermission(access, LISTS), async (access) => {
+  return runCommand(pool, request, 'reagents.reason.archive', { id }, (access) => requireWorkspacePermission(access, CATALOG), async (access) => {
     await retireReason(inventoryContext(access), id);
     await recordAudit(access, { action: 'reagents.reason.archive', entityType: 'inventory.reason', entityId: id, changes: {} });
     return { id };
   });
 }
 
-export function createDestination(
+/** Alta de un destino o un área; un nombre activo repetido devuelve el existente. */
+export function createEntry(
   pool: pg.Pool,
   request: CommandRequest,
-  input: z.infer<typeof createDestinationRequest>,
+  list: NamedList,
+  input: z.infer<typeof createEntryRequest>,
 ): Promise<ListEntry> {
-  return runCommand(pool, request, 'reagents.destination.create', input, (access) => requireWorkspacePermission(access, LISTS), async (access) => {
-    const entry = await addDestination(inventoryContext(access), input.name);
-    await recordAudit(access, {
-      action: 'reagents.destination.create',
-      entityType: 'inventory.destination',
-      entityId: entry.id,
-      changes: { name: entry.name },
-    });
+  const action = `reagents.${list}.create`;
+  return runCommand(pool, request, action, input, (access) => requireWorkspacePermission(access, CATALOG), async (access) => {
+    const entry = await addEntry(inventoryContext(access), list, input.name);
+    await recordAudit(access, { action, entityType: `inventory.${list}`, entityId: entry.id, changes: { name: entry.name } });
     return entry;
   });
 }
 
-export function archiveDestination(pool: pg.Pool, request: CommandRequest, id: string): Promise<{ id: string }> {
-  return runCommand(pool, request, 'reagents.destination.archive', { id }, (access) => requireWorkspacePermission(access, LISTS), async (access) => {
-    await retireDestination(inventoryContext(access), id);
-    await recordAudit(access, {
-      action: 'reagents.destination.archive',
-      entityType: 'inventory.destination',
-      entityId: id,
-      changes: {},
-    });
+export function archiveEntry(pool: pg.Pool, request: CommandRequest, list: NamedList, id: string): Promise<{ id: string }> {
+  const action = `reagents.${list}.archive`;
+  return runCommand(pool, request, action, { id }, (access) => requireWorkspacePermission(access, CATALOG), async (access) => {
+    await retireEntry(inventoryContext(access), list, id);
+    await recordAudit(access, { action, entityType: `inventory.${list}`, entityId: id, changes: {} });
     return { id };
   });
 }

@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, TextareaHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
 import { cn } from '../lib/cn';
 import { useFieldControl } from './field';
 
@@ -10,10 +10,10 @@ const control = [
   'disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-ink-subtle',
 ];
 
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className, ...props }: ComponentProps<'input'>) {
   return <input {...useFieldControl()} className={cn(control, 'h-10', className)} {...props} />;
 }
 
-export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function Textarea({ className, ...props }: ComponentProps<'textarea'>) {
   return <textarea {...useFieldControl()} className={cn(control, 'min-h-20 resize-y py-2 leading-relaxed', className)} {...props} />;
 }

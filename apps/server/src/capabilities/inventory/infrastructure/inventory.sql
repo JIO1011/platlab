@@ -5,9 +5,28 @@
 */
 
 /* @name insertItem */
-INSERT INTO inventory.items (workspace_id, kind, code, name, base_unit, minimum_quantity)
-VALUES (:workspaceId!, :kind!, :code!, :name!, :baseUnit!, :minimum::numeric)
+-- El código lo genera el servidor a partir del nombre (ADR 0015), bajo el bloqueo de códigos.
+INSERT INTO inventory.items (workspace_id, kind, code, name, base_unit)
+VALUES (:workspaceId!, :kind!, :code!, :name!, :baseUnit!)
 RETURNING id, code, name, base_unit, trim_scale(minimum_quantity) AS minimum;
+
+/* @name itemNameTaken */
+-- Otro ítem activo del mismo tipo con el mismo nombre plegado (ADR 0015). Se consulta bajo el
+-- bloqueo del catálogo del espacio, que serializa altas y cambios de nombre.
+SELECT name
+FROM inventory.items
+WHERE workspace_id = :workspaceId!
+  AND kind = :kind!
+  AND archived_at IS NULL
+  AND inventory.fold_text(name) = inventory.fold_text(:name!)
+  AND (:exceptId::uuid IS NULL OR id <> :exceptId::uuid)
+LIMIT 1;
+
+/* @name itemCodesLike */
+-- Códigos del espacio, de cualquier tipo, iguales al propuesto o con un sufijo «-N».
+SELECT code
+FROM inventory.items
+WHERE workspace_id = :workspaceId! AND (lower(code) = lower(:base!) OR starts_with(lower(code), lower(:base!) || '-'));
 
 /* @name setItemMinimum */
 -- Mínimo para todo el espacio, en la unidad base (ADR 0012, 05-10-2026); null lo quita.
@@ -16,21 +35,43 @@ SET minimum_quantity = :minimum::numeric, version = version + 1
 WHERE workspace_id = :workspaceId! AND id = :itemId! AND kind = :kind! AND archived_at IS NULL
 RETURNING id, trim_scale(minimum_quantity) AS minimum;
 
-/* @name findItem */
-SELECT id, code, name, base_unit
+/* @name lockItem */
+-- Antes de editar la ficha (ADR 0015): un ingreso, que también bloquea el ítem, espera.
+SELECT id, code, name, base_unit, trim_scale(minimum_quantity) AS minimum
 FROM inventory.items
-WHERE workspace_id = :workspaceId! AND id = :itemId! AND kind = :kind! AND archived_at IS NULL;
+WHERE workspace_id = :workspaceId! AND id = :itemId! AND kind = :kind! AND archived_at IS NULL
+FOR UPDATE;
+
+/* @name itemHasMovements */
+-- Con algún asiento, la unidad ya no cambia (ADR 0015; lo respalda items_protect_base_unit).
+SELECT EXISTS (
+  SELECT 1
+  FROM inventory.positions AS p
+  JOIN inventory.entries AS e ON e.workspace_id = p.workspace_id AND e.position_id = p.id
+  WHERE p.workspace_id = :workspaceId! AND p.item_id = :itemId!
+) AS "has_movements!";
+
+/* @name updateItem */
+UPDATE inventory.items
+SET name = :name!, base_unit = :baseUnit!, version = version + 1
+WHERE workspace_id = :workspaceId! AND id = :itemId! AND kind = :kind!
+RETURNING id;
+
+/* @name reserveLotSeq */
+-- Número del lote automático (ADR 0015): el UPDATE bloquea el ítem, así que dos ingresos
+-- simultáneos reciben números distintos y la unidad no cambia mientras dura el ingreso. Orden de
+-- bloqueo dentro de «datos» (02 §6): ítem → lote → posición.
+UPDATE inventory.items
+SET lot_seq = lot_seq + 1
+WHERE workspace_id = :workspaceId! AND id = :itemId! AND kind = :kind! AND archived_at IS NULL
+RETURNING lot_seq, code, name, base_unit;
 
 /* @name insertLot */
-INSERT INTO inventory.lots (workspace_id, item_id, code, supplier_name, supplier_lot, expires_on)
-VALUES (:workspaceId!, :itemId!, :code!, :supplierName, :supplierLot, :expiresOn)
-RETURNING id, item_id, code, supplier_name, supplier_lot, expires_on;
-
-/* @name findLot */
-SELECT l.id, l.item_id, l.code, i.base_unit
-FROM inventory.lots AS l
-JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
-WHERE l.workspace_id = :workspaceId! AND l.id = :lotId! AND i.kind = :kind! AND i.archived_at IS NULL;
+-- Si el código automático ya lo tiene un lote anterior del ítem, no inserta y se prueba el siguiente.
+INSERT INTO inventory.lots (workspace_id, item_id, code, brand, area, expires_on)
+VALUES (:workspaceId!, :itemId!, :code!, :brand, :area, :expiresOn)
+ON CONFLICT (workspace_id, item_id, lower(code)) DO NOTHING
+RETURNING id, code;
 
 /* @name findLocation */
 SELECT id
@@ -47,11 +88,94 @@ WHERE workspace_id = :workspaceId! AND id = :lotId!
 RETURNING container_seq AS "last!";
 
 /* @name insertContainers */
-INSERT INTO inventory.containers (workspace_id, item_id, lot_id, seq, initial_quantity)
-SELECT :workspaceId!, :itemId!, :lotId!, s.seq, :quantity!::numeric
-FROM generate_series(:firstSeq!::int, :lastSeq!::int) AS s (seq)
-ORDER BY s.seq
-RETURNING id, seq;
+-- Un frasco por código, numerados desde :firstSeq en el orden recibido (ADR 0015). Un código ya usado
+-- en el espacio choca con containers_code.
+INSERT INTO inventory.containers (workspace_id, item_id, lot_id, seq, code, initial_quantity, tare, density)
+SELECT :workspaceId!, :itemId!, :lotId!, :firstSeq!::int + c.n::int - 1, c.code, :quantity!::numeric,
+       :tare::numeric, :density::numeric
+FROM unnest(:codes!::text[]) WITH ORDINALITY AS c (code, n)
+ORDER BY c.n
+RETURNING id, code, trim_scale(tare) AS tare;
+
+/* @name takenContainerCode */
+-- Cuál de los códigos ya existe en el espacio: el detalle del choque no muestra la clave bajo RLS.
+SELECT lower(code) AS "code!"
+FROM inventory.containers
+WHERE workspace_id = :workspaceId! AND lower(code) = ANY (SELECT lower(c) FROM unnest(:codes!::text[]) AS c)
+LIMIT 1;
+
+/* @name computeTare */
+-- Tara de un frasco (ADR 0015): su peso en g menos lo que contiene, pasado a gramos. Nula si la unidad
+-- no se pesa o, en volumen, falta la densidad; la densidad solo se guarda en volumen.
+WITH t AS (
+  SELECT round(:grossWeight!::numeric - :quantity!::numeric * inventory.grams_per_unit(u.code, :density::numeric), 9) AS tare,
+         u.dimension
+  FROM inventory.units AS u
+  WHERE u.code = :unit!
+)
+SELECT trim_scale(tare) AS tare,
+       coalesce(tare > 0, false) AS "positive!",
+       dimension AS "dimension!",
+       CASE WHEN dimension = 'volume' THEN trim_scale(:density::numeric) END AS density
+FROM t;
+
+/* @name lockContainerStock */
+-- Antes de fijar la tara (ADR 0015) se bloquean, en modo compartido y en orden estable, todas las
+-- posiciones del frasco: ningún movimiento ni traslado cambia su saldo entretanto. Devuelve la que
+-- tiene saldo o, si está vacío, la última que ocupó.
+WITH locked AS (
+  SELECT p.id, p.location_id, p.balance, p.updated_at
+  FROM inventory.positions AS p
+  WHERE p.workspace_id = :workspaceId! AND p.container_id = :containerId!
+  ORDER BY p.id
+  FOR SHARE
+)
+SELECT c.id, c.item_id, locked.location_id, trim_scale(locked.balance) AS "balance!", i.base_unit,
+       trim_scale(c.tare) AS tare, trim_scale(c.density) AS density
+FROM inventory.containers AS c
+JOIN inventory.items AS i ON i.workspace_id = c.workspace_id AND i.id = c.item_id
+JOIN locked ON true
+WHERE c.workspace_id = :workspaceId! AND c.id = :containerId! AND i.kind = :kind!
+ORDER BY (locked.balance > 0) DESC, locked.updated_at DESC
+LIMIT 1;
+
+/* @name setContainerTare */
+UPDATE inventory.containers
+SET tare = :tare!::numeric, density = :density::numeric
+WHERE workspace_id = :workspaceId! AND id = :containerId!
+RETURNING trim_scale(tare) AS "tare!", trim_scale(density) AS density;
+
+/* @name weighPosition */
+-- Ajuste por peso (ADR 0015) sobre la posición ya bloqueada: el saldo que marca la balanza,
+-- redondeado a centésimas, y su diferencia con el saldo actual. La aritmética ocurre aquí, en numeric.
+SELECT trim_scale(c.tare) AS tare,
+       (:grossWeight!::numeric < c.tare) AS below_tare,
+       trim_scale(round((:grossWeight!::numeric - c.tare) / f.factor, 2) - p.balance) AS delta
+FROM inventory.positions AS p
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
+CROSS JOIN LATERAL (SELECT inventory.grams_per_unit(i.base_unit, c.density) AS factor) AS f
+WHERE p.workspace_id = :workspaceId! AND p.id = :positionId!;
+
+/* @name findItemName */
+SELECT name
+FROM inventory.items
+WHERE workspace_id = :workspaceId! AND id = :itemId! AND kind = :kind! AND archived_at IS NULL;
+
+/* @name lastNumberedContainerCode */
+-- El código del reactivo con el número final más alto: de él sigue su serie (ADR 0015).
+SELECT c.code
+FROM inventory.containers AS c
+JOIN inventory.items AS i ON i.workspace_id = c.workspace_id AND i.id = c.item_id
+WHERE c.workspace_id = :workspaceId! AND c.item_id = :itemId! AND i.kind = :kind! AND c.code ~ '[0-9]$'
+ORDER BY substring(c.code FROM '([0-9]+)$')::numeric DESC, c.created_at DESC, c.id
+LIMIT 1;
+
+/* @name containerCodesLike */
+-- Códigos de frasco del espacio, de cualquier tipo, que empiezan por el prefijo de la serie.
+SELECT code
+FROM inventory.containers
+WHERE workspace_id = :workspaceId! AND starts_with(lower(code), lower(:prefix!));
 
 /* @name insertContainerPosition */
 -- La posición de un frasco recién creado: nace con saldo cero y el asiento del ingreso la llena.
@@ -105,7 +229,7 @@ SELECT p.id, p.location_id,
        (p.balance = :expected!::numeric) AS "unchanged!",
        trim_scale(:counted!::numeric - p.balance) AS "delta!",
        (:counted!::numeric < p.reserved) AS "below_reserved!",
-       CASE WHEN c.id IS NULL THEN l.code ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS "code!",
+       coalesce(c.code, l.code) AS "code!",
        i.base_unit
 FROM inventory.positions AS p
 JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
@@ -150,13 +274,15 @@ SELECT
   l.id AS lot_id,
   l.code AS lot_code,
   l.expires_on,
-  l.supplier_name,
-  l.supplier_lot,
+  l.brand,
+  l.area,
   p.disposition,
   c.id AS "container_id?",
-  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,
+  c.code AS container_code,
   trim_scale(c.initial_quantity) AS container_initial_quantity,
   c.created_at AS "container_received_at?",
+  trim_scale(c.tare) AS container_tare,
+  trim_scale(c.density) AS container_density,
   loc.id AS location_id,
   loc.code AS location_code,
   loc.name AS location_name,
@@ -214,7 +340,7 @@ SELECT
   i.code AS item_code,
   i.name AS item_name,
   l.code AS lot_code,
-  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,
+  c.code AS container_code,
   loc.code AS location_code,
   i.base_unit
 FROM inventory.operations AS o
@@ -611,6 +737,44 @@ SET archived_at = now()
 WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND id = :id! AND archived_at IS NULL
 RETURNING id;
 
+/* @name listAreas */
+SELECT id, name
+FROM inventory.areas
+WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND archived_at IS NULL
+ORDER BY lower(name), id;
+
+/* @name insertArea */
+WITH inserted AS (
+  INSERT INTO inventory.areas (workspace_id, item_kind, name)
+  VALUES (:workspaceId!, :itemKind!, :name!)
+  ON CONFLICT (workspace_id, item_kind, lower(name)) WHERE archived_at IS NULL DO NOTHING
+  RETURNING id, name
+)
+SELECT id AS "id!", name AS "name!" FROM inserted
+UNION ALL
+SELECT id, name FROM inventory.areas
+WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND lower(name) = lower(:name!) AND archived_at IS NULL
+  AND NOT EXISTS (SELECT 1 FROM inserted);
+
+/* @name archiveArea */
+UPDATE inventory.areas
+SET archived_at = now()
+WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND id = :id! AND archived_at IS NULL
+RETURNING id;
+
+/* @name listBrands */
+-- Marcas ya usadas en lotes del tipo del módulo (ADR 0015): una por nombre, la más reciente primero.
+SELECT brand AS "brand!"
+FROM (
+  SELECT DISTINCT ON (lower(l.brand)) l.brand, l.created_at
+  FROM inventory.lots AS l
+  JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
+  WHERE l.workspace_id = :workspaceId! AND i.kind = :kind! AND l.brand IS NOT NULL
+  ORDER BY lower(l.brand), l.created_at DESC
+) AS brands
+ORDER BY created_at DESC, lower(brand)
+LIMIT 50;
+
 /* @name reserveQuantity */
 -- Aparta cantidad del frasco ya bloqueado para una solicitud: solo si lo disponible alcanza.
 UPDATE inventory.positions
@@ -686,7 +850,7 @@ SELECT
   i.name AS item_name,
   i.base_unit,
   l.code AS lot_code,
-  CASE WHEN c.id IS NULL THEN NULL ELSE l.code || '-' || lpad(c.seq::text, 2, '0') END AS container_code,
+  c.code AS container_code,
   loc.code AS location_code,
   loc.name AS location_name
 FROM inventory.allocations AS a

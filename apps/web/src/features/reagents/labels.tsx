@@ -61,7 +61,7 @@ function ContainerLabel({ position, product, url }: { position: Position; produc
       <div className="min-w-0 flex-1 leading-tight">
         {/* El código es la identidad del frasco: nunca se corta; uno muy largo pasa de línea. */}
         <p className="break-all font-mono text-[9pt] font-bold leading-tight tabular-nums">{code}</p>
-        <p className="mt-[0.5mm] text-[7.5pt]">Lote {position.lot.supplierLot ?? position.lot.code}</p>
+        <p className="mt-[0.5mm] text-[7.5pt]">Lote {position.lot.code}</p>
         <p className="text-[7.5pt] font-semibold">
           {position.lot.expiresOn ? `Caduca ${formatDate(position.lot.expiresOn)}` : 'Caducidad sin confirmar'}
         </p>

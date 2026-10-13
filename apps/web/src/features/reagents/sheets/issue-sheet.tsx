@@ -23,6 +23,8 @@ import { formatDate } from '../../../app/format';
 import { useDestinations, useReasons } from '../queries';
 import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
+import { ControlledMark } from '../controlled';
+import { formatGrams, grossFor } from '../weight';
 import { availableOf } from '../stock';
 import { type SheetBaseProps, validate, FormSheet, expiryText, positionOption, byProductThenExpiry, isExpired } from './shared';
 import { fefoCandidates, fefoSuggestion } from './fefo';
@@ -79,6 +81,9 @@ export function IssueSheet({
   const quantity = normalizeDecimalInput(form.watch('quantity'));
   const available = position ? availableOf(position) : null;
   const remaining = available !== null && quantity ? subtractDecimal(available, quantity) : null;
+  // En balanza (ADR 0015): lo que quedará físicamente (el saldo, con lo apartado) más la tara.
+  const left = position && quantity ? subtractDecimal(position.balance, quantity) : null;
+  const onScale = position && left !== null && !left.startsWith('-') ? grossFor(position, left) : null;
   // Con algo apartado, las cifras dicen «disponible»: el saldo del frasco no es lo que se puede sacar.
   const reservedNote = position && position.reserved !== '0' ? ' disponibles' : '';
   // La barra del stock cuenta lo que quedará (o lo disponible si aún no hay cantidad) frente a lo que entró.
@@ -156,6 +161,12 @@ export function IssueSheet({
             )}
           />
         </Field>
+        {position?.product.controlled ? (
+          <p role="status" className="flex flex-wrap items-center gap-x-2 rounded-control bg-action-soft px-3 py-2.5 text-sm text-ink">
+            <ControlledMark withText />
+            Este reactivo es controlado.
+          </p>
+        ) : null}
         {position && isExpired(position, today) ? (
           <p role="alert" className="rounded-control bg-warning-soft px-3 py-2.5 text-sm text-warning">
             Este frasco venció el {formatDate(position.lot.expiresOn ?? '')}. Puedes registrar la salida; quedará en el
@@ -204,6 +215,11 @@ export function IssueSheet({
                 <span>
                   Quedarán <Quantity value={remaining} unit={position.unit} className="font-medium text-ink" />
                   {reservedNote} en el frasco.
+                  {onScale ? (
+                    <span className="mt-0.5 block">
+                      En balanza: <span className="font-medium tabular-nums text-ink">{formatGrams(onScale)}</span>
+                    </span>
+                  ) : null}
                 </span>
               )
             ) : position && available !== null ? (

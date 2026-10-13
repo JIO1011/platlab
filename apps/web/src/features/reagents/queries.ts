@@ -1,23 +1,25 @@
 import {
+  brandList,
+  containerCodeSuggestion,
   entryList,
   issueRequestList,
   locationList,
-  lotList,
   operationFacets,
   operationList,
   operationTotals,
   positionList,
+  productDetail,
   productList,
   reagentsSummary,
-  stockedProduct,
   type OperationFacets,
   type OperationGroupBy,
   type OperationList,
   type OperationTotals,
+  type ProductList,
   type ReasonKind,
   type WorkspaceMeResponse,
 } from '@platlab/contracts';
-import { useInfiniteQuery, useQuery, type InfiniteData, type Query } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useQuery, type InfiniteData, type Query } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
 import { operationSearch, type OperationQuery } from './movement-filters';
@@ -45,6 +47,21 @@ export function useProducts(workspaceId: string) {
     queryKey: [...reagentsKey(user, workspaceId), 'products'],
     queryFn: () => api(`/workspaces/${workspaceId}/reagents/products?limit=100`, { schema: productList }),
     refetchInterval: jitteredPoll,
+  });
+}
+
+/**
+ * Reactivos cuyo nombre, código o CAS contiene `q`, sin distinguir mayúsculas ni tildes: el buscador
+ * del ingreso. Cada búsqueda queda en caché; mientras llega la nueva se conserva la anterior.
+ */
+export function useProductSearch(workspaceId: string, q: string, enabled: boolean) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'products', 'search', q],
+    queryFn: () =>
+      api(`/workspaces/${workspaceId}/reagents/products?${new URLSearchParams({ q, limit: '20' })}`, { schema: productList }),
+    enabled: enabled && q.length >= 2,
+    placeholderData: keepWithinWorkspace<ProductList>(user, workspaceId),
   });
 }
 
@@ -146,12 +163,13 @@ export function useOperationTotals(
   });
 }
 
-/** Ficha de un reactivo: su total y sus frascos con saldo en el ámbito del miembro. */
-export function useProduct(workspaceId: string, productId: string) {
+/** Ficha de un reactivo: su total, sus frascos con saldo en el ámbito del miembro y si su unidad aún cambia. */
+export function useProduct(workspaceId: string, productId: string, enabled = true) {
   const user = useUserKey();
   return useQuery({
     queryKey: [...reagentsKey(user, workspaceId), 'product', productId],
-    queryFn: () => api(`/workspaces/${workspaceId}/reagents/products/${productId}`, { schema: stockedProduct }),
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/products/${productId}`, { schema: productDetail }),
+    enabled,
   });
 }
 
@@ -176,15 +194,32 @@ export function useDestinations(workspaceId: string, enabled = true) {
   });
 }
 
-export function useLots(workspaceId: string, productId: string | undefined) {
+/** Áreas o departamentos del espacio (ADR 0015): se guardan como texto en el lote del ingreso. */
+export function useAreas(workspaceId: string, enabled = true) {
   const user = useUserKey();
   return useQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'lots', productId],
-    queryFn: () => api(`/workspaces/${workspaceId}/reagents/products/${productId}/lots`, { schema: lotList }),
-    enabled: Boolean(productId),
+    queryKey: [...reagentsKey(user, workspaceId), 'areas'],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/areas`, { schema: entryList }),
+    enabled,
+    staleTime: 60_000,
   });
 }
 
+/** Marcas ya usadas en los lotes, las más recientes primero (ADR 0015). */
+export function useBrands(workspaceId: string, enabled = true) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'brands'],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/brands`, { schema: brandList }),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Ubicaciones donde el miembro registra ingresos, con su padre: la web arma los niveles (ADR 0015).
+ * El árbol es el de Core; las que crea el ingreso llegan al volver a pedirlo.
+ */
 export function useReceiptLocations(workspaceId: string, enabled: boolean) {
   const user = useUserKey();
   return useQuery({
@@ -194,13 +229,26 @@ export function useReceiptLocations(workspaceId: string, enabled: boolean) {
   });
 }
 
-/** Ubicaciones que el miembro puede contar: donde puede ajustar (ADR 0012, entrega 4). */
-export function useCountLocations(workspaceId: string, enabled: boolean) {
+/**
+ * Códigos sugeridos para `count` frascos (ADR 0015): la serie libre del reactivo o una nueva a partir
+ * del nombre. Lo decide el servidor; al cambiar el nombre o la cantidad se conserva la anterior
+ * mientras llega la nueva.
+ */
+export function useCodeSuggestion(
+  workspaceId: string,
+  target: { productId: string } | { name: string } | null,
+  count: number,
+  enabled: boolean,
+) {
   const user = useUserKey();
+  const search = new URLSearchParams({ count: String(count) });
+  if (target && 'productId' in target) search.set('productId', target.productId);
+  else if (target) search.set('name', target.name);
   return useQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'count-locations'],
-    queryFn: () => api(`/workspaces/${workspaceId}/reagents/count-locations`, { schema: locationList }),
-    enabled,
+    queryKey: [...reagentsKey(user, workspaceId), 'code-suggestion', search.toString()],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/container-codes/suggestion?${search}`, { schema: containerCodeSuggestion }),
+    enabled: enabled && target !== null,
+    placeholderData: keepPreviousData,
   });
 }
 
