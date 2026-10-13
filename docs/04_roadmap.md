@@ -164,7 +164,8 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | DP-01 | Datos reales y salida | Acuerdos, proveedores y procedimientos revisados; retención por repositorio | T-00 |
 | R-01A | Reactivos por frasco ([ADR 0012](05_decisiones.md#adr-0012)) | Frascos con código y QR; ficha en dos niveles; salida con atajos, FEFO y advertencia de vencido; motivos y destinos; salidas del Operador con aprobación y reserva; caducidad y mínimos; traslados y conteo. Todo en la capacidad inventario y probado con datos sintéticos | R-00 |
 | R-01C | Movimientos como informe ([ADR 0014](05_decisiones.md#adr-0014)) | Panel de filtros a la derecha con varios valores, periodo desde–hasta y conteo por opción; fichas de filtros activos; vista Totales calculada en el servidor sin mezclar unidades; ámbito y Resumen intactos | R-01A |
-| R-01B | Reactivos para el piloto | SDS privada en la ficha, avisos comunes en Core (aprobaciones, bajo mínimo, por vencer) y «Exportar a Excel» de Movimientos e Inventario ([ADR 0014](05_decisiones.md#adr-0014)); ajustes que exija el alcance pactado | R-01A, R-01C, T-07, P-02 |
+| R-01D | Ingreso en un paso y control por peso ([ADR 0015](05_decisiones.md#adr-0015)) | Ventana «Ingresar reactivo»; peligros, controlado, ficha de seguridad, densidad y estados nuevos en el catálogo; código de frasco editable y único; tara, «En balanza» y ajuste por peso exactos; área o departamento; ubicaciones por niveles creadas desde el ingreso; Conteo fuera de la interfaz | R-01C |
+| R-01B | Reactivos para el piloto | SDS privada en la ficha, avisos comunes en Core (aprobaciones, bajo mínimo, por vencer) y «Exportar a Excel» de Movimientos e Inventario ([ADR 0014](05_decisiones.md#adr-0014)); ajustes que exija el alcance pactado | R-01A, R-01C, R-01D, T-07, P-02 |
 | REG-02 | Trazabilidad y reporte fiscalizado | Perfil implementado, custodia y retorno si aplica, periodo conciliado y exportación revisada | REG-01, R-01A, T-07 |
 | E-01 | Equipos e incidencias | Tipos de equipo, activos, condición, traslados e historial; `incidents` separado de Core | T-04, T-05, T-07, P-02 |
 | I-01 | Importación conciliada | Lotes reiniciables e idempotentes por módulo | Q-01 y R-01A o E-01 |
@@ -177,7 +178,7 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | V-01 | G2 de la oferta inicial | Combinaciones, importación, incorporación, soporte, carga, costos y salida completos; Reactivos y Equipos pasan a etapa `general` | V-P01, R-01B, E-01, I-01, X-01, O-02 |
 | V-Mx | G0 y G2 de cada módulo posterior (M4–M8) | Criterios propios, definidos al iniciar su fase | Su fase; el G1 de su alcance para G2 |
 
-- Para el cliente confirmado, R-01A, R-01B, R-01C y REG-02 son obligatorias. Reactivos se completa antes de abrir otro módulo ([ADR 0014](05_decisiones.md#adr-0014)).
+- Para el cliente confirmado, R-01A, R-01B, R-01C, R-01D y REG-02 son obligatorias. Reactivos se completa antes de abrir otro módulo ([ADR 0014](05_decisiones.md#adr-0014)).
 - T-01 puede empezar mientras se recogen muestras.
 - R-00 no depende de SMTP, de la consola ni de tener un cliente.
 - Después de G0, F1b y F2 avanzan en paralelo hasta encontrarse en G1.
