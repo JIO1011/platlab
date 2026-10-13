@@ -1825,6 +1825,20 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
     expect(receiptAudit?.changes).toMatchObject({ productId: received.product.id, lotId: received.lot.id });
   });
 
+  it('repetir con la misma clave un ingreso que crea el reactivo no lo duplica ni añade movimientos', async () => {
+    const lab = await createLab();
+    const products = await productsIn(lab.workspace.id);
+    const body = { locationId: lab.storage, codes: freshCodes(), newProduct: acetone, quantity: '500', unit: 'mL' };
+    const key = `ingreso-nuevo-${uniqueSuffix()}`;
+    const send = () => call(lab.adminMember.subject, `${lab.base}/receipts`, { method: 'POST', body, key });
+
+    const first = await send();
+    expect(first.status).toBe(201);
+    expect(await send()).toEqual(first);
+    expect(await productsIn(lab.workspace.id)).toBe(products + 1);
+    expect(await operationsIn(lab.workspace.id)).toBe(1);
+  });
+
   it('el Operador no crea reactivos desde el ingreso; con uno del catálogo, sí ingresa', async () => {
     const lab = await createLab();
     const before = await productsIn(lab.workspace.id);
