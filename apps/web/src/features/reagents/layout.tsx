@@ -148,14 +148,7 @@ export function ReagentsLayout() {
   const fitsWindow = sectionPath === '' && detailId === undefined;
 
   return (
-    <div className={cn('mx-auto max-w-6xl', inProduct && 'relative isolate', fitsWindow && 'fit:flex fit:h-[calc(100dvh-8rem-1px)] fit:flex-col')}>
-      {inProduct ? (
-        // Fondo de la ficha: un brillo del índigo del módulo, arriba y a la izquierda, que se pierde hacia abajo.
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -inset-x-4 -top-8 -z-10 h-[34rem] bg-[radial-gradient(48rem_26rem_at_0%_0%,color-mix(in_oklab,var(--color-action)_17%,transparent),transparent_70%),radial-gradient(34rem_20rem_at_85%_0%,color-mix(in_oklab,var(--color-action-deep)_8%,transparent),transparent_70%)] md:-inset-x-8"
-        />
-      ) : null}
+    <div className={cn('mx-auto max-w-6xl', fitsWindow && 'fit:flex fit:h-[calc(100dvh-8rem-1px)] fit:flex-col')}>
       {/* La ficha dibuja su propia cabecera (identidad, acciones y «Actualizar»). */}
       {inProduct ? null : (
       <header className="flex flex-wrap items-end justify-between gap-4">

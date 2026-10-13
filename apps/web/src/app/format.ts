@@ -17,11 +17,6 @@ export function formatShortDateTime(iso: string, timeZone: string): string {
   }).format(date);
 }
 
-/** Solo el día de un instante, en la zona del espacio: «5 oct 2026». */
-export function formatInstantDate(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat('es-EC', { timeZone, dateStyle: 'medium' }).format(new Date(iso));
-}
-
 export function formatDate(isoDate: string): string {
   const [year, month, day] = isoDate.split('-').map(Number);
   return new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium', timeZone: 'UTC' }).format(

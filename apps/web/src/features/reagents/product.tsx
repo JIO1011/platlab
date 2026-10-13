@@ -1,7 +1,7 @@
-import { Skeleton, StatePanel, addDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowRight, History, QrCode as QrIcon } from 'lucide-react';
+import { Button, Skeleton, StatePanel, addDecimal, cn, ratioPercent } from '@platlab/ui';
+import { ArrowRight, History, Printer, QrCode as QrIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
 import { useOperations, usePositions, useProduct } from './queries';
 import { QueryErrorState } from '../../app/states';
@@ -11,7 +11,8 @@ import { fefoCandidates } from './sheets';
 import { availableOf } from './stock';
 import { ContainerCard } from './container-card';
 import { EmptyToggle } from './product-parts';
-import { ProductHeader, ProductSummary } from './product-head';
+import { ProductHeader, ProductSummary, type ExpiryDates } from './product-head';
+import { containerUrl } from './labels';
 
 export function ReagentsProductPage() {
   const { productId = '', containerId } = useParams();
@@ -20,6 +21,29 @@ export function ReagentsProductPage() {
   const positions = usePositions(workspaceId, productId);
   const history = useOperations(workspaceId, { productId: [productId] });
   const [showEmpty, setShowEmpty] = useState(false);
+  // Modo de etiquetas (ADR 0010): las tarjetas giran a su etiqueta y se eligen cuáles imprimir. El
+  // reverso se monta la primera vez que se usa y se queda para poder girar de vuelta con animación.
+  const navigate = useNavigate();
+  const [labelMode, setLabelMode] = useState(false);
+  const [labelsUsed, setLabelsUsed] = useState(false);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const labelsButton = useRef<HTMLButtonElement>(null);
+  const closeLabels = () => {
+    setLabelMode(false);
+    labelsButton.current?.focus();
+  };
+  useEffect(() => {
+    if (!labelMode) return;
+    const onKey = (event: KeyboardEvent) => {
+      // Un cuadro abierto (hoja de salida, por ejemplo) se cierra primero con su propio Esc.
+      if (event.key === 'Escape' && !document.querySelector('[role="dialog"]')) {
+        setLabelMode(false);
+        labelsButton.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [labelMode]);
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: me.workspace.timeZone }).format(new Date());
   const containers = useMemo(() => positions.data?.pages.flatMap((page) => page.items) ?? [], [positions.data]);
   const emptyCount = containers.filter((position) => position.balance === '0').length;
@@ -27,6 +51,8 @@ export function ReagentsProductPage() {
   const visible = containers.filter((position) => showEmpty || position.balance !== '0' || position.container?.id === containerId);
   // El frasco de una etiqueta QR (ADR 0012, entrega 4). Solo cuando la ficha ya muestra las tarjetas:
   // mientras carga el reactivo, el frasco no existe aún.
+  // Etiquetables: con frasco y saldo, como en la página de etiquetas.
+  const labelable = visible.filter((position) => position.container !== null && position.balance !== '0');
   const scannedPosition = containers.find((position) => position.container?.id === containerId);
   const scannedReady = product.isSuccess && scannedPosition !== undefined;
   // Escanear abre la descarga de ese frasco; si no se puede, la ficha dice por qué.
@@ -78,6 +104,22 @@ export function ReagentsProductPage() {
   const stockPercent = initialTotal === null ? null : ratioPercent(product.data.balance, initialTotal);
   // El frasco que conviene usar primero: la misma sugerencia FEFO que preselecciona la hoja de salida.
   const recommendedId = fefoCandidates(containers, productId, today)[0]?.id;
+  // Fechas de los frascos con saldo; con frascos por cargar no se afirma «la próxima».
+  const dates = stocked.flatMap((position) => (position.lot.expiresOn ? [position.lot.expiresOn] : [])).sort();
+  const expiry: ExpiryDates | null = positions.hasNextPage
+    ? null
+    : { upcoming: dates.find((date) => date >= today) ?? null, oldestExpired: dates.find((date) => date < today) ?? null };
+  const pickedNow = labelable.filter((position) => picked.has(position.id));
+  const allPicked = labelable.length > 0 && pickedNow.length === labelable.length;
+  const togglePick = (id: string) =>
+    setPicked((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  // La página de etiquetas ya preselecciona `?frascos=` y trae su hoja A4.
+  const printPicked = () =>
+    void navigate(`${base}/inventario/${productId}/etiquetas?frascos=${pickedNow.map((position) => position.container?.id ?? '').join(',')}`);
 
   return (
     <div className="grid gap-6">
@@ -89,7 +131,7 @@ export function ReagentsProductPage() {
         freshness={freshness}
         onAction={openSheet}
       />
-      <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} onAction={openSheet} />
+      <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} expiry={expiry} onAction={openSheet} />
       </section>
 
       <section aria-labelledby="frascos" className="grid gap-4">
@@ -100,13 +142,26 @@ export function ReagentsProductPage() {
           <div className="flex flex-wrap items-center gap-2">
             <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="vacíos" />
             {product.data.containersWithStock > 0 ? (
-              <Link
-                to={`${base}/inventario/${productId}/etiquetas`}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-surface-sunken px-3.5 text-sm font-medium text-ink-muted transition-colors hover:text-ink"
+              <button
+                ref={labelsButton}
+                type="button"
+                aria-pressed={labelMode}
+                onClick={() => {
+                  setLabelsUsed(true);
+                  if (labelMode) setLabelMode(false);
+                  else {
+                    setPicked(new Set());
+                    setLabelMode(true);
+                  }
+                }}
+                className={cn(
+                  'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors',
+                  labelMode ? 'bg-action-soft text-action' : 'bg-surface-sunken text-ink-muted hover:text-ink',
+                )}
               >
                 <QrIcon className="size-4" aria-hidden />
                 Etiquetas
-              </Link>
+              </button>
             ) : null}
           </div>
         </div>
@@ -126,16 +181,27 @@ export function ReagentsProductPage() {
             {containers.length === 0 ? 'Este reactivo aún no tiene frascos. Regístralos con un ingreso.' : 'Todos sus frascos están vacíos.'}
           </p>
         ) : (
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
+          <ul className={cn('grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4', labelsUsed && 'pb-24')}>
             {visible.map((position) => (
               <li key={position.id}>
                 <ContainerCard
                   position={position}
                   today={today}
-                  timeZone={me.workspace.timeZone}
                   allowed={allowed}
                   recommended={position.id === recommendedId}
                   scanned={containerId !== undefined && position.container?.id === containerId}
+                  labels={
+                    labelsUsed && position.container && position.balance !== '0'
+                      ? {
+                          product: product.data,
+                          url: containerUrl(workspaceId, position.container.id),
+                          flipped: labelMode,
+                          picked: picked.has(position.id),
+                          order: labelable.indexOf(position),
+                          onPick: () => togglePick(position.id),
+                        }
+                      : undefined
+                  }
                   onAction={openSheet}
                 />
               </li>
@@ -143,6 +209,34 @@ export function ReagentsProductPage() {
           </ul>
         )}
       </section>
+
+      {labelsUsed ? (
+        // Barra fija de las etiquetas: sale y entra desde abajo; cerrada, queda inerte y fuera de la vista.
+        <div
+          role="region"
+          aria-label="Elegir etiquetas"
+          inert={!labelMode}
+          className={cn(
+            'fixed inset-x-3 bottom-4 z-30 mx-auto flex max-w-2xl flex-wrap items-center gap-2 rounded-3xl border border-white/70 bg-white/85 p-2.5 shadow-overlay backdrop-blur-xl not-supports-[backdrop-filter]:bg-surface',
+            'transition-[opacity,translate] duration-200 ease-out-expo starting:translate-y-6 starting:opacity-0',
+            labelMode ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-6 opacity-0 motion-reduce:translate-y-0',
+          )}
+        >
+          <p aria-live="polite" className="basis-full px-2 text-sm font-semibold tabular-nums text-ink sm:mr-auto sm:basis-auto">
+            {pickedNow.length === 1 ? '1 elegida' : `${pickedNow.length} elegidas`}
+          </p>
+          <Button variant="ghost" size="sm" onClick={() => setPicked(new Set(allPicked ? [] : labelable.map((position) => position.id)))}>
+            {allPicked ? 'Ninguna' : 'Todas'}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={closeLabels}>
+            Listo
+          </Button>
+          <Button variant="primary" size="sm" className="ml-auto sm:ml-0" disabled={pickedNow.length === 0} onClick={printPicked}>
+            <Printer aria-hidden />
+            Imprimir {pickedNow.length}
+          </Button>
+        </div>
+      ) : null}
 
       <section aria-labelledby="historial-reactivo" className="rounded-card bg-surface p-6 shadow-raised md:p-8">
         <h2 id="historial-reactivo" className="text-xl font-bold text-ink">

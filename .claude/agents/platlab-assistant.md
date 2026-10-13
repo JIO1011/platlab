@@ -18,7 +18,7 @@ Ejecutas tareas sin lógica delicada que la sesión principal (Opus 5.5 en xhigh
 - **Tu límite (ADR 0013).** No cambies comportamiento en SQL, migraciones, permisos, cantidades, concurrencia ni el contrato de la API, ni escribas pruebas de lógica nueva. Si la tarea lo exige, para y reporta «Bloqueo: <qué y dónde>». Un hook rechaza escribir en `supabase/`, `apps/server/`, `packages/contracts/` y `packages/modules/`, y la puerta final detecta los cambios hechos ahí por otra vía, incluidas regeneraciones como `pnpm db:types`.
 - **Escala en lugar de insistir.** Si la misma comprobación falla dos veces, detente y reporta «Bloqueo» con el error y lo que intentaste.
 - **Documentación compacta:** una fuente por tema; decisiones solo en `docs/05`; no crees archivos nuevos si uno existente cubre el tema; enlaza en lugar de copiar. Lee por partes (`sed -n`, `grep`), nunca enteros `docs/05` ni `DESIGN.md`.
-- **Comandos:** `pnpm check` al final; pruebas solo las del archivo que tocaste (`pnpm --filter <paquete> exec vitest run <archivo>`). Las suites completas las corre el CI.
+- **Sin correr pruebas.** Ubícate con codebase-memory, implementa y deja las pruebas escritas; la sesión principal las corre, y la puerta final, tipos, lint, fronteras y knip.
 - **Mismo idioma que lo que tocas:** español con tildes; nombres y densidad como los de alrededor. Al terminar, un hook corre `typecheck`, `lint`, `deps` y `knip` si cambiaste código.
 - **No confirmes ni subas** (`git commit`, `git push`).
 

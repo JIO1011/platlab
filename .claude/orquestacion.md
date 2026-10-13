@@ -36,7 +36,7 @@ Medido: arrancar un subagente cuesta ~40k tokens antes del brief, y ese contexto
 - **Delegar solo lo que lo merece.** Hasta ~20 líneas en uno o dos archivos, en línea. Nunca `fork` para implementar: hereda toda la conversación.
 - **Brief de 40 líneas como máximo:** objetivo, archivo:línea mapeados con codebase-memory, contrato o diseño exacto, casos de prueba con sus bordes (límites, paginación, duplicados, permisos), comandos y qué no tocar. Las decisiones se enlazan (`docs/05`, ADR), no se copian.
 - **Entregas de 40 turnos como máximo.** Base y API, lógica web (Opus) y pantallas (Sonnet) van por separado.
-- **Pruebas una sola vez.** El implementador corre las dirigidas (`-t`, un archivo) y `pnpm check`. Las suites completas y el e2e los corre el CI del PR (`.github/workflows/ci.yml`). La verificación la hace la sesión principal con el log del CI, sin subagente.
+- **Los agentes implementan; la sesión principal prueba.** Los agentes se ubican con codebase-memory, escriben o ajustan las pruebas y no corren suites, e2e ni `pnpm check`; la puerta final ya corre tipos, lint, fronteras y knip. Solo `platlab-implementer` puede correr el archivo de pruebas que escribió. La sesión principal corre las pruebas dirigidas, y el CI del PR (`.github/workflows/ci.yml`) la suite completa. La verificación se hace con el log del CI, sin subagente.
 - **Una ronda de capturas** (4 como máximo, a 1×, recortadas), después de las correcciones.
 - **Subagentes livianos.** Cada uno declara sus herramientas (`tools`, sin MCP ajenos) y los que no tocan lo delicado no cargan `CLAUDE.md` (`omitClaudeMd`). Los MCP ajenos al proyecto se deshabilitan en `/mcp`.
 
