@@ -7,6 +7,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 - **R-01A** · QR solo probado en Chromium; densidad medida solo en Chromium → imprimir una hoja adhesiva A4 de 3 × 8 y escanear con Android e iOS
 - **R-01A** · ámbito por ubicación (`location_id`) sigue en el código y en una prueba → retirarlo en una entrega aparte (docs/05, Pendientes)
 - **R-01A** · la hoja de ajuste abierta desde un frasco lo busca en la primera página de frascos → llevar el frasco en la petición, como salida y traslado
+- **R-01D** · inventario de más de 100 reactivos: la web carga solo la primera página → paginación o búsqueda en el servidor antes de G1 (docs/05, Pendientes)
 - **Rendimiento** · bloque principal > 500 kB (P2 desde el paso 5) → dividir por rutas antes del piloto
 - **Cabecera de los módulos** · «Actualizado… Actualizar» queda entre el título y la identidad de la ficha; las acciones ocupan mucho alto en el móvil → rediseñarla en una entrega aparte
 - **T-02/T-03** · movimiento concurrente del árbol de ubicaciones sin prueba → dos conexiones que muevan A bajo B y B bajo A, cuando exista el comando de mover ubicaciones
@@ -37,6 +38,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Registro
 | Fecha | Entrega | Commit | Veredicto | Pruebas | Nota |
 |---|---|---|---|---|---|
+| 2026-10-13 | R-01D ingreso en un paso | `e81e985` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 21 | Criterios del roadmap; revisor: 9 de 10; `review-animations` aprobado; CI en verde |
 | 2026-10-12 | R-01C Movimientos como informe | `ff88008` | Cumple | unit 48 · pgTAP 175 · int 110 · e2e 21 | Criterios 4/4; revisor: 8 correcciones; `review-animations` aprobado (cajón); CI en verde |
 | 2026-10-06 | Encabezado de la ficha | `6d6bf34` | Incompleto | e2e 17 | Identidad en una línea y banda de tres datos; faltaba el CI (luego en verde) |
 | 2026-10-05 | R-01A completa | `9535d36` | Incompleto | unit 37 · pgTAP 173 · int 102 · e2e 17 | 9/9 criterios; falta la auditoría formal de UI y el QR físico |

@@ -110,7 +110,7 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
               <div
                 aria-hidden
                 className={cn(
-                  'pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-linear-to-t from-ink/12 to-transparent transition-opacity duration-150 ease-out-expo motion-reduce:transition-none',
+                  'pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-linear-to-t from-ink/12 to-transparent transition-opacity duration-150 ease-out-expo',
                   more ? 'opacity-100' : 'opacity-0',
                 )}
               />
