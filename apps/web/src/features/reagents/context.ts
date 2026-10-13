@@ -60,6 +60,8 @@ export interface ReagentsContext {
   /** Decidir solicitudes es resolver pendientes (ADR 0009): sigue permitido con el módulo en cierre. */
   canResolve: boolean;
   openSheet: (request: SheetRequest) => void;
+  /** Cuándo se pidieron los datos de la sección y cómo volver a pedirlos (la ficha lleva su propia cabecera). */
+  freshness: { updatedAt: number; refreshing: boolean; refresh: () => void };
 }
 
 export const useReagents = () => useOutletContext<ReagentsContext>();

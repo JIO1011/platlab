@@ -1,42 +1,20 @@
 import type { Position } from '@platlab/contracts';
-import { Badge, Button, Quantity, cn, formatDecimal, ratioPercent } from '@platlab/ui';
+import { Band, Button, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
 import { ArrowUpFromLine, Building2, Calendar, Check, MapPin, QrCode as QrIcon } from 'lucide-react';
 import { formatGrams, gramsPerUnit, weightFigures } from './weight';
 import { type ReactNode } from 'react';
 import { addDays, formatDate, formatInstantDate, relativeDays } from '../../app/format';
 import { type Allowed, type SheetRequest } from './context';
+import { InfoPill } from './pills';
 import { availableOf } from './stock';
 
-/**
- * Caducidad sin confirmar: lo único que pide un aviso propio. Con fecha, ya la dicen el recuadro
- * «Vence en…» y su estado (01 §6.1); no se repite en una etiqueta.
- */
-function ExpiryBadge({ expiresOn }: { expiresOn: string | null }) {
-  if (expiresOn !== null) return null;
+/** Dato de una pastilla del frasco: el rótulo atenuado y el valor en negrita. */
+function PillValue({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <Badge tone="warning" className="gap-1 text-[11px]">
-      <Calendar className="size-3" aria-hidden />
-      Caducidad sin confirmar
-    </Badge>
-  );
-}
-
-/** Recuadro de dato de un frasco: etiqueta pequeña y valor, como los de la tarjeta de ReactiLab. */
-function Tile({ label, children, tone = 'neutral', title }: { label: string; children: ReactNode; tone?: 'neutral' | 'accent' | 'danger' | 'warning'; title?: string }) {
-  return (
-    <div
-      title={title}
-      className={cn(
-        'min-w-0 rounded-control px-2 py-1.5 text-center',
-        tone === 'accent' && 'bg-action-soft text-action',
-        tone === 'danger' && 'bg-danger-soft text-danger',
-        tone === 'warning' && 'bg-warning-soft text-warning',
-        tone === 'neutral' && 'bg-surface-sunken text-ink-muted',
-      )}
-    >
-      <p className="truncate text-[12px] leading-tight">{label}</p>
-      <p className={cn('mt-0.5 truncate text-[13px] font-bold tabular-nums', tone === 'neutral' ? 'text-ink' : undefined)}>{children}</p>
-    </div>
+    <>
+      <span className="font-normal">{label}</span>
+      <span className="font-bold">{children}</span>
+    </>
   );
 }
 
@@ -88,12 +66,12 @@ function WeightRow({ position, canSet, onAction }: { position: Position; canSet:
 }
 
 /**
- * Un frasco en la ficha (ADR 0012; réplica de la tarjeta de frasco de ReactiLab, 05-10-2026): arriba
- * las etiquetas de proveedor, ubicación y caducidad; el código y el saldo grandes; la barra de lo que
- * queda con la cantidad inicial; recuadros con el lote, el lote del proveedor, el ingreso y cuándo
- * vence (y lo apartado, si lo hay); y las acciones. El borde cuenta el estado, siempre con texto:
- * verde el que conviene usar primero (FEFO), rojo el vencido, ámbar el vacío. La barra mide el %
- * restante con aritmética exacta.
+ * Un frasco en la ficha (ADR 0012; ADR 0010, «Ventanas como ReactiLab»): translúcido sin desenfoque
+ * (`bg-white/80`, borde suave, radio de 24 px). Arriba el código y, en pastillas, la ubicación y la
+ * marca; el saldo grande con la unidad gris; la barra por nivel con la cantidad inicial; «Ingresó» y
+ * «Vence» en pastillas (y lo apartado, si lo hay); la línea de pesos; y, tras una línea de borde a
+ * borde, las acciones. El color solo cuenta un estado y siempre con texto: verde el borde del que
+ * conviene usar primero (FEFO), rojo el vencido.
  */
 export function ContainerCard({
   position,
@@ -133,108 +111,118 @@ export function ContainerCard({
       id={position.container ? `frasco-${position.container.id}` : undefined}
       aria-current={scanned ? 'true' : undefined}
       className={cn(
-        // Siempre blanca; el color solo cuenta un estado y siempre con texto (ADR 0010).
-        'group relative flex h-full flex-col gap-3 rounded-card bg-surface p-4 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-0.5',
+        // Translúcido y sin desenfoque; el color solo cuenta un estado y siempre con texto (ADR 0010).
+        'group relative flex h-full flex-col gap-4 rounded-3xl border border-white/80 bg-white/80 p-5 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-0.5',
         scanned && 'scroll-mt-24 ring-2 ring-action',
         !scanned && recommended && 'ring-2 ring-success/50',
         !scanned && !recommended && expired && 'ring-1 ring-danger/40',
       )}
     >
       {scanned ? (
-        <span className="absolute -top-3 left-4 inline-flex items-center gap-1 rounded-full bg-action px-2.5 py-0.5 text-xs font-bold text-on-action shadow-sm">
+        <span className="absolute -top-3 left-5 inline-flex items-center gap-1 rounded-full bg-action px-2.5 py-0.5 text-xs font-bold text-on-action shadow-sm">
           <QrIcon className="size-3" aria-hidden />
           Desde su etiqueta
         </span>
       ) : null}
       {recommended ? (
-        <span className="absolute -top-3 right-4 inline-flex items-center gap-1 rounded-full bg-success px-2.5 py-0.5 text-xs font-bold text-on-action shadow-sm">
+        <span className="absolute -top-3 right-5 inline-flex items-center gap-1 rounded-full bg-success px-2.5 py-0.5 text-xs font-bold text-on-action shadow-sm">
           <Check className="size-3" aria-hidden />
           FEFO
           <span className="sr-only"> (vence antes: conviene usarlo primero)</span>
         </span>
       ) : null}
-      <div className="flex flex-wrap gap-1.5">
-        {brand ? (
-          <Badge className="gap-1 text-[12px]">
-            <Building2 className="size-3" aria-hidden />
-            {brand}
-          </Badge>
-        ) : null}
-        <Badge className="gap-1 text-[12px]">
-          <MapPin className="size-3" aria-hidden />
-          {position.location.name}
-        </Badge>
-        <ExpiryBadge expiresOn={expiresOn} />
-      </div>
-      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-        <div className="min-w-0">
-          {/* El código es la identidad de la etiqueta: nunca se parte; si no cabe, el saldo baja. */}
-          <h3 className="whitespace-nowrap text-lg font-bold tabular-nums leading-tight text-ink">
-            {position.container?.code ?? position.lot.code}
-          </h3>
+      <div className="grid gap-2.5">
+        {/* El código es la identidad de la etiqueta: nunca se parte. */}
+        <h3 className="whitespace-nowrap text-lg font-bold tabular-nums leading-tight text-ink">
+          {position.container?.code ?? position.lot.code}
+        </h3>
+        <div className="flex flex-wrap gap-1.5">
+          <InfoPill>
+            <MapPin aria-hidden />
+            <span className="truncate">{position.location.name}</span>
+          </InfoPill>
+          {brand ? (
+            <InfoPill>
+              <Building2 aria-hidden />
+              <span className="truncate">{brand}</span>
+            </InfoPill>
+          ) : null}
+          {expiresOn === null ? (
+            <InfoPill tone="warning">
+              <Calendar aria-hidden />
+              Caducidad sin confirmar
+            </InfoPill>
+          ) : null}
         </div>
-        <p className="ml-auto shrink-0 text-right">
+      </div>
+      <div className="grid gap-2.5">
+        <p className="flex items-baseline gap-2">
           <span
             className={cn(
-              'block text-3xl font-bold leading-none tracking-tight tabular-nums',
+              'text-4xl font-bold leading-none tracking-tight tabular-nums',
               empty ? 'text-ink-subtle' : 'text-action',
             )}
           >
             {formatDecimal(position.balance)}
           </span>
-          <span className="mt-0.5 block text-xs text-ink-muted">{position.unit}</span>
+          <span className="text-base text-ink-muted">{position.unit}</span>
         </p>
-      </div>
-      {percent !== null && initial ? (
-        <div>
-          <div
-            className="h-2 overflow-hidden rounded-full bg-surface-sunken"
-            role="img"
-            aria-label={`Queda ${percentText === '<1 %' ? 'menos del 1 %' : `el ${percentText}`} de lo que entró`}
-          >
-            <div
-              className={cn('h-full rounded-full', percent <= 20 ? 'bg-warning' : 'bg-action')}
-              style={{ width: percent === 0 && !empty ? '4px' : `${percent}%` }}
+        {percent !== null && initial ? (
+          <div className="grid gap-1.5">
+            <StockLevelBar
+              percent={percent}
+              hasStock={!empty}
+              label={`Queda ${percentText === '<1 %' ? 'menos del 1 %' : `el ${percentText}`} de lo que entró`}
             />
+            <p className="flex justify-between text-[12px] text-ink-muted">
+              <span>
+                Inicial: <Quantity value={initial} unit={position.unit} />
+              </span>
+              <span className="font-semibold tabular-nums">{percentText}</span>
+            </p>
           </div>
-          <p className="mt-1 flex justify-between text-[12px] text-ink-muted">
-            <span>
-              Inicial: <Quantity value={initial} unit={position.unit} />
-            </span>
-            <span className="font-semibold tabular-nums">{percentText}</span>
-          </p>
-        </div>
-      ) : null}
-      {/* El lote interno ya es el prefijo del código del frasco: no se repite en un recuadro. Dos
-          columnas; si los recuadros son impares, el último ocupa la fila para no dejar un hueco. */}
-      <div className="grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2">
-        {position.container ? <Tile label="Ingresó">{formatInstantDate(position.container.receivedAt, timeZone)}</Tile> : null}
+        ) : null}
+      </div>
+      {/* El lote interno ya es el prefijo del código del frasco: no se repite. */}
+      <div className="flex flex-wrap gap-1.5">
+        {position.container ? (
+          <InfoPill>
+            <PillValue label="Ingresó">{formatInstantDate(position.container.receivedAt, timeZone)}</PillValue>
+          </InfoPill>
+        ) : null}
         {expiresOn ? (
-          <Tile label={expired ? 'Venció' : 'Vence'} tone={expired ? 'danger' : soon ? 'warning' : 'neutral'} title={formatDate(expiresOn)}>
-            {relativeDays(expiresOn, today)}
-            <span className="sr-only"> ({formatDate(expiresOn)})</span>
-          </Tile>
+          <InfoPill tone={expired ? 'danger' : soon ? 'warning' : 'neutral'} title={formatDate(expiresOn)}>
+            <PillValue label={expired ? 'Venció' : 'Vence'}>
+              {relativeDays(expiresOn, today)}
+              <span className="sr-only"> ({formatDate(expiresOn)})</span>
+            </PillValue>
+          </InfoPill>
         ) : null}
         {reserved ? (
           <>
-            <Tile label="Apartado" tone="accent">
-              <Quantity value={position.reserved} unit={position.unit} unitClassName="text-inherit" />
-            </Tile>
-            <Tile label="Disponible">
-              <Quantity value={available} unit={position.unit} unitClassName="text-inherit" />
-            </Tile>
+            <InfoPill tone="accent">
+              <PillValue label="Apartado">
+                <Quantity value={position.reserved} unit={position.unit} unitClassName="text-inherit" />
+              </PillValue>
+            </InfoPill>
+            <InfoPill>
+              <PillValue label="Disponible">
+                <Quantity value={available} unit={position.unit} className="text-ink" unitClassName="text-inherit" />
+              </PillValue>
+            </InfoPill>
           </>
         ) : null}
       </div>
       <WeightRow position={position} canSet={allowed.adjustment} onAction={onAction} />
       {canIssue || canTransfer || allowed.adjustment ? (
-        <div className="mt-auto flex flex-wrap gap-2 border-t border-line pt-3">
+        // Banda inferior de borde a borde: «Salida» es la primaria; «Trasladar» y «Ajustar», texto.
+        <Band ruled className="-mx-5 -mb-1 mt-auto flex flex-wrap items-center gap-1.5 px-5 pt-4">
           {canIssue ? (
             // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
             <Button
               size="sm"
               variant={recommended ? 'primary' : 'secondary'}
-              className={cn('h-10 min-w-[7.5rem] flex-1 font-bold', !recommended && 'border-action/30 text-action hover:bg-action-soft')}
+              className={cn('h-10 min-w-[6.5rem] flex-1 rounded-xl font-bold', !recommended && 'border-action/30 bg-white/70 text-action hover:bg-action-soft')}
               onClick={() => onAction({ kind: 'issue', positionId: position.id })}
             >
               <ArrowUpFromLine aria-hidden />
@@ -247,7 +235,7 @@ export function ContainerCard({
               size="sm"
               variant="ghost"
               title="Trasladar el frasco a otra ubicación"
-              className="h-10 px-2.5"
+              className="h-10 rounded-xl px-2.5"
               onClick={() => onAction({ kind: 'transfer', position })}
             >
               Trasladar
@@ -258,13 +246,13 @@ export function ContainerCard({
               size="sm"
               variant="ghost"
               title="Ajustar existencias"
-              className="h-10 px-2.5"
+              className="h-10 rounded-xl px-2.5"
               onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}
             >
               Ajustar
             </Button>
           ) : null}
-        </div>
+        </Band>
       ) : null}
     </article>
   );

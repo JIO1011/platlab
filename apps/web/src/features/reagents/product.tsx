@@ -1,5 +1,5 @@
-import { Quantity, Skeleton, StatePanel, cn, formatDecimal } from '@platlab/ui';
-import { ArrowRight, CalendarClock, CalendarX, ExternalLink, FlaskConical, History, PencilLine, QrCode as QrIcon, TrendingDown } from 'lucide-react';
+import { Skeleton, StatePanel, addDecimal, ratioPercent } from '@platlab/ui';
+import { ArrowRight, History, QrCode as QrIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
@@ -10,17 +10,12 @@ import { purposeOf, responsibleOf } from './operation-text';
 import { fefoCandidates } from './sheets';
 import { availableOf } from './stock';
 import { ContainerCard } from './container-card';
-import { ControlledMark } from './controlled';
-import { HazardGlyphs } from './hazards';
-import { sdsLabels } from './ingress/safety-fields';
-import { EmptyToggle, physicalStateIcon, physicalStateLabel } from './product-parts';
-
-/** Rótulo de cada dato de la banda de la ficha. */
-const bandLabel = 'text-xs font-semibold uppercase tracking-wide text-ink-muted';
+import { EmptyToggle } from './product-parts';
+import { ProductHeader, ProductSummary } from './product-head';
 
 export function ReagentsProductPage() {
   const { productId = '', containerId } = useParams();
-  const { workspaceId, me, base, allowed, openSheet } = useReagents();
+  const { workspaceId, me, base, allowed, openSheet, positionList, freshness } = useReagents();
   const product = useProduct(workspaceId, productId);
   const positions = usePositions(workspaceId, productId);
   const history = useOperations(workspaceId, { productId: [productId] });
@@ -72,125 +67,29 @@ export function ReagentsProductPage() {
     );
   }
 
-  const state = product.data.physicalState ?? undefined;
-  const noStock = product.data.balance === '0';
-  const StateIcon = (state && physicalStateIcon[state]) || FlaskConical;
+  // Nivel de la existencia: el saldo frente a lo inicial de los frascos con saldo. Solo se afirma
+  // con todos los frascos cargados, en la unidad base y con su cantidad inicial conocida.
+  const stocked = containers.filter((position) => position.balance !== '0');
+  const initials = stocked.map((position) => (position.unit === product.data.baseUnit ? (position.container?.initialQuantity ?? null) : null));
+  const initialTotal =
+    positions.hasNextPage || stocked.length === 0 || initials.some((initial) => initial === null)
+      ? null
+      : initials.reduce<string | null>((sum, initial) => (sum === null || initial === null ? null : addDecimal(sum, initial)), '0');
+  const stockPercent = initialTotal === null ? null : ratioPercent(product.data.balance, initialTotal);
   // El frasco que conviene usar primero: la misma sugerencia FEFO que preselecciona la hoja de salida.
   const recommendedId = fefoCandidates(containers, productId, today)[0]?.id;
 
   return (
     <div className="grid gap-6">
-      <section aria-label="Datos del reactivo" className="grid gap-4">
-        {/* La identidad es un subtítulo, no un grupo de píldoras: el color se reserva para los avisos. */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
-          <span className="tabular-nums">
-            <span className="sr-only">Código </span>
-            {product.data.code}
-          </span>
-          {product.data.casNumber ? <span className="font-mono tabular-nums">CAS {product.data.casNumber}</span> : null}
-          <span className="inline-flex items-center gap-1.5">
-            <StateIcon className="size-4" aria-hidden />
-            {state ? physicalStateLabel[state] : 'Estado sin indicar'}
-          </span>
-          {product.data.controlled ? <ControlledMark withText /> : null}
-          {allowed.product ? (
-            <button
-              type="button"
-              className="ml-auto inline-flex min-h-8 items-center gap-1.5 rounded-control px-1 text-sm font-medium text-action hover:text-action-hover"
-              onClick={() => openSheet({ kind: 'product', product: product.data })}
-            >
-              <PencilLine className="size-4" aria-hidden />
-              Editar
-            </button>
-          ) : null}
-        </div>
-        {/* Seguridad (ADR 0015): pictogramas, ficha de seguridad y densidad, como los registra el catálogo. */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-muted">
-          {product.data.hazards.length > 0 ? <HazardGlyphs ids={product.data.hazards} large /> : <span>Sin pictogramas</span>}
-          {product.data.sdsKind === 'digital' && product.data.sdsUrl ? (
-            <a
-              href={product.data.sdsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 font-medium text-action hover:text-action-hover"
-            >
-              Ficha de seguridad
-              <ExternalLink className="size-3.5" aria-hidden />
-            </a>
-          ) : (
-            <span>
-              {product.data.sdsKind ? `Ficha de seguridad: ${sdsLabels[product.data.sdsKind].toLowerCase()}` : 'Ficha de seguridad sin indicar'}
-            </span>
-          )}
-          {product.data.density ? <span className="tabular-nums">Densidad {formatDecimal(product.data.density)} g/mL</span> : null}
-        </div>
-        {/* Banda de tres datos, como los indicadores del Resumen (ADR 0012, 06-10-2026). En el móvil, la
-            existencia ocupa el ancho y los otros dos van en dos columnas. */}
-        <dl className="grid grid-cols-2 overflow-hidden rounded-card bg-surface shadow-raised sm:grid-cols-[1.5fr_1fr_1fr]">
-          <div className="col-span-2 grid content-start gap-1 border-b border-line p-4 sm:col-span-1 sm:border-b-0 sm:border-r">
-            <dt className={bandLabel}>Existencia</dt>
-            <dd>
-              <Quantity
-                value={product.data.balance}
-                unit={product.data.baseUnit}
-                className={cn('text-3xl font-bold tracking-tight', noStock ? 'text-ink-subtle' : 'text-action')}
-              />
-            </dd>
-            <dd className="text-sm text-ink-muted">
-              {noStock
-                ? 'Sin existencias'
-                : product.data.containersWithStock === 1
-                  ? 'en 1 frasco con saldo'
-                  : `en ${product.data.containersWithStock} frascos con saldo`}
-            </dd>
-          </div>
-          {/* Mínimo para todo el espacio (ADR 0012, 05-10-2026): lo fija quien administra el catálogo. */}
-          <div className="grid content-start gap-1 border-r border-line p-4">
-            <dt className={bandLabel}>Mínimo</dt>
-            <dd className="text-xl font-bold leading-tight text-ink">
-              {product.data.minimum ? <Quantity value={product.data.minimum} unit={product.data.baseUnit} /> : <span className="text-ink-muted">Sin fijar</span>}
-            </dd>
-            {product.data.belowMinimum ? (
-              <dd className="flex items-center gap-1.5 text-sm font-semibold text-warning">
-                <TrendingDown className="size-4" aria-hidden />
-                Bajo mínimo
-              </dd>
-            ) : null}
-            {allowed.product ? (
-              <dd>
-                <button
-                  type="button"
-                  className="-ml-1 inline-flex min-h-8 items-center rounded-control px-1 text-sm font-medium text-action hover:text-action-hover"
-                  onClick={() => openSheet({ kind: 'minimum', productId })}
-                >
-                  {product.data.minimum ? 'Cambiar mínimo' : 'Fijar mínimo'}
-                </button>
-              </dd>
-            ) : null}
-          </div>
-          <div className="grid content-start gap-1 p-4">
-            {/* Solo afirma lo que se cuenta: un frasco sin caducidad confirmada lo dice en su tarjeta. */}
-            <dt className={bandLabel}>Caducidad</dt>
-            {product.data.expiredContainers || product.data.expiringContainers ? (
-              <>
-                {product.data.expiredContainers ? (
-                  <dd className="flex items-center gap-1.5 text-base font-bold leading-tight text-danger">
-                    <CalendarX className="size-4 shrink-0" aria-hidden />
-                    {product.data.expiredContainers === 1 ? '1 frasco vencido' : `${product.data.expiredContainers} frascos vencidos`}
-                  </dd>
-                ) : null}
-                {product.data.expiringContainers ? (
-                  <dd className="flex items-center gap-1.5 text-base font-bold leading-tight text-warning">
-                    <CalendarClock className="size-4 shrink-0" aria-hidden />
-                    {product.data.expiringContainers === 1 ? '1 frasco por vencer' : `${product.data.expiringContainers} frascos por vencer`}
-                  </dd>
-                ) : null}
-              </>
-            ) : (
-              <dd className="text-base font-semibold leading-tight text-ink-muted">Sin vencidos ni por vencer</dd>
-            )}
-          </div>
-        </dl>
+      <section aria-label="Datos del reactivo" className="grid gap-6">
+      <ProductHeader
+        product={product.data}
+        allowed={allowed}
+        canIssue={positionList.length > 0}
+        freshness={freshness}
+        onAction={openSheet}
+      />
+      <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} onAction={openSheet} />
       </section>
 
       <section aria-labelledby="frascos" className="grid gap-4">

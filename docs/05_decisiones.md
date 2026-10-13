@@ -188,6 +188,7 @@ Medidas, patrones y estados: `DESIGN.md` y `packages/ui/src/styles.css` (solo en
   - cantidad grande sin subrayado;
   - «Todo» como enlace;
   - etiquetas claras de ancho parejo.
+  - La ficha (nivel 2) usa el mismo lenguaje sobre un fondo degradado del módulo. Solo la cabecera y el resumen llevan vidrio; los frascos son translúcidos sin desenfoque, para que el desplazamiento siga fluido. La barra por nivel, las pastillas, las bandas y el cuadro de icono son piezas compartidas.
 - **Ficha.** Sin «← Inventario»: el menú ya lleva al Inventario. Queda abierto darle una función propia (por ejemplo, una miga de pan en la barra superior).
 - **Movimiento.**
   - Pulsación de 100–150 ms con CSS; superposiciones de 150–200 ms que nacen de su origen.

@@ -86,3 +86,39 @@ export function PillField<T extends string>({
     </div>
   );
 }
+
+/**
+ * Pastilla de dato (ficha y frascos): un hecho breve, no una elección. Neutra por omisión; `accent`
+ * para lo que marca el catálogo (Controlado) y los tonos de estado solo para un estado, siempre con
+ * texto dentro (ADR 0010).
+ */
+export function InfoPill({
+  tone = 'neutral',
+  mono = false,
+  title,
+  className,
+  children,
+}: {
+  tone?: 'neutral' | 'accent' | 'warning' | 'danger';
+  mono?: boolean;
+  title?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      title={title}
+      className={cn(
+        'inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-full border px-3 py-0.5 text-[13px] tabular-nums [&>svg]:size-3.5 [&>svg]:shrink-0',
+        mono && 'font-mono',
+        tone === 'neutral' && 'border-line bg-white/70 text-ink-muted',
+        tone === 'accent' && 'border-action/20 bg-action-soft text-action',
+        tone === 'warning' && 'border-warning/25 bg-warning-soft text-warning',
+        tone === 'danger' && 'border-danger/25 bg-danger-soft text-danger',
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}

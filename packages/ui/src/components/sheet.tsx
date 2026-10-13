@@ -1,4 +1,5 @@
 import { X, type LucideIcon } from 'lucide-react';
+import { IconTile } from './icon-tile';
 import { Dialog } from 'radix-ui';
 import { useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { cn } from '../lib/cn';
@@ -63,14 +64,7 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
         >
           <header className="flex items-start justify-between gap-4 px-6 pb-4 pt-5">
             <div className="flex min-w-0 items-center gap-4">
-              {Icon ? (
-                <span
-                  aria-hidden
-                  className="inline-flex size-12 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-action to-action-deep text-on-action shadow-lg shadow-action/25"
-                >
-                  <Icon className="size-6" />
-                </span>
-              ) : null}
+              {Icon ? <IconTile icon={Icon} /> : null}
               <div className="grid min-w-0 gap-0.5">
                 <Dialog.Title className="text-xl font-bold tracking-[-0.01em] text-ink">{title}</Dialog.Title>
                 {description ? (
