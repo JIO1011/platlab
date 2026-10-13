@@ -2,6 +2,7 @@ import { Skeleton, StatCard, type StatCardProps } from '@platlab/ui';
 import {
   ArrowRight,
   ArrowUpFromLine,
+  PackagePlus,
   CalendarClock,
   CalendarX,
   CircleCheck,
@@ -32,7 +33,7 @@ function StatLink({ to, ...stat }: { to: string } & StatCardProps) {
  */
 function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canIssue: boolean; openSheet: (request: SheetRequest) => void }) {
   const issue = canIssue && allowed.issue;
-  if (!issue) return null;
+  if (!issue && !allowed.receipt) return null;
   return (
     <section
       aria-labelledby="acciones-rapidas"
@@ -65,6 +66,16 @@ function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canI
             >
               <ArrowUpFromLine className="size-[18px]" aria-hidden />
               {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
+            </button>
+          ) : null}
+          {allowed.receipt ? (
+            <button
+              type="button"
+              onClick={() => openSheet({ kind: 'ingress' })}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-control border border-white/40 px-5 text-sm font-medium backdrop-blur-sm transition-colors duration-150 hover:bg-white/10"
+            >
+              <PackagePlus className="size-[18px]" aria-hidden />
+              Ingresar reactivo
             </button>
           ) : null}
         </div>

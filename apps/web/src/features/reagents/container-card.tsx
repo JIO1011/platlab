@@ -1,6 +1,7 @@
 import type { Position } from '@platlab/contracts';
 import { Badge, Button, Quantity, cn, formatDecimal, ratioPercent } from '@platlab/ui';
 import { ArrowLeftRight, ArrowUpFromLine, Building2, Calendar, Check, MapPin, QrCode as QrIcon, Scale } from 'lucide-react';
+import { formatGrams, gramsPerUnit, weightFigures } from './weight';
 import { type ReactNode } from 'react';
 import { addDays, formatDate, formatInstantDate, relativeDays } from '../../app/format';
 import { type Allowed, type SheetRequest } from './context';
@@ -29,6 +30,52 @@ function Tile({ label, children, tone = 'neutral' }: { label: string; children: 
       <p className="truncate text-[12px] leading-tight">{label}</p>
       <p className={cn('mt-0.5 truncate text-[13px] font-bold tabular-nums', tone === 'neutral' ? 'text-ink' : undefined)}>{children}</p>
     </div>
+  );
+}
+
+/**
+ * Control por peso del frasco (ADR 0015): con tara, Tara · Peso neto · Bruto esperado en g; sin ella,
+ * quien ajusta la fija. Los pesos no son cantidades de inventario: son vista previa del servidor.
+ */
+function WeightRow({ position, canSet, onAction }: { position: Position; canSet: boolean; onAction: (request: SheetRequest) => void }) {
+  const figures = weightFigures(position);
+  // Solo se pesan g, kg, mL y L (en volumen, con densidad: la pide la hoja).
+  const weighable = gramsPerUnit(position.unit, '1') !== null && position.container !== null;
+  const setTare = () => onAction({ kind: 'tare', position });
+  if (figures) {
+    return (
+      <div className="grid gap-1">
+        <dl className="grid grid-cols-3 gap-1.5">
+          {(
+            [
+              ['Tara', figures.tare],
+              ['Peso neto', figures.net],
+              ['Bruto esperado', figures.expectedGross],
+            ] as const
+          ).map(([label, grams]) => (
+            <div key={label} className="min-w-0 rounded-control bg-surface-sunken px-2 py-1.5 text-center">
+              <dt className="text-[12px] leading-tight text-ink-muted">{label}</dt>
+              <dd className="mt-0.5 text-[13px] font-bold tabular-nums text-ink">{formatGrams(grams)}</dd>
+            </div>
+          ))}
+        </dl>
+        {canSet ? (
+          <button type="button" onClick={setTare} className="self-start rounded-[6px] px-1 text-[13px] font-medium text-action hover:text-action-hover">
+            Fijar tara
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+  if (!canSet || !weighable) return null;
+  return (
+    <button
+      type="button"
+      onClick={setTare}
+      className="-mx-1 inline-flex min-h-[44px] items-center self-start rounded-[6px] px-1 text-left text-[13px] text-ink-muted underline decoration-line-strong underline-offset-4 transition-colors hover:text-action hover:decoration-action sm:min-h-0 sm:py-0.5"
+    >
+      Fijar tara para controlar con la balanza
+    </button>
   );
 }
 
@@ -170,6 +217,7 @@ export function ContainerCard({
           </>
         ) : null}
       </div>
+      <WeightRow position={position} canSet={allowed.adjustment} onAction={onAction} />
       {canIssue || canTransfer || allowed.adjustment ? (
         <div className="mt-auto flex gap-2 border-t border-line pt-3">
           {canIssue ? (

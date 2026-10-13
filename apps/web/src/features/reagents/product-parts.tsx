@@ -1,7 +1,13 @@
 import { cn } from '@platlab/ui';
 import { Box, Droplet, Wind, type LucideIcon } from 'lucide-react';
 
-export const physicalStateLabel: Record<string, string> = { solid: 'Sólido', liquid: 'Líquido', gas: 'Gas' };
+export const physicalStateLabel: Record<string, string> = {
+  solid: 'Sólido',
+  liquid: 'Líquido',
+  aqueous: 'Acuoso',
+  mixture: 'Mezcla',
+  gas: 'Gas',
+};
 
 /** El icono lo da el estado físico, un dato que ya existe; sin él, el matraz del módulo. */
 export const physicalStateIcon: Record<string, LucideIcon> = { solid: Box, liquid: Droplet, gas: Wind };

@@ -17,14 +17,16 @@ interface ChoiceFieldProps {
   onChange: (value: string) => void;
   /** El Administrador amplía la lista desde la misma hoja (ADR 0012). */
   canAdd: boolean;
-  /** Ruta y cuerpo del alta: `/reasons` con su tipo, o `/destinations`. */
-  addPath: '/reasons' | '/destinations';
+  /** Ruta y cuerpo del alta: `/reasons` con su tipo, `/destinations` o `/areas`. */
+  addPath: '/reasons' | '/destinations' | '/areas';
   addBody: (name: string) => Record<string, string>;
   addLabel: string;
+  /** Estilo del rótulo; por defecto, el de sección de las ventanas. */
+  labelClassName?: string;
 }
 
 /**
- * Motivo o destino elegido de la lista del laboratorio, como botones de opción (ADR 0012, lección
+ * Motivo, destino o área elegido de la lista del laboratorio, como botones de opción (ADR 0012, lección
  * de ReactiLab). La operación guarda el texto elegido. Si la lista está vacía y la persona no
  * puede ampliarla, se escribe a mano: el motivo sigue siendo obligatorio.
  */
@@ -41,6 +43,7 @@ export function ChoiceField({
   addPath,
   addBody,
   addLabel,
+  labelClassName = sectionLabel,
 }: ChoiceFieldProps) {
   const id = useId();
   const [adding, setAdding] = useState(false);
@@ -70,7 +73,7 @@ export function ChoiceField({
       {/* La leyenda va primero para nombrar el grupo; se ve la misma etiqueta junto a «Agregar». */}
       <legend className="sr-only">{label}</legend>
       <div className="flex items-center justify-between gap-3">
-        <span className={sectionLabel} aria-hidden>
+        <span className={labelClassName} aria-hidden>
           {label}
         </span>
         {canAdd && !adding ? (

@@ -336,48 +336,6 @@ const homeSummaryIR: any = {"usedParamSet":{"workspaceId":true,"locationIds":tru
 export const homeSummary = new PreparedQuery<IHomeSummaryParams,IHomeSummaryResult>(homeSummaryIR);
 
 
-/** 'ListProductLots' parameters type */
-export interface IListProductLotsParams {
-  itemId: string;
-  workspaceId: string;
-}
-
-/** 'ListProductLots' return type */
-export interface IListProductLotsResult {
-  area: string | null;
-  brand: string | null;
-  code: string;
-  expires_on: string | null;
-  id: string;
-  item_id: string;
-}
-
-/** 'ListProductLots' query type */
-export interface IListProductLotsQuery {
-  params: IListProductLotsParams;
-  result: IListProductLotsResult;
-}
-
-const listProductLotsIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":229,"b":241}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":261,"b":268}]}],"statement":"-- Lotes de un reactivo del espacio.\nSELECT l.id, l.item_id, l.code, l.brand, l.area, l.expires_on\nFROM inventory.lots AS l\nJOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id\nWHERE l.workspace_id = :workspaceId!\n  AND l.item_id = :itemId!\n  AND i.kind = 'reagent'\n  AND i.archived_at IS NULL\nORDER BY l.expires_on NULLS LAST, lower(l.code), l.id\nLIMIT 200"};
-
-/**
- * Query generated from SQL:
- * ```
- * -- Lotes de un reactivo del espacio.
- * SELECT l.id, l.item_id, l.code, l.brand, l.area, l.expires_on
- * FROM inventory.lots AS l
- * JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
- * WHERE l.workspace_id = :workspaceId!
- *   AND l.item_id = :itemId!
- *   AND i.kind = 'reagent'
- *   AND i.archived_at IS NULL
- * ORDER BY l.expires_on NULLS LAST, lower(l.code), l.id
- * LIMIT 200
- * ```
- */
-export const listProductLots = new PreparedQuery<IListProductLotsParams,IListProductLotsResult>(listProductLotsIR);
-
-
 /** 'ListLocationsIn' parameters type */
 export interface IListLocationsInParams {
   locationIds: stringArray;

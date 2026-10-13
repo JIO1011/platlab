@@ -60,7 +60,6 @@ import {
   listCountLocations,
   getSummary,
   listEntries,
-  listLots,
   listOperationFacets,
   listOperations,
   listOperationTotals,
@@ -128,10 +127,6 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
         productParams.parse(request.params).productId,
         setMinimumRequest.parse(request.body).minimum,
       ),
-    );
-
-    app.get('/products/:productId/lots', async (request) =>
-      listLots(pool, queryRequest(request), productParams.parse(request.params).productId),
     );
 
     app.get('/receipt-locations', async (request) => listReceiptLocations(pool, queryRequest(request)));

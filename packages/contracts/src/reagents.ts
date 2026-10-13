@@ -142,16 +142,6 @@ export const containerResponse = z.object({ containerId: z.uuid(), productId: z.
 
 export const productParams = z.object({ workspaceId: z.uuid(), productId: z.uuid() });
 
-/** Lote automático del reactivo (ADR 0015): marca, área y caducidad; null si no se conocen. */
-export const lot = z.object({
-  id: z.uuid(),
-  productId: z.uuid(),
-  code: z.string(),
-  brand: z.string().nullable(),
-  area: z.string().nullable(),
-  expiresOn: z.string().nullable(),
-});
-
 // ---------------------------------------------------------------------------
 // Movimientos
 // ---------------------------------------------------------------------------
@@ -562,7 +552,6 @@ export const stockedProduct = product.extend({
 export const productList = list(stockedProduct);
 /** Ficha (GET /products/:productId): además, si la unidad aún puede cambiar (sin movimientos). */
 export const productDetail = stockedProduct.extend({ unitEditable: z.boolean() });
-export const lotList = z.object({ items: z.array(lot) });
 export const locationList = z.object({ items: z.array(location) });
 export const positionList = list(position);
 export const operationList = list(operation);
@@ -603,7 +592,6 @@ export const createEntryRequest = z.object({ name: text(120) }).strict();
 export const entryParams = z.object({ workspaceId: z.uuid(), entryId: z.uuid() });
 
 export type Product = z.infer<typeof product>;
-export type Lot = z.infer<typeof lot>;
 export type MovementResponse = z.infer<typeof movementResponse>;
 export type Position = z.infer<typeof position>;
 export type Operation = z.infer<typeof operation>;
@@ -611,7 +599,6 @@ export type ProductList = z.infer<typeof productList>;
 export type ProductDetail = z.infer<typeof productDetail>;
 export type Location = z.infer<typeof location>;
 export type TareResponse = z.infer<typeof tareResponse>;
-export type LotList = z.infer<typeof lotList>;
 export type LocationList = z.infer<typeof locationList>;
 export type PositionList = z.infer<typeof positionList>;
 export type ReagentsSummary = z.infer<typeof reagentsSummary>;

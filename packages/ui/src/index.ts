@@ -18,10 +18,14 @@ export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 export { Toaster, toast } from './components/toaster';
 export { cn } from './lib/cn';
 export {
+  addDecimal,
+  divideDecimal,
   formatDecimal,
+  multiplyDecimal,
   normalizeDecimalInput,
   percentOfDecimal,
   ratioPercent,
+  roundDecimal,
   subtractDecimal,
   toDecimalInput,
 } from './lib/decimal';

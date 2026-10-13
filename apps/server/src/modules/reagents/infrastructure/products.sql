@@ -125,18 +125,6 @@ SELECT
   (SELECT count(*) FROM minimums WHERE balance < minimum_quantity) AS "below_minimum!",
   (SELECT count(*) FROM minimums) AS "products_with_minimum!";
 
-/* @name listProductLots */
--- Lotes de un reactivo del espacio.
-SELECT l.id, l.item_id, l.code, l.brand, l.area, l.expires_on
-FROM inventory.lots AS l
-JOIN inventory.items AS i ON i.workspace_id = l.workspace_id AND i.id = l.item_id
-WHERE l.workspace_id = :workspaceId!
-  AND l.item_id = :itemId!
-  AND i.kind = 'reagent'
-  AND i.archived_at IS NULL
-ORDER BY l.expires_on NULLS LAST, lower(l.code), l.id
-LIMIT 200;
-
 /* @name listLocationsIn */
 SELECT id, code, name, kind, parent_id
 FROM core.locations

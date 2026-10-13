@@ -1,6 +1,6 @@
 import type { StockedProduct } from '@platlab/contracts';
-import { Badge, IconChip, Input, Quantity, Skeleton, StatePanel, cn } from '@platlab/ui';
-import { CalendarClock, CalendarX, CircleAlert, FlaskConical, Layers, Search, TrendingDown } from 'lucide-react';
+import { Badge, Button, IconChip, Input, Quantity, Skeleton, StatePanel, cn } from '@platlab/ui';
+import { CalendarClock, CalendarX, CircleAlert, FlaskConical, Layers, Lock, PackagePlus, Search, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ModuleMark } from '../../app/module-mark';
@@ -14,10 +14,16 @@ const matches = (product: StockedProduct, query: string) => {
 };
 
 /**
- * Filtros de avisos (ADR 0012, 05-10-2026), en la URL: los indicadores del Resumen abren aquí. Uno a
- * la vez; cada uno con su parámetro, para que el enlace diga qué lista abre.
+ * Filtros de avisos (ADR 0012, 05-10-2026) y «Controlados» (ADR 0015), en la URL: los indicadores del
+ * Resumen abren aquí. Uno a la vez; cada uno con su parámetro, para que el enlace diga qué lista abre.
  */
 const alertFilters = {
+  controlados: {
+    param: ['controlado', 'si'],
+    label: 'Controlados',
+    empty: 'Ningún reactivo está marcado como controlado.',
+    has: (product: StockedProduct) => product.controlled,
+  },
   vencidos: {
     param: ['caducidad', 'vencidos'],
     label: 'Vencidos',
@@ -64,7 +70,7 @@ function FilterPill({ label, count, active, onToggle }: { label: string; count: 
  * y sus avisos de caducidad. Toda la tarjeta abre su ficha, el segundo nivel.
  */
 export function ReagentsInventoryPage() {
-  const { base, allowed, products, productList } = useReagents();
+  const { base, allowed, products, productList, openSheet } = useReagents();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [showEmpty, setShowEmpty] = useState(false);
@@ -104,8 +110,16 @@ export function ReagentsInventoryPage() {
           title="Aún no hay reactivos"
           description={
             allowed.product
-              ? 'Crea el primer reactivo del catálogo; después registra sus frascos con un ingreso.'
+              ? 'Ingresa el primer reactivo: el catálogo y sus frascos se registran en un paso.'
               : 'Cuando alguien con permiso cree reactivos en el catálogo, aparecerán aquí.'
+          }
+          action={
+            allowed.product && allowed.receipt ? (
+              <Button variant="primary" onClick={() => openSheet({ kind: 'ingress' })}>
+                <PackagePlus aria-hidden />
+                Ingresar reactivo
+              </Button>
+            ) : undefined
           }
         />
       </div>
@@ -183,7 +197,17 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
         code="reagents"
         className="pointer-events-none absolute -bottom-5 -right-3 size-32 rotate-12 text-surface-sunken transition-[color,transform] duration-500 group-hover:text-action-soft motion-safe:group-hover:scale-110"
       />
-      <div className="relative flex items-start gap-3">
+      {product.controlled ? (
+        <span
+          role="img"
+          aria-label="Controlado"
+          title="Controlado"
+          className="absolute right-3 top-3 inline-flex size-7 items-center justify-center rounded-full bg-action-soft text-action ring-1 ring-action/25"
+        >
+          <Lock className="size-3.5" aria-hidden />
+        </span>
+      ) : null}
+      <div className={cn('relative flex items-start gap-3', product.controlled && 'pr-6')}>
         <IconChip icon={(state && physicalStateIcon[state]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} />
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-[12px] font-semibold uppercase tracking-wide text-ink-muted">

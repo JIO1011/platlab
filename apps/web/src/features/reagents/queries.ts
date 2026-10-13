@@ -1,4 +1,6 @@
 import {
+  brandList,
+  containerCodeSuggestion,
   entryList,
   issueRequestList,
   locationList,
@@ -6,9 +8,9 @@ import {
   operationList,
   operationTotals,
   positionList,
+  productDetail,
   productList,
   reagentsSummary,
-  stockedProduct,
   type OperationFacets,
   type OperationGroupBy,
   type OperationList,
@@ -16,7 +18,7 @@ import {
   type ReasonKind,
   type WorkspaceMeResponse,
 } from '@platlab/contracts';
-import { useInfiniteQuery, useQuery, type InfiniteData, type Query } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useQuery, type InfiniteData, type Query } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
 import { operationSearch, type OperationQuery } from './movement-filters';
@@ -145,12 +147,12 @@ export function useOperationTotals(
   });
 }
 
-/** Ficha de un reactivo: su total y sus frascos con saldo en el ámbito del miembro. */
+/** Ficha de un reactivo: su total, sus frascos con saldo en el ámbito del miembro y si su unidad aún cambia. */
 export function useProduct(workspaceId: string, productId: string) {
   const user = useUserKey();
   return useQuery({
     queryKey: [...reagentsKey(user, workspaceId), 'product', productId],
-    queryFn: () => api(`/workspaces/${workspaceId}/reagents/products/${productId}`, { schema: stockedProduct }),
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/products/${productId}`, { schema: productDetail }),
   });
 }
 
@@ -175,13 +177,61 @@ export function useDestinations(workspaceId: string, enabled = true) {
   });
 }
 
-/** Ubicaciones que el miembro puede contar: donde puede ajustar (ADR 0012, entrega 4). */
-export function useCountLocations(workspaceId: string, enabled: boolean) {
+/** Áreas o departamentos del espacio (ADR 0015): se guardan como texto en el lote del ingreso. */
+export function useAreas(workspaceId: string, enabled = true) {
   const user = useUserKey();
   return useQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'count-locations'],
-    queryFn: () => api(`/workspaces/${workspaceId}/reagents/count-locations`, { schema: locationList }),
+    queryKey: [...reagentsKey(user, workspaceId), 'areas'],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/areas`, { schema: entryList }),
     enabled,
+    staleTime: 60_000,
+  });
+}
+
+/** Marcas ya usadas en los lotes, las más recientes primero (ADR 0015). */
+export function useBrands(workspaceId: string, enabled = true) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'brands'],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/brands`, { schema: brandList }),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Ubicaciones donde el miembro registra ingresos, con su padre: la web arma los niveles (ADR 0015).
+ * El árbol es el de Core; las que crea el ingreso llegan al volver a pedirlo.
+ */
+export function useReceiptLocations(workspaceId: string, enabled: boolean) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'receipt-locations'],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/receipt-locations`, { schema: locationList }),
+    enabled,
+  });
+}
+
+/**
+ * Códigos sugeridos para `count` frascos (ADR 0015): la serie libre del reactivo o una nueva a partir
+ * del nombre. Lo decide el servidor; al cambiar el nombre o la cantidad se conserva la anterior
+ * mientras llega la nueva.
+ */
+export function useCodeSuggestion(
+  workspaceId: string,
+  target: { productId: string } | { name: string } | null,
+  count: number,
+  enabled: boolean,
+) {
+  const user = useUserKey();
+  const search = new URLSearchParams({ count: String(count) });
+  if (target && 'productId' in target) search.set('productId', target.productId);
+  else if (target) search.set('name', target.name);
+  return useQuery({
+    queryKey: [...reagentsKey(user, workspaceId), 'code-suggestion', search.toString()],
+    queryFn: () => api(`/workspaces/${workspaceId}/reagents/container-codes/suggestion?${search}`, { schema: containerCodeSuggestion }),
+    enabled: enabled && target !== null,
+    placeholderData: keepPreviousData,
   });
 }
 

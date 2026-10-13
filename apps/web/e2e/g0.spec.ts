@@ -7,7 +7,7 @@ import { expect, test, type Browser, type Locator, type Page } from '@playwright
  */
 const password = 'platlab-demo';
 const suffix = Date.now().toString(36).toUpperCase();
-const product = { code: `NACL-${suffix}`, name: `Cloruro de sodio ${suffix}`, lot: `L-${suffix}` };
+const product = { name: `Cloruro de sodio ${suffix}`, lot: `L-${suffix}` };
 const reviewDir = '.impeccable/review';
 
 async function signIn(browser: Browser, email: string, viewport = { width: 1440, height: 900 }) {
@@ -118,36 +118,31 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await expect(admin.getByRole('complementary').getByText('Administrador', { exact: true })).toBeVisible();
   await goTo(admin, 'Inventario');
 
-  await admin.getByRole('button', { name: 'Nuevo reactivo' }).first().click();
-  const productSheet = admin.getByRole('dialog', { name: 'Nuevo reactivo' });
-  await productSheet.getByLabel('Código').fill(product.code);
-  await productSheet.getByLabel('Nombre').fill(product.name);
-  await productSheet.getByLabel('Número CAS').fill('7647-14-5');
-  await expectAccessible(admin, 'hoja nuevo reactivo');
+  // «Ingresar reactivo» (ADR 0015): la Administradora crea el reactivo y su frasco en un paso.
+  await admin.getByRole('button', { name: 'Ingresar reactivo' }).click();
+  const ingress = admin.getByRole('dialog', { name: 'Ingresar reactivo' });
+  await ingress.getByRole('combobox', { name: 'Nombre' }).fill(product.name);
+  await ingress.getByRole('combobox', { name: 'Nombre' }).press('Tab');
+  await ingress.getByRole('textbox', { name: 'CAS' }).fill('7647-14-5');
+  await ingress.getByRole('textbox', { name: 'Código' }).fill(`${product.lot}-01`);
+  await ingress.getByRole('textbox', { name: 'Cantidad' }).fill('100');
+  await ingress.getByRole('combobox', { name: 'Ubicación' }).fill('Almacén');
+  await admin.getByRole('option', { name: /Almacén de reactivos/ }).click();
+  await ingress.getByRole('combobox', { name: 'Estado físico' }).click();
+  await admin.getByRole('option', { name: 'Sólido' }).click();
+  await expect(ingress.getByRole('status').filter({ hasText: 'Listo: 1 frasco' })).toBeVisible();
+  await expectAccessible(admin, 'ingresar reactivo');
   await capture(admin, 'desktop-sheet', false);
-  await productSheet.getByRole('button', { name: 'Crear reactivo' }).click();
-  await expect(admin.getByText('Reactivo creado')).toBeVisible();
+  await ingress.getByRole('button', { name: 'Ingresar 1 frasco' }).click();
+  await expect(admin.getByText('Frasco ingresado')).toBeVisible();
+  await expect(admin.getByText(`${product.name} · ${product.lot}-01`)).toBeVisible();
 
-  // El Operador registra el ingreso por frascos y crea el lote en la misma hoja (ADR 0012, 01 §6.1).
+  // El Operador ingresa frascos pero no ajusta (ADR 0012); lo ve todo desde la ficha.
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Facultad de Ciencias');
   await goTo(operator, 'Inventario');
   await expect(operator.getByRole('button', { name: 'Ajustar' })).toHaveCount(0);
-  await expect(operator.getByRole('button', { name: 'Nuevo reactivo' })).toHaveCount(0);
-
-  await operator.getByRole('button', { name: 'Registrar ingreso' }).click();
-  const receipt = operator.getByRole('dialog', { name: 'Registrar ingreso' });
-  await choose(operator, 'Reactivo', new RegExp(product.name));
-  // El reactivo aún no tiene lotes: el primero se crea aquí.
-  await receipt.getByLabel('Código del lote nuevo').fill(product.lot);
-  await choose(operator, 'Ubicación', /Almacén de reactivos/);
-  await receipt.getByLabel('Cantidad por frasco').fill('100');
-  await expect(receipt.getByText('Se registrará')).toContainText('+100');
-  await expectAccessible(operator, 'hoja de ingreso');
-  await capture(operator, 'desktop-receipt', false);
-  await receipt.getByRole('button', { name: 'Registrar ingreso' }).click();
-  await expect(operator.getByText('Frasco registrado')).toBeVisible();
-  await expect(operator.getByText(`${product.lot}-01 · 100 g cada uno`)).toBeVisible();
+  await expect(operator.getByRole('button', { name: 'Ingresar reactivo' })).toBeVisible();
 
   // Dos niveles: la tarjeta del reactivo abre su ficha con sus frascos.
   await operator.getByRole('link', { name: new RegExp(product.name) }).click();
@@ -269,13 +264,13 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
   const topBar = owner.getByRole('banner');
   await expect(topBar).toContainText('Reactivos', { useInnerText: true });
   await expect(topBar).not.toContainText('Facultad de Ciencias', { useInnerText: true });
-  // El Resumen ofrece las acciones rápidas; ajustar y crear reactivos están en el Inventario.
-  for (const name of ['Registrar salida', 'Registrar ingreso']) {
+  // El Resumen ofrece las acciones rápidas; ingresar y ajustar también están en el Inventario.
+  for (const name of ['Registrar salida', 'Ingresar reactivo']) {
     await expect(owner.getByRole('button', { name, exact: true })).toBeVisible();
   }
   await goTo(owner, 'Inventario');
   await expect(topBar).toContainText('Inventario', { useInnerText: true });
-  for (const name of ['Nuevo reactivo', 'Ajustar']) {
+  for (const name of ['Ingresar reactivo', 'Ajustar']) {
     await expect(owner.getByRole('button', { name, exact: true })).toBeVisible();
   }
 });
@@ -449,7 +444,10 @@ test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelaci
   await choose(operator, 'Frasco', /HCL-2026-01-01/);
   await issue.getByRole('button', { name: 'Todo el frasco' }).click();
   // El atajo escribe la cantidad sin separador de miles: más de 1.000 mL no se lee como decimal.
-  await expect(issue.getByText(/^Quedarán/)).toHaveText(/^Quedarán 0\s*mL en el frasco\.$/);
+  // Con tara (ADR 0015), además lo que marcará la balanza: solo el frasco vacío.
+  await expect(issue.getByText(/^Quedarán/)).toHaveText(/^Quedarán 0\s*mL en el frasco\.En balanza: 420,0 g$/);
+  // El ácido clorhídrico es controlado: la salida lo avisa (ADR 0015).
+  await expect(issue.getByRole('status').filter({ hasText: 'Este reactivo es controlado.' })).toBeVisible();
   await pick(issue, 'Preparación de soluciones');
   await pick(issue, 'Laboratorio de Física');
   await issue.getByRole('button', { name: 'Enviar solicitud' }).click();
@@ -505,8 +503,9 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' })).toContainText('FEFO');
   await expect(admin.getByText('1 frasco vencido')).toBeVisible();
   await expect(admin.getByText('Inicial: 250 mL')).toBeVisible();
-  // Una sola primaria: «Registrar salida» de la cabecera; «Nuevo reactivo» no corresponde a la ficha.
-  await expect(admin.getByRole('button', { name: 'Nuevo reactivo' })).toHaveCount(0);
+  // Una sola primaria: «Registrar salida» de la cabecera; en la ficha el ingreso es de ese reactivo.
+  await expect(admin.getByRole('button', { name: 'Ingresar reactivo' })).toHaveCount(0);
+  await expect(admin.getByRole('button', { name: 'Ingresar frascos' })).toBeVisible();
   await expectAccessible(admin, 'ficha con varios frascos');
   await capture(admin, 'desktop-product-multi');
 
@@ -600,72 +599,68 @@ test('traslado: un frasco entero cambia de ubicación en un paso y Movimientos l
   await expectAccessible(admin, 'movimientos de traslado');
 });
 
-test('conteo: se anota lo que hay por ubicación y solo lo que no cuadra se ajusta (ADR 0012, entrega 4)', async ({ browser }) => {
+test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', async ({ browser }) => {
+  const name = `Glucosa ${suffix}`;
+  // La Administradora crea el reactivo con su frasco pesado: la tara se calcula al ingresar.
   const admin = await signIn(browser, 'admin@demo.platlab.test');
   await openReagents(admin, 'Facultad de Ciencias');
   await goTo(admin, 'Inventario');
-  await admin.getByRole('button', { name: 'Conteo', exact: true }).click();
-  const sheet = admin.getByRole('dialog', { name: 'Conteo' });
-  await choose(admin, 'Ubicación', /Almacén de reactivos/);
-  const counted = sheet.getByLabel('Contado en H2SO4-2026-02-01', { exact: true });
-  await counted.fill('995');
-  await expect(sheet.getByText(/−\s*5\s*mL|-5\s*mL/)).toBeVisible();
-  await sheet.getByLabel('Contado en H2SO4-2024-08-01', { exact: true }).fill('250');
-  await expect(sheet.getByText('Cuadra', { exact: true })).toBeVisible();
-  await expect(sheet).toContainText('1 no cuadra');
-  await expectAccessible(admin, 'hoja de conteo');
-  await capture(admin, 'desktop-count', false);
-  await sheet.getByRole('button', { name: 'Registrar conteo' }).click();
-  await expect(sheet).toHaveCount(0);
+  await admin.getByRole('button', { name: 'Ingresar reactivo' }).click();
+  const ingress = admin.getByRole('dialog', { name: 'Ingresar reactivo' });
+  await ingress.getByRole('combobox', { name: 'Nombre' }).fill(name);
+  await ingress.getByRole('combobox', { name: 'Nombre' }).press('Tab');
+  await ingress.getByRole('textbox', { name: 'CAS' }).fill('50-99-7');
+  await ingress.getByRole('textbox', { name: 'Cantidad' }).fill('500');
+  await ingress.getByLabel('Peso del frasco lleno (g)').fill('640');
+  await expect(ingress.getByLabel('Tara (calculada, g)')).toHaveValue('140,0');
+  await ingress.getByRole('combobox', { name: 'Ubicación' }).fill('Almacén');
+  await admin.getByRole('option', { name: /Almacén de reactivos/ }).click();
+  await ingress.getByRole('combobox', { name: 'Estado físico' }).click();
+  await admin.getByRole('option', { name: 'Sólido' }).click();
+  await ingress.getByRole('button', { name: 'Ingresar 1 frasco' }).click();
+  await expect(admin.getByText('Frasco ingresado')).toBeVisible();
 
-  // Si alguien registra una salida mientras se cuenta, ese frasco pierde lo anotado y se vuelve a contar:
-  // reenviarlo con el saldo nuevo contaría la salida dos veces.
-  await admin.getByRole('button', { name: 'Conteo', exact: true }).click();
-  await choose(admin, 'Ubicación', /Almacén de reactivos/);
-  await sheet.getByLabel('Contado en HCL-2026-01-02', { exact: true }).fill('2290');
-  const other = await signIn(browser, 'admin@demo.platlab.test');
-  await openReagents(other, 'Facultad de Ciencias');
-  await goTo(other, 'Inventario');
-  await other.getByRole('link', { name: /Ácido clorhídrico/ }).click();
-  await other.getByRole('article').filter({ hasText: 'HCL-2026-01-02' }).getByRole('button', { name: 'Salida' }).click();
-  const otherIssue = other.getByRole('dialog', { name: 'Registrar salida' });
-  await otherIssue.getByLabel('Cantidad', { exact: true }).fill('10');
-  await pick(otherIssue, 'Práctica de Química General');
-  await pick(otherIssue, 'Laboratorio de Física');
-  await otherIssue.getByRole('button', { name: 'Registrar salida' }).click();
-  await expect(otherIssue).toHaveCount(0);
-  await sheet.getByRole('button', { name: 'Registrar conteo' }).click();
-  await expect(sheet.getByRole('alert')).toContainText('cambió mientras contabas');
-  await expect(sheet.getByLabel('Contado en HCL-2026-01-02', { exact: true })).toHaveValue('');
-  await expect(sheet).toContainText('El saldo cambió: vuelve a contarlo');
-  await expectAccessible(admin, 'conteo con un saldo cambiado');
-  await admin.keyboard.press('Escape');
-  await expect(sheet).toHaveCount(0);
+  // El Operador elige el reactivo del catálogo: no puede crear uno nuevo, y sus datos no se editan.
+  const operator = await signIn(browser, 'operador@demo.platlab.test');
+  await openReagents(operator, 'Facultad de Ciencias');
+  await goTo(operator, 'Inventario');
+  await operator.getByRole('button', { name: 'Ingresar reactivo' }).click();
+  const receipt = operator.getByRole('dialog', { name: 'Ingresar reactivo' });
+  await receipt.getByRole('combobox', { name: 'Nombre' }).fill(name);
+  await expect(operator.getByRole('option', { name: /^Crear/ })).toHaveCount(0);
+  await operator.getByRole('option', { name: new RegExp(name) }).click();
+  await expect(receipt.getByRole('textbox', { name: 'CAS' })).toHaveAttribute('readonly', '');
+  await receipt.getByRole('textbox', { name: 'Cantidad' }).fill('500');
+  await receipt.getByRole('combobox', { name: 'Ubicación' }).fill('Almacén');
+  await operator.getByRole('option', { name: /Almacén de reactivos/ }).click();
+  await expectAccessible(operator, 'ingreso de un reactivo del catálogo');
+  await receipt.getByRole('button', { name: 'Ingresar 1 frasco' }).click();
+  await expect(operator.getByText('Frasco ingresado')).toBeVisible();
 
-  await goTo(admin, 'Movimientos');
-  await tick(admin.getByRole('complementary', { name: 'Filtros' }).getByRole('checkbox', { name: /^Ajustes/ }));
-  const row = admin.locator('main').getByRole('listitem').filter({ hasText: 'H2SO4-2026-02-01' }).filter({ hasText: 'Conteo' });
-  await expect(row).toHaveCount(1);
-  await expect(row).toContainText(/995\s*mL/);
+  // En la ficha, el frasco pesado muestra su tara; «Por peso» registra el saldo que marca la balanza.
+  await goTo(admin, 'Inventario');
+  await admin.getByRole('link', { name: new RegExp(name) }).click();
+  const weighed = admin.getByRole('article').filter({ hasText: 'Bruto esperado' });
+  await expect(weighed).toContainText('140,0 g');
+  await expect(weighed).toContainText('640,0 g');
+  await weighed.getByRole('button', { name: 'Ajustar' }).click();
+  const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
+  await adjustment.getByRole('button', { name: 'Por peso' }).click();
+  await adjustment.getByLabel('Peso en balanza (g)').fill('600');
+  await expect(adjustment.getByText('Saldo calculado')).toContainText('460');
+  await expectAccessible(admin, 'ajuste por peso');
+  await adjustment.getByRole('button', { name: 'Registrar ajuste' }).click();
+  await expect(admin.getByText('Quedan 460 g en el frasco')).toBeVisible();
 
-  // En el móvil (360 px), cada fila conserva el código entero, el campo con su unidad y la diferencia.
-  const phone = await signIn(browser, 'admin@demo.platlab.test', { width: 360, height: 780 });
-  await openReagents(phone, 'Facultad de Ciencias');
-  await goTo(phone, 'Inventario');
-  await phone.getByRole('button', { name: 'Conteo', exact: true }).click();
-  const mobileSheet = phone.getByRole('dialog', { name: 'Conteo' });
-  await choose(phone, 'Ubicación', /Almacén de reactivos/);
-  await mobileSheet.getByLabel('Contado en HCL-2026-01-01', { exact: true }).fill('2250');
-  await expect(mobileSheet).toContainText('1 no cuadra');
-  // Nada se sale de la hoja: ni la página ni el contenido del diálogo se desplazan en horizontal.
-  expect(await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  expect(
-    await mobileSheet.evaluate((dialog) =>
-      [...dialog.querySelectorAll('*')].every((element) => element.getBoundingClientRect().right <= dialog.getBoundingClientRect().right + 1),
-    ),
-  ).toBe(true);
-  await expectAccessible(phone, 'conteo en el móvil');
-  await capture(phone, 'mobile-count', false);
+  // El frasco sin tara la fija con la balanza.
+  const plain = admin.getByRole('article').filter({ hasText: 'Fijar tara para controlar con la balanza' });
+  await plain.getByRole('button', { name: 'Fijar tara para controlar con la balanza' }).click();
+  const tare = admin.getByRole('dialog', { name: 'Fijar tara' });
+  await tare.getByLabel('Peso en balanza (g)').fill('650');
+  await expect(tare.getByText('Tara calculada')).toContainText('150,0 g');
+  await tare.getByRole('button', { name: 'Fijar tara' }).click();
+  await expect(admin.getByText('Tara fijada')).toBeVisible();
+  await expect(admin.getByRole('article').filter({ hasText: 'Bruto esperado' })).toHaveCount(2);
 });
 
 test('etiquetas con QR: se eligen e imprimen, y el enlace del QR abre el frasco aun sin sesión (ADR 0012, entrega 4)', async ({ browser }) => {
@@ -780,7 +775,7 @@ test('modo consulta: sin operación nueva no hay acciones de registro, solo inve
   await goTo(admin, 'Inventario');
   await admin.getByRole('link', { name: /Cloruro de sodio\b(?! MUR)/ }).first().click();
   await expect(admin.getByRole('heading', { name: 'Frascos' })).toBeVisible();
-  for (const name of ['Registrar salida', 'Registrar ingreso', 'Ajustar', 'Nuevo reactivo', 'Salida', 'Ingresar frascos']) {
+  for (const name of ['Registrar salida', 'Ingresar reactivo', 'Ajustar', 'Salida', 'Ingresar frascos']) {
     await expect(admin.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
   await goTo(admin, 'Movimientos');

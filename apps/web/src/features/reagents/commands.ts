@@ -9,18 +9,26 @@ import { useReagentsKey } from './queries';
 /**
  * Envío de un comando de Reactivos. La clave idempotente nace al abrir la hoja y se reutiliza
  * en cada reintento del mismo envío (02 §7): un doble clic o un reintento tras un corte nunca
- * registra dos veces. Sin actualización optimista: la tabla se refresca con lo confirmado.
+ * registra dos veces. Confirmado un envío, la clave se renueva: la misma hoja puede enviar otro
+ * distinto (otra ubicación u otra opción de una lista). Sin actualización optimista: la tabla se
+ * refresca con lo confirmado.
  */
-export function useCommand<S extends z.ZodType>(workspaceId: string, path: string, schema: S, method: 'POST' | 'PUT' = 'POST') {
+export function useCommand<S extends z.ZodType>(
+  workspaceId: string,
+  path: string,
+  schema: S,
+  method: 'POST' | 'PUT' | 'PATCH' = 'POST',
+) {
   const queryClient = useQueryClient();
   const reagentsKey = useReagentsKey(workspaceId);
   const user = useSession().session?.user.id ?? 'anónimo';
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
 
   return useMutation({
     mutationFn: (body: unknown) =>
       api(`/workspaces/${workspaceId}/reagents${path}`, { method, body, idempotencyKey, schema }),
     onSuccess: async () => {
+      setIdempotencyKey(crypto.randomUUID());
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: reagentsKey }),
         queryClient.invalidateQueries({ queryKey: [...workspaceKey(user, workspaceId), 'home'] }),
@@ -40,6 +48,7 @@ export function commandErrorMessage(error: unknown): string {
   if (isApiError(error, 'TRANSIENT_CONFLICT')) {
     return 'Otra persona está registrando en la misma ubicación. Vuelve a intentarlo: no se duplicará.';
   }
+  if (isApiError(error, 'CODE_TAKEN')) return `${error.message}: cambia el código o usa el sugerido.`;
   if (isApiError(error, 'NOT_FOUND')) return 'Ese registro ya no está disponible en este espacio.';
   if (isApiError(error, 'NETWORK')) return 'Sin conexión. Vuelve a intentarlo: si ya se registró, no se duplicará.';
   if (isApiError(error, 'VALIDATION_FAILED')) return error.message;

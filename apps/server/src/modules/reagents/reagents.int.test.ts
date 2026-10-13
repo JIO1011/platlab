@@ -7,7 +7,6 @@ import {
   issueResponse,
   location,
   locationList,
-  lotList,
   movementResponse,
   operationFacets,
   operationList,
@@ -734,15 +733,8 @@ describe('validación y consultas', () => {
 });
 
 describe('consultas de apoyo a la interfaz', () => {
-  it('lista los lotes de un reactivo y las ubicaciones donde el miembro puede registrar ingresos', async () => {
+  it('lista las ubicaciones donde el miembro puede registrar ingresos, con su padre', async () => {
     const lab = await createLab();
-    const product = await createProduct(lab);
-    const receipt = receiptResponse.parse(
-      (await receive(lab, product.id, '1', lab.storage, lab.operator.subject, { brand: 'Merck', area: 'Docencia' })).body,
-    );
-    const lots = lotList.parse((await call(lab.operator.subject, `${lab.base}/products/${product.id}/lots`)).body);
-    expect(lots.items).toEqual([{ id: receipt.lot.id, productId: product.id, code: 'L-001', brand: 'Merck', area: 'Docencia', expiresOn: null }]);
-
     const scoped = await addMember(admin, lab.workspace.id, {
       roles: [{ role: 'operator', locationId: lab.storage }],
     });
@@ -751,21 +743,6 @@ describe('consultas de apoyo a la interfaz', () => {
     const allLocations = locationList.parse((await call(lab.adminMember.subject, `${lab.base}/receipt-locations`)).body);
     expect(allLocations.items.map((l) => l.id)).toEqual(expect.arrayContaining([lab.storage, lab.otherStorage]));
     expect(allLocations.items.find((l) => l.id === lab.storage)?.parentId).toEqual(expect.any(String));
-  });
-
-  it('los lotes de un ítem de otro tipo no se listan', async () => {
-    const lab = await createLab();
-    const item = await admin.query<{ id: string }>(
-      `insert into inventory.items (workspace_id, kind, code, name, base_unit)
-       values ($1, 'material', $2, 'Gradilla', 'u') returning id`,
-      [lab.workspace.id, `MAT-${uniqueSuffix()}`],
-    );
-    await admin.query(`insert into inventory.lots (workspace_id, item_id, code) values ($1, $2, 'M-1')`, [
-      lab.workspace.id,
-      item.rows[0]!.id,
-    ]);
-    const lots = lotList.parse((await call(lab.adminMember.subject, `${lab.base}/products/${item.rows[0]!.id}/lots`)).body);
-    expect(lots.items).toEqual([]);
   });
 });
 

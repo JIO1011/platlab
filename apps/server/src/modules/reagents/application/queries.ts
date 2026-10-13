@@ -3,7 +3,6 @@ import type { z } from 'zod';
 import type {
   containerCodeSuggestionQuery,
   LocationList,
-  LotList,
   OperationFacets,
   operationFacetsQuery,
   OperationList,
@@ -50,7 +49,6 @@ import {
   homeSummary,
   listControlled,
   listLocationsIn,
-  listProductLots,
   listProducts as listProductsQuery,
   type IListProductsResult,
 } from '../infrastructure/products.queries.js';
@@ -381,23 +379,6 @@ export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<Home
 /** Resumen de la app de Reactivos (ADR 0011): lo mismo que su tarjeta de Inicio. */
 export function getSummary(pool: pg.Pool, request: QueryRequest): Promise<HomeContribution> {
   return runQuery(pool, request, reagentsHomeSummary);
-}
-
-/** Lotes de un reactivo; uno de otro espacio o de otro tipo no tiene lotes visibles. */
-export function listLots(pool: pg.Pool, request: QueryRequest, productId: string): Promise<LotList> {
-  return runQuery(pool, request, async (access) => {
-    const rows = await listProductLots.run({ workspaceId: access.workspace.id, itemId: productId }, access.client);
-    return {
-      items: rows.map((row) => ({
-        id: row.id,
-        productId: row.item_id,
-        code: row.code,
-        brand: row.brand,
-        area: row.area,
-        expiresOn: row.expires_on,
-      })),
-    };
-  });
 }
 
 /** Ubicaciones donde el miembro tiene el permiso: la interfaz no ofrece las demás. */
