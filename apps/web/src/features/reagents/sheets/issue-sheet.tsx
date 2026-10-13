@@ -5,6 +5,7 @@ import {
   Input,
   Quantity,
   Select,
+  cn,
   formatDecimal,
   ratioPercent,
   sectionLabel,
@@ -15,7 +16,7 @@ import {
   toast,
   type SelectOption,
 } from '@platlab/ui';
-import { ArrowUpFromLine, MapPin } from 'lucide-react';
+import { FlaskConical, LogOut, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { isApiError } from '../../../app/api';
@@ -89,6 +90,22 @@ export function IssueSheet({
   // La barra del stock cuenta lo que quedará (o lo disponible si aún no hay cantidad) frente a lo que entró.
   const barBase = remaining !== null && !remaining.startsWith('-') ? remaining : available;
   const stockPercent = position?.container?.initialQuantity && barBase ? ratioPercent(barBase, position.container.initialQuantity) : null;
+  // Con cantidad escrita y válida (decimal, mayor que cero) se puede enviar; si no alcanza, lo dice el servidor.
+  const hasQuantity = /^\d{1,15}(\.\d{1,9})?$/.test(quantity) && !/^0+(\.0+)?$/.test(quantity);
+  const issuable = scoped.filter((p) => availableOf(p) !== '0');
+  // El selector solo hace falta si hay de dónde elegir: se abrió sin frasco ni reactivo (se queda para poder
+  // cambiar), aún no hay frasco, o el reactivo tiene más de un frasco con saldo.
+  const showSelector =
+    (!positionId && !productId) || !position || issuable.filter((p) => p.product.id === position.product.id).length > 1;
+  const expired = position !== undefined && isExpired(position, today);
+  const hasTop = needsApproval || showSelector || suggestion !== null || expired;
+
+  const setShortcut = (percent: 25 | 50 | 100) => {
+    if (!position) return;
+    const value = percentOfDecimal(availableOf(position), percent);
+    // Sin separador de miles: «2.257» volvería como 2,257 al normalizar el campo.
+    if (value) form.setValue('quantity', toDecimalInput(value), { shouldValidate: false });
+  };
 
   const submit = form.handleSubmit(async (values) => {
     setGeneralError(null);
@@ -132,12 +149,19 @@ export function IssueSheet({
   return (
     <FormSheet
       sections
-      icon={ArrowUpFromLine}
-      // Como el modal de ReactiLab: el reactivo es el título y el frasco elegido, su código.
+      icon={FlaskConical}
+      // Como el modal de ReactiLab: el reactivo es el título; el frasco elegido, su código, y si es controlado, su ficha.
       title={position?.product.name ?? (needsApproval ? 'Solicitar salida' : 'Registrar salida')}
       description={
         position ? (
-          <span className="font-mono tabular-nums">{position.container?.code ?? position.lot.code}</span>
+          <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <span className="font-mono text-[13px] tabular-nums text-ink-muted">{position.container?.code ?? position.lot.code}</span>
+            {position.product.controlled ? (
+              <span className="inline-flex h-6 items-center rounded-full bg-action-soft px-2.5 text-xs">
+                <ControlledMark withText className="gap-1 font-semibold [&>svg]:size-3" />
+              </span>
+            ) : null}
+          </span>
         ) : (
           'Elige el frasco del que sale.'
         )
@@ -146,113 +170,119 @@ export function IssueSheet({
       onOpenChange={onOpenChange}
       submitLabel={needsApproval ? 'Enviar solicitud' : 'Confirmar salida'}
       fullWidthSubmit
+      submitIcon={LogOut}
+      submitDisabled={!position || !hasQuantity}
       pending={command.isPending}
       generalError={generalError}
       onSubmit={() => void submit()}
     >
-      <div className="grid grid-cols-1 gap-3">
-        {needsApproval ? (
-          <p className="rounded-control bg-action-soft px-3 py-2.5 text-sm text-ink">
-            Solicitud de salida: la cantidad queda apartada del frasco hasta que un Administrador apruebe la salida.
-          </p>
-        ) : null}
-        <Field label="Frasco" error={errors.positionId?.message}>
-          <Controller
-            control={form.control}
-            name="positionId"
-            render={({ field }) => (
-              <Select
-                value={field.value || undefined}
-                onValueChange={field.onChange}
-                options={scoped.filter((p) => availableOf(p) !== '0').sort(byProductThenExpiry).map(issueOption)}
-                placeholder={productId ? 'Elige el frasco' : 'Elige reactivo, frasco y ubicación'}
-              />
-            )}
-          />
-        </Field>
-        {position?.product.controlled ? (
-          <p role="status" className="flex flex-wrap items-center gap-x-2 rounded-control bg-action-soft px-3 py-2.5 text-sm text-ink">
-            <ControlledMark withText />
-            Este reactivo es controlado.
-          </p>
-        ) : null}
-        {position && isExpired(position, today) ? (
-          <p role="alert" className="rounded-control bg-warning-soft px-3 py-2.5 text-sm text-warning">
-            Este frasco venció el {formatDate(position.lot.expiresOn ?? '')}. Puedes registrar la salida; quedará en el
-            historial con su caducidad.
-          </p>
-        ) : null}
-        {suggestion ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-action-soft px-3 py-2.5 text-sm text-ink">
-            <span>
-              Vence antes: <strong className="font-semibold">{suggestion.container?.code ?? suggestion.lot.code}</strong>
-              {suggestion.lot.expiresOn ? ` (${formatDate(suggestion.lot.expiresOn)})` : ''}.
-            </span>
-            <Button type="button" size="sm" onClick={() => form.setValue('positionId', suggestion.id)}>
-              Usar ese frasco
-            </Button>
-          </div>
-        ) : null}
-      </div>
-      <div className="grid grid-cols-1 gap-4">
-      {position && available !== null ? (
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <span className={sectionLabel}>Stock disponible</span>
-            <Quantity value={available} unit={position.unit} className="text-lg font-bold text-ink" />
-          </div>
-          {stockPercent !== null ? (
-            <div className="h-2 overflow-hidden rounded-full bg-surface-sunken" aria-hidden>
-              <div className="h-full rounded-full bg-action transition-[width] duration-300" style={{ width: `${stockPercent}%` }} />
-            </div>
-          ) : null}
-          {remaining !== null && !remaining.startsWith('-') ? (
-            <p className="mt-1.5 text-right text-sm font-medium text-success">
-              Quedarán <Quantity value={remaining} unit={position.unit} className="font-semibold" />
-              {reservedNote} en el frasco.
-              {onScale ? (
-                <span className="mt-0.5 block">
-                  En balanza: <span className="font-semibold tabular-nums">{formatGrams(onScale)}</span>
-                </span>
-              ) : null}
+      {hasTop ? (
+        <div className="grid grid-cols-1 gap-3">
+          {needsApproval ? (
+            <p className="rounded-control bg-action-soft px-3 py-2.5 text-sm text-ink">
+              Solicitud de salida: la cantidad queda apartada del frasco hasta que un Administrador apruebe la salida.
             </p>
+          ) : null}
+          {showSelector ? (
+            <Field label="Frasco" error={errors.positionId?.message} labelClassName={sectionLabel}>
+              <Controller
+                control={form.control}
+                name="positionId"
+                render={({ field }) => (
+                  <Select
+                    value={field.value || undefined}
+                    onValueChange={field.onChange}
+                    options={issuable.sort(byProductThenExpiry).map(issueOption)}
+                    placeholder={productId ? 'Elige el frasco' : 'Elige reactivo, frasco y ubicación'}
+                    triggerClassName="h-9 bg-white/60 text-[13px]"
+                  />
+                )}
+              />
+            </Field>
+          ) : null}
+          {position && expired ? (
+            <p role="alert" className="rounded-control bg-warning-soft px-3 py-2.5 text-sm text-warning">
+              Este frasco venció el {formatDate(position.lot.expiresOn ?? '')}. Puedes registrar la salida; quedará en el
+              historial con su caducidad.
+            </p>
+          ) : null}
+          {suggestion ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-action-soft px-3 py-2.5 text-sm text-ink">
+              <span>
+                Vence antes: <strong className="font-semibold">{suggestion.container?.code ?? suggestion.lot.code}</strong>
+                {suggestion.lot.expiresOn ? ` (${formatDate(suggestion.lot.expiresOn)})` : ''}.
+              </span>
+              <Button type="button" size="sm" onClick={() => form.setValue('positionId', suggestion.id)}>
+                Usar ese frasco
+              </Button>
+            </div>
           ) : null}
         </div>
       ) : null}
+      {position && available !== null ? (
+        <div>
+          <div className="mb-2.5 flex items-center justify-between gap-3">
+            <span className={sectionLabel}>{position.reserved === '0' ? 'Stock actual' : 'Stock disponible'}</span>
+            <Quantity value={available} unit={position.unit} className="text-lg font-bold text-ink" />
+          </div>
+          {stockPercent !== null ? (
+            <div role="img" aria-label={`Nivel del frasco: ${stockPercent} %`} className="h-2 overflow-hidden rounded-full bg-ink/10">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-[width,background-color] duration-300',
+                  stockPercent > 50 ? 'bg-success' : stockPercent >= 20 ? 'bg-warning' : 'bg-danger',
+                )}
+                style={{ width: `${stockPercent}%` }}
+              />
+            </div>
+          ) : null}
+          {remaining === null || !remaining.startsWith('-') ? (
+            <div className="mt-2 text-right">
+              <p className="text-sm text-ink-muted">
+                Quedarán:{' '}
+                <Quantity
+                  value={remaining ?? available}
+                  unit={position.unit}
+                  className="font-bold text-success"
+                  unitClassName="font-bold text-success"
+                />
+                {reservedNote}
+              </p>
+              {onScale ? (
+                <p className="mt-0.5 text-xs text-ink-muted">
+                  En balanza: <span className="tabular-nums">{formatGrams(onScale)}</span>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="grid grid-cols-1 gap-4">
         <Field
-          label="Cantidad"
+          label="Cantidad a retirar"
           className="text-center"
           labelClassName={sectionLabel}
           error={errors.quantity?.message}
           hint={
-            position && available !== null && remaining !== null ? (
-              remaining.startsWith('-') ? (
-                <span className="font-medium text-danger">
-                  No alcanza: el frasco tiene {formatDecimal(available)} {position.unit}
-                  {reservedNote}.
-                </span>
-              ) : undefined
-            ) : position && available !== null ? (
+            position && available !== null && remaining !== null && remaining.startsWith('-') ? (
+              <span className="font-medium text-danger">
+                No alcanza: el frasco tiene {formatDecimal(available)} {position.unit}
+                {reservedNote}.
+              </span>
+            ) : position && available !== null && position.reserved !== '0' ? (
               <span>
-                Hay <Quantity value={available} unit={position.unit} className="font-medium text-ink" />
-                {reservedNote} en el frasco
-                {position.reserved !== '0' ? (
-                  <>
-                    {' '}
-                    (<Quantity value={position.reserved} unit={position.unit} /> apartados en solicitudes)
-                  </>
-                ) : null}
-                .
+                <Quantity value={position.reserved} unit={position.unit} /> apartados en solicitudes.
               </span>
             ) : undefined
           }
         >
-          {/* La cantidad es el centro de la ventana: grande, centrada y con la unidad al lado. */}
+          {/* La cantidad es el centro de la ventana: grande, sin caja y con la unidad al lado. */}
           <div className="relative mx-auto w-full max-w-xs">
             <Input
               inputMode="decimal"
               autoComplete="off"
-              className="h-14 rounded-none border-0 border-b-2 border-line-strong bg-transparent px-14 text-center text-4xl font-bold tabular-nums focus-visible:ring-0 aria-[invalid=true]:ring-0"
+              placeholder="0"
+              className="h-16 rounded-2xl border-0 bg-transparent px-14 text-center text-5xl font-bold tabular-nums placeholder:text-ink-subtle/80 aria-[invalid=true]:text-danger aria-[invalid=true]:ring-0"
               {...form.register('quantity')}
             />
             <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xl text-ink-muted">
@@ -261,21 +291,25 @@ export function IssueSheet({
           </div>
         </Field>
         {position ? (
-          <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Atajos de cantidad">
-            {([25, 50, 100] as const).map((percent) => (
+          <div className="flex flex-wrap items-center justify-center gap-2" role="group" aria-label="Atajos de cantidad">
+            {([25, 50] as const).map((percent) => (
               <button
                 key={percent}
                 type="button"
-                onClick={() => {
-                  const value = percentOfDecimal(availableOf(position), percent);
-                  // Sin separador de miles: «2.257» volvería como 2,257 al normalizar el campo.
-                  if (value) form.setValue('quantity', toDecimalInput(value), { shouldValidate: false });
-                }}
-                className="inline-flex h-9 items-center rounded-full border border-line px-4 text-sm font-medium text-ink-muted transition-colors hover:border-line-strong hover:bg-surface-sunken hover:text-ink"
+                onClick={() => setShortcut(percent)}
+                className="inline-flex h-9 items-center rounded-full border border-line bg-white/60 px-5 text-sm font-medium text-ink-muted transition-colors hover:border-line-strong hover:bg-white hover:text-ink"
               >
-                {percent === 100 ? 'Todo el frasco' : `${percent} %`}
+                {percent} %
               </button>
             ))}
+            <button
+              type="button"
+              aria-label="Todo el frasco"
+              onClick={() => setShortcut(100)}
+              className="inline-flex h-9 items-center rounded-full px-3 text-sm font-semibold text-action transition-colors hover:bg-action-soft"
+            >
+              Todo
+            </button>
           </div>
         ) : null}
       </div>

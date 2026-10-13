@@ -38,6 +38,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Registro
 | Fecha | Entrega | Commit | Veredicto | Pruebas | Nota |
 |---|---|---|---|---|---|
+| 2026-10-13 | Ventanas de vidrio (salida e ingreso) | `f583bdb` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 22 | Estilo del modal de ReactiLab; conteos del CI (run 38465144102) |
 | 2026-10-13 | Salida estilo ReactiLab | `85fc673` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 22 | Papelera con «Deshacer» en las listas; conteos del CI (run 38460179264), sin repetir en local |
 | 2026-10-13 | R-01D ingreso en un paso | `e81e985` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 21 | Criterios del roadmap; revisor: 9 de 10; `review-animations` aprobado; CI en verde |
 | 2026-10-12 | R-01C Movimientos como informe | `ff88008` | Cumple | unit 48 · pgTAP 175 · int 110 · e2e 21 | Criterios 4/4; revisor: 8 correcciones; `review-animations` aprobado (cajón); CI en verde |

@@ -3,14 +3,17 @@ import { Field, Input, cn } from '@platlab/ui';
 import { CircleCheck, Lock, Minus, Plus, TriangleAlert } from 'lucide-react';
 import { useMemo, type RefObject } from 'react';
 import { ControlledMark } from '../controlled';
+import { PillField } from '../pills';
 import { HazardGlyphs } from '../hazards';
 import { checkCas } from './cas';
 import { Combobox, type ComboOption } from './combobox';
 import { FilledInput, QuantityInput, fieldGrid, fieldLabel, filled } from './filled';
 import { MAX_BOTTLES, casRequired, countOf, lastSuffix, productUnits, recentFirst, type BottlesForm, type Draft, type Errors } from './model';
 
+const unitOptions = productUnits.map((unit) => ({ value: unit, label: unit }));
+
 const stepper =
-  'inline-flex h-full w-[44px] shrink-0 items-center justify-center text-ink transition-colors duration-150 hover:bg-action-soft disabled:opacity-40 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-action sm:w-[36px]';
+  'inline-flex h-full w-[44px] shrink-0 items-center justify-center text-ink transition-colors duration-150 hover:bg-action-soft disabled:opacity-40 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-action';
 
 /**
  * «Datos de la etiqueta» (ADR 0015): lo que se copia del frasco. El nombre es el buscador del
@@ -163,7 +166,6 @@ export function LabelFields({
         <QuantityInput
           inputRef={quantityRef}
           unit={existing ? existing.baseUnit : draft.unit}
-          {...(existing ? {} : { units: productUnits, onUnit: (unit: string) => onDraft({ unit: productUnits.find((entry) => entry === unit) ?? 'g' }) })}
           placeholder="500"
           value={form.quantity}
           onChange={(event) => onForm({ quantity: event.target.value })}
@@ -171,7 +173,7 @@ export function LabelFields({
       </Field>
 
       <Field label="Frascos" required labelClassName={fieldLabel} error={errors.count}>
-        <div className={cn(filled, 'flex w-fit items-stretch overflow-hidden rounded-control border bg-surface-sunken focus-within:border-action has-[[aria-invalid=true]]:border-danger')}>
+        <div className={cn(filled, 'flex w-fit items-stretch overflow-hidden border focus-within:border-action has-[[aria-invalid=true]]:border-danger')}>
           <button type="button" aria-label="Un frasco menos" disabled={(count ?? 1) <= 1} onClick={() => step(-1)} className={stepper}>
             <Minus className="size-4" aria-hidden />
           </button>
@@ -188,6 +190,18 @@ export function LabelFields({
         </div>
       </Field>
 
+      {existing ? null : (
+        <PillField
+          label="Unidad"
+          labelClassName={fieldLabel}
+          size="sm"
+          className="sm:col-span-2"
+          value={draft.unit}
+          options={unitOptions}
+          onChange={(unit) => onDraft({ unit })}
+        />
+      )}
+
       <Field label="Caducidad" labelClassName={fieldLabel} hint={form.noExpiry ? 'Quedará como «caducidad sin confirmar».' : undefined}>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <FilledInput
@@ -197,7 +211,7 @@ export function LabelFields({
             value={form.expiresOn}
             onChange={(event) => onForm({ expiresOn: event.target.value })}
           />
-          <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-[13px] font-medium text-ink has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-action sm:min-h-[36px]">
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-[13px] font-medium text-ink has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-action">
             <input
               type="checkbox"
               aria-label="La etiqueta no indica la caducidad"

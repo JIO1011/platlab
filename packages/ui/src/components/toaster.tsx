@@ -17,9 +17,11 @@ export function Toaster({ id }: { id?: string } = {}) {
   return (
     <SonnerToaster
       {...(id ? { id } : {})}
-      position="top-right"
-      offset={72}
-      mobileOffset={64}
+      // Dentro de la hoja (vidrio con `backdrop-filter`), «fixed» se mide contra la hoja, no la pantalla:
+      // arriba al centro, con 12 px de margen.
+      position={id ? 'top-center' : 'top-right'}
+      offset={id ? 12 : 72}
+      mobileOffset={id ? 12 : 64}
       closeButton
       toastOptions={{
         closeButtonAriaLabel: 'Cerrar aviso',

@@ -38,8 +38,11 @@ export function FormSheet({
   generalError,
   onSubmit,
   sections = false,
+  flush = false,
+  wide = false,
   fullWidthSubmit = false,
-  compact = false,
+  submitIcon: SubmitIcon,
+  submitDisabled = false,
   status,
   initialFocus,
   children,
@@ -53,13 +56,19 @@ export function FormSheet({
   pending: boolean;
   generalError: string | null;
   onSubmit: () => void;
-  /** Cada hijo es una sección separada por una línea, como el modal de salida de ReactiLab. */
+  /** Cada hijo es una banda separada por líneas de borde a borde, con `py-5`, como el modal de salida de ReactiLab. */
   sections?: boolean;
+  /** Los hijos llegan de borde a borde y traen su propio relleno y sus líneas (el ingreso, con secciones que aparecen). */
+  flush?: boolean;
+  /** Ventana ancha (hasta 40 rem). */
+  wide?: boolean;
   /** El botón principal ocupa todo el ancho del pie y «Cancelar» sale (la cabecera cierra la hoja). */
   fullWidthSubmit?: boolean;
-  /** Formulario largo por secciones (ADR 0015): ventana ancha y compacta, con su estado al pie. */
-  compact?: boolean;
-  /** Lo que falta o «Listo», junto a las acciones del pie de un formulario compacto. */
+  /** Icono antes del texto del botón principal (con `fullWidthSubmit`). */
+  submitIcon?: LucideIcon;
+  /** Falta algo para poder enviar (p. ej., la cantidad): el botón queda pálido y deshabilitado. */
+  submitDisabled?: boolean;
+  /** Lo que falta o «Listo», en una línea sobre el botón principal. */
   status?: ReactNode;
   initialFocus?: RefObject<HTMLElement | null>;
   children: ReactNode;
@@ -72,30 +81,16 @@ export function FormSheet({
       title={title}
       description={description}
       icon={icon}
-      wide={compact}
-      compact={compact}
+      wide={wide}
       initialFocus={initialFocus}
       footer={
-        compact ? (
-          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
-            <p role="status" className="min-w-0 basis-full text-[13px] font-medium text-ink-muted sm:flex-1 sm:basis-0">
+        <div className="grid w-full gap-3">
+          {status ? (
+            <p role="status" className="text-center text-[13px] font-medium text-ink-muted">
               {status}
             </p>
-            <Button variant="ghost" className="h-[44px] sm:h-10" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              form={formId}
-              variant="primary"
-              loading={pending}
-              className="h-[44px] rounded-control bg-linear-to-r from-action to-action-deep px-5 text-sm font-bold shadow-md shadow-action/20 hover:from-action-hover hover:to-action-deep max-sm:flex-1 sm:h-10"
-            >
-              {submitLabel}
-            </Button>
-          </div>
-        ) : (
-          <>
+          ) : null}
+          <div className="flex items-center gap-3">
             {fullWidthSubmit ? null : (
               <Button variant="ghost" className="h-12 shrink-0 rounded-2xl px-5" onClick={() => onOpenChange(false)}>
                 Cancelar
@@ -106,12 +101,17 @@ export function FormSheet({
               form={formId}
               variant="primary"
               loading={pending}
-              className="h-12 w-full flex-1 rounded-2xl bg-linear-to-r from-action to-action-deep text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep"
+              disabled={submitDisabled}
+              className={cn(
+                'w-full flex-1 rounded-2xl bg-linear-to-r from-action to-action-deep text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep disabled:shadow-none',
+                fullWidthSubmit ? 'h-14 [&_svg]:size-5' : 'h-12',
+              )}
             >
+              {SubmitIcon ? <SubmitIcon aria-hidden /> : null}
               {submitLabel}
             </Button>
-          </>
-        )
+          </div>
+        </div>
       }
     >
       <form
@@ -120,8 +120,10 @@ export function FormSheet({
         className={cn(
           // Una sola columna del ancho disponible: un nombre largo en un selector no ensancha la ventana.
           'grid grid-cols-1',
-          // En el compacto cada sección trae su separación (aparecen a medida que se completa).
-          sections ? 'divide-y divide-line [&>*]:py-4 [&>:first-child]:pt-0 [&>:last-child]:pb-0' : compact ? 'gap-0' : 'gap-5',
+          // Bandas de borde a borde: el formulario sale del relleno del cuerpo (-mx-6, -my-4) y cada banda lo repone.
+          sections && '-mx-6 -my-4 divide-y divide-line [&>*]:px-6 [&>*]:py-5',
+          flush && '-mx-6 -my-4',
+          !sections && !flush && 'gap-5',
         )}
         onSubmit={(event) => {
           event.preventDefault();
@@ -129,9 +131,11 @@ export function FormSheet({
         }}
       >
         {generalError ? (
-          <p role="alert" className={cn('rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger', compact && 'mb-4')}>
-            {generalError}
-          </p>
+          <div className={cn(flush && 'px-6 pt-5')}>
+            <p role="alert" className="rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger">
+              {generalError}
+            </p>
+          </div>
         ) : null}
         {children}
       </form>

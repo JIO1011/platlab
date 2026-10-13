@@ -3,6 +3,7 @@ import { Button, Input, cn, sectionLabel, sheetToasterId, toast } from '@platlab
 import { Plus, Trash2, type LucideIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 import { commandErrorMessage, useArchiveEntry, useCommand } from './commands';
+import { pillStyles } from './pills';
 
 const listEntry = entryList.shape.items.element;
 
@@ -115,7 +116,7 @@ export function ChoiceField({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[13px] font-medium text-action transition-colors hover:bg-action-soft"
+            className="-mr-1.5 inline-flex h-7 items-center gap-1 rounded-[8px] px-1.5 text-[13px] font-semibold text-action transition-colors hover:bg-action-soft"
           >
             <Plus className="size-3.5" aria-hidden />
             Agregar
@@ -136,15 +137,9 @@ export function ChoiceField({
           {options.map((option) => (
             <div
               key={option.id}
-              className={cn(
-                'inline-flex min-h-9 items-center rounded-full border text-sm font-medium transition-colors',
-                'has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-action',
-                value === option.name
-                  ? 'border-action/40 bg-action-soft text-action'
-                  : 'border-line text-ink-muted hover:bg-surface-sunken hover:text-ink',
-              )}
+              className={pillStyles(value === option.name)}
             >
-              <label className={cn('inline-flex min-h-9 cursor-pointer items-center gap-1.5 pl-3.5', canAdd ? 'pr-2' : 'pr-3.5')}>
+              <label className={cn('inline-flex h-full min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 pl-4', canAdd ? 'pr-1' : 'pr-4')}>
                 <input
                   type="radio"
                   name={id}
@@ -161,7 +156,7 @@ export function ChoiceField({
                   aria-label={`Quitar «${option.name}»`}
                   disabled={removingId !== null}
                   onClick={() => void remove(option)}
-                  className="mr-1.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full text-ink-subtle transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action disabled:pointer-events-none disabled:opacity-50"
+                  className="mr-2 inline-flex size-6 shrink-0 items-center justify-center rounded-full text-ink-subtle/70 transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action disabled:pointer-events-none disabled:opacity-50"
                 >
                   <Trash2 className="size-3.5" aria-hidden />
                 </button>

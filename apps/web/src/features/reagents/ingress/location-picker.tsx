@@ -113,7 +113,7 @@ export function LocationPicker({
                   <div
                     role="group"
                     aria-label={`Ubicación, nivel ${level + 1}: ${done.name}`}
-                    className="flex min-h-[44px] max-w-full items-stretch rounded-control bg-surface-sunken text-sm font-medium text-ink sm:min-h-[36px]"
+                    className="flex min-h-11 max-w-full items-stretch rounded-xl border border-action bg-action-soft text-sm font-medium text-action"
                   >
                     <span className="min-w-0 self-center break-words py-1 pl-3 pr-1">{done.name}</span>
                     <button
@@ -121,7 +121,7 @@ export function LocationPicker({
                       aria-label={`Quitar «${done.name}»`}
                       title="Quitar"
                       onClick={() => clear(level)}
-                      className="flex w-[44px] shrink-0 items-center justify-center rounded-r-control text-ink-muted transition-colors duration-150 hover:bg-action-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-action sm:w-[36px]"
+                      className="flex w-11 shrink-0 items-center justify-center rounded-r-xl text-action transition-colors duration-150 hover:bg-action/10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-action"
                     >
                       <X className="size-4" aria-hidden />
                     </button>
