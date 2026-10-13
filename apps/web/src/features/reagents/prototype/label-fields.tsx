@@ -1,7 +1,7 @@
 // Prototipo R-01D: solo interfaz
 import type { StockedProduct } from '@platlab/contracts';
 import { Field, Input, cn } from '@platlab/ui';
-import { CircleCheck, Minus, Plus } from 'lucide-react';
+import { CircleCheck, Lock, Minus, Plus, TriangleAlert } from 'lucide-react';
 import { useMemo, type RefObject } from 'react';
 import { checkCas } from './cas';
 import { sampleOf } from './catalog-sample';
@@ -106,30 +106,31 @@ export function LabelFields({
         required={!existing && !casOptional(draft)}
         labelClassName={fieldLabel}
         error={errors.cas}
-        hint={
-          existing ? (
-            'Del catálogo'
-          ) : cas === 'valid' ? (
-            <span className="inline-flex items-center gap-1 font-medium text-success">
-              <CircleCheck className="size-3.5" aria-hidden />
-              CAS válido
-            </span>
-          ) : cas === 'invalid' ? (
-            <span className="font-medium text-danger">Revisa el CAS: su dígito de control no coincide.</span>
-          ) : undefined
-        }
       >
-        <FilledInput
-          ref={casRef}
-          inputMode="numeric"
-          autoComplete="off"
-          spellCheck={false}
-          placeholder={existing ? 'sin CAS' : '7647-14-5'}
-          className="tabular-nums"
-          readOnly={existing !== null}
-          value={existing ? (existing.casNumber ?? '') : draft.cas}
-          onChange={(event) => onDraft({ cas: event.target.value })}
-        />
+        {/* El estado va dentro del campo, sin texto debajo: ✓ válido, ⚠ dígito de control erróneo, 🔒 del catálogo. */}
+        <div className="relative">
+          <FilledInput
+            ref={casRef}
+            inputMode="numeric"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={existing ? 'sin CAS' : '7647-14-5'}
+            className="pr-9 tabular-nums"
+            readOnly={existing !== null}
+            aria-invalid={cas === 'invalid' || undefined}
+            value={existing ? (existing.casNumber ?? '') : draft.cas}
+            onChange={(event) => onDraft({ cas: event.target.value })}
+          />
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            {existing ? (
+              <Lock className="size-4 text-ink-subtle" role="img" aria-label="Del catálogo" />
+            ) : cas === 'valid' ? (
+              <CircleCheck className="size-4 text-success" role="img" aria-label="CAS válido" />
+            ) : cas === 'invalid' ? (
+              <TriangleAlert className="size-4 text-danger" role="img" aria-label="CAS no válido: revisa el dígito de control" />
+            ) : null}
+          </span>
+        </div>
       </Field>
 
       <Field label="Marca" labelClassName={fieldLabel}>

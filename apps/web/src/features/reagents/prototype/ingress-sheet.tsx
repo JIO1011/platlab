@@ -263,27 +263,6 @@ export function IngressSheet({
           {showRest ? (
             <>
               <Reveal instant={initial !== undefined}>
-                <Section icon={MapPin} title="Dónde se guarda">
-                  <div className={fieldGrid}>
-                    <LocationPicker
-                      className="sm:col-span-2"
-                      places={places}
-                      recentIds={remembered.recentLocations}
-                      onChange={(placeId) => patch({ placeId })}
-                      canCreate={canCreate}
-                      onCreate={createPlace}
-                      error={errors.placeId}
-                    />
-                    <CostCenter value={form.area} extras={extraAreas} onChange={(area) => patch({ area })} />
-                  </div>
-                </Section>
-              </Reveal>
-              <Reveal instant={initial !== undefined}>
-                <Section icon={ShieldAlert} title="Clasificación y seguridad">
-                  <SafetyFields existing={existing} draft={draft} onDraft={patchDraft} errors={errors} />
-                </Section>
-              </Reveal>
-              <Reveal instant={initial !== undefined}>
                 <Section icon={Scale} title="Control por peso" badge="Opcional">
                   <WeightFields
                     full={form.fullWeight}
@@ -294,6 +273,27 @@ export function IngressSheet({
                     volume={unit === 'mL' || unit === 'L'}
                     result={attempted || !weight.error ? weight : { ...weight, error: null }}
                   />
+                </Section>
+              </Reveal>
+              <Reveal instant={initial !== undefined}>
+                <Section icon={MapPin} title="Dónde se guarda">
+                  <div className={fieldGrid}>
+                    <CostCenter value={form.area} extras={extraAreas} onChange={(area) => patch({ area })} />
+                    <LocationPicker
+                      className="sm:col-span-2"
+                      places={places}
+                      recentIds={remembered.recentLocations}
+                      onChange={(placeId) => patch({ placeId })}
+                      canCreate={canCreate}
+                      onCreate={createPlace}
+                      error={errors.placeId}
+                    />
+                  </div>
+                </Section>
+              </Reveal>
+              <Reveal instant={initial !== undefined}>
+                <Section icon={ShieldAlert} title="Clasificación y seguridad">
+                  <SafetyFields existing={existing} draft={draft} onDraft={patchDraft} errors={errors} />
                 </Section>
               </Reveal>
             </>

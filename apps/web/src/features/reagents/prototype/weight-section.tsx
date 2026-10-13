@@ -28,34 +28,29 @@ export function WeightFields({
 }) {
   const weightError = result.error && !result.error.includes('densidad') ? result.error : undefined;
   const densityError = result.error?.includes('densidad') ? result.error : undefined;
+  // Tres campos en fila: la tara se ve como un campo más (calculado), sin texto debajo.
   return (
-    <div className="grid gap-3">
-      <div className={fieldGrid}>
-        <Field label="Peso bruto (frasco lleno, g)" labelClassName={fieldLabel} error={weightError}>
-          <FilledInput inputMode="decimal" autoComplete="off" className="tabular-nums" value={full} onChange={(event) => onFull(event.target.value)} />
+    <div className={volume ? 'grid gap-3 sm:grid-cols-3' : fieldGrid}>
+      <Field label="Peso bruto (frasco lleno, g)" labelClassName={fieldLabel} error={weightError}>
+        <FilledInput inputMode="decimal" autoComplete="off" className="tabular-nums" value={full} onChange={(event) => onFull(event.target.value)} />
+      </Field>
+      {volume ? (
+        <Field label="Densidad (g/mL)" labelClassName={fieldLabel} error={densityError}>
+          <FilledInput
+            inputMode="decimal"
+            autoComplete="off"
+            className="tabular-nums"
+            placeholder="Del rótulo o la ficha"
+            readOnly={knownDensity !== null}
+            title={knownDensity ? 'Del catálogo' : undefined}
+            value={knownDensity ? formatDecimal(knownDensity) : density}
+            onChange={(event) => onDensity(event.target.value)}
+          />
         </Field>
-        {volume ? (
-          <Field label="Densidad (g/mL)" labelClassName={fieldLabel} error={densityError} hint={knownDensity ? 'Del catálogo' : 'Del rótulo o de la ficha de seguridad.'}>
-            <FilledInput
-              inputMode="decimal"
-              autoComplete="off"
-              className="tabular-nums"
-              readOnly={knownDensity !== null}
-              value={knownDensity ? formatDecimal(knownDensity) : density}
-              onChange={(event) => onDensity(event.target.value)}
-            />
-          </Field>
-        ) : null}
-      </div>
-      <p aria-live="polite" className="text-sm text-ink-muted">
-        {result.tare ? (
-          <>
-            Tara: <span className="font-bold tabular-nums text-ink">{formatDecimal(result.tare)} g</span>
-          </>
-        ) : (
-          'Con el peso bruto se calcula la tara del frasco.'
-        )}
-      </p>
+      ) : null}
+      <Field label="Tara (calculada, g)" labelClassName={fieldLabel}>
+        <FilledInput readOnly tabIndex={-1} aria-live="polite" className="font-semibold tabular-nums" placeholder="—" value={result.tare ? formatDecimal(result.tare) : ''} />
+      </Field>
     </div>
   );
 }
