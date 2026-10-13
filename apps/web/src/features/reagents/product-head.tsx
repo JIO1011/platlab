@@ -1,7 +1,7 @@
 import type { ProductDetail } from '@platlab/contracts';
 import { Button, IconTile, Quantity, StockLevelBar, cn, formatDecimal, sectionLabel } from '@platlab/ui';
-import { ArrowUpFromLine, CalendarClock, CalendarX, ExternalLink, FlaskConical, PackagePlus, PencilLine, RefreshCw, TrendingDown } from 'lucide-react';
-import { formatAgo } from '../../app/format';
+import { ArrowRight, ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, RefreshCw, TrendingDown, type LucideIcon } from 'lucide-react';
+import { formatAgo, formatDate } from '../../app/format';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { ControlledMark } from './controlled';
 import { HazardGlyphs } from './hazards';
@@ -12,8 +12,9 @@ import { useNow } from './use-now';
 
 /**
  * Vidrio de la ficha (ADR 0010, «Ventanas como ReactiLab»): blanco al 70 % sobre el fondo del módulo,
- * desenfocado y con borde blanco translúcido. Sin `backdrop-filter`, sólido. Solo la cabecera y el
- * resumen lo llevan; los frascos, translúcidos sin desenfoque, para que el desplazamiento sea fluido.
+ * desenfocado y con borde blanco translúcido. Sin `backdrop-filter`, sólido. Solo la cabecera lo lleva;
+ * el resumen son tarjetas blancas y los frascos, translúcidos sin desenfoque, para que el desplazamiento
+ * sea fluido.
  */
 const glassCard =
   'rounded-[28px] border border-white/70 bg-white/70 shadow-raised backdrop-blur-xl backdrop-saturate-150 not-supports-[backdrop-filter]:bg-surface';
@@ -127,60 +128,99 @@ export function ProductHeader({
   );
 }
 
+/** Las fechas de caducidad de los frascos con saldo, tal como las conoce la ficha. */
+export type ExpiryDates = {
+  /** La próxima por llegar (hoy o después). */
+  upcoming: string | null;
+  /** La más antigua ya vencida. */
+  oldestExpired: string | null;
+};
+
+const summaryCard = 'grid content-start gap-2 rounded-3xl border border-white/80 bg-surface p-5 shadow-raised';
+
 /**
- * Resumen en una tarjeta de vidrio (ADR 0012, 06-10-2026): Existencia, Mínimo y Caducidad en tres
- * columnas separadas por líneas (en el móvil, filas). La existencia lleva la barra de nivel: el saldo
- * frente a lo inicial de los frascos con saldo, solo cuando todos ya se conocen.
+ * Rótulo de una tarjeta del resumen: el icono pequeño de color suave y el nombre. El propio `dt`
+ * los agrupa: dentro de un `dl`, un `dt` no puede ir envuelto en otro elemento (axe).
+ */
+function CardLabel({ children, icon, tone = 'soft' }: { children: string; icon: LucideIcon; tone?: 'soft' | 'success' | 'warning' | 'danger' }) {
+  return (
+    <dt className="mb-1 flex items-center gap-2.5">
+      <IconTile icon={icon} size="sm" tone={tone} />
+      <span className={sectionLabel}>{children}</span>
+    </dt>
+  );
+}
+
+/**
+ * Resumen en tres tarjetas blancas (ADR 0010, «Ventanas como ReactiLab»): Existencia, Mínimo y
+ * Caducidad; en el móvil, una por fila. La existencia lleva la barra de nivel (el saldo frente a lo
+ * inicial de los frascos con saldo, solo cuando todos ya se conocen); la caducidad dice su estado con
+ * texto y color, y la próxima fecha exacta cuando la ficha conoce todos los frascos.
  */
 export function ProductSummary({
   product,
   canManage,
   stockPercent,
+  expiry,
   onAction,
 }: {
   product: ProductDetail;
   canManage: boolean;
   /** Nivel de la existencia frente a lo inicial; `null` si falta algún dato para afirmarlo. */
   stockPercent: number | null;
+  /** Fechas de los frascos; `null` si faltan frascos por cargar y no se puede afirmar la próxima. */
+  expiry: ExpiryDates | null;
   onAction: (request: SheetRequest) => void;
 }) {
   const noStock = product.balance === '0';
+  const expired = product.expiredContainers;
+  const expiring = product.expiringContainers;
+  const state = expired ? 'Vencidos' : expiring ? 'Por vencer' : 'Al día';
+  const stateTone = expired ? 'danger' : expiring ? 'warning' : 'success';
+  const stateColor = expired ? 'text-danger' : expiring ? 'text-warning' : 'text-success';
+  const nextDate = expiry?.upcoming
+    ? `Próxima: ${formatDate(expiry.upcoming)}`
+    : expiry?.oldestExpired
+      ? `Venció: ${formatDate(expiry.oldestExpired)}`
+      : null;
   return (
-    <dl className={cn(glassCard, 'grid divide-y divide-line overflow-hidden sm:grid-cols-[1.5fr_1fr_1fr] sm:divide-x sm:divide-y-0')}>
-      <div className="grid content-start gap-1.5 p-5">
-        <dt className={sectionLabel}>Existencia</dt>
+    <dl className="grid gap-4 md:grid-cols-3">
+      <div className={summaryCard}>
+        <CardLabel icon={Package}>Existencia</CardLabel>
         <dd>
           <Quantity
             value={product.balance}
             unit={product.baseUnit}
-            className={cn('text-4xl font-bold tracking-tight', noStock ? 'text-ink-subtle' : 'text-action')}
+            className={cn('text-4xl font-bold leading-none tracking-tight', noStock ? 'text-ink-subtle' : 'text-action')}
           />
         </dd>
-        <dd className="text-sm text-ink-muted">
-          {noStock
-            ? 'Sin existencias'
-            : product.containersWithStock === 1
-              ? 'en 1 frasco con saldo'
-              : `en ${product.containersWithStock} frascos con saldo`}
-        </dd>
         {stockPercent !== null && !noStock ? (
-          <dd className="mt-1 grid gap-1">
-            <StockLevelBar
-              percent={stockPercent}
-              hasStock
-              label={`Nivel de la existencia: ${stockPercent} % de lo inicial`}
-            />
-            <span className="text-xs text-ink-muted">
-              <span className="font-semibold tabular-nums">{stockPercent} %</span> de lo inicial de esos frascos
-            </span>
+          <dd className="mt-1">
+            <StockLevelBar percent={stockPercent} hasStock label={`Nivel de la existencia: ${stockPercent} % de lo inicial`} />
           </dd>
         ) : null}
+        <dd className="flex justify-between gap-2 text-sm text-ink-muted">
+          <span>
+            {noStock
+              ? 'Sin existencias'
+              : product.containersWithStock === 1
+                ? 'en 1 frasco'
+                : `en ${product.containersWithStock} frascos`}
+          </span>
+          {stockPercent !== null && !noStock ? <span className="font-semibold tabular-nums">{stockPercent} %</span> : null}
+        </dd>
       </div>
       {/* Mínimo para todo el espacio (ADR 0012, 05-10-2026): lo fija quien administra el catálogo. */}
-      <div className="grid content-start gap-1.5 p-5">
-        <dt className={sectionLabel}>Mínimo</dt>
-        <dd className="text-xl font-bold leading-tight text-ink">
-          {product.minimum ? <Quantity value={product.minimum} unit={product.baseUnit} /> : <span className="text-ink-muted">Sin fijar</span>}
+      <div className={summaryCard}>
+        <CardLabel icon={TrendingDown} tone={product.belowMinimum ? 'warning' : 'soft'}>
+          Mínimo
+        </CardLabel>
+        <dd className="text-3xl font-bold leading-none tracking-tight text-ink">
+          {product.minimum ? (
+            <Quantity value={product.minimum} unit={product.baseUnit} />
+          ) : (
+            <span className="text-2xl text-ink-muted">Sin fijar</span>
+          )}
         </dd>
         {product.belowMinimum ? (
           <dd className="flex items-center gap-1.5 text-sm font-semibold text-warning">
@@ -189,38 +229,33 @@ export function ProductSummary({
           </dd>
         ) : null}
         {canManage ? (
-          <dd>
+          <dd className="mt-auto pt-1">
             <button
               type="button"
-              className="-ml-1 inline-flex min-h-8 items-center rounded-control px-1 text-sm font-medium text-action hover:text-action-hover"
+              className="-ml-1 inline-flex min-h-8 items-center gap-1 rounded-control px-1 text-sm font-medium text-action hover:text-action-hover"
               onClick={() => onAction({ kind: 'minimum', productId: product.id })}
             >
               {product.minimum ? 'Cambiar mínimo' : 'Fijar mínimo'}
+              <ArrowRight className="size-4" aria-hidden />
             </button>
           </dd>
         ) : null}
       </div>
-      <div className="grid content-start gap-1.5 p-5">
-        {/* Solo afirma lo que se cuenta: un frasco sin caducidad confirmada lo dice en su tarjeta. */}
-        <dt className={sectionLabel}>Caducidad</dt>
-        {product.expiredContainers || product.expiringContainers ? (
-          <>
-            {product.expiredContainers ? (
-              <dd className="flex items-center gap-1.5 text-base font-bold leading-tight text-danger">
-                <CalendarX className="size-4 shrink-0" aria-hidden />
-                {product.expiredContainers === 1 ? '1 frasco vencido' : `${product.expiredContainers} frascos vencidos`}
-              </dd>
-            ) : null}
-            {product.expiringContainers ? (
-              <dd className="flex items-center gap-1.5 text-base font-bold leading-tight text-warning">
-                <CalendarClock className="size-4 shrink-0" aria-hidden />
-                {product.expiringContainers === 1 ? '1 frasco por vencer' : `${product.expiringContainers} frascos por vencer`}
-              </dd>
-            ) : null}
-          </>
+      {/* Solo afirma lo que se cuenta: un frasco sin caducidad confirmada lo dice en su tarjeta. */}
+      <div className={summaryCard}>
+        <CardLabel icon={expired ? CalendarX : expiring ? CalendarClock : CalendarCheck} tone={stateTone}>
+          Caducidad
+        </CardLabel>
+        <dd className={cn('text-3xl font-bold leading-none tracking-tight', stateColor)}>{state}</dd>
+        {expired || expiring ? (
+          <dd className="grid gap-0.5 text-sm text-ink-muted">
+            {expired ? <span>{expired === 1 ? '1 frasco vencido' : `${expired} frascos vencidos`}</span> : null}
+            {expiring ? <span>{expiring === 1 ? '1 frasco por vencer' : `${expiring} frascos por vencer`}</span> : null}
+          </dd>
         ) : (
-          <dd className="text-base font-semibold leading-tight text-ink-muted">Sin vencidos ni por vencer</dd>
+          <dd className="text-sm text-ink-muted">Sin vencidos ni por vencer</dd>
         )}
+        {nextDate ? <dd className="text-sm font-semibold tabular-nums text-ink">{nextDate}</dd> : null}
       </div>
     </dl>
   );

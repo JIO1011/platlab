@@ -313,6 +313,7 @@ test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', as
   expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expectAccessible(operator, 'ficha móvil');
   await capture(operator, 'mobile-product');
+  await capture(operator, 'mobile-r01d-product');
   await operator.getByRole('button', { name: 'Salida' }).first().click();
   await expect(operator.getByRole('dialog', { name: 'Etanol 96 %' })).toBeVisible();
   await expectAccessible(operator, 'hoja móvil');
@@ -502,12 +503,15 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await expect(expiredCard).toContainText(/hace \d+ (días|meses)/);
   await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' })).toContainText('FEFO');
   await expect(admin.getByText('1 frasco vencido')).toBeVisible();
-  await expect(admin.getByText('Inicial: 250 mL')).toBeVisible();
+  await expect(admin.getByText('de 250 mL')).toBeVisible();
+  await expect(expiredCard).toContainText('Vencido');
+  await expect(admin.getByRole('region', { name: 'Datos del reactivo' })).toContainText('Vencidos');
   // Una sola primaria: «Registrar salida» de la cabecera; en la ficha el ingreso es de ese reactivo.
   await expect(admin.getByRole('button', { name: 'Ingresar reactivo' })).toHaveCount(0);
   await expect(admin.getByRole('button', { name: 'Ingresar frascos' })).toBeVisible();
   await expectAccessible(admin, 'ficha con varios frascos');
   await capture(admin, 'desktop-product-multi');
+  await capture(admin, 'desktop-r01d-product');
 
   // Desde la ficha, la salida llega con el frasco utilizable que vence antes (01 §6.1).
   await admin.getByRole('button', { name: 'Registrar salida' }).click();
@@ -661,14 +665,59 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await expect(admin.getByText('Quedan 460 g en el frasco')).toBeVisible();
 
   // El frasco sin tara la fija con la balanza.
-  const plain = admin.getByRole('article').filter({ hasText: 'Fijar tara para controlar con la balanza' });
-  await plain.getByRole('button', { name: 'Fijar tara para controlar con la balanza' }).click();
+  const plain = admin.getByRole('article').filter({ has: admin.getByRole('button', { name: 'Fijar tara', exact: true }) });
+  await plain.getByRole('button', { name: 'Fijar tara', exact: true }).click();
   const tare = admin.getByRole('dialog', { name: 'Fijar tara' });
   await tare.getByLabel('Peso en balanza (g)').fill('650');
   await expect(tare.getByText('Tara calculada')).toContainText('150,0 g');
   await tare.getByRole('button', { name: 'Fijar tara' }).click();
   await expect(admin.getByText('Tara fijada')).toBeVisible();
   await expect(admin.getByRole('article').filter({ hasText: 'Cambiar tara' })).toHaveCount(2);
+});
+
+test('etiquetas con giro: las tarjetas giran a su etiqueta, se elige una y se imprime solo esa (ADR 0010)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await openReagents(admin, 'Facultad de Ciencias');
+  await goTo(admin, 'Inventario');
+  await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
+  const cards = admin.getByRole('article');
+  const target = cards.filter({ hasText: 'H2SO4-2026-02-01' });
+  const containerId = (await target.getAttribute('id'))?.replace('frasco-', '');
+  expect(containerId).toBeTruthy();
+
+  const toggle = admin.getByRole('button', { name: 'Etiquetas' });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  // Al girar, cada tarjeta es una casilla con su etiqueta; ninguna elegida.
+  const boxes = admin.getByRole('checkbox');
+  await expect(boxes).toHaveCount(3);
+  const bar = admin.getByRole('region', { name: 'Elegir etiquetas' });
+  await expect(bar).toContainText('0 elegidas');
+  await expect(bar.getByRole('button', { name: 'Imprimir 0' })).toBeDisabled();
+  // La tarjeta entera es la casilla: con el teclado, Espacio la elige.
+  const box = boxes.filter({ has: admin.getByRole('img', { name: 'Código QR del frasco H2SO4-2026-02-01' }) });
+  await box.focus();
+  await admin.keyboard.press('Space');
+  await expect(box).toHaveAttribute('aria-checked', 'true');
+  await expect(box).toContainText('Se imprime');
+  await expect(bar).toContainText('1 elegida');
+  await expectAccessible(admin, 'ficha con las etiquetas giradas');
+  await capture(admin, 'desktop-r01d-labels-flip', false);
+
+  // Esc devuelve las tarjetas al frente.
+  await admin.keyboard.press('Escape');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(boxes).toHaveCount(0);
+  await expect(admin.getByRole('button', { name: 'Salida' }).first()).toBeVisible();
+
+  // De nuevo en el modo, elegir una e imprimir lleva a la hoja con esa preselección.
+  await toggle.click();
+  await expect(bar).toContainText('0 elegidas');
+  await box.click();
+  await bar.getByRole('button', { name: 'Imprimir 1' }).click();
+  await expect(admin).toHaveURL(new RegExp(`/etiquetas\\?frascos=${containerId}$`));
+  await expect(admin.getByText('1 etiqueta elegida de 3')).toBeVisible();
 });
 
 test('etiquetas con QR: se eligen e imprimen, y el enlace del QR abre el frasco aun sin sesión (ADR 0012, entrega 4)', async ({ browser }) => {
@@ -680,8 +729,11 @@ test('etiquetas con QR: se eligen e imprimen, y el enlace del QR abre el frasco 
   const containerId = (await target.getAttribute('id'))?.replace('frasco-', '');
   expect(containerId).toBeTruthy();
 
-  await admin.getByRole('link', { name: 'Etiquetas' }).click();
-  await expect(admin).toHaveURL(/\/etiquetas$/);
+  // «Etiquetas» gira las tarjetas; «Todas» y «Imprimir 3» llevan a la hoja con las tres elegidas.
+  await admin.getByRole('button', { name: 'Etiquetas' }).click();
+  await admin.getByRole('button', { name: 'Todas' }).click();
+  await admin.getByRole('button', { name: 'Imprimir 3' }).click();
+  await expect(admin).toHaveURL(/\/etiquetas\?frascos=/);
   const labels = admin.getByRole('list', { name: 'Etiquetas' });
   const qr = labels.getByRole('img', { name: 'Código QR del frasco H2SO4-2026-02-01' });
   await expect(qr).toBeVisible();

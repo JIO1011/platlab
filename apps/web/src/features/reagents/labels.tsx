@@ -13,7 +13,7 @@ import { NotFound, PageLoading, QueryErrorState } from '../../app/states';
 import { useReagents } from './context';
 
 /** Enlace del QR de un frasco: corto (`/q/…`), para que el QR se lea bien impreso (ADR 0012, entrega 4). */
-function containerUrl(workspaceId: string, containerId: string): string {
+export function containerUrl(workspaceId: string, containerId: string): string {
   return `${window.location.origin}/q/${frascoCode(workspaceId, containerId)}`;
 }
 
@@ -48,12 +48,15 @@ export function FrascoLinkPage() {
   );
 }
 
+/** Del reactivo, la etiqueta solo usa el nombre y el CAS: sirve tanto el del inventario como el de la ficha. */
+export type LabelProduct = Pick<StockedProduct, 'name' | 'casNumber'>;
+
 /**
  * Etiqueta de un frasco, de 63,5 × 33,9 mm (la hoja A4 adhesiva de 3 × 8): el QR de 22 mm a la
  * izquierda y, a la derecha, primero lo que no puede faltar (código, lote y caducidad) y después el
  * reactivo en una línea y el CAS. Negro sobre blanco, para cualquier impresora.
  */
-function ContainerLabel({ position, product, url }: { position: Position; product: StockedProduct; url: string }) {
+export function ContainerLabel({ position, product, url }: { position: Position; product: LabelProduct; url: string }) {
   const code = position.container?.code ?? position.lot.code;
   return (
     <div className="flex h-[33.9mm] w-[63.5mm] items-center gap-[3mm] overflow-hidden rounded-[2mm] border border-dashed border-line-strong bg-white p-[3mm] text-black print:border-black/50">
