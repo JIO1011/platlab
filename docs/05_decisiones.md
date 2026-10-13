@@ -296,7 +296,7 @@ Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las p
 - **Cinco secciones:** Resumen, Inventario, Movimientos, Solicitudes y Fiscalizados. No hay Informes, Documentos ni Configuración:
   - Los informes son Movimientos e Inventario filtrados (abajo).
   - Cada documento vive donde se usa. La SDS va en la ficha del reactivo y en la hoja de salida, y el Inventario filtra «Sin SDS». La factura o la guía va en el ingreso, y las autorizaciones en Fiscalizados. La carpeta de SDS para una inspección se obtiene exportando las de los reactivos filtrados.
-  - Motivos y destinos: el Administrador los añade y los archiva desde la misma lista donde los elige ([ADR 0012](#adr-0012)). En Movimientos son filtros.
+  - Motivos y destinos: el Administrador los añade y los archiva desde la misma lista donde los elige ([ADR 0012](#adr-0012)). Cada etiqueta lleva una papelera que la archiva de un clic, con aviso «Deshacer» (13-10-2026). En Movimientos son filtros.
 - **Movimientos como informe (R-01C).** Lo que se filtra es lo que se exporta. Los filtros van en la URL, así que un informe es un enlace.
   - **Panel de filtros a la derecha**, plegable. Filtra por periodo (todo, 7 y 30 días, este mes, mes anterior, desde–hasta), tipo, reactivo (con búsqueda), responsable, destino, motivo y ubicación.
     - **Responsable** es quien pidió la salida si hubo solicitud y, si no, quien la registró: responde «¿qué consumió Ana?».

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { api, isApiError } from '../../app/api';
 import { workspaceKey } from '../../app/queries';
 import { useSession } from '../../app/session';
@@ -34,6 +34,26 @@ export function useCommand<S extends z.ZodType>(
         queryClient.invalidateQueries({ queryKey: [...workspaceKey(user, workspaceId), 'home'] }),
       ]);
     },
+  });
+}
+
+const archived = z.object({ id: z.string() });
+
+/**
+ * Quita una opción de las listas de motivos, destinos o áreas (la archiva: lo ya registrado la
+ * conserva). Cada clic lleva su propia clave idempotente; refresca las listas con lo confirmado.
+ */
+export function useArchiveEntry(workspaceId: string, path: '/reasons' | '/destinations' | '/areas') {
+  const queryClient = useQueryClient();
+  const reagentsKey = useReagentsKey(workspaceId);
+  return useMutation({
+    mutationFn: (id: string) =>
+      api(`/workspaces/${workspaceId}/reagents${path}/${id}/archive`, {
+        method: 'POST',
+        idempotencyKey: crypto.randomUUID(),
+        schema: archived,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: reagentsKey }),
   });
 }
 

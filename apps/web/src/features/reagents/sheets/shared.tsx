@@ -38,13 +38,14 @@ export function FormSheet({
   generalError,
   onSubmit,
   sections = false,
+  fullWidthSubmit = false,
   compact = false,
   status,
   initialFocus,
   children,
 }: {
   title: string;
-  description: string;
+  description: ReactNode;
   icon: LucideIcon;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,6 +55,8 @@ export function FormSheet({
   onSubmit: () => void;
   /** Cada hijo es una sección separada por una línea, como el modal de salida de ReactiLab. */
   sections?: boolean;
+  /** El botón principal ocupa todo el ancho del pie y «Cancelar» sale (la cabecera cierra la hoja). */
+  fullWidthSubmit?: boolean;
   /** Formulario largo por secciones (ADR 0015): ventana ancha y compacta, con su estado al pie. */
   compact?: boolean;
   /** Lo que falta o «Listo», junto a las acciones del pie de un formulario compacto. */
@@ -93,15 +96,17 @@ export function FormSheet({
           </div>
         ) : (
           <>
-            <Button variant="ghost" className="h-12 shrink-0 rounded-2xl px-5" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
+            {fullWidthSubmit ? null : (
+              <Button variant="ghost" className="h-12 shrink-0 rounded-2xl px-5" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+            )}
             <Button
               type="submit"
               form={formId}
               variant="primary"
               loading={pending}
-              className="h-12 flex-1 rounded-2xl bg-linear-to-r from-action to-action-deep text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep"
+              className="h-12 w-full flex-1 rounded-2xl bg-linear-to-r from-action to-action-deep text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep"
             >
               {submitLabel}
             </Button>

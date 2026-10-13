@@ -2,12 +2,13 @@ import { X, type LucideIcon } from 'lucide-react';
 import { Dialog } from 'radix-ui';
 import { useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { cn } from '../lib/cn';
+import { Toaster, sheetToasterId } from './toaster';
 
 export interface SheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description?: string;
+  description?: ReactNode;
   /** Icono del cuadro de la cabecera: lo que se va a hacer, no un adorno. */
   icon?: LucideIcon;
   children: ReactNode;
@@ -126,6 +127,7 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
               {footer}
             </footer>
           ) : null}
+          <Toaster id={sheetToasterId} />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

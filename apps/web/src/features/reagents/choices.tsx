@@ -1,8 +1,8 @@
 import { entryList, type ListEntry } from '@platlab/contracts';
-import { Button, Input, cn, sectionLabel } from '@platlab/ui';
-import { Plus } from 'lucide-react';
+import { Button, Input, cn, sectionLabel, sheetToasterId, toast } from '@platlab/ui';
+import { Plus, Trash2, type LucideIcon } from 'lucide-react';
 import { useId, useState } from 'react';
-import { commandErrorMessage, useCommand } from './commands';
+import { commandErrorMessage, useArchiveEntry, useCommand } from './commands';
 
 const listEntry = entryList.shape.items.element;
 
@@ -15,7 +15,7 @@ interface ChoiceFieldProps {
   loading: boolean;
   value: string;
   onChange: (value: string) => void;
-  /** El Administrador amplía la lista desde la misma hoja (ADR 0012). */
+  /** El Administrador amplía y poda la lista desde la misma hoja (ADR 0012): «Agregar» y la papelera de cada etiqueta. */
   canAdd: boolean;
   /** Ruta y cuerpo del alta: `/reasons` con su tipo, `/destinations` o `/areas`. */
   addPath: '/reasons' | '/destinations' | '/areas';
@@ -23,6 +23,8 @@ interface ChoiceFieldProps {
   addLabel: string;
   /** Estilo del rótulo; por defecto, el de sección de las ventanas. */
   labelClassName?: string;
+  /** Icono que acompaña a cada etiqueta (el destino lleva un pin). */
+  icon?: LucideIcon;
 }
 
 /**
@@ -44,12 +46,15 @@ export function ChoiceField({
   addBody,
   addLabel,
   labelClassName = sectionLabel,
+  icon: Icon,
 }: ChoiceFieldProps) {
   const id = useId();
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const command = useCommand(workspaceId, addPath, listEntry);
+  const archive = useArchiveEntry(workspaceId, addPath);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const describedBy = [hint && !error ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(' ') || undefined;
 
   async function add() {
@@ -63,6 +68,36 @@ export function ChoiceField({
       setAdding(false);
     } catch (failure) {
       setAddError(commandErrorMessage(failure));
+    }
+  }
+
+  /** Archiva la etiqueta (clave nueva por clic) y avisa con «Deshacer», que la vuelve a agregar por nombre. */
+  async function remove(option: ListEntry) {
+    setAddError(null);
+    setRemovingId(option.id);
+    try {
+      await archive.mutateAsync(option.id);
+      const wasChosen = value === option.name;
+      if (wasChosen) onChange('');
+      toast.success(`Se quitó «${option.name}»`, {
+        duration: 8000,
+        toasterId: sheetToasterId,
+        action: {
+          label: 'Deshacer',
+          onClick: () => {
+            command
+              .mutateAsync(addBody(option.name))
+              .then(() => {
+                if (wasChosen) onChange(option.name);
+              })
+              .catch((failure: unknown) => toast.error(commandErrorMessage(failure), { toasterId: sheetToasterId }));
+          },
+        },
+      });
+    } catch (failure) {
+      setAddError(commandErrorMessage(failure));
+    } finally {
+      setRemovingId(null);
     }
   }
 
@@ -99,25 +134,39 @@ export function ChoiceField({
         <div className="flex flex-wrap gap-2">
           {loading ? <span className="text-[13px] text-ink-muted">Cargando…</span> : null}
           {options.map((option) => (
-            <label
+            <div
               key={option.id}
               className={cn(
-                'inline-flex min-h-9 cursor-pointer items-center rounded-full border px-3.5 text-sm font-medium transition-colors',
-                'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-action',
+                'inline-flex min-h-9 items-center rounded-full border text-sm font-medium transition-colors',
+                'has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-action',
                 value === option.name
                   ? 'border-action/40 bg-action-soft text-action'
                   : 'border-line text-ink-muted hover:bg-surface-sunken hover:text-ink',
               )}
             >
-              <input
-                type="radio"
-                name={id}
-                className="sr-only"
-                checked={value === option.name}
-                onChange={() => onChange(option.name)}
-              />
-              {option.name}
-            </label>
+              <label className={cn('inline-flex min-h-9 cursor-pointer items-center gap-1.5 pl-3.5', canAdd ? 'pr-2' : 'pr-3.5')}>
+                <input
+                  type="radio"
+                  name={id}
+                  className="sr-only"
+                  checked={value === option.name}
+                  onChange={() => onChange(option.name)}
+                />
+                {Icon ? <Icon className="size-3.5 shrink-0" aria-hidden /> : null}
+                {option.name}
+              </label>
+              {canAdd ? (
+                <button
+                  type="button"
+                  aria-label={`Quitar «${option.name}»`}
+                  disabled={removingId !== null}
+                  onClick={() => void remove(option)}
+                  className="mr-1.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full text-ink-subtle transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <Trash2 className="size-3.5" aria-hidden />
+                </button>
+              ) : null}
+            </div>
           ))}
         </div>
       )}

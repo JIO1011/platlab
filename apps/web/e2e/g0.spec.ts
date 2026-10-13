@@ -153,7 +153,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
 
   // ADR 0012: la salida del Operador es una solicitud que aparta la cantidad hasta que se aprueba.
   await frasco.getByRole('button', { name: 'Salida' }).click();
-  const issue = operator.getByRole('dialog', { name: 'Solicitar salida' });
+  const issue = operator.getByRole('dialog', { name: product.name });
   await issue.getByLabel('Cantidad', { exact: true }).fill('20');
   await expect(issue.getByText('Quedarán')).toContainText('80');
   await pick(issue, 'Práctica de Química General');
@@ -205,7 +205,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
 
   // El selector de frascos agrupa por reactivo: el de esta prueba aparece una sola vez.
   await admin.getByRole('button', { name: 'Registrar salida' }).click();
-  const issueSheet = admin.getByRole('dialog', { name: 'Registrar salida' });
+  const issueSheet = admin.getByRole('dialog', { name: product.name });
   await issueSheet.getByLabel('Frasco').click();
   await expect(admin.getByRole('group', { name: product.name })).toHaveCount(1);
   await expect(admin.getByRole('group', { name: product.name }).getByRole('option')).toHaveCount(1);
@@ -315,7 +315,7 @@ test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', as
   await expectAccessible(operator, 'ficha móvil');
   await capture(operator, 'mobile-product');
   await operator.getByRole('button', { name: 'Salida' }).first().click();
-  await expect(operator.getByRole('dialog', { name: 'Registrar salida' })).toBeVisible();
+  await expect(operator.getByRole('dialog', { name: 'Etanol 96 %' })).toBeVisible();
   await expectAccessible(operator, 'hoja móvil');
   await capture(operator, 'mobile-sheet', false);
 });
@@ -440,7 +440,7 @@ test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelaci
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Facultad de Ciencias');
   await operator.getByRole('button', { name: 'Solicitar salida' }).click();
-  const issue = operator.getByRole('dialog', { name: 'Solicitar salida' });
+  const issue = operator.getByRole('dialog');
   await choose(operator, 'Frasco', /HCL-2026-01-01/);
   await issue.getByRole('button', { name: 'Todo el frasco' }).click();
   // El atajo escribe la cantidad sin separador de miles: más de 1.000 mL no se lee como decimal.
@@ -511,7 +511,7 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
 
   // Desde la ficha, la salida llega con el frasco utilizable que vence antes (01 §6.1).
   await admin.getByRole('button', { name: 'Registrar salida' }).click();
-  const issue = admin.getByRole('dialog', { name: 'Registrar salida' });
+  const issue = admin.getByRole('dialog');
   await expect(issue.getByLabel('Frasco', { exact: true })).toContainText('H2SO4-2026-02-01');
   await choose(admin, 'Frasco', /H2SO4-2026-09-01/);
   await expect(issue.getByText('Vence antes:')).toContainText('H2SO4-2026-02-01');
@@ -715,7 +715,7 @@ test('etiquetas con QR: se eligen e imprimen, y el enlace del QR abre el frasco 
   await phone.getByRole('button', { name: 'Entrar' }).click();
   await expect(phone).toHaveURL(new RegExp(`/frascos/${containerId}$`));
   // Escanear abre la descarga de ese frasco, ya elegido.
-  const issue = phone.getByRole('dialog', { name: 'Registrar salida' });
+  const issue = phone.getByRole('dialog');
   await expect(issue).toBeVisible();
   await expect(issue.getByLabel('Frasco', { exact: true })).toContainText('H2SO4-2026-02-01');
   await expectAccessible(phone, 'descarga desde su etiqueta');
@@ -730,8 +730,8 @@ test('etiquetas con QR: se eligen e imprimen, y el enlace del QR abre el frasco 
   const operator = await signIn(browser, 'operador@demo.platlab.test', { width: 390, height: 844 });
   await expect(operator).toHaveURL(/\/e\//);
   await operator.goto(url);
-  await expect(operator.getByRole('dialog', { name: 'Solicitar salida' })).toBeVisible();
-  await expect(operator.getByRole('dialog', { name: 'Solicitar salida' }).getByLabel('Frasco', { exact: true })).toContainText('H2SO4-2026-02-01');
+  await expect(operator.getByRole('dialog')).toBeVisible();
+  await expect(operator.getByRole('dialog').getByLabel('Frasco', { exact: true })).toContainText('H2SO4-2026-02-01');
 });
 
 test('stock insuficiente: la salida se rechaza en el formulario y el saldo no cambia', async ({ browser }) => {
@@ -743,13 +743,13 @@ test('stock insuficiente: la salida se rechaza en el formulario y el saldo no ca
   await expect(ethanol).toContainText(/500\s*mL/);
 
   await ethanol.getByRole('button', { name: 'Salida' }).click();
-  const issue = operator.getByRole('dialog', { name: 'Registrar salida' });
+  const issue = operator.getByRole('dialog');
   await issue.getByLabel('Cantidad', { exact: true }).fill('100000');
   // Antes de enviar ya se ve que no alcanza; el servidor lo confirma igual.
   await expect(issue.getByText('No alcanza: el frasco tiene 500 mL.')).toBeVisible();
   await pick(issue, 'Práctica de Química General');
   await pick(issue, 'Laboratorio de Física');
-  await issue.getByRole('button', { name: 'Registrar salida' }).click();
+  await issue.getByRole('button', { name: 'Confirmar salida' }).click();
   await expect(issue.getByText('No alcanza: el frasco tiene 500 mL.')).toBeVisible();
   await expect(issue.getByLabel('Cantidad', { exact: true })).toHaveAttribute('aria-invalid', 'true');
   await expectAccessible(operator, 'hoja con stock insuficiente');
@@ -759,6 +759,39 @@ test('stock insuficiente: la salida se rechaza en el formulario y el saldo no ca
   await expect(issue).toHaveCount(0);
   await operator.reload();
   await expect(ethanol).toContainText(/500\s*mL/);
+});
+
+test('listas de la hoja de salida: la Administradora quita un destino con la papelera y lo deshace; el Operador no ve papeleras', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await openReagents(admin, 'Facultad de Ciencias');
+  await admin.getByRole('button', { name: 'Registrar salida' }).click();
+  const issue = admin.getByRole('dialog');
+  const destinations = issue.getByRole('group', { name: 'Destino' });
+  // Se agrega un destino propio para no tocar los del resto de pruebas.
+  await destinations.getByRole('button', { name: 'Agregar' }).click();
+  await destinations.getByLabel('Nuevo destino').fill('Aula de prueba');
+  await destinations.getByRole('button', { name: 'Guardar' }).click();
+  await expect(destinations.getByRole('radio', { name: 'Aula de prueba', exact: true })).toBeChecked();
+  await expect(destinations.getByRole('button', { name: /^Quitar «/ }).first()).toBeVisible();
+
+  // Un clic en la papelera archiva el destino, lo deselecciona y avisa con «Deshacer».
+  await destinations.getByRole('button', { name: 'Quitar «Aula de prueba»' }).click();
+  await expect(admin.getByText('Se quitó «Aula de prueba»')).toBeVisible();
+  await expect(destinations.getByRole('radio', { name: 'Aula de prueba', exact: true })).toHaveCount(0);
+  await expectAccessible(admin, 'hoja de salida tras quitar un destino');
+
+  await admin.getByRole('button', { name: 'Deshacer' }).click();
+  await expect(destinations.getByRole('radio', { name: 'Aula de prueba', exact: true })).toBeAttached();
+  await expect(destinations.getByRole('radio', { name: 'Aula de prueba', exact: true })).toBeChecked();
+
+  // El Operador elige de las listas, pero no las modifica.
+  const operator = await signIn(browser, 'operador@demo.platlab.test');
+  await openReagents(operator, 'Facultad de Ciencias');
+  await operator.getByRole('button', { name: 'Solicitar salida' }).click();
+  const request = operator.getByRole('dialog');
+  await expect(request.getByRole('group', { name: 'Destino' }).getByRole('radio').first()).toBeAttached();
+  await expect(request.getByRole('button', { name: /^Quitar «/ })).toHaveCount(0);
+  await expect(request.getByRole('button', { name: 'Agregar' })).toHaveCount(0);
 });
 
 test('sin permiso: el docente que abre Reactivos por URL ve «Sin permiso»', async ({ browser }) => {
