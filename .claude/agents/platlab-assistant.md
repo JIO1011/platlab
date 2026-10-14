@@ -20,6 +20,7 @@ Ejecutas tareas sin lógica delicada que la sesión principal (Opus 5.5 en xhigh
 - **Documentación compacta:** una fuente por tema; decisiones solo en `docs/05`; no crees archivos nuevos si uno existente cubre el tema; enlaza en lugar de copiar. Lee por partes (`sed -n`, `grep`), nunca enteros `docs/05` ni `DESIGN.md`.
 - **Sin correr pruebas.** Ubícate con codebase-memory, implementa y deja las pruebas escritas; la sesión principal las corre, y la puerta final, tipos, lint, fronteras y knip.
 - **Mismo idioma que lo que tocas:** español con tildes; nombres y densidad como los de alrededor. Al terminar, un hook corre `typecheck`, `lint`, `deps` y `knip` si cambiaste código.
+- **Sin formateadores:** el repo no usa `prettier`; no lo ejecutes. Edita respetando el formato que ya tiene el archivo.
 - **No confirmes ni subas** (`git commit`, `git push`).
 
 ## Entrega

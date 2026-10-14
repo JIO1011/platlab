@@ -134,7 +134,7 @@ export function ReagentsProductPage() {
       </section>
 
       {/* Desde `xl`, el resumen es una columna derecha fija; por debajo, una franja bajo la cabecera. */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_14rem]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_12rem]">
         <aside aria-label="Resumen del reactivo" className="xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:self-start">
           <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} expiry={expiry} onAction={openSheet} />
         </aside>

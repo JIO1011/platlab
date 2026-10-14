@@ -1,6 +1,6 @@
 import type { ProductDetail } from '@platlab/contracts';
 import type { ReactNode } from 'react';
-import { Band, Button, IconTile, Quantity, StockLevelBar, cn, formatDecimal, sectionLabel } from '@platlab/ui';
+import { Band, Button, IconTile, Quantity, StockLevelBar, cn, formatDecimal } from '@platlab/ui';
 import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, RefreshCw, TrendingDown, type LucideIcon } from 'lucide-react';
 import { formatAgo, formatDate } from '../../app/format';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
@@ -137,16 +137,19 @@ export type ExpiryDates = {
   oldestExpired: string | null;
 };
 
+/** Color del icono del rótulo: el de su estado, o el tenue cuando no cuenta ninguno. */
+const labelIconTone = { soft: 'text-ink-subtle', success: 'text-success', warning: 'text-warning', danger: 'text-danger' } as const;
+
 /**
- * Rótulo de una fila del resumen: el icono pequeño de color suave y el nombre. El propio `dt` los
- * agrupa: dentro de un `dl`, un `dt` no puede ir envuelto en otro elemento (axe). En el móvil, el
- * icono va sobre el rótulo para que quepan tres columnas.
+ * Rótulo de una fila del resumen: icono de 14 px en línea y el nombre en mayúsculas pequeñas. El
+ * propio `dt` los agrupa: dentro de un `dl`, un `dt` no puede ir envuelto en otro elemento (axe). En el
+ * móvil, el icono va sobre el rótulo para que quepan tres columnas.
  */
-function RowLabel({ children, icon, tone = 'soft' }: { children: string; icon: LucideIcon; tone?: 'soft' | 'success' | 'warning' | 'danger' }) {
+function RowLabel({ children, icon: Icon, tone = 'soft' }: { children: string; icon: LucideIcon; tone?: keyof typeof labelIconTone }) {
   return (
-    <dt className="flex items-center gap-2.5 max-sm:flex-col max-sm:items-start max-sm:gap-1.5">
-      <IconTile icon={icon} size="sm" tone={tone} />
-      <span className={sectionLabel}>{children}</span>
+    <dt className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold uppercase leading-none tracking-wider text-ink-muted max-sm:flex-col max-sm:items-start">
+      <Icon className={cn('size-[14px] shrink-0', labelIconTone[tone])} aria-hidden />
+      <span className="min-w-0">{children}</span>
     </dt>
   );
 }
@@ -156,18 +159,18 @@ function SummaryRow({ children }: { children: ReactNode }) {
   return (
     <Band
       ruled
-      className="grid min-w-0 content-start gap-1.5 p-3 first:border-t-0 max-xl:border-t-0 max-xl:border-l max-xl:first:border-l-0 sm:p-4"
+      className="grid min-w-0 content-start gap-1.5 px-3 py-3 first:border-t-0 max-xl:border-t-0 max-xl:border-l max-xl:first:border-l-0 sm:px-4 xl:px-3.5"
     >
       {children}
     </Band>
   );
 }
 
-const valueClass = 'text-lg font-bold leading-tight tracking-tight xl:text-[22px]';
-const detailClass = 'text-[13px] leading-snug text-ink-muted max-sm:hidden';
+const valueClass = 'text-[18px] font-bold leading-tight tracking-tight xl:text-[20px]';
+const detailClass = 'text-xs leading-snug text-ink-muted max-sm:hidden';
 
 /**
- * Resumen de la ficha (ADR 0010, «Ventanas como ReactiLab»): un solo panel blanco con tres filas,
+ * Resumen de la ficha (ADR 0010, «Ventanas como ReactiLab»): un solo panel blanco, de 12 rem desde `xl`, con tres filas,
  * Existencia, Mínimo y Caducidad. Desde `xl` va en la columna derecha, una fila sobre otra; por debajo,
  * como franja de tres columnas bajo la cabecera, y en el móvil sin la línea de detalle (quedan el valor,
  * el estado y el enlace del mínimo). La existencia lleva la barra de nivel (el saldo frente a lo inicial
@@ -208,13 +211,13 @@ export function ProductSummary({
           <Quantity
             value={product.balance}
             unit={product.baseUnit}
-            className={cn(valueClass, 'block max-sm:whitespace-normal', noStock ? 'text-ink-subtle' : 'text-action')}
+            className={cn(valueClass, 'block whitespace-normal [overflow-wrap:anywhere]', noStock ? 'text-ink-subtle' : 'text-action')}
             unitClassName="text-[0.8em]"
           />
         </dd>
         {stockPercent !== null && !noStock ? (
           <dd>
-            <StockLevelBar percent={stockPercent} hasStock className="h-1.5" label={`Nivel de la existencia: ${stockPercent} % de lo inicial`} />
+            <StockLevelBar percent={stockPercent} hasStock className="h-1" label={`Nivel de la existencia: ${stockPercent} % de lo inicial`} />
           </dd>
         ) : null}
         <dd className={detailClass}>
@@ -228,14 +231,14 @@ export function ProductSummary({
         <RowLabel icon={TrendingDown} tone={product.belowMinimum ? 'warning' : 'soft'}>
           Mínimo
         </RowLabel>
-        <dd className={cn(valueClass, 'text-ink')}>
-          {product.minimum ? <Quantity value={product.minimum} unit={product.baseUnit} unitClassName="text-[0.8em]" /> : <span className="text-ink-muted">Sin fijar</span>}
+        <dd className={cn(valueClass, 'text-ink [overflow-wrap:anywhere]')}>
+          {product.minimum ? <Quantity value={product.minimum} unit={product.baseUnit} className="whitespace-normal" unitClassName="text-[0.8em]" /> : <span className="text-ink-muted">Sin fijar</span>}
         </dd>
         {product.belowMinimum || canManage ? (
-          <dd className="flex flex-wrap items-center gap-x-2.5 text-[13px] leading-snug">
+          <dd className="flex flex-wrap items-center gap-x-2.5 text-xs leading-snug">
             {product.belowMinimum ? (
               <span className="inline-flex items-center gap-1 font-semibold text-warning">
-                <TrendingDown className="size-3.5" aria-hidden />
+                <TrendingDown className="size-3" aria-hidden />
                 Bajo mínimo
               </span>
             ) : null}

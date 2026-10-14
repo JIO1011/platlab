@@ -96,9 +96,9 @@ export function ReagentsInventoryPage() {
 
   if (products.isPending) {
     return (
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-4" role="status" aria-busy="true" aria-label="Cargando">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-3" role="status" aria-busy="true" aria-label="Cargando">
         {[0, 1, 2].map((key) => (
-          <Skeleton key={key} className="h-44 rounded-card" />
+          <Skeleton key={key} className="h-36 rounded-card" />
         ))}
       </div>
     );
@@ -165,7 +165,7 @@ export function ReagentsInventoryPage() {
           {query.trim() ? `Ningún reactivo coincide con «${query}».` : active ? alertFilters[active].empty : 'No hay reactivos con existencias.'}
         </p>
       ) : (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-4">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-3">
           {visible.map((product) => (
             <li key={product.id}>
               <ProductCard product={product} to={`${base}/inventario/${product.id}`} />
@@ -178,11 +178,11 @@ export function ReagentsInventoryPage() {
 }
 
 /**
- * Tarjeta de catálogo (ADR 0010, 04-10-2026; réplica de la de ReactiLab el 05-10-2026): fila de
- * rótulo (estado físico) y CAS en monoespaciado, el nombre, una línea y «Total» con la cantidad a
- * la izquierda y, a la derecha, la píldora de frascos. Los avisos (bajo mínimo y caducidad) van a la derecha de
- * «Total» y los de existencias sustituyen a la píldora; todo con texto. Lleva el
- * icono del estado físico y el matraz del módulo de marca de agua.
+ * Tarjeta de catálogo (ADR 0010, 04-10-2026; réplica de la de ReactiLab el 05-10-2026, a escala de
+ * cuatro por fila el 14-10-2026): el icono del estado físico con, al lado, el estado en mayúsculas
+ * pequeñas (y el candado de «Controlado») y el CAS en monoespaciado; el nombre; y, tras una línea,
+ * «Total» con la píldora de frascos a la derecha, la cantidad y los avisos (bajo mínimo y caducidad).
+ * «Sin existencias» sustituye a la píldora. Todo con texto, y el matraz del módulo de marca de agua.
  */
 function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
   const empty = product.balance === '0';
@@ -191,76 +191,72 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
   return (
     <Link
       to={to}
-      className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-card bg-surface p-6 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1"
+      className="group relative flex h-full flex-col gap-3 overflow-hidden rounded-[20px] bg-surface p-4 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1"
     >
       {/* Marca de agua: decorativa y casi invisible. */}
       <ModuleMark
         code="reagents"
-        className="pointer-events-none absolute -bottom-5 -right-3 size-32 rotate-12 text-surface-sunken transition-[color,transform] duration-500 group-hover:text-action-soft motion-safe:group-hover:scale-110"
+        className="pointer-events-none absolute -bottom-4 -right-3 size-24 rotate-12 text-surface-sunken transition-[color,transform] duration-500 group-hover:text-action-soft motion-safe:group-hover:scale-110"
       />
-      <div className="relative flex items-start gap-3">
-        <IconChip icon={(state && physicalStateIcon[state]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} />
-        <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-[12px] font-semibold uppercase tracking-wide text-ink-muted">
-            <span className="inline-flex items-center gap-1.5">
+      <div className="relative grid min-w-0 gap-2">
+        <div className="flex items-center gap-2.5">
+          <IconChip icon={(state && physicalStateIcon[state]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} size="sm" />
+          <div className="grid min-w-0 gap-0.5">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase leading-none tracking-wide text-ink-muted">
               {(state && physicalStateLabel[state]) ?? 'Reactivo'}
               {product.controlled ? <ControlledMark className="normal-case" /> : null}
-            </span>
+            </p>
             {product.casNumber ? (
-              <span className="ml-auto font-mono text-[12px] font-medium normal-case tracking-normal tabular-nums text-ink-subtle">
-                CAS: {product.casNumber}
-              </span>
-            ) : null}
-          </p>
-          <h2 className="mt-1 text-balance text-xl font-bold leading-snug text-ink transition-colors group-hover:text-action">{product.name}</h2>
-        </div>
-      </div>
-      <div className="relative mt-auto border-t border-line pt-4">
-        {/* Fila de «Total»: a la derecha, los avisos de caducidad, que no cambian el alto de la tarjeta. */}
-        <div className="flex min-h-6 flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-muted">Total</p>
-          <div className="flex flex-wrap justify-end gap-1.5">
-            {product.belowMinimum ? (
-              <Badge tone="warning" className="gap-1 whitespace-nowrap">
-                <TrendingDown className="size-3.5" aria-hidden />
-                Bajo mínimo
-              </Badge>
-            ) : null}
-            {product.expiredContainers ? (
-              <Badge tone="danger" className="gap-1 whitespace-nowrap">
-                <CalendarX className="size-3.5" aria-hidden />
-                {product.expiredContainers === 1 ? '1 vencido' : `${product.expiredContainers} vencidos`}
-              </Badge>
-            ) : null}
-            {product.expiringContainers ? (
-              <Badge tone="warning" className="gap-1 whitespace-nowrap">
-                <CalendarClock className="size-3.5" aria-hidden />
-                {product.expiringContainers} por vencer
-              </Badge>
+              <p className="truncate font-mono text-[11px] font-medium leading-tight tabular-nums text-ink-subtle">CAS: {product.casNumber}</p>
             ) : null}
           </div>
         </div>
-        <div className="mt-1 flex items-end justify-between gap-3">
-          <Quantity
-            value={product.balance}
-            unit={product.baseUnit}
-            // Un saldo muy largo baja la unidad a otra línea en lugar de salirse de la tarjeta.
-            className={cn('block min-w-0 whitespace-normal text-3xl font-bold tracking-tight', empty ? 'text-ink-subtle' : 'text-action')}
-          />
+        <h2 className="text-balance break-words text-[15px] font-bold leading-snug text-ink transition-colors group-hover:text-action">{product.name}</h2>
+      </div>
+      <div className="relative mt-auto grid gap-1.5 border-t border-line pt-2.5">
+        <div className="flex min-h-5 items-center justify-between gap-2">
+          <p className="text-[11px] font-semibold uppercase leading-none tracking-wide text-ink-muted">Total</p>
           {empty ? (
-            <Badge tone="warning" className="shrink-0 gap-1.5 whitespace-nowrap px-2.5 py-1 text-[13px]">
-              <CircleAlert className="size-4" aria-hidden />
+            <Badge tone="warning" className="shrink-0 whitespace-nowrap px-2 py-0.5 text-[11px]">
+              <CircleAlert className="size-3" aria-hidden />
               Sin existencias
             </Badge>
           ) : (
-            <Badge className="shrink-0 gap-1.5 whitespace-nowrap px-2.5 py-1 text-[13px] font-semibold text-ink">
-              <Layers className="size-4" aria-hidden />
+            <Badge className="shrink-0 whitespace-nowrap px-2 py-0.5 text-[11px] font-semibold text-ink">
+              <Layers className="size-3" aria-hidden />
               {frascos}
             </Badge>
           )}
+        </div>
+        <Quantity
+          value={product.balance}
+          unit={product.baseUnit}
+          // Un saldo muy largo baja la unidad a otra línea en lugar de salirse de la tarjeta.
+          className={cn('block min-w-0 whitespace-normal text-[22px] font-bold leading-tight tracking-tight [overflow-wrap:anywhere]', empty ? 'text-ink-subtle' : 'text-action')}
+          unitClassName="text-[0.7em]"
+        />
+        {/* Altura reservada: los avisos no desalinean el total de las tarjetas de una misma fila. */}
+        <div className="flex min-h-5 flex-wrap gap-1">
+          {product.belowMinimum ? (
+            <Badge tone="warning" className="gap-1 whitespace-nowrap px-2 text-[11px]">
+              <TrendingDown className="size-3" aria-hidden />
+              Bajo mínimo
+            </Badge>
+          ) : null}
+          {product.expiredContainers ? (
+            <Badge tone="danger" className="gap-1 whitespace-nowrap px-2 text-[11px]">
+              <CalendarX className="size-3" aria-hidden />
+              {product.expiredContainers === 1 ? '1 vencido' : `${product.expiredContainers} vencidos`}
+            </Badge>
+          ) : null}
+          {product.expiringContainers ? (
+            <Badge tone="warning" className="gap-1 whitespace-nowrap px-2 text-[11px]">
+              <CalendarClock className="size-3" aria-hidden />
+              {product.expiringContainers} por vencer
+            </Badge>
+          ) : null}
         </div>
       </div>
     </Link>
   );
 }
-
