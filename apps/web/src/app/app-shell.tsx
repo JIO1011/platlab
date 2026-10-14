@@ -11,7 +11,7 @@ import {
   LogOut,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router';
 import type { WorkspaceSummary } from '@platlab/contracts';
 import { Wordmark } from './brand';
@@ -24,6 +24,8 @@ import { PageLoading, QueryErrorState } from './states';
 export interface ShellContext {
   workspaceId: string;
   me: WorkspaceMeResponse;
+  /** Hueco junto a la miga de la barra superior: una página puede poner allí un dato de contexto (la ficha, su frescura). */
+  topbarSlot: HTMLElement | null;
 }
 
 export const useShell = () => useOutletContext<ShellContext>();
@@ -285,6 +287,7 @@ export function AppShell() {
   const workspaces = useMyWorkspaces();
   const { session, signOut } = useSession();
   const pills = useRef<HTMLElement>(null);
+  const [topbarSlot, setTopbarSlot] = useState<HTMLElement | null>(null);
   const base = `/e/${workspaceId}`;
   const segment = pathname.slice(base.length + 1).split('/')[0] ?? '';
   const moduleCode = me.data ? moduleApps(me.data).find((entry) => entry.path === segment)?.code : undefined;
@@ -440,6 +443,8 @@ export function AppShell() {
                 </>
               ) : null}
             </p>
+            {/* Junto a la miga, un hueco para el dato de contexto de la página (la ficha pone allí su frescura). */}
+            <div ref={setTopbarSlot} className="flex min-w-0 items-center" />
             <div className="ml-auto flex shrink-0 items-center gap-2">
               {/* En escritorio, la persona, sus espacios y «Salir» viven en la barra lateral. */}
               <AccountMenu me={me.data} workspaces={workspaceList} initials={initials} onSignOut={() => void signOut()} />
@@ -462,7 +467,7 @@ export function AppShell() {
           ) : null}
         </header>
         <main className="px-4 pb-16 pt-6 md:px-8 md:pb-8 md:pt-8">
-          <Outlet context={{ workspaceId, me: me.data } satisfies ShellContext} />
+          <Outlet context={{ workspaceId, me: me.data, topbarSlot } satisfies ShellContext} />
         </main>
       </div>
     </div>

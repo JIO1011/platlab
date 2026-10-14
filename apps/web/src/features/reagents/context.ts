@@ -20,9 +20,9 @@ export type SheetRequest =
   | { kind: 'ingress'; productId?: string }
   // Con `position`, el frasco viaja en la petición (el de una etiqueta QR puede no estar en la lista global).
   | { kind: 'issue'; positionId?: string; productId?: string; position?: Position }
-  // `mode: 'weight'`: desde «Corregir con la balanza» (ADR 0015); un frasco sin tara abre ya con la balanza por activar.
-  // Con `productId` (desde la cabecera de su ficha), el selector ofrece solo los frascos de ese reactivo.
-  | { kind: 'adjustment'; positionId?: string; productId?: string; mode?: 'weight' }
+  // Desde la ficha ⚖ del frasco (ADR 0015, 14-10-2026): `mode: 'weight'` es «Corregir con la balanza» o «Pesar ahora»
+  // (un frasco sin tara abre ya con la balanza por activar); `mode: 'quantity'` es «Escribir la cantidad».
+  | { kind: 'adjustment'; positionId?: string; productId?: string; mode?: 'weight' | 'quantity' }
   // El frasco viaja en la petición: la lista global de frascos puede no incluirlo (llega por páginas).
   | { kind: 'transfer'; position: Position }
   // Mínimo (ADR 0012, 05-10-2026) y edición de la ficha (ADR 0015): desde la ficha del reactivo.
@@ -62,6 +62,8 @@ export interface ReagentsContext {
   openSheet: (request: SheetRequest) => void;
   /** Cuándo se pidieron los datos de la sección y cómo volver a pedirlos (la ficha lleva su propia cabecera). */
   freshness: { updatedAt: number; refreshing: boolean; refresh: () => void };
+  /** El hueco de la barra superior del shell: la ficha pone allí «Actualizado hace…» (ADR 0015, 14-10-2026). */
+  topbarSlot: HTMLElement | null;
 }
 
 export const useReagents = () => useOutletContext<ReagentsContext>();

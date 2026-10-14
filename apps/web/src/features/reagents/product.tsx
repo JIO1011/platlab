@@ -18,7 +18,7 @@ const focusLabelsButton = () => document.getElementById(labelsButtonId)?.focus()
 
 export function ReagentsProductPage() {
   const { productId = '', containerId } = useParams();
-  const { workspaceId, me, base, allowed, openSheet, positionList, freshness } = useReagents();
+  const { workspaceId, me, base, allowed, openSheet, positionList, freshness, topbarSlot } = useReagents();
   const product = useProduct(workspaceId, productId);
   const positions = usePositions(workspaceId, productId);
   const history = useOperations(workspaceId, { productId: [productId] });
@@ -139,6 +139,7 @@ export function ReagentsProductPage() {
           allowed={allowed}
           canIssue={positionList.length > 0}
           freshness={freshness}
+          topbarSlot={topbarSlot}
           labels={{ active: labelMode, onToggle: toggleLabels }}
           onAction={openSheet}
         />

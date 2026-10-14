@@ -178,7 +178,7 @@ export function ReagentsInventoryPage() {
 
 /**
  * Tarjeta de catálogo (ADR 0010, 04-10-2026; réplica de la de ReactiLab el 05-10-2026, a escala de
- * cuatro por fila el 14-10-2026): el nombre a todo el ancho; debajo, el icono del estado físico con el
+ * cuatro por fila el 14-10-2026, con el contenido centrado en vertical): el nombre a todo el ancho; debajo, el icono del estado físico con el
  * estado en mayúsculas pequeñas y el CAS en monoespaciado; y, tras una línea, «Total» con la cantidad a la
  * izquierda y, a su altura y en columna a la derecha, las insignias de frascos («Sin existencias» si no
  * hay), «N vencidos» y «Controlado»; al pie, los avisos de bajo mínimo y por vencer. Todo con texto, y el
@@ -191,7 +191,7 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
   return (
     <Link
       to={to}
-      className="group relative flex h-full flex-col gap-3 overflow-hidden rounded-[20px] bg-surface p-4 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1"
+      className="group relative flex h-full flex-col justify-center gap-3 overflow-hidden rounded-[20px] bg-surface p-4 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1"
     >
       {/* Marca de agua: decorativa y casi invisible. */}
       <ModuleMark
@@ -208,7 +208,7 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
           ) : null}
         </div>
       </div>
-      <div className="relative mt-auto grid gap-1.5 border-t border-line pt-2.5">
+      <div className="relative grid gap-1.5 border-t border-line pt-2.5">
         {/* Total a la izquierda; a su altura y a la derecha, en columna, las insignias: frascos, vencidos y controlado. */}
         <div className="flex items-start justify-between gap-2">
           <div className="grid min-w-0 gap-1.5">

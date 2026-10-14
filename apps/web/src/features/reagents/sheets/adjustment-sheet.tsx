@@ -32,14 +32,18 @@ export function AdjustmentSheet({
   positions,
   positionId,
   products,
-  initialMode = 'quantity',
+  initialMode,
   canManageLists,
 }: SheetBaseProps & {
   positions: Position[];
   positionId: string | undefined;
   /** La densidad de la ficha, para activar la balanza de un frasco en volumen. */
   products: StockedProduct[];
-  /** `weight` (desde «Corregir con la balanza»): un frasco sin tara abre directo el formulario de activarla. */
+  /**
+   * Desde la ficha ⚖ del frasco (ADR 0015, 14-10-2026). `weight` («Corregir con la balanza», «Pesar ahora»): un frasco
+   * sin tara abre directo el formulario de activarla. `quantity` («Escribir la cantidad»): abre el conteo aunque el
+   * frasco tenga tara. Sin modo, el frasco decide el método.
+   */
   initialMode?: 'quantity' | 'weight';
   canManageLists: boolean;
 }) {
@@ -62,7 +66,7 @@ export function AdjustmentSheet({
   const withTare = position ? hasTare(position) : false;
   // Solo se pesan g, kg, mL y L (en volumen, con densidad: la pide el formulario).
   const weighable = position ? position.container !== null && gramsPerUnit(position.unit, '1') !== null : false;
-  const [byCount, setByCount] = useState(false);
+  const [byCount, setByCount] = useState(initialMode === 'quantity');
   const [activating, setActivating] = useState(() => {
     const opened = positions.find((p) => p.id === positionId);
     return initialMode === 'weight' && opened !== undefined && !hasTare(opened);

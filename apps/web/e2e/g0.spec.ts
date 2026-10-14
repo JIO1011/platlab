@@ -80,10 +80,13 @@ async function cardTransfer(card: Locator) {
   await card.getByRole('button', { name: /^Trasladar / }).click();
 }
 
-/** «Ajustar» vive en la cabecera de la ficha (ADR 0015, 14-10-2026): abre la ventana única y se elige el frasco del reactivo. */
+/**
+ * «Ajustar» vive en la ficha ⚖ de cada frasco (ADR 0015, 14-10-2026): su nube («Debe pesar…» o «Sin pesar») trae
+ * «Escribir la cantidad», que abre la ventana única de Ajustar en modo cantidad con ese frasco elegido.
+ */
 async function adjustFrasco(page: Page, frasco: RegExp | string) {
-  await page.getByRole('button', { name: 'Ajustar', exact: true }).click();
-  await choose(page, 'Frasco', frasco);
+  await page.getByRole('article').filter({ hasText: frasco }).getByRole('button', { name: /^(Sin pesar|Debe pesar)/ }).click();
+  await page.getByRole('dialog', { name: /^(Sin pesar|Debe pesar)/ }).getByRole('button', { name: 'Escribir la cantidad' }).click();
 }
 
 /** Motivo o destino de la lista: se pulsa la etiqueta, como una persona, y queda marcado. */
@@ -132,9 +135,13 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   // «Nuevo reactivo» (ADR 0015): la Administradora crea el reactivo y su frasco en un paso, con todas las secciones a la vista.
   await admin.getByRole('button', { name: 'Nuevo reactivo' }).click();
   const ingress = admin.getByRole('dialog', { name: 'Nuevo reactivo' });
-  for (const section of ['Datos de la etiqueta', 'Control por peso', 'Dónde se guarda', 'Clasificación y seguridad']) {
+  for (const section of ['Datos de la etiqueta', 'Dónde se guarda', 'Control por peso', 'Clasificación y seguridad']) {
     await expect(ingress.getByRole('heading', { name: section })).toBeVisible();
   }
+  // «Control por peso» va tras «Dónde se guarda» y empieza plegado: su cabecera es un botón.
+  const weightToggle = ingress.getByRole('button', { name: /Control por peso/ });
+  await expect(weightToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(ingress.getByLabel('Peso del frasco lleno (g)')).toBeHidden();
   await ingress.getByRole('combobox', { name: 'Nombre' }).fill(product.name);
   await ingress.getByRole('combobox', { name: 'Nombre' }).press('Tab');
   // El CAS con el dígito de control erróneo se avisa en un globo junto al campo, no entre los campos.
@@ -186,6 +193,8 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   const productUrl = operator.url();
   const frasco = operator.getByRole('article').filter({ hasText: `${product.lot}-01` });
   await expect(frasco).toContainText(/100\s*g/);
+  // Sin permiso de ajuste, no hay ficha «Sin pesar»: solo la informativa de un frasco con tara.
+  await expect(frasco.getByRole('button', { name: /^Sin pesar/ })).toHaveCount(0);
 
   // ADR 0012: la salida del Operador es una solicitud que aparta la cantidad hasta que se aprueba.
   await frasco.getByRole('button', { name: 'Salida' }).click();
@@ -671,8 +680,14 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await ingress.getByRole('combobox', { name: 'Nombre' }).press('Tab');
   await ingress.getByRole('textbox', { name: 'CAS' }).fill('50-99-7');
   await ingress.getByRole('textbox', { name: 'Cantidad' }).fill('500');
+  await ingress.getByRole('button', { name: /Control por peso/ }).click();
   await ingress.getByLabel('Peso del frasco lleno (g)').fill('640');
   await expect(ingress.getByLabel('Tara (calculada, g)')).toHaveValue('140,0');
+  // Plegarlo no borra lo escrito.
+  await ingress.getByRole('button', { name: /Control por peso/ }).click();
+  await expect(ingress.getByRole('button', { name: /Control por peso/ })).toHaveAttribute('aria-expanded', 'false');
+  await ingress.getByRole('button', { name: /Control por peso/ }).click();
+  await expect(ingress.getByLabel('Peso del frasco lleno (g)')).toHaveValue('640');
   await ingress.getByRole('combobox', { name: 'Ubicación' }).fill('Almacén');
   await admin.getByRole('option', { name: /Almacén de reactivos/ }).click();
   await pick(ingress, 'Sólido');
@@ -727,11 +742,16 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await adjustment.getByRole('button', { name: 'Registrar ajuste' }).click();
   await expect(admin.getByText('Quedan 460 g en el frasco')).toBeVisible();
 
-  // El frasco sin tara activa la balanza desde la misma ventana de Ajustar.
+  // El frasco sin tara muestra «Sin pesar»; «Pesar ahora» activa la balanza desde la misma ventana de Ajustar.
   // El que no tiene tara conserva sus 500 g; el pesado quedó en 460 g.
-  await adjustFrasco(admin, /500\s*g/);
+  const unweighed = admin.getByRole('article').filter({ hasText: /500\s*g/ });
+  const unweighedChip = unweighed.getByRole('button', { name: 'Sin pesar' });
+  await expect(unweighedChip).toHaveText('Sin pesar');
+  await unweighedChip.hover();
+  const unweighedTip = admin.getByRole('dialog', { name: 'Sin pesar' });
+  await expect(unweighedTip).toContainText('Este frasco no tiene peso de referencia. Pésalo una vez para comprobarlo con la balanza');
+  await unweighedTip.getByRole('button', { name: 'Pesar ahora' }).click();
   const activate = admin.getByRole('dialog', { name: 'Ajustar existencias' });
-  await activate.getByRole('button', { name: 'Pesar el frasco para activar la balanza' }).click();
   await activate.getByLabel('Peso del frasco ahora (g)').fill('650');
   await expect(activate.getByText('Tara calculada')).toContainText('150,0 g');
   await activate.getByRole('button', { name: 'Activar la balanza' }).click();

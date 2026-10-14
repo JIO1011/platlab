@@ -388,6 +388,7 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 - El error del CAS aparece en un globo junto al campo. «Control por peso» explica cada campo con globos de ayuda.
 - Área o departamento es un desplegable.
 - La ubicación muestra sus tres niveles con texto guía; cada nivel se habilita al elegir el anterior.
+- «Control por peso» es una sección desplegable, plegada al abrir y bajo «Dónde se guarda»; se abre sola si tiene datos o un error.
 - El número de frascos va en el pie, unido al botón: [− N +] «Ingresar N frascos». «Caducidad» ocupa su lugar, junto a Cantidad.
 - Tarjeta del frasco (14-10-2026):
   - Los estados van sobre el borde: «★ Usar primero» (FEFO), «Vencido», «Apartado», «Cuarentena» y «Restringido».
@@ -398,7 +399,13 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
     - La ubicación va en dos líneas, como una dirección: la sala arriba y, en gris, el estante y el nivel.
     - La ficha ⚖ dice «Debe pesar N g» y ofrece «Corregir con la balanza». La tara y el neto pasan a «Detalles del frasco».
     - «Ajustar» vuelve como botón y abre una sola ventana que elige el método. Con control por balanza, pregunta «¿Qué marca la balanza?» y ofrece escribir la cantidad. Sin control, pregunta la cantidad y ofrece «Pesar el frasco para activar la balanza» (antes «Fijar tara»).
-  - La tarjeta queda con «Salida» y ⇄. «Ajustar» y «Etiquetas QR» pasan a la cabecera de la ficha, junto a «Ingresar frascos». Ajustar elige el frasco; Etiquetas QR gira las tarjetas (14-10-2026).
+  - La tarjeta queda con «Salida» y ⇄. «Etiquetas QR» pasa a la cabecera de la ficha y gira las tarjetas (14-10-2026).
+  - «Ajustar» vive solo en la ficha ⚖ de cada frasco, que ve quien puede ajustar:
+    - con tara, «Debe pesar N g», con «Corregir con la balanza» y «Escribir la cantidad»;
+    - sin tara, «Sin pesar», con «Pesar ahora para activar la balanza» y «Escribir la cantidad»;
+    - el Operador la ve solo con tara, como información.
+  - El icono del estado va junto al código del frasco.
+  - En la cabecera, «Editar» es un lápiz junto al nombre. «Actualizado hace N min» y ⟳ pasan a la barra superior, junto a la miga de pan.
 - Resumen de la ficha: tres tarjetas pequeñas separadas en una columna angosta.
 - Inventario (nivel 1): 4 tarjetas por fila desde 1280 px, con el contenido centrado y las insignias (frascos, vencidos y controlado) en una fila bajo el total.
 

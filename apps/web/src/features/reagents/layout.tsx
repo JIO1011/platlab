@@ -42,7 +42,7 @@ function useSheets() {
  * para que registrar una salida esté a un clic desde cualquier sección.
  */
 export function ReagentsLayout() {
-  const { workspaceId, me } = useShell();
+  const { workspaceId, me, topbarSlot } = useShell();
   const { pathname } = useLocation();
   const [params] = useSearchParams();
   const queryClient = useQueryClient();
@@ -99,7 +99,7 @@ export function ReagentsLayout() {
   // Por debajo de 1024 px (móvil y tableta), la primaria ocupa su fila y las secundarias van de dos
   // en dos: si son impares, la última toma la fila entera para no dejar un hueco.
   // En la ficha (ADR 0012) las acciones se acotan a ese reactivo: ingreso y salida con él ya elegido;
-  // «Ajustar» vive en cada frasco.
+  // «Ajustar» vive en la ficha ⚖ de cada frasco (ADR 0015, 14-10-2026).
   const inProduct = detailId !== undefined;
   // En la página de etiquetas la tarea es imprimir: sin acciones de registro en la cabecera.
   const inLabels = pathname.endsWith('/etiquetas');
@@ -135,7 +135,7 @@ export function ReagentsLayout() {
   }
 
   const current = sheets.current;
-  // «Ajustar» desde la ficha ofrece solo los frascos de ese reactivo; desde el Inventario, todos.
+  // «Ajustar» desde un frasco de la ficha lleva su reactivo; desde el Inventario, ofrece todos los frascos.
   const adjustProductId = current?.request.kind === 'adjustment' ? current.request.productId : undefined;
   const adjustable = adjustProductId ? positionList.filter((position) => position.product.id === adjustProductId) : positionList;
   const sheetProps = (kind: SheetRequest['kind']) => ({
@@ -227,6 +227,7 @@ export function ReagentsLayout() {
               canResolve,
               openSheet: sheets.open,
               freshness: { updatedAt, refreshing, refresh: () => void queryClient.invalidateQueries({ queryKey: reagentsKey }) },
+              topbarSlot,
             } satisfies ReagentsContext
           }
         />

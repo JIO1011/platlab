@@ -1,7 +1,8 @@
 import type { ProductDetail } from '@platlab/contracts';
 import type { ReactNode } from 'react';
 import { Button, IconTile, Quantity, StockLevelBar, cn, formatDecimal } from '@platlab/ui';
-import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, QrCode, RefreshCw, SlidersHorizontal, TrendingDown, type LucideIcon } from 'lucide-react';
+import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, QrCode, RefreshCw, TrendingDown, type LucideIcon } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { formatAgo, formatDate } from '../../app/format';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { ControlledMark } from './controlled';
@@ -27,21 +28,47 @@ const pillAction =
 /** El id de «Etiquetas QR»: la ficha le devuelve el foco al cerrar el modo. */
 export const labelsButtonId = 'etiquetas-qr';
 
-const quietLink =
-  'inline-flex min-h-8 items-center gap-1.5 rounded-control px-1.5 text-[13px] font-medium text-action transition-colors hover:bg-action-soft';
+/**
+ * «Actualizado hace N min» y ⟳ (ADR 0015, 14-10-2026): gris de 12 px en la barra superior del shell, junto a la miga
+ * de pan, y solo mientras la ficha está en pantalla. Se dibuja en el hueco del shell (`slot`) con un portal; hasta
+ * que el hueco existe, no se dibuja. La frescura es la que ya da el contexto: lo más antiguo de lo que la ficha muestra.
+ */
+function FreshnessBar({ freshness, slot }: { freshness: ReagentsContext['freshness']; slot: HTMLElement | null }) {
+  const now = useNow(15_000);
+  if (!slot) return null;
+  return createPortal(
+    <div className="flex min-w-0 items-center gap-0.5 text-xs text-ink-muted md:ml-3 md:border-l md:border-line md:pl-3">
+      <span className="truncate tabular-nums">
+        {freshness.refreshing ? 'Actualizando…' : freshness.updatedAt > 0 ? `Actualizado ${formatAgo(freshness.updatedAt, now)}` : 'Cargando…'}
+      </span>
+      <button
+        type="button"
+        aria-label="Actualizar"
+        title="Actualizar"
+        aria-busy={freshness.refreshing || undefined}
+        onClick={freshness.refresh}
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-action-soft hover:text-action focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action max-sm:size-10"
+      >
+        <RefreshCw className={cn('size-3.5', freshness.refreshing && 'motion-safe:animate-spin')} aria-hidden />
+      </button>
+    </div>,
+    slot,
+  );
+}
 
 /**
- * Cabecera de la ficha: el cuadro del módulo y el nombre; la identidad en pastillas (código,
- * CAS, estado, «Controlado»); los pictogramas; y las acciones, con «Registrar salida» como la primaria
- * y, debajo, una fila de pastillas claras: «Ingresar frascos», «Ajustar» (elige el frasco del reactivo) y
- * «Etiquetas QR» (gira las tarjetas de los frascos; ADR 0015, 14-10-2026). «Editar» y «Actualizar» quedan
- * como enlaces discretos.
+ * Cabecera de la ficha: el cuadro del módulo y el nombre, con el lápiz «Editar ficha» a su lado (solo icono, con
+ * `catalog.manage`); la identidad en pastillas (código, CAS, estado, «Controlado»); los pictogramas; y las acciones,
+ * con «Registrar salida» como la primaria y, debajo, una fila de pastillas claras: «Ingresar frascos» y «Etiquetas QR»
+ * (gira las tarjetas de los frascos). «Ajustar» ya no está aquí: vive en la ficha ⚖ de cada frasco (ADR 0015,
+ * 14-10-2026). «Actualizado hace…» y ⟳ van en la barra superior de la página (`FreshnessBar`).
  */
 export function ProductHeader({
   product,
   allowed,
   canIssue,
   freshness,
+  topbarSlot,
   labels,
   onAction,
 }: {
@@ -49,23 +76,38 @@ export function ProductHeader({
   allowed: Allowed;
   canIssue: boolean;
   freshness: ReagentsContext['freshness'];
+  /** El hueco de la barra superior donde va «Actualizado hace…». */
+  topbarSlot: ReagentsContext['topbarSlot'];
   /** El modo de etiquetas vive en la página (las tarjetas giran allí); la pastilla solo lo activa. */
   labels: { active: boolean; onToggle: () => void };
   onAction: (request: SheetRequest) => void;
 }) {
-  const now = useNow(15_000);
   const state = product.physicalState ?? undefined;
   const StateIcon = (state && physicalStateIcon[state]) || FlaskConical;
   const showIssue = allowed.issue && canIssue;
-  const showAdjust = allowed.adjustment && canIssue && product.containersWithStock > 0;
   const showLabels = product.containersWithStock > 0;
   return (
     <div className={cn(glassCard, 'p-5 md:p-6')}>
+      <FreshnessBar freshness={freshness} slot={topbarSlot} />
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
         <div className="flex min-w-0 items-start gap-4">
           <IconTile icon={FlaskConical} size="lg" />
           <div className="grid min-w-0 gap-3">
-            <h1 className="text-display text-balance break-words leading-tight text-ink">{product.name}</h1>
+            <div className="flex min-w-0 items-start gap-1">
+              <h1 className="min-w-0 text-display text-balance break-words leading-tight text-ink">{product.name}</h1>
+              {allowed.product ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Editar ficha"
+                  title="Editar ficha"
+                  className="-my-0.5 size-9 shrink-0 rounded-full text-ink-muted hover:text-action [&_svg]:size-[18px]"
+                  onClick={() => onAction({ kind: 'product', product })}
+                >
+                  <PencilLine aria-hidden />
+                </Button>
+              ) : null}
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <InfoPill mono>
                 <span className="sr-only">Código </span>
@@ -100,22 +142,9 @@ export function ProductHeader({
               )}
               {product.density ? <span className="tabular-nums">Densidad {formatDecimal(product.density)} g/mL</span> : null}
             </div>
-            <p className="-ml-1.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[13px] text-ink-muted">
-              <span className="px-1.5">{freshness.updatedAt > 0 ? `Actualizado ${formatAgo(freshness.updatedAt, now)}` : 'Cargando…'}</span>
-              <button type="button" className={quietLink} onClick={freshness.refresh}>
-                <RefreshCw className="size-3.5" aria-hidden />
-                {freshness.refreshing ? 'Actualizando…' : 'Actualizar'}
-              </button>
-              {allowed.product ? (
-                <button type="button" className={quietLink} onClick={() => onAction({ kind: 'product', product })}>
-                  <PencilLine className="size-3.5" aria-hidden />
-                  Editar
-                </button>
-              ) : null}
-            </p>
           </div>
         </div>
-        {showIssue || allowed.receipt || showAdjust || showLabels ? (
+        {showIssue || allowed.receipt || showLabels ? (
           <div className="grid shrink-0 gap-3 lg:w-64">
             {showIssue ? (
               <Button
@@ -132,12 +161,6 @@ export function ProductHeader({
                 <Button className={pillAction} onClick={() => onAction({ kind: 'ingress', productId: product.id })}>
                   <PackagePlus aria-hidden />
                   Ingresar frascos
-                </Button>
-              ) : null}
-              {showAdjust ? (
-                <Button className={pillAction} onClick={() => onAction({ kind: 'adjustment', productId: product.id })}>
-                  <SlidersHorizontal aria-hidden />
-                  Ajustar
                 </Button>
               ) : null}
               {showLabels ? (
