@@ -1,6 +1,6 @@
 import type { Position } from '@platlab/contracts';
 import { Band, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowUpFromLine, Calendar, Check, Ellipsis, MapPin, QrCode as QrIcon, Scale } from 'lucide-react';
+import { ArrowUpFromLine, Calendar, Check, Ellipsis, MapPin, QrCode as QrIcon } from 'lucide-react';
 import { formatGrams, gramsPerUnit, weightFigures } from './weight';
 import { type ComponentProps, type CSSProperties } from 'react';
 import { addDays, formatDate, relativeDays } from '../../app/format';
@@ -10,39 +10,69 @@ import { InfoPill } from './pills';
 import { availableOf } from './stock';
 
 /**
- * Pesos del frasco (ADR 0015): con tara, una línea «Tara · Neto · Bruto» en g. Fijarla o cambiarla está en el
- * menú «Más acciones» de la tarjeta. Los pesos no son cantidades de inventario: son vista previa del servidor.
+ * Última línea de la tarjeta (ADR 0015): la marca y, con tara, «Tara · Neto · Bruto» en g, todo en gris de 12 px.
+ * Fijar o cambiar la tara está en el menú «Más acciones». Los pesos no son cantidades de inventario: son vista
+ * previa del servidor.
  */
-function WeightRow({ figures }: { figures: NonNullable<ReturnType<typeof weightFigures>> }) {
+function Provenance({ brand, figures }: { brand: string | null; figures: ReturnType<typeof weightFigures> }) {
+  if (!brand && !figures) return null;
   return (
-    <div className="flex items-start gap-1.5 text-[12px]">
-      <Scale className="mt-0.5 size-3.5 shrink-0 text-ink-muted" aria-hidden />
-      {/* Tres datos; si no caben, envuelven por dato y no por palabra. */}
-      <dl className="flex flex-wrap gap-x-2.5 gap-y-0.5 tabular-nums">
-        {(
-          [
-            ['Tara', figures.tare],
-            ['Neto', figures.net],
-            ['Bruto', figures.expectedGross],
-          ] as const
-        ).map(([label, grams]) => (
-          <div key={label} className="flex gap-1 whitespace-nowrap">
-            <dt className="text-ink-muted">{label}</dt>
-            <dd className="font-bold text-ink">{formatGrams(grams)}</dd>
-          </div>
-        ))}
-      </dl>
+    <div className="grid gap-0.5 text-[12px] leading-snug text-ink-muted">
+      {brand ? <p className="[overflow-wrap:anywhere]">{brand}</p> : null}
+      {figures ? (
+        // Tres datos; si no caben, envuelven por dato y no por palabra.
+        <dl className="flex flex-wrap gap-x-2.5 gap-y-0.5 tabular-nums">
+          {(
+            [
+              ['Tara', figures.tare],
+              ['Neto', figures.net],
+              ['Bruto', figures.expectedGross],
+            ] as const
+          ).map(([label, grams]) => (
+            <div key={label} className="flex gap-1 whitespace-nowrap">
+              <dt>{label}</dt>
+              <dd className="font-semibold">{formatGrams(grams)}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * La ubicación completa: el camino desde la sede (`path`) unido por « › », sin truncar y envolviendo si hace
+ * falta. El último nivel, en el color del texto; los anteriores, en gris. Sin camino, el nombre de la ubicación.
+ */
+function Place({ path, name }: { path: string[]; name: string }) {
+  const levels = path.length > 0 ? path : [name];
+  return (
+    <p className="flex items-start gap-1.5 text-[13px] leading-snug">
+      <MapPin className="mt-0.5 size-3.5 shrink-0 text-ink-muted" aria-hidden />
+      <span className="min-w-0 [overflow-wrap:anywhere]">
+        {levels.map((level, index) => (
+          <span key={`${index}-${level}`}>
+            {index > 0 ? (
+              <span aria-hidden className="text-ink-subtle">
+                {' › '}
+              </span>
+            ) : null}
+            <span className={index === levels.length - 1 ? 'font-medium text-ink' : 'text-ink-muted'}>{level}</span>
+          </span>
+        ))}
+      </span>
+    </p>
   );
 }
 
 /**
  * Un frasco en la ficha (ADR 0012; ADR 0010, «Ventanas como ReactiLab»): translúcido sin desenfoque
  * (`bg-white/80`, borde suave, radio de 24 px) y compacto: caben tres por fila junto al resumen lateral.
- * El estado (FEFO, vencido, apartado) es una insignia sobre el borde, arriba a la derecha. De arriba abajo:
- * el código mono en negrita; una línea gris con la ubicación y la marca; el saldo con la barra por nivel y
- * «de N · X %»; la caducidad exacta (ámbar o rojo según el estado); la línea de pesos; y, tras una línea de
- * borde a borde, «Salida» y un menú «Más acciones» con Trasladar, Ajustar y la tara. El color solo cuenta
+ * Se lee en el orden en que se identifica un frasco: el código mono en negrita de 15 px con el estado como
+ * insignia dentro de la tarjeta, arriba a la derecha («Usar primero», «Vencido», «Apartado»); el saldo de
+ * 26 px con su unidad y el % a la derecha, y la barra por nivel; la ubicación completa con su ruta; la
+ * caducidad exacta (ámbar o rojo según el estado); una línea gris con la marca y la tara; y, tras una línea
+ * de borde a borde, «Salida» y un menú «Más acciones» con Trasladar, Ajustar y la tara. El color solo cuenta
  * un estado y siempre con texto.
  *
  * Con el modo de etiquetas el artículo gira 180° y muestra su reverso: la etiqueta impresa, y la tarjeta
@@ -120,55 +150,48 @@ export function ContainerCard({
             Desde su etiqueta
           </span>
         ) : null}
-        {recommended || expired || reserved ? (
-          // Insignias de estado sobre el borde, arriba a la derecha.
-          <div className="absolute -top-3 right-3 flex justify-end gap-1">
-            {recommended ? (
-              <span className="inline-flex min-h-6 items-center gap-1 rounded-full bg-success px-2.5 text-xs font-bold text-on-action shadow-sm">
-                <Check className="size-3" aria-hidden />
-                FEFO
-                <span className="sr-only"> (vence antes: conviene usarlo primero)</span>
-              </span>
-            ) : null}
-            {expired ? (
-              <InfoPill tone="danger" className="min-h-6 px-2.5 text-xs font-bold shadow-sm">
-                Vencido
-              </InfoPill>
-            ) : null}
-            {reserved ? (
-              <InfoPill tone="accent" className="min-h-6 px-2.5 text-xs font-bold shadow-sm">
-                Apartado
-              </InfoPill>
-            ) : null}
-          </div>
-        ) : null}
-        {/* El código es la identidad de la etiqueta: se trunca con su título antes que partirse. */}
-        <h3 title={code} className="truncate font-mono text-sm font-bold leading-tight tabular-nums text-ink">
-          {code}
-        </h3>
-        <p className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-muted" title={brand ? `${position.location.name} · ${brand}` : position.location.name}>
-          <MapPin className="size-3.5 shrink-0" aria-hidden />
-          <span className="truncate">{brand ? `${position.location.name} · ${brand}` : position.location.name}</span>
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1.5">
+          {/* El código es la identidad de la etiqueta: nunca se corta; si no cabe, envuelve en sus guiones. */}
+          <h3 className="min-w-0 font-mono text-[15px] font-bold leading-tight tabular-nums text-ink [overflow-wrap:anywhere]">{code}</h3>
+          {recommended || expired || reserved ? (
+            <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-1">
+              {recommended ? (
+                <span className="inline-flex min-h-6 items-center gap-1 rounded-full bg-success px-2.5 text-xs font-bold text-on-action">
+                  <Check className="size-3" aria-hidden />
+                  Usar primero
+                  <span className="sr-only"> (vence antes: conviene usarlo primero)</span>
+                </span>
+              ) : null}
+              {expired ? (
+                <InfoPill tone="danger" className="min-h-6 px-2.5 text-xs font-bold">
+                  Vencido
+                </InfoPill>
+              ) : null}
+              {reserved ? (
+                <InfoPill tone="accent" className="min-h-6 px-2.5 text-xs font-bold">
+                  Apartado
+                </InfoPill>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         <div className="grid gap-1.5">
-          <p className="flex items-baseline gap-1.5">
-            <span className={cn('text-[26px] font-bold leading-none tracking-tight tabular-nums', empty ? 'text-ink-subtle' : 'text-action')}>
-              {formatDecimal(position.balance)}
-            </span>
-            <span className="text-sm text-ink-muted">{position.unit}</span>
-          </p>
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="flex min-w-0 items-baseline gap-1.5">
+              <span className={cn('text-[26px] font-bold leading-none tracking-tight tabular-nums', empty ? 'text-ink-subtle' : 'text-action')}>
+                {formatDecimal(position.balance)}
+              </span>
+              <span className="text-sm text-ink-muted">{position.unit}</span>
+            </p>
+            {percent !== null && initial ? <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink-muted">{percentText}</span> : null}
+          </div>
           {percent !== null && initial ? (
-            <>
-              <StockLevelBar
-                percent={percent}
-                hasStock={!empty}
-                className="h-1.5"
-                label={`Queda ${percentText === '<1 %' ? 'menos del 1 %' : `el ${percentText}`} de lo que entró`}
-              />
-              <p className="text-[12px] text-ink-muted">
-                de <Quantity value={initial} unit={position.unit} unitClassName="text-inherit" /> · <span className="font-semibold tabular-nums">{percentText}</span>
-              </p>
-            </>
+            <StockLevelBar
+              percent={percent}
+              hasStock={!empty}
+              className="h-1.5"
+              label={`Queda ${percentText === '<1 %' ? 'menos del 1 %' : `el ${percentText}`} de lo que entró`}
+            />
           ) : null}
           {reserved ? (
             <p className="text-[12px] text-ink-muted">
@@ -177,6 +200,7 @@ export function ContainerCard({
             </p>
           ) : null}
         </div>
+        <Place path={position.location.path} name={position.location.name} />
         {/* El lote interno ya es el prefijo del código del frasco: no se repite. */}
         <p
           className={cn(
@@ -193,7 +217,7 @@ export function ContainerCard({
             <span>Caducidad sin indicar</span>
           )}
         </p>
-        {figures ? <WeightRow figures={figures} /> : null}
+        <Provenance brand={brand} figures={figures} />
         {canIssue || canTransfer || allowed.adjustment ? (
           // Banda inferior de borde a borde: «Salida» es la primaria; lo demás, en el menú «Más acciones».
           <Band ruled className="-mx-4 -mb-1 mt-auto flex items-center gap-1.5 px-4 pt-3">

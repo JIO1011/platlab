@@ -439,7 +439,8 @@ export const position = z.object({
     })
     .nullable(),
   disposition: z.enum(['usable', 'quarantine', 'restricted']),
-  location: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
+  /** `path`: nombres desde el primer nivel bajo la sede hasta esta ubicación; la sede, solo si es ella. */
+  location: z.object({ id: z.uuid(), code: z.string(), name: z.string(), path: z.array(z.string()) }),
   balance: decimalString,
   /** Apartado por solicitudes pendientes (ADR 0012); lo disponible es saldo − reservado. */
   reserved: decimalString,

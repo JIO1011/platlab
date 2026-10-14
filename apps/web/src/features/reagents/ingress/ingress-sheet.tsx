@@ -11,6 +11,7 @@ import { FormSheet, type SheetBaseProps } from '../sheets/shared';
 import { useDebouncedValue } from '../use-media-query';
 import { isVolume } from '../weight';
 import { fieldLabel, filled } from './filled';
+import { BottlesStepper } from './bottles-stepper';
 import { Section } from './form-section';
 import { LabelFields } from './label-fields';
 import { LocationPicker } from './location-picker';
@@ -99,6 +100,7 @@ export function IngressSheet({
   const casRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const countRef = useRef<HTMLInputElement>(null);
 
   const receipt = useCommand(workspaceId, '/receipts', receiptResponse);
   const createLocation = useCommand(workspaceId, '/locations', location);
@@ -189,7 +191,8 @@ export function IngressSheet({
     setGeneralError(null);
     if (missing > 0 || toReview > 0) {
       setAttempted(true);
-      requestAnimationFrame(() => bodyRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+      // El número de frascos vive en el pie, fuera del cuerpo: si es el que falla, el foco va allí.
+      requestAnimationFrame(() => (bodyRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? (issues.count ? countRef.current : null))?.focus());
       return;
     }
     const grossWeight = normalizeDecimalInput(form.grossWeight);
@@ -281,6 +284,7 @@ export function IngressSheet({
       onOpenChange={onOpenChange}
       submitLabel={`Ingresar ${bottlesLabel}`}
       submitDisabled={missing > 0}
+      submitLead={<BottlesStepper value={form.count} onChange={(next) => patch({ count: next })} error={errors.count} inputRef={countRef} />}
       pending={receipt.isPending}
       generalError={generalError}
       status={status}

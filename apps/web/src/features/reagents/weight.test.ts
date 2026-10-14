@@ -15,7 +15,7 @@ const bottle = (unit: string, balance: string, tare: string | null, density: str
     density,
   },
   disposition: 'usable',
-  location: { id: '00000000-0000-4000-8000-000000000005', code: 'ALM', name: 'Almacén' },
+  location: { id: '00000000-0000-4000-8000-000000000005', code: 'ALM', name: 'Almacén', path: ['Almacén'] },
   balance,
   reserved: '0',
   unit,

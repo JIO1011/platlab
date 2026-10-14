@@ -1,23 +1,21 @@
 import type { StockedProduct } from '@platlab/contracts';
-import { Field, Input, cn } from '@platlab/ui';
-import { CircleCheck, Lock, Minus, Plus, TriangleAlert } from 'lucide-react';
+import { Field, cn } from '@platlab/ui';
+import { CircleCheck, Lock, TriangleAlert } from 'lucide-react';
 import { useId, useMemo, type RefObject } from 'react';
 import { ControlledMark } from '../controlled';
 import { HazardGlyphs } from '../hazards';
 import { ErrorBalloon } from './balloon';
 import { checkCas } from './cas';
 import { Combobox, type ComboOption } from './combobox';
-import { FilledInput, QuantityInput, fieldGrid, fieldLabel, filled } from './filled';
-import { MAX_BOTTLES, casRequired, countOf, lastSuffix, productUnits, recentFirst, type BottlesForm, type Draft, type Errors } from './model';
-
-const stepper =
-  'inline-flex h-full w-[44px] shrink-0 items-center justify-center text-ink transition-colors duration-150 hover:bg-action-soft disabled:opacity-40 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-action';
+import { FilledInput, QuantityInput, fieldGrid, fieldLabel } from './filled';
+import { casRequired, lastSuffix, productUnits, recentFirst, type BottlesForm, type Draft, type Errors } from './model';
 
 /**
  * «Datos de la etiqueta» (ADR 0015): lo que se copia del frasco. El nombre es el buscador del
  * catálogo (desde 2 letras, lo que encontró el servidor; antes, los recientes): al elegir un reactivo existente, CAS y unidad vienen de su ficha en solo lectura; si no,
  * es un reactivo nuevo y se escriben. El código lo sugiere el servidor y los frascos se numeran a partir
- * de él; con más de uno, el campo muestra a la derecha dónde termina la numeración.
+ * de él; con más de uno, el campo muestra a la derecha dónde termina la numeración. El número de frascos
+ * va en el pie de la hoja, unido al botón principal.
  */
 export function LabelFields({
   existing,
@@ -86,8 +84,6 @@ export function LabelFields({
 
   const casErrorId = useId();
   const cas = checkCas(draft.cas);
-  const count = countOf(form.count);
-  const step = (delta: number) => onForm({ count: String(Math.min(MAX_BOTTLES, Math.max(1, (count ?? 1) + delta))) });
   const last = lastSuffix(codes);
 
   return (
@@ -173,24 +169,6 @@ export function LabelFields({
           value={form.quantity}
           onChange={(event) => onForm({ quantity: event.target.value })}
         />
-      </Field>
-
-      <Field label="Frascos" required labelClassName={fieldLabel} error={errors.count}>
-        <div className={cn(filled, 'flex w-fit items-stretch overflow-hidden border focus-within:border-action has-[[aria-invalid=true]]:border-danger')}>
-          <button type="button" aria-label="Un frasco menos" disabled={(count ?? 1) <= 1} onClick={() => step(-1)} className={stepper}>
-            <Minus className="size-4" aria-hidden />
-          </button>
-          <Input
-            inputMode="numeric"
-            autoComplete="off"
-            className="h-full w-12 rounded-none border-0 bg-transparent px-0 text-center font-bold tabular-nums hover:border-0 focus-visible:ring-0 aria-[invalid=true]:ring-0"
-            value={form.count}
-            onChange={(event) => onForm({ count: event.target.value })}
-          />
-          <button type="button" aria-label="Un frasco más" disabled={(count ?? 1) >= MAX_BOTTLES} onClick={() => step(1)} className={stepper}>
-            <Plus className="size-4" aria-hidden />
-          </button>
-        </div>
       </Field>
 
       <Field label="Caducidad" labelClassName={fieldLabel} hint={form.noExpiry ? 'Quedará como «caducidad sin confirmar».' : undefined}>

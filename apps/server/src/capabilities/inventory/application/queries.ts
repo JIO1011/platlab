@@ -83,7 +83,7 @@ export async function listPositionPage(
             }
           : null,
       disposition: row.disposition as Position['disposition'],
-      location: { id: row.location_id, code: row.location_code, name: row.location_name },
+      location: { id: row.location_id, code: row.location_code, name: row.location_name, path: row.location_path },
       balance: row.balance,
       reserved: row.reserved,
       unit: row.base_unit,

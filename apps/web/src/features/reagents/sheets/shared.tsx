@@ -43,6 +43,7 @@ export function FormSheet({
   fullWidthSubmit = false,
   submitIcon: SubmitIcon,
   submitDisabled = false,
+  submitLead,
   status,
   initialFocus,
   children,
@@ -68,6 +69,8 @@ export function FormSheet({
   submitIcon?: LucideIcon;
   /** Falta algo para poder enviar (p. ej., la cantidad): el botón queda pálido y deshabilitado. */
   submitDisabled?: boolean;
+  /** Control unido al botón principal, a su izquierda y de su misma altura (con `fullWidthSubmit`): el número de frascos. */
+  submitLead?: ReactNode;
   /** Lo que falta o «Listo», en una línea sobre el botón principal. */
   status?: ReactNode;
   initialFocus?: RefObject<HTMLElement | null>;
@@ -96,6 +99,7 @@ export function FormSheet({
                 Cancelar
               </Button>
             )}
+            {fullWidthSubmit ? submitLead : null}
             <Button
               type="submit"
               form={formId}

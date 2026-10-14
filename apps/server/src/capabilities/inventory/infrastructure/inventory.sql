@@ -286,6 +286,19 @@ SELECT
   loc.id AS location_id,
   loc.code AS location_code,
   loc.name AS location_name,
+  -- Ruta desde el primer nivel bajo la sede (sin ella, salvo que sea la propia), hasta 6 niveles.
+  (
+    WITH RECURSIVE up AS (
+      SELECT loc.parent_id, loc.kind, loc.name, 0 AS depth
+      UNION ALL
+      SELECT parent.parent_id, parent.kind, parent.name, up.depth + 1
+      FROM up
+      JOIN core.locations AS parent ON parent.workspace_id = loc.workspace_id AND parent.id = up.parent_id
+      WHERE up.depth < 5
+    )
+    SELECT array_agg(up.name ORDER BY up.depth DESC) FILTER (WHERE up.depth = 0 OR up.kind <> 'site')
+    FROM up
+  ) AS "location_path!",
   trim_scale(p.balance) AS "balance!",
   trim_scale(p.reserved) AS "reserved!",
   i.base_unit,

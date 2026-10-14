@@ -2067,6 +2067,26 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
     expect(locations.items.find((item) => item.id === level.id)).toMatchObject({ parentId: shelf.id });
   });
 
+  it('cada posición trae la ruta de su ubicación desde el primer nivel bajo la sede', async () => {
+    const lab = await createLab();
+    const created = async (name: string, parentId: string) => {
+      const response = await call(lab.adminMember.subject, `${lab.base}/locations`, { method: 'POST', body: { name, parentId } });
+      expect(response.status).toBe(201);
+      return location.parse(response.body).id;
+    };
+    const site = (await admin.query<{ parent_id: string }>('select parent_id from core.locations where id = $1', [lab.storage])).rows[0]!.parent_id;
+    const room = await created('Lab', site);
+    const level = await created('Nivel', await created('Estante', room));
+    const product = await createProduct(lab);
+    const inLevel = receivedPosition(await receive(lab, product.id, '1', level, lab.adminMember.subject));
+    const inRoom = receivedPosition(await receive(lab, product.id, '1', room, lab.adminMember.subject));
+
+    const positions = positionList.parse((await call(lab.adminMember.subject, `${lab.base}/positions`)).body).items;
+    const pathOf = (id: string) => positions.find((position) => position.id === id)?.location.path;
+    expect(pathOf(inLevel)).toEqual(['Lab', 'Estante', 'Nivel']);
+    expect(pathOf(inRoom)).toEqual(['Lab']);
+  });
+
   it('las áreas se administran como los destinos y las marcas usadas se sugieren, recientes primero', async () => {
     const lab = await createLab();
     const area = await call(lab.adminMember.subject, `${lab.base}/areas`, { method: 'POST', body: { name: 'Investigación' } });

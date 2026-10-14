@@ -388,6 +388,8 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 - El error del CAS aparece en un globo junto al campo. «Control por peso» explica cada campo con globos de ayuda.
 - Área o departamento es un desplegable.
 - La ubicación muestra sus tres niveles con texto guía; cada nivel se habilita al elegir el anterior.
+- El número de frascos va en el pie, unido al botón: [− N +] «Ingresar N frascos». «Caducidad» ocupa su lugar, junto a Cantidad.
+- La tarjeta del frasco sigue el orden en que se busca: código, saldo, ubicación con su ruta completa (por ejemplo, Laboratorio › Estante › Nivel), caducidad, y al final la marca y la tara en gris. «FEFO» se muestra como «Usar primero». La API devuelve la ruta de la ubicación.
 
 **Implementación (12-10-2026):**
 

@@ -143,7 +143,10 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await admin.getByRole('option', { name: /Almacén de reactivos/ }).click();
   await expect(ingress.getByRole('combobox', { name: 'Estante o armario' })).toBeEnabled();
   await pick(ingress, 'Sólido');
-  await ingress.getByRole('button', { name: 'Ingresar 1 frasco' }).click();
+  // El número de frascos va en el pie, unido al botón: [− N +] «Ingresar N frascos».
+  await expect(ingress.getByRole('group', { name: 'Número de frascos' })).toBeVisible();
+  await ingress.getByRole('button', { name: 'Un frasco más' }).click();
+  await ingress.getByRole('button', { name: 'Ingresar 2 frascos' }).click();
   await expect(ingress.getByRole('alert').filter({ hasText: 'Revisa el CAS' })).toBeVisible();
   await expect(ingress.getByRole('textbox', { name: 'CAS' })).toHaveAttribute('aria-invalid', 'true');
   // Los globos ⓘ se abren con clic y se cierran con Esc sin cerrar la ventana.
@@ -154,6 +157,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await capture(admin, 'desktop-r01d-ingress-new-a', false);
   await admin.keyboard.press('Escape');
   await expect(weightTip).toHaveAttribute('aria-expanded', 'false');
+  await ingress.getByRole('button', { name: 'Un frasco menos' }).click();
   await expect(ingress).toBeVisible();
   await ingress.getByRole('textbox', { name: 'CAS' }).fill('7647-14-5');
   await expect(ingress.getByRole('alert').filter({ hasText: 'Revisa el CAS' })).toHaveCount(0);
@@ -538,9 +542,10 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   const expiredCard = admin.getByRole('article').filter({ hasText: 'H2SO4-2024-08-01' });
   await expect(expiredCard).toContainText('Venció');
   await expect(expiredCard).toContainText(/hace \d+ (días|meses)/);
-  await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' })).toContainText('FEFO');
+  await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' })).toContainText('Usar primero');
   await expect(admin.getByText('1 frasco vencido')).toBeVisible();
-  await expect(admin.getByText('de 250 mL')).toBeVisible();
+  // El saldo con su unidad y el % a la derecha.
+  await expect(expiredCard).toContainText(/\d+ %/);
   await expect(expiredCard).toContainText('Vencido');
   await expect(admin.getByRole('complementary', { name: 'Resumen del reactivo' })).toContainText('Vencidos');
   // Una sola primaria: «Registrar salida» de la cabecera; en la ficha el ingreso es de ese reactivo.
