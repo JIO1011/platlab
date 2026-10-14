@@ -283,6 +283,7 @@ export function ReagentsLayout() {
           {...sheetProps('adjustment')}
           positions={positionList}
           positionId={current.request.positionId}
+          {...(current.request.mode ? { initialMode: current.request.mode } : {})}
           canManageLists={allowed.lists}
           onAction={sheets.open}
         />

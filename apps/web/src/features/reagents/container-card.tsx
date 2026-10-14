@@ -1,42 +1,143 @@
 import type { Position } from '@platlab/contracts';
-import { Band, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowUpFromLine, Calendar, Check, Ellipsis, MapPin, QrCode as QrIcon } from 'lucide-react';
+import { Band, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, HelpTip, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
+import { ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, Ellipsis, MapPin, QrCode as QrIcon, Scale, Star, TriangleAlert } from 'lucide-react';
 import { formatGrams, gramsPerUnit, weightFigures } from './weight';
 import { type ComponentProps, type CSSProperties } from 'react';
-import { addDays, formatDate, relativeDays } from '../../app/format';
+import { formatDate, formatShortDate, relativeDays } from '../../app/format';
 import { type Allowed, type SheetRequest } from './context';
 import { ContainerLabel, type LabelProduct } from './labels';
-import { InfoPill } from './pills';
-import { availableOf } from './stock';
+import { availableOf, expiryOf } from './stock';
 
 /**
- * Última línea de la tarjeta (ADR 0015): la marca y, con tara, «Tara · Neto · Bruto» en g, todo en gris de 12 px.
- * Fijar o cambiar la tara está en el menú «Más acciones». Los pesos no son cantidades de inventario: son vista
- * previa del servidor.
+ * Fila de estado de la tarjeta (ADR 0015): siempre mide h-5, aunque esté vacía, para que el código de todas
+ * las tarjetas caiga a la misma altura. A la izquierda el estado, en mayúsculas pequeñas con icono y color
+ * («Usar primero», «Vencido», «Apartado»); a la derecha la marca, en gris y truncada.
  */
-function Provenance({ brand, figures }: { brand: string | null; figures: ReturnType<typeof weightFigures> }) {
-  if (!brand && !figures) return null;
+function StatusRow({ recommended, expired, reserved, brand }: { recommended: boolean; expired: boolean; reserved: boolean; brand: string | null }) {
+  const status = 'inline-flex shrink-0 items-center gap-1 text-[11px] font-bold uppercase leading-none tracking-wider';
   return (
-    <div className="grid gap-0.5 text-[12px] leading-snug text-ink-muted">
-      {brand ? <p className="[overflow-wrap:anywhere]">{brand}</p> : null}
-      {figures ? (
-        // Tres datos; si no caben, envuelven por dato y no por palabra.
-        <dl className="flex flex-wrap gap-x-2.5 gap-y-0.5 tabular-nums">
-          {(
-            [
-              ['Tara', figures.tare],
-              ['Neto', figures.net],
-              ['Bruto', figures.expectedGross],
-            ] as const
-          ).map(([label, grams]) => (
-            <div key={label} className="flex gap-1 whitespace-nowrap">
-              <dt>{label}</dt>
-              <dd className="font-semibold">{formatGrams(grams)}</dd>
-            </div>
-          ))}
-        </dl>
+    <div className="flex h-5 items-center justify-between gap-2">
+      <div className="flex shrink-0 items-center gap-2.5">
+        {recommended ? (
+          <span className={cn(status, 'text-success')}>
+            <Star className="size-3 fill-current" aria-hidden />
+            Usar primero
+            <span className="sr-only"> (vence antes: conviene usarlo primero)</span>
+          </span>
+        ) : null}
+        {expired ? (
+          <span className={cn(status, 'text-danger')}>
+            <TriangleAlert className="size-3" aria-hidden />
+            Vencido
+          </span>
+        ) : null}
+        {reserved ? <span className={cn(status, 'text-warning')}>Apartado</span> : null}
+      </div>
+      {brand ? (
+        <span title={brand} className="min-w-0 truncate text-[12px] text-ink-subtle">
+          {brand}
+        </span>
       ) : null}
     </div>
+  );
+}
+
+/** Gramos de la tarjeta, sin el «,0» de los pesos enteros («3.109 g»): la ficha ocupa menos y la nube se lee igual. */
+const shortGrams = (grams: string) => formatGrams(grams).replace(',0 g', ' g');
+
+/** Ficha pequeña de la tarjeta: píldora de borde suave que abre su nube (`HelpTip`). El tono dice el estado y el texto lo repite. */
+const chipClass = (tone: 'neutral' | 'warning' | 'danger') =>
+  cn(
+    'inline-flex h-7 max-w-full items-center gap-1.5 rounded-full border px-2 text-[12px] font-medium leading-none tabular-nums transition-colors duration-150 max-sm:h-9 max-sm:text-[13px]',
+    tone === 'neutral' && 'border-line bg-white/70 text-ink-muted hover:bg-white hover:text-ink aria-expanded:bg-white aria-expanded:text-ink',
+    tone === 'warning' && 'border-warning/30 bg-warning-soft text-warning',
+    tone === 'danger' && 'border-danger/30 bg-danger-soft text-danger',
+  );
+
+/**
+ * La caducidad en una ficha: fecha corta `dd/mm/aaaa`, neutra; en ámbar a menos de 30 días (el criterio del
+ * resumen y del filtro «Por vencer»), en rojo vencida, «Sin caducidad» si no la tiene. La nube dice la fecha
+ * larga y cuánto falta.
+ */
+function ExpiryChip({ expiresOn, today }: { expiresOn: string | null; today: string }) {
+  const state = expiryOf(expiresOn, today);
+  if (expiresOn === null) {
+    return (
+      <HelpTip
+        hover
+        label="Sin caducidad registrada"
+        trigger={
+          <>
+            <CalendarDays className="size-3.5 shrink-0" aria-hidden />
+            Sin caducidad
+          </>
+        }
+        className={chipClass('neutral')}
+      >
+        Este frasco no tiene fecha de caducidad registrada.
+      </HelpTip>
+    );
+  }
+  const Icon = state === 'expired' ? CalendarX : state === 'soon' ? CalendarClock : CalendarDays;
+  const short = formatShortDate(expiresOn);
+  return (
+    <HelpTip
+      hover
+      label={`Caducidad ${short}${state === 'expired' ? ', vencido' : state === 'soon' ? ', vence pronto' : ''}`}
+      trigger={
+        <>
+          <Icon className="size-3.5 shrink-0" aria-hidden />
+          {short}
+        </>
+      }
+      className={chipClass(state === 'expired' ? 'danger' : state === 'soon' ? 'warning' : 'neutral')}
+    >
+      {state === 'expired' ? 'Venció' : 'Vence'} el {formatDate(expiresOn)} · {relativeDays(expiresOn, today)}
+    </HelpTip>
+  );
+}
+
+/**
+ * El peso bruto que debe marcar la balanza (tara + contenido), solo con tara. La nube trae tara y neto; con
+ * permiso de ajustar, además «Comprobar con balanza», que abre la hoja Ajustar ya en «Por peso». Los pesos no
+ * son cantidades de inventario: son vista previa del servidor.
+ */
+function WeightChip({ figures, canCheck, onCheck }: { figures: NonNullable<ReturnType<typeof weightFigures>>; canCheck: boolean; onCheck: () => void }) {
+  const gross = shortGrams(figures.expectedGross);
+  return (
+    <HelpTip
+      hover
+      label={`Peso bruto esperado ${gross}`}
+      trigger={
+        <>
+          <Scale className="size-3.5 shrink-0" aria-hidden />
+          {gross}
+        </>
+      }
+      className={chipClass('neutral')}
+    >
+      {(close) => (
+        <div className="grid gap-1.5">
+          <p className="font-semibold">Lo que debe marcar la balanza</p>
+          <p className="tabular-nums text-white/80">
+            Tara {shortGrams(figures.tare)} · Neto {shortGrams(figures.net)}
+          </p>
+          {canCheck ? (
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                onCheck();
+              }}
+              className="mt-1 inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-white px-3 text-[13px] font-semibold text-ink transition-colors hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-sm:h-10"
+            >
+              <Scale className="size-3.5" aria-hidden />
+              Comprobar con balanza
+            </button>
+          ) : null}
+        </div>
+      )}
+    </HelpTip>
   );
 }
 
@@ -68,10 +169,10 @@ function Place({ path, name }: { path: string[]; name: string }) {
 /**
  * Un frasco en la ficha (ADR 0012; ADR 0010, «Ventanas como ReactiLab»): translúcido sin desenfoque
  * (`bg-white/80`, borde suave, radio de 24 px) y compacto: caben tres por fila junto al resumen lateral.
- * Se lee en el orden en que se identifica un frasco: el código mono en negrita de 15 px con el estado como
- * insignia dentro de la tarjeta, arriba a la derecha («Usar primero», «Vencido», «Apartado»); el saldo de
- * 26 px con su unidad y el % a la derecha, y la barra por nivel; la ubicación completa con su ruta; la
- * caducidad exacta (ámbar o rojo según el estado); una línea gris con la marca y la tara; y, tras una línea
+ * Se lee en el orden en que se identifica un frasco: la fila de estado (h-5; «Usar primero», «Vencido» o
+ * «Apartado» y, a la derecha, la marca); el código mono en negrita de 15 px; el saldo de 26 px con su unidad y
+ * el % a la derecha, y la barra por nivel; la ubicación completa con su ruta; dos fichas, la caducidad corta
+ * (ámbar o roja según el estado) y, con tara, el peso bruto esperado, cada una con su nube; y, tras una línea
  * de borde a borde, «Salida» y un menú «Más acciones» con Trasladar, Ajustar y la tara. El color solo cuenta
  * un estado y siempre con texto.
  *
@@ -101,7 +202,7 @@ export function ContainerCard({
   const percent = initial ? ratioPercent(position.balance, initial) : null;
   const empty = position.balance === '0';
   const { expiresOn } = position.lot;
-  const expired = expiresOn !== null && expiresOn < today;
+  const expired = expiryOf(expiresOn, today) === 'expired';
   // Lo apartado por solicitudes no se puede sacar (ADR 0012); con todo apartado, no hay «Salida».
   const reserved = position.reserved !== '0';
   const available = availableOf(position);
@@ -111,7 +212,6 @@ export function ContainerCard({
   // Se traslada el frasco entero; con salidas pendientes, primero se resuelven (ADR 0012, entrega 4).
   const canTransfer = allowed.transfer && !empty && !reserved;
   const { brand } = position.lot;
-  const soon = expiresOn !== null && !expired && expiresOn <= addDays(today, 30);
   const code = position.container?.code ?? position.lot.code;
   const figures = weightFigures(position);
   // Solo se pesan g, kg, mL y L (en volumen, con densidad: la pide la hoja).
@@ -150,30 +250,12 @@ export function ContainerCard({
             Desde su etiqueta
           </span>
         ) : null}
-        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1.5">
-          {/* El código es la identidad de la etiqueta: nunca se corta; si no cabe, envuelve en sus guiones. */}
-          <h3 className="min-w-0 font-mono text-[15px] font-bold leading-tight tabular-nums text-ink [overflow-wrap:anywhere]">{code}</h3>
-          {recommended || expired || reserved ? (
-            <div className="ml-auto flex shrink-0 flex-wrap justify-end gap-1">
-              {recommended ? (
-                <span className="inline-flex min-h-6 items-center gap-1 rounded-full bg-success px-2.5 text-xs font-bold text-on-action">
-                  <Check className="size-3" aria-hidden />
-                  Usar primero
-                  <span className="sr-only"> (vence antes: conviene usarlo primero)</span>
-                </span>
-              ) : null}
-              {expired ? (
-                <InfoPill tone="danger" className="min-h-6 px-2.5 text-xs font-bold">
-                  Vencido
-                </InfoPill>
-              ) : null}
-              {reserved ? (
-                <InfoPill tone="accent" className="min-h-6 px-2.5 text-xs font-bold">
-                  Apartado
-                </InfoPill>
-              ) : null}
-            </div>
-          ) : null}
+        <div className="-mb-1 grid gap-1">
+          <StatusRow recommended={recommended} expired={expired} reserved={reserved} brand={brand} />
+          {/* El código es la identidad de la etiqueta: si no cabe, se corta con puntos y el título lo dice entero. */}
+          <h3 title={code} className="truncate font-mono text-[15px] font-bold leading-tight tabular-nums text-ink">
+            {code}
+          </h3>
         </div>
         <div className="grid gap-1.5">
           <div className="flex items-baseline justify-between gap-2">
@@ -202,22 +284,12 @@ export function ContainerCard({
         </div>
         <Place path={position.location.path} name={position.location.name} />
         {/* El lote interno ya es el prefijo del código del frasco: no se repite. */}
-        <p
-          className={cn(
-            'flex items-start gap-1.5 text-[13px] font-medium',
-            expired ? 'text-danger' : soon || expiresOn === null ? 'text-warning' : 'text-ink-muted',
-          )}
-        >
-          <Calendar className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          {expiresOn ? (
-            <span>
-              {expired ? 'Venció' : 'Vence'} {formatDate(expiresOn)} · {relativeDays(expiresOn, today)}
-            </span>
-          ) : (
-            <span>Caducidad sin indicar</span>
-          )}
-        </p>
-        <Provenance brand={brand} figures={figures} />
+        <div className="flex flex-wrap gap-1.5">
+          <ExpiryChip expiresOn={expiresOn} today={today} />
+          {figures ? (
+            <WeightChip figures={figures} canCheck={allowed.adjustment} onCheck={() => onAction({ kind: 'adjustment', positionId: position.id, mode: 'weight' })} />
+          ) : null}
+        </div>
         {canIssue || canTransfer || allowed.adjustment ? (
           // Banda inferior de borde a borde: «Salida» es la primaria; lo demás, en el menú «Más acciones».
           <Band ruled className="-mx-4 -mb-1 mt-auto flex items-center gap-1.5 px-4 pt-3">

@@ -21,6 +21,9 @@ const adjustmentQuantity = z
   .string()
   .regex(/^-?(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal distinta de cero');
 
+/** «Por vencer»: caduca entre hoy y los próximos días (02 §12, ADR 0012); lo usan el servidor y la web. */
+export const EXPIRING_DAYS = 30;
+
 export const physicalState = z.enum(['solid', 'liquid', 'aqueous', 'mixture', 'gas']);
 /** Los nueve pictogramas SGA (ADR 0015). */
 export const hazard = z.enum(['GHS01', 'GHS02', 'GHS03', 'GHS04', 'GHS05', 'GHS06', 'GHS07', 'GHS08', 'GHS09']);

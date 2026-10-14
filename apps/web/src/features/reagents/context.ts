@@ -20,7 +20,8 @@ export type SheetRequest =
   | { kind: 'ingress'; productId?: string }
   // Con `position`, el frasco viaja en la petición (el de una etiqueta QR puede no estar en la lista global).
   | { kind: 'issue'; positionId?: string; productId?: string; position?: Position }
-  | { kind: 'adjustment'; positionId?: string }
+  // `mode: 'weight'`: abre ya en «Por peso» (desde la nube del peso esperado del frasco, ADR 0015).
+  | { kind: 'adjustment'; positionId?: string; mode?: 'weight' }
   // El frasco viaja en la petición: la lista global de frascos puede no incluirlo (llega por páginas).
   | { kind: 'transfer'; position: Position }
   // Tara de un frasco (ADR 0015): desde su tarjeta o desde el ajuste por peso.

@@ -24,6 +24,12 @@ export function formatDate(isoDate: string): string {
   );
 }
 
+/** Fecha civil corta, «31/12/2026»: para fichas donde «31 dic 2026» no cabe. */
+export function formatShortDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 /** «hace 2 min»: el tablero nunca promete «en vivo» (01 §7). */
 export function formatAgo(timestamp: number, now: number): string {
   const seconds = Math.max(0, Math.round((now - timestamp) / 1000));

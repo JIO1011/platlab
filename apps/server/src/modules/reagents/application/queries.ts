@@ -1,5 +1,6 @@
 import type pg from 'pg';
 import type { z } from 'zod';
+import { EXPIRING_DAYS } from '@platlab/contracts';
 import type {
   containerCodeSuggestionQuery,
   LocationList,
@@ -60,8 +61,6 @@ const RECEIPT = 'reagents.receipt.create';
 const REPORT = 'reagents.report.read';
 /** Ventana del gráfico de salidas del resumen (ADR 0011). */
 const TREND_DAYS = 30;
-/** «Por vencer»: caduca entre hoy y los próximos días (02 §12, ADR 0012 del 05-10-2026). */
-const EXPIRING_DAYS = 30;
 
 interface QueryRequest {
   subject: string;

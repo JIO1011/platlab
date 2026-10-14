@@ -18,11 +18,14 @@ export function AdjustmentSheet({
   onOpenChange,
   positions,
   positionId,
+  initialMode = 'quantity',
   canManageLists,
   onAction,
 }: SheetBaseProps & {
   positions: Position[];
   positionId: string | undefined;
+  /** «Por peso» cuando se llega desde «Comprobar con balanza». */
+  initialMode?: 'quantity' | 'weight';
   canManageLists: boolean;
   /** Sin tara, el ajuste por peso ofrece fijarla (otra hoja). */
   onAction: (request: SheetRequest) => void;
@@ -38,7 +41,7 @@ export function AdjustmentSheet({
   const direction = form.watch('direction');
   const errors = form.formState.errors;
   // Por peso (ADR 0015): el saldo lo calcula el servidor con la balanza; aquí solo se anticipa.
-  const [mode, setMode] = useState<'quantity' | 'weight'>('quantity');
+  const [mode, setMode] = useState<'quantity' | 'weight'>(initialMode);
   const [scaleText, setScaleText] = useState('');
   const [scaleError, setScaleError] = useState<string | undefined>(undefined);
   const scaleWeight = normalizeDecimalInput(scaleText);

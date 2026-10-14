@@ -389,7 +389,11 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 - Área o departamento es un desplegable.
 - La ubicación muestra sus tres niveles con texto guía; cada nivel se habilita al elegir el anterior.
 - El número de frascos va en el pie, unido al botón: [− N +] «Ingresar N frascos». «Caducidad» ocupa su lugar, junto a Cantidad.
-- La tarjeta del frasco sigue el orden en que se busca: código, saldo, ubicación con su ruta completa (por ejemplo, Laboratorio › Estante › Nivel), caducidad, y al final la marca y la tara en gris. «FEFO» se muestra como «Usar primero». La API devuelve la ruta de la ubicación.
+- Tarjeta del frasco:
+  - Una fila de estado de altura fija alinea las tarjetas: «★ Usar primero» (FEFO), «Vencido» o «Apartado», y a la derecha la marca.
+  - Luego el código, el saldo con su barra y la ubicación con su ruta completa (la devuelve la API).
+  - Debajo, dos fichas: 📅 la fecha corta (ámbar a menos de 30 días, roja si venció), y ⚖ el peso que debe marcar la balanza, solo si hay tara.
+  - Tara, neto y el plazo van en una nube. Tocar ⚖ abre «Comprobar con balanza» (ajuste por peso).
 
 **Implementación (12-10-2026):**
 

@@ -104,3 +104,4 @@ export {
   type TransferResponse,
 } from './reagents.js';
 export { bottleCodes, codeFromName, firstFreeCode, freeSeries, nextCode, seriesFromName } from './codes.js';
+export { EXPIRING_DAYS } from './reagents.js';

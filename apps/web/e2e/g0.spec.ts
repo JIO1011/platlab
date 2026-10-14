@@ -537,11 +537,15 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
   await expect(admin.getByRole('heading', { name: 'Ácido sulfúrico 98 %', level: 1 })).toBeVisible();
   await expect(admin.getByRole('article')).toHaveCount(3);
-  // Cada frasco dice su estado con texto (tarjeta de frasco de ReactiLab, 05-10-2026): el vencido,
-  // cuánto hace, y el FEFO, el que conviene usar primero.
+  // Cada frasco dice su estado con texto en su fila de estado (ADR 0015): el vencido y el FEFO, el que conviene
+  // usar primero; la ficha de caducidad trae la fecha corta y, en su nube, cuánto hace.
   const expiredCard = admin.getByRole('article').filter({ hasText: 'H2SO4-2024-08-01' });
-  await expect(expiredCard).toContainText('Venció');
-  await expect(expiredCard).toContainText(/hace \d+ (días|meses)/);
+  const expiryChip = expiredCard.getByRole('button', { name: /^Caducidad \d{2}\/\d{2}\/\d{4}, vencido$/ });
+  await expect(expiryChip).toHaveText(/^\d{2}\/\d{2}\/\d{4}$/);
+  await expiryChip.hover();
+  await expect(admin.getByRole('tooltip')).toContainText(/Venció el .+ · hace \d+ (días|meses|años)/);
+  await expiredCard.getByRole('heading').hover();
+  await expect(admin.getByRole('tooltip')).toHaveCount(0);
   await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' })).toContainText('Usar primero');
   await expect(admin.getByText('1 frasco vencido')).toBeVisible();
   // El saldo con su unidad y el % a la derecha.
@@ -696,12 +700,18 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await expect(more.getByRole('textbox', { name: 'Cantidad' })).toBeFocused();
   await admin.keyboard.press('Escape');
   await expect(more).toHaveCount(0);
-  const weighed = admin.getByRole('article').filter({ has: admin.getByText('Tara', { exact: true }) });
-  await expect(weighed).toContainText('140,0 g');
-  await expect(weighed).toContainText('640,0 g');
-  await cardAction(admin, weighed, 'Ajustar');
+  // Con tara, la tarjeta trae la ficha ⚖ con el peso que debe marcar la balanza; su nube dice la tara y el neto.
+  const scaleChip = admin.getByRole('button', { name: /^Peso bruto esperado/ });
+  const weighed = admin.getByRole('article').filter({ has: scaleChip });
+  await expect(weighed).toHaveCount(1);
+  await expect(scaleChip).toHaveText('640 g');
+  await scaleChip.hover();
+  const scaleTip = admin.getByRole('dialog', { name: /^Peso bruto esperado/ });
+  await expect(scaleTip).toContainText('Lo que debe marcar la balanza');
+  await expect(scaleTip).toContainText('Tara 140 g');
+  // «Comprobar con balanza» abre Ajustar ya en «Por peso» para ese frasco.
+  await scaleTip.getByRole('button', { name: 'Comprobar con balanza' }).click();
   const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
-  await adjustment.getByRole('button', { name: 'Por peso' }).click();
   await adjustment.getByLabel('Peso en balanza (g)').fill('600');
   await expect(adjustment.getByText('Saldo calculado')).toContainText('460');
   await expectAccessible(admin, 'ajuste por peso');
@@ -709,14 +719,14 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await expect(admin.getByText('Quedan 460 g en el frasco')).toBeVisible();
 
   // El frasco sin tara la fija con la balanza.
-  const plain = admin.getByRole('article').filter({ hasNot: admin.getByText('Tara', { exact: true }) });
+  const plain = admin.getByRole('article').filter({ hasNot: admin.getByRole('button', { name: /^Peso bruto esperado/ }) });
   await cardAction(admin, plain, 'Fijar tara');
   const tare = admin.getByRole('dialog', { name: 'Fijar tara' });
   await tare.getByLabel('Peso en balanza (g)').fill('650');
   await expect(tare.getByText('Tara calculada')).toContainText('150,0 g');
   await tare.getByRole('button', { name: 'Fijar tara' }).click();
   await expect(admin.getByText('Tara fijada')).toBeVisible();
-  await expect(admin.getByRole('article').filter({ has: admin.getByText('Tara', { exact: true }) })).toHaveCount(2);
+  await expect(admin.getByRole('button', { name: /^Peso bruto esperado/ })).toHaveCount(2);
 });
 
 test('etiquetas con giro: las tarjetas giran a su etiqueta, se elige una y se imprime solo esa (ADR 0010)', async ({ browser }) => {
