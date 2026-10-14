@@ -1,6 +1,6 @@
 import type { Position } from '@platlab/contracts';
 import { Band, Button, HelpTip, IconChip, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, FlaskConical, MapPin, QrCode as QrIcon, Scale, SlidersHorizontal, Star, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, FlaskConical, MapPin, QrCode as QrIcon, Scale, Star, TriangleAlert } from 'lucide-react';
 import { formatGrams, weightFigures } from './weight';
 import { type ComponentProps, type CSSProperties } from 'react';
 import { formatDate, formatDateTime, formatShortDate, relativeDays } from '../../app/format';
@@ -294,7 +294,7 @@ export function ContainerCard({
   const code = position.container?.code ?? position.lot.code;
   const figures = weightFigures(position);
   const flipped = labels?.flipped === true;
-  // «Ajustar» abre una sola ventana; el frasco decide el método (balanza si tiene tara, cantidad si no).
+  // La ficha ⚖ ofrece «Corregir con la balanza» a quien puede ajustar (ADR 0015).
   const canAdjust = allowed.adjustment;
   return (
     <article
@@ -382,8 +382,8 @@ export function ContainerCard({
             />
           ) : null}
         </div>
-        {canIssue || canAdjust || canTransfer ? (
-          // Banda inferior de borde a borde: «Salida» es la primaria; «Ajustar» y «Trasladar» son botones propios.
+        {canIssue || canTransfer ? (
+          // Banda inferior de borde a borde: «Salida» es la primaria y «⇄» traslada. «Ajustar» vive en la cabecera de la ficha.
           <Band ruled className="relative -mx-4 -mb-1 mt-auto flex items-center gap-1.5 px-4 pt-3">
             {canIssue ? (
               // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
@@ -398,24 +398,13 @@ export function ContainerCard({
                 {allowed.approve ? 'Salida' : 'Solicitar salida'}
               </Button>
             ) : null}
-            {canAdjust ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                className={cn('h-10 shrink-0 rounded-xl border-line-strong bg-white/70 px-2.5 font-semibold text-ink-muted hover:bg-white hover:text-ink', !canIssue && 'ml-auto')}
-                onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}
-              >
-                <SlidersHorizontal aria-hidden />
-                Ajustar
-              </Button>
-            ) : null}
             {canTransfer ? (
               <Button
                 size="icon"
                 variant="secondary"
                 aria-label={`Trasladar ${code}`}
                 title="Trasladar"
-                className={cn('size-10 rounded-xl border-line-strong bg-white/70 text-ink-muted hover:bg-white hover:text-ink', !canIssue && !canAdjust && 'ml-auto')}
+                className={cn('size-10 rounded-xl border-line-strong bg-white/70 text-ink-muted hover:bg-white hover:text-ink', !canIssue && 'ml-auto')}
                 onClick={() => onAction({ kind: 'transfer', position })}
               >
                 <ArrowLeftRight aria-hidden />

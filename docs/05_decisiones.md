@@ -398,6 +398,7 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
     - La ubicación va en dos líneas, como una dirección: la sala arriba y, en gris, el estante y el nivel.
     - La ficha ⚖ dice «Debe pesar N g» y ofrece «Corregir con la balanza». La tara y el neto pasan a «Detalles del frasco».
     - «Ajustar» vuelve como botón y abre una sola ventana que elige el método. Con control por balanza, pregunta «¿Qué marca la balanza?» y ofrece escribir la cantidad. Sin control, pregunta la cantidad y ofrece «Pesar el frasco para activar la balanza» (antes «Fijar tara»).
+  - La tarjeta queda con «Salida» y ⇄. «Ajustar» y «Etiquetas QR» pasan a la cabecera de la ficha, junto a «Ingresar frascos». Ajustar elige el frasco; Etiquetas QR gira las tarjetas (14-10-2026).
 - Resumen de la ficha: tres tarjetas pequeñas separadas en una columna angosta.
 - Inventario (nivel 1): 4 tarjetas por fila desde 1280 px, con el contenido centrado y las insignias (frascos, vencidos y controlado) en una fila bajo el total.
 

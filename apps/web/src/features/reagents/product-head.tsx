@@ -1,7 +1,7 @@
 import type { ProductDetail } from '@platlab/contracts';
 import type { ReactNode } from 'react';
 import { Button, IconTile, Quantity, StockLevelBar, cn, formatDecimal } from '@platlab/ui';
-import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, RefreshCw, TrendingDown, type LucideIcon } from 'lucide-react';
+import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, QrCode, RefreshCw, SlidersHorizontal, TrendingDown, type LucideIcon } from 'lucide-react';
 import { formatAgo, formatDate } from '../../app/format';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { ControlledMark } from './controlled';
@@ -20,31 +20,45 @@ import { useNow } from './use-now';
 const glassCard =
   'rounded-[28px] border border-white/70 bg-white/70 shadow-raised backdrop-blur-xl backdrop-saturate-150 not-supports-[backdrop-filter]:bg-surface';
 
+/** Pastilla clara de las acciones secundarias de la cabecera: icono y texto, 36 px; marcada, relleno suave. */
+const pillAction =
+  'h-9 rounded-full border-line-strong bg-white/80 px-3.5 text-[13px] font-semibold text-action hover:bg-white aria-pressed:border-action/40 aria-pressed:bg-action-soft [&_svg]:size-4';
+
+/** El id de «Etiquetas QR»: la ficha le devuelve el foco al cerrar el modo. */
+export const labelsButtonId = 'etiquetas-qr';
+
 const quietLink =
   'inline-flex min-h-8 items-center gap-1.5 rounded-control px-1.5 text-[13px] font-medium text-action transition-colors hover:bg-action-soft';
 
 /**
  * Cabecera de la ficha: el cuadro del módulo y el nombre; la identidad en pastillas (código,
  * CAS, estado, «Controlado»); los pictogramas; y las acciones, con «Registrar salida» como la primaria
- * y «Ingresar frascos» como pastilla clara. «Editar» y «Actualizar» quedan como enlaces discretos.
+ * y, debajo, una fila de pastillas claras: «Ingresar frascos», «Ajustar» (elige el frasco del reactivo) y
+ * «Etiquetas QR» (gira las tarjetas de los frascos; ADR 0015, 14-10-2026). «Editar» y «Actualizar» quedan
+ * como enlaces discretos.
  */
 export function ProductHeader({
   product,
   allowed,
   canIssue,
   freshness,
+  labels,
   onAction,
 }: {
   product: ProductDetail;
   allowed: Allowed;
   canIssue: boolean;
   freshness: ReagentsContext['freshness'];
+  /** El modo de etiquetas vive en la página (las tarjetas giran allí); la pastilla solo lo activa. */
+  labels: { active: boolean; onToggle: () => void };
   onAction: (request: SheetRequest) => void;
 }) {
   const now = useNow(15_000);
   const state = product.physicalState ?? undefined;
   const StateIcon = (state && physicalStateIcon[state]) || FlaskConical;
   const showIssue = allowed.issue && canIssue;
+  const showAdjust = allowed.adjustment && canIssue && product.containersWithStock > 0;
+  const showLabels = product.containersWithStock > 0;
   return (
     <div className={cn(glassCard, 'p-5 md:p-6')}>
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
@@ -101,8 +115,8 @@ export function ProductHeader({
             </p>
           </div>
         </div>
-        {showIssue || allowed.receipt ? (
-          <div className="grid shrink-0 gap-2.5 sm:grid-cols-2 lg:w-60 lg:grid-cols-1">
+        {showIssue || allowed.receipt || showAdjust || showLabels ? (
+          <div className="grid shrink-0 gap-3 lg:w-64">
             {showIssue ? (
               <Button
                 variant="primary"
@@ -113,15 +127,26 @@ export function ProductHeader({
                 {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
               </Button>
             ) : null}
-            {allowed.receipt ? (
-              <Button
-                className="h-11 rounded-full border-line-strong bg-white/80 px-5 font-semibold text-action hover:bg-white"
-                onClick={() => onAction({ kind: 'ingress', productId: product.id })}
-              >
-                <PackagePlus aria-hidden />
-                Ingresar frascos
-              </Button>
-            ) : null}
+            <div className="flex flex-wrap gap-2">
+              {allowed.receipt ? (
+                <Button className={pillAction} onClick={() => onAction({ kind: 'ingress', productId: product.id })}>
+                  <PackagePlus aria-hidden />
+                  Ingresar frascos
+                </Button>
+              ) : null}
+              {showAdjust ? (
+                <Button className={pillAction} onClick={() => onAction({ kind: 'adjustment', productId: product.id })}>
+                  <SlidersHorizontal aria-hidden />
+                  Ajustar
+                </Button>
+              ) : null}
+              {showLabels ? (
+                <Button id={labelsButtonId} className={pillAction} aria-pressed={labels.active} onClick={labels.onToggle}>
+                  <QrCode aria-hidden />
+                  Etiquetas QR
+                </Button>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>

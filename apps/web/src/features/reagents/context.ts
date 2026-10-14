@@ -21,7 +21,8 @@ export type SheetRequest =
   // Con `position`, el frasco viaja en la petición (el de una etiqueta QR puede no estar en la lista global).
   | { kind: 'issue'; positionId?: string; productId?: string; position?: Position }
   // `mode: 'weight'`: desde «Corregir con la balanza» (ADR 0015); un frasco sin tara abre ya con la balanza por activar.
-  | { kind: 'adjustment'; positionId?: string; mode?: 'weight' }
+  // Con `productId` (desde la cabecera de su ficha), el selector ofrece solo los frascos de ese reactivo.
+  | { kind: 'adjustment'; positionId?: string; productId?: string; mode?: 'weight' }
   // El frasco viaja en la petición: la lista global de frascos puede no incluirlo (llega por páginas).
   | { kind: 'transfer'; position: Position }
   // Mínimo (ADR 0012, 05-10-2026) y edición de la ficha (ADR 0015): desde la ficha del reactivo.

@@ -135,6 +135,9 @@ export function ReagentsLayout() {
   }
 
   const current = sheets.current;
+  // «Ajustar» desde la ficha ofrece solo los frascos de ese reactivo; desde el Inventario, todos.
+  const adjustProductId = current?.request.kind === 'adjustment' ? current.request.productId : undefined;
+  const adjustable = adjustProductId ? positionList.filter((position) => position.product.id === adjustProductId) : positionList;
   const sheetProps = (kind: SheetRequest['kind']) => ({
     workspaceId,
     open: current?.open === true && current.request.kind === kind,
@@ -273,8 +276,8 @@ export function ReagentsLayout() {
         <AdjustmentSheet
           key={current.id}
           {...sheetProps('adjustment')}
-          positions={positionList}
-          positionId={current.request.positionId}
+          positions={adjustable}
+          positionId={current.request.positionId ?? (adjustable.length === 1 && current.request.productId ? adjustable[0]?.id : undefined)}
           products={productList}
           {...(current.request.mode ? { initialMode: current.request.mode } : {})}
           canManageLists={allowed.lists}
