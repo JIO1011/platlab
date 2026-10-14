@@ -1,7 +1,7 @@
 import type { Position } from '@platlab/contracts';
 import { Band, Button, HelpTip, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, MapPin, QrCode as QrIcon, Scale, Star, TriangleAlert } from 'lucide-react';
-import { formatGrams, gramsPerUnit, weightFigures } from './weight';
+import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, MapPin, QrCode as QrIcon, Scale, SlidersHorizontal, Star, TriangleAlert } from 'lucide-react';
+import { formatGrams, weightFigures } from './weight';
 import { type ComponentProps, type CSSProperties } from 'react';
 import { formatDate, formatDateTime, formatShortDate, relativeDays } from '../../app/format';
 import { type Allowed, type SheetRequest } from './context';
@@ -57,13 +57,17 @@ function StatusBadges({
   );
 }
 
+/** Gramos de la tarjeta, sin el «,0» de los pesos enteros («3.109 g»): la ficha ocupa menos y la nube se lee igual. */
+const shortGrams = (grams: string) => formatGrams(grams).replace(',0 g', ' g');
+
 /**
  * El código del frasco, un botón que abre la nube «Detalles del frasco»: el lote interno, cuándo y quién lo
- * ingresó, la cantidad inicial con su unidad y, si la tiene, la densidad. Si no cabe, se corta con puntos.
+ * ingresó, la cantidad inicial con su unidad y, si la tiene, la densidad; con tara, también la tara y el neto. Si no cabe, se corta con puntos.
  */
 function CodeButton({ position, code, timeZone }: { position: Position; code: string; timeZone: string }) {
   const { container, lot, unit } = position;
   const by = container?.receivedBy?.displayName ?? null;
+  const figures = weightFigures(position);
   const term = 'text-[12px] text-white/70';
   return (
     <HelpTip
@@ -99,15 +103,24 @@ function CodeButton({ position, code, timeZone }: { position: Position; code: st
                 <dd className="font-medium tabular-nums">{formatDecimal(container.density)} g/mL</dd>
               </div>
             ) : null}
+            {figures ? (
+              <>
+                <div>
+                  <dt className={term}>Tara</dt>
+                  <dd className="font-medium tabular-nums">{shortGrams(figures.tare)}</dd>
+                </div>
+                <div>
+                  <dt className={term}>Neto</dt>
+                  <dd className="font-medium tabular-nums">{shortGrams(figures.net)}</dd>
+                </div>
+              </>
+            ) : null}
           </>
         ) : null}
       </dl>
     </HelpTip>
   );
 }
-
-/** Gramos de la tarjeta, sin el «,0» de los pesos enteros («3.109 g»): la ficha ocupa menos y la nube se lee igual. */
-const shortGrams = (grams: string) => formatGrams(grams).replace(',0 g', ' g');
 
 /** Ficha pequeña de la tarjeta: píldora de borde suave que abre su nube (`HelpTip`). El tono dice el estado y el texto lo repite. */
 const chipClass = (tone: 'neutral' | 'warning' | 'danger') =>
@@ -161,77 +174,41 @@ function ExpiryChip({ expiresOn, today }: { expiresOn: string | null; today: str
   );
 }
 
-/** Botón de una nube con acciones: la primera, blanca; las demás, de contorno. Cierra la nube antes de actuar. */
-function CloudAction({ close, onClick, primary = false, children }: { close: () => void; onClick: () => void; primary?: boolean; children: string }) {
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        close();
-        onClick();
-      }}
-      className={cn(
-        'inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-sm:h-10',
-        primary ? 'bg-white text-ink hover:bg-action-soft' : 'border border-white/25 text-white hover:bg-white/10',
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 /**
- * Las acciones sobre la cantidad del frasco, que viven en la ficha ⚖ (ADR 0015, «Tarjeta del frasco»):
- * comprobar con balanza, ajustar la cantidad y fijar o cambiar la tara.
+ * La ficha ⚖, solo con tara (ADR 0015, «Ajuste del mismo día»): el peso bruto que debe marcar la balanza
+ * (tara + contenido). Su nube dice cómo comprobarlo y, para quien ajusta, ofrece «Corregir con la balanza»,
+ * que abre Ajustar en modo balanza. Los pesos no son cantidades de inventario: son vista previa del servidor.
  */
-type ScaleActions = {
-  onCheck: () => void;
-  onAdjust: () => void;
-  onTare: () => void;
-  /** Se puede fijar o cambiar la tara (la unidad se pesa). */
-  canTare: boolean;
-};
-
-/**
- * Centro de control del frasco con tara: el peso bruto que debe marcar la balanza (tara + contenido). La nube
- * trae la tara y el neto; con permiso de ajustar, además «Comprobar con balanza» (abre Ajustar ya en «Por
- * peso»), «Ajustar cantidad» y «Cambiar tara». Los pesos no son cantidades de inventario: son vista previa
- * del servidor.
- */
-function WeightChip({ figures, actions }: { figures: NonNullable<ReturnType<typeof weightFigures>>; actions: ScaleActions | null }) {
+function WeightChip({ figures, onCorrect }: { figures: NonNullable<ReturnType<typeof weightFigures>>; onCorrect: (() => void) | null }) {
   const gross = shortGrams(figures.expectedGross);
   return (
     <HelpTip
       hover
-      label={`Peso bruto esperado ${gross}`}
+      label={`Debe pesar ${gross}`}
       trigger={
         <>
           <Scale className="size-3.5 shrink-0" aria-hidden />
-          {gross}
+          Debe pesar {gross}
         </>
       }
       className={chipClass('neutral')}
     >
       {(close) => (
-        <div className="grid gap-1.5">
-          <p className="font-semibold">Lo que debe marcar la balanza</p>
-          <p className="tabular-nums text-white/80">
-            Tara {shortGrams(figures.tare)} · Neto {shortGrams(figures.net)}
+        <div className="grid gap-2">
+          <p>
+            Pon el frasco cerrado en la balanza: debería marcar <span className="font-semibold tabular-nums">{gross}</span>. ¿Marca otra cosa?
           </p>
-          {actions ? (
-            <div className="mt-1 grid gap-1.5">
-              <CloudAction close={close} onClick={actions.onCheck} primary>
-                Comprobar con balanza
-              </CloudAction>
-              <CloudAction close={close} onClick={actions.onAdjust}>
-                Ajustar cantidad
-              </CloudAction>
-              {actions.canTare ? (
-                <CloudAction close={close} onClick={actions.onTare}>
-                  Cambiar tara
-                </CloudAction>
-              ) : null}
-            </div>
+          {onCorrect ? (
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                onCorrect();
+              }}
+              className="inline-flex h-8 items-center justify-center rounded-lg bg-white px-3 text-[13px] font-semibold text-ink transition-colors hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-sm:h-10"
+            >
+              Corregir con la balanza
+            </button>
           ) : null}
         </div>
       )}
@@ -240,64 +217,25 @@ function WeightChip({ figures, actions }: { figures: NonNullable<ReturnType<type
 }
 
 /**
- * Centro de control del frasco sin tara, solo para quien ajusta: «Ajustar» con borde punteado (es un pendiente,
- * no un dato). Su nube pide fijar la tara para poder comprobar con la balanza, y ofrece «Ajustar cantidad».
- * Si la unidad no se pesa, no hay tara que fijar y la nube lo dice.
- */
-function AdjustChip({ actions }: { actions: ScaleActions }) {
-  return (
-    <HelpTip
-      hover
-      label="Ajustar, sin tara"
-      trigger={
-        <>
-          <Scale className="size-3.5 shrink-0" aria-hidden />
-          Ajustar
-        </>
-      }
-      className={cn(chipClass('neutral'), 'border-dashed border-line-strong')}
-    >
-      {(close) => (
-        <div className="grid gap-1.5">
-          <p className="font-semibold">{actions.canTare ? 'Sin tara: fíjala para comprobar con la balanza' : 'Este frasco no se pesa: ajusta su cantidad por conteo'}</p>
-          <div className="mt-1 grid gap-1.5">
-            {actions.canTare ? (
-              <CloudAction close={close} onClick={actions.onTare} primary>
-                Fijar tara
-              </CloudAction>
-            ) : null}
-            <CloudAction close={close} onClick={actions.onAdjust} primary={!actions.canTare}>
-              Ajustar cantidad
-            </CloudAction>
-          </div>
-        </div>
-      )}
-    </HelpTip>
-  );
-}
-
-/**
- * La ubicación completa: el camino desde la sede (`path`) unido por « › », sin truncar y envolviendo si hace
- * falta. El último nivel, en el color del texto; los anteriores, en gris. Sin camino, el nombre de la ubicación.
+ * La ubicación como una dirección, en dos líneas de altura fija (las tarjetas de una fila se alinean): con el
+ * pin, la sala (el primer nivel del camino) en el color del texto; debajo, en gris, los niveles siguientes
+ * unidos por « · ». Con un solo nivel, la segunda línea queda vacía. Cada línea se corta con puntos y su título
+ * dice la ruta completa. Sin camino, el nombre de la ubicación.
  */
 function Place({ path, name }: { path: string[]; name: string }) {
   const levels = path.length > 0 ? path : [name];
+  const [room, ...rest] = levels;
+  const full = levels.join(' › ');
   return (
-    <p className="flex items-start gap-1.5 text-[13px] leading-snug">
-      <MapPin className="mt-0.5 size-3.5 shrink-0 text-ink-muted" aria-hidden />
-      <span className="min-w-0 [overflow-wrap:anywhere]">
-        {levels.map((level, index) => (
-          <span key={`${index}-${level}`}>
-            {index > 0 ? (
-              <span aria-hidden className="text-ink-subtle">
-                {' › '}
-              </span>
-            ) : null}
-            <span className={index === levels.length - 1 ? 'font-medium text-ink' : 'text-ink-muted'}>{level}</span>
-          </span>
-        ))}
-      </span>
-    </p>
+    <div className="grid gap-0.5">
+      <p title={full} className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium leading-5 text-ink">
+        <MapPin className="size-3.5 shrink-0 text-ink-muted" aria-hidden />
+        <span className="truncate">{room}</span>
+      </p>
+      <p title={rest.length > 0 ? full : undefined} className="h-4 truncate pl-5 text-[12px] leading-4 text-ink-muted">
+        {rest.join(' · ')}
+      </p>
+    </div>
   );
 }
 
@@ -307,9 +245,9 @@ function Place({ path, name }: { path: string[]; name: string }) {
  * Los estados son insignias sobre el borde superior («Usar primero», «Vencido», «Apartado», «Cuarentena»,
  * «Restringido»). De arriba abajo: el código mono en negrita de 17 px, un botón que abre «Detalles del
  * frasco»; una línea gris con la marca y el área; el saldo de 26 px con su unidad y el % a la derecha, y la
- * barra por nivel; la ubicación completa con su ruta; dos fichas, la caducidad corta (ámbar o roja según el
- * estado) y ⚖, el centro de control (peso esperado, comprobar con balanza, ajustar y tara), cada una con su
- * nube; y, tras una línea de borde a borde, «Salida» y «Trasladar». El color solo cuenta un estado y siempre
+ * barra por nivel; la ubicación en dos líneas (la sala y, en gris, el resto del camino); dos fichas, la
+ * caducidad corta (ámbar o roja según el estado) y, con tara, «Debe pesar N g», cada una con su nube; y, tras
+ * una línea de borde a borde, «Salida», «Ajustar» y «Trasladar». El color solo cuenta un estado y siempre
  * con texto.
  *
  * Con el modo de etiquetas el artículo gira 180° y muestra su reverso: la etiqueta impresa, y la tarjeta
@@ -354,19 +292,9 @@ export function ContainerCard({
   const origin = [position.lot.brand, position.lot.area].filter(Boolean).join(' · ');
   const code = position.container?.code ?? position.lot.code;
   const figures = weightFigures(position);
-  // Solo se pesan g, kg, mL y L (en volumen, con densidad: la pide la hoja).
-  const weighable = gramsPerUnit(position.unit, '1') !== null && position.container !== null;
-  const canTare = allowed.adjustment && (figures !== null || weighable);
   const flipped = labels?.flipped === true;
-  // Ajustar, comprobar y la tara viven en la ficha ⚖, solo para quien ajusta (ADR 0015).
-  const scaleActions: ScaleActions | null = allowed.adjustment
-    ? {
-        onCheck: () => onAction({ kind: 'adjustment', positionId: position.id, mode: 'weight' }),
-        onAdjust: () => onAction({ kind: 'adjustment', positionId: position.id }),
-        onTare: () => onAction({ kind: 'tare', position }),
-        canTare,
-      }
-    : null;
+  // «Ajustar» abre una sola ventana; el frasco decide el método (balanza si tiene tara, cantidad si no).
+  const canAdjust = allowed.adjustment;
   return (
     <article
       id={position.container ? `frasco-${position.container.id}` : undefined}
@@ -433,10 +361,15 @@ export function ContainerCard({
         {/* El lote interno ya es el prefijo del código del frasco: no se repite. */}
         <div className="flex flex-wrap gap-1.5">
           <ExpiryChip expiresOn={expiresOn} today={today} />
-          {figures ? <WeightChip figures={figures} actions={scaleActions} /> : scaleActions ? <AdjustChip actions={scaleActions} /> : null}
+          {figures ? (
+            <WeightChip
+              figures={figures}
+              onCorrect={canAdjust ? () => onAction({ kind: 'adjustment', positionId: position.id, mode: 'weight' }) : null}
+            />
+          ) : null}
         </div>
-        {canIssue || canTransfer ? (
-          // Banda inferior de borde a borde: «Salida» es la primaria; «Trasladar» es un botón propio.
+        {canIssue || canAdjust || canTransfer ? (
+          // Banda inferior de borde a borde: «Salida» es la primaria; «Ajustar» y «Trasladar» son botones propios.
           <Band ruled className="-mx-4 -mb-1 mt-auto flex items-center gap-1.5 px-4 pt-3">
             {canIssue ? (
               // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
@@ -451,13 +384,24 @@ export function ContainerCard({
                 {allowed.approve ? 'Salida' : 'Solicitar salida'}
               </Button>
             ) : null}
+            {canAdjust ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                className={cn('h-10 shrink-0 rounded-xl border-line-strong bg-white/70 px-2.5 font-semibold text-ink-muted hover:bg-white hover:text-ink', !canIssue && 'ml-auto')}
+                onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}
+              >
+                <SlidersHorizontal aria-hidden />
+                Ajustar
+              </Button>
+            ) : null}
             {canTransfer ? (
               <Button
                 size="icon"
                 variant="secondary"
                 aria-label={`Trasladar ${code}`}
                 title="Trasladar"
-                className={cn('size-10 rounded-xl border-line-strong bg-white/70 text-ink-muted hover:bg-white hover:text-ink', !canIssue && 'ml-auto')}
+                className={cn('size-10 rounded-xl border-line-strong bg-white/70 text-ink-muted hover:bg-white hover:text-ink', !canIssue && !canAdjust && 'ml-auto')}
                 onClick={() => onAction({ kind: 'transfer', position })}
               >
                 <ArrowLeftRight aria-hidden />

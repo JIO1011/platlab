@@ -75,18 +75,10 @@ async function goTo(page: Page, section: 'Resumen' | 'Inventario' | 'Movimientos
   await expect(link).toHaveAttribute('aria-current', 'page');
 }
 
-/**
- * Una acción secundaria del frasco (ADR 0015): «Trasladar» es su botón «⇄»; «Ajustar» y la tara salen de la nube
- * de la ficha ⚖ (con tara, «Peso bruto esperado»; sin ella, «Ajustar, sin tara»).
- */
-async function cardAction(page: Page, card: Locator, action: 'Trasladar' | 'Ajustar' | 'Fijar tara' | 'Cambiar tara') {
-  if (action === 'Trasladar') {
-    await card.getByRole('button', { name: /^Trasladar / }).click();
-    return;
-  }
-  const scale = /^(Peso bruto esperado|Ajustar, sin tara)/;
-  await card.getByRole('button', { name: scale }).click();
-  await page.getByRole('dialog', { name: scale }).getByRole('button', { name: action === 'Ajustar' ? 'Ajustar cantidad' : action, exact: true }).click();
+/** Un botón de la tarjeta del frasco (ADR 0015): «Ajustar» abre la ventana única de ajuste y «⇄» traslada. */
+async function cardAction(card: Locator, action: 'Trasladar' | 'Ajustar') {
+  if (action === 'Trasladar') await card.getByRole('button', { name: /^Trasladar / }).click();
+  else await card.getByRole('button', { name: 'Ajustar', exact: true }).click();
 }
 
 /** Motivo o destino de la lista: se pulsa la etiqueta, como una persona, y queda marcado. */
@@ -234,7 +226,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   // La Administradora ajusta el frasco por conteo, con un motivo de la lista.
   await admin.goto(productUrl);
   const adminFrasco = admin.getByRole('article').filter({ hasText: `${product.lot}-01` });
-  await cardAction(admin, adminFrasco, 'Ajustar');
+  await cardAction(adminFrasco, 'Ajustar');
   const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
   await adjustment.getByLabel('Diferencia').fill('0,5');
   await pick(adjustment, 'Conteo mensual');
@@ -589,7 +581,7 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await admin.keyboard.press('Escape');
   await expect(issue).toHaveCount(0);
 
-  await cardAction(admin, admin.getByRole('article').filter({ hasText: 'H2SO4-2026-09-01' }), 'Ajustar');
+  await cardAction(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-09-01' }), 'Ajustar');
   const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
   await expect(adjustment.getByRole('radio', { name: 'Conteo mensual', exact: true })).toBeAttached();
   await expectAccessible(admin, 'hoja de ajuste');
@@ -628,7 +620,7 @@ test('mínimos: bajo mínimo en el Resumen y el Inventario, y el Administrador l
   await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
   const expired = admin.getByRole('article').filter({ hasText: 'H2SO4-2024-08-01' });
   await expect(expired.getByRole('button', { name: /Estado del lote/ })).toHaveCount(0);
-  await cardAction(admin, expired, 'Ajustar');
+  await cardAction(expired, 'Ajustar');
   const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
   await expect(adjustment.getByRole('radio', { name: 'Vencido', exact: true })).toBeAttached();
   await expect(adjustment.getByRole('radio', { name: 'Contaminado', exact: true })).toBeAttached();
@@ -641,7 +633,7 @@ test('traslado: un frasco entero cambia de ubicación en un paso y Movimientos l
   await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
   const card = admin.getByRole('article').filter({ hasText: 'H2SO4-2026-09-01' });
   await expect(card).toContainText('Almacén de reactivos');
-  await cardAction(admin, card, 'Trasladar');
+  await cardAction(card, 'Trasladar');
   const sheet = admin.getByRole('dialog', { name: 'Trasladar frasco' });
   await expect(sheet).toContainText('H2SO4-2026-09-01');
   await choose(admin, 'Ubicación de destino', /Laboratorio de Química/);
@@ -713,33 +705,33 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await expect(more.getByRole('textbox', { name: 'Cantidad' })).toBeFocused();
   await admin.keyboard.press('Escape');
   await expect(more).toHaveCount(0);
-  // Con tara, la tarjeta trae la ficha ⚖ con el peso que debe marcar la balanza; su nube dice la tara y el neto.
-  const scaleChip = admin.getByRole('button', { name: /^Peso bruto esperado/ });
+  // Con tara, la tarjeta trae la ficha ⚖ con el peso que debe marcar la balanza; su nube dice cómo comprobarlo.
+  const scaleChip = admin.getByRole('button', { name: /^Debe pesar/ });
   const weighed = admin.getByRole('article').filter({ has: scaleChip });
   await expect(weighed).toHaveCount(1);
-  await expect(scaleChip).toHaveText('640 g');
+  await expect(scaleChip).toHaveText('Debe pesar 640 g');
   await scaleChip.hover();
-  const scaleTip = admin.getByRole('dialog', { name: /^Peso bruto esperado/ });
-  await expect(scaleTip).toContainText('Lo que debe marcar la balanza');
-  await expect(scaleTip).toContainText('Tara 140 g');
-  // «Comprobar con balanza» abre Ajustar ya en «Por peso» para ese frasco.
-  await scaleTip.getByRole('button', { name: 'Comprobar con balanza' }).click();
+  const scaleTip = admin.getByRole('dialog', { name: /^Debe pesar/ });
+  await expect(scaleTip).toContainText('Pon el frasco cerrado en la balanza: debería marcar 640 g');
+  // «Corregir con la balanza» abre Ajustar en modo balanza para ese frasco.
+  await scaleTip.getByRole('button', { name: 'Corregir con la balanza' }).click();
   const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
-  await adjustment.getByLabel('Peso en balanza (g)').fill('600');
-  await expect(adjustment.getByText('Saldo calculado')).toContainText('460');
+  await adjustment.getByLabel('¿Qué marca la balanza? (g)').fill('600');
+  await expect(adjustment.getByText('Quedará')).toContainText('460');
   await expectAccessible(admin, 'ajuste por peso');
   await adjustment.getByRole('button', { name: 'Registrar ajuste' }).click();
   await expect(admin.getByText('Quedan 460 g en el frasco')).toBeVisible();
 
-  // El frasco sin tara la fija con la balanza.
-  const plain = admin.getByRole('article').filter({ hasNot: admin.getByRole('button', { name: /^Peso bruto esperado/ }) });
-  await cardAction(admin, plain, 'Fijar tara');
-  const tare = admin.getByRole('dialog', { name: 'Fijar tara' });
-  await tare.getByLabel('Peso en balanza (g)').fill('650');
-  await expect(tare.getByText('Tara calculada')).toContainText('150,0 g');
-  await tare.getByRole('button', { name: 'Fijar tara' }).click();
-  await expect(admin.getByText('Tara fijada')).toBeVisible();
-  await expect(admin.getByRole('button', { name: /^Peso bruto esperado/ })).toHaveCount(2);
+  // El frasco sin tara activa la balanza desde la misma ventana de Ajustar.
+  const plain = admin.getByRole('article').filter({ hasNot: admin.getByRole('button', { name: /^Debe pesar/ }) });
+  await cardAction(plain, 'Ajustar');
+  const activate = admin.getByRole('dialog', { name: 'Ajustar existencias' });
+  await activate.getByRole('button', { name: 'Pesar el frasco para activar la balanza' }).click();
+  await activate.getByLabel('Peso del frasco ahora (g)').fill('650');
+  await expect(activate.getByText('Tara calculada')).toContainText('150,0 g');
+  await activate.getByRole('button', { name: 'Activar la balanza' }).click();
+  await expect(admin.getByText('Balanza activada')).toBeVisible();
+  await expect(admin.getByRole('button', { name: /^Debe pesar/ })).toHaveCount(2);
 });
 
 test('etiquetas con giro: las tarjetas giran a su etiqueta, se elige una y se imprime solo esa (ADR 0010)', async ({ browser }) => {

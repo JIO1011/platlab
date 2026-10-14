@@ -392,11 +392,14 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 - Tarjeta del frasco (14-10-2026):
   - Los estados van sobre el borde: «★ Usar primero» (FEFO), «Vencido», «Apartado», «Cuarentena» y «Restringido».
   - Contenido: el código, la marca y el área, el saldo con su barra, la ubicación con su ruta completa, y las fichas 📅 (fecha corta) y ⚖.
-  - ⚖ concentra el control de stock. Con tara, su nube trae «Comprobar con balanza», «Ajustar cantidad» y «Cambiar tara»; sin tara, «Fijar tara» y «Ajustar cantidad».
-  - Trasladar es un botón propio y el menú «⋯» desaparece.
+  - Trasladar es un botón propio (⇄) y el menú «⋯» desaparece.
   - Tocar el código abre «Detalles del frasco»: lote interno, fecha de ingreso, cantidad inicial, densidad y quién lo ingresó.
+  - Ajuste del mismo día:
+    - La ubicación va en dos líneas, como una dirección: la sala arriba y, en gris, el estante y el nivel.
+    - La ficha ⚖ dice «Debe pesar N g» y ofrece «Corregir con la balanza». La tara y el neto pasan a «Detalles del frasco».
+    - «Ajustar» vuelve como botón y abre una sola ventana que elige el método. Con control por balanza, pregunta «¿Qué marca la balanza?» y ofrece escribir la cantidad. Sin control, pregunta la cantidad y ofrece «Pesar el frasco para activar la balanza» (antes «Fijar tara»).
 - Resumen de la ficha: tres tarjetas pequeñas separadas en una columna angosta.
-- Inventario (nivel 1): 4 tarjetas por fila desde 1280 px, con las insignias apiladas a la derecha (frascos, vencidos y controlado).
+- Inventario (nivel 1): 4 tarjetas por fila desde 1280 px, con el contenido centrado y las insignias (frascos, vencidos y controlado) en una fila bajo el total.
 
 **Implementación (12-10-2026):**
 
