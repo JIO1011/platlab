@@ -38,7 +38,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Registro
 | Fecha | Entrega | Commit | Veredicto | Pruebas | Nota |
 |---|---|---|---|---|---|
-| 2026-10-13 | Ficha: resumen lateral | `c0258c1` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 23 | Panel compacto fijo a la derecha; conteos del CI (run 38485586769) |
+| 2026-10-13 | Ficha: resumen lateral y 3 frascos por fila | `019ec62` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 23 | Panel compacto fijo, tarjeta compacta con menú «⋯»; conteos del CI (run 38487126414) |
 | 2026-10-13 | Ficha: resumen, frascos y etiquetas con giro | `cdb3939` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 23 | `review-animations` aprobado (giro); conteos del CI (run 38483133110) |
 | 2026-10-13 | Ficha del reactivo con vidrio | `00c6f8b` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 22 | Piezas compartidas StockLevelBar, IconTile y Band; conteos del CI (run 38468217362) |
 | 2026-10-13 | Ventanas de vidrio (salida e ingreso) | `f583bdb` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 22 | Estilo del modal de ReactiLab; conteos del CI (run 38465144102) |
