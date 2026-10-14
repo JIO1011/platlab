@@ -191,6 +191,7 @@ export function ReagentsProductPage() {
                   <li key={position.id}>
                     <ContainerCard
                       position={position}
+                      physicalState={product.data.physicalState}
                       today={today}
                       timeZone={me.workspace.timeZone}
                       allowed={allowed}

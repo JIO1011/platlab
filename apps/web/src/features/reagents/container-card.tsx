@@ -1,11 +1,13 @@
 import type { Position } from '@platlab/contracts';
-import { Band, Button, HelpTip, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, MapPin, QrCode as QrIcon, Scale, SlidersHorizontal, Star, TriangleAlert } from 'lucide-react';
+import { Band, Button, HelpTip, IconChip, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
+import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, FlaskConical, MapPin, QrCode as QrIcon, Scale, SlidersHorizontal, Star, TriangleAlert } from 'lucide-react';
 import { formatGrams, weightFigures } from './weight';
 import { type ComponentProps, type CSSProperties } from 'react';
 import { formatDate, formatDateTime, formatShortDate, relativeDays } from '../../app/format';
+import { ModuleMark } from '../../app/module-mark';
 import { type Allowed, type SheetRequest } from './context';
 import { ContainerLabel, type LabelProduct } from './labels';
+import { physicalStateIcon } from './product-parts';
 import { availableOf, expiryOf } from './stock';
 
 /**
@@ -61,11 +63,10 @@ function StatusBadges({
 const shortGrams = (grams: string) => formatGrams(grams).replace(',0 g', ' g');
 
 /**
- * El código del frasco, un botón que abre la nube «Detalles del frasco»: el lote interno, cuándo y quién lo
- * ingresó, la cantidad inicial con su unidad y, si la tiene, la densidad; con tara, también la tara y el neto. Si no cabe, se corta con puntos.
+ * El código del frasco, un botón que abre la nube «Detalles del frasco»: cuándo y quién lo ingresó, la cantidad inicial con su unidad y, si la tiene, la densidad; con tara, también la tara y el neto. Si no cabe, se corta con puntos.
  */
 function CodeButton({ position, code, timeZone }: { position: Position; code: string; timeZone: string }) {
-  const { container, lot, unit } = position;
+  const { container, unit } = position;
   const by = container?.receivedBy?.displayName ?? null;
   const figures = weightFigures(position);
   const term = 'text-[12px] text-white/70';
@@ -74,14 +75,10 @@ function CodeButton({ position, code, timeZone }: { position: Position; code: st
       hover
       label={`Detalles del frasco ${code}`}
       trigger={code}
-      className="block min-w-0 max-w-full shrink truncate rounded-sm text-left font-mono text-[17px] font-bold leading-tight tabular-nums text-ink transition-colors hover:text-action aria-expanded:text-action"
+      className="block min-w-0 max-w-full shrink truncate rounded-sm text-center font-mono text-[17px] font-bold leading-tight tabular-nums text-ink transition-colors hover:text-action aria-expanded:text-action"
     >
       <p className="mb-2 font-semibold">Detalles del frasco</p>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
-        <div className="col-span-2">
-          <dt className={term}>Lote</dt>
-          <dd className="font-mono font-medium tabular-nums [overflow-wrap:anywhere]">{lot.code}</dd>
-        </div>
         {container ? (
           <>
             <div className="col-span-2">
@@ -122,13 +119,13 @@ function CodeButton({ position, code, timeZone }: { position: Position; code: st
   );
 }
 
-/** Ficha pequeña de la tarjeta: píldora de borde suave que abre su nube (`HelpTip`). El tono dice el estado y el texto lo repite. */
+/** Ficha pequeña de la tarjeta: insignia de relleno suave, como las del nivel 1, que abre su nube (`HelpTip`). El tono dice el estado y el texto lo repite. */
 const chipClass = (tone: 'neutral' | 'warning' | 'danger') =>
   cn(
-    'inline-flex h-7 max-w-full items-center gap-1.5 rounded-full border px-2 text-[12px] font-medium leading-none tabular-nums transition-colors duration-150 max-sm:h-9 max-sm:text-[13px]',
-    tone === 'neutral' && 'border-line bg-white/70 text-ink-muted hover:bg-white hover:text-ink aria-expanded:bg-white aria-expanded:text-ink',
-    tone === 'warning' && 'border-warning/30 bg-warning-soft text-warning',
-    tone === 'danger' && 'border-danger/30 bg-danger-soft text-danger',
+    'inline-flex h-6 max-w-full items-center gap-1 whitespace-nowrap rounded-full px-2 text-[11px] font-medium leading-none tabular-nums transition-colors duration-150 max-sm:h-9 max-sm:text-[13px]',
+    tone === 'neutral' && 'bg-surface-sunken text-ink-muted hover:bg-line hover:text-ink aria-expanded:bg-line aria-expanded:text-ink',
+    tone === 'warning' && 'bg-warning-soft text-warning',
+    tone === 'danger' && 'bg-danger-soft text-danger',
   );
 
 /**
@@ -145,7 +142,7 @@ function ExpiryChip({ expiresOn, today }: { expiresOn: string | null; today: str
         label="Sin caducidad registrada"
         trigger={
           <>
-            <CalendarDays className="size-3.5 shrink-0" aria-hidden />
+            <CalendarDays className="size-3 shrink-0" aria-hidden />
             Sin caducidad
           </>
         }
@@ -163,7 +160,7 @@ function ExpiryChip({ expiresOn, today }: { expiresOn: string | null; today: str
       label={`Caducidad ${short}${state === 'expired' ? ', vencido' : state === 'soon' ? ', vence pronto' : ''}`}
       trigger={
         <>
-          <Icon className="size-3.5 shrink-0" aria-hidden />
+          <Icon className="size-3 shrink-0" aria-hidden />
           {short}
         </>
       }
@@ -187,7 +184,7 @@ function WeightChip({ figures, onCorrect }: { figures: NonNullable<ReturnType<ty
       label={`Debe pesar ${gross}`}
       trigger={
         <>
-          <Scale className="size-3.5 shrink-0" aria-hidden />
+          <Scale className="size-3 shrink-0" aria-hidden />
           Debe pesar {gross}
         </>
       }
@@ -228,11 +225,11 @@ function Place({ path, name }: { path: string[]; name: string }) {
   const full = levels.join(' › ');
   return (
     <div className="grid gap-0.5">
-      <p title={full} className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium leading-5 text-ink">
+      <p title={full} className="flex min-w-0 items-center justify-center gap-1.5 text-[13px] font-medium leading-5 text-ink">
         <MapPin className="size-3.5 shrink-0 text-ink-muted" aria-hidden />
         <span className="truncate">{room}</span>
       </p>
-      <p title={rest.length > 0 ? full : undefined} className="h-4 truncate pl-5 text-[12px] leading-4 text-ink-muted">
+      <p title={rest.length > 0 ? full : undefined} className="h-4 truncate text-center text-[12px] leading-4 text-ink-muted">
         {rest.join(' · ')}
       </p>
     </div>
@@ -240,21 +237,23 @@ function Place({ path, name }: { path: string[]; name: string }) {
 }
 
 /**
- * Un frasco en la ficha (ADR 0012; ADR 0010, «Ventanas como ReactiLab»): translúcido sin desenfoque
- * (`bg-white/80`, borde suave, radio de 24 px) y compacto: caben tres por fila junto al resumen lateral.
- * Los estados son insignias sobre el borde superior («Usar primero», «Vencido», «Apartado», «Cuarentena»,
- * «Restringido»). De arriba abajo: el código mono en negrita de 17 px, un botón que abre «Detalles del
- * frasco»; una línea gris con la marca y el área; el saldo de 26 px con su unidad y el % a la derecha, y la
- * barra por nivel; la ubicación en dos líneas (la sala y, en gris, el resto del camino); dos fichas, la
- * caducidad corta (ámbar o roja según el estado) y, con tara, «Debe pesar N g», cada una con su nube; y, tras
- * una línea de borde a borde, «Salida», «Ajustar» y «Trasladar». El color solo cuenta un estado y siempre
- * con texto.
+ * Un frasco en la ficha (ADR 0012; ADR 0010, «Ventanas como ReactiLab»): el mismo lenguaje que la tarjeta del
+ * reactivo en el Inventario (14-10-2026): radio de 20 px, `bg-surface`, `p-4`, el matraz del módulo de marca
+ * de agua y todo el contenido centrado. Caben tres por fila junto al resumen lateral. Los estados son
+ * insignias sobre el borde superior («Usar primero», «Vencido», «Apartado», «Cuarentena», «Restringido»).
+ * De arriba abajo: el `IconChip` del estado físico del reactivo; el código mono en negrita de 17 px, un
+ * botón que abre «Detalles del frasco»; una línea gris con la marca y el área; tras una línea, «Saldo» y la
+ * cantidad de 22 px con su unidad y el %, y la barra por nivel a todo el ancho; la ubicación en dos líneas (la
+ * sala y, en gris, el resto del camino); una fila de fichas, la caducidad corta (ámbar o roja según el estado)
+ * y, con tara, «Debe pesar N g», cada una con su nube; y, tras una línea de borde a borde, «Salida»,
+ * «Ajustar» y «Trasladar». El color solo cuenta un estado y siempre con texto.
  *
  * Con el modo de etiquetas el artículo gira 180° y muestra su reverso: la etiqueta impresa, y la tarjeta
  * entera es una casilla para elegirla (unos 300 ms, escalonado; con movimiento reducido, un fundido).
  */
 export function ContainerCard({
   position,
+  physicalState,
   today,
   allowed,
   recommended,
@@ -264,6 +263,8 @@ export function ContainerCard({
   onAction,
 }: {
   position: Position;
+  /** Estado físico del reactivo: su icono encabeza la tarjeta, como en el Inventario. */
+  physicalState?: string | null | undefined;
   today: string;
   /** Zona del espacio: la fecha de ingreso de «Detalles del frasco» se escribe en ella. */
   timeZone: string;
@@ -312,8 +313,8 @@ export function ContainerCard({
         inert={flipped}
         aria-hidden={flipped || undefined}
         className={cn(
-          // Translúcido y sin desenfoque; el color solo cuenta un estado y siempre con texto (ADR 0010).
-          'group relative flex h-full flex-col gap-3 rounded-3xl border border-white/80 bg-white/80 p-4 shadow-raised [backface-visibility:hidden] transition-[translate,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-0.5',
+          // El lenguaje de la tarjeta del Inventario; el color solo cuenta un estado y siempre con texto (ADR 0010).
+          'group relative flex h-full flex-col gap-2.5 rounded-[20px] bg-surface p-4 shadow-raised [backface-visibility:hidden] transition-[translate,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1',
           'motion-reduce:transition-opacity motion-reduce:duration-300 motion-reduce:[transition-delay:var(--flip-delay)]',
           flipped && 'motion-reduce:opacity-0',
           scanned && 'ring-2 ring-action',
@@ -322,25 +323,37 @@ export function ContainerCard({
         )}
       >
         <StatusBadges scanned={scanned} recommended={recommended} expired={expired} reserved={reserved} disposition={position.disposition} />
-        <div className="-mb-1 grid gap-0.5">
+        {/* Marca de agua: decorativa y casi invisible. Su propio recorte, para que los estados salgan por el borde. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-[20px]">
+          <ModuleMark
+            code="reagents"
+            className="absolute -bottom-4 -right-3 size-24 rotate-12 text-surface-sunken transition-[color,transform] duration-500 group-hover:text-action-soft motion-safe:group-hover:scale-110"
+          />
+        </div>
+        <IconChip icon={(physicalState && physicalStateIcon[physicalState]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} size="md" className="relative mx-auto" />
+        <div className="relative grid gap-1 text-center">
           {/* El código es la identidad de la etiqueta: si no cabe, se corta con puntos y el título lo dice entero. */}
-          <h3 title={code} className="flex min-w-0">
+          <h3 title={code} className="flex min-w-0 justify-center">
             <CodeButton position={position} code={code} timeZone={timeZone} />
           </h3>
           {/* Siempre mide una línea: el saldo de todas las tarjetas de una fila cae a la misma altura. */}
-          <p title={origin || undefined} className="h-4 truncate text-[12px] leading-4 text-ink-subtle">
+          <p title={origin || undefined} className="h-4 truncate text-[12px] leading-4 text-ink-muted">
             {origin}
           </p>
         </div>
-        <div className="grid gap-1.5">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="flex min-w-0 items-baseline gap-1.5">
-              <span className={cn('text-[26px] font-bold leading-none tracking-tight tabular-nums', empty ? 'text-ink-subtle' : 'text-action')}>
-                {formatDecimal(position.balance)}
-              </span>
-              <span className="text-sm text-ink-muted">{position.unit}</span>
+        <div className="relative grid gap-2 border-t border-line pt-2.5">
+          {/* Saldo al centro, como «Total» del Inventario: rótulo, cantidad con su unidad y el %, y la barra a todo el ancho. */}
+          <div className="grid min-w-0 justify-items-center gap-1">
+            <p className="text-[11px] font-semibold uppercase leading-5 tracking-wide text-ink-muted">Saldo</p>
+            <p className="flex min-w-0 flex-wrap items-baseline justify-center gap-x-2">
+              <Quantity
+                value={position.balance}
+                unit={position.unit}
+                className={cn('block min-w-0 whitespace-normal text-[22px] font-bold leading-tight tracking-tight [overflow-wrap:anywhere]', empty ? 'text-ink-subtle' : 'text-action')}
+                unitClassName="text-[0.7em]"
+              />
+              {percent !== null && initial ? <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink-muted">{percentText}</span> : null}
             </p>
-            {percent !== null && initial ? <span className="shrink-0 text-[13px] font-semibold tabular-nums text-ink-muted">{percentText}</span> : null}
           </div>
           {percent !== null && initial ? (
             <StockLevelBar
@@ -351,15 +364,16 @@ export function ContainerCard({
             />
           ) : null}
           {reserved ? (
-            <p className="text-[12px] text-ink-muted">
+            <p className="text-center text-[12px] text-ink-muted">
               Apartado <Quantity value={position.reserved} unit={position.unit} className="font-bold text-ink" unitClassName="text-inherit" /> · Disponible{' '}
               <Quantity value={available} unit={position.unit} className="font-bold text-ink" unitClassName="text-inherit" />
             </p>
           ) : null}
         </div>
-        <Place path={position.location.path} name={position.location.name} />
-        {/* El lote interno ya es el prefijo del código del frasco: no se repite. */}
-        <div className="flex flex-wrap gap-1.5">
+        <div className="relative">
+          <Place path={position.location.path} name={position.location.name} />
+        </div>
+        <div className="relative flex flex-wrap justify-center gap-1">
           <ExpiryChip expiresOn={expiresOn} today={today} />
           {figures ? (
             <WeightChip
@@ -370,7 +384,7 @@ export function ContainerCard({
         </div>
         {canIssue || canAdjust || canTransfer ? (
           // Banda inferior de borde a borde: «Salida» es la primaria; «Ajustar» y «Trasladar» son botones propios.
-          <Band ruled className="-mx-4 -mb-1 mt-auto flex items-center gap-1.5 px-4 pt-3">
+          <Band ruled className="relative -mx-4 -mb-1 mt-auto flex items-center gap-1.5 px-4 pt-3">
             {canIssue ? (
               // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
               <Button
@@ -437,7 +451,7 @@ function LabelFace({ code, position, labels }: { code: string; position: Positio
         }
       }}
       className={cn(
-        'absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border bg-white p-4 shadow-raised [backface-visibility:hidden] [transform:rotateY(180deg)] transition-shadow duration-200 hover:shadow-float',
+        'absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[20px] border bg-white p-4 shadow-raised [backface-visibility:hidden] [transform:rotateY(180deg)] transition-shadow duration-200 hover:shadow-float',
         'motion-reduce:opacity-0 motion-reduce:transition-opacity motion-reduce:duration-300 motion-reduce:[transform:none] motion-reduce:[transition-delay:var(--flip-delay)]',
         flipped && 'motion-reduce:opacity-100',
         picked ? 'border-action ring-2 ring-action' : 'border-white/80',

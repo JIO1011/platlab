@@ -546,9 +546,9 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await expect(admin.getByRole('tooltip')).toContainText(/Venció el .+ · hace \d+ (días|meses|años)/);
   await admin.getByRole('heading', { name: 'Ácido sulfúrico 98 %', level: 1 }).hover();
   await expect(admin.getByRole('tooltip')).toHaveCount(0);
-  // El código abre «Detalles del frasco»: lote, ingreso, cantidad inicial.
+  // El código abre «Detalles del frasco»: ingreso y cantidad inicial (el lote es interno y no se muestra).
   await expiredCard.getByRole('button', { name: /^Detalles del frasco / }).hover();
-  await expect(admin.getByRole('tooltip')).toContainText(/Lote.*Ingresó.*Cantidad inicial/s);
+  await expect(admin.getByRole('tooltip')).toContainText(/Ingresó.*Cantidad inicial/s);
   await admin.getByRole('heading', { name: 'Ácido sulfúrico 98 %', level: 1 }).hover();
   await expect(admin.getByRole('tooltip')).toHaveCount(0);
   await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' })).toContainText('Usar primero');
@@ -799,7 +799,7 @@ test('etiquetas con QR: se eligen e imprimen, y el enlace del QR abre el frasco 
   // El QR codifica un enlace corto, para que sus módulos se lean impresos en 22 mm.
   const qrUrl = (await qr.getAttribute('data-value')) ?? '';
   expect(qrUrl).toMatch(/\/q\/[A-Za-z0-9_-]{43}$/);
-  await expect(labels).toContainText('Lote H2SO4-2026-02');
+  await expect(labels).not.toContainText('Lote');
   await expect(admin.getByText('3 etiquetas elegidas de 3')).toBeVisible();
   await labels.getByRole('checkbox', { name: 'H2SO4-2024-08-01' }).uncheck();
   await expect(admin.getByText('2 etiquetas elegidas de 3')).toBeVisible();

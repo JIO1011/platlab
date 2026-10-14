@@ -53,7 +53,7 @@ export type LabelProduct = Pick<StockedProduct, 'name' | 'casNumber'>;
 
 /**
  * Etiqueta de un frasco, de 63,5 × 33,9 mm (la hoja A4 adhesiva de 3 × 8): el QR de 22 mm a la
- * izquierda y, a la derecha, primero lo que no puede faltar (código, lote y caducidad) y después el
+ * izquierda y, a la derecha, primero lo que no puede faltar (código y caducidad) y después el
  * reactivo en una línea y el CAS. Negro sobre blanco, para cualquier impresora.
  */
 export function ContainerLabel({ position, product, url }: { position: Position; product: LabelProduct; url: string }) {
@@ -64,8 +64,7 @@ export function ContainerLabel({ position, product, url }: { position: Position;
       <div className="min-w-0 flex-1 leading-tight">
         {/* El código es la identidad del frasco: nunca se corta; uno muy largo pasa de línea. */}
         <p className="break-all font-mono text-[9pt] font-bold leading-tight tabular-nums">{code}</p>
-        <p className="mt-[0.5mm] text-[7.5pt]">Lote {position.lot.code}</p>
-        <p className="text-[7.5pt] font-semibold">
+        <p className="mt-[0.5mm] text-[7.5pt] font-semibold">
           {position.lot.expiresOn ? `Caduca ${formatDate(position.lot.expiresOn)}` : 'Caducidad sin confirmar'}
         </p>
         <p className="mt-[1mm] line-clamp-1 text-[8.5pt] font-semibold">{product.name}</p>
