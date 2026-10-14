@@ -75,7 +75,7 @@ function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canI
               className="inline-flex h-11 items-center justify-center gap-2 rounded-control border border-white/40 px-5 text-sm font-medium backdrop-blur-sm transition-colors duration-150 hover:bg-white/10"
             >
               <PackagePlus className="size-[18px]" aria-hidden />
-              Ingresar reactivo
+              Nuevo reactivo
             </button>
           ) : null}
         </div>

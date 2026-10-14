@@ -6,14 +6,17 @@ import { fieldLabel } from './filled';
 import { childrenOf, levelOneParent, recentFirst, type Place } from './model';
 
 const LEVELS = 3;
-const placeholders = ['Laboratorio, bodega…', 'Estante, armario…', 'Nivel, repisa… (opcional)'];
+const placeholders = ['Laboratorio o bodega', 'Estante o armario', 'Nivel o repisa (opcional)'];
+/** Nombre accesible de los niveles que siguen; el primero lo nombra el rótulo «Ubicación». */
+const levelNames = ['Ubicación', 'Estante o armario', 'Nivel o repisa'];
 
 /**
- * «Ubicación» por niveles (ADR 0015): hasta tres campos en una fila (apilados en el móvil), cada uno
- * con las hijas del anterior en el árbol de Core. Al inicio solo existe el primero; elegir o crear una
- * abre el siguiente con el foco puesto. El elegido muestra su nombre y una × que lo quita junto con los
- * niveles que cuelgan de él. Con una sola raíz (la sede) se omite. Basta un nivel. Quien administra el
- * catálogo crea con el «+» del campo o con Enter; la ubicación se crea en el servidor al momento.
+ * «Ubicación» por niveles (ADR 0015): tres campos siempre visibles, en fila en escritorio y apilados en
+ * el móvil, cada uno con las hijas del anterior en el árbol de Core y su texto guía. El segundo se
+ * habilita al elegir el primero y el tercero al elegir el segundo, con el foco puesto. El elegido
+ * muestra su nombre y una × que lo quita junto con los niveles que cuelgan de él. Basta un nivel; el
+ * tercero es opcional. Quien administra el catálogo crea con el «+» del campo o con Enter; la
+ * ubicación se crea en el servidor al momento.
  */
 export function LocationPicker({
   places,
@@ -42,7 +45,6 @@ export function LocationPicker({
   const [creating, setCreating] = useState(false);
   const [focusLevel, setFocusLevel] = useState<number | null>(null);
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
-  const shown = Math.min(LEVELS, chosen.length + 1);
 
   // El foco pasa al campo recién abierto cuando ya está en el documento.
   useEffect(() => {
@@ -89,31 +91,29 @@ export function LocationPicker({
           *
         </span>
       </label>
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
-        {Array.from({ length: shown }, (_, level) => {
+      <div className="grid gap-2 sm:grid-cols-3">
+        {Array.from({ length: LEVELS }, (_, level) => {
           const done = chosen[level];
+          // Solo el nivel que sigue al último elegido se puede usar; los de más abajo esperan.
+          const waiting = level > chosen.length;
           const common = {
             id: `${id}-${level}`,
-            'aria-label': level === 0 ? undefined : `Ubicación, nivel ${level + 1}`,
+            'aria-label': level === 0 ? undefined : levelNames[level],
+            disabled: waiting || undefined,
             'aria-required': level === 0 ? (true as const) : undefined,
             'aria-invalid': level === 0 && error && chosen.length === 0 ? (true as const) : undefined,
             'aria-describedby': level === 0 && error ? errorId : undefined,
             'aria-busy': creating && !done ? (true as const) : undefined,
           };
           return (
-            <div key={level} className={cn('flex items-center gap-1.5', done ? 'max-w-full' : 'min-w-40 flex-1')}>
-              {level > 0 ? (
-                <span aria-hidden className="text-ink-subtle max-sm:hidden">
-                  ›
-                </span>
-              ) : null}
-              <div className={cn('relative min-w-0', done ? 'max-w-full' : 'flex-1')}>
+            <div key={level} className="min-w-0">
+              <div className="relative min-w-0">
                 {done ? (
                   // El nombre elegido se lee entero: si no cabe, baja de línea en vez de cortarse.
                   <div
                     role="group"
                     aria-label={`Ubicación, nivel ${level + 1}: ${done.name}`}
-                    className="flex min-h-11 max-w-full items-stretch rounded-xl border border-action bg-action-soft text-sm font-medium text-action"
+                    className="flex min-h-11 items-stretch rounded-xl border border-action bg-action-soft text-sm font-medium text-action"
                   >
                     <span className="min-w-0 self-center break-words py-1 pl-3 pr-1">{done.name}</span>
                     <button
@@ -128,11 +128,11 @@ export function LocationPicker({
                   </div>
                 ) : (
                   <Combobox
-                    value={text}
+                    value={waiting ? '' : text}
                     onChange={setText}
-                    options={options}
+                    options={waiting ? [] : options}
                     onPick={(option) => pick(level, { id: option.id, name: option.label })}
-                    canCreate={canCreate}
+                    canCreate={canCreate && !waiting}
                     inlineCreate
                     openOnFocus
                     readOnly={creating}

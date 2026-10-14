@@ -124,17 +124,39 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await expect(admin.getByRole('complementary').getByText('Administrador', { exact: true })).toBeVisible();
   await goTo(admin, 'Inventario');
 
-  // «Ingresar reactivo» (ADR 0015): la Administradora crea el reactivo y su frasco en un paso.
-  await admin.getByRole('button', { name: 'Ingresar reactivo' }).click();
-  const ingress = admin.getByRole('dialog', { name: 'Ingresar reactivo' });
+  // «Nuevo reactivo» (ADR 0015): la Administradora crea el reactivo y su frasco en un paso, con todas las secciones a la vista.
+  await admin.getByRole('button', { name: 'Nuevo reactivo' }).click();
+  const ingress = admin.getByRole('dialog', { name: 'Nuevo reactivo' });
+  for (const section of ['Datos de la etiqueta', 'Control por peso', 'Dónde se guarda', 'Clasificación y seguridad']) {
+    await expect(ingress.getByRole('heading', { name: section })).toBeVisible();
+  }
   await ingress.getByRole('combobox', { name: 'Nombre' }).fill(product.name);
   await ingress.getByRole('combobox', { name: 'Nombre' }).press('Tab');
-  await ingress.getByRole('textbox', { name: 'CAS' }).fill('7647-14-5');
+  // El CAS con el dígito de control erróneo se avisa en un globo junto al campo, no entre los campos.
+  await ingress.getByRole('textbox', { name: 'CAS' }).fill('7647-14-6');
   await ingress.getByRole('textbox', { name: 'Código' }).fill(`${product.lot}-01`);
   await ingress.getByRole('textbox', { name: 'Cantidad' }).fill('100');
+  // La unidad es un desplegable unido a la cantidad; el segundo nivel de la ubicación espera al primero.
+  await expect(ingress.getByRole('combobox', { name: 'Unidad' })).toHaveText('g');
+  await expect(ingress.getByRole('combobox', { name: 'Estante o armario' })).toBeDisabled();
   await ingress.getByRole('combobox', { name: 'Ubicación' }).fill('Almacén');
   await admin.getByRole('option', { name: /Almacén de reactivos/ }).click();
+  await expect(ingress.getByRole('combobox', { name: 'Estante o armario' })).toBeEnabled();
   await pick(ingress, 'Sólido');
+  await ingress.getByRole('button', { name: 'Ingresar 1 frasco' }).click();
+  await expect(ingress.getByRole('alert').filter({ hasText: 'Revisa el CAS' })).toBeVisible();
+  await expect(ingress.getByRole('textbox', { name: 'CAS' })).toHaveAttribute('aria-invalid', 'true');
+  // Los globos ⓘ se abren con clic y se cierran con Esc sin cerrar la ventana.
+  const weightTip = ingress.getByRole('button', { name: 'Cómo pesar el frasco' });
+  await weightTip.click();
+  await expect(weightTip).toHaveAttribute('aria-expanded', 'true');
+  await expect(admin.getByRole('tooltip')).toContainText('frasco lleno y cerrado');
+  await capture(admin, 'desktop-r01d-ingress-new-a', false);
+  await admin.keyboard.press('Escape');
+  await expect(weightTip).toHaveAttribute('aria-expanded', 'false');
+  await expect(ingress).toBeVisible();
+  await ingress.getByRole('textbox', { name: 'CAS' }).fill('7647-14-5');
+  await expect(ingress.getByRole('alert').filter({ hasText: 'Revisa el CAS' })).toHaveCount(0);
   await expect(ingress.getByRole('status').filter({ hasText: 'Listo: 1 frasco' })).toBeVisible();
   await expectAccessible(admin, 'ingresar reactivo');
   await capture(admin, 'desktop-sheet', false);
@@ -147,7 +169,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await openReagents(operator, 'Facultad de Ciencias');
   await goTo(operator, 'Inventario');
   await expect(operator.getByRole('button', { name: 'Ajustar' })).toHaveCount(0);
-  await expect(operator.getByRole('button', { name: 'Ingresar reactivo' })).toBeVisible();
+  await expect(operator.getByRole('button', { name: 'Nuevo reactivo' })).toBeVisible();
 
   // Dos niveles: la tarjeta del reactivo abre su ficha con sus frascos.
   await operator.getByRole('link', { name: new RegExp(product.name) }).click();
@@ -270,12 +292,12 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
   await expect(topBar).toContainText('Reactivos', { useInnerText: true });
   await expect(topBar).not.toContainText('Facultad de Ciencias', { useInnerText: true });
   // El Resumen ofrece las acciones rápidas; ingresar y ajustar también están en el Inventario.
-  for (const name of ['Registrar salida', 'Ingresar reactivo']) {
+  for (const name of ['Registrar salida', 'Nuevo reactivo']) {
     await expect(owner.getByRole('button', { name, exact: true })).toBeVisible();
   }
   await goTo(owner, 'Inventario');
   await expect(topBar).toContainText('Inventario', { useInnerText: true });
-  for (const name of ['Ingresar reactivo', 'Ajustar']) {
+  for (const name of ['Nuevo reactivo', 'Ajustar']) {
     await expect(owner.getByRole('button', { name, exact: true })).toBeVisible();
   }
 });
@@ -304,6 +326,15 @@ test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', as
   await expect(operator.getByRole('heading', { name: /Etanol 96 %/ })).toBeVisible();
   await expectAccessible(operator, 'inventario móvil');
   await capture(operator, 'mobile');
+  // «Nuevo reactivo» en el móvil: una columna con todos los marcos y la tarjeta de seguridad al final.
+  await operator.getByRole('button', { name: 'Nuevo reactivo', exact: true }).click();
+  const mobileIngress = operator.getByRole('dialog', { name: 'Nuevo reactivo' });
+  await expect(mobileIngress.getByRole('heading', { name: 'Clasificación y seguridad' })).toBeVisible();
+  expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expectAccessible(operator, 'nuevo reactivo móvil');
+  await capture(operator, 'mobile-r01d-ingress', false);
+  await operator.keyboard.press('Escape');
+  await expect(mobileIngress).toHaveCount(0);
   await goTo(operator, 'Movimientos');
   await expect(operator.getByRole('listitem').filter({ hasText: 'Etanol 96 %' }).first()).toBeVisible();
   await capture(operator, 'mobile-movements');
@@ -513,7 +544,7 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await expect(expiredCard).toContainText('Vencido');
   await expect(admin.getByRole('complementary', { name: 'Resumen del reactivo' })).toContainText('Vencidos');
   // Una sola primaria: «Registrar salida» de la cabecera; en la ficha el ingreso es de ese reactivo.
-  await expect(admin.getByRole('button', { name: 'Ingresar reactivo' })).toHaveCount(0);
+  await expect(admin.getByRole('button', { name: 'Nuevo reactivo' })).toHaveCount(0);
   await expect(admin.getByRole('button', { name: 'Ingresar frascos' })).toBeVisible();
   await expectAccessible(admin, 'ficha con varios frascos');
   await capture(admin, 'desktop-product-multi');
@@ -615,8 +646,8 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   const admin = await signIn(browser, 'admin@demo.platlab.test');
   await openReagents(admin, 'Facultad de Ciencias');
   await goTo(admin, 'Inventario');
-  await admin.getByRole('button', { name: 'Ingresar reactivo' }).click();
-  const ingress = admin.getByRole('dialog', { name: 'Ingresar reactivo' });
+  await admin.getByRole('button', { name: 'Nuevo reactivo' }).click();
+  const ingress = admin.getByRole('dialog', { name: 'Nuevo reactivo' });
   await ingress.getByRole('combobox', { name: 'Nombre' }).fill(name);
   await ingress.getByRole('combobox', { name: 'Nombre' }).press('Tab');
   await ingress.getByRole('textbox', { name: 'CAS' }).fill('50-99-7');
@@ -633,12 +664,14 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Facultad de Ciencias');
   await goTo(operator, 'Inventario');
-  await operator.getByRole('button', { name: 'Ingresar reactivo' }).click();
-  const receipt = operator.getByRole('dialog', { name: 'Ingresar reactivo' });
+  await operator.getByRole('button', { name: 'Nuevo reactivo' }).click();
+  const receipt = operator.getByRole('dialog', { name: 'Nuevo reactivo' });
   await receipt.getByRole('combobox', { name: 'Nombre' }).fill(name);
   await expect(operator.getByRole('option', { name: /^Crear/ })).toHaveCount(0);
   await operator.getByRole('option', { name: new RegExp(name) }).click();
   await expect(receipt.getByRole('textbox', { name: 'CAS' })).toHaveAttribute('readonly', '');
+  // Con un reactivo del catálogo la unidad es la suya: texto fijo, sin desplegable.
+  await expect(receipt.getByRole('combobox', { name: 'Unidad' })).toHaveCount(0);
   await receipt.getByRole('textbox', { name: 'Cantidad' }).fill('500');
   await receipt.getByRole('combobox', { name: 'Ubicación' }).fill('Almacén');
   await operator.getByRole('option', { name: /Almacén de reactivos/ }).click();
@@ -651,7 +684,7 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await admin.getByRole('link', { name: new RegExp(name) }).click();
   // Desde la ficha, «Ingresar frascos» trae su reactivo ya elegido, con los datos del catálogo.
   await admin.getByRole('button', { name: 'Ingresar frascos' }).click();
-  const more = admin.getByRole('dialog', { name: 'Ingresar reactivo' });
+  const more = admin.getByRole('dialog', { name: 'Ingresar frascos' });
   await expect(more.getByRole('combobox', { name: 'Nombre' })).toHaveValue(name);
   await expect(more.getByRole('textbox', { name: 'CAS' })).toHaveValue('50-99-7');
   await expect(more.getByRole('textbox', { name: 'CAS' })).toHaveAttribute('readonly', '');
@@ -874,7 +907,7 @@ test('modo consulta: sin operación nueva no hay acciones de registro, solo inve
   await goTo(admin, 'Inventario');
   await admin.getByRole('link', { name: /Cloruro de sodio\b(?! MUR)/ }).first().click();
   await expect(admin.getByRole('heading', { name: 'Frascos' })).toBeVisible();
-  for (const name of ['Registrar salida', 'Ingresar reactivo', 'Ajustar', 'Salida', 'Ingresar frascos']) {
+  for (const name of ['Registrar salida', 'Nuevo reactivo', 'Ajustar', 'Salida', 'Ingresar frascos']) {
     await expect(admin.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
   await goTo(admin, 'Movimientos');

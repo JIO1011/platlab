@@ -104,8 +104,8 @@ export function ReagentsLayout() {
   // En la página de etiquetas la tarea es imprimir: sin acciones de registro en la cabecera.
   const inLabels = pathname.endsWith('/etiquetas');
   const secondaryActions = [
-    // «Ingresar reactivo» (ADR 0015): el ingreso en un paso, con reactivo nuevo o del catálogo.
-    { kind: 'ingress', label: inProduct ? 'Ingresar frascos' : 'Ingresar reactivo', icon: PackagePlus, shown: allowed.receipt },
+    // «Nuevo reactivo» (ADR 0015): el ingreso en un paso, con reactivo nuevo o del catálogo.
+    { kind: 'ingress', label: inProduct ? 'Ingresar frascos' : 'Nuevo reactivo', icon: PackagePlus, shown: allowed.receipt },
     { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 && !inProduct },
   ] as const;
   const visibleSecondary = secondaryActions.filter((action) => action.shown);

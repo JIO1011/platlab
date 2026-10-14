@@ -118,7 +118,7 @@ export function ReagentsInventoryPage() {
             allowed.product && allowed.receipt ? (
               <Button variant="primary" onClick={() => openSheet({ kind: 'ingress' })}>
                 <PackagePlus aria-hidden />
-                Ingresar reactivo
+                Nuevo reactivo
               </Button>
             ) : undefined
           }

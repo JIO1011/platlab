@@ -380,6 +380,15 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 - **Conteo** sale de la interfaz. Se conserva en el servidor para conciliar el inventario de G1.
 - **Referencia visual:** el prototipo de la rama `proto/r-01d-ingreso`, que no se fusiona.
 
+**Ajuste de la ventana (13-10-2026):**
+
+- Se llama «Nuevo reactivo»; desde la ficha, «Ingresar frascos».
+- Cada sección va en su propio marco, visible desde el inicio. «Clasificación y seguridad» va en una tarjeta aparte, a la derecha en escritorio y al final en el móvil.
+- La unidad se elige en un desplegable unido a la cantidad.
+- El error del CAS aparece en un globo junto al campo. «Control por peso» explica cada campo con globos de ayuda.
+- Área o departamento es un desplegable.
+- La ubicación muestra sus tres niveles con texto guía; cada nivel se habilita al elegir el anterior.
+
 **Implementación (12-10-2026):**
 
 - **Editar la ficha** (Administrador y Propietario): nombre, CAS, estado, peligros, controlado, ficha de seguridad y densidad. La unidad, solo sin movimientos.

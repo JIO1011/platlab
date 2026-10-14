@@ -25,24 +25,28 @@ export function SafetyFields({
   onDraft,
   errors,
   withDensity = false,
+  compact = false,
 }: {
   existing: StockedProduct | null;
   draft: Draft;
   onDraft: (patch: Partial<Draft>) => void;
   errors: Errors;
   withDensity?: boolean;
+  /** En una tarjeta angosta (el ingreso): los campos van en una sola columna. */
+  compact?: boolean;
 }) {
   const hazardsId = useId();
+  const grid = compact ? 'grid gap-3' : fieldGrid;
   if (existing) return <CatalogSummary product={existing} />;
 
   return (
     <div className="grid gap-3">
-      <div className={fieldGrid}>
+      <div className={grid}>
         <PillField
           label="Estado físico"
           required
           labelClassName={fieldLabel}
-          className="sm:col-span-2"
+          className={compact ? '' : 'sm:col-span-2'}
           value={draft.state}
           options={states}
           onChange={(state) => onDraft({ state: physicalState.options.find((entry) => entry === state) ?? '' })}
@@ -58,7 +62,7 @@ export function SafetyFields({
         <HazardSelect value={draft.hazards} onChange={(hazards) => onDraft({ hazards })} />
       </div>
 
-      <div className={fieldGrid}>
+      <div className={grid}>
         <Field label="Ficha de seguridad" labelClassName={fieldLabel}>
           <Select
             value={draft.sds || undefined}

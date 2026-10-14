@@ -22,10 +22,15 @@ export interface SelectProps {
   disabled?: boolean;
   /** Ajusta el disparador (p. ej., su alto táctil en el móvil). */
   triggerClassName?: string;
+  /** Nombre accesible cuando no hay un `Field` con su rótulo (la unidad junto a la cantidad). */
+  'aria-label'?: string;
+  /** No toma el `id` ni los avisos del `Field` que lo envuelve: es un control aparte dentro de otro campo. */
+  standalone?: boolean;
 }
 
-export function Select({ value, onValueChange, options, placeholder, disabled, triggerClassName, ...explicit }: SelectProps) {
-  const aria = { ...useFieldControl(), ...explicit };
+export function Select({ value, onValueChange, options, placeholder, disabled, triggerClassName, standalone = false, ...explicit }: SelectProps) {
+  const fromField = useFieldControl();
+  const aria = { ...(standalone ? {} : fromField), ...explicit };
   return (
     <SelectPrimitive.Root value={value ?? ''} onValueChange={onValueChange} disabled={disabled ?? false}>
       <SelectPrimitive.Trigger

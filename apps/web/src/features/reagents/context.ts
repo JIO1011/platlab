@@ -16,7 +16,7 @@ import type { MovementFilters, OperationQuery } from './movement-filters';
 
 /** Hoja de registro que se abre, con lo que ya se conoce (reactivo o frasco de origen). */
 export type SheetRequest =
-  // «Ingresar reactivo» (ADR 0015): con `productId`, desde su ficha y con él ya elegido.
+  // «Nuevo reactivo» (ADR 0015): con `productId`, desde su ficha y con él ya elegido.
   | { kind: 'ingress'; productId?: string }
   // Con `position`, el frasco viaja en la petición (el de una etiqueta QR puede no estar en la lista global).
   | { kind: 'issue'; positionId?: string; productId?: string; position?: Position }
