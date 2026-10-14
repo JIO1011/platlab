@@ -188,7 +188,7 @@ Medidas, patrones y estados: `DESIGN.md` y `packages/ui/src/styles.css` (solo en
   - cantidad grande sin subrayado;
   - «Todo» como enlace;
   - etiquetas claras de ancho parejo.
-  - La ficha (nivel 2) usa el mismo lenguaje sobre el fondo normal, sin degradado. El resumen se muestra en tres tarjetas con icono: Existencia, Mínimo y Caducidad. Cada frasco muestra código y estado, ubicación y marca en texto, saldo con barra por nivel, la caducidad exacta y los pesos, sin «Ingresó». La barra por nivel, las pastillas, las bandas y el cuadro de icono son piezas compartidas.
+  - La ficha (nivel 2) usa el mismo lenguaje sobre el fondo normal, sin degradado. El resumen (Existencia, Mínimo y Caducidad) va en un panel compacto de tres filas, en una columna derecha fija desde 1280 px; por debajo, en una franja compacta bajo la cabecera (13-10-2026). Cada frasco muestra código y estado, ubicación y marca en texto, saldo con barra por nivel, la caducidad exacta y los pesos, sin «Ingresó». La barra por nivel, las pastillas, las bandas y el cuadro de icono son piezas compartidas.
   - Etiquetas QR: «Etiquetas» gira todas las tarjetas hacia su etiqueta (unos 300 ms, escalonado; sin giro con movimiento reducido). Tocar una la elige, y una barra inferior imprime las elegidas con la hoja de etiquetas existente (13-10-2026).
 - **Ficha.** Sin «← Inventario»: el menú ya lleva al Inventario. Queda abierto darle una función propia (por ejemplo, una miga de pan en la barra superior).
 - **Movimiento.**

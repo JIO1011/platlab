@@ -75,6 +75,12 @@ async function goTo(page: Page, section: 'Resumen' | 'Inventario' | 'Movimientos
   await expect(link).toHaveAttribute('aria-current', 'page');
 }
 
+/** Una acción secundaria del frasco: abre su menú «Más acciones» y elige la opción por su texto. */
+async function cardAction(page: Page, card: Locator, action: 'Trasladar' | 'Ajustar' | 'Fijar tara' | 'Cambiar tara') {
+  await card.getByRole('button', { name: /^Más acciones de/ }).click();
+  await page.getByRole('menuitem', { name: action, exact: true }).click();
+}
+
 /** Motivo o destino de la lista: se pulsa la etiqueta, como una persona, y queda marcado. */
 async function pick(scope: Locator, name: string) {
   await scope.locator('label').filter({ hasText: new RegExp(`^${name}$`) }).click();
@@ -194,7 +200,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   // La Administradora ajusta el frasco por conteo, con un motivo de la lista.
   await admin.goto(productUrl);
   const adminFrasco = admin.getByRole('article').filter({ hasText: `${product.lot}-01` });
-  await adminFrasco.getByRole('button', { name: 'Ajustar' }).click();
+  await cardAction(admin, adminFrasco, 'Ajustar');
   const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
   await adjustment.getByLabel('Diferencia').fill('0,5');
   await pick(adjustment, 'Conteo mensual');
@@ -505,7 +511,7 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await expect(admin.getByText('1 frasco vencido')).toBeVisible();
   await expect(admin.getByText('de 250 mL')).toBeVisible();
   await expect(expiredCard).toContainText('Vencido');
-  await expect(admin.getByRole('region', { name: 'Datos del reactivo' })).toContainText('Vencidos');
+  await expect(admin.getByRole('complementary', { name: 'Resumen del reactivo' })).toContainText('Vencidos');
   // Una sola primaria: «Registrar salida» de la cabecera; en la ficha el ingreso es de ese reactivo.
   await expect(admin.getByRole('button', { name: 'Ingresar reactivo' })).toHaveCount(0);
   await expect(admin.getByRole('button', { name: 'Ingresar frascos' })).toBeVisible();
@@ -530,7 +536,7 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await admin.keyboard.press('Escape');
   await expect(issue).toHaveCount(0);
 
-  await admin.getByRole('article').filter({ hasText: 'H2SO4-2026-09-01' }).getByRole('button', { name: 'Ajustar' }).click();
+  await cardAction(admin, admin.getByRole('article').filter({ hasText: 'H2SO4-2026-09-01' }), 'Ajustar');
   const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
   await expect(adjustment.getByRole('radio', { name: 'Conteo mensual', exact: true })).toBeAttached();
   await expectAccessible(admin, 'hoja de ajuste');
@@ -552,7 +558,7 @@ test('mínimos: bajo mínimo en el Resumen y el Inventario, y el Administrador l
 
   // El Administrador cambia el mínimo desde la ficha; por encima del nuevo, deja de estar bajo mínimo.
   await admin.getByRole('link', { name: /Hidróxido de sodio/ }).click();
-  const header = admin.getByRole('region', { name: 'Datos del reactivo' });
+  const header = admin.getByRole('complementary', { name: 'Resumen del reactivo' });
   await expect(header).toContainText('Bajo mínimo');
   await admin.getByRole('button', { name: 'Cambiar mínimo' }).click();
   const minimum = admin.getByRole('dialog', { name: 'Mínimo del reactivo' });
@@ -569,7 +575,7 @@ test('mínimos: bajo mínimo en el Resumen y el Inventario, y el Administrador l
   await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
   const expired = admin.getByRole('article').filter({ hasText: 'H2SO4-2024-08-01' });
   await expect(expired.getByRole('button', { name: /Estado del lote/ })).toHaveCount(0);
-  await expired.getByRole('button', { name: 'Ajustar' }).click();
+  await cardAction(admin, expired, 'Ajustar');
   const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
   await expect(adjustment.getByRole('radio', { name: 'Vencido', exact: true })).toBeAttached();
   await expect(adjustment.getByRole('radio', { name: 'Contaminado', exact: true })).toBeAttached();
@@ -582,7 +588,7 @@ test('traslado: un frasco entero cambia de ubicación en un paso y Movimientos l
   await admin.getByRole('link', { name: /Ácido sulfúrico/ }).click();
   const card = admin.getByRole('article').filter({ hasText: 'H2SO4-2026-09-01' });
   await expect(card).toContainText('Almacén de reactivos');
-  await card.getByRole('button', { name: 'Trasladar' }).click();
+  await cardAction(admin, card, 'Trasladar');
   const sheet = admin.getByRole('dialog', { name: 'Trasladar frasco' });
   await expect(sheet).toContainText('H2SO4-2026-09-01');
   await choose(admin, 'Ubicación de destino', /Laboratorio de Química/);
@@ -652,10 +658,10 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await expect(more.getByRole('textbox', { name: 'Cantidad' })).toBeFocused();
   await admin.keyboard.press('Escape');
   await expect(more).toHaveCount(0);
-  const weighed = admin.getByRole('article').filter({ hasText: 'Cambiar tara' });
+  const weighed = admin.getByRole('article').filter({ has: admin.getByText('Tara', { exact: true }) });
   await expect(weighed).toContainText('140,0 g');
   await expect(weighed).toContainText('640,0 g');
-  await weighed.getByRole('button', { name: 'Ajustar' }).click();
+  await cardAction(admin, weighed, 'Ajustar');
   const adjustment = admin.getByRole('dialog', { name: 'Ajustar existencias' });
   await adjustment.getByRole('button', { name: 'Por peso' }).click();
   await adjustment.getByLabel('Peso en balanza (g)').fill('600');
@@ -665,14 +671,14 @@ test('ingreso de un reactivo del catálogo, tara y ajuste por peso (ADR 0015)', 
   await expect(admin.getByText('Quedan 460 g en el frasco')).toBeVisible();
 
   // El frasco sin tara la fija con la balanza.
-  const plain = admin.getByRole('article').filter({ has: admin.getByRole('button', { name: 'Fijar tara', exact: true }) });
-  await plain.getByRole('button', { name: 'Fijar tara', exact: true }).click();
+  const plain = admin.getByRole('article').filter({ hasNot: admin.getByText('Tara', { exact: true }) });
+  await cardAction(admin, plain, 'Fijar tara');
   const tare = admin.getByRole('dialog', { name: 'Fijar tara' });
   await tare.getByLabel('Peso en balanza (g)').fill('650');
   await expect(tare.getByText('Tara calculada')).toContainText('150,0 g');
   await tare.getByRole('button', { name: 'Fijar tara' }).click();
   await expect(admin.getByText('Tara fijada')).toBeVisible();
-  await expect(admin.getByRole('article').filter({ hasText: 'Cambiar tara' })).toHaveCount(2);
+  await expect(admin.getByRole('article').filter({ has: admin.getByText('Tara', { exact: true }) })).toHaveCount(2);
 });
 
 test('etiquetas con giro: las tarjetas giran a su etiqueta, se elige una y se imprime solo esa (ADR 0010)', async ({ browser }) => {

@@ -123,160 +123,167 @@ export function ReagentsProductPage() {
 
   return (
     <div className="grid gap-6">
-      <section aria-label="Datos del reactivo" className="grid gap-6">
-      <ProductHeader
-        product={product.data}
-        allowed={allowed}
-        canIssue={positionList.length > 0}
-        freshness={freshness}
-        onAction={openSheet}
-      />
-      <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} expiry={expiry} onAction={openSheet} />
+      <section aria-label="Datos del reactivo">
+        <ProductHeader
+          product={product.data}
+          allowed={allowed}
+          canIssue={positionList.length > 0}
+          freshness={freshness}
+          onAction={openSheet}
+        />
       </section>
 
-      <section aria-labelledby="frascos" className="grid gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="frascos" className="text-xl font-bold text-ink">
-            Frascos
-          </h2>
-          <div className="flex flex-wrap items-center gap-2">
-            <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="vacíos" />
-            {product.data.containersWithStock > 0 ? (
-              <button
-                ref={labelsButton}
-                type="button"
-                aria-pressed={labelMode}
-                onClick={() => {
-                  setLabelsUsed(true);
-                  if (labelMode) setLabelMode(false);
-                  else {
-                    setPicked(new Set());
-                    setLabelMode(true);
-                  }
-                }}
-                className={cn(
-                  'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors',
-                  labelMode ? 'bg-action-soft text-action' : 'bg-surface-sunken text-ink-muted hover:text-ink',
-                )}
-              >
-                <QrIcon className="size-4" aria-hidden />
-                Etiquetas
-              </button>
+      {/* Desde `xl`, el resumen es una columna derecha fija; por debajo, una franja bajo la cabecera. */}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_16rem]">
+        <aside aria-label="Resumen del reactivo" className="xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:self-start">
+          <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} expiry={expiry} onAction={openSheet} />
+        </aside>
+        <div className="grid min-w-0 content-start gap-6 xl:col-start-1 xl:row-start-1">
+          <section aria-labelledby="frascos" className="grid gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="frascos" className="text-xl font-bold text-ink">
+                Frascos
+              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="vacíos" />
+                {product.data.containersWithStock > 0 ? (
+                  <button
+                    ref={labelsButton}
+                    type="button"
+                    aria-pressed={labelMode}
+                    onClick={() => {
+                      setLabelsUsed(true);
+                      if (labelMode) setLabelMode(false);
+                      else {
+                        setPicked(new Set());
+                        setLabelMode(true);
+                      }
+                    }}
+                    className={cn(
+                      'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors',
+                      labelMode ? 'bg-action-soft text-action' : 'bg-surface-sunken text-ink-muted hover:text-ink',
+                    )}
+                  >
+                    <QrIcon className="size-4" aria-hidden />
+                    Etiquetas
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            {/* Escaneado pero sin descarga posible: se dice por qué, con texto (ADR 0012, entrega 4). */}
+            {scanBlocked ? (
+              <p role="status" className="flex items-center gap-2 rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink">
+                <QrIcon className="size-4 shrink-0 text-ink-muted" aria-hidden />
+                {scanBlocked}
+              </p>
             ) : null}
-          </div>
-        </div>
-        {/* Escaneado pero sin descarga posible: se dice por qué, con texto (ADR 0012, entrega 4). */}
-        {scanBlocked ? (
-          <p role="status" className="flex items-center gap-2 rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink">
-            <QrIcon className="size-4 shrink-0 text-ink-muted" aria-hidden />
-            {scanBlocked}
-          </p>
-        ) : null}
-        {positions.isPending ? (
-          <Skeleton className="h-44 rounded-card" />
-        ) : positions.isError ? (
-          <QueryErrorState error={positions.error} onRetry={() => void positions.refetch()} />
-        ) : visible.length === 0 ? (
-          <p className="rounded-panel bg-surface px-4 py-8 text-center text-sm text-ink-muted shadow-raised">
-            {containers.length === 0 ? 'Este reactivo aún no tiene frascos. Regístralos con un ingreso.' : 'Todos sus frascos están vacíos.'}
-          </p>
-        ) : (
-          <ul className={cn('grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4', labelsUsed && 'pb-24')}>
-            {visible.map((position) => (
-              <li key={position.id}>
-                <ContainerCard
-                  position={position}
-                  today={today}
-                  allowed={allowed}
-                  recommended={position.id === recommendedId}
-                  scanned={containerId !== undefined && position.container?.id === containerId}
-                  labels={
-                    labelsUsed && position.container && position.balance !== '0'
-                      ? {
-                          product: product.data,
-                          url: containerUrl(workspaceId, position.container.id),
-                          flipped: labelMode,
-                          picked: picked.has(position.id),
-                          order: labelable.indexOf(position),
-                          onPick: () => togglePick(position.id),
-                        }
-                      : undefined
-                  }
-                  onAction={openSheet}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+            {positions.isPending ? (
+              <Skeleton className="h-44 rounded-card" />
+            ) : positions.isError ? (
+              <QueryErrorState error={positions.error} onRetry={() => void positions.refetch()} />
+            ) : visible.length === 0 ? (
+              <p className="rounded-panel bg-surface px-4 py-8 text-center text-sm text-ink-muted shadow-raised">
+                {containers.length === 0 ? 'Este reactivo aún no tiene frascos. Regístralos con un ingreso.' : 'Todos sus frascos están vacíos.'}
+              </p>
+            ) : (
+              <ul className={cn('grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4 xl:grid-cols-3', labelsUsed && 'pb-24')}>
+                {visible.map((position) => (
+                  <li key={position.id}>
+                    <ContainerCard
+                      position={position}
+                      today={today}
+                      allowed={allowed}
+                      recommended={position.id === recommendedId}
+                      scanned={containerId !== undefined && position.container?.id === containerId}
+                      labels={
+                        labelsUsed && position.container && position.balance !== '0'
+                          ? {
+                              product: product.data,
+                              url: containerUrl(workspaceId, position.container.id),
+                              flipped: labelMode,
+                              picked: picked.has(position.id),
+                              order: labelable.indexOf(position),
+                              onPick: () => togglePick(position.id),
+                            }
+                          : undefined
+                      }
+                      onAction={openSheet}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-      {labelsUsed ? (
-        // Barra fija de las etiquetas: sale y entra desde abajo; cerrada, queda inerte y fuera de la vista.
-        <div
-          role="region"
-          aria-label="Elegir etiquetas"
-          inert={!labelMode}
-          className={cn(
-            'fixed inset-x-3 bottom-4 z-30 mx-auto flex max-w-2xl flex-wrap items-center gap-2 rounded-3xl border border-white/70 bg-white/85 p-2.5 shadow-overlay backdrop-blur-xl not-supports-[backdrop-filter]:bg-surface',
-            'transition-[opacity,translate] duration-200 ease-out-expo starting:translate-y-6 starting:opacity-0',
-            labelMode ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-6 opacity-0 motion-reduce:translate-y-0',
-          )}
-        >
-          <p aria-live="polite" className="basis-full px-2 text-sm font-semibold tabular-nums text-ink sm:mr-auto sm:basis-auto">
-            {pickedNow.length === 1 ? '1 elegida' : `${pickedNow.length} elegidas`}
-          </p>
-          <Button variant="ghost" size="sm" onClick={() => setPicked(new Set(allPicked ? [] : labelable.map((position) => position.id)))}>
-            {allPicked ? 'Ninguna' : 'Todas'}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={closeLabels}>
-            Listo
-          </Button>
-          <Button variant="primary" size="sm" className="ml-auto sm:ml-0" disabled={pickedNow.length === 0} onClick={printPicked}>
-            <Printer aria-hidden />
-            Imprimir {pickedNow.length}
-          </Button>
-        </div>
-      ) : null}
+          {labelsUsed ? (
+            // Barra fija de las etiquetas: sale y entra desde abajo; cerrada, queda inerte y fuera de la vista.
+            <div
+              role="region"
+              aria-label="Elegir etiquetas"
+              inert={!labelMode}
+              className={cn(
+                'fixed inset-x-3 bottom-4 z-30 mx-auto flex max-w-2xl flex-wrap items-center gap-2 rounded-3xl border border-white/70 bg-white/85 p-2.5 shadow-overlay backdrop-blur-xl not-supports-[backdrop-filter]:bg-surface',
+                'transition-[opacity,translate] duration-200 ease-out-expo starting:translate-y-6 starting:opacity-0',
+                labelMode ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-6 opacity-0 motion-reduce:translate-y-0',
+              )}
+            >
+              <p aria-live="polite" className="basis-full px-2 text-sm font-semibold tabular-nums text-ink sm:mr-auto sm:basis-auto">
+                {pickedNow.length === 1 ? '1 elegida' : `${pickedNow.length} elegidas`}
+              </p>
+              <Button variant="ghost" size="sm" onClick={() => setPicked(new Set(allPicked ? [] : labelable.map((position) => position.id)))}>
+                {allPicked ? 'Ninguna' : 'Todas'}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={closeLabels}>
+                Listo
+              </Button>
+              <Button variant="primary" size="sm" className="ml-auto sm:ml-0" disabled={pickedNow.length === 0} onClick={printPicked}>
+                <Printer aria-hidden />
+                Imprimir {pickedNow.length}
+              </Button>
+            </div>
+          ) : null}
 
-      <section aria-labelledby="historial-reactivo" className="rounded-card bg-surface p-6 shadow-raised md:p-8">
-        <h2 id="historial-reactivo" className="text-xl font-bold text-ink">
-          Historial del reactivo
-        </h2>
-        {history.isPending ? (
-          <Skeleton className="mt-4 h-24" />
-        ) : history.isError ? (
-          <QueryErrorState error={history.error} onRetry={() => void history.refetch()} />
-        ) : entries.length === 0 ? (
-          <StatePanel icon={History} title="Sin movimientos" description="Cada ingreso, salida o ajuste quedará aquí con su responsable." />
-        ) : (
-          // Línea de tiempo, como en el Resumen: el hilo pasa por detrás de los círculos de icono.
-          <ul className="relative mt-5 space-y-6 before:absolute before:bottom-5 before:left-5 before:top-5 before:w-0.5 before:bg-line">
-            {entries.map((operation) => (
-              <li key={operation.entryId}>
-                <ActivityRow
-                  type={operation.type}
-                  title={operation.container?.code ?? operation.lot.code}
-                  detail={[operation.location.code, purposeOf(operation)].filter(Boolean).join(' · ')}
-                  quantity={operation.quantity}
-                  unit={operation.unit}
-                  occurredAt={operation.effectiveAt}
-                  actor={responsibleOf(operation)}
-                  timeZone={me.workspace.timeZone}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-        {hasMoreHistory ? (
-          <Link
-            to={`${base}/movimientos`}
-            className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-action transition-colors hover:text-action-hover"
-          >
-            Ver todos los movimientos
-            <ArrowRight className="size-4" aria-hidden />
-          </Link>
-        ) : null}
-      </section>
+          <section aria-labelledby="historial-reactivo" className="rounded-card bg-surface p-6 shadow-raised md:p-8">
+            <h2 id="historial-reactivo" className="text-xl font-bold text-ink">
+              Historial del reactivo
+            </h2>
+            {history.isPending ? (
+              <Skeleton className="mt-4 h-24" />
+            ) : history.isError ? (
+              <QueryErrorState error={history.error} onRetry={() => void history.refetch()} />
+            ) : entries.length === 0 ? (
+              <StatePanel icon={History} title="Sin movimientos" description="Cada ingreso, salida o ajuste quedará aquí con su responsable." />
+            ) : (
+              // Línea de tiempo, como en el Resumen: el hilo pasa por detrás de los círculos de icono.
+              <ul className="relative mt-5 space-y-6 before:absolute before:bottom-5 before:left-5 before:top-5 before:w-0.5 before:bg-line">
+                {entries.map((operation) => (
+                  <li key={operation.entryId}>
+                    <ActivityRow
+                      type={operation.type}
+                      title={operation.container?.code ?? operation.lot.code}
+                      detail={[operation.location.code, purposeOf(operation)].filter(Boolean).join(' · ')}
+                      quantity={operation.quantity}
+                      unit={operation.unit}
+                      occurredAt={operation.effectiveAt}
+                      actor={responsibleOf(operation)}
+                      timeZone={me.workspace.timeZone}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+            {hasMoreHistory ? (
+              <Link
+                to={`${base}/movimientos`}
+                className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-action transition-colors hover:text-action-hover"
+              >
+                Ver todos los movimientos
+                <ArrowRight className="size-4" aria-hidden />
+              </Link>
+            ) : null}
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

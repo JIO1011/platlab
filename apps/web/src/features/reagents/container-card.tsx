@@ -1,6 +1,6 @@
 import type { Position } from '@platlab/contracts';
-import { Band, Button, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowUpFromLine, Calendar, Check, MapPin, QrCode as QrIcon, Scale } from 'lucide-react';
+import { Band, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
+import { ArrowUpFromLine, Calendar, Check, Ellipsis, MapPin, QrCode as QrIcon, Scale } from 'lucide-react';
 import { formatGrams, gramsPerUnit, weightFigures } from './weight';
 import { type ComponentProps, type CSSProperties } from 'react';
 import { addDays, formatDate, relativeDays } from '../../app/format';
@@ -10,61 +10,40 @@ import { InfoPill } from './pills';
 import { availableOf } from './stock';
 
 /**
- * Control por peso del frasco (ADR 0015): con tara, una línea «Tara · Neto · Bruto» en g y «Cambiar tara»;
- * sin ella, quien ajusta la fija. Los pesos no son cantidades de inventario: son vista previa del servidor.
+ * Pesos del frasco (ADR 0015): con tara, una línea «Tara · Neto · Bruto» en g. Fijarla o cambiarla está en el
+ * menú «Más acciones» de la tarjeta. Los pesos no son cantidades de inventario: son vista previa del servidor.
  */
-function WeightRow({ position, canSet, onAction }: { position: Position; canSet: boolean; onAction: (request: SheetRequest) => void }) {
-  const figures = weightFigures(position);
-  // Solo se pesan g, kg, mL y L (en volumen, con densidad: la pide la hoja).
-  const weighable = gramsPerUnit(position.unit, '1') !== null && position.container !== null;
-  const setTare = () => onAction({ kind: 'tare', position });
-  if (figures) {
-    return (
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px]">
-        <Scale className="size-4 shrink-0 text-ink-muted" aria-hidden />
-        {/* Tres datos en una línea; si no caben, envuelven por dato y no por palabra. */}
-        <dl className="flex flex-wrap gap-x-2.5 gap-y-0.5 tabular-nums">
-          {(
-            [
-              ['Tara', figures.tare],
-              ['Neto', figures.net],
-              ['Bruto', figures.expectedGross],
-            ] as const
-          ).map(([label, grams]) => (
-            <div key={label} className="flex gap-1 whitespace-nowrap">
-              <dt className="text-ink-muted">{label}</dt>
-              <dd className="font-bold text-ink">{formatGrams(grams)}</dd>
-            </div>
-          ))}
-        </dl>
-        {canSet ? (
-          <button type="button" onClick={setTare} className="-mx-1 min-h-[44px] rounded-[6px] px-1 font-medium text-action hover:text-action-hover sm:min-h-0">
-            Cambiar tara
-          </button>
-        ) : null}
-      </div>
-    );
-  }
-  if (!canSet || !weighable) return null;
+function WeightRow({ figures }: { figures: NonNullable<ReturnType<typeof weightFigures>> }) {
   return (
-    <button
-      type="button"
-      onClick={setTare}
-      className="-mx-1 inline-flex min-h-[44px] items-center gap-1.5 self-start rounded-[6px] px-1 text-left text-[13px] font-medium text-action hover:text-action-hover sm:min-h-0 sm:py-0.5"
-    >
-      <Scale className="size-4" aria-hidden />
-      Fijar tara
-    </button>
+    <div className="flex items-start gap-1.5 text-[12px]">
+      <Scale className="mt-0.5 size-3.5 shrink-0 text-ink-muted" aria-hidden />
+      {/* Tres datos; si no caben, envuelven por dato y no por palabra. */}
+      <dl className="flex flex-wrap gap-x-2.5 gap-y-0.5 tabular-nums">
+        {(
+          [
+            ['Tara', figures.tare],
+            ['Neto', figures.net],
+            ['Bruto', figures.expectedGross],
+          ] as const
+        ).map(([label, grams]) => (
+          <div key={label} className="flex gap-1 whitespace-nowrap">
+            <dt className="text-ink-muted">{label}</dt>
+            <dd className="font-bold text-ink">{formatGrams(grams)}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
 /**
  * Un frasco en la ficha (ADR 0012; ADR 0010, «Ventanas como ReactiLab»): translúcido sin desenfoque
- * (`bg-white/80`, borde suave, radio de 24 px). De arriba abajo: el código mono en negrita con su estado
- * (FEFO, vencido, apartado) a la derecha; una línea gris con la ubicación y la marca; el saldo grande con
- * el porcentaje, la barra por nivel y la cantidad inicial; la caducidad exacta (ámbar o rojo según el
- * estado); la línea de pesos; y, tras una línea de borde a borde, las acciones. El color solo cuenta un
- * estado y siempre con texto.
+ * (`bg-white/80`, borde suave, radio de 24 px) y compacto: caben tres por fila junto al resumen lateral.
+ * El estado (FEFO, vencido, apartado) es una insignia sobre el borde, arriba a la derecha. De arriba abajo:
+ * el código mono en negrita; una línea gris con la ubicación y la marca; el saldo con la barra por nivel y
+ * «de N · X %»; la caducidad exacta (ámbar o rojo según el estado); la línea de pesos; y, tras una línea de
+ * borde a borde, «Salida» y un menú «Más acciones» con Trasladar, Ajustar y la tara. El color solo cuenta
+ * un estado y siempre con texto.
  *
  * Con el modo de etiquetas el artículo gira 180° y muestra su reverso: la etiqueta impresa, y la tarjeta
  * entera es una casilla para elegirla (unos 300 ms, escalonado; con movimiento reducido, un fundido).
@@ -104,6 +83,10 @@ export function ContainerCard({
   const { brand } = position.lot;
   const soon = expiresOn !== null && !expired && expiresOn <= addDays(today, 30);
   const code = position.container?.code ?? position.lot.code;
+  const figures = weightFigures(position);
+  // Solo se pesan g, kg, mL y L (en volumen, con densidad: la pide la hoja).
+  const weighable = gramsPerUnit(position.unit, '1') !== null && position.container !== null;
+  const canTare = allowed.adjustment && (figures !== null || weighable);
   const flipped = labels?.flipped === true;
   return (
     <article
@@ -123,7 +106,7 @@ export function ContainerCard({
         aria-hidden={flipped || undefined}
         className={cn(
           // Translúcido y sin desenfoque; el color solo cuenta un estado y siempre con texto (ADR 0010).
-          'group relative flex h-full flex-col gap-3.5 rounded-3xl border border-white/80 bg-white/80 p-5 shadow-raised [backface-visibility:hidden] transition-[translate,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-0.5',
+          'group relative flex h-full flex-col gap-3 rounded-3xl border border-white/80 bg-white/80 p-4 shadow-raised [backface-visibility:hidden] transition-[translate,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-0.5',
           'motion-reduce:transition-opacity motion-reduce:duration-300 motion-reduce:[transition-delay:var(--flip-delay)]',
           flipped && 'motion-reduce:opacity-0',
           scanned && 'ring-2 ring-action',
@@ -132,62 +115,63 @@ export function ContainerCard({
         )}
       >
         {scanned ? (
-          <span className="absolute -top-3 left-5 inline-flex items-center gap-1 rounded-full bg-action px-2.5 py-0.5 text-xs font-bold text-on-action shadow-sm">
+          <span className="absolute -top-3 left-4 inline-flex items-center gap-1 rounded-full bg-action px-2.5 py-0.5 text-xs font-bold text-on-action shadow-sm">
             <QrIcon className="size-3" aria-hidden />
             Desde su etiqueta
           </span>
         ) : null}
-        <div className="flex items-start justify-between gap-2">
-          {/* El código es la identidad de la etiqueta: nunca se parte. */}
-          <h3 className="whitespace-nowrap font-mono text-lg font-bold leading-tight tabular-nums text-ink">{code}</h3>
-          <div className="flex flex-wrap justify-end gap-1.5">
+        {recommended || expired || reserved ? (
+          // Insignias de estado sobre el borde, arriba a la derecha.
+          <div className="absolute -top-3 right-3 flex justify-end gap-1">
             {recommended ? (
-              <span className="inline-flex min-h-6 items-center gap-1 rounded-full bg-success px-2.5 text-xs font-bold text-on-action">
+              <span className="inline-flex min-h-6 items-center gap-1 rounded-full bg-success px-2.5 text-xs font-bold text-on-action shadow-sm">
                 <Check className="size-3" aria-hidden />
                 FEFO
                 <span className="sr-only"> (vence antes: conviene usarlo primero)</span>
               </span>
             ) : null}
             {expired ? (
-              <InfoPill tone="danger" className="min-h-6 px-2.5 text-xs font-bold">
+              <InfoPill tone="danger" className="min-h-6 px-2.5 text-xs font-bold shadow-sm">
                 Vencido
               </InfoPill>
             ) : null}
             {reserved ? (
-              <InfoPill tone="accent" className="min-h-6 px-2.5 text-xs font-bold">
+              <InfoPill tone="accent" className="min-h-6 px-2.5 text-xs font-bold shadow-sm">
                 Apartado
               </InfoPill>
             ) : null}
           </div>
-        </div>
-        <p className="flex min-w-0 items-center gap-1.5 text-sm text-ink-muted">
-          <MapPin className="size-4 shrink-0" aria-hidden />
+        ) : null}
+        {/* El código es la identidad de la etiqueta: se trunca con su título antes que partirse. */}
+        <h3 title={code} className="truncate font-mono text-sm font-bold leading-tight tabular-nums text-ink">
+          {code}
+        </h3>
+        <p className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-muted" title={brand ? `${position.location.name} · ${brand}` : position.location.name}>
+          <MapPin className="size-3.5 shrink-0" aria-hidden />
           <span className="truncate">{brand ? `${position.location.name} · ${brand}` : position.location.name}</span>
         </p>
-        <div className="grid gap-2">
-          <p className="flex items-baseline justify-between gap-2">
-            <span className="flex items-baseline gap-2">
-              <span className={cn('text-4xl font-bold leading-none tracking-tight tabular-nums', empty ? 'text-ink-subtle' : 'text-action')}>
-                {formatDecimal(position.balance)}
-              </span>
-              <span className="text-base text-ink-muted">{position.unit}</span>
+        <div className="grid gap-1.5">
+          <p className="flex items-baseline gap-1.5">
+            <span className={cn('text-[26px] font-bold leading-none tracking-tight tabular-nums', empty ? 'text-ink-subtle' : 'text-action')}>
+              {formatDecimal(position.balance)}
             </span>
-            {percent !== null && initial ? <span className="text-sm font-semibold tabular-nums text-ink-muted">{percentText}</span> : null}
+            <span className="text-sm text-ink-muted">{position.unit}</span>
           </p>
           {percent !== null && initial ? (
             <>
               <StockLevelBar
                 percent={percent}
                 hasStock={!empty}
+                className="h-1.5"
                 label={`Queda ${percentText === '<1 %' ? 'menos del 1 %' : `el ${percentText}`} de lo que entró`}
               />
-              <p className="text-[13px] text-ink-muted">
-                de <Quantity value={initial} unit={position.unit} unitClassName="text-inherit" />
+              <p className="text-[12px] text-ink-muted">
+                de <Quantity value={initial} unit={position.unit} unitClassName="text-inherit" /> · <span className="font-semibold tabular-nums">{percentText}</span>
               </p>
             </>
           ) : null}
           {reserved ? (
-            <p className="text-[13px] text-ink-muted">
+            <p className="text-[12px] text-ink-muted">
               Apartado <Quantity value={position.reserved} unit={position.unit} className="font-bold text-ink" unitClassName="text-inherit" /> · Disponible{' '}
               <Quantity value={available} unit={position.unit} className="font-bold text-ink" unitClassName="text-inherit" />
             </p>
@@ -196,11 +180,11 @@ export function ContainerCard({
         {/* El lote interno ya es el prefijo del código del frasco: no se repite. */}
         <p
           className={cn(
-            'flex items-center gap-1.5 text-sm font-medium',
+            'flex items-start gap-1.5 text-[13px] font-medium',
             expired ? 'text-danger' : soon || expiresOn === null ? 'text-warning' : 'text-ink-muted',
           )}
         >
-          <Calendar className="size-4 shrink-0" aria-hidden />
+          <Calendar className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           {expiresOn ? (
             <span>
               {expired ? 'Venció' : 'Vence'} {formatDate(expiresOn)} · {relativeDays(expiresOn, today)}
@@ -209,16 +193,16 @@ export function ContainerCard({
             <span>Caducidad sin indicar</span>
           )}
         </p>
-        <WeightRow position={position} canSet={allowed.adjustment} onAction={onAction} />
+        {figures ? <WeightRow figures={figures} /> : null}
         {canIssue || canTransfer || allowed.adjustment ? (
-          // Banda inferior de borde a borde: «Salida» es la primaria; «Trasladar» y «Ajustar», texto.
-          <Band ruled className="-mx-5 -mb-1 mt-auto flex flex-wrap items-center gap-1.5 px-5 pt-4">
+          // Banda inferior de borde a borde: «Salida» es la primaria; lo demás, en el menú «Más acciones».
+          <Band ruled className="-mx-4 -mb-1 mt-auto flex items-center gap-1.5 px-4 pt-3">
             {canIssue ? (
               // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
               <Button
                 size="sm"
                 variant={recommended ? 'primary' : 'secondary'}
-                className={cn('h-10 min-w-[6.5rem] flex-1 rounded-xl font-bold', !recommended && 'border-action/30 bg-white/70 text-action hover:bg-action-soft')}
+                className={cn('h-10 min-w-0 flex-1 rounded-xl px-2.5 font-bold', !recommended && 'border-action/30 bg-white/70 text-action hover:bg-action-soft')}
                 onClick={() => onAction({ kind: 'issue', positionId: position.id })}
               >
                 <ArrowUpFromLine aria-hidden />
@@ -226,27 +210,23 @@ export function ContainerCard({
                 {allowed.approve ? 'Salida' : 'Solicitar salida'}
               </Button>
             ) : null}
-            {canTransfer ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                title="Trasladar el frasco a otra ubicación"
-                className="h-10 rounded-xl px-2.5"
-                onClick={() => onAction({ kind: 'transfer', position })}
-              >
-                Trasladar
-              </Button>
-            ) : null}
-            {allowed.adjustment ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                title="Ajustar existencias"
-                className="h-10 rounded-xl px-2.5"
-                onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}
-              >
-                Ajustar
-              </Button>
+            {canTransfer || allowed.adjustment ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon" variant="ghost" aria-label={`Más acciones de ${code}`} className="size-10 rounded-xl">
+                    <Ellipsis aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {canTransfer ? <DropdownMenuItem onSelect={() => onAction({ kind: 'transfer', position })}>Trasladar</DropdownMenuItem> : null}
+                  {allowed.adjustment ? (
+                    <DropdownMenuItem onSelect={() => onAction({ kind: 'adjustment', positionId: position.id })}>Ajustar</DropdownMenuItem>
+                  ) : null}
+                  {canTare ? (
+                    <DropdownMenuItem onSelect={() => onAction({ kind: 'tare', position })}>{figures ? 'Cambiar tara' : 'Fijar tara'}</DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : null}
           </Band>
         ) : null}
