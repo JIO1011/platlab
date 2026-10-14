@@ -281,11 +281,27 @@ SELECT
   c.code AS container_code,
   trim_scale(c.initial_quantity) AS container_initial_quantity,
   c.created_at AS "container_received_at?",
+  -- Quién lo ingresó: el actor del ingreso que llenó su primera posición; nadie si no hubo ingreso.
+  receipt.operation_id IS NOT NULL AS "container_has_receipt!",
+  receipt.actor_name AS "container_received_by_name?",
   trim_scale(c.tare) AS container_tare,
   trim_scale(c.density) AS container_density,
   loc.id AS location_id,
   loc.code AS location_code,
   loc.name AS location_name,
+  -- Ruta desde el primer nivel bajo la sede (sin ella, salvo que sea la propia), hasta 6 niveles.
+  (
+    WITH RECURSIVE up AS (
+      SELECT loc.parent_id, loc.kind, loc.name, 0 AS depth
+      UNION ALL
+      SELECT parent.parent_id, parent.kind, parent.name, up.depth + 1
+      FROM up
+      JOIN core.locations AS parent ON parent.workspace_id = loc.workspace_id AND parent.id = up.parent_id
+      WHERE up.depth < 5
+    )
+    SELECT array_agg(up.name ORDER BY up.depth DESC) FILTER (WHERE up.depth = 0 OR up.kind <> 'site')
+    FROM up
+  ) AS "location_path!",
   trim_scale(p.balance) AS "balance!",
   trim_scale(p.reserved) AS "reserved!",
   i.base_unit,
@@ -297,6 +313,19 @@ FROM inventory.positions AS p
 JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
 JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
 LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
+-- El nombre sale de la misma cadena que el actor de listOperations.
+LEFT JOIN LATERAL (
+  SELECT o.id AS operation_id, ident.display_name AS actor_name
+  FROM inventory.positions AS cp
+  JOIN inventory.entries AS e ON e.workspace_id = cp.workspace_id AND e.position_id = cp.id
+  JOIN inventory.operations AS o ON o.workspace_id = e.workspace_id AND o.id = e.operation_id
+  LEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id
+  LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+  LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
+  WHERE cp.workspace_id = c.workspace_id AND cp.container_id = c.id AND o.type = 'receipt'
+  ORDER BY o.effective_at, o.id
+  LIMIT 1
+) AS receipt ON true
 JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
 WHERE p.workspace_id = :workspaceId!
   AND i.kind = :kind!

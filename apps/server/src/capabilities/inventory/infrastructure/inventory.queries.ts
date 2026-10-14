@@ -1120,9 +1120,11 @@ export interface IListPositionsResult {
   brand: string | null;
   container_code: string;
   container_density: string | null;
+  container_has_receipt: boolean;
   container_id: string | null;
   container_initial_quantity: string | null;
   container_received_at: Date | null;
+  container_received_by_name: string | null;
   container_tare: string | null;
   disposition: string;
   expires_on: string | null;
@@ -1133,6 +1135,7 @@ export interface IListPositionsResult {
   location_code: string;
   location_id: string;
   location_name: string;
+  location_path: stringArray;
   lot_code: string;
   lot_id: string;
   reserved: string;
@@ -1148,7 +1151,7 @@ export interface IListPositionsQuery {
   result: IListPositionsResult;
 }
 
-const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"itemId":true,"locationId":true,"afterId":true,"afterItem":true,"afterLot":true,"afterSeq":true,"afterLocation":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1144,"b":1156}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1173,"b":1178}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1207,"b":1219}]},{"name":"itemId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1237,"b":1243},{"a":1274,"b":1280}]},{"name":"locationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1296,"b":1306},{"a":1341,"b":1351}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1683,"b":1690},{"a":1870,"b":1877}]},{"name":"afterItem","required":false,"transform":{"type":"scalar"},"locs":[{"a":1797,"b":1806}]},{"name":"afterLot","required":false,"transform":{"type":"scalar"},"locs":[{"a":1815,"b":1823}]},{"name":"afterSeq","required":false,"transform":{"type":"scalar"},"locs":[{"a":1832,"b":1840}]},{"name":"afterLocation","required":false,"transform":{"type":"scalar"},"locs":[{"a":1848,"b":1861}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":1977,"b":1983}]}],"statement":"SELECT\n  p.id,\n  i.id AS item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  l.id AS lot_id,\n  l.code AS lot_code,\n  l.expires_on,\n  l.brand,\n  l.area,\n  p.disposition,\n  c.id AS \"container_id?\",\n  c.code AS container_code,\n  trim_scale(c.initial_quantity) AS container_initial_quantity,\n  c.created_at AS \"container_received_at?\",\n  trim_scale(c.tare) AS container_tare,\n  trim_scale(c.density) AS container_density,\n  loc.id AS location_id,\n  loc.code AS location_code,\n  loc.name AS location_name,\n  trim_scale(p.balance) AS \"balance!\",\n  trim_scale(p.reserved) AS \"reserved!\",\n  i.base_unit,\n  lower(i.code) AS \"sort_item!\",\n  lower(l.code) AS \"sort_lot!\",\n  coalesce(c.seq, 0) AS \"sort_seq!\",\n  lower(loc.code) AS \"sort_location!\"\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nWHERE p.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)\n  AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)\n  -- Un frasco trasladado deja su posición de origen vacía: solo se muestra donde está.\n  AND (p.container_id IS NULL OR p.balance > 0 OR NOT EXISTS (\n    SELECT 1 FROM inventory.positions AS other\n    WHERE other.workspace_id = p.workspace_id AND other.container_id = p.container_id AND other.balance > 0\n  ))\n  AND (\n    :afterId::uuid IS NULL\n    OR (lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id)\n       > (:afterItem::text, :afterLot::text, :afterSeq::int, :afterLocation::text, :afterId::uuid)\n  )\nORDER BY lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id\nLIMIT :limit!"};
+const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"itemId":true,"locationId":true,"afterId":true,"afterItem":true,"afterLot":true,"afterSeq":true,"afterLocation":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2722,"b":2734}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":2751,"b":2756}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":2785,"b":2797}]},{"name":"itemId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2815,"b":2821},{"a":2852,"b":2858}]},{"name":"locationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2874,"b":2884},{"a":2919,"b":2929}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":3261,"b":3268},{"a":3448,"b":3455}]},{"name":"afterItem","required":false,"transform":{"type":"scalar"},"locs":[{"a":3375,"b":3384}]},{"name":"afterLot","required":false,"transform":{"type":"scalar"},"locs":[{"a":3393,"b":3401}]},{"name":"afterSeq","required":false,"transform":{"type":"scalar"},"locs":[{"a":3410,"b":3418}]},{"name":"afterLocation","required":false,"transform":{"type":"scalar"},"locs":[{"a":3426,"b":3439}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":3555,"b":3561}]}],"statement":"SELECT\n  p.id,\n  i.id AS item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  l.id AS lot_id,\n  l.code AS lot_code,\n  l.expires_on,\n  l.brand,\n  l.area,\n  p.disposition,\n  c.id AS \"container_id?\",\n  c.code AS container_code,\n  trim_scale(c.initial_quantity) AS container_initial_quantity,\n  c.created_at AS \"container_received_at?\",\n  -- Quién lo ingresó: el actor del ingreso que llenó su primera posición; nadie si no hubo ingreso.\n  receipt.operation_id IS NOT NULL AS \"container_has_receipt!\",\n  receipt.actor_name AS \"container_received_by_name?\",\n  trim_scale(c.tare) AS container_tare,\n  trim_scale(c.density) AS container_density,\n  loc.id AS location_id,\n  loc.code AS location_code,\n  loc.name AS location_name,\n  -- Ruta desde el primer nivel bajo la sede (sin ella, salvo que sea la propia), hasta 6 niveles.\n  (\n    WITH RECURSIVE up AS (\n      SELECT loc.parent_id, loc.kind, loc.name, 0 AS depth\n      UNION ALL\n      SELECT parent.parent_id, parent.kind, parent.name, up.depth + 1\n      FROM up\n      JOIN core.locations AS parent ON parent.workspace_id = loc.workspace_id AND parent.id = up.parent_id\n      WHERE up.depth < 5\n    )\n    SELECT array_agg(up.name ORDER BY up.depth DESC) FILTER (WHERE up.depth = 0 OR up.kind <> 'site')\n    FROM up\n  ) AS \"location_path!\",\n  trim_scale(p.balance) AS \"balance!\",\n  trim_scale(p.reserved) AS \"reserved!\",\n  i.base_unit,\n  lower(i.code) AS \"sort_item!\",\n  lower(l.code) AS \"sort_lot!\",\n  coalesce(c.seq, 0) AS \"sort_seq!\",\n  lower(loc.code) AS \"sort_location!\"\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\n-- El nombre sale de la misma cadena que el actor de listOperations.\nLEFT JOIN LATERAL (\n  SELECT o.id AS operation_id, ident.display_name AS actor_name\n  FROM inventory.positions AS cp\n  JOIN inventory.entries AS e ON e.workspace_id = cp.workspace_id AND e.position_id = cp.id\n  JOIN inventory.operations AS o ON o.workspace_id = e.workspace_id AND o.id = e.operation_id\n  LEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id\n  LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n  LEFT JOIN core.identities AS ident ON ident.id = m.identity_id\n  WHERE cp.workspace_id = c.workspace_id AND cp.container_id = c.id AND o.type = 'receipt'\n  ORDER BY o.effective_at, o.id\n  LIMIT 1\n) AS receipt ON true\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nWHERE p.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)\n  AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)\n  -- Un frasco trasladado deja su posición de origen vacía: solo se muestra donde está.\n  AND (p.container_id IS NULL OR p.balance > 0 OR NOT EXISTS (\n    SELECT 1 FROM inventory.positions AS other\n    WHERE other.workspace_id = p.workspace_id AND other.container_id = p.container_id AND other.balance > 0\n  ))\n  AND (\n    :afterId::uuid IS NULL\n    OR (lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id)\n       > (:afterItem::text, :afterLot::text, :afterSeq::int, :afterLocation::text, :afterId::uuid)\n  )\nORDER BY lower(i.code), lower(l.code), coalesce(c.seq, 0), lower(loc.code), p.id\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
@@ -1168,11 +1171,27 @@ const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"lo
  *   c.code AS container_code,
  *   trim_scale(c.initial_quantity) AS container_initial_quantity,
  *   c.created_at AS "container_received_at?",
+ *   -- Quién lo ingresó: el actor del ingreso que llenó su primera posición; nadie si no hubo ingreso.
+ *   receipt.operation_id IS NOT NULL AS "container_has_receipt!",
+ *   receipt.actor_name AS "container_received_by_name?",
  *   trim_scale(c.tare) AS container_tare,
  *   trim_scale(c.density) AS container_density,
  *   loc.id AS location_id,
  *   loc.code AS location_code,
  *   loc.name AS location_name,
+ *   -- Ruta desde el primer nivel bajo la sede (sin ella, salvo que sea la propia), hasta 6 niveles.
+ *   (
+ *     WITH RECURSIVE up AS (
+ *       SELECT loc.parent_id, loc.kind, loc.name, 0 AS depth
+ *       UNION ALL
+ *       SELECT parent.parent_id, parent.kind, parent.name, up.depth + 1
+ *       FROM up
+ *       JOIN core.locations AS parent ON parent.workspace_id = loc.workspace_id AND parent.id = up.parent_id
+ *       WHERE up.depth < 5
+ *     )
+ *     SELECT array_agg(up.name ORDER BY up.depth DESC) FILTER (WHERE up.depth = 0 OR up.kind <> 'site')
+ *     FROM up
+ *   ) AS "location_path!",
  *   trim_scale(p.balance) AS "balance!",
  *   trim_scale(p.reserved) AS "reserved!",
  *   i.base_unit,
@@ -1184,6 +1203,19 @@ const listPositionsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"lo
  * JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
  * JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
  * LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
+ * -- El nombre sale de la misma cadena que el actor de listOperations.
+ * LEFT JOIN LATERAL (
+ *   SELECT o.id AS operation_id, ident.display_name AS actor_name
+ *   FROM inventory.positions AS cp
+ *   JOIN inventory.entries AS e ON e.workspace_id = cp.workspace_id AND e.position_id = cp.id
+ *   JOIN inventory.operations AS o ON o.workspace_id = e.workspace_id AND o.id = e.operation_id
+ *   LEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id
+ *   LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+ *   LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
+ *   WHERE cp.workspace_id = c.workspace_id AND cp.container_id = c.id AND o.type = 'receipt'
+ *   ORDER BY o.effective_at, o.id
+ *   LIMIT 1
+ * ) AS receipt ON true
  * JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
  * WHERE p.workspace_id = :workspaceId!
  *   AND i.kind = :kind!

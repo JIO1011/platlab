@@ -43,6 +43,7 @@ export function FormSheet({
   fullWidthSubmit = false,
   submitIcon: SubmitIcon,
   submitDisabled = false,
+  submitLead,
   status,
   initialFocus,
   children,
@@ -60,14 +61,16 @@ export function FormSheet({
   sections?: boolean;
   /** Los hijos llegan de borde a borde y traen su propio relleno y sus líneas (el ingreso, con secciones que aparecen). */
   flush?: boolean;
-  /** Ventana ancha (hasta 40 rem). */
-  wide?: boolean;
+  /** Ventana ancha (hasta 40 rem); `xl`, de dos columnas desde 1024 px (hasta 64 rem). */
+  wide?: boolean | 'xl';
   /** El botón principal ocupa todo el ancho del pie y «Cancelar» sale (la cabecera cierra la hoja). */
   fullWidthSubmit?: boolean;
   /** Icono antes del texto del botón principal (con `fullWidthSubmit`). */
   submitIcon?: LucideIcon;
   /** Falta algo para poder enviar (p. ej., la cantidad): el botón queda pálido y deshabilitado. */
   submitDisabled?: boolean;
+  /** Control unido al botón principal, a su izquierda y de su misma altura (con `fullWidthSubmit`): el número de frascos. */
+  submitLead?: ReactNode;
   /** Lo que falta o «Listo», en una línea sobre el botón principal. */
   status?: ReactNode;
   initialFocus?: RefObject<HTMLElement | null>;
@@ -96,6 +99,7 @@ export function FormSheet({
                 Cancelar
               </Button>
             )}
+            {fullWidthSubmit ? submitLead : null}
             <Button
               type="submit"
               form={formId}

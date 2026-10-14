@@ -25,6 +25,7 @@ Implementas una mejora de interfaz ya aprobada. La sesión principal (Opus 5.5 e
 - **Verifica en una pasada acotada:** capturas de escritorio y móvil (360–390 px) del estado real en `apps/web/.impeccable/review/` (`desktop-<pantalla>.png`, `mobile-<pantalla>.png`), corrige todo en un lote y confirma una vez más como máximo. Ejecuta el detector de impeccable. No corras pruebas (`pnpm e2e`, `pnpm test`, `pnpm check`): escribe o ajusta los e2e y la sesión principal los corre; al terminar, un hook corre `typecheck`, `lint`, `deps` y `knip` y, si cambiaste `.tsx` o `.css`, exige capturas nuevas. Si cambia un texto que una prueba e2e espera, actualiza la prueba.
 - **Comandos:** web en `pnpm --filter @platlab/web dev` (API: `pnpm --filter @platlab/server dev`, base: `pnpm db:start`); cuentas en `supabase/seeds/demo.sql`, contraseña `platlab-demo`; unitarias `pnpm --filter @platlab/web test`.
 - **Actualiza `DESIGN.md`** si cambia un patrón documentado.
+- **Sin formateadores:** el repo no usa `prettier`; no lo ejecutes. Edita respetando el formato que ya tiene el archivo.
 - **No confirmes ni subas** (`git commit`, `git push`): la sesión principal revisa y cierra.
 
 ## Entrega

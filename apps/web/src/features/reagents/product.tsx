@@ -134,7 +134,7 @@ export function ReagentsProductPage() {
       </section>
 
       {/* Desde `xl`, el resumen es una columna derecha fija; por debajo, una franja bajo la cabecera. */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_11rem]">
         <aside aria-label="Resumen del reactivo" className="xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:self-start">
           <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} expiry={expiry} onAction={openSheet} />
         </aside>
@@ -191,7 +191,9 @@ export function ReagentsProductPage() {
                   <li key={position.id}>
                     <ContainerCard
                       position={position}
+                      physicalState={product.data.physicalState}
                       today={today}
+                      timeZone={me.workspace.timeZone}
                       allowed={allowed}
                       recommended={position.id === recommendedId}
                       scanned={containerId !== undefined && position.container?.id === containerId}

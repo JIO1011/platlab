@@ -21,6 +21,9 @@ const adjustmentQuantity = z
   .string()
   .regex(/^-?(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal distinta de cero');
 
+/** «Por vencer»: caduca entre hoy y los próximos días (02 §12, ADR 0012); lo usan el servidor y la web. */
+export const EXPIRING_DAYS = 30;
+
 export const physicalState = z.enum(['solid', 'liquid', 'aqueous', 'mixture', 'gas']);
 /** Los nueve pictogramas SGA (ADR 0015). */
 export const hazard = z.enum(['GHS01', 'GHS02', 'GHS03', 'GHS04', 'GHS05', 'GHS06', 'GHS07', 'GHS08', 'GHS09']);
@@ -433,13 +436,16 @@ export const position = z.object({
       code: z.string(),
       initialQuantity: decimalString,
       receivedAt: z.iso.datetime({ offset: true }),
+      /** Actor del ingreso que creó el frasco; null si el frasco no tiene ingreso. */
+      receivedBy: z.object({ displayName: z.string().nullable() }).nullable(),
       /** Tara en g y densidad en g/mL con que se calculó; null sin control por peso (ADR 0015). */
       tare: decimalString.nullable(),
       density: decimalString.nullable(),
     })
     .nullable(),
   disposition: z.enum(['usable', 'quarantine', 'restricted']),
-  location: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
+  /** `path`: nombres desde el primer nivel bajo la sede hasta esta ubicación; la sede, solo si es ella. */
+  location: z.object({ id: z.uuid(), code: z.string(), name: z.string(), path: z.array(z.string()) }),
   balance: decimalString,
   /** Apartado por solicitudes pendientes (ADR 0012); lo disponible es saldo − reservado. */
   reserved: decimalString,

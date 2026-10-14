@@ -380,6 +380,27 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 - **Conteo** sale de la interfaz. Se conserva en el servidor para conciliar el inventario de G1.
 - **Referencia visual:** el prototipo de la rama `proto/r-01d-ingreso`, que no se fusiona.
 
+**Ajuste de la ventana (13-10-2026):**
+
+- Se llama «Nuevo reactivo»; desde la ficha, «Ingresar frascos».
+- Cada sección va en su propio marco, visible desde el inicio. «Clasificación y seguridad» va en una tarjeta aparte, a la derecha en escritorio y al final en el móvil.
+- La unidad se elige en un desplegable unido a la cantidad.
+- El error del CAS aparece en un globo junto al campo. «Control por peso» explica cada campo con globos de ayuda.
+- Área o departamento es un desplegable.
+- La ubicación muestra sus tres niveles con texto guía; cada nivel se habilita al elegir el anterior.
+- El número de frascos va en el pie, unido al botón: [− N +] «Ingresar N frascos». «Caducidad» ocupa su lugar, junto a Cantidad.
+- Tarjeta del frasco (14-10-2026):
+  - Los estados van sobre el borde: «★ Usar primero» (FEFO), «Vencido», «Apartado», «Cuarentena» y «Restringido».
+  - Contenido: el código, la marca y el área, el saldo con su barra, la ubicación con su ruta completa, y las fichas 📅 (fecha corta) y ⚖.
+  - Trasladar es un botón propio (⇄) y el menú «⋯» desaparece.
+  - Tocar el código abre «Detalles del frasco»: lote interno, fecha de ingreso, cantidad inicial, densidad y quién lo ingresó.
+  - Ajuste del mismo día:
+    - La ubicación va en dos líneas, como una dirección: la sala arriba y, en gris, el estante y el nivel.
+    - La ficha ⚖ dice «Debe pesar N g» y ofrece «Corregir con la balanza». La tara y el neto pasan a «Detalles del frasco».
+    - «Ajustar» vuelve como botón y abre una sola ventana que elige el método. Con control por balanza, pregunta «¿Qué marca la balanza?» y ofrece escribir la cantidad. Sin control, pregunta la cantidad y ofrece «Pesar el frasco para activar la balanza» (antes «Fijar tara»).
+- Resumen de la ficha: tres tarjetas pequeñas separadas en una columna angosta.
+- Inventario (nivel 1): 4 tarjetas por fila desde 1280 px, con el contenido centrado y las insignias (frascos, vencidos y controlado) en una fila bajo el total.
+
 **Implementación (12-10-2026):**
 
 - **Editar la ficha** (Administrador y Propietario): nombre, CAS, estado, peligros, controlado, ficha de seguridad y densidad. La unidad, solo sin movimientos.
@@ -414,6 +435,7 @@ Motivo: quien registra tiene el frasco en la mano y llena lo que lee, de arriba 
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
 | Libro sin filtros | La lista sin filtros (también la actividad del Resumen) entra por frascos y ordena todo el libro del espacio: unos 250 ms con 40 000 operaciones (medido en R-01C). ¿Índice o consulta distinta? | Antes de G1, con el escenario de carga (04 §4) |
 | Inventario de más de 100 reactivos | La web carga solo la primera página del catálogo (100). El Inventario y sus filtros no muestran el resto. ¿Paginación, búsqueda en el servidor o ambas? | Antes de G1 |
+| Índice por frasco | La ficha busca quién ingresó cada frasco recorriendo sus posiciones; no hay índice en `inventory.positions (workspace_id, container_id)`. Añadirlo si crece el número de posiciones | Antes de G1, con el escenario de carga |
 | Conexión a PostgreSQL | ¿Conexión directa con el complemento IPv4 o Supavisor en modo sesión? | S-01 |
 | Credencial local del rol de runtime | `supabase/seed.sql` fija una contraseña de desarrollo. Antes de usar ramas de Supabase o staging, pasarla a una variable de entorno local o desactivar el seed fuera de local y CI | S-01 |
 | Conectividad | Cortes reales y procedimiento de continuidad | F0 |

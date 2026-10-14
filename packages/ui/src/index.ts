@@ -4,6 +4,7 @@ export { Button, type ButtonProps } from './components/button';
 export { Drawer } from './components/drawer';
 export { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './components/dropdown-menu';
 export { Field, sectionLabel } from './components/field';
+export { HelpTip } from './components/help-tip';
 export { IconChip } from './components/icon-chip';
 export { IconTile } from './components/icon-tile';
 export { Input, Textarea } from './components/input';

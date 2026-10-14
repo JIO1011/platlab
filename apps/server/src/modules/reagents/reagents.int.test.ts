@@ -201,7 +201,14 @@ describe('G0 · recorrido visible', () => {
         id: receiptBody.positionId,
         balance: '79.5',
         unit: 'g',
-        container: expect.objectContaining({ code: 'NAC-001', initialQuantity: '100', tare: null, density: null }),
+        container: expect.objectContaining({
+          code: 'NAC-001',
+          initialQuantity: '100',
+          tare: null,
+          density: null,
+          // Quien ingresó el frasco, no quien lo movió después (el ajuste es del Administrador).
+          receivedBy: { displayName: 'Operador' },
+        }),
       }),
     ]);
     const catalog = productList.parse((await call(lab.operator.subject, `${lab.base}/products`)).body);
@@ -1276,6 +1283,8 @@ describe('R-01A · traslados (ADR 0012, entrega 4)', () => {
     // El frasco se ve solo donde está, con su código y todo su saldo.
     const [here] = await stockOf(lab, product.id);
     expect(here).toMatchObject({ id: result.toPositionId, balance: '100.5', location: expect.objectContaining({ id: lab.otherStorage }) });
+    // Quién lo ingresó viaja con el frasco: el ingreso quedó en la posición de origen.
+    expect(here?.container?.receivedBy).toEqual({ displayName: 'Operador' });
     expect(await stockOf(lab, product.id)).toHaveLength(1);
 
     // Una operación con dos asientos: sale del origen y entra en el destino.
@@ -2065,6 +2074,26 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
     // La nueva ubicación sirve para el ingreso y llega con su padre.
     const locations = locationList.parse((await call(lab.adminMember.subject, `${lab.base}/receipt-locations`)).body);
     expect(locations.items.find((item) => item.id === level.id)).toMatchObject({ parentId: shelf.id });
+  });
+
+  it('cada posición trae la ruta de su ubicación desde el primer nivel bajo la sede', async () => {
+    const lab = await createLab();
+    const created = async (name: string, parentId: string) => {
+      const response = await call(lab.adminMember.subject, `${lab.base}/locations`, { method: 'POST', body: { name, parentId } });
+      expect(response.status).toBe(201);
+      return location.parse(response.body).id;
+    };
+    const site = (await admin.query<{ parent_id: string }>('select parent_id from core.locations where id = $1', [lab.storage])).rows[0]!.parent_id;
+    const room = await created('Lab', site);
+    const level = await created('Nivel', await created('Estante', room));
+    const product = await createProduct(lab);
+    const inLevel = receivedPosition(await receive(lab, product.id, '1', level, lab.adminMember.subject));
+    const inRoom = receivedPosition(await receive(lab, product.id, '1', room, lab.adminMember.subject));
+
+    const positions = positionList.parse((await call(lab.adminMember.subject, `${lab.base}/positions`)).body).items;
+    const pathOf = (id: string) => positions.find((position) => position.id === id)?.location.path;
+    expect(pathOf(inLevel)).toEqual(['Lab', 'Estante', 'Nivel']);
+    expect(pathOf(inRoom)).toEqual(['Lab']);
   });
 
   it('las áreas se administran como los destinos y las marcas usadas se sugieren, recientes primero', async () => {

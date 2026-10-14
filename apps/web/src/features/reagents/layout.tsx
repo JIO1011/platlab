@@ -20,7 +20,7 @@ import {
 import { QueryErrorState } from '../../app/states';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { IngressSheet } from './ingress/ingress-sheet';
-import { AdjustmentSheet, IssueSheet, MinimumSheet, ProductSheet, TareSheet, TransferSheet } from './sheets';
+import { AdjustmentSheet, IssueSheet, MinimumSheet, ProductSheet, TransferSheet } from './sheets';
 import { useNow } from './use-now';
 
 /**
@@ -104,8 +104,8 @@ export function ReagentsLayout() {
   // En la página de etiquetas la tarea es imprimir: sin acciones de registro en la cabecera.
   const inLabels = pathname.endsWith('/etiquetas');
   const secondaryActions = [
-    // «Ingresar reactivo» (ADR 0015): el ingreso en un paso, con reactivo nuevo o del catálogo.
-    { kind: 'ingress', label: inProduct ? 'Ingresar frascos' : 'Ingresar reactivo', icon: PackagePlus, shown: allowed.receipt },
+    // «Nuevo reactivo» (ADR 0015): el ingreso en un paso, con reactivo nuevo o del catálogo.
+    { kind: 'ingress', label: inProduct ? 'Ingresar frascos' : 'Nuevo reactivo', icon: PackagePlus, shown: allowed.receipt },
     { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 && !inProduct },
   ] as const;
   const visibleSecondary = secondaryActions.filter((action) => action.shown);
@@ -262,14 +262,6 @@ export function ReagentsLayout() {
       {current?.request.kind === 'product' ? (
         <ProductSheet key={current.id} {...sheetProps('product')} product={current.request.product} />
       ) : null}
-      {current?.request.kind === 'tare' ? (
-        <TareSheet
-          key={current.id}
-          {...sheetProps('tare')}
-          position={current.request.position}
-          productDensity={productList.find((entry) => entry.id === (current.request.kind === 'tare' ? current.request.position.product.id : ''))?.density ?? null}
-        />
-      ) : null}
       {current?.request.kind === 'transfer' ? (
         <TransferSheet
           key={current.id}
@@ -283,8 +275,9 @@ export function ReagentsLayout() {
           {...sheetProps('adjustment')}
           positions={positionList}
           positionId={current.request.positionId}
+          products={productList}
+          {...(current.request.mode ? { initialMode: current.request.mode } : {})}
           canManageLists={allowed.lists}
-          onAction={sheets.open}
         />
       ) : null}
     </div>

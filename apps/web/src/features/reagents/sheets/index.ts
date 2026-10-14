@@ -3,5 +3,4 @@ export { fefoCandidates } from './fefo';
 export { IssueSheet } from './issue-sheet';
 export { MinimumSheet } from './minimum-sheet';
 export { ProductSheet } from './product-sheet';
-export { TareSheet } from './tare-sheet';
 export { TransferSheet } from './transfer-sheet';

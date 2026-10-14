@@ -10,8 +10,9 @@ import { useAreas, useBrands, useCodeSuggestion, useProduct, useProductSearch, u
 import { FormSheet, type SheetBaseProps } from '../sheets/shared';
 import { useDebouncedValue } from '../use-media-query';
 import { isVolume } from '../weight';
-import { fieldLabel } from './filled';
-import { Reveal, Section } from './form-section';
+import { fieldLabel, filled } from './filled';
+import { BottlesStepper } from './bottles-stepper';
+import { Section } from './form-section';
 import { LabelFields } from './label-fields';
 import { LocationPicker } from './location-picker';
 import {
@@ -46,9 +47,11 @@ const MAX_SEARCH = 100;
 const MIN_SEARCH = 2;
 
 /**
- * «Ingresar reactivo» (ADR 0015): un solo formulario por secciones, a la manera de ReactiLab. «Datos
- * de la etiqueta» al abrir; «Control por peso», «Dónde se guarda» y «Clasificación y seguridad» se
- * despliegan al escribir el nombre. Un reactivo del catálogo se elige por su nombre; uno nuevo y las
+ * «Nuevo reactivo» (ADR 0015, ajuste del 13-10-2026; «Ingresar frascos» desde la ficha): un solo
+ * formulario por secciones, cada una en su marco y todas visibles desde el inicio. En escritorio, hoja
+ * ancha de dos columnas: «Datos de la etiqueta», «Control por peso» y «Dónde se guarda» a la izquierda
+ * y «Clasificación y seguridad» en una tarjeta fija a la derecha; en el móvil, una columna con la
+ * tarjeta al final. Un reactivo del catálogo se elige por su nombre; uno nuevo y las
  * ubicaciones nuevas solo los crea quien administra el catálogo. El nombre se busca en el servidor
  * (todo el catálogo, no solo lo cargado); la lista cargada solo da los recientes. El servidor numera
  * los códigos, calcula la tara y decide; la ventana no anticipa existencias.
@@ -81,7 +84,6 @@ export function IngressSheet({
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [form, setForm] = useState<BottlesForm>(() => ({ ...emptyBottles, density: densityInput(initial) }));
   const [attempted, setAttempted] = useState(false);
-  const [revealed, setRevealed] = useState(initial !== undefined);
   // Si no estaba en caché, se elige al llegar, salvo que ya se haya escrito o elegido otro.
   const [presetPending, setPresetPending] = useState(productId !== undefined && initial === undefined);
   if (presetPending && preset) {
@@ -98,6 +100,7 @@ export function IngressSheet({
   const casRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const countRef = useRef<HTMLInputElement>(null);
 
   const receipt = useCommand(workspaceId, '/receipts', receiptResponse);
   const createLocation = useCommand(workspaceId, '/locations', location);
@@ -135,9 +138,6 @@ export function IngressSheet({
     grossWeight: normalizeDecimalInput(form.grossWeight),
     density: normalizeDecimalInput(density),
   });
-
-  // Aparición progresiva: las demás secciones salen cuando el nombre tiene valor y ya no se esconden.
-  if (name !== '' && !revealed) setRevealed(true);
 
   const creating = !existing && canCreate;
   const catalogIssues: Errors = existing
@@ -191,7 +191,8 @@ export function IngressSheet({
     setGeneralError(null);
     if (missing > 0 || toReview > 0) {
       setAttempted(true);
-      requestAnimationFrame(() => bodyRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+      // El número de frascos vive en el pie, fuera del cuerpo: si es el que falla, el foco va allí.
+      requestAnimationFrame(() => (bodyRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? (issues.count ? countRef.current : null))?.focus());
       return;
     }
     const grossWeight = normalizeDecimalInput(form.grossWeight);
@@ -273,101 +274,98 @@ export function IngressSheet({
   return (
     <FormSheet
       flush
-      wide
+      wide="xl"
       fullWidthSubmit
       icon={PackagePlus}
       submitIcon={PackagePlus}
-      title="Ingresar reactivo"
+      title={productId ? 'Ingresar frascos' : 'Nuevo reactivo'}
       description="* Campos obligatorios"
       open={open}
       onOpenChange={onOpenChange}
       submitLabel={`Ingresar ${bottlesLabel}`}
       submitDisabled={missing > 0}
+      submitLead={<BottlesStepper value={form.count} onChange={(next) => patch({ count: next })} error={errors.count} inputRef={countRef} />}
       pending={receipt.isPending}
       generalError={generalError}
       status={status}
       initialFocus={initial ? quantityRef : nameRef}
       onSubmit={() => void confirm()}
     >
-      <div ref={bodyRef} className="flex flex-col">
-        <p className="sr-only" role="status">
-          {revealed ? 'Se mostraron las secciones Control por peso, Dónde se guarda y Clasificación y seguridad.' : ''}
-        </p>
-        <Section icon={Tag} title="Datos de la etiqueta" divided={false}>
-          <LabelFields
-            existing={existing}
-            products={products}
-            results={results}
-            recentIds={recents.products}
-            draft={draft}
-            onDraft={patchDraft}
-            onName={changeName}
-            form={form}
-            onForm={patch}
-            code={code}
-            codes={codes}
-            brands={brands.data?.items ?? []}
-            errors={errors}
-            canCreate={canCreate && searched}
-            nameRef={nameRef}
-            casRef={casRef}
-            quantityRef={quantityRef}
-            onPick={pick}
-            onCreate={() => requestAnimationFrame(() => casRef.current?.focus())}
-          />
-        </Section>
+      <div ref={bodyRef} className="grid gap-5 px-3 py-4 sm:px-5 sm:py-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
+        <div className="grid min-w-0 content-start gap-5">
+          <Section icon={Tag} title="Datos de la etiqueta">
+            <LabelFields
+              existing={existing}
+              products={products}
+              results={results}
+              recentIds={recents.products}
+              draft={draft}
+              onDraft={patchDraft}
+              onName={changeName}
+              form={form}
+              onForm={patch}
+              code={code}
+              codes={codes}
+              brands={brands.data?.items ?? []}
+              errors={errors}
+              canCreate={canCreate && searched}
+              nameRef={nameRef}
+              casRef={casRef}
+              quantityRef={quantityRef}
+              onPick={pick}
+              onCreate={() => requestAnimationFrame(() => casRef.current?.focus())}
+            />
+          </Section>
 
-        {revealed ? (
-          <>
-            <Reveal instant={initial !== undefined}>
-              <Section icon={Scale} title="Control por peso" badge="Opcional">
-                <WeightFields
-                  grossWeight={form.grossWeight}
-                  onGrossWeight={(grossWeight) => patch({ grossWeight })}
-                  density={density}
-                  onDensity={(value) => (existing ? patch({ density: value }) : patchDraft({ density: value }))}
-                  volume={volume}
-                  tare={weight.tare}
-                  errors={errors}
-                />
-              </Section>
-            </Reveal>
-            <Reveal instant={initial !== undefined}>
-              <Section icon={MapPin} title="Dónde se guarda">
-                <div className="grid gap-3">
-                  <ChoiceField
-                    workspaceId={workspaceId}
-                    label="Área o departamento"
-                    labelClassName={fieldLabel}
-                    options={areas.data?.items ?? []}
-                    loading={areas.isPending}
-                    value={form.area}
-                    onChange={(area) => patch({ area })}
-                    canAdd={canManageLists}
-                    addPath="/areas"
-                    addBody={(entry) => ({ name: entry })}
-                    addLabel="Nueva área"
-                  />
-                  <LocationPicker
-                    places={places}
-                    recentIds={recents.locations}
-                    onChange={(placeId) => patch({ placeId })}
-                    canCreate={canCreate}
-                    onCreate={createPlace}
-                    error={errors.placeId}
-                  />
-                </div>
-              </Section>
-            </Reveal>
-            {existing || canCreate ? (
-              <Reveal instant={initial !== undefined}>
-                <Section icon={ShieldAlert} title="Clasificación y seguridad">
-                  <SafetyFields existing={existing} draft={draft} onDraft={patchDraft} errors={errors} />
-                </Section>
-              </Reveal>
-            ) : null}
-          </>
-        ) : null}
+          <Section icon={Scale} title="Control por peso" badge="Opcional">
+            <WeightFields
+              grossWeight={form.grossWeight}
+              onGrossWeight={(grossWeight) => patch({ grossWeight })}
+              density={density}
+              onDensity={(value) => (existing ? patch({ density: value }) : patchDraft({ density: value }))}
+              volume={volume}
+              tare={weight.tare}
+              errors={errors}
+            />
+          </Section>
+
+          <Section icon={MapPin} title="Dónde se guarda">
+            <div className="grid gap-4">
+              <ChoiceField
+                workspaceId={workspaceId}
+                label="Área o departamento"
+                labelClassName={fieldLabel}
+                display="select"
+                selectClassName={filled}
+                noneLabel="Sin área"
+                options={areas.data?.items ?? []}
+                loading={areas.isPending}
+                value={form.area}
+                onChange={(area) => patch({ area })}
+                canAdd={canManageLists}
+                addPath="/areas"
+                addBody={(entry) => ({ name: entry })}
+                addLabel="Nueva área"
+              />
+              <LocationPicker
+                places={places}
+                recentIds={recents.locations}
+                onChange={(placeId) => patch({ placeId })}
+                canCreate={canCreate}
+                onCreate={createPlace}
+                error={errors.placeId}
+              />
+            </div>
+          </Section>
+        </div>
+
+        <Section card icon={ShieldAlert} title="Clasificación y seguridad">
+          {existing || canCreate ? (
+            <SafetyFields existing={existing} draft={draft} onDraft={patchDraft} errors={errors} compact />
+          ) : (
+            <p className="text-sm text-ink-muted">Elige un reactivo del catálogo: su clasificación y su ficha de seguridad vienen de allí.</p>
+          )}
+        </Section>
       </div>
     </FormSheet>
   );

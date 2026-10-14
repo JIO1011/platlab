@@ -15,8 +15,8 @@ export interface SheetProps {
   children: ReactNode;
   /** Acciones fijas al pie, siempre visibles aunque el formulario sea largo. */
   footer?: ReactNode;
-  /** Ventana ancha: hasta 40 rem. Por omisión, 32 rem. */
-  wide?: boolean;
+  /** Ventana ancha: hasta 40 rem. Por omisión, 32 rem. `xl` llega a 64 rem desde 1024 px (ingreso en dos columnas). */
+  wide?: boolean | 'xl';
   /** Quién recibe el foco al abrir; por omisión, el primer control tabulable (Radix). */
   initialFocus?: RefObject<HTMLElement | null> | undefined;
 }
@@ -59,7 +59,7 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
           className={cn(
             // Vidrio esmerilado: superficie blanca al 80 % sobre el fondo desenfocado; sin `backdrop-filter`, sólida.
             'fixed inset-0 z-50 m-auto flex h-fit max-h-[90dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-surface/80 shadow-overlay outline-none backdrop-blur-xl backdrop-saturate-150 not-supports-[backdrop-filter]:bg-surface data-[state=closed]:animate-modal-out data-[state=open]:animate-modal-in',
-            wide ? 'max-w-[40rem]' : 'max-w-lg',
+            wide === 'xl' ? 'max-w-[40rem] lg:max-w-[64rem]' : wide ? 'max-w-[40rem]' : 'max-w-lg',
           )}
         >
           <header className="flex items-start justify-between gap-4 px-6 pb-4 pt-5">

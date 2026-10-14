@@ -1,25 +1,21 @@
 import type { StockedProduct } from '@platlab/contracts';
-import { Field, Input, cn } from '@platlab/ui';
-import { CircleCheck, Lock, Minus, Plus, TriangleAlert } from 'lucide-react';
-import { useMemo, type RefObject } from 'react';
+import { Field, cn } from '@platlab/ui';
+import { CircleCheck, Lock, TriangleAlert } from 'lucide-react';
+import { useId, useMemo, type RefObject } from 'react';
 import { ControlledMark } from '../controlled';
-import { PillField } from '../pills';
 import { HazardGlyphs } from '../hazards';
+import { ErrorBalloon } from './balloon';
 import { checkCas } from './cas';
 import { Combobox, type ComboOption } from './combobox';
-import { FilledInput, QuantityInput, fieldGrid, fieldLabel, filled } from './filled';
-import { MAX_BOTTLES, casRequired, countOf, lastSuffix, productUnits, recentFirst, type BottlesForm, type Draft, type Errors } from './model';
-
-const unitOptions = productUnits.map((unit) => ({ value: unit, label: unit }));
-
-const stepper =
-  'inline-flex h-full w-[44px] shrink-0 items-center justify-center text-ink transition-colors duration-150 hover:bg-action-soft disabled:opacity-40 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-action';
+import { FilledInput, QuantityInput, fieldGrid, fieldLabel } from './filled';
+import { casRequired, lastSuffix, productUnits, recentFirst, type BottlesForm, type Draft, type Errors } from './model';
 
 /**
  * «Datos de la etiqueta» (ADR 0015): lo que se copia del frasco. El nombre es el buscador del
  * catálogo (desde 2 letras, lo que encontró el servidor; antes, los recientes): al elegir un reactivo existente, CAS y unidad vienen de su ficha en solo lectura; si no,
  * es un reactivo nuevo y se escriben. El código lo sugiere el servidor y los frascos se numeran a partir
- * de él; con más de uno, el campo muestra a la derecha dónde termina la numeración.
+ * de él; con más de uno, el campo muestra a la derecha dónde termina la numeración. El número de frascos
+ * va en el pie de la hoja, unido al botón principal.
  */
 export function LabelFields({
   existing,
@@ -86,9 +82,8 @@ export function LabelFields({
   );
   const brandOptions = useMemo<ComboOption[]>(() => brands.map((brand) => ({ id: brand, label: brand })), [brands]);
 
+  const casErrorId = useId();
   const cas = checkCas(draft.cas);
-  const count = countOf(form.count);
-  const step = (delta: number) => onForm({ count: String(Math.min(MAX_BOTTLES, Math.max(1, (count ?? 1) + delta))) });
   const last = lastSuffix(codes);
 
   return (
@@ -109,8 +104,8 @@ export function LabelFields({
         />
       </Field>
 
-      <Field label="CAS" required={!existing && casRequired(draft.state)} labelClassName={fieldLabel} error={errors.cas}>
-        {/* El estado va dentro del campo, sin texto debajo: ✓ válido, ⚠ dígito de control erróneo, 🔒 del catálogo. */}
+      <Field label="CAS" required={!existing && casRequired(draft.state)} labelClassName={fieldLabel}>
+        {/* El estado va dentro del campo: ✓ válido, ⚠ dígito de control erróneo, 🔒 del catálogo; el error, en un globo que flota debajo. */}
         <div className="relative">
           <FilledInput
             ref={casRef}
@@ -121,6 +116,7 @@ export function LabelFields({
             className="pr-9 tabular-nums"
             readOnly={existing !== null}
             aria-invalid={cas === 'invalid' || errors.cas ? true : undefined}
+            aria-describedby={errors.cas ? casErrorId : undefined}
             value={existing ? (existing.casNumber ?? '') : draft.cas}
             onChange={(event) => onDraft({ cas: event.target.value })}
           />
@@ -133,6 +129,7 @@ export function LabelFields({
               <TriangleAlert className="size-4 text-danger" role="img" aria-label="CAS no válido: revisa el dígito de control" />
             ) : null}
           </span>
+          {errors.cas ? <ErrorBalloon id={casErrorId}>{errors.cas}</ErrorBalloon> : null}
         </div>
       </Field>
 
@@ -166,41 +163,13 @@ export function LabelFields({
         <QuantityInput
           inputRef={quantityRef}
           unit={existing ? existing.baseUnit : draft.unit}
+          units={productUnits}
+          onUnit={existing ? undefined : (unit) => onDraft({ unit })}
           placeholder="500"
           value={form.quantity}
           onChange={(event) => onForm({ quantity: event.target.value })}
         />
       </Field>
-
-      <Field label="Frascos" required labelClassName={fieldLabel} error={errors.count}>
-        <div className={cn(filled, 'flex w-fit items-stretch overflow-hidden border focus-within:border-action has-[[aria-invalid=true]]:border-danger')}>
-          <button type="button" aria-label="Un frasco menos" disabled={(count ?? 1) <= 1} onClick={() => step(-1)} className={stepper}>
-            <Minus className="size-4" aria-hidden />
-          </button>
-          <Input
-            inputMode="numeric"
-            autoComplete="off"
-            className="h-full w-12 rounded-none border-0 bg-transparent px-0 text-center font-bold tabular-nums hover:border-0 focus-visible:ring-0 aria-[invalid=true]:ring-0"
-            value={form.count}
-            onChange={(event) => onForm({ count: event.target.value })}
-          />
-          <button type="button" aria-label="Un frasco más" disabled={(count ?? 1) >= MAX_BOTTLES} onClick={() => step(1)} className={stepper}>
-            <Plus className="size-4" aria-hidden />
-          </button>
-        </div>
-      </Field>
-
-      {existing ? null : (
-        <PillField
-          label="Unidad"
-          labelClassName={fieldLabel}
-          size="sm"
-          className="sm:col-span-2"
-          value={draft.unit}
-          options={unitOptions}
-          onChange={(unit) => onDraft({ unit })}
-        />
-      )}
 
       <Field label="Caducidad" labelClassName={fieldLabel} hint={form.noExpiry ? 'Quedará como «caducidad sin confirmar».' : undefined}>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

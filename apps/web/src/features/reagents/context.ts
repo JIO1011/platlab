@@ -16,15 +16,14 @@ import type { MovementFilters, OperationQuery } from './movement-filters';
 
 /** Hoja de registro que se abre, con lo que ya se conoce (reactivo o frasco de origen). */
 export type SheetRequest =
-  // «Ingresar reactivo» (ADR 0015): con `productId`, desde su ficha y con él ya elegido.
+  // «Nuevo reactivo» (ADR 0015): con `productId`, desde su ficha y con él ya elegido.
   | { kind: 'ingress'; productId?: string }
   // Con `position`, el frasco viaja en la petición (el de una etiqueta QR puede no estar en la lista global).
   | { kind: 'issue'; positionId?: string; productId?: string; position?: Position }
-  | { kind: 'adjustment'; positionId?: string }
+  // `mode: 'weight'`: desde «Corregir con la balanza» (ADR 0015); un frasco sin tara abre ya con la balanza por activar.
+  | { kind: 'adjustment'; positionId?: string; mode?: 'weight' }
   // El frasco viaja en la petición: la lista global de frascos puede no incluirlo (llega por páginas).
   | { kind: 'transfer'; position: Position }
-  // Tara de un frasco (ADR 0015): desde su tarjeta o desde el ajuste por peso.
-  | { kind: 'tare'; position: Position }
   // Mínimo (ADR 0012, 05-10-2026) y edición de la ficha (ADR 0015): desde la ficha del reactivo.
   | { kind: 'minimum'; productId: string }
   | { kind: 'product'; product: ProductDetail };
