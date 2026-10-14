@@ -1,11 +1,10 @@
 import type { StockedProduct } from '@platlab/contracts';
 import { Badge, Button, IconChip, Input, Quantity, Skeleton, StatePanel, cn } from '@platlab/ui';
-import { CalendarClock, CalendarX, CircleAlert, FlaskConical, Layers, PackagePlus, Search, TrendingDown } from 'lucide-react';
+import { CalendarClock, CircleAlert, FlaskConical, Layers, Lock, PackagePlus, Search, TrendingDown, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ModuleMark } from '../../app/module-mark';
 import { useReagents } from './context';
-import { ControlledMark } from './controlled';
 import { EmptyToggle, physicalStateIcon, physicalStateLabel } from './product-parts';
 
 const matches = (product: StockedProduct, query: string) => {
@@ -96,7 +95,7 @@ export function ReagentsInventoryPage() {
 
   if (products.isPending) {
     return (
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-3" role="status" aria-busy="true" aria-label="Cargando">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" role="status" aria-busy="true" aria-label="Cargando">
         {[0, 1, 2].map((key) => (
           <Skeleton key={key} className="h-36 rounded-card" />
         ))}
@@ -165,7 +164,7 @@ export function ReagentsInventoryPage() {
           {query.trim() ? `Ningún reactivo coincide con «${query}».` : active ? alertFilters[active].empty : 'No hay reactivos con existencias.'}
         </p>
       ) : (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-3">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map((product) => (
             <li key={product.id}>
               <ProductCard product={product} to={`${base}/inventario/${product.id}`} />
@@ -179,10 +178,10 @@ export function ReagentsInventoryPage() {
 
 /**
  * Tarjeta de catálogo (ADR 0010, 04-10-2026; réplica de la de ReactiLab el 05-10-2026, a escala de
- * cuatro por fila el 14-10-2026): el icono del estado físico con, al lado, el estado en mayúsculas
- * pequeñas (y el candado de «Controlado») y el CAS en monoespaciado; el nombre; y, tras una línea,
- * «Total» con la píldora de frascos a la derecha, la cantidad y los avisos (bajo mínimo y caducidad).
- * «Sin existencias» sustituye a la píldora. Todo con texto, y el matraz del módulo de marca de agua.
+ * cuatro por fila el 14-10-2026): a la izquierda, el icono del estado físico con el estado en mayúsculas
+ * pequeñas y el CAS en monoespaciado; a la derecha, en columna, la píldora de frascos («Sin existencias» si
+ * no hay), «N vencidos» si los hay y «Controlado» si lo es; el nombre; y, tras una línea, «Total» con la
+ * cantidad y los avisos de bajo mínimo y por vencer. Todo con texto, y el matraz del módulo de marca de agua.
  */
 function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
   const empty = product.balance === '0';
@@ -199,35 +198,47 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
         className="pointer-events-none absolute -bottom-4 -right-3 size-24 rotate-12 text-surface-sunken transition-[color,transform] duration-500 group-hover:text-action-soft motion-safe:group-hover:scale-110"
       />
       <div className="relative grid min-w-0 gap-2">
-        <div className="flex items-center gap-2.5">
-          <IconChip icon={(state && physicalStateIcon[state]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} size="sm" />
-          <div className="grid min-w-0 gap-0.5">
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase leading-none tracking-wide text-ink-muted">
-              {(state && physicalStateLabel[state]) ?? 'Reactivo'}
-              {product.controlled ? <ControlledMark className="normal-case" /> : null}
-            </p>
-            {product.casNumber ? (
-              <p className="truncate font-mono text-[11px] font-medium leading-tight tabular-nums text-ink-subtle">CAS: {product.casNumber}</p>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <IconChip icon={(state && physicalStateIcon[state]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} size="sm" />
+            <div className="grid min-w-0 gap-0.5">
+              <p className="text-[11px] font-semibold uppercase leading-none tracking-wide text-ink-muted">{(state && physicalStateLabel[state]) ?? 'Reactivo'}</p>
+              {product.casNumber ? (
+                <p className="truncate font-mono text-[11px] font-medium leading-tight tabular-nums text-ink-subtle">CAS: {product.casNumber}</p>
+              ) : null}
+            </div>
+          </div>
+          {/* Insignias en columna, a la derecha: frascos, vencidos y controlado. */}
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            {empty ? (
+              <Badge tone="warning" className="whitespace-nowrap px-2 py-0.5 text-[11px]">
+                <CircleAlert className="size-3" aria-hidden />
+                Sin existencias
+              </Badge>
+            ) : (
+              <Badge className="whitespace-nowrap px-2 py-0.5 text-[11px] font-semibold text-ink">
+                <Layers className="size-3" aria-hidden />
+                {frascos}
+              </Badge>
+            )}
+            {product.expiredContainers ? (
+              <Badge tone="danger" className="whitespace-nowrap px-2 py-0.5 text-[11px]">
+                <TriangleAlert className="size-3" aria-hidden />
+                {product.expiredContainers === 1 ? '1 vencido' : `${product.expiredContainers} vencidos`}
+              </Badge>
+            ) : null}
+            {product.controlled ? (
+              <Badge tone="info" className="whitespace-nowrap px-2 py-0.5 text-[11px] font-semibold">
+                <Lock className="size-3" aria-hidden />
+                Controlado
+              </Badge>
             ) : null}
           </div>
         </div>
         <h2 className="text-balance break-words text-[15px] font-bold leading-snug text-ink transition-colors group-hover:text-action">{product.name}</h2>
       </div>
       <div className="relative mt-auto grid gap-1.5 border-t border-line pt-2.5">
-        <div className="flex min-h-5 items-center justify-between gap-2">
-          <p className="text-[11px] font-semibold uppercase leading-none tracking-wide text-ink-muted">Total</p>
-          {empty ? (
-            <Badge tone="warning" className="shrink-0 whitespace-nowrap px-2 py-0.5 text-[11px]">
-              <CircleAlert className="size-3" aria-hidden />
-              Sin existencias
-            </Badge>
-          ) : (
-            <Badge className="shrink-0 whitespace-nowrap px-2 py-0.5 text-[11px] font-semibold text-ink">
-              <Layers className="size-3" aria-hidden />
-              {frascos}
-            </Badge>
-          )}
-        </div>
+        <p className="text-[11px] font-semibold uppercase leading-5 tracking-wide text-ink-muted">Total</p>
         <Quantity
           value={product.balance}
           unit={product.baseUnit}
@@ -241,12 +252,6 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
             <Badge tone="warning" className="gap-1 whitespace-nowrap px-2 text-[11px]">
               <TrendingDown className="size-3" aria-hidden />
               Bajo mínimo
-            </Badge>
-          ) : null}
-          {product.expiredContainers ? (
-            <Badge tone="danger" className="gap-1 whitespace-nowrap px-2 text-[11px]">
-              <CalendarX className="size-3" aria-hidden />
-              {product.expiredContainers === 1 ? '1 vencido' : `${product.expiredContainers} vencidos`}
             </Badge>
           ) : null}
           {product.expiringContainers ? (

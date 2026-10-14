@@ -1,6 +1,6 @@
 import type { ProductDetail } from '@platlab/contracts';
 import type { ReactNode } from 'react';
-import { Band, Button, IconTile, Quantity, StockLevelBar, cn, formatDecimal } from '@platlab/ui';
+import { Button, IconTile, Quantity, StockLevelBar, cn, formatDecimal } from '@platlab/ui';
 import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, RefreshCw, TrendingDown, type LucideIcon } from 'lucide-react';
 import { formatAgo, formatDate } from '../../app/format';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
@@ -141,37 +141,33 @@ export type ExpiryDates = {
 const labelIconTone = { soft: 'text-ink-subtle', success: 'text-success', warning: 'text-warning', danger: 'text-danger' } as const;
 
 /**
- * Rótulo de una fila del resumen: icono de 14 px en línea y el nombre en mayúsculas pequeñas. El
- * propio `dt` los agrupa: dentro de un `dl`, un `dt` no puede ir envuelto en otro elemento (axe). En el
- * móvil, el icono va sobre el rótulo para que quepan tres columnas.
+ * Rótulo de una tarjeta del resumen: icono de 12 px en línea y el nombre en mayúsculas de 10 px. El propio
+ * `dt` los agrupa: dentro de un `dl`, un `dt` no puede ir envuelto en otro elemento (axe). En el móvil, el
+ * icono va sobre el rótulo para que quepan tres columnas.
  */
 function RowLabel({ children, icon: Icon, tone = 'soft' }: { children: string; icon: LucideIcon; tone?: keyof typeof labelIconTone }) {
   return (
-    <dt className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold uppercase leading-none tracking-wider text-ink-muted max-sm:flex-col max-sm:items-start">
-      <Icon className={cn('size-[14px] shrink-0', labelIconTone[tone])} aria-hidden />
+    <dt className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase leading-none tracking-wider text-ink-muted max-sm:flex-col max-sm:items-start">
+      <Icon className={cn('size-3 shrink-0', labelIconTone[tone])} aria-hidden />
       <span className="min-w-0">{children}</span>
     </dt>
   );
 }
 
-/** Una fila del panel: separada de la anterior por una línea; bajo `xl`, columna de la franja con línea a la izquierda. */
-function SummaryRow({ children }: { children: ReactNode }) {
-  return (
-    <Band
-      ruled
-      className="grid min-w-0 content-start gap-1.5 px-3 py-3 first:border-t-0 max-xl:border-t-0 max-xl:border-l max-xl:first:border-l-0 sm:px-4 xl:px-3.5"
-    >
-      {children}
-    </Band>
-  );
+/**
+ * Una tarjeta pequeña del resumen: separada de las otras (`gap-2` del `dl`), con borde suave y radio de 16 px. El
+ * `div` que agrupa `dt` y `dd` es válido dentro de un `dl`.
+ */
+function SummaryCard({ children }: { children: ReactNode }) {
+  return <div className="grid min-w-0 content-start gap-1.5 rounded-2xl border border-line/70 bg-surface p-3 shadow-raised">{children}</div>;
 }
 
-const valueClass = 'text-[18px] font-bold leading-tight tracking-tight xl:text-[20px]';
-const detailClass = 'text-xs leading-snug text-ink-muted max-sm:hidden';
+const valueClass = 'text-[18px] font-bold leading-tight tracking-tight';
+const detailClass = 'text-[11px] leading-snug text-ink-muted max-sm:hidden';
 
 /**
- * Resumen de la ficha (ADR 0010, «Ventanas como ReactiLab»): un solo panel blanco, de 12 rem desde `xl`, con tres filas,
- * Existencia, Mínimo y Caducidad. Desde `xl` va en la columna derecha, una fila sobre otra; por debajo,
+ * Resumen de la ficha (ADR 0010, «Ventanas como ReactiLab»; ADR 0015): tres tarjetas pequeñas y separadas,
+ * Existencia, Mínimo y Caducidad, en una columna de 11 rem desde `xl`, una sobre otra; por debajo,
  * como franja de tres columnas bajo la cabecera, y en el móvil sin la línea de detalle (quedan el valor,
  * el estado y el enlace del mínimo). La existencia lleva la barra de nivel (el saldo frente a lo inicial
  * de los frascos con saldo, solo cuando todos ya se conocen); la caducidad dice su estado con texto y
@@ -204,8 +200,8 @@ export function ProductSummary({
       ? `Venció: ${formatDate(expiry.oldestExpired)}`
       : null;
   return (
-    <dl className="grid grid-cols-3 overflow-hidden rounded-3xl border border-white/80 bg-surface shadow-raised xl:grid-cols-1">
-      <SummaryRow>
+    <dl className="grid grid-cols-3 gap-2 xl:grid-cols-1">
+      <SummaryCard>
         <RowLabel icon={Package}>Existencia</RowLabel>
         <dd>
           <Quantity
@@ -225,9 +221,9 @@ export function ProductSummary({
             ? 'Sin existencias'
             : `${product.containersWithStock === 1 ? '1 frasco' : `${product.containersWithStock} frascos`}${stockPercent !== null ? ` · ${stockPercent} %` : ''}`}
         </dd>
-      </SummaryRow>
+      </SummaryCard>
       {/* Mínimo para todo el espacio (ADR 0012, 05-10-2026): lo fija quien administra el catálogo. */}
-      <SummaryRow>
+      <SummaryCard>
         <RowLabel icon={TrendingDown} tone={product.belowMinimum ? 'warning' : 'soft'}>
           Mínimo
         </RowLabel>
@@ -254,9 +250,9 @@ export function ProductSummary({
             ) : null}
           </dd>
         ) : null}
-      </SummaryRow>
+      </SummaryCard>
       {/* Solo afirma lo que se cuenta: un frasco sin caducidad confirmada lo dice en su tarjeta. */}
-      <SummaryRow>
+      <SummaryCard>
         <RowLabel icon={expired ? CalendarX : expiring ? CalendarClock : CalendarCheck} tone={stateTone}>
           Caducidad
         </RowLabel>
@@ -267,7 +263,7 @@ export function ProductSummary({
           {!expired && !expiring ? <span>Sin vencidos ni por vencer</span> : null}
           {nextDate ? <span className="font-semibold tabular-nums text-ink">{nextDate}</span> : null}
         </dd>
-      </SummaryRow>
+      </SummaryCard>
     </dl>
   );
 }

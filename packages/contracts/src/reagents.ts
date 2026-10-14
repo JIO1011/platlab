@@ -436,6 +436,8 @@ export const position = z.object({
       code: z.string(),
       initialQuantity: decimalString,
       receivedAt: z.iso.datetime({ offset: true }),
+      /** Actor del ingreso que creó el frasco; null si el frasco no tiene ingreso. */
+      receivedBy: z.object({ displayName: z.string().nullable() }).nullable(),
       /** Tara en g y densidad en g/mL con que se calculó; null sin control por peso (ADR 0015). */
       tare: decimalString.nullable(),
       density: decimalString.nullable(),

@@ -11,6 +11,7 @@ const bottle = (unit: string, balance: string, tare: string | null, density: str
     code: 'HCL-001',
     initialQuantity: '2500',
     receivedAt: '2026-10-01T10:00:00Z',
+    receivedBy: null,
     tare,
     density,
   },

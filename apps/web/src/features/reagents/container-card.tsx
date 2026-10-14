@@ -1,44 +1,108 @@
 import type { Position } from '@platlab/contracts';
-import { Band, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, HelpTip, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, Ellipsis, MapPin, QrCode as QrIcon, Scale, Star, TriangleAlert } from 'lucide-react';
+import { Band, Button, HelpTip, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
+import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, MapPin, QrCode as QrIcon, Scale, Star, TriangleAlert } from 'lucide-react';
 import { formatGrams, gramsPerUnit, weightFigures } from './weight';
 import { type ComponentProps, type CSSProperties } from 'react';
-import { formatDate, formatShortDate, relativeDays } from '../../app/format';
+import { formatDate, formatDateTime, formatShortDate, relativeDays } from '../../app/format';
 import { type Allowed, type SheetRequest } from './context';
 import { ContainerLabel, type LabelProduct } from './labels';
 import { availableOf, expiryOf } from './stock';
 
 /**
- * Fila de estado de la tarjeta (ADR 0015): siempre mide h-5, aunque esté vacía, para que el código de todas
- * las tarjetas caiga a la misma altura. A la izquierda el estado, en mayúsculas pequeñas con icono y color
- * («Usar primero», «Vencido», «Apartado»); a la derecha la marca, en gris y truncada.
+ * Estados del frasco como insignias sobre el borde superior de la tarjeta (ADR 0015), en fila si coinciden:
+ * «Usar primero» (éxito), «Vencido» y «Restringido» (peligro), «Apartado» y «Cuarentena» (aviso). Llevan
+ * relleno sólido con texto claro; el color cuenta el estado y el texto lo dice. Con `scanned`, la primera es
+ * «Desde su etiqueta». Si no caben en una línea, las siguientes suben por encima del borde.
  */
-function StatusRow({ recommended, expired, reserved, brand }: { recommended: boolean; expired: boolean; reserved: boolean; brand: string | null }) {
-  const status = 'inline-flex shrink-0 items-center gap-1 text-[11px] font-bold uppercase leading-none tracking-wider';
+function StatusBadges({
+  scanned,
+  recommended,
+  expired,
+  reserved,
+  disposition,
+}: {
+  scanned: boolean;
+  recommended: boolean;
+  expired: boolean;
+  reserved: boolean;
+  disposition: Position['disposition'];
+}) {
+  const badge = 'inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-xs font-bold leading-none text-on-action shadow-sm';
+  if (!scanned && !recommended && !expired && !reserved && disposition === 'usable') return null;
   return (
-    <div className="flex h-5 items-center justify-between gap-2">
-      <div className="flex shrink-0 items-center gap-2.5">
-        {recommended ? (
-          <span className={cn(status, 'text-success')}>
-            <Star className="size-3 fill-current" aria-hidden />
-            Usar primero
-            <span className="sr-only"> (vence antes: conviene usarlo primero)</span>
-          </span>
-        ) : null}
-        {expired ? (
-          <span className={cn(status, 'text-danger')}>
-            <TriangleAlert className="size-3" aria-hidden />
-            Vencido
-          </span>
-        ) : null}
-        {reserved ? <span className={cn(status, 'text-warning')}>Apartado</span> : null}
-      </div>
-      {brand ? (
-        <span title={brand} className="min-w-0 truncate text-[12px] text-ink-subtle">
-          {brand}
+    <div className="pointer-events-none absolute inset-x-3 bottom-full flex translate-y-3 flex-wrap-reverse gap-1">
+      {scanned ? (
+        <span className={cn(badge, 'bg-action')}>
+          <QrIcon className="size-3" aria-hidden />
+          Desde su etiqueta
         </span>
       ) : null}
+      {recommended ? (
+        <span className={cn(badge, 'bg-success')}>
+          <Star className="size-3 fill-current" aria-hidden />
+          Usar primero
+          <span className="sr-only"> (vence antes: conviene usarlo primero)</span>
+        </span>
+      ) : null}
+      {expired ? (
+        <span className={cn(badge, 'bg-danger')}>
+          <TriangleAlert className="size-3" aria-hidden />
+          Vencido
+        </span>
+      ) : null}
+      {reserved ? <span className={cn(badge, 'bg-warning')}>Apartado</span> : null}
+      {disposition === 'quarantine' ? <span className={cn(badge, 'bg-warning')}>Cuarentena</span> : null}
+      {disposition === 'restricted' ? <span className={cn(badge, 'bg-danger')}>Restringido</span> : null}
     </div>
+  );
+}
+
+/**
+ * El código del frasco, un botón que abre la nube «Detalles del frasco»: el lote interno, cuándo y quién lo
+ * ingresó, la cantidad inicial con su unidad y, si la tiene, la densidad. Si no cabe, se corta con puntos.
+ */
+function CodeButton({ position, code, timeZone }: { position: Position; code: string; timeZone: string }) {
+  const { container, lot, unit } = position;
+  const by = container?.receivedBy?.displayName ?? null;
+  const term = 'text-[12px] text-white/70';
+  return (
+    <HelpTip
+      hover
+      label={`Detalles del frasco ${code}`}
+      trigger={code}
+      className="block min-w-0 max-w-full shrink truncate rounded-sm text-left font-mono text-[17px] font-bold leading-tight tabular-nums text-ink transition-colors hover:text-action aria-expanded:text-action"
+    >
+      <p className="mb-2 font-semibold">Detalles del frasco</p>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+        <div className="col-span-2">
+          <dt className={term}>Lote</dt>
+          <dd className="font-mono font-medium tabular-nums [overflow-wrap:anywhere]">{lot.code}</dd>
+        </div>
+        {container ? (
+          <>
+            <div className="col-span-2">
+              <dt className={term}>Ingresó</dt>
+              <dd className="font-medium tabular-nums">
+                {formatDateTime(container.receivedAt, timeZone)}
+                {by ? <span className="block font-normal text-white/80">por {by}</span> : null}
+              </dd>
+            </div>
+            <div className={container.density ? undefined : 'col-span-2'}>
+              <dt className={term}>Cantidad inicial</dt>
+              <dd className="font-medium tabular-nums">
+                {formatDecimal(container.initialQuantity)} {unit}
+              </dd>
+            </div>
+            {container.density ? (
+              <div>
+                <dt className={term}>Densidad</dt>
+                <dd className="font-medium tabular-nums">{formatDecimal(container.density)} g/mL</dd>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </dl>
+    </HelpTip>
   );
 }
 
@@ -97,12 +161,44 @@ function ExpiryChip({ expiresOn, today }: { expiresOn: string | null; today: str
   );
 }
 
+/** Botón de una nube con acciones: la primera, blanca; las demás, de contorno. Cierra la nube antes de actuar. */
+function CloudAction({ close, onClick, primary = false, children }: { close: () => void; onClick: () => void; primary?: boolean; children: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        close();
+        onClick();
+      }}
+      className={cn(
+        'inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-sm:h-10',
+        primary ? 'bg-white text-ink hover:bg-action-soft' : 'border border-white/25 text-white hover:bg-white/10',
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 /**
- * El peso bruto que debe marcar la balanza (tara + contenido), solo con tara. La nube trae tara y neto; con
- * permiso de ajustar, además «Comprobar con balanza», que abre la hoja Ajustar ya en «Por peso». Los pesos no
- * son cantidades de inventario: son vista previa del servidor.
+ * Las acciones sobre la cantidad del frasco, que viven en la ficha ⚖ (ADR 0015, «Tarjeta del frasco»):
+ * comprobar con balanza, ajustar la cantidad y fijar o cambiar la tara.
  */
-function WeightChip({ figures, canCheck, onCheck }: { figures: NonNullable<ReturnType<typeof weightFigures>>; canCheck: boolean; onCheck: () => void }) {
+type ScaleActions = {
+  onCheck: () => void;
+  onAdjust: () => void;
+  onTare: () => void;
+  /** Se puede fijar o cambiar la tara (la unidad se pesa). */
+  canTare: boolean;
+};
+
+/**
+ * Centro de control del frasco con tara: el peso bruto que debe marcar la balanza (tara + contenido). La nube
+ * trae la tara y el neto; con permiso de ajustar, además «Comprobar con balanza» (abre Ajustar ya en «Por
+ * peso»), «Ajustar cantidad» y «Cambiar tara». Los pesos no son cantidades de inventario: son vista previa
+ * del servidor.
+ */
+function WeightChip({ figures, actions }: { figures: NonNullable<ReturnType<typeof weightFigures>>; actions: ScaleActions | null }) {
   const gross = shortGrams(figures.expectedGross);
   return (
     <HelpTip
@@ -122,19 +218,58 @@ function WeightChip({ figures, canCheck, onCheck }: { figures: NonNullable<Retur
           <p className="tabular-nums text-white/80">
             Tara {shortGrams(figures.tare)} · Neto {shortGrams(figures.net)}
           </p>
-          {canCheck ? (
-            <button
-              type="button"
-              onClick={() => {
-                close();
-                onCheck();
-              }}
-              className="mt-1 inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-white px-3 text-[13px] font-semibold text-ink transition-colors hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-sm:h-10"
-            >
-              <Scale className="size-3.5" aria-hidden />
-              Comprobar con balanza
-            </button>
+          {actions ? (
+            <div className="mt-1 grid gap-1.5">
+              <CloudAction close={close} onClick={actions.onCheck} primary>
+                Comprobar con balanza
+              </CloudAction>
+              <CloudAction close={close} onClick={actions.onAdjust}>
+                Ajustar cantidad
+              </CloudAction>
+              {actions.canTare ? (
+                <CloudAction close={close} onClick={actions.onTare}>
+                  Cambiar tara
+                </CloudAction>
+              ) : null}
+            </div>
           ) : null}
+        </div>
+      )}
+    </HelpTip>
+  );
+}
+
+/**
+ * Centro de control del frasco sin tara, solo para quien ajusta: «Ajustar» con borde punteado (es un pendiente,
+ * no un dato). Su nube pide fijar la tara para poder comprobar con la balanza, y ofrece «Ajustar cantidad».
+ * Si la unidad no se pesa, no hay tara que fijar y la nube lo dice.
+ */
+function AdjustChip({ actions }: { actions: ScaleActions }) {
+  return (
+    <HelpTip
+      hover
+      label="Ajustar, sin tara"
+      trigger={
+        <>
+          <Scale className="size-3.5 shrink-0" aria-hidden />
+          Ajustar
+        </>
+      }
+      className={cn(chipClass('neutral'), 'border-dashed border-line-strong')}
+    >
+      {(close) => (
+        <div className="grid gap-1.5">
+          <p className="font-semibold">{actions.canTare ? 'Sin tara: fíjala para comprobar con la balanza' : 'Este frasco no se pesa: ajusta su cantidad por conteo'}</p>
+          <div className="mt-1 grid gap-1.5">
+            {actions.canTare ? (
+              <CloudAction close={close} onClick={actions.onTare} primary>
+                Fijar tara
+              </CloudAction>
+            ) : null}
+            <CloudAction close={close} onClick={actions.onAdjust} primary={!actions.canTare}>
+              Ajustar cantidad
+            </CloudAction>
+          </div>
         </div>
       )}
     </HelpTip>
@@ -169,12 +304,13 @@ function Place({ path, name }: { path: string[]; name: string }) {
 /**
  * Un frasco en la ficha (ADR 0012; ADR 0010, «Ventanas como ReactiLab»): translúcido sin desenfoque
  * (`bg-white/80`, borde suave, radio de 24 px) y compacto: caben tres por fila junto al resumen lateral.
- * Se lee en el orden en que se identifica un frasco: la fila de estado (h-5; «Usar primero», «Vencido» o
- * «Apartado» y, a la derecha, la marca); el código mono en negrita de 15 px; el saldo de 26 px con su unidad y
- * el % a la derecha, y la barra por nivel; la ubicación completa con su ruta; dos fichas, la caducidad corta
- * (ámbar o roja según el estado) y, con tara, el peso bruto esperado, cada una con su nube; y, tras una línea
- * de borde a borde, «Salida» y un menú «Más acciones» con Trasladar, Ajustar y la tara. El color solo cuenta
- * un estado y siempre con texto.
+ * Los estados son insignias sobre el borde superior («Usar primero», «Vencido», «Apartado», «Cuarentena»,
+ * «Restringido»). De arriba abajo: el código mono en negrita de 17 px, un botón que abre «Detalles del
+ * frasco»; una línea gris con la marca y el área; el saldo de 26 px con su unidad y el % a la derecha, y la
+ * barra por nivel; la ubicación completa con su ruta; dos fichas, la caducidad corta (ámbar o roja según el
+ * estado) y ⚖, el centro de control (peso esperado, comprobar con balanza, ajustar y tara), cada una con su
+ * nube; y, tras una línea de borde a borde, «Salida» y «Trasladar». El color solo cuenta un estado y siempre
+ * con texto.
  *
  * Con el modo de etiquetas el artículo gira 180° y muestra su reverso: la etiqueta impresa, y la tarjeta
  * entera es una casilla para elegirla (unos 300 ms, escalonado; con movimiento reducido, un fundido).
@@ -185,11 +321,14 @@ export function ContainerCard({
   allowed,
   recommended,
   scanned = false,
+  timeZone,
   labels,
   onAction,
 }: {
   position: Position;
   today: string;
+  /** Zona del espacio: la fecha de ingreso de «Detalles del frasco» se escribe en ella. */
+  timeZone: string;
   allowed: Allowed;
   recommended: boolean;
   /** Se llegó a la ficha desde la etiqueta QR de este frasco (ADR 0012, entrega 4). */
@@ -208,16 +347,26 @@ export function ContainerCard({
   const available = availableOf(position);
   // Con saldo pero menos del 1 %, se dice y se ve: un frasco casi vacío no es un frasco vacío.
   const percentText = percent === 0 && !empty ? '<1 %' : `${percent ?? 0} %`;
-  const canIssue = allowed.issue && available !== '0';
+  // Un frasco en cuarentena o restringido no sale (ADR 0012); la API también lo rechaza.
+  const canIssue = allowed.issue && available !== '0' && position.disposition === 'usable';
   // Se traslada el frasco entero; con salidas pendientes, primero se resuelven (ADR 0012, entrega 4).
   const canTransfer = allowed.transfer && !empty && !reserved;
-  const { brand } = position.lot;
+  const origin = [position.lot.brand, position.lot.area].filter(Boolean).join(' · ');
   const code = position.container?.code ?? position.lot.code;
   const figures = weightFigures(position);
   // Solo se pesan g, kg, mL y L (en volumen, con densidad: la pide la hoja).
   const weighable = gramsPerUnit(position.unit, '1') !== null && position.container !== null;
   const canTare = allowed.adjustment && (figures !== null || weighable);
   const flipped = labels?.flipped === true;
+  // Ajustar, comprobar y la tara viven en la ficha ⚖, solo para quien ajusta (ADR 0015).
+  const scaleActions: ScaleActions | null = allowed.adjustment
+    ? {
+        onCheck: () => onAction({ kind: 'adjustment', positionId: position.id, mode: 'weight' }),
+        onAdjust: () => onAction({ kind: 'adjustment', positionId: position.id }),
+        onTare: () => onAction({ kind: 'tare', position }),
+        canTare,
+      }
+    : null;
   return (
     <article
       id={position.container ? `frasco-${position.container.id}` : undefined}
@@ -244,18 +393,16 @@ export function ContainerCard({
           !scanned && !recommended && expired && 'ring-1 ring-danger/40',
         )}
       >
-        {scanned ? (
-          <span className="absolute -top-3 left-4 inline-flex items-center gap-1 rounded-full bg-action px-2.5 py-0.5 text-xs font-bold text-on-action shadow-sm">
-            <QrIcon className="size-3" aria-hidden />
-            Desde su etiqueta
-          </span>
-        ) : null}
-        <div className="-mb-1 grid gap-1">
-          <StatusRow recommended={recommended} expired={expired} reserved={reserved} brand={brand} />
+        <StatusBadges scanned={scanned} recommended={recommended} expired={expired} reserved={reserved} disposition={position.disposition} />
+        <div className="-mb-1 grid gap-0.5">
           {/* El código es la identidad de la etiqueta: si no cabe, se corta con puntos y el título lo dice entero. */}
-          <h3 title={code} className="truncate font-mono text-[15px] font-bold leading-tight tabular-nums text-ink">
-            {code}
+          <h3 title={code} className="flex min-w-0">
+            <CodeButton position={position} code={code} timeZone={timeZone} />
           </h3>
+          {/* Siempre mide una línea: el saldo de todas las tarjetas de una fila cae a la misma altura. */}
+          <p title={origin || undefined} className="h-4 truncate text-[12px] leading-4 text-ink-subtle">
+            {origin}
+          </p>
         </div>
         <div className="grid gap-1.5">
           <div className="flex items-baseline justify-between gap-2">
@@ -286,12 +433,10 @@ export function ContainerCard({
         {/* El lote interno ya es el prefijo del código del frasco: no se repite. */}
         <div className="flex flex-wrap gap-1.5">
           <ExpiryChip expiresOn={expiresOn} today={today} />
-          {figures ? (
-            <WeightChip figures={figures} canCheck={allowed.adjustment} onCheck={() => onAction({ kind: 'adjustment', positionId: position.id, mode: 'weight' })} />
-          ) : null}
+          {figures ? <WeightChip figures={figures} actions={scaleActions} /> : scaleActions ? <AdjustChip actions={scaleActions} /> : null}
         </div>
-        {canIssue || canTransfer || allowed.adjustment ? (
-          // Banda inferior de borde a borde: «Salida» es la primaria; lo demás, en el menú «Más acciones».
+        {canIssue || canTransfer ? (
+          // Banda inferior de borde a borde: «Salida» es la primaria; «Trasladar» es un botón propio.
           <Band ruled className="-mx-4 -mb-1 mt-auto flex items-center gap-1.5 px-4 pt-3">
             {canIssue ? (
               // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
@@ -306,23 +451,17 @@ export function ContainerCard({
                 {allowed.approve ? 'Salida' : 'Solicitar salida'}
               </Button>
             ) : null}
-            {canTransfer || allowed.adjustment ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="icon" variant="ghost" aria-label={`Más acciones de ${code}`} className="size-10 rounded-xl">
-                    <Ellipsis aria-hidden />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {canTransfer ? <DropdownMenuItem onSelect={() => onAction({ kind: 'transfer', position })}>Trasladar</DropdownMenuItem> : null}
-                  {allowed.adjustment ? (
-                    <DropdownMenuItem onSelect={() => onAction({ kind: 'adjustment', positionId: position.id })}>Ajustar</DropdownMenuItem>
-                  ) : null}
-                  {canTare ? (
-                    <DropdownMenuItem onSelect={() => onAction({ kind: 'tare', position })}>{figures ? 'Cambiar tara' : 'Fijar tara'}</DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {canTransfer ? (
+              <Button
+                size="icon"
+                variant="secondary"
+                aria-label={`Trasladar ${code}`}
+                title="Trasladar"
+                className={cn('size-10 rounded-xl border-line-strong bg-white/70 text-ink-muted hover:bg-white hover:text-ink', !canIssue && 'ml-auto')}
+                onClick={() => onAction({ kind: 'transfer', position })}
+              >
+                <ArrowLeftRight aria-hidden />
+              </Button>
             ) : null}
           </Band>
         ) : null}

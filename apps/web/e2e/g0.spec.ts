@@ -75,10 +75,18 @@ async function goTo(page: Page, section: 'Resumen' | 'Inventario' | 'Movimientos
   await expect(link).toHaveAttribute('aria-current', 'page');
 }
 
-/** Una acción secundaria del frasco: abre su menú «Más acciones» y elige la opción por su texto. */
+/**
+ * Una acción secundaria del frasco (ADR 0015): «Trasladar» es su botón «⇄»; «Ajustar» y la tara salen de la nube
+ * de la ficha ⚖ (con tara, «Peso bruto esperado»; sin ella, «Ajustar, sin tara»).
+ */
 async function cardAction(page: Page, card: Locator, action: 'Trasladar' | 'Ajustar' | 'Fijar tara' | 'Cambiar tara') {
-  await card.getByRole('button', { name: /^Más acciones de/ }).click();
-  await page.getByRole('menuitem', { name: action, exact: true }).click();
+  if (action === 'Trasladar') {
+    await card.getByRole('button', { name: /^Trasladar / }).click();
+    return;
+  }
+  const scale = /^(Peso bruto esperado|Ajustar, sin tara)/;
+  await card.getByRole('button', { name: scale }).click();
+  await page.getByRole('dialog', { name: scale }).getByRole('button', { name: action === 'Ajustar' ? 'Ajustar cantidad' : action, exact: true }).click();
 }
 
 /** Motivo o destino de la lista: se pulsa la etiqueta, como una persona, y queda marcado. */
@@ -544,7 +552,12 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await expect(expiryChip).toHaveText(/^\d{2}\/\d{2}\/\d{4}$/);
   await expiryChip.hover();
   await expect(admin.getByRole('tooltip')).toContainText(/Venció el .+ · hace \d+ (días|meses|años)/);
-  await expiredCard.getByRole('heading').hover();
+  await admin.getByRole('heading', { name: 'Ácido sulfúrico 98 %', level: 1 }).hover();
+  await expect(admin.getByRole('tooltip')).toHaveCount(0);
+  // El código abre «Detalles del frasco»: lote, ingreso, cantidad inicial.
+  await expiredCard.getByRole('button', { name: /^Detalles del frasco / }).hover();
+  await expect(admin.getByRole('tooltip')).toContainText(/Lote.*Ingresó.*Cantidad inicial/s);
+  await admin.getByRole('heading', { name: 'Ácido sulfúrico 98 %', level: 1 }).hover();
   await expect(admin.getByRole('tooltip')).toHaveCount(0);
   await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' })).toContainText('Usar primero');
   await expect(admin.getByText('1 frasco vencido')).toBeVisible();

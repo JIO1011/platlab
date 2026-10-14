@@ -201,7 +201,14 @@ describe('G0 · recorrido visible', () => {
         id: receiptBody.positionId,
         balance: '79.5',
         unit: 'g',
-        container: expect.objectContaining({ code: 'NAC-001', initialQuantity: '100', tare: null, density: null }),
+        container: expect.objectContaining({
+          code: 'NAC-001',
+          initialQuantity: '100',
+          tare: null,
+          density: null,
+          // Quien ingresó el frasco, no quien lo movió después (el ajuste es del Administrador).
+          receivedBy: { displayName: 'Operador' },
+        }),
       }),
     ]);
     const catalog = productList.parse((await call(lab.operator.subject, `${lab.base}/products`)).body);
@@ -1276,6 +1283,8 @@ describe('R-01A · traslados (ADR 0012, entrega 4)', () => {
     // El frasco se ve solo donde está, con su código y todo su saldo.
     const [here] = await stockOf(lab, product.id);
     expect(here).toMatchObject({ id: result.toPositionId, balance: '100.5', location: expect.objectContaining({ id: lab.otherStorage }) });
+    // Quién lo ingresó viaja con el frasco: el ingreso quedó en la posición de origen.
+    expect(here?.container?.receivedBy).toEqual({ displayName: 'Operador' });
     expect(await stockOf(lab, product.id)).toHaveLength(1);
 
     // Una operación con dos asientos: sale del origen y entra en el destino.

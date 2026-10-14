@@ -78,6 +78,7 @@ export async function listPositionPage(
               code: row.container_code,
               initialQuantity: row.container_initial_quantity,
               receivedAt: row.container_received_at.toISOString(),
+              receivedBy: row.container_has_receipt ? { displayName: row.container_received_by_name } : null,
               tare: row.container_tare,
               density: row.container_density,
             }

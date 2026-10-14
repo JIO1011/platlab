@@ -389,11 +389,14 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 - Área o departamento es un desplegable.
 - La ubicación muestra sus tres niveles con texto guía; cada nivel se habilita al elegir el anterior.
 - El número de frascos va en el pie, unido al botón: [− N +] «Ingresar N frascos». «Caducidad» ocupa su lugar, junto a Cantidad.
-- Tarjeta del frasco:
-  - Una fila de estado de altura fija alinea las tarjetas: «★ Usar primero» (FEFO), «Vencido» o «Apartado», y a la derecha la marca.
-  - Luego el código, el saldo con su barra y la ubicación con su ruta completa (la devuelve la API).
-  - Debajo, dos fichas: 📅 la fecha corta (ámbar a menos de 30 días, roja si venció), y ⚖ el peso que debe marcar la balanza, solo si hay tara.
-  - Tara, neto y el plazo van en una nube. Tocar ⚖ abre «Comprobar con balanza» (ajuste por peso).
+- Tarjeta del frasco (14-10-2026):
+  - Los estados van sobre el borde: «★ Usar primero» (FEFO), «Vencido», «Apartado», «Cuarentena» y «Restringido».
+  - Contenido: el código, la marca y el área, el saldo con su barra, la ubicación con su ruta completa, y las fichas 📅 (fecha corta) y ⚖.
+  - ⚖ concentra el control de stock. Con tara, su nube trae «Comprobar con balanza», «Ajustar cantidad» y «Cambiar tara»; sin tara, «Fijar tara» y «Ajustar cantidad».
+  - Trasladar es un botón propio y el menú «⋯» desaparece.
+  - Tocar el código abre «Detalles del frasco»: lote interno, fecha de ingreso, cantidad inicial, densidad y quién lo ingresó.
+- Resumen de la ficha: tres tarjetas pequeñas separadas en una columna angosta.
+- Inventario (nivel 1): 4 tarjetas por fila desde 1280 px, con las insignias apiladas a la derecha (frascos, vencidos y controlado).
 
 **Implementación (12-10-2026):**
 
