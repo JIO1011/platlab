@@ -178,10 +178,11 @@ export function ReagentsInventoryPage() {
 
 /**
  * Tarjeta de catálogo (ADR 0010, 04-10-2026; réplica de la de ReactiLab el 05-10-2026, a escala de
- * cuatro por fila el 14-10-2026): a la izquierda, el icono del estado físico con el estado en mayúsculas
- * pequeñas y el CAS en monoespaciado; a la derecha, en columna, la píldora de frascos («Sin existencias» si
- * no hay), «N vencidos» si los hay y «Controlado» si lo es; el nombre; y, tras una línea, «Total» con la
- * cantidad y los avisos de bajo mínimo y por vencer. Todo con texto, y el matraz del módulo de marca de agua.
+ * cuatro por fila el 14-10-2026): el nombre a todo el ancho; debajo, el icono del estado físico con el
+ * estado en mayúsculas pequeñas y el CAS en monoespaciado; y, tras una línea, «Total» con la cantidad a la
+ * izquierda y, a su altura y en columna a la derecha, las insignias de frascos («Sin existencias» si no
+ * hay), «N vencidos» y «Controlado»; al pie, los avisos de bajo mínimo y por vencer. Todo con texto, y el
+ * matraz del módulo de marca de agua.
  */
 function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
   const empty = product.balance === '0';
@@ -197,18 +198,29 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
         code="reagents"
         className="pointer-events-none absolute -bottom-4 -right-3 size-24 rotate-12 text-surface-sunken transition-[color,transform] duration-500 group-hover:text-action-soft motion-safe:group-hover:scale-110"
       />
-      <div className="relative grid min-w-0 gap-2">
+      <h2 className="relative text-balance break-words text-[15px] font-bold leading-snug text-ink transition-colors group-hover:text-action">{product.name}</h2>
+      <div className="relative flex min-w-0 items-center gap-2.5">
+        <IconChip icon={(state && physicalStateIcon[state]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} size="sm" />
+        <div className="grid min-w-0 gap-0.5">
+          <p className="text-[11px] font-semibold uppercase leading-none tracking-wide text-ink-muted">{(state && physicalStateLabel[state]) ?? 'Reactivo'}</p>
+          {product.casNumber ? (
+            <p className="truncate font-mono text-[11px] font-medium leading-tight tabular-nums text-ink-subtle">CAS: {product.casNumber}</p>
+          ) : null}
+        </div>
+      </div>
+      <div className="relative mt-auto grid gap-1.5 border-t border-line pt-2.5">
+        {/* Total a la izquierda; a su altura y a la derecha, en columna, las insignias: frascos, vencidos y controlado. */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <IconChip icon={(state && physicalStateIcon[state]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} size="sm" />
-            <div className="grid min-w-0 gap-0.5">
-              <p className="text-[11px] font-semibold uppercase leading-none tracking-wide text-ink-muted">{(state && physicalStateLabel[state]) ?? 'Reactivo'}</p>
-              {product.casNumber ? (
-                <p className="truncate font-mono text-[11px] font-medium leading-tight tabular-nums text-ink-subtle">CAS: {product.casNumber}</p>
-              ) : null}
-            </div>
+          <div className="grid min-w-0 gap-1.5">
+            <p className="text-[11px] font-semibold uppercase leading-5 tracking-wide text-ink-muted">Total</p>
+            <Quantity
+              value={product.balance}
+              unit={product.baseUnit}
+              // Un saldo muy largo baja la unidad a otra línea en lugar de salirse de la tarjeta.
+              className={cn('block min-w-0 whitespace-normal text-[22px] font-bold leading-tight tracking-tight [overflow-wrap:anywhere]', empty ? 'text-ink-subtle' : 'text-action')}
+              unitClassName="text-[0.7em]"
+            />
           </div>
-          {/* Insignias en columna, a la derecha: frascos, vencidos y controlado. */}
           <div className="flex shrink-0 flex-col items-end gap-1">
             {empty ? (
               <Badge tone="warning" className="whitespace-nowrap px-2 py-0.5 text-[11px]">
@@ -235,17 +247,6 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
             ) : null}
           </div>
         </div>
-        <h2 className="text-balance break-words text-[15px] font-bold leading-snug text-ink transition-colors group-hover:text-action">{product.name}</h2>
-      </div>
-      <div className="relative mt-auto grid gap-1.5 border-t border-line pt-2.5">
-        <p className="text-[11px] font-semibold uppercase leading-5 tracking-wide text-ink-muted">Total</p>
-        <Quantity
-          value={product.balance}
-          unit={product.baseUnit}
-          // Un saldo muy largo baja la unidad a otra línea en lugar de salirse de la tarjeta.
-          className={cn('block min-w-0 whitespace-normal text-[22px] font-bold leading-tight tracking-tight [overflow-wrap:anywhere]', empty ? 'text-ink-subtle' : 'text-action')}
-          unitClassName="text-[0.7em]"
-        />
         {/* Altura reservada: los avisos no desalinean el total de las tarjetas de una misma fila. */}
         <div className="flex min-h-5 flex-wrap gap-1">
           {product.belowMinimum ? (
