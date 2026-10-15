@@ -307,7 +307,7 @@ Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las p
 
 - **Cinco secciones:** Resumen, Inventario, Movimientos, Solicitudes y Fiscalizados. No hay Informes, Documentos ni Configuración:
   - Los informes son Movimientos e Inventario filtrados (abajo).
-  - Cada documento vive donde se usa. La SDS va en la ficha del reactivo y en la hoja de salida, y el Inventario filtra «Sin SDS». La factura o la guía va en el ingreso, y las autorizaciones en Fiscalizados. La carpeta de SDS para una inspección se obtiene exportando las de los reactivos filtrados.
+  - Cada documento vive donde se usa. La SDS va en la ficha del reactivo y en la hoja de salida, y el Inventario filtra «Sin SDS». El ingreso no registra factura ni guía (el usuario lo descartó el 14-10-2026), y las autorizaciones van en Fiscalizados. La carpeta de SDS para una inspección se obtiene exportando las de los reactivos filtrados.
   - Motivos y destinos: el Administrador los añade y los archiva desde la misma lista donde los elige ([ADR 0012](#adr-0012)). Cada etiqueta lleva una papelera que la archiva de un clic, con aviso «Deshacer» (13-10-2026). En Movimientos son filtros.
 - **Movimientos como informe (R-01C).** Lo que se filtra es lo que se exporta. Los filtros van en la URL, así que un informe es un enlace.
   - «Imprimir» saca lo filtrado (hasta 1.000 filas, con aviso si hay más) en una página con el espacio, el período y los filtros. En la vista Totales imprime los totales.
@@ -445,11 +445,11 @@ Motivo: quien registra tiene el frasco en la mano y llena lo que lee, de arriba 
   - Cupos, custodia y reporte en formato oficial se hacen solo si REG-01 los exige.
 - **Orden para completar Reactivos:**
   1. Mejoras pequeñas:
-     - indicadores del Resumen con enlace a su lista;
-     - «Ficha de seguridad» al escanear;
-     - «Factura o guía» en el ingreso;
+     - «Ficha de seguridad» en la hoja de salida, adonde lleva el escaneo;
      - ruta de la ubicación en el historial;
      - código automático sin palabras vacías.
+
+     Revisado el 14-10-2026: los indicadores del Resumen ya enlazaban a su lista, y «Factura o guía» se descarta, junto con la referencia de texto que aceptaba el ingreso y la web no usaba.
   2. Ámbito por ubicación: solo limpieza de permisos. Las ubicaciones y la vista por laboratorio no cambian; esa vista es del módulo Laboratorios (F3).
   3. T-07.
   4. R-01B: ficha de seguridad en PDF por reactivo (también al escanear y en la salida), avisos y exportar a Excel y PDF.
