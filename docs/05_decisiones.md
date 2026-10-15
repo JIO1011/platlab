@@ -119,7 +119,7 @@ Cambios: 30-09-2026 (historial en git).
 ## ADR 0008 — Roles y actores
 
 - **Dos planos.** En el de PlatLab está el Equipo PlatLab, que usa la consola. En el del espacio están el Propietario, el Administrador, el Operador, el Docente, el Estudiante (tesista) y el rol especial Responsable de fiscalizados.
-- **Roles.** Son paquetes de permisos del catálogo fijo, combinables y asignados con un ámbito.
+- **Roles.** Son paquetes de permisos del catálogo fijo, combinables y asignados en el espacio.
 - **Escalera de permisos: Propietario ⊇ Administrador ⊇ Operador.**
   - El Operador ejecuta y consulta toda la información operativa y hace los registros del día a día.
   - El Administrador incluye todo lo del Operador, decide las solicitudes, configura los catálogos y aplica ajustes. No invita personas ni asigna roles sin la delegación del propietario.
@@ -127,7 +127,7 @@ Cambios: 30-09-2026 (historial en git).
   - En SQL, los permisos efectivos son las asignaciones vigentes más los del rol Administrador para la membresía propietaria, en un solo lugar (`core.effective_role_assignments`).
 - **Responsable de fiscalizados.** Es una designación aparte; el Propietario no la recibe salvo que se le asigne.
 - **Los roles valen para todo el espacio, no por laboratorio.** El Operador accede a todo Reactivos, con todas sus ubicaciones. La ubicación es un dato del registro (dónde está cada frasco), no un límite de acceso. Los laboratorios se gestionan en M4 Laboratorios.
-- **Ámbito técnico.** `core.role_assignments.location_id` queda siempre nulo: no hay forma de asignarlo en el producto. Retirarlo del código está pendiente.
+- **Sin ámbito técnico.** `core.role_assignments` ya no tiene `location_id`: la autorización comprueba solo el permiso en el espacio y las consultas no filtran por ubicaciones del miembro (paso 2 del [ADR 0016](#adr-0016), 14-10-2026).
 - **Límites.** Nadie borra registros de negocio y, por defecto, nadie aprueba su propia solicitud.
 - **Alumnos de clase.** No tienen cuenta en el alcance inicial.
 
@@ -279,23 +279,36 @@ Cambios: 05-10, 06-10, 12-10-2026 (historial en git).
 ## ADR 0013 — Delegación por riesgo y puertas del harness
 
 - **Orquestador:** la sesión principal (Opus 5.5 en `xhigh`). Diseña datos, flujos e invariantes, define en el brief los casos de prueba (permisos, concurrencia, saldos), revisa lo delicado, confirma y sube. Lo trivial lo hace en línea.
-- **Reparto por riesgo, no por capa.** Todo cambio que pueda alterar saldos, permisos, datos, concurrencia o el contrato de la API va a `platlab-implementer` (Opus 5.5 en `high`), esté en SQL, en el servidor o en la web, y ese agente escribe también sus pruebas. Lo demás va a Sonnet 5.5 en `high`: `platlab-ui-implementer` (presentación, movimiento, avisos y e2e de UI) y `platlab-assistant` (docs, cambios mecánicos, pruebas sin lógica nueva y ejecución de la verificación).
+- **Reparto por riesgo, no por capa.** Todo cambio que pueda alterar saldos, permisos, datos, concurrencia o el contrato de la API va a `platlab-implementer` (Opus 5.5 en `high`), esté en SQL, en el servidor o en la web, y ese agente escribe también sus pruebas (revisado el 14-10-2026: ver «Quién implementa»). Lo demás va a Sonnet 5.5 en `high`: `platlab-ui-implementer` (presentación, movimiento, avisos y e2e de UI) y `platlab-assistant` (docs, cambios mecánicos y pruebas sin lógica nueva).
 - **Escalada.** Un subagente no lanza otros. Un agente Sonnet se detiene y reporta «Bloqueo» si el cambio toca lo delicado, si la misma comprobación falla dos veces o si falta una decisión; el orquestador lo reasigna. Las correcciones siguen con el mismo agente (`SendMessage`).
 - **Puertas automáticas** (`.claude/settings.json` y `.claude/hooks/`):
   - Ningún implementador confirma, sube, abre PR ni edita `.claude/settings.json` o `.claude/hooks/`: `subagent-guard.sh` lo rechaza.
   - Los agentes Sonnet no escriben en `supabase/`, `apps/server/`, `packages/contracts/` ni `packages/modules/`. El mismo hook rechaza la edición, y `subagent-gate.sh` compara al terminar el contenido con el del inicio para detectar cambios hechos por otra vía (Bash, scripts, regeneraciones). Si los hay, el agente los reporta como «Bloqueo» y no los deshace. La lógica delicada de `apps/web` no tiene ruta propia: sigue dependiendo del brief.
-  - Al terminar un implementador con cambios de código corren `typecheck`, `lint`, `deps` y `knip`. Si `platlab-ui-implementer` cambió `.tsx` o `.css` de la interfaz, debe dejar capturas nuevas de escritorio y móvil en `apps/web/.impeccable/review/`. Si algo falla, el agente vuelve a trabajar una vez; si sigue fallando, termina y se avisa.
+  - Al terminar un implementador con cambios de código corre `typecheck`. En la etapa de cierre corren además `lint`, `deps` y `knip`, y si `platlab-ui-implementer` cambió `.tsx` o `.css` de la interfaz, debe dejar capturas nuevas de escritorio y móvil en `apps/web/.impeccable/review/`. Si algo falla, el agente vuelve a trabajar una vez; si sigue fallando, termina y se avisa.
   - En local se bloquean las escrituras remotas de Supabase y Cloudflare por MCP, `supabase link`, `db push` y `git push --force`. Son avisos tempranos: las reglas de Bash solo comparan prefijos. La barrera es una regla de GitHub que impide el force-push y el borrado de `main`.
 - **Revisor de UI.** Un hook `SubagentStart` le da a `impeccable-finish-reviewer` el paquete de PlatLab: refina un sistema existente sin diseño de referencia, tarjeta QUALITY BAR ni semilla, y esas comprobaciones no aplican.
 - **Cierre de UI.** Por entrega: capturas de escritorio y móvil, `review-animations` si cambió el movimiento e `impeccable-finish-reviewer`. Por puerta (G0, G1…): `impeccable audit`, `harden` y `polish` sobre todo el frontend, más `review-animations`. Las skills que el flujo exige deben poder invocarse: `review-animations` y `pick-ui-library` no llevan `disable-model-invocation`.
 - **Evidencia.** Una fila por entrega, cuando el CI del mismo commit terminó.
 - **Economía de tokens (13-10-2026).** Medido: arrancar un subagente costaba ~40k tokens antes del brief (MCP heredados, skills y `CLAUDE.md`), y R-01D sumó ~1,2M en subagentes.
   - La orquestación sale de `CLAUDE.md` a `.claude/orquestacion.md`, que solo recibe la sesión principal (hook `SessionStart`).
-  - Cada agente declara sus herramientas (`tools`, sin MCP ajenos). Los que no tocan lo delicado no cargan `CLAUDE.md` (`omitClaudeMd`). `platlab-assistant` pasa a `medium`, y los implementadores a 60 turnos.
-  - Las pruebas corren una sola vez. El implementador corre las dirigidas y `pnpm check`; el CI del PR, las suites y el e2e. La verificación la hace la sesión principal con el log del CI.
+  - Cada agente declara sus herramientas (`tools`, sin MCP ajenos). Los que no tocan lo delicado no cargan `CLAUDE.md` (`omitClaudeMd`). `platlab-assistant` pasa a `medium`; los implementadores, a 40 turnos, y el asistente, a 25.
+  - Las pruebas corren una sola vez, en la etapa de cierre: la sesión principal corre las dirigidas y `pnpm check`, y el CI del PR, las suites y el e2e. La verificación la hace la sesión principal con el log del CI, sin subagente.
   - Briefs de 40 líneas y entregas de 40 turnos como máximo; hasta ~20 líneas, en línea; una sola ronda de capturas.
+- **Etapas de una entrega (14-10-2026).**
+  - *Cambios* (por defecto): los agentes implementan y escriben o ajustan las pruebas sin correrlas, y el usuario revisa en el navegador. `subagent-guard.sh` rechaza que un agente corra pruebas, y la puerta solo vigila el carril y `typecheck`.
+  - *Cierre*, cuando el usuario aprueba los cambios: la sesión principal marca la etapa en `.git/claude-fase` (local, sin versionar; los agentes no lo tocan) y corre las pruebas dirigidas, `pnpm check`, las capturas con el revisor y el CI. Con la siguiente entrega vuelve a *cambios*.
+  - El brief designa la ubicación (codebase-memory; en SQL, rangos de `grep`, porque el índice lo cubre parcialmente), las skills y las herramientas. Los agentes no precargan skills ni exploran: si falta algo, una búsqueda puntual y, si no basta, «Bloqueo».
 
-Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las pruebas de invariantes son la especificación; una regla que depende del prompt se vuelve una puerta automática; y el contexto del orquestador se reserva para decidir. Reemplaza el reparto anterior de `CLAUDE.md` (Opus solo para código delicado y Sonnet por tipo de tarea). La revisión del harness del 07-10-2026 añadió los rechazos, la comparación de contenido, las capturas, el paquete del revisor y el cierre de UI por puerta: el cierre de R-01A nunca se ejecutó (una de sus skills no se podía invocar) y `main` no tenía protección.
+- **Quién implementa (14-10-2026).** Medido en el paso 2 del [ADR 0016](#adr-0016): la sesión principal arranca con ~58k tokens y un subagente con ~31k. Los dos agentes Opus releyeron 5,8 M en 75 turnos; la orquestación, 7,8 M en 66, y unos 12 de esos turnos fueron solo avisos de un monitor de tokens. Lo caro es el contexto, que crece con cada lectura y razonamiento y se relee en cada turno; el brief pesa ~2k.
+  - Lo delicado lo implementa la sesión principal en línea, con sus pruebas, justo después de ubicarlo: sin brief ni relectura. De Opus a Opus delegar no abarata el token; solo aísla el contexto.
+  - `platlab-implementer` queda para entregas delicadas grandes (más de ~25 turnos o mucha lectura de SQL), partidas desde el inicio en producción y pruebas, con `effort` `medium` en limpiezas y `high` en lógica nueva o concurrencia.
+  - Sonnet sigue con la UI, los docs y lo mecánico: su menor precio por token compensa el arranque.
+  - La sesión principal trabaja en `high` al implementar y en `xhigh` solo para diseñar o decidir.
+  - Código: codebase-memory primero. `read-guard.sh` rechaza un `Read` sin rango de un `.ts` o `.tsx` de más de 300 líneas, también en la sesión principal. El brief nombra las funciones por su nombre calificado.
+  - Sin monitores de tokens: cada aviso despierta a la sesión principal con todo su contexto. El uso de cada agente llega en su aviso de fin; el detalle sale una sola vez de `.claude/scripts/agent-tokens.sh`.
+  - Pendiente del usuario: deshabilitar los MCP y las skills de la cuenta ajenos a PlatLab, que pesan en cada turno de cada sesión.
+
+Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las pruebas de invariantes son la especificación; una regla que depende del prompt se vuelve una puerta automática; y el contexto del orquestador se reserva para decidir. Las etapas evitan repetir pruebas y capturas sobre cambios que el usuario aún va a ajustar. Reemplaza el reparto anterior de `CLAUDE.md` (Opus solo para código delicado y Sonnet por tipo de tarea). La revisión del harness del 07-10-2026 añadió los rechazos, la comparación de contenido, las capturas, el paquete del revisor y el cierre de UI por puerta: el cierre de R-01A nunca se ejecutó (una de sus skills no se podía invocar) y `main` no tenía protección.
 
 <a id="adr-0014"></a>
 
@@ -303,7 +316,7 @@ Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las p
 
 - **Cinco secciones:** Resumen, Inventario, Movimientos, Solicitudes y Fiscalizados. No hay Informes, Documentos ni Configuración:
   - Los informes son Movimientos e Inventario filtrados (abajo).
-  - Cada documento vive donde se usa. La SDS va en la ficha del reactivo y en la hoja de salida, y el Inventario filtra «Sin SDS». La factura o la guía va en el ingreso, y las autorizaciones en Fiscalizados. La carpeta de SDS para una inspección se obtiene exportando las de los reactivos filtrados.
+  - Cada documento vive donde se usa. La SDS va en la ficha del reactivo y en la hoja de salida, y el Inventario filtra «Sin SDS». El ingreso no registra factura ni guía (el usuario lo descartó el 14-10-2026), y las autorizaciones van en Fiscalizados. La carpeta de SDS para una inspección se obtiene exportando las de los reactivos filtrados.
   - Motivos y destinos: el Administrador los añade y los archiva desde la misma lista donde los elige ([ADR 0012](#adr-0012)). Cada etiqueta lleva una papelera que la archiva de un clic, con aviso «Deshacer» (13-10-2026). En Movimientos son filtros.
 - **Movimientos como informe (R-01C).** Lo que se filtra es lo que se exporta. Los filtros van en la URL, así que un informe es un enlace.
   - «Imprimir» saca lo filtrado (hasta 1.000 filas, con aviso si hay más) en una página con el espacio, el período y los filtros. En la vista Totales imprime los totales.
@@ -441,12 +454,12 @@ Motivo: quien registra tiene el frasco en la mano y llena lo que lee, de arriba 
   - Cupos, custodia y reporte en formato oficial se hacen solo si REG-01 los exige.
 - **Orden para completar Reactivos:**
   1. Mejoras pequeñas:
-     - indicadores del Resumen con enlace a su lista;
-     - «Ficha de seguridad» al escanear;
-     - «Factura o guía» en el ingreso;
+     - «Ficha de seguridad» en la hoja de salida, adonde lleva el escaneo;
      - ruta de la ubicación en el historial;
      - código automático sin palabras vacías.
-  2. Ámbito por ubicación: solo limpieza de permisos. Las ubicaciones y la vista por laboratorio no cambian; esa vista es del módulo Laboratorios (F3).
+
+     Revisado el 14-10-2026: los indicadores del Resumen ya enlazaban a su lista, y «Factura o guía» se descarta, junto con la referencia de texto que aceptaba el ingreso y la web no usaba.
+  2. Ámbito por ubicación: solo limpieza de permisos. Las ubicaciones y la vista por laboratorio no cambian; esa vista es del módulo Laboratorios (F3). Hecho el 14-10-2026 (ADR 0008, «Sin ámbito técnico»).
   3. T-07.
   4. R-01B: ficha de seguridad en PDF por reactivo (también al escanear y en la salida), avisos y exportar a Excel y PDF.
   5. Preparación de soluciones.
@@ -467,7 +480,6 @@ Motivo: el usuario prioriza un módulo completo y usable. El reporte exportable 
 | Reglas de Prácticas | Anticipación, cancelaciones, salas exclusivas, devoluciones químicas y quién declara el consumo al cerrar | P-04, antes de F3 |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
-| Ámbito por ubicación | Los roles valen para todo el espacio (ADR 0008). Retirar `location_id` de las asignaciones y simplificar las consultas que filtran por ámbito | Entrega aparte, antes de T-07 |
 | Escaneo con cámara | Resuelto el 14-10-2026: «Escanear» en Reactivos abre la cámara en la app y lleva al frasco listo para «Salida». Usa el lector nativo del navegador o, si no lo hay, una librería. ¿Hace falta registrar salidas en serie? | P-03 |
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
 | Libro sin filtros | La lista sin filtros (también la actividad del Resumen) entra por frascos y ordena todo el libro del espacio: unos 250 ms con 40 000 operaciones (medido en R-01C). ¿Índice o consulta distinta? | Antes de G1, con el escenario de carga (04 §4) |

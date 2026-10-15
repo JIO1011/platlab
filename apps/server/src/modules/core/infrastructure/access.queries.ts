@@ -354,13 +354,13 @@ export interface IListMemberRolesQuery {
   result: IListMemberRolesResult;
 }
 
-const listMemberRolesIR: any = {"usedParamSet":{"workspaceId":true,"principalId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":317,"b":329}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":355,"b":367}]}],"statement":"-- Nombres de los roles vigentes del miembro en algún ámbito, solo para mostrarlos (ADR 0011,\n-- 05-10-2026): no autorizan nada. Incluye el Administrador implícito del propietario.\nSELECT DISTINCT r.name\nFROM core.effective_role_assignments AS ra\nJOIN core.roles AS r ON r.code = ra.role_code\nWHERE ra.workspace_id = :workspaceId!\n  AND ra.principal_id = :principalId!\n  AND ra.revoked_at IS NULL\n  AND ra.valid_from <= now()\n  AND (ra.valid_until IS NULL OR ra.valid_until > now())\nORDER BY r.name"};
+const listMemberRolesIR: any = {"usedParamSet":{"workspaceId":true,"principalId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":301,"b":313}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":339,"b":351}]}],"statement":"-- Nombres de los roles vigentes del miembro, solo para mostrarlos (ADR 0011, 05-10-2026): no\n-- autorizan nada. Incluye el Administrador implícito del propietario.\nSELECT DISTINCT r.name\nFROM core.effective_role_assignments AS ra\nJOIN core.roles AS r ON r.code = ra.role_code\nWHERE ra.workspace_id = :workspaceId!\n  AND ra.principal_id = :principalId!\n  AND ra.revoked_at IS NULL\n  AND ra.valid_from <= now()\n  AND (ra.valid_until IS NULL OR ra.valid_until > now())\nORDER BY r.name"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Nombres de los roles vigentes del miembro en algún ámbito, solo para mostrarlos (ADR 0011,
- * -- 05-10-2026): no autorizan nada. Incluye el Administrador implícito del propietario.
+ * -- Nombres de los roles vigentes del miembro, solo para mostrarlos (ADR 0011, 05-10-2026): no
+ * -- autorizan nada. Incluye el Administrador implícito del propietario.
  * SELECT DISTINCT r.name
  * FROM core.effective_role_assignments AS ra
  * JOIN core.roles AS r ON r.code = ra.role_code
@@ -373,154 +373,5 @@ const listMemberRolesIR: any = {"usedParamSet":{"workspaceId":true,"principalId"
  * ```
  */
 export const listMemberRoles = new PreparedQuery<IListMemberRolesParams,IListMemberRolesResult>(listMemberRolesIR);
-
-
-/** 'HasPermissionAt' parameters type */
-export interface IHasPermissionAtParams {
-  locationId: string;
-  permission: string;
-  principalId: string;
-  workspaceId: string;
-}
-
-/** 'HasPermissionAt' return type */
-export interface IHasPermissionAtResult {
-  allowed: boolean;
-}
-
-/** 'HasPermissionAt' query type */
-export interface IHasPermissionAtQuery {
-  params: IHasPermissionAtParams;
-  result: IHasPermissionAtResult;
-}
-
-const hasPermissionAtIR: any = {"usedParamSet":{"workspaceId":true,"locationId":true,"principalId":true,"permission":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":376,"b":388},{"a":545,"b":557},{"a":725,"b":737}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":401,"b":412}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":765,"b":777}]},{"name":"permission","required":true,"transform":{"type":"scalar"},"locs":[{"a":808,"b":819}]}],"statement":"-- Un rol aplica en la ubicación si su ámbito es todo el espacio o un ancestro de ella (03 §3).\n-- Una ubicación de otro espacio no tiene ancestros aquí: solo valdría un rol de todo el espacio,\n-- y la operación la rechaza después por no encontrarla.\nWITH RECURSIVE ancestors (id, parent_id) AS (\n  SELECT l.id, l.parent_id\n  FROM core.locations AS l\n  WHERE l.workspace_id = :workspaceId! AND l.id = :locationId!\n  UNION\n  SELECT l.id, l.parent_id\n  FROM core.locations AS l\n  JOIN ancestors AS a ON l.id = a.parent_id\n  WHERE l.workspace_id = :workspaceId!\n)\nSELECT EXISTS (\n  SELECT 1\n  FROM core.effective_role_assignments AS ra\n  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\n  WHERE ra.workspace_id = :workspaceId!\n    AND ra.principal_id = :principalId!\n    AND rp.permission_code = :permission!\n    AND ra.revoked_at IS NULL\n    AND ra.valid_from <= now()\n    AND (ra.valid_until IS NULL OR ra.valid_until > now())\n    AND (ra.location_id IS NULL OR ra.location_id IN (SELECT id FROM ancestors))\n) AS \"allowed!\""};
-
-/**
- * Query generated from SQL:
- * ```
- * -- Un rol aplica en la ubicación si su ámbito es todo el espacio o un ancestro de ella (03 §3).
- * -- Una ubicación de otro espacio no tiene ancestros aquí: solo valdría un rol de todo el espacio,
- * -- y la operación la rechaza después por no encontrarla.
- * WITH RECURSIVE ancestors (id, parent_id) AS (
- *   SELECT l.id, l.parent_id
- *   FROM core.locations AS l
- *   WHERE l.workspace_id = :workspaceId! AND l.id = :locationId!
- *   UNION
- *   SELECT l.id, l.parent_id
- *   FROM core.locations AS l
- *   JOIN ancestors AS a ON l.id = a.parent_id
- *   WHERE l.workspace_id = :workspaceId!
- * )
- * SELECT EXISTS (
- *   SELECT 1
- *   FROM core.effective_role_assignments AS ra
- *   JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
- *   WHERE ra.workspace_id = :workspaceId!
- *     AND ra.principal_id = :principalId!
- *     AND rp.permission_code = :permission!
- *     AND ra.revoked_at IS NULL
- *     AND ra.valid_from <= now()
- *     AND (ra.valid_until IS NULL OR ra.valid_until > now())
- *     AND (ra.location_id IS NULL OR ra.location_id IN (SELECT id FROM ancestors))
- * ) AS "allowed!"
- * ```
- */
-export const hasPermissionAt = new PreparedQuery<IHasPermissionAtParams,IHasPermissionAtResult>(hasPermissionAtIR);
-
-
-/** 'HasWorkspacePermission' parameters type */
-export interface IHasWorkspacePermissionParams {
-  permission: string;
-  principalId: string;
-  workspaceId: string;
-}
-
-/** 'HasWorkspacePermission' return type */
-export interface IHasWorkspacePermissionResult {
-  allowed: boolean;
-}
-
-/** 'HasWorkspacePermission' query type */
-export interface IHasWorkspacePermissionQuery {
-  params: IHasWorkspacePermissionParams;
-  result: IHasWorkspacePermissionResult;
-}
-
-const hasWorkspacePermissionIR: any = {"usedParamSet":{"workspaceId":true,"principalId":true,"permission":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":263,"b":275}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":303,"b":315}]},{"name":"permission","required":true,"transform":{"type":"scalar"},"locs":[{"a":346,"b":357}]}],"statement":"-- Permiso con ámbito de todo el espacio: lo exige lo que no pertenece a una ubicación (catálogo).\nSELECT EXISTS (\n  SELECT 1\n  FROM core.effective_role_assignments AS ra\n  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\n  WHERE ra.workspace_id = :workspaceId!\n    AND ra.principal_id = :principalId!\n    AND rp.permission_code = :permission!\n    AND ra.location_id IS NULL\n    AND ra.revoked_at IS NULL\n    AND ra.valid_from <= now()\n    AND (ra.valid_until IS NULL OR ra.valid_until > now())\n) AS \"allowed!\""};
-
-/**
- * Query generated from SQL:
- * ```
- * -- Permiso con ámbito de todo el espacio: lo exige lo que no pertenece a una ubicación (catálogo).
- * SELECT EXISTS (
- *   SELECT 1
- *   FROM core.effective_role_assignments AS ra
- *   JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
- *   WHERE ra.workspace_id = :workspaceId!
- *     AND ra.principal_id = :principalId!
- *     AND rp.permission_code = :permission!
- *     AND ra.location_id IS NULL
- *     AND ra.revoked_at IS NULL
- *     AND ra.valid_from <= now()
- *     AND (ra.valid_until IS NULL OR ra.valid_until > now())
- * ) AS "allowed!"
- * ```
- */
-export const hasWorkspacePermission = new PreparedQuery<IHasWorkspacePermissionParams,IHasWorkspacePermissionResult>(hasWorkspacePermissionIR);
-
-
-/** 'ListPermissionScope' parameters type */
-export interface IListPermissionScopeParams {
-  permission: string;
-  principalId: string;
-  workspaceId: string;
-}
-
-/** 'ListPermissionScope' return type */
-export interface IListPermissionScopeResult {
-  id: string;
-}
-
-/** 'ListPermissionScope' query type */
-export interface IListPermissionScopeQuery {
-  params: IListPermissionScopeParams;
-  result: IListPermissionScopeResult;
-}
-
-const listPermissionScopeIR: any = {"usedParamSet":{"workspaceId":true,"principalId":true,"permission":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":386,"b":398},{"a":687,"b":699},{"a":948,"b":960}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":426,"b":438}]},{"name":"permission","required":true,"transform":{"type":"scalar"},"locs":[{"a":469,"b":480}]}],"statement":"-- Ubicaciones donde aplica el permiso: todas si el rol es de todo el espacio; si no, cada ámbito\n-- y su descendencia (03 §3). Las listas de los módulos se filtran con este conjunto.\nWITH RECURSIVE grants (location_id) AS (\n  SELECT ra.location_id\n  FROM core.effective_role_assignments AS ra\n  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\n  WHERE ra.workspace_id = :workspaceId!\n    AND ra.principal_id = :principalId!\n    AND rp.permission_code = :permission!\n    AND ra.revoked_at IS NULL\n    AND ra.valid_from <= now()\n    AND (ra.valid_until IS NULL OR ra.valid_until > now())\n),\nscope (id) AS (\n  SELECT l.id\n  FROM core.locations AS l\n  WHERE l.workspace_id = :workspaceId!\n    AND (l.id IN (SELECT g.location_id FROM grants AS g)\n         OR EXISTS (SELECT 1 FROM grants AS g WHERE g.location_id IS NULL))\n  UNION\n  SELECT l.id\n  FROM core.locations AS l\n  JOIN scope AS s ON l.parent_id = s.id\n  WHERE l.workspace_id = :workspaceId!\n)\nSELECT id AS \"id!\" FROM scope"};
-
-/**
- * Query generated from SQL:
- * ```
- * -- Ubicaciones donde aplica el permiso: todas si el rol es de todo el espacio; si no, cada ámbito
- * -- y su descendencia (03 §3). Las listas de los módulos se filtran con este conjunto.
- * WITH RECURSIVE grants (location_id) AS (
- *   SELECT ra.location_id
- *   FROM core.effective_role_assignments AS ra
- *   JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
- *   WHERE ra.workspace_id = :workspaceId!
- *     AND ra.principal_id = :principalId!
- *     AND rp.permission_code = :permission!
- *     AND ra.revoked_at IS NULL
- *     AND ra.valid_from <= now()
- *     AND (ra.valid_until IS NULL OR ra.valid_until > now())
- * ),
- * scope (id) AS (
- *   SELECT l.id
- *   FROM core.locations AS l
- *   WHERE l.workspace_id = :workspaceId!
- *     AND (l.id IN (SELECT g.location_id FROM grants AS g)
- *          OR EXISTS (SELECT 1 FROM grants AS g WHERE g.location_id IS NULL))
- *   UNION
- *   SELECT l.id
- *   FROM core.locations AS l
- *   JOIN scope AS s ON l.parent_id = s.id
- *   WHERE l.workspace_id = :workspaceId!
- * )
- * SELECT id AS "id!" FROM scope
- * ```
- */
-export const listPermissionScope = new PreparedQuery<IListPermissionScopeParams,IListPermissionScopeResult>(listPermissionScopeIR);
 
 

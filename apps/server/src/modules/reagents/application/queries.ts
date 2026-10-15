@@ -40,7 +40,7 @@ import {
 } from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
 import {
-  permissionScope,
+  hasPermission,
   requirePermission,
   withModuleAccess,
   type HomeContribution,
@@ -48,8 +48,8 @@ import {
 } from '../../core/index.js';
 import {
   homeSummary,
-  listControlled,
-  listLocationsIn,
+  listActiveLocations,
+  listProductSafety,
   listProducts as listProductsQuery,
   type IListProductsResult,
 } from '../infrastructure/products.queries.js';
@@ -67,7 +67,7 @@ interface QueryRequest {
   workspaceId: string;
 }
 
-/** Consultas de Reactivos: admisión de consulta y lectura del catálogo en algún ámbito. */
+/** Consultas de Reactivos: admisión de consulta y lectura del catálogo. */
 function runQuery<T>(pool: pg.Pool, request: QueryRequest, work: (access: WorkspaceAccess) => Promise<T>) {
   return withModuleAccess(
     pool,
@@ -113,15 +113,14 @@ const toStockedProduct = (row: IListProductsResult): StockedProduct => ({
 });
 
 /**
- * Ficha de un reactivo (ADR 0012): su total y sus frascos con saldo en el ámbito del miembro, y si su
- * unidad aún puede cambiar (ADR 0015).
+ * Ficha de un reactivo (ADR 0012): su total y sus frascos con saldo en el espacio, y si su unidad aún
+ * puede cambiar (ADR 0015).
  */
 export function getProduct(pool: pg.Pool, request: QueryRequest, productId: string): Promise<ProductDetail> {
   return runQuery(pool, request, async (access) => {
     const [row] = await listProductsQuery.run(
       {
         workspaceId: access.workspace.id,
-        locationIds: await permissionScope(access, READ),
         productId,
         q: null,
         afterCode: null,
@@ -138,17 +137,13 @@ export function getProduct(pool: pg.Pool, request: QueryRequest, productId: stri
 }
 
 /**
- * Quién ve qué solicitudes (ADR 0012): quien puede aprobar, la bandeja de las ubicaciones donde
- * aprueba; el Operador, solo las suyas, en las ubicaciones donde registra salidas.
+ * Quién ve qué solicitudes (ADR 0012): quien puede aprobar, todas las del espacio; el Operador, solo
+ * las suyas. Sin ninguno de los dos permisos, ninguna: null.
  */
 async function requestScope(access: WorkspaceAccess) {
-  const approvable = await permissionScope(access, 'reagents.issue.approve');
-  if (approvable.length > 0) return { canApprove: true, locationIds: approvable, requestedBy: null };
-  return {
-    canApprove: false,
-    locationIds: await permissionScope(access, 'reagents.issue.create'),
-    requestedBy: access.principalId,
-  };
+  if (await hasPermission(access, 'reagents.issue.approve')) return { canApprove: true, requestedBy: null };
+  if (await hasPermission(access, 'reagents.issue.create')) return { canApprove: false, requestedBy: access.principalId };
+  return null;
 }
 
 export function listRequests(
@@ -158,11 +153,8 @@ export function listRequests(
 ): Promise<{ canApprove: boolean; items: IssueRequestItem[] }> {
   return runQuery(pool, request, async (access) => {
     const scope = await requestScope(access);
-    const items = await listIssueRequests(inventoryContext(access), {
-      locationIds: scope.locationIds,
-      requestedBy: scope.requestedBy,
-      pendingOnly,
-    });
+    if (!scope) return { canApprove: false, items: [] };
+    const items = await listIssueRequests(inventoryContext(access), { requestedBy: scope.requestedBy, pendingOnly });
     return { canApprove: scope.canApprove, items };
   });
 }
@@ -199,7 +191,7 @@ export function suggestCodes(
   });
 }
 
-/** El catálogo del espacio no depende de la ubicación; las existencias sí se filtran por ámbito. */
+/** El catálogo del espacio con sus existencias en todas las ubicaciones. */
 export function listProducts(
   pool: pg.Pool,
   request: QueryRequest,
@@ -210,7 +202,6 @@ export function listProducts(
     const rows = await listProductsQuery.run(
       {
         workspaceId: access.workspace.id,
-        locationIds: await permissionScope(access, READ),
         productId: null,
         q: query.q ?? null,
         afterCode: after?.[0] ?? null,
@@ -240,34 +231,43 @@ export function listPositions(
 ): Promise<PositionList> {
   return runQuery(pool, request, async (access) => {
     const page = await listPositionPage(inventoryContext(access), {
-      locationIds: await permissionScope(access, READ),
       itemId: query.productId,
       locationId: query.locationId,
       cursor: query.cursor,
       limit: query.limit,
     });
-    // «Controlado» es de la ficha química (ADR 0015): lo añade el módulo, no la capacidad.
+    // «Controlado» y la ficha de seguridad son de la ficha química (ADR 0015, 0016): los añade el módulo,
+    // no la capacidad.
     const itemIds = [...new Set(page.items.map((position) => position.product.id))];
-    const controlled = new Set(
-      (await listControlled.run({ workspaceId: access.workspace.id, itemIds }, access.client)).map((row) => row.item_id),
+    const safety = new Map(
+      (await listProductSafety.run({ workspaceId: access.workspace.id, itemIds }, access.client)).map((row) => [
+        row.item_id,
+        row,
+      ]),
     );
     return {
       ...page,
-      items: page.items.map((position) => ({
-        ...position,
-        product: { ...position.product, controlled: controlled.has(position.product.id) },
-      })),
+      items: page.items.map((position) => {
+        const detail = safety.get(position.product.id);
+        return {
+          ...position,
+          product: {
+            ...position.product,
+            controlled: detail?.controlled ?? false,
+            sdsKind: (detail?.sds_kind ?? null) as Product['sdsKind'],
+            sdsUrl: detail?.sds_url ?? null,
+          },
+        };
+      }),
     };
   });
 }
 
-/** Filtros de Movimientos (ADR 0014) sobre el ámbito dado: la ubicación elegida solo lo estrecha. */
+/** Filtros de Movimientos (ADR 0014) del espacio. */
 const operationFilter = (
   access: WorkspaceAccess,
-  locationIds: string[],
   query: z.infer<typeof operationFacetsQuery | typeof operationListQuery | typeof operationTotalsQuery>,
 ): OperationFilter => ({
-  locationIds,
   types: query.type,
   itemIds: query.productId,
   responsibleIds: query.responsibleId,
@@ -288,7 +288,7 @@ export function listOperations(
 ): Promise<OperationList> {
   return runQuery(pool, request, async (access) =>
     listOperationPage(inventoryContext(access), {
-      ...operationFilter(access, await permissionScope(access, READ), query),
+      ...operationFilter(access, query),
       cursor: query.cursor,
       limit: query.limit,
     }),
@@ -303,16 +303,13 @@ export function listOperationFacets(
 ): Promise<OperationFacets> {
   return runQuery(pool, request, async (access) =>
     operationFacetsOf(inventoryContext(access), {
-      ...operationFilter(access, await permissionScope(access, READ), query),
+      ...operationFilter(access, query),
       productQuery: query.productQuery,
     }),
   );
 }
 
-/**
- * Totales de Movimientos (ADR 0014): un reporte. Cubren las ubicaciones donde el miembro consulta y
- * además tiene el reporte; nunca más que su ámbito de consulta.
- */
+/** Totales de Movimientos (ADR 0014): un reporte; exige consultar y además tener el reporte. */
 export function listOperationTotals(
   pool: pg.Pool,
   request: QueryRequest,
@@ -320,10 +317,8 @@ export function listOperationTotals(
 ): Promise<OperationTotals> {
   return runQuery(pool, request, async (access) => {
     await requirePermission(access, REPORT);
-    const reportScope = new Set(await permissionScope(access, REPORT));
-    const locationIds = (await permissionScope(access, READ)).filter((id) => reportScope.has(id));
     return operationTotalsOf(inventoryContext(access), {
-      ...operationFilter(access, locationIds, query),
+      ...operationFilter(access, query),
       groupBy: query.groupBy,
     });
   });
@@ -331,25 +326,24 @@ export function listOperationTotals(
 
 /**
  * Tarjeta de Inicio (01 §7) y Resumen: reactivos y frascos con existencias, vencidos y por vencer,
- * solicitudes pendientes y los últimos movimientos, todo en las ubicaciones que el miembro consulta.
+ * solicitudes pendientes y los últimos movimientos del espacio. Quien la llama ya exigió la lectura
+ * (runQuery o la tarjeta de Inicio con el permiso del manifiesto).
  */
 export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<HomeContribution> {
-  const locationIds = await permissionScope(access, READ);
   const [row] = await homeSummary.run(
-    { workspaceId: access.workspace.id, locationIds, timeZone: access.workspace.timeZone, expiringDays: EXPIRING_DAYS },
+    { workspaceId: access.workspace.id, timeZone: access.workspace.timeZone, expiringDays: EXPIRING_DAYS },
     access.client,
   );
   const ctx = inventoryContext(access);
   // Seis: los que llenan la columna de actividad del Resumen en una ventana (ADR 0012, 05-10-2026).
-  const recent = await listOperationPage(ctx, { locationIds, timeZone: access.workspace.timeZone, limit: 6 });
+  const recent = await listOperationPage(ctx, { timeZone: access.workspace.timeZone, limit: 6 });
   const issues = await countOperationsPerDay(ctx, {
     type: 'issue',
-    locationIds,
     timeZone: access.workspace.timeZone,
     days: TREND_DAYS,
   });
   const scope = await requestScope(access);
-  const pendingRequests = await pendingRequestCount(ctx, { locationIds: scope.locationIds, requestedBy: scope.requestedBy });
+  const pendingRequests = scope ? await pendingRequestCount(ctx, { requestedBy: scope.requestedBy }) : 0;
   return {
     summary: {
       productsWithStock: Number(row?.products_with_stock ?? 0),
@@ -382,11 +376,11 @@ export function getSummary(pool: pg.Pool, request: QueryRequest): Promise<HomeCo
   return runQuery(pool, request, reagentsHomeSummary);
 }
 
-/** Ubicaciones donde el miembro tiene el permiso: la interfaz no ofrece las demás. */
+/** Ubicaciones activas del espacio si el miembro tiene el permiso; sin él, ninguna (ADR 0008). */
 function locationsWith(pool: pg.Pool, request: QueryRequest, permission: string): Promise<LocationList> {
   return runQuery(pool, request, async (access) => {
-    const scope = await permissionScope(access, permission);
-    const rows = await listLocationsIn.run({ workspaceId: access.workspace.id, locationIds: scope }, access.client);
+    if (!(await hasPermission(access, permission))) return { items: [] };
+    const rows = await listActiveLocations.run({ workspaceId: access.workspace.id }, access.client);
     return { items: rows.map(({ id, code, name, kind, parent_id }) => ({ id, code, name, kind, parentId: parent_id })) };
   });
 }

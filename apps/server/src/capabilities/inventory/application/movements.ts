@@ -25,10 +25,9 @@ const notFound = () => new AppError('NOT_FOUND', 'Recurso no encontrado');
 
 type OperationType = 'receipt' | 'issue' | 'adjustment' | 'transfer';
 
-/** Posición bloqueada para un movimiento: su ubicación decide el ámbito del permiso. */
+/** Posición bloqueada para un movimiento. */
 export interface LockedPosition {
   id: string;
-  locationId: string;
   baseUnit: string;
   movable: boolean;
 }
@@ -117,26 +116,22 @@ interface ReceiptInput {
   unit: string;
   /** Peso en g de un frasco lleno y la densidad para pasar el volumen a gramos (ADR 0015). */
   weight: { grossWeight: string; density: string | null } | null;
-  reference: string | null;
 }
 
 /**
  * Ingreso en un paso (ADR 0015): un lote nuevo del ítem y un frasco por código, en una operación con
- * un asiento por frasco. Valida la ubicación en el espacio; después de `authorize` (el módulo comprueba
- * su permiso en ella) abre el lote, que bloquea el ítem, calcula la tara si hay peso y crea cada frasco
- * con su posición llena. Un código repetido en el espacio no deja nada a medias: CODE_TAKEN.
+ * un asiento por frasco. Valida la ubicación en el espacio, abre el lote, que bloquea el ítem, calcula la
+ * tara si hay peso y crea cada frasco con su posición llena. Un código repetido en el espacio no deja nada a medias: CODE_TAKEN.
  */
 export async function receiveContainers(
   ctx: InventoryContext,
   input: ReceiptInput,
-  authorize: (locationId: string) => Promise<void>,
 ): Promise<ReceiptResult> {
   const [location] = await findLocation.run(
     { workspaceId: ctx.workspaceId, locationId: input.locationId },
     ctx.client,
   );
   if (!location) throw notFound();
-  await authorize(location.id);
 
   const lot = await openLot(ctx, input.itemId, input.lot);
   requireBaseUnit(input.unit, lot.item.baseUnit);
@@ -165,7 +160,8 @@ export async function receiveContainers(
       principalId: ctx.principalId,
       reason: null,
       destination: null,
-      reference: input.reference,
+      // El ingreso no lleva referencia (ADR 0016); la usan los ajustes por peso y los traslados.
+      reference: null,
       correlationId: ctx.correlationId,
       requestedBy: null,
     },
@@ -228,8 +224,7 @@ export interface TareResult {
 
 /**
  * Fija la tara de un frasco con su peso actual (ADR 0015): tara = peso − saldo pasado a gramos. Bloquea
- * en modo compartido sus posiciones, comprueba el permiso en la del saldo con `authorize` y guarda la
- * densidad usada: la enviada, la del frasco o `fallbackDensity` (la del ítem).
+ * en modo compartido sus posiciones y guarda la densidad usada: la enviada, la del frasco o `fallbackDensity` (la del ítem).
  */
 export async function setTare(
   ctx: InventoryContext,
@@ -240,14 +235,12 @@ export async function setTare(
     /** Densidad del ítem, si el frasco no tiene una; solo se pide cuando hace falta. */
     fallbackDensity: (itemId: string) => Promise<string | null>;
   },
-  authorize: (locationId: string) => Promise<void>,
 ): Promise<TareResult> {
   const [stock] = await lockContainerStock.run(
     { workspaceId: ctx.workspaceId, containerId: input.containerId, kind: ctx.kind },
     ctx.client,
   );
   if (!stock) throw notFound();
-  await authorize(stock.location_id);
   const weighed = await tareFor(ctx, {
     grossWeight: input.grossWeight,
     quantity: stock.balance,
@@ -297,7 +290,6 @@ export async function lockExistingPosition(ctx: InventoryContext, positionId: st
   if (!row) throw notFound();
   return {
     id: row.id,
-    locationId: row.location_id,
     baseUnit: row.base_unit,
     movable: row.disposition === 'usable',
   };
@@ -376,24 +368,21 @@ export interface TransferResult {
 
 /**
  * Traslado en un paso (ADR 0012, entrega 4): el frasco entero pasa a otra ubicación. Bloquea la
- * posición de origen, comprueba el permiso en el origen y en el destino, y escribe una operación con
+ * posición de origen, valida el destino en el espacio y escribe una operación con
  * dos asientos: primero vacía el origen y después llena el destino (un frasco tiene saldo en un solo
  * lugar). Un frasco vacío o con salidas pendientes no se traslada.
  */
 export async function transferContainer(
   ctx: InventoryContext,
   input: { positionId: string; locationId: string; reference: string | null },
-  authorize: (locationId: string) => Promise<void>,
 ): Promise<TransferResult> {
   const [origin] = await lockTransferPosition.run(
     { workspaceId: ctx.workspaceId, positionId: input.positionId, kind: ctx.kind },
     ctx.client,
   );
   if (!origin) throw notFound();
-  await authorize(origin.location_id);
   const [destination] = await findLocation.run({ workspaceId: ctx.workspaceId, locationId: input.locationId }, ctx.client);
   if (!destination) throw notFound();
-  await authorize(destination.id);
   if (!origin.container_id) throw new AppError('VALIDATION_FAILED', 'Solo se trasladan frascos');
   if (destination.id === origin.location_id) throw new AppError('VALIDATION_FAILED', 'El frasco ya está en esa ubicación');
   if (origin.balance === '0') throw new AppError('VALIDATION_FAILED', 'El frasco está vacío: no hay nada que trasladar');
@@ -464,11 +453,9 @@ export interface CountResult {
 export async function countLocation(
   ctx: InventoryContext,
   input: { locationId: string; lines: Array<{ positionId: string; expected: string; counted: string }> },
-  authorize: (locationId: string) => Promise<void>,
 ): Promise<CountResult> {
   const [location] = await findLocation.run({ workspaceId: ctx.workspaceId, locationId: input.locationId }, ctx.client);
   if (!location) throw notFound();
-  await authorize(location.id);
 
   const lines = [...input.lines].sort((a, b) => a.positionId.localeCompare(b.positionId));
   const checked = [];

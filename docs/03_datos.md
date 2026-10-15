@@ -59,7 +59,7 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 | `core.principals` | Actor humano (por su membresía) o de servicio; un `CHECK` impide mezclar ambos |
 | `core.invitations` | Email, hash del token, expiración, roles propuestos y estado; se canjea en una transacción |
 | `core.permissions`, `roles`, `role_permissions` | Catálogo global fijo, sincronizado desde los manifiestos |
-| `core.role_assignments` | Principal, rol y vigencia. Los roles valen para todo el espacio ([ADR 0008](05_decisiones.md#adr-0008), 05-10-2026): `location_id` queda nulo hasta retirarse |
+| `core.role_assignments` | Principal, rol y vigencia. Los roles valen para todo el espacio, sin ámbito por ubicación ([ADR 0008](05_decisiones.md#adr-0008)); una sola asignación abierta por principal y rol |
 | `core.locations` | Árbol por `parent_id`: sede, edificio, sala, almacén, custodia o tránsito |
 | `core.module_definitions`, `module_dependencies` | Registro global de módulos |
 | `core.workspace_entitlements` | Módulo, vigencia, estado operativo, contrato y revisión aplicada |
@@ -207,7 +207,7 @@ Reglas:
 - **Ingreso, salida y ajuste (R-00).** Bloquear la posición, validar el saldo y escribir juntos operación, asientos, saldo, auditoría e idempotencia. Con dos salidas de 60 g sobre 100 g, solo una confirma.
 - **Aprobar y reservar.**
   1. Bloquear la actividad y los recursos en orden estable.
-  2. Revalidar versión, estado, permisos del Administrador en todos los ámbitos, elegibilidad del solicitante y disponibilidad.
+  2. Revalidar versión, estado, permisos del Administrador, elegibilidad del solicitante y disponibilidad.
   3. Reservar y cambiar el estado juntos.
 - **Aceptar una propuesta.** Revalida todo. Si hay un conflicto de negocio, conserva `accepted_pending_review` sin reservas parciales mediante un savepoint.
 - **Preparar y entregar.** Pasar de almacén a custodia y resolver la reserva; la existencia institucional no cambia.

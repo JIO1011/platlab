@@ -5,7 +5,6 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Pendiente de verificar
 - **R-01A** · `impeccable audit` y `review-animations` formales, nunca ejecutados → ejecutarlos sobre `apps/web/src` y `packages/ui/src`. Deben cubrir también lo suelto de entregas anteriores: hover y foco, contraste del encabezado de la ficha, falta «Saltar al contenido», botones `sm` de 32 px en el móvil, radios de 6 px fuera de la escala, rótulos de las hojas de ingreso y nuevo reactivo, y capturas móviles nunca tomadas (día fijo de Movimientos, hoja de mínimo, selector de módulos, icono «gas», saldo largo)
 - **R-01A** · QR solo probado en Chromium; densidad medida solo en Chromium → imprimir una hoja adhesiva A4 de 3 × 8 y escanear con Android e iOS
-- **R-01A** · ámbito por ubicación (`location_id`) sigue en el código y en una prueba → retirarlo en una entrega aparte (docs/05, Pendientes)
 - **R-01A** · la hoja de ajuste abierta desde un frasco lo busca en la primera página de frascos → llevar el frasco en la petición, como salida y traslado
 - **R-01D** · inventario de más de 100 reactivos: la web carga solo la primera página → paginación o búsqueda en el servidor antes de G1 (docs/05, Pendientes)
 - **Rendimiento** · bloque principal > 500 kB (P2 desde el paso 5) → dividir por rutas antes del piloto
@@ -38,6 +37,8 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Registro
 | Fecha | Entrega | Commit | Veredicto | Pruebas | Nota |
 |---|---|---|---|---|---|
+| 2026-10-14 | Ámbito por ubicación retirado (ADR 0016, paso 2) | `2b913c7` | Cumple | unit 91 · pgTAP 224 · int 138 · e2e 24 | Sin cambios de UI ni de contrato; pgTAP y e2e del CI (run 38681271736), unit e int locales; primera entrega con «Quién implementa» del ADR 0013 |
+| 2026-10-14 | Mejoras pequeñas del ADR 0016 (ficha de seguridad en la salida, ruta en el historial, códigos sin palabras vacías) | `170cbb5` | Cumple | unit 91 · pgTAP 223 · int 139 · e2e 24 | Probado por el usuario en el navegador; primera entrega con etapas de cambios y cierre (ADR 0013); conteos del CI (run 38675089388) |
 | 2026-10-14 | Escáner QR, imprimir Movimientos y ficha final | `192361f` | Cumple | unit 90 · pgTAP 223 · int 136 · e2e 24 | Diseño aprobado; filtros sin scroll; ADR 0016; conteos del CI (run 38665227405) |
 | 2026-10-14 | «Nuevo reactivo», tarjeta del frasco y ficha (final) | `364b6bc` | Cumple | unit 87 · pgTAP 223 · int 136 · e2e 23 | Diseño aprobado por el usuario; ruta y quién ingresó en la API; conteos del CI (run 38639399270) |
 | 2026-10-13 | Ficha: resumen lateral y 3 frascos por fila | `019ec62` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 23 | Panel compacto fijo, tarjeta compacta con menú «⋯»; conteos del CI (run 38487126414) |

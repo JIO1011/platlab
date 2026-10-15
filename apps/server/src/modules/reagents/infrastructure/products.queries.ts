@@ -127,35 +127,38 @@ const updateProductDetailIR: any = {"usedParamSet":{"casNumber":true,"physicalSt
 export const updateProductDetail = new PreparedQuery<IUpdateProductDetailParams,IUpdateProductDetailResult>(updateProductDetailIR);
 
 
-/** 'ListControlled' parameters type */
-export interface IListControlledParams {
+/** 'ListProductSafety' parameters type */
+export interface IListProductSafetyParams {
   itemIds: stringArray;
   workspaceId: string;
 }
 
-/** 'ListControlled' return type */
-export interface IListControlledResult {
+/** 'ListProductSafety' return type */
+export interface IListProductSafetyResult {
+  controlled: boolean;
   item_id: string;
+  sds_kind: string | null;
+  sds_url: string | null;
 }
 
-/** 'ListControlled' query type */
-export interface IListControlledQuery {
-  params: IListControlledParams;
-  result: IListControlledResult;
+/** 'ListProductSafety' query type */
+export interface IListProductSafetyQuery {
+  params: IListProductSafetyParams;
+  result: IListProductSafetyResult;
 }
 
-const listControlledIR: any = {"usedParamSet":{"workspaceId":true,"itemIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":129,"b":141}]},{"name":"itemIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":162,"b":170}]}],"statement":"-- Qué reactivos son controlados (ADR 0015), para marcar sus frascos.\nSELECT item_id\nFROM reagents.products\nWHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]) AND controlled"};
+const listProductSafetyIR: any = {"usedParamSet":{"workspaceId":true,"itemIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":190,"b":202}]},{"name":"itemIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":223,"b":231}]}],"statement":"-- Marca de controlado (ADR 0015) y ficha de seguridad (ADR 0016) de los reactivos de unos frascos.\nSELECT item_id, controlled, sds_kind, sds_url\nFROM reagents.products\nWHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[])"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Qué reactivos son controlados (ADR 0015), para marcar sus frascos.
- * SELECT item_id
+ * -- Marca de controlado (ADR 0015) y ficha de seguridad (ADR 0016) de los reactivos de unos frascos.
+ * SELECT item_id, controlled, sds_kind, sds_url
  * FROM reagents.products
- * WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]) AND controlled
+ * WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[])
  * ```
  */
-export const listControlled = new PreparedQuery<IListControlledParams,IListControlledResult>(listControlledIR);
+export const listProductSafety = new PreparedQuery<IListProductSafetyParams,IListProductSafetyResult>(listProductSafetyIR);
 
 
 /** 'ListProducts' parameters type */
@@ -164,7 +167,6 @@ export interface IListProductsParams {
   afterId?: string | null | void;
   expiringDays: number;
   limit: NumberOrString;
-  locationIds: stringArray;
   productId?: string | null | void;
   q?: string | null | void;
   timeZone: string;
@@ -199,12 +201,12 @@ export interface IListProductsQuery {
   result: IListProductsResult;
 }
 
-const listProductsIR: any = {"usedParamSet":{"q":true,"locationIds":true,"timeZone":true,"expiringDays":true,"workspaceId":true,"productId":true,"afterId":true,"afterCode":true,"limit":true},"params":[{"name":"q","required":false,"transform":{"type":"scalar"},"locs":[{"a":469,"b":470}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":1203,"b":1215},{"a":1629,"b":1641},{"a":2010,"b":2022},{"a":2575,"b":2587}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":1697,"b":1706},{"a":2084,"b":2093},{"a":2153,"b":2162}]},{"name":"expiringDays","required":true,"transform":{"type":"scalar"},"locs":[{"a":2173,"b":2186}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2650,"b":2662}]},{"name":"productId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2724,"b":2733},{"a":2759,"b":2768}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2960,"b":2967},{"a":3029,"b":3036}]},{"name":"afterCode","required":false,"transform":{"type":"scalar"},"locs":[{"a":3011,"b":3020}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":3081,"b":3087}]}],"statement":"-- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.\n-- Con :q, solo los reactivos cuyo nombre, código o CAS lo contienen, plegados con inventory.fold_text\n-- (código y CAS son ASCII por su CHECK). `\\`, `%` y `_` se escapan con `\\` (el escape por omisión de\n-- LIKE; chr(92), porque PgTyped no admite `\\` en un literal) y cuentan como texto.\nWITH search AS (\n  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),\n           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern\n)\nSELECT\n  i.id,\n  i.code,\n  i.name,\n  i.base_unit,\n  r.cas_number,\n  r.physical_state,\n  r.hazards,\n  r.controlled,\n  r.sds_kind,\n  r.sds_url,\n  trim_scale(r.density) AS density,\n  trim_scale(i.minimum_quantity) AS minimum,\n  stock.balance AS \"balance!\",\n  -- Bajo mínimo (ADR 0012, 05-10-2026): existencia física, con los vencidos y lo apartado.\n  (i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity) AS \"below_minimum!\",\n  (SELECT count(*)\n     FROM inventory.positions AS p\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND p.location_id = ANY (:locationIds!::uuid[]))::int AS \"containers_with_stock!\",\n  -- Avisos de caducidad (ADR 0012, 05-10-2026): frascos con saldo; «hoy» es la fecha civil del espacio.\n  (SELECT count(*)\n     FROM inventory.positions AS p\n     JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND p.location_id = ANY (:locationIds!::uuid[])\n      AND l.expires_on < (now() AT TIME ZONE :timeZone!)::date)::int AS \"expired_containers!\",\n  (SELECT count(*)\n     FROM inventory.positions AS p\n     JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND p.location_id = ANY (:locationIds!::uuid[])\n      AND l.expires_on BETWEEN (now() AT TIME ZONE :timeZone!)::date\n                           AND (now() AT TIME ZONE :timeZone!)::date + :expiringDays!::int)::int AS \"expiring_containers!\",\n  lower(i.code) AS \"sort_code!\"\nFROM inventory.items AS i\nJOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id\nCROSS JOIN LATERAL (\n  SELECT trim_scale(coalesce(sum(p.balance), 0)) AS balance\n  FROM inventory.positions AS p\n  WHERE p.workspace_id = i.workspace_id\n    AND p.item_id = i.id\n    AND p.location_id = ANY (:locationIds!::uuid[])\n) AS stock\nCROSS JOIN search\nWHERE i.workspace_id = :workspaceId!\n  AND i.kind = 'reagent'\n  AND i.archived_at IS NULL\n  AND (:productId::uuid IS NULL OR i.id = :productId::uuid)\n  AND (search.pattern IS NULL\n       OR inventory.fold_text(i.name) LIKE search.pattern\n       OR lower(i.code) LIKE search.pattern\n       OR r.cas_number LIKE search.pattern)\n  AND (:afterId::uuid IS NULL OR (lower(i.code), i.id) > (:afterCode::text, :afterId::uuid))\nORDER BY lower(i.code), i.id\nLIMIT :limit!"};
+const listProductsIR: any = {"usedParamSet":{"q":true,"timeZone":true,"expiringDays":true,"workspaceId":true,"productId":true,"afterId":true,"afterCode":true,"limit":true},"params":[{"name":"q","required":false,"transform":{"type":"scalar"},"locs":[{"a":444,"b":445}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":1564,"b":1573},{"a":1897,"b":1906},{"a":1966,"b":1975}]},{"name":"expiringDays","required":true,"transform":{"type":"scalar"},"locs":[{"a":1986,"b":1999}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2411,"b":2423}]},{"name":"productId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2485,"b":2494},{"a":2520,"b":2529}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2721,"b":2728},{"a":2790,"b":2797}]},{"name":"afterCode","required":false,"transform":{"type":"scalar"},"locs":[{"a":2772,"b":2781}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":2842,"b":2848}]}],"statement":"-- Con el total del espacio: suma exacta en numeric de todas sus ubicaciones.\n-- Con :q, solo los reactivos cuyo nombre, código o CAS lo contienen, plegados con inventory.fold_text\n-- (código y CAS son ASCII por su CHECK). `\\`, `%` y `_` se escapan con `\\` (el escape por omisión de\n-- LIKE; chr(92), porque PgTyped no admite `\\` en un literal) y cuentan como texto.\nWITH search AS (\n  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),\n           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern\n)\nSELECT\n  i.id,\n  i.code,\n  i.name,\n  i.base_unit,\n  r.cas_number,\n  r.physical_state,\n  r.hazards,\n  r.controlled,\n  r.sds_kind,\n  r.sds_url,\n  trim_scale(r.density) AS density,\n  trim_scale(i.minimum_quantity) AS minimum,\n  stock.balance AS \"balance!\",\n  -- Bajo mínimo (ADR 0012, 05-10-2026): existencia física, con los vencidos y lo apartado.\n  (i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity) AS \"below_minimum!\",\n  (SELECT count(*)\n     FROM inventory.positions AS p\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0)::int AS \"containers_with_stock!\",\n  -- Avisos de caducidad (ADR 0012, 05-10-2026): frascos con saldo; «hoy» es la fecha civil del espacio.\n  (SELECT count(*)\n     FROM inventory.positions AS p\n     JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND l.expires_on < (now() AT TIME ZONE :timeZone!)::date)::int AS \"expired_containers!\",\n  (SELECT count(*)\n     FROM inventory.positions AS p\n     JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n    WHERE p.workspace_id = i.workspace_id\n      AND p.item_id = i.id\n      AND p.balance > 0\n      AND l.expires_on BETWEEN (now() AT TIME ZONE :timeZone!)::date\n                           AND (now() AT TIME ZONE :timeZone!)::date + :expiringDays!::int)::int AS \"expiring_containers!\",\n  lower(i.code) AS \"sort_code!\"\nFROM inventory.items AS i\nJOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id\nCROSS JOIN LATERAL (\n  SELECT trim_scale(coalesce(sum(p.balance), 0)) AS balance\n  FROM inventory.positions AS p\n  WHERE p.workspace_id = i.workspace_id\n    AND p.item_id = i.id\n) AS stock\nCROSS JOIN search\nWHERE i.workspace_id = :workspaceId!\n  AND i.kind = 'reagent'\n  AND i.archived_at IS NULL\n  AND (:productId::uuid IS NULL OR i.id = :productId::uuid)\n  AND (search.pattern IS NULL\n       OR inventory.fold_text(i.name) LIKE search.pattern\n       OR lower(i.code) LIKE search.pattern\n       OR r.cas_number LIKE search.pattern)\n  AND (:afterId::uuid IS NULL OR (lower(i.code), i.id) > (:afterCode::text, :afterId::uuid))\nORDER BY lower(i.code), i.id\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.
+ * -- Con el total del espacio: suma exacta en numeric de todas sus ubicaciones.
  * -- Con :q, solo los reactivos cuyo nombre, código o CAS lo contienen, plegados con inventory.fold_text
  * -- (código y CAS son ASCII por su CHECK). `\`, `%` y `_` se escapan con `\` (el escape por omisión de
  * -- LIKE; chr(92), porque PgTyped no admite `\` en un literal) y cuentan como texto.
@@ -232,8 +234,7 @@ const listProductsIR: any = {"usedParamSet":{"q":true,"locationIds":true,"timeZo
  *      FROM inventory.positions AS p
  *     WHERE p.workspace_id = i.workspace_id
  *       AND p.item_id = i.id
- *       AND p.balance > 0
- *       AND p.location_id = ANY (:locationIds!::uuid[]))::int AS "containers_with_stock!",
+ *       AND p.balance > 0)::int AS "containers_with_stock!",
  *   -- Avisos de caducidad (ADR 0012, 05-10-2026): frascos con saldo; «hoy» es la fecha civil del espacio.
  *   (SELECT count(*)
  *      FROM inventory.positions AS p
@@ -241,7 +242,6 @@ const listProductsIR: any = {"usedParamSet":{"q":true,"locationIds":true,"timeZo
  *     WHERE p.workspace_id = i.workspace_id
  *       AND p.item_id = i.id
  *       AND p.balance > 0
- *       AND p.location_id = ANY (:locationIds!::uuid[])
  *       AND l.expires_on < (now() AT TIME ZONE :timeZone!)::date)::int AS "expired_containers!",
  *   (SELECT count(*)
  *      FROM inventory.positions AS p
@@ -249,7 +249,6 @@ const listProductsIR: any = {"usedParamSet":{"q":true,"locationIds":true,"timeZo
  *     WHERE p.workspace_id = i.workspace_id
  *       AND p.item_id = i.id
  *       AND p.balance > 0
- *       AND p.location_id = ANY (:locationIds!::uuid[])
  *       AND l.expires_on BETWEEN (now() AT TIME ZONE :timeZone!)::date
  *                            AND (now() AT TIME ZONE :timeZone!)::date + :expiringDays!::int)::int AS "expiring_containers!",
  *   lower(i.code) AS "sort_code!"
@@ -260,7 +259,6 @@ const listProductsIR: any = {"usedParamSet":{"q":true,"locationIds":true,"timeZo
  *   FROM inventory.positions AS p
  *   WHERE p.workspace_id = i.workspace_id
  *     AND p.item_id = i.id
- *     AND p.location_id = ANY (:locationIds!::uuid[])
  * ) AS stock
  * CROSS JOIN search
  * WHERE i.workspace_id = :workspaceId!
@@ -282,7 +280,6 @@ export const listProducts = new PreparedQuery<IListProductsParams,IListProductsR
 /** 'HomeSummary' parameters type */
 export interface IHomeSummaryParams {
   expiringDays: number;
-  locationIds: stringArray;
   timeZone: string;
   workspaceId: string;
 }
@@ -303,13 +300,12 @@ export interface IHomeSummaryQuery {
   result: IHomeSummaryResult;
 }
 
-const homeSummaryIR: any = {"usedParamSet":{"workspaceId":true,"locationIds":true,"timeZone":true,"expiringDays":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":672,"b":684},{"a":1195,"b":1207}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":764,"b":776},{"a":1107,"b":1119}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":830,"b":839}]},{"name":"expiringDays","required":true,"transform":{"type":"scalar"},"locs":[{"a":1650,"b":1663}]}],"statement":"-- Contadores del Resumen y de la tarjeta de Inicio: inventario que el miembro puede consultar, no\n-- filas del catálogo. Vencido y por vencer (ADR 0012, 05-10-2026): frascos con saldo, con «hoy» en\n-- la fecha civil del espacio; por vencer incluye hoy y los próximos :expiringDays días (02 §12).\n-- Bajo mínimo: reactivos activos con mínimo cuya existencia física es menor (ADR 0012, 05-10-2026).\nWITH stocked AS (\n  SELECT p.item_id, l.expires_on\n  FROM inventory.positions AS p\n  JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\n  JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n  WHERE p.workspace_id = :workspaceId!\n    AND i.kind = 'reagent'\n    AND p.balance > 0\n    AND p.location_id = ANY (:locationIds!::uuid[])\n), today AS (\n  SELECT (now() AT TIME ZONE :timeZone!)::date AS d\n), minimums AS (\n  SELECT i.minimum_quantity,\n         (SELECT coalesce(sum(p.balance), 0)\n            FROM inventory.positions AS p\n           WHERE p.workspace_id = i.workspace_id\n             AND p.item_id = i.id\n             AND p.location_id = ANY (:locationIds!::uuid[])) AS balance\n  FROM inventory.items AS i\n  WHERE i.workspace_id = :workspaceId!\n    AND i.kind = 'reagent'\n    AND i.archived_at IS NULL\n    AND i.minimum_quantity IS NOT NULL\n)\nSELECT\n  (SELECT count(DISTINCT item_id) FROM stocked) AS \"products_with_stock!\",\n  (SELECT count(*) FROM stocked) AS \"containers_with_stock!\",\n  (SELECT count(*) FROM stocked, today WHERE stocked.expires_on < today.d) AS \"expired_containers!\",\n  (SELECT count(*) FROM stocked, today\n    WHERE stocked.expires_on BETWEEN today.d AND today.d + :expiringDays!::int) AS \"expiring_containers!\",\n  (SELECT count(*) FROM minimums WHERE balance < minimum_quantity) AS \"below_minimum!\",\n  (SELECT count(*) FROM minimums) AS \"products_with_minimum!\""};
+const homeSummaryIR: any = {"usedParamSet":{"workspaceId":true,"timeZone":true,"expiringDays":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":650,"b":662},{"a":1060,"b":1072}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":756,"b":765}]},{"name":"expiringDays","required":true,"transform":{"type":"scalar"},"locs":[{"a":1515,"b":1528}]}],"statement":"-- Contadores del Resumen y de la tarjeta de Inicio: inventario del espacio, no filas del catálogo. Vencido y por vencer (ADR 0012, 05-10-2026): frascos con saldo, con «hoy» en\n-- la fecha civil del espacio; por vencer incluye hoy y los próximos :expiringDays días (02 §12).\n-- Bajo mínimo: reactivos activos con mínimo cuya existencia física es menor (ADR 0012, 05-10-2026).\nWITH stocked AS (\n  SELECT p.item_id, l.expires_on\n  FROM inventory.positions AS p\n  JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\n  JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n  WHERE p.workspace_id = :workspaceId!\n    AND i.kind = 'reagent'\n    AND p.balance > 0\n), today AS (\n  SELECT (now() AT TIME ZONE :timeZone!)::date AS d\n), minimums AS (\n  SELECT i.minimum_quantity,\n         (SELECT coalesce(sum(p.balance), 0)\n            FROM inventory.positions AS p\n           WHERE p.workspace_id = i.workspace_id\n             AND p.item_id = i.id) AS balance\n  FROM inventory.items AS i\n  WHERE i.workspace_id = :workspaceId!\n    AND i.kind = 'reagent'\n    AND i.archived_at IS NULL\n    AND i.minimum_quantity IS NOT NULL\n)\nSELECT\n  (SELECT count(DISTINCT item_id) FROM stocked) AS \"products_with_stock!\",\n  (SELECT count(*) FROM stocked) AS \"containers_with_stock!\",\n  (SELECT count(*) FROM stocked, today WHERE stocked.expires_on < today.d) AS \"expired_containers!\",\n  (SELECT count(*) FROM stocked, today\n    WHERE stocked.expires_on BETWEEN today.d AND today.d + :expiringDays!::int) AS \"expiring_containers!\",\n  (SELECT count(*) FROM minimums WHERE balance < minimum_quantity) AS \"below_minimum!\",\n  (SELECT count(*) FROM minimums) AS \"products_with_minimum!\""};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Contadores del Resumen y de la tarjeta de Inicio: inventario que el miembro puede consultar, no
- * -- filas del catálogo. Vencido y por vencer (ADR 0012, 05-10-2026): frascos con saldo, con «hoy» en
+ * -- Contadores del Resumen y de la tarjeta de Inicio: inventario del espacio, no filas del catálogo. Vencido y por vencer (ADR 0012, 05-10-2026): frascos con saldo, con «hoy» en
  * -- la fecha civil del espacio; por vencer incluye hoy y los próximos :expiringDays días (02 §12).
  * -- Bajo mínimo: reactivos activos con mínimo cuya existencia física es menor (ADR 0012, 05-10-2026).
  * WITH stocked AS (
@@ -320,7 +316,6 @@ const homeSummaryIR: any = {"usedParamSet":{"workspaceId":true,"locationIds":tru
  *   WHERE p.workspace_id = :workspaceId!
  *     AND i.kind = 'reagent'
  *     AND p.balance > 0
- *     AND p.location_id = ANY (:locationIds!::uuid[])
  * ), today AS (
  *   SELECT (now() AT TIME ZONE :timeZone!)::date AS d
  * ), minimums AS (
@@ -328,8 +323,7 @@ const homeSummaryIR: any = {"usedParamSet":{"workspaceId":true,"locationIds":tru
  *          (SELECT coalesce(sum(p.balance), 0)
  *             FROM inventory.positions AS p
  *            WHERE p.workspace_id = i.workspace_id
- *              AND p.item_id = i.id
- *              AND p.location_id = ANY (:locationIds!::uuid[])) AS balance
+ *              AND p.item_id = i.id) AS balance
  *   FROM inventory.items AS i
  *   WHERE i.workspace_id = :workspaceId!
  *     AND i.kind = 'reagent'
@@ -349,14 +343,13 @@ const homeSummaryIR: any = {"usedParamSet":{"workspaceId":true,"locationIds":tru
 export const homeSummary = new PreparedQuery<IHomeSummaryParams,IHomeSummaryResult>(homeSummaryIR);
 
 
-/** 'ListLocationsIn' parameters type */
-export interface IListLocationsInParams {
-  locationIds: stringArray;
+/** 'ListActiveLocations' parameters type */
+export interface IListActiveLocationsParams {
   workspaceId: string;
 }
 
-/** 'ListLocationsIn' return type */
-export interface IListLocationsInResult {
+/** 'ListActiveLocations' return type */
+export interface IListActiveLocationsResult {
   code: string;
   id: string;
   kind: string;
@@ -364,13 +357,13 @@ export interface IListLocationsInResult {
   parent_id: string | null;
 }
 
-/** 'ListLocationsIn' query type */
-export interface IListLocationsInQuery {
-  params: IListLocationsInParams;
-  result: IListLocationsInResult;
+/** 'ListActiveLocations' query type */
+export interface IListActiveLocationsQuery {
+  params: IListActiveLocationsParams;
+  result: IListActiveLocationsResult;
 }
 
-const listLocationsInIR: any = {"usedParamSet":{"workspaceId":true,"locationIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":80,"b":92}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":110,"b":122}]}],"statement":"SELECT id, code, name, kind, parent_id\nFROM core.locations\nWHERE workspace_id = :workspaceId!\n  AND id = ANY (:locationIds!::uuid[])\n  AND archived_at IS NULL\nORDER BY lower(code), id"};
+const listActiveLocationsIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":80,"b":92}]}],"statement":"SELECT id, code, name, kind, parent_id\nFROM core.locations\nWHERE workspace_id = :workspaceId!\n  AND archived_at IS NULL\nORDER BY lower(code), id"};
 
 /**
  * Query generated from SQL:
@@ -378,11 +371,10 @@ const listLocationsInIR: any = {"usedParamSet":{"workspaceId":true,"locationIds"
  * SELECT id, code, name, kind, parent_id
  * FROM core.locations
  * WHERE workspace_id = :workspaceId!
- *   AND id = ANY (:locationIds!::uuid[])
  *   AND archived_at IS NULL
  * ORDER BY lower(code), id
  * ```
  */
-export const listLocationsIn = new PreparedQuery<IListLocationsInParams,IListLocationsInResult>(listLocationsInIR);
+export const listActiveLocations = new PreparedQuery<IListActiveLocationsParams,IListActiveLocationsResult>(listActiveLocationsIR);
 
 

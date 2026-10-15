@@ -120,7 +120,7 @@ Un módulo nuevo no modifica tablas de otros módulos. Se integra por su interfa
 
 Cuatro barreras independientes:
 
-1. **API.** JWT verificado por JWKS → membresía vigente en el espacio → derecho del módulo → permiso y ámbito → reglas del recurso. El `workspaceId` de la URL solo selecciona el espacio; no autoriza.
+1. **API.** JWT verificado por JWKS → membresía vigente en el espacio → derecho del módulo → permiso en el espacio → reglas del recurso. El `workspaceId` de la URL solo selecciona el espacio; no autoriza.
 2. **Esquema.** `workspace_id NOT NULL` en toda tabla institucional. `UNIQUE (workspace_id, id)` y las FKs compuestas impiden referenciar filas de otro espacio.
 3. **RLS.** El runtime usa un rol sin propiedad de tablas ni `BYPASSRLS`, con contexto local en cada transacción. Los esquemas de dominio no se exponen por la Data API.
 4. **Periferia.** Archivos (`<workspace_id>/<documento>/<versión>`), trabajos, exportaciones, caché del navegador y logs llevan el espacio.
@@ -130,7 +130,7 @@ Cada comando sigue estos pasos:
 1. Verificar el JWT y validar la entrada.
 2. Tomar un `PoolClient` y abrir la transacción con el rol de la API.
 3. Fijar actor y espacio con `set_config(..., true)`.
-4. Pasar la admisión leyendo con bloqueo compartido el espacio, el derecho del módulo dueño del recurso y la membresía (§6). Comprobar permiso y ámbito, y reclamar la clave de idempotencia.
+4. Pasar la admisión leyendo con bloqueo compartido el espacio, el derecho del módulo dueño del recurso y la membresía (§6). Comprobar el permiso y reclamar la clave de idempotencia.
 5. Bloquear los datos del dominio en orden estable y escribir negocio, auditoría, idempotencia y outbox. Confirmar o revertir todo.
 
 Nunca se usa `pool.query` a mitad de una transacción.
@@ -144,9 +144,9 @@ Pruebas obligatorias:
 
 ## 6. Autorización, etapas y admisión
 
-Una operación nueva exige **etapa del módulo admitida + derecho vigente + estado operativo + dependencias + permiso + ámbito + reglas del recurso**.
+Una operación nueva exige **etapa del módulo admitida + derecho vigente + estado operativo + dependencias + permiso + reglas del recurso**.
 
-- **Roles.** Catálogo fijo y versionado en código, sincronizado a SQL por migración, con asignaciones por espacio y ámbito ([01 §5](01_producto.md#5-actores-y-roles)). No hay editor de roles personalizados.
+- **Roles.** Catálogo fijo y versionado en código, sincronizado a SQL por migración, con asignaciones por espacio, sin ámbito por ubicación ([01 §5](01_producto.md#5-actores-y-roles)). No hay editor de roles personalizados.
 - **Derechos.** Solo el comando `apply_contract_revision` del Equipo PlatLab los crea o cambia, junto con los límites, en una transacción auditada.
 - **Estados del módulo en un espacio:** `disabled → enabled → draining → read_only`. Reactivar desde consulta es un comando administrativo.
 
@@ -190,7 +190,7 @@ Ejemplos:
 Reglas:
 
 - **Módulo evaluado.** Es el dueño del recurso, no la capacidad. Una salida de un ítem de Reactivos usa el eje de Reactivos aunque la solicite Prácticas; así se pueden cerrar custodias existentes mientras Reactivos admita resolver pendientes.
-- **Otras comprobaciones.** Además de los dos ejes se exigen identidad válida, membresía vigente, permiso y ámbito. La continuidad comercial nunca devuelve el acceso a un usuario revocado.
+- **Otras comprobaciones.** Además de los dos ejes se exigen identidad válida, membresía vigente y permiso. La continuidad comercial nunca devuelve el acceso a un usuario revocado.
 - **La expiración** bloquea operaciones nuevas en cada petición, aunque el estado siga en `enabled`.
 - **Fin del periodo de cierre.** Los pendientes que queden se entregan documentados en la exportación. Reabrir el cierre exige una autorización explícita.
 - **`terminated`:** solo actúa el procedimiento de disposición ([§11](#11-datos-reales-y-salida-del-cliente)).

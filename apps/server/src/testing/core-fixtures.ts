@@ -34,7 +34,6 @@ type ContractKind = 'demo' | 'pilot' | 'standard';
 
 export interface RoleGrant {
   role: string;
-  locationId?: string | null;
   validFrom?: string;
   validUntil?: string | null;
   revoked?: boolean;
@@ -72,13 +71,12 @@ export async function addMember(
   for (const grant of options.roles ?? []) {
     await admin.query(
       `insert into core.role_assignments
-         (workspace_id, principal_id, role_code, location_id, valid_from, valid_until, revoked_at)
-       values ($1, $2, $3, $4, coalesce($5::timestamptz, now()), $6, case when $7 then now() end)`,
+         (workspace_id, principal_id, role_code, valid_from, valid_until, revoked_at)
+       values ($1, $2, $3, coalesce($4::timestamptz, now()), $5, case when $6 then now() end)`,
       [
         workspaceId,
         principalId,
         grant.role,
-        grant.locationId ?? null,
         grant.validFrom ?? null,
         grant.validUntil ?? null,
         grant.revoked ?? false,

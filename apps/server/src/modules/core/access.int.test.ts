@@ -14,7 +14,7 @@ import {
   type Workspace,
 } from '../../testing/core-fixtures.js';
 import { createTestSigner } from '../../testing/tokens.js';
-import { hasPermissionAt, withWorkspaceAccess } from './index.js';
+import { hasPermission, requirePermission, withWorkspaceAccess } from './index.js';
 
 /**
  * T-02/T-03 contra la base local, con el rol de runtime (requiere `pnpm db:start`).
@@ -31,17 +31,13 @@ const signer = await createTestSigner();
 const app = buildApp({ pool, verifyToken: signer.verifier });
 
 const permission = 'reagents.catalog.read';
+const adminPermission = 'reagents.report.read';
 
 let a: Workspace;
 let b: Workspace;
 let provisioning: Workspace;
-let shared: Member; // Administrador de todo A y Operador con ámbito en B
-let operatorA: Member; // Operador solo en el laboratorio 1 de A
-let siteA: string;
-let lab1A: string;
-let storeA: string;
-let lab2A: string;
-let siteB: string;
+let shared: Member; // Administrador en A y Operador en B
+let operatorA: Member; // Operador en A
 
 async function get(url: string, subject: string) {
   return app.inject({
@@ -58,20 +54,14 @@ beforeAll(async () => {
   a = await seedWorkspace(admin, { modules: ['reagents'] });
   b = await seedWorkspace(admin, { modules: ['reagents'] });
   provisioning = await seedWorkspace(admin, { status: 'provisioning' });
-
-  siteA = await addLocation(admin, a.id, { kind: 'site' });
-  lab1A = await addLocation(admin, a.id, { kind: 'room', parentId: siteA });
-  storeA = await addLocation(admin, a.id, { kind: 'storage', parentId: lab1A });
-  lab2A = await addLocation(admin, a.id, { kind: 'room', parentId: siteA });
-  siteB = await addLocation(admin, b.id, { kind: 'site' });
+  // Una sede en cada espacio para comprobar que el contexto no se transfiere entre peticiones.
+  await addLocation(admin, a.id, { kind: 'site' });
+  await addLocation(admin, b.id, { kind: 'site' });
 
   const sharedSubject = `sub-shared-${uniqueSuffix()}`;
   shared = await addMember(admin, a.id, { subject: sharedSubject, roles: [{ role: 'admin' }] });
-  await addMember(admin, b.id, {
-    subject: sharedSubject,
-    roles: [{ role: 'operator', locationId: siteB }],
-  });
-  operatorA = await addMember(admin, a.id, { roles: [{ role: 'operator', locationId: lab1A }] });
+  await addMember(admin, b.id, { subject: sharedSubject, roles: [{ role: 'operator' }] });
+  operatorA = await addMember(admin, a.id, { roles: [{ role: 'operator' }] });
 });
 
 afterAll(async () => {
@@ -216,39 +206,34 @@ describe('GET /v1/workspaces/:workspaceId/me', () => {
   });
 });
 
-describe('roles con ámbito', () => {
-  it('un rol con ámbito aplica en su ubicación y su descendencia, no en el resto', async () => {
-    const allowed = await access(operatorA.subject, a.id, async (ctx) => ({
-      lab1: await hasPermissionAt(ctx, permission, lab1A),
-      store: await hasPermissionAt(ctx, permission, storeA),
-      site: await hasPermissionAt(ctx, permission, siteA),
-      lab2: await hasPermissionAt(ctx, permission, lab2A),
-    }));
-    expect(allowed).toEqual({ lab1: true, store: true, site: false, lab2: false });
-  });
-
-  it('un rol de todo el espacio aplica en cualquier ubicación del espacio', async () => {
+describe('permisos del rol en el espacio', () => {
+  it('un rol vigente da sus permisos y solo los suyos', async () => {
+    const result = await access(operatorA.subject, a.id, async (ctx) => {
+      await requirePermission(ctx, permission);
+      return { own: await hasPermission(ctx, permission), other: await hasPermission(ctx, adminPermission) };
+    });
+    expect(result).toEqual({ own: true, other: false });
     await expect(
-      access(shared.subject, a.id, (ctx) => hasPermissionAt(ctx, permission, lab2A)),
-    ).resolves.toBe(true);
+      access(operatorA.subject, a.id, (ctx) => requirePermission(ctx, adminPermission)),
+    ).rejects.toMatchObject({ code: 'ACCESS_DENIED' });
   });
 
-  it('la misma identidad tiene en B solo el rol y el ámbito de B', async () => {
-    const result = await access(shared.subject, b.id, async (ctx) => ({
-      siteB: await hasPermissionAt(ctx, permission, siteB),
-      locationOfA: await hasPermissionAt(ctx, permission, storeA),
+  it('la misma identidad tiene en cada espacio solo los permisos del rol que tiene allí', async () => {
+    await expect(access(shared.subject, a.id, (ctx) => hasPermission(ctx, adminPermission))).resolves.toBe(true);
+    const inB = await access(shared.subject, b.id, async (ctx) => ({
+      own: await hasPermission(ctx, permission),
+      fromA: await hasPermission(ctx, adminPermission),
     }));
-    expect(result).toEqual({ siteB: true, locationOfA: false });
+    expect(inB).toEqual({ own: true, fromA: false });
   });
 
-  it('el propietario tiene los permisos en todas las ubicaciones; un miembro sin rol, en ninguna', async () => {
-    await expect(
-      access(a.owner.subject, a.id, (ctx) => hasPermissionAt(ctx, permission, storeA)),
-    ).resolves.toBe(true);
+  it('el propietario tiene los permisos del Administrador; un miembro sin rol, ninguno', async () => {
+    await expect(access(a.owner.subject, a.id, (ctx) => hasPermission(ctx, adminPermission))).resolves.toBe(true);
     const member = await addMember(admin, a.id);
+    await expect(access(member.subject, a.id, (ctx) => hasPermission(ctx, permission))).resolves.toBe(false);
     await expect(
-      access(member.subject, a.id, (ctx) => hasPermissionAt(ctx, permission, siteA)),
-    ).resolves.toBe(false);
+      access(member.subject, a.id, (ctx) => requirePermission(ctx, permission)),
+    ).rejects.toMatchObject({ code: 'ACCESS_DENIED' });
   });
 
   it('ignora asignaciones revocadas, vencidas o todavía no vigentes', async () => {
@@ -262,9 +247,7 @@ describe('roles con ámbito', () => {
       ].map(async (grant) => (await addMember(admin, a.id, { roles: [grant] })).subject),
     );
     for (const subject of subjects) {
-      await expect(
-        access(subject, a.id, (ctx) => hasPermissionAt(ctx, permission, siteA)),
-      ).resolves.toBe(false);
+      await expect(access(subject, a.id, (ctx) => hasPermission(ctx, permission))).resolves.toBe(false);
       const body = workspaceMeResponse.parse((await get(`/v1/workspaces/${a.id}/me`, subject)).json());
       expect(body.permissions).toEqual([]);
     }

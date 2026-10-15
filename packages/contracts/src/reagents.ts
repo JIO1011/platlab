@@ -173,7 +173,6 @@ export const receiptRequest = z
     area: text(200).nullish(),
     locationId: z.uuid(),
     weight: z.object({ grossWeight: positiveQuantity, density: positiveQuantity.nullish() }).strict().nullish(),
-    reference: text(200).nullish(),
   })
   .strict()
   .refine((value) => (value.productId === undefined) !== (value.newProduct === undefined), {
@@ -421,7 +420,15 @@ export const operationTotalsQuery = periodRules(z.object({ ...operationFilterFie
 /** Posición: un frasco (ADR 0012) en una ubicación; `container` es null solo en datos sin frasco. */
 export const position = z.object({
   id: z.uuid(),
-  product: z.object({ id: z.uuid(), code: z.string(), name: z.string(), controlled: z.boolean() }),
+  product: z.object({
+    id: z.uuid(),
+    code: z.string(),
+    name: z.string(),
+    controlled: z.boolean(),
+    /** Ficha de seguridad del reactivo (ADR 0016), para consultarla al entregar. */
+    sdsKind: sdsKind.nullable(),
+    sdsUrl: z.string().nullable(),
+  }),
   lot: z.object({
     id: z.uuid(),
     code: z.string(),
@@ -468,7 +475,8 @@ export const operation = z.object({
   product: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
   lot: z.object({ code: z.string() }),
   container: z.object({ code: z.string() }).nullable(),
-  location: z.object({ code: z.string() }),
+  /** `path`, como en `position`: nombres desde el primer nivel bajo la sede; la sede, solo si es ella. */
+  location: z.object({ code: z.string(), name: z.string(), path: z.array(z.string()) }),
   quantity: decimalString,
   balanceAfter: decimalString,
   unit: z.string(),
