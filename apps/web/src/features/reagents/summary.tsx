@@ -1,6 +1,7 @@
 import { Skeleton, StatCard, type StatCardProps } from '@platlab/ui';
 import {
   ArrowRight,
+  PackagePlus,
   CalendarClock,
   CalendarX,
   CircleCheck,
@@ -14,7 +15,7 @@ import { ActivityRow } from '../../app/activity-row';
 import { ModuleMark } from '../../app/module-mark';
 import { QueryErrorState } from '../../app/states';
 import { TrendChart } from '../../app/trend-chart';
-import { useReagents, type SheetRequest } from './context';
+import { useReagents, type Allowed, type SheetRequest } from './context';
 
 /** Indicador del Resumen que abre la lista que lo explica (ADR 0011): el enlace envuelve la tarjeta. */
 function StatLink({ to, ...stat }: { to: string } & StatCardProps) {
@@ -27,11 +28,10 @@ function StatLink({ to, ...stat }: { to: string } & StatCardProps) {
 
 /**
  * Acción rápida (ADR 0010, 04-10-2026) en banda compacta (ADR 0012, 05-10-2026): el degradado del
- * acento con «Escanear» (14-10-2026), debajo de los indicadores para no empujar los datos. Abre la hoja
- * del lector de etiquetas QR; el ingreso y la salida se registran desde Inventario y la ficha de cada
- * reactivo. Lo puede usar quien lee Reactivos.
+ * acento con las acciones de ingreso y salida, debajo de los indicadores para no empujar los datos.
+ * Sustituye a las acciones de la cabecera en el Resumen: sus botones son la acción primaria.
  */
-function QuickActions({ openSheet }: { openSheet: (request: SheetRequest) => void }) {
+function QuickActions({ allowed, openSheet }: { allowed: Allowed; openSheet: (request: SheetRequest) => void }) {
   return (
     <section
       aria-labelledby="acciones-rapidas"
@@ -42,7 +42,7 @@ function QuickActions({ openSheet }: { openSheet: (request: SheetRequest) => voi
         <div className="min-w-0 max-w-xl">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <h2 id="acciones-rapidas" className="text-2xl font-bold tracking-tight">
-              Escanear
+              Registrar movimiento
             </h2>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/20 px-2.5 py-0.5 text-xs font-medium backdrop-blur-md">
               <FlaskConical className="size-3.5" aria-hidden />
@@ -50,10 +50,13 @@ function QuickActions({ openSheet }: { openSheet: (request: SheetRequest) => voi
             </span>
           </div>
           <p className="mt-1 text-sm leading-relaxed text-on-action/90">
-            Lee la etiqueta QR de un frasco con la cámara para abrir su ficha y registrar su salida.
+            {allowed.approve
+              ? 'Las salidas que piden los Operadores te esperan en Solicitudes.'
+              : 'La salida que pidas queda apartada hasta que la aprueben.'}
           </p>
         </div>
         <div className="grid gap-2 sm:flex sm:flex-wrap @2xl:shrink-0">
+          {/* «Escanear» (14-10-2026) ocupa el lugar de «Registrar salida»: lo puede usar quien lee Reactivos. */}
           <button
             type="button"
             onClick={() => openSheet({ kind: 'scan' })}
@@ -62,6 +65,16 @@ function QuickActions({ openSheet }: { openSheet: (request: SheetRequest) => voi
             <ScanLine className="size-[18px]" aria-hidden />
             Escanear
           </button>
+          {allowed.receipt ? (
+            <button
+              type="button"
+              onClick={() => openSheet({ kind: 'ingress' })}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-control border border-white/40 px-5 text-sm font-medium backdrop-blur-sm transition-colors duration-150 hover:bg-white/10"
+            >
+              <PackagePlus className="size-[18px]" aria-hidden />
+              Nuevo reactivo
+            </button>
+          ) : null}
         </div>
       </div>
       <ModuleMark code="reagents" className="pointer-events-none absolute -bottom-10 right-6 size-44 rotate-12 text-white/15" />
@@ -76,7 +89,7 @@ function QuickActions({ openSheet }: { openSheet: (request: SheetRequest) => voi
  * el gráfico de salidas con su total y la actividad reciente.
  */
 export function ReagentsSummaryPage() {
-  const { me, base, summary, openSheet } = useReagents();
+  const { me, base, summary, allowed, openSheet } = useReagents();
 
   if (summary.isPending) {
     return (
@@ -177,7 +190,7 @@ export function ReagentsSummaryPage() {
       </section>
       <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2 xl:grid-cols-12 fit:min-h-0 fit:gap-4 fit-tall:gap-6">
         <div className="flex min-w-0 flex-col gap-5 sm:gap-6 xl:col-span-7 fit:min-h-0 fit:gap-4 fit-tall:gap-6">
-          <QuickActions openSheet={openSheet} />
+          <QuickActions allowed={allowed} openSheet={openSheet} />
           {/* Crece hasta llenar la columna, pero nunca por debajo de su contenido. */}
           <article className="flex min-w-0 flex-col rounded-card bg-surface p-6 shadow-raised fit:flex-1 fit:p-5">
             {/* El total va con su gráfico (ADR 0012, 05-10-2026), junto al título y a la izquierda, para

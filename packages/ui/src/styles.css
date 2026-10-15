@@ -80,6 +80,9 @@
   --animate-modal-in: modal-in 200ms var(--ease-out-expo);
   --animate-modal-out: modal-out 150ms var(--ease-out-expo);
   --animate-pop-in: pop-in 160ms var(--ease-out-expo);
+  /* Tooltip (14-10-2026): fundido y 4 px de desplazamiento en 150 ms con salida suave; la dirección la fija --tooltip-from. */
+  --animate-tooltip-in: tooltip-in 150ms ease-out;
+  --animate-tooltip-out: fade-out 100ms ease-out forwards;
   /* Cajón lateral (R-01C): entra en 260 ms con la curva de las hojas y sale en 180 ms. */
   --animate-drawer-in: drawer-in 260ms var(--ease-sheet);
   --animate-drawer-out: drawer-out 180ms var(--ease-sheet) forwards;
@@ -118,6 +121,10 @@
   @keyframes drawer-out {
     from { transform: translateX(0); }
     to { transform: translateX(100%); }
+  }
+  @keyframes tooltip-in {
+    from { opacity: 0; transform: translateY(var(--tooltip-from, 4px)); }
+    to { opacity: 1; transform: translateY(0); }
   }
   @keyframes pop-in {
     from { opacity: 0; transform: translateY(-4px) scale(0.98); }
@@ -170,6 +177,9 @@
     --animate-pop-in: fade-in 150ms var(--ease-out-expo);
     --animate-drawer-in: fade-in 180ms var(--ease-out-expo);
     --animate-drawer-out: fade-out 150ms var(--ease-out-expo) forwards;
+    /* El tooltip no se anima: aparece y desaparece sin fundido ni desplazamiento. */
+    --animate-tooltip-in: none;
+    --animate-tooltip-out: none;
   }
 }
 

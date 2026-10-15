@@ -309,9 +309,11 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
   const topBar = owner.getByRole('banner');
   await expect(topBar).toContainText('Reactivos', { useInnerText: true });
   await expect(topBar).not.toContainText('Facultad de Ciencias', { useInnerText: true });
-  // El Resumen ofrece solo «Escanear» (una vez: la cabecera no lo repite); ingresar, ajustar y registrar salidas están en el Inventario.
-  await expect(owner.getByRole('button', { name: 'Escanear', exact: true })).toBeVisible();
-  for (const name of ['Registrar salida', 'Nuevo reactivo', 'Ajustar']) {
+  // La acción rápida del Resumen ofrece «Escanear» (una vez: la cabecera no lo repite) y «Nuevo reactivo»; salidas y ajustes están en el Inventario.
+  for (const name of ['Escanear', 'Nuevo reactivo']) {
+    await expect(owner.getByRole('button', { name, exact: true })).toBeVisible();
+  }
+  for (const name of ['Registrar salida', 'Ajustar']) {
     await expect(owner.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
   await goTo(owner, 'Inventario');
@@ -568,24 +570,34 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await admin.getByRole('heading', { name: 'Ácido sulfúrico 98 %', level: 1 }).hover();
   await expect(admin.getByRole('tooltip')).toHaveCount(0);
   await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' })).toContainText('Usar primero');
-  await expect(admin.getByText('1 vencido', { exact: true })).toBeVisible();
+  await expect(admin.getByText('1 frasco vencido')).toBeVisible();
   // El saldo con su unidad y el % a la derecha.
   await expect(expiredCard).toContainText(/\d+ %/);
   await expect(expiredCard).toContainText('Vencido');
-  await expect(admin.getByRole('region', { name: 'Resumen del reactivo' })).toContainText('1 vencido');
+  await expect(admin.getByRole('complementary', { name: 'Resumen del reactivo' })).toContainText('Vencidos');
   // «Actualizado hace…» ya no está en la barra superior: el ⟳ junto al lápiz lo dice en su nombre y su título.
   await expect(admin.getByRole('banner')).not.toContainText('Actualizado', { useInnerText: true });
   await expect(admin.getByRole('button', { name: /^Actualizar · actualizado hace / })).toHaveAttribute('title', /^Actualizar · actualizado hace /);
   // Una sola primaria: «Registrar salida» de la cabecera; en la ficha el ingreso es de ese reactivo.
   await expect(admin.getByRole('button', { name: 'Nuevo reactivo' })).toHaveCount(0);
   await expect(admin.getByRole('button', { name: 'Ingresar frascos' })).toBeVisible();
-  // «Escanear» también está en la cabecera de la ficha y abre la misma hoja del lector.
-  await admin.getByRole('button', { name: 'Escanear' }).click();
+  // «Ingresar frascos», «Etiquetas QR» y «Escanear» son botones solo icono: el nombre accesible es el mismo que muestra su tooltip.
+  // «Escanear» abre la misma hoja del lector que la cabecera de la sección; al pulsarlo, el tooltip se cierra al instante.
+  const scan = admin.getByRole('button', { name: 'Escanear', exact: true });
+  await scan.hover();
+  await expect(admin.getByRole('tooltip')).toContainText('Escanear');
+  await scan.click();
   await expect(admin.getByRole('dialog', { name: 'Escanear etiqueta' })).toBeVisible();
+  await expect(admin.getByRole('tooltip')).toHaveCount(0);
   await admin.keyboard.press('Escape');
   await expect(admin.getByRole('dialog', { name: 'Escanear etiqueta' })).toHaveCount(0);
   await expectAccessible(admin, 'ficha con varios frascos');
   await capture(admin, 'desktop-product-multi');
+  // Al devolver el foco a «Escanear» su tooltip puede reabrirse: se suelta el foco y se espera a que quede solo el de «Etiquetas QR».
+  await admin.getByRole('heading', { name: 'Ácido sulfúrico 98 %', level: 1 }).click();
+  await admin.getByRole('button', { name: 'Etiquetas QR', exact: true }).hover();
+  await expect(admin.getByRole('tooltip')).toHaveCount(1);
+  await expect(admin.getByRole('tooltip')).toContainText('Etiquetas QR');
   await capture(admin, 'desktop-r01d-product');
 
   // Desde la ficha, la salida llega con el frasco utilizable que vence antes (01 §6.1).
@@ -627,7 +639,7 @@ test('mínimos: bajo mínimo en el Resumen y el Inventario, y el Administrador l
 
   // El Administrador cambia el mínimo desde la ficha; por encima del nuevo, deja de estar bajo mínimo.
   await admin.getByRole('link', { name: /Hidróxido de sodio/ }).click();
-  const header = admin.getByRole('region', { name: 'Resumen del reactivo' });
+  const header = admin.getByRole('complementary', { name: 'Resumen del reactivo' });
   await expect(header).toContainText('Bajo mínimo');
   await admin.getByRole('button', { name: 'Cambiar mínimo' }).click();
   const minimum = admin.getByRole('dialog', { name: 'Mínimo del reactivo' });

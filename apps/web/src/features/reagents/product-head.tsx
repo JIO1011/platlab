@@ -1,6 +1,6 @@
 import type { ProductDetail } from '@platlab/contracts';
 import type { ReactNode } from 'react';
-import { Button, IconTile, Quantity, StockLevelBar, cn, formatDecimal } from '@platlab/ui';
+import { Button, IconTile, Quantity, StockLevelBar, Tooltip, cn, formatDecimal } from '@platlab/ui';
 import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, QrCode, RefreshCw, ScanLine, TrendingDown, type LucideIcon } from 'lucide-react';
 import { formatAgo, formatDate } from '../../app/format';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
@@ -20,9 +20,9 @@ import { useNow } from './use-now';
 const glassCard =
   'rounded-[28px] border border-white/70 bg-white/70 shadow-raised backdrop-blur-xl backdrop-saturate-150 not-supports-[backdrop-filter]:bg-surface';
 
-/** Pastilla clara de las acciones secundarias de la cabecera: icono y texto, 36 px; marcada, relleno suave. */
-const pillAction =
-  'h-9 rounded-full border-line-strong bg-white/80 px-3.5 text-[13px] font-semibold text-action hover:bg-white aria-pressed:border-action/40 aria-pressed:bg-action-soft [&_svg]:size-4';
+/** Botón redondo de las acciones secundarias de la cabecera: solo icono, 40 px, borde suave; marcado, relleno suave. */
+const iconAction =
+  'size-[40px] rounded-full border-line-strong bg-white/80 text-action hover:bg-white aria-pressed:border-action/40 aria-pressed:bg-action-soft [&_svg]:size-[18px]';
 
 /** El id de «Etiquetas QR»: la ficha le devuelve el foco al cerrar el modo. */
 export const labelsButtonId = 'etiquetas-qr';
@@ -57,8 +57,8 @@ function RefreshButton({ freshness }: { freshness: ReagentsContext['freshness'] 
 /**
  * Cabecera de la ficha: el cuadro del módulo y el nombre, con el lápiz «Editar ficha» a su lado (solo icono, con
  * `catalog.manage`) y ⟳ «Actualizar» (`RefreshButton`); la identidad en pastillas (código, CAS, estado, «Controlado»); los pictogramas; y las acciones,
- * con «Registrar salida» como la primaria y, debajo, una fila de pastillas claras: «Ingresar frascos», «Etiquetas QR»
- * (gira las tarjetas de los frascos) y «Escanear» (abre la hoja del lector de la cabecera de la sección). «Ajustar» ya no está aquí: vive en la ficha ⚖ de cada frasco (ADR 0015,
+ * con «Registrar salida» como la primaria y, debajo, una fila de tres botones redondos solo icono, con tooltip: «Ingresar frascos», «Etiquetas QR»
+ * (gira las tarjetas de los frascos) y «Escanear» (abre la hoja del lector). «Ajustar» ya no está aquí: vive en la ficha ⚖ de cada frasco (ADR 0015,
  * 14-10-2026).
  */
 export function ProductHeader({
@@ -73,7 +73,7 @@ export function ProductHeader({
   allowed: Allowed;
   canIssue: boolean;
   freshness: ReagentsContext['freshness'];
-  /** El modo de etiquetas vive en la página (las tarjetas giran allí); la pastilla solo lo activa. */
+  /** El modo de etiquetas vive en la página (las tarjetas giran allí); el botón solo lo activa. */
   labels: { active: boolean; onToggle: () => void };
   onAction: (request: SheetRequest) => void;
 }) {
@@ -150,26 +150,30 @@ export function ProductHeader({
               {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
             </Button>
           ) : null}
+          {/* Tres botones solo icono: cada uno dice su nombre con `aria-label` y lo muestra en un tooltip. */}
           <div className="flex flex-wrap gap-2">
             {allowed.receipt ? (
-              <Button className={pillAction} onClick={() => onAction({ kind: 'ingress', productId: product.id })}>
-                <PackagePlus aria-hidden />
-                Ingresar frascos
-              </Button>
+              <Tooltip label="Ingresar frascos">
+                <Button size="icon" className={iconAction} aria-label="Ingresar frascos" onClick={() => onAction({ kind: 'ingress', productId: product.id })}>
+                  <PackagePlus aria-hidden />
+                </Button>
+              </Tooltip>
             ) : null}
             {showLabels ? (
-              <Button id={labelsButtonId} className={pillAction} aria-pressed={labels.active} onClick={labels.onToggle}>
-                <QrCode aria-hidden />
-                Etiquetas QR
-              </Button>
+              <Tooltip label="Etiquetas QR">
+                <Button id={labelsButtonId} size="icon" className={iconAction} aria-label="Etiquetas QR" aria-pressed={labels.active} onClick={labels.onToggle}>
+                  <QrCode aria-hidden />
+                </Button>
+              </Tooltip>
             ) : null}
             {/* Lee la etiqueta QR de otro frasco: abre la misma hoja que la cabecera de la sección (14-10-2026). */}
-            <Button className={pillAction} onClick={() => onAction({ kind: 'scan' })}>
-              <ScanLine aria-hidden />
-                Escanear
+            <Tooltip label="Escanear">
+              <Button size="icon" className={iconAction} aria-label="Escanear" onClick={() => onAction({ kind: 'scan' })}>
+                <ScanLine aria-hidden />
               </Button>
-            </div>
+            </Tooltip>
           </div>
+        </div>
       </div>
     </div>
   );
@@ -187,42 +191,37 @@ export type ExpiryDates = {
 const labelIconTone = { soft: 'text-ink-subtle', success: 'text-success', warning: 'text-warning', danger: 'text-danger' } as const;
 
 /**
- * Rótulo de una caja del resumen: icono de 12 px en línea y el nombre en mayúsculas de 10 px. El propio `dt` los
- * agrupa: dentro de un `dl`, un `dt` no puede ir envuelto en otro elemento (axe).
+ * Rótulo de una tarjeta del resumen: icono de 12 px en línea y el nombre en mayúsculas de 10 px. El propio
+ * `dt` los agrupa: dentro de un `dl`, un `dt` no puede ir envuelto en otro elemento (axe). En el móvil, el
+ * icono va sobre el rótulo para que quepan tres columnas.
  */
 function RowLabel({ children, icon: Icon, tone = 'soft' }: { children: string; icon: LucideIcon; tone?: keyof typeof labelIconTone }) {
   return (
-    <dt className="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-semibold uppercase leading-none tracking-wider text-ink-muted">
+    <dt className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase leading-none tracking-wider text-ink-muted max-sm:flex-col max-sm:items-start">
       <Icon className={cn('size-3 shrink-0', labelIconTone[tone])} aria-hidden />
-      {children}
+      <span className="min-w-0">{children}</span>
     </dt>
   );
 }
 
 /**
- * Una caja delgada del resumen: el rótulo y el valor en una sola fila (`grid` de dos columnas; lo que va bajo el
- * valor, como la barra de nivel, ocupa la segunda fila de la columna del valor). El `div` que agrupa `dt` y `dd`
- * es válido dentro de un `dl`.
+ * Una tarjeta pequeña del resumen: separada de las otras (`gap-2` del `dl`), con borde suave y radio de 16 px. El
+ * `div` que agrupa `dt` y `dd` es válido dentro de un `dl`.
  */
-function SummaryBox({ children }: { children: ReactNode }) {
-  return (
-    <div className="grid min-w-[9.5rem] flex-1 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1 rounded-xl border border-line/70 bg-surface p-2 shadow-raised sm:flex-none">
-      {children}
-    </div>
-  );
+function SummaryCard({ children }: { children: ReactNode }) {
+  return <div className="grid min-w-0 content-start gap-1.5 rounded-2xl border border-line/70 bg-surface p-3 shadow-raised">{children}</div>;
 }
 
-const valueClass = 'text-[15px] font-bold leading-tight tracking-tight';
+const valueClass = 'text-[18px] font-bold leading-tight tracking-tight';
 const detailClass = 'text-[11px] leading-snug text-ink-muted max-sm:hidden';
 
 /**
- * Resumen de la ficha (ADR 0010, «Ventanas como ReactiLab»; ADR 0015, 14-10-2026): tres cajas delgadas en línea,
- * Existencia, Mínimo y Caducidad, a la derecha del título «Frascos» (en el móvil, bajo el título, en una fila que
- * envuelve). Cada una lleva el rótulo y el valor en una sola fila. La existencia lleva bajo el valor la barra de
- * nivel de 3 px (el saldo frente a lo inicial de los frascos con saldo, solo cuando todos ya se conocen); el mínimo
- * dice «Bajo mínimo» con texto e icono y ofrece «Fijar» o «Cambiar» a quien administra el catálogo; la caducidad
- * dice su estado con texto y color («1 vencido», «2 por vencer» o «Al día») y, con todos los frascos cargados, la
- * próxima fecha exacta.
+ * Resumen de la ficha (ADR 0010, «Ventanas como ReactiLab»; ADR 0015): tres tarjetas pequeñas y separadas,
+ * Existencia, Mínimo y Caducidad, en una columna de 11 rem desde `xl`, una sobre otra; por debajo,
+ * como franja de tres columnas bajo la cabecera, y en el móvil sin la línea de detalle (quedan el valor,
+ * el estado y el enlace del mínimo). La existencia lleva la barra de nivel (el saldo frente a lo inicial
+ * de los frascos con saldo, solo cuando todos ya se conocen); la caducidad dice su estado con texto y
+ * color, y la próxima fecha exacta cuando la ficha conoce todos los frascos.
  */
 export function ProductSummary({
   product,
@@ -242,15 +241,17 @@ export function ProductSummary({
   const noStock = product.balance === '0';
   const expired = product.expiredContainers;
   const expiring = product.expiringContainers;
+  const state = expired ? 'Vencidos' : expiring ? 'Por vencer' : 'Al día';
   const stateTone = expired ? 'danger' : expiring ? 'warning' : 'success';
+  const stateColor = expired ? 'text-danger' : expiring ? 'text-warning' : 'text-success';
   const nextDate = expiry?.upcoming
     ? `Próxima: ${formatDate(expiry.upcoming)}`
     : expiry?.oldestExpired
       ? `Venció: ${formatDate(expiry.oldestExpired)}`
       : null;
   return (
-    <dl className="flex flex-wrap gap-2">
-      <SummaryBox>
+    <dl className="grid grid-cols-3 gap-2 xl:grid-cols-1">
+      <SummaryCard>
         <RowLabel icon={Package}>Existencia</RowLabel>
         <dd>
           <Quantity
@@ -261,52 +262,58 @@ export function ProductSummary({
           />
         </dd>
         {stockPercent !== null && !noStock ? (
-          <dd className="col-start-2">
-            <StockLevelBar percent={stockPercent} hasStock className="h-[3px]" label={`Nivel de la existencia: ${stockPercent} % de lo inicial`} />
+          <dd>
+            <StockLevelBar percent={stockPercent} hasStock className="h-1" label={`Nivel de la existencia: ${stockPercent} % de lo inicial`} />
           </dd>
         ) : null}
-      </SummaryBox>
+        <dd className={detailClass}>
+          {noStock
+            ? 'Sin existencias'
+            : `${product.containersWithStock === 1 ? '1 frasco' : `${product.containersWithStock} frascos`}${stockPercent !== null ? ` · ${stockPercent} %` : ''}`}
+        </dd>
+      </SummaryCard>
       {/* Mínimo para todo el espacio (ADR 0012, 05-10-2026): lo fija quien administra el catálogo. */}
-      <SummaryBox>
+      <SummaryCard>
         <RowLabel icon={TrendingDown} tone={product.belowMinimum ? 'warning' : 'soft'}>
           Mínimo
         </RowLabel>
-        <dd className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5">
-          <span className={cn(valueClass, 'text-ink [overflow-wrap:anywhere]')}>
-            {product.minimum ? <Quantity value={product.minimum} unit={product.baseUnit} className="whitespace-normal" unitClassName="text-[0.8em]" /> : <span className="text-ink-muted">Sin fijar</span>}
-          </span>
-          {product.belowMinimum ? (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-warning">
-              <TrendingDown className="size-3" aria-hidden />
-              Bajo mínimo
-            </span>
-          ) : null}
-          {canManage ? (
-            <button
-              type="button"
-              aria-label={product.minimum ? 'Cambiar mínimo' : 'Fijar mínimo'}
-              className="-my-1.5 -ml-1 inline-flex min-h-8 items-center rounded-control px-1 text-xs font-medium text-action hover:text-action-hover"
-              onClick={() => onAction({ kind: 'minimum', productId: product.id })}
-            >
-              {product.minimum ? 'Cambiar' : 'Fijar'}
-            </button>
-          ) : null}
+        <dd className={cn(valueClass, 'text-ink [overflow-wrap:anywhere]')}>
+          {product.minimum ? <Quantity value={product.minimum} unit={product.baseUnit} className="whitespace-normal" unitClassName="text-[0.8em]" /> : <span className="text-ink-muted">Sin fijar</span>}
         </dd>
-      </SummaryBox>
+        {product.belowMinimum || canManage ? (
+          <dd className="flex flex-wrap items-center gap-x-2.5 text-xs leading-snug">
+            {product.belowMinimum ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-warning">
+                <TrendingDown className="size-3" aria-hidden />
+                Bajo mínimo
+              </span>
+            ) : null}
+            {canManage ? (
+              <button
+                type="button"
+                aria-label={product.minimum ? 'Cambiar mínimo' : 'Fijar mínimo'}
+                className="-ml-1 inline-flex min-h-8 items-center rounded-control px-1 font-medium text-action hover:text-action-hover"
+                onClick={() => onAction({ kind: 'minimum', productId: product.id })}
+              >
+                {product.minimum ? 'Cambiar' : 'Fijar'}
+              </button>
+            ) : null}
+          </dd>
+        ) : null}
+      </SummaryCard>
       {/* Solo afirma lo que se cuenta: un frasco sin caducidad confirmada lo dice en su tarjeta. */}
-      <SummaryBox>
+      <SummaryCard>
         <RowLabel icon={expired ? CalendarX : expiring ? CalendarClock : CalendarCheck} tone={stateTone}>
           Caducidad
         </RowLabel>
-        <dd className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5">
-          <span className={cn(valueClass, 'flex flex-wrap gap-x-2')}>
-            {expired ? <span className="text-danger">{expired === 1 ? '1 vencido' : `${expired} vencidos`}</span> : null}
-            {expiring ? <span className="text-warning">{expiring === 1 ? '1 por vencer' : `${expiring} por vencer`}</span> : null}
-            {!expired && !expiring ? <span className="text-success">Al día</span> : null}
-          </span>
-          {nextDate ? <span className={cn(detailClass, 'font-semibold tabular-nums text-ink')}>{nextDate}</span> : null}
+        <dd className={cn(valueClass, stateColor)}>{state}</dd>
+        <dd className={cn(detailClass, 'grid gap-0.5')}>
+          {expired ? <span>{expired === 1 ? '1 frasco vencido' : `${expired} frascos vencidos`}</span> : null}
+          {expiring ? <span>{expiring === 1 ? '1 frasco por vencer' : `${expiring} frascos por vencer`}</span> : null}
+          {!expired && !expiring ? <span>Sin vencidos ni por vencer</span> : null}
+          {nextDate ? <span className="font-semibold tabular-nums text-ink">{nextDate}</span> : null}
         </dd>
-      </SummaryBox>
+      </SummaryCard>
     </dl>
   );
 }
