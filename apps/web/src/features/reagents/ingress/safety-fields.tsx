@@ -13,14 +13,20 @@ import type { Draft, Errors, SdsKind } from './model';
 
 const states = physicalState.options.map((value) => ({ value, label: physicalStateLabel[value] ?? value }));
 const sdsOptions = (Object.keys(sdsLabels) as SdsKind[]).map((value) => ({ value, label: sdsLabels[value] }));
+const sourceOptions: ReadonlyArray<{ value: Draft['sdsSource']; label: string }> = [
+  { value: 'link', label: 'Enlace' },
+  { value: 'pdf', label: 'PDF' },
+];
 
 /**
  * «Clasificación y seguridad» (ADR 0015): estado físico, si es controlado, peligros y ficha de
  * seguridad; con `withDensity`, también la densidad de los que se miden en volumen. Un reactivo ya del
- * catálogo se resume en una línea: en el ingreso no se edita.
+ * catálogo se resume en una línea: en el ingreso no se edita. La ficha digital es un enlace o un PDF
+ * (ADR 0017); `sdsFileUrl` es el PDF vigente de un reactivo que se edita.
  */
 export function SafetyFields({
   existing,
+  sdsFileUrl = null,
   draft,
   onDraft,
   errors,
@@ -28,6 +34,7 @@ export function SafetyFields({
   compact = false,
 }: {
   existing: StockedProduct | null;
+  sdsFileUrl?: string | null;
   draft: Draft;
   onDraft: (patch: Partial<Draft>) => void;
   errors: Errors;
@@ -73,16 +80,42 @@ export function SafetyFields({
           />
         </Field>
         {draft.sds === 'digital' ? (
-          <Field label="Enlace a la ficha" labelClassName={fieldLabel} error={errors.sdsUrl} hint="El PDF se podrá subir más adelante.">
-            <FilledInput
-              type="url"
-              inputMode="url"
-              autoComplete="off"
-              placeholder="https://"
-              value={draft.sdsUrl}
-              onChange={(event) => onDraft({ sdsUrl: event.target.value })}
+          <div className="grid gap-3">
+            <PillField
+              label="Formato de la ficha"
+              labelClassName={fieldLabel}
+              size="sm"
+              value={draft.sdsSource}
+              options={sourceOptions}
+              onChange={(sdsSource) => onDraft({ sdsSource })}
             />
-          </Field>
+            {draft.sdsSource === 'link' ? (
+              <Field label="Enlace a la ficha" labelClassName={fieldLabel} error={errors.sdsUrl}>
+                <FilledInput
+                  type="url"
+                  inputMode="url"
+                  autoComplete="off"
+                  placeholder="https://"
+                  value={draft.sdsUrl}
+                  onChange={(event) => onDraft({ sdsUrl: event.target.value })}
+                />
+              </Field>
+            ) : (
+              <Field
+                label={sdsFileUrl ? 'Reemplazar PDF' : 'PDF de la ficha'}
+                labelClassName={fieldLabel}
+                error={errors.sdsFile}
+                hint={sdsFileUrl ? <CurrentPdf url={sdsFileUrl} /> : 'Hasta 6 MiB.'}
+              >
+                <FilledInput
+                  type="file"
+                  accept="application/pdf"
+                  className="cursor-pointer py-2 file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-action"
+                  onChange={(event) => onDraft({ sdsFile: event.target.files?.[0] ?? null })}
+                />
+              </Field>
+            )}
+          </div>
         ) : null}
         {withDensity && isVolume(draft.unit) ? (
           <Field label="Densidad (g/mL)" labelClassName={fieldLabel} error={errors.density} hint="Para pesar los frascos en la balanza.">
@@ -101,6 +134,18 @@ export function SafetyFields({
   );
 }
 
+/** El PDF vigente de la ficha, en una pestaña nueva. */
+function CurrentPdf({ url }: { url: string }) {
+  return (
+    <>
+      PDF vigente ·{' '}
+      <a href={url} target="_blank" rel="noreferrer" className="font-medium text-action hover:text-action-hover">
+        Ver
+      </a>
+    </>
+  );
+}
+
 /** Lo que el catálogo ya dice de un reactivo, en una línea: estado, peligros, si es controlado y su ficha. */
 function CatalogSummary({ product }: { product: StockedProduct }) {
   // Sin separadores: cada dato es un elemento con su espacio, y al envolver no queda ninguno suelto.
@@ -110,7 +155,7 @@ function CatalogSummary({ product }: { product: StockedProduct }) {
         <span>{(product.physicalState && physicalStateLabel[product.physicalState]) ?? 'Estado sin indicar'}</span>
         {product.hazards.length > 0 ? <HazardGlyphs ids={product.hazards} /> : null}
         {product.controlled ? <ControlledMark withText /> : null}
-        <SdsReference kind={product.sdsKind} url={product.sdsUrl} />
+        <SdsReference kind={product.sdsKind} url={product.sdsFileUrl ?? product.sdsUrl} />
       </div>
       <p className="text-[13px] text-ink-muted">Del catálogo</p>
     </div>

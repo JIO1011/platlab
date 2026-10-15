@@ -78,7 +78,7 @@ select tables_are('inventory',
   array['units', 'items', 'lots', 'positions', 'operations', 'entries', 'containers', 'reasons', 'destinations',
         'allocations', 'areas'],
   'inventory contiene las tablas de R-00 y de R-01A');
-select tables_are('reagents', array['products'], 'reagents contiene solo el detalle químico');
+select tables_are('reagents', array['products', 'safety_sheets'], 'reagents contiene el detalle químico y las fichas de seguridad (ADR 0017)');
 
 select is(
   (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -97,7 +97,8 @@ select set_eq(
       where grantee = 'platlab_api' and table_schema in ('inventory', 'reagents')
         and privilege_type <> 'SELECT' $$,
   array['inventory.items INSERT', 'inventory.lots INSERT', 'inventory.positions INSERT',
-        'inventory.entries INSERT', 'inventory.containers INSERT', 'reagents.products INSERT'],
+        'inventory.entries INSERT', 'inventory.containers INSERT', 'reagents.products INSERT',
+        'reagents.safety_sheets INSERT'],
   'el runtime solo inserta; sin UPDATE de tabla, DELETE ni TRUNCATE');
 
 select set_eq(

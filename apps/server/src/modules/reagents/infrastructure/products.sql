@@ -5,27 +5,48 @@ INSERT INTO reagents.products
   (workspace_id, item_id, cas_number, physical_state, hazards, controlled, sds_kind, sds_url, density)
 VALUES
   (:workspaceId!, :itemId!, :casNumber, :physicalState!, :hazards!::text[], :controlled!, :sdsKind, :sdsUrl, :density::numeric)
-RETURNING cas_number, physical_state, hazards, controlled, sds_kind, sds_url, trim_scale(density) AS density;
+RETURNING cas_number, physical_state, hazards, controlled, sds_kind, sds_url, sds_sheet_id,
+  NULL::text AS sds_file_url, trim_scale(density) AS density;
 
 /* @name findProductDetail */
--- La ficha química de un reactivo del espacio (ADR 0015).
-SELECT cas_number, physical_state, hazards, controlled, sds_kind, sds_url, trim_scale(density) AS density
-FROM reagents.products
-WHERE workspace_id = :workspaceId! AND item_id = :itemId!;
+-- La ficha química de un reactivo del espacio (ADR 0015), con el PDF vigente de su ficha de seguridad (ADR 0017).
+SELECT r.cas_number, r.physical_state, r.hazards, r.controlled, r.sds_kind, r.sds_url, r.sds_sheet_id,
+       s.url AS "sds_file_url?", trim_scale(r.density) AS density
+FROM reagents.products AS r
+LEFT JOIN reagents.safety_sheets AS s ON s.workspace_id = r.workspace_id AND s.id = r.sds_sheet_id
+WHERE r.workspace_id = :workspaceId! AND r.item_id = :itemId!;
 
 /* @name updateProductDetail */
--- Escribe la ficha ya combinada; el comando la edita con el ítem bloqueado.
+-- Escribe la ficha ya combinada; el comando la edita con el ítem bloqueado. Sin :keepSheet, el reactivo
+-- deja de apuntar a su PDF (ADR 0017), que sigue en el historial.
 UPDATE reagents.products
 SET cas_number = :casNumber, physical_state = :physicalState, hazards = :hazards!::text[], controlled = :controlled!,
-    sds_kind = :sdsKind, sds_url = :sdsUrl, density = :density::numeric
+    sds_kind = :sdsKind, sds_url = :sdsUrl, density = :density::numeric,
+    sds_sheet_id = CASE WHEN :keepSheet!::boolean THEN sds_sheet_id END
+WHERE workspace_id = :workspaceId! AND item_id = :itemId!
+RETURNING item_id;
+
+/* @name insertSafetySheet */
+-- Un PDF subido (ADR 0017): fila nueva, nunca reemplaza otra.
+INSERT INTO reagents.safety_sheets
+  (workspace_id, id, product_id, object_path, url, byte_size, sha256, uploaded_by_principal_id)
+VALUES
+  (:workspaceId!, :id!, :productId!, :objectPath!, :url!, :byteSize!, :sha256!, :uploadedBy!)
+RETURNING id;
+
+/* @name pointProductSheet */
+-- El PDF pasa a ser la ficha vigente: digital y sin enlace, que es la otra forma de ficha.
+UPDATE reagents.products
+SET sds_kind = 'digital', sds_url = NULL, sds_sheet_id = :sheetId!
 WHERE workspace_id = :workspaceId! AND item_id = :itemId!
 RETURNING item_id;
 
 /* @name listProductSafety */
 -- Marca de controlado (ADR 0015) y ficha de seguridad (ADR 0016) de los reactivos de unos frascos.
-SELECT item_id, controlled, sds_kind, sds_url
-FROM reagents.products
-WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]);
+SELECT r.item_id, r.controlled, r.sds_kind, r.sds_url, s.url AS "sds_file_url?"
+FROM reagents.products AS r
+LEFT JOIN reagents.safety_sheets AS s ON s.workspace_id = r.workspace_id AND s.id = r.sds_sheet_id
+WHERE r.workspace_id = :workspaceId! AND r.item_id = ANY (:itemIds!::uuid[]);
 
 /* @name listProducts */
 -- Con el total del espacio: suma exacta en numeric de todas sus ubicaciones.
@@ -47,6 +68,7 @@ SELECT
   r.controlled,
   r.sds_kind,
   r.sds_url,
+  sheet.url AS "sds_file_url?",
   trim_scale(r.density) AS density,
   trim_scale(i.minimum_quantity) AS minimum,
   stock.balance AS "balance!",
@@ -76,6 +98,7 @@ SELECT
   lower(i.code) AS "sort_code!"
 FROM inventory.items AS i
 JOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id
+LEFT JOIN reagents.safety_sheets AS sheet ON sheet.workspace_id = r.workspace_id AND sheet.id = r.sds_sheet_id
 CROSS JOIN LATERAL (
   SELECT trim_scale(coalesce(sum(p.balance), 0)) AS balance
   FROM inventory.positions AS p

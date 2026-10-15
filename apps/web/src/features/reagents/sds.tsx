@@ -1,6 +1,7 @@
 import type { ProductDetail } from '@platlab/contracts';
-import { cn } from '@platlab/ui';
+import { cn, toast } from '@platlab/ui';
 import { ExternalLink } from 'lucide-react';
+import { commandErrorMessage } from './commands';
 
 type SdsKind = NonNullable<ProductDetail['sdsKind']>;
 
@@ -8,7 +9,7 @@ type SdsKind = NonNullable<ProductDetail['sdsKind']>;
 export const sdsLabels: Record<SdsKind, string> = { digital: 'Digital', physical: 'Solo en físico', none: 'No tiene' };
 
 /**
- * Ficha de seguridad de un reactivo (ADR 0015, 0016): si es digital, el enlace en una pestaña nueva;
+ * Ficha de seguridad de un reactivo (ADR 0015, 0016): si es digital, el PDF vigente o el enlace (`url`) en una pestaña nueva;
  * si no, cómo está o que no se indicó. La muestran la cabecera de la ficha, el ingreso y la hoja de salida.
  */
 export function SdsReference({
@@ -39,3 +40,9 @@ export function SdsReference({
     </span>
   );
 }
+
+/** Aviso cuando el PDF no se sube pero los datos ya quedaron guardados: se sube desde la ficha del reactivo. */
+export const warnSheetNotUploaded = (error: unknown) =>
+  toast.error('Se registró, pero no se pudo subir la ficha de seguridad: súbela desde la ficha del reactivo', {
+    description: commandErrorMessage(error),
+  });

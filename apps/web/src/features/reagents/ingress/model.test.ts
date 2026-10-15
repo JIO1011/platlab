@@ -1,3 +1,4 @@
+import { SAFETY_SHEET_MAX_BYTES } from '@platlab/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   casRequired,
@@ -11,6 +12,7 @@ import {
   levelOneParent,
   receiptTare,
   recentFirst,
+  sdsFileOf,
   seriesOf,
   toPlaces,
   validateBottles,
@@ -47,6 +49,46 @@ describe('datos de catálogo', () => {
     expect(catalogFields({ ...draft, unit: 'mL', sds: 'digital' })).toMatchObject({ sdsUrl: 'https://x.y', density: '0.789' });
   });
 
+  it('la ficha en PDF solo admite PDF de hasta 6 MiB, y solo cuenta con ficha digital en modo PDF', () => {
+    const named = { ...emptyDraft, name: 'Etanol', state: 'liquid' as const, cas: '64-17-5', sds: 'digital' as const, sdsSource: 'pdf' as const };
+    const pdf = (bytes: number, type = 'application/pdf') => new File([new Uint8Array(bytes)], 'ficha.pdf', { type });
+    expect(validateDraft({ ...named, sdsFile: pdf(1024) })).toEqual({});
+    expect(validateDraft({ ...named, sdsFile: pdf(1024, 'image/png') }).sdsFile).toBe('Solo se admite PDF');
+    expect(validateDraft({ ...named, sdsFile: pdf(SAFETY_SHEET_MAX_BYTES) })).toEqual({});
+    expect(validateDraft({ ...named, sdsFile: pdf(SAFETY_SHEET_MAX_BYTES + 1) }).sdsFile).toBe('El PDF supera 6 MiB');
+    // Con el enlace, o sin ficha digital, el archivo se ignora; y con PDF el enlace escrito, también.
+    expect(validateDraft({ ...named, sdsSource: 'link', sdsFile: pdf(1024, 'image/png') }).sdsFile).toBeUndefined();
+    expect(sdsFileOf({ ...named, sds: 'physical', sdsFile: pdf(1024) })).toBeNull();
+    expect(validateDraft({ ...named, sdsUrl: 'ficha.pdf' }).sdsUrl).toBeUndefined();
+  });
+
+  it('con un PDF elegido o vigente no envía enlace: el servidor conserva el PDF vigente', () => {
+    const draft = { ...emptyDraft, name: 'Etanol', state: 'liquid' as const, cas: '64-17-5', sds: 'digital' as const, sdsSource: 'pdf' as const, sdsUrl: 'https://x.y' };
+    const file = new File(['%PDF'], 'ficha.pdf', { type: 'application/pdf' });
+    expect(catalogFields({ ...draft, sdsFile: file })).toMatchObject({ sdsKind: 'digital', sdsUrl: null });
+    expect(catalogFields(draft)).toMatchObject({ sdsKind: 'digital', sdsUrl: null });
+  });
+
+  it('draftOf no precarga el enlace con el PDF vigente y lo deja en modo PDF', () => {
+    const withPdf = {
+      id: '00000000-0000-4000-8000-000000000002',
+      code: 'ETOH',
+      name: 'Etanol',
+      baseUnit: 'mL',
+      casNumber: '64-17-5',
+      physicalState: 'liquid' as const,
+      minimum: null,
+      hazards: [],
+      controlled: false,
+      sdsKind: 'digital' as const,
+      sdsUrl: null,
+      sdsFileUrl: 'https://storage.test/safety-sheets/etanol.pdf',
+      density: '0.789',
+    };
+    expect(draftOf(withPdf)).toMatchObject({ sds: 'digital', sdsSource: 'pdf', sdsUrl: '', sdsFile: null });
+    expect(draftOf({ ...withPdf, sdsUrl: 'https://x.y', sdsFileUrl: null })).toMatchObject({ sdsSource: 'link', sdsUrl: 'https://x.y' });
+  });
+
   it('al editar conserva la unidad del reactivo aunque no esté en la lista: cambiar otro dato no la toca', () => {
     const legacy = {
       id: '00000000-0000-4000-8000-000000000001',
@@ -60,6 +102,7 @@ describe('datos de catálogo', () => {
       controlled: false,
       sdsKind: null,
       sdsUrl: null,
+      sdsFileUrl: null,
       density: null,
     };
     const draft = draftOf(legacy);

@@ -16,7 +16,7 @@ Requisitos: Node 24 (`.nvmrc`), pnpm 11 y Docker en ejecución. La CLI de Supaba
 | Tipos / lint / fronteras / código muerto | `pnpm typecheck` · `pnpm lint` · `pnpm deps` · `pnpm knip` |
 | Pruebas unitarias | `pnpm test` |
 | Todo lo anterior | `pnpm check` |
-| Base y Auth locales | `pnpm db:start` (genera la clave ES256 con `pnpm db:keys` si falta, arranca PostgreSQL + Auth y aplica migraciones + `seed.sql`) · `pnpm db:reset` (desde cero) |
+| Base y Auth locales | `pnpm db:start` (genera la clave ES256 con `pnpm db:keys` si falta, arranca PostgreSQL, Auth y Storage, aplica migraciones + `seed.sql` y crea el bucket de `config.toml`) · `pnpm db:reset` (desde cero) |
 | Regenerar tipos SQL | `pnpm db:types` (requiere base local; los `*.queries.ts` se confirman en git) |
 | pgTAP | `pnpm test:db` |
 | Integración (rol de runtime y Auth local) | `pnpm test:int` (requiere `pnpm db:start`) |

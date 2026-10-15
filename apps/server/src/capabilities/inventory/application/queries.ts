@@ -35,7 +35,7 @@ export interface Page<T> {
 
 /** Posición vista desde la capacidad: lo propio del tipo de ítem (controlado, ficha de seguridad) lo añade el módulo. */
 export type StockPosition = Omit<Position, 'product'> & {
-  product: Omit<Position['product'], 'controlled' | 'sdsKind' | 'sdsUrl'>;
+  product: Omit<Position['product'], 'controlled' | 'sdsKind' | 'sdsUrl' | 'sdsFileUrl'>;
 };
 
 /** Saldos del espacio, de producto a lote y ubicación (01 §7). */

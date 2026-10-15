@@ -6,14 +6,17 @@ import { reagentsHomeSummary, reagentsRoutes } from './modules/reagents/index.js
 import type { TokenVerifier } from './platform/auth/jwt.js';
 import { requireAuthentication } from './platform/http/auth.js';
 import { registerErrorHandling } from './platform/http/errors.js';
+import type { PublicFiles } from './platform/storage/public-files.js';
 
 export interface AppDependencies {
   /** Pool del rol de runtime: sin propiedad de tablas ni BYPASSRLS (02 §5). */
   pool: pg.Pool;
   verifyToken: TokenVerifier;
+  /** Bucket público de las fichas de seguridad (ADR 0017). */
+  publicFiles: PublicFiles;
 }
 
-export function buildApp({ pool, verifyToken }: AppDependencies): FastifyInstance {
+export function buildApp({ pool, verifyToken, publicFiles }: AppDependencies): FastifyInstance {
   const app = Fastify({ logger: false });
   registerErrorHandling(app);
 
@@ -24,7 +27,7 @@ export function buildApp({ pool, verifyToken }: AppDependencies): FastifyInstanc
     async (v1) => {
       requireAuthentication(v1, verifyToken);
       await v1.register(coreRoutes({ pool, homeSummaries: { reagents: reagentsHomeSummary } }));
-      await v1.register(reagentsRoutes({ pool }), { prefix: '/workspaces/:workspaceId/reagents' });
+      await v1.register(reagentsRoutes({ pool, publicFiles }), { prefix: '/workspaces/:workspaceId/reagents' });
     },
     { prefix: '/v1' },
   );

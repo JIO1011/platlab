@@ -63,6 +63,9 @@ export const emptyMovementFilters: MovementFilters = {
   groupBy: 'product',
 };
 
+/** La lista con la clave añadida, o sin ella si ya estaba: lo que cambia al marcar una casilla o pastilla. */
+export const toggle = <T extends string>(list: readonly T[], key: T): T[] => (list.includes(key) ? list.filter((item) => item !== key) : [...list, key]);
+
 /** Límite de valores por filtro de la API (`packages/contracts`, `operationFilterFields`). */
 const MAX_VALUES = 100;
 const uuid = z.uuid();

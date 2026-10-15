@@ -164,7 +164,7 @@ export function IssueSheet({
                 <ControlledMark withText className="gap-1 font-semibold [&>svg]:size-3" />
               </span>
             ) : null}
-            <SdsReference kind={position.product.sdsKind} url={position.product.sdsUrl} className="text-xs [&>svg]:size-3" />
+            <SdsReference kind={position.product.sdsKind} url={position.product.sdsFileUrl ?? position.product.sdsUrl} className="text-xs [&>svg]:size-3" />
           </span>
         ) : (
           'Elige el frasco del que sale.'

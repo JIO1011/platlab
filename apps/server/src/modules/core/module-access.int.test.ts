@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { errorResponse, homeResponse, workspaceMeResponse, type ActionClass } from '@platlab/contracts';
 import { buildApp } from '../../app.js';
+import { localPublicFiles } from '../../testing/storage.js';
 import { createPool } from '../../platform/db/pool.js';
 import { withIdempotency } from '../../platform/idempotency/idempotency.js';
 import {
@@ -29,7 +30,7 @@ const pool = createPool({
   max: 4,
 });
 const signer = await createTestSigner();
-const app = buildApp({ pool, verifyToken: signer.verifier });
+const app = buildApp({ pool, verifyToken: signer.verifier, publicFiles: localPublicFiles });
 
 const N: ActionClass = 'new_operation';
 const R: ActionClass = 'resolve_pending';
