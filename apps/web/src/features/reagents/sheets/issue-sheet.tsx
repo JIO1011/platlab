@@ -26,6 +26,7 @@ import { useDestinations, useReasons } from '../queries';
 import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
 import { ControlledMark } from '../controlled';
+import { SdsReference } from '../sds';
 import { formatGrams, grossFor } from '../weight';
 import { availableOf } from '../stock';
 import { type SheetBaseProps, validate, FormSheet, expiryText, positionOption, byProductThenExpiry, isExpired } from './shared';
@@ -151,7 +152,8 @@ export function IssueSheet({
     <FormSheet
       sections
       icon={FlaskConical}
-      // Como el modal de ReactiLab: el reactivo es el título; el frasco elegido, su código, y si es controlado, su ficha.
+      // Como el modal de ReactiLab: el reactivo es el título; el frasco elegido, su código, si es controlado y
+      // su ficha de seguridad (ADR 0016).
       title={position?.product.name ?? (needsApproval ? 'Solicitar salida' : 'Registrar salida')}
       description={
         position ? (
@@ -162,6 +164,7 @@ export function IssueSheet({
                 <ControlledMark withText className="gap-1 font-semibold [&>svg]:size-3" />
               </span>
             ) : null}
+            <SdsReference kind={position.product.sdsKind} url={position.product.sdsUrl} className="text-xs [&>svg]:size-3" />
           </span>
         ) : (
           'Elige el frasco del que sale.'

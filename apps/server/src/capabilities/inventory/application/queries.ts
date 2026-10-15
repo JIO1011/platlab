@@ -33,8 +33,10 @@ export interface Page<T> {
   nextCursor: string | null;
 }
 
-/** Posición vista desde la capacidad: lo propio del tipo de ítem (controlado…) lo añade el módulo. */
-export type StockPosition = Omit<Position, 'product'> & { product: Omit<Position['product'], 'controlled'> };
+/** Posición vista desde la capacidad: lo propio del tipo de ítem (controlado, ficha de seguridad) lo añade el módulo. */
+export type StockPosition = Omit<Position, 'product'> & {
+  product: Omit<Position['product'], 'controlled' | 'sdsKind' | 'sdsUrl'>;
+};
 
 /** Saldos de las ubicaciones autorizadas, de producto a lote y ubicación (01 §7). */
 export async function listPositionPage(
@@ -171,7 +173,7 @@ export async function listOperationPage(
       product: { id: row.item_id, code: row.item_code, name: row.item_name },
       lot: { code: row.lot_code },
       container: row.container_code ? { code: row.container_code } : null,
-      location: { code: row.location_code },
+      location: { code: row.location_code, name: row.location_name, path: row.location_path },
       quantity: row.quantity,
       balanceAfter: row.balance_after,
       unit: row.base_unit,

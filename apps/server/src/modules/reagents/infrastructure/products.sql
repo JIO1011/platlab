@@ -21,11 +21,11 @@ SET cas_number = :casNumber, physical_state = :physicalState, hazards = :hazards
 WHERE workspace_id = :workspaceId! AND item_id = :itemId!
 RETURNING item_id;
 
-/* @name listControlled */
--- Qué reactivos son controlados (ADR 0015), para marcar sus frascos.
-SELECT item_id
+/* @name listProductSafety */
+-- Marca de controlado (ADR 0015) y ficha de seguridad (ADR 0016) de los reactivos de unos frascos.
+SELECT item_id, controlled, sds_kind, sds_url
 FROM reagents.products
-WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]) AND controlled;
+WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]);
 
 /* @name listProducts */
 -- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.

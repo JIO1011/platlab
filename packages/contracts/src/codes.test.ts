@@ -5,9 +5,19 @@ describe('codeFromName (ADR 0015)', () => {
   it('quita tildes, pasa a mayúsculas y une las palabras con guiones, hasta 20 caracteres', () => {
     expect(codeFromName('Acetona', 'R')).toBe('ACETONA');
     expect(codeFromName('Ácido clorhídrico 37 %', 'R')).toBe('ACIDO-CLORHIDRICO-37');
-    expect(codeFromName('  Hidróxido   de sodio ', 'R')).toBe('HIDROXIDO-DE-SODIO');
+    expect(codeFromName('  Hidróxido   de sodio ', 'R')).toBe('HIDROXIDO-SODIO');
     expect(codeFromName('Ácido etilendiaminotetraacético', 'R')).toBe('ACIDO');
     expect(codeFromName('Dicromatodepotasioextralargo', 'R')).toBe('DICROMATODEPOTASIOEX');
+  });
+
+  it('omite las palabras vacías; si todas lo son, las conserva (ADR 0016)', () => {
+    expect(codeFromName('Hidróxido de sodio', 'R')).toBe('HIDROXIDO-SODIO');
+    expect(codeFromName('Cloruro de sodio', 'R')).toBe('CLORURO-SODIO');
+    expect(codeFromName('Sulfato de cobre (II) pentahidratado', 'R')).toBe('SULFATO-COBRE-II');
+    expect(codeFromName('Ácido clorhídrico en agua', 'R')).toBe('ACIDO-CLORHIDRICO');
+    expect(codeFromName('Vitamina E', 'R')).toBe('VITAMINA-E');
+    expect(codeFromName('De', 'R')).toBe('DE');
+    expect(codeFromName('de la', 'R')).toBe('DE-LA');
   });
 
   it('sin letras ni números latinos usa el respaldo', () => {

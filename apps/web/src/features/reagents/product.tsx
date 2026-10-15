@@ -6,7 +6,7 @@ import { ActivityRow } from '../../app/activity-row';
 import { useOperations, usePositions, useProduct } from './queries';
 import { QueryErrorState } from '../../app/states';
 import { useReagents } from './context';
-import { purposeOf, responsibleOf } from './operation-text';
+import { placeOf, purposeOf, responsibleOf } from './operation-text';
 import { fefoCandidates } from './sheets';
 import { availableOf } from './stock';
 import { ContainerCard } from './container-card';
@@ -252,7 +252,7 @@ export function ReagentsProductPage() {
                     <ActivityRow
                       type={operation.type}
                       title={operation.container?.code ?? operation.lot.code}
-                      detail={[operation.location.code, purposeOf(operation)].filter(Boolean).join(' · ')}
+                      detail={[placeOf(operation), purposeOf(operation)].filter(Boolean).join(' · ')}
                       quantity={operation.quantity}
                       unit={operation.unit}
                       occurredAt={operation.effectiveAt}

@@ -150,14 +150,14 @@ describe('G0 · recorrido visible', () => {
   it('ingreso de 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con historial y responsables', async () => {
     const lab = await createLab();
     const product = await createProduct(lab);
-    expect(product).toMatchObject({ code: 'CLORURO-DE-SODIO', hazards: [], controlled: false, sdsKind: null, density: null });
+    expect(product).toMatchObject({ code: 'CLORURO-SODIO', hazards: [], controlled: false, sdsKind: null, density: null });
 
     const receipt = await receive(lab, product.id, '100', lab.storage, lab.operator.subject, { codes: ['NAC-001'] });
     expect(receipt.status).toBe(201);
     const received = receiptResponse.parse(receipt.body);
     expect(received).toMatchObject({
       type: 'receipt',
-      product: { id: product.id, code: 'CLORURO-DE-SODIO' },
+      product: { id: product.id, code: 'CLORURO-SODIO' },
       lot: { code: 'L-001' },
       unit: 'g',
     });
@@ -884,7 +884,7 @@ describe('R-01D · buscar reactivos en el catálogo', () => {
       'ACIDO-ACETICO',
       'ETANOL-96',
       'ETANOL-96-PURO',
-      'SULFATO-DE-COBRE',
+      'SULFATO-COBRE',
     ]);
   });
 });
@@ -1803,7 +1803,6 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
       quantity: '500',
       unit: 'mL',
       codes: ['ACE-001', 'ACE-002', 'ACE-003'],
-      reference: 'Factura 12',
     });
     expect(response.status).toBe(201);
     const received = receiptResponse.parse(response.body);
@@ -2114,5 +2113,73 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
     }
     const brands = brandList.parse((await call(lab.operator.subject, `${lab.base}/brands`)).body);
     expect(brands.items).toEqual(['merck', 'Sigma']);
+  });
+});
+
+describe('mejoras pequeñas (ADR 0016)', () => {
+  it('las posiciones traen la ficha de seguridad: digital con enlace, solo en físico o sin indicar', async () => {
+    const lab = await createLab();
+    const create = async (name: string, safety: Record<string, unknown>) => {
+      const created = await call(lab.adminMember.subject, `${lab.base}/products`, {
+        method: 'POST',
+        body: { name, casNumber: null, physicalState: 'solid', baseUnit: 'g', ...safety },
+      });
+      expect(created.status).toBe(201);
+      const product = productContract.parse(created.body);
+      expect((await receive(lab, product.id, '10', lab.storage, lab.adminMember.subject)).status).toBe(201);
+      const [position] = positionList.parse(
+        (await call(lab.operator.subject, `${lab.base}/positions?productId=${product.id}`)).body,
+      ).items;
+      return position!.product;
+    };
+    expect(await create('Ficha digital', { sdsKind: 'digital', sdsUrl: 'https://ejemplo.org/sds.pdf' })).toMatchObject({
+      sdsKind: 'digital',
+      sdsUrl: 'https://ejemplo.org/sds.pdf',
+      controlled: false,
+    });
+    expect(await create('Ficha en papel', { sdsKind: 'physical', controlled: true })).toMatchObject({
+      sdsKind: 'physical',
+      sdsUrl: null,
+      controlled: true,
+    });
+    expect(await create('Ficha sin indicar', {})).toMatchObject({ sdsKind: null, sdsUrl: null, controlled: false });
+  });
+
+  it('el historial trae la ruta de la ubicación: anidada en 3 niveles bajo la sede, o la sede sola', async () => {
+    const lab = await createLab();
+    const product = await createProduct(lab);
+    const nameOf = async (id: string) =>
+      (await admin.query<{ name: string; parent_id: string | null }>('select name, parent_id from core.locations where id = $1', [id]))
+        .rows[0]!;
+    const site = (await nameOf(lab.storage)).parent_id!;
+    const room = await addLocation(admin, lab.workspace.id, { kind: 'room', parentId: site });
+    const cabinet = await addLocation(admin, lab.workspace.id, { kind: 'storage', parentId: room });
+    const shelf = await addLocation(admin, lab.workspace.id, { kind: 'storage', parentId: cabinet });
+    expect((await receive(lab, product.id, '10', shelf, lab.adminMember.subject)).status).toBe(201);
+    expect((await receive(lab, product.id, '20', site, lab.adminMember.subject)).status).toBe(201);
+
+    const history = operationList.parse(
+      (await call(lab.operator.subject, `${lab.base}/operations?type=receipt&limit=1000`)).body,
+    ).items;
+    const locationOf = (quantity: string) => history.find((entry) => entry.quantity === quantity)!.location;
+    const [siteName, roomName, cabinetName, shelfName] = await Promise.all(
+      [site, room, cabinet, shelf].map(async (id) => (await nameOf(id)).name),
+    );
+    expect(locationOf('10')).toEqual({
+      code: shelfName,
+      name: shelfName,
+      path: [roomName, cabinetName, shelfName],
+    });
+    expect(locationOf('20')).toEqual({ code: siteName, name: siteName, path: [siteName] });
+  });
+
+  it('el ingreso ya no acepta referencia: el esquema estricto la rechaza sin registrar nada', async () => {
+    const lab = await createLab();
+    const product = await createProduct(lab);
+    const before = await operationsIn(lab.workspace.id);
+    const response = await receive(lab, product.id, '10', lab.storage, lab.adminMember.subject, { reference: 'Factura 12' });
+    expect(response.status).toBe(400);
+    expect(errorCode(response.body)).toBe('VALIDATION_FAILED');
+    expect(await operationsIn(lab.workspace.id)).toBe(before);
   });
 });

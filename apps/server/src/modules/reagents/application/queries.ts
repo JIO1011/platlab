@@ -48,7 +48,7 @@ import {
 } from '../../core/index.js';
 import {
   homeSummary,
-  listControlled,
+  listProductSafety,
   listLocationsIn,
   listProducts as listProductsQuery,
   type IListProductsResult,
@@ -246,17 +246,29 @@ export function listPositions(
       cursor: query.cursor,
       limit: query.limit,
     });
-    // «Controlado» es de la ficha química (ADR 0015): lo añade el módulo, no la capacidad.
+    // «Controlado» y la ficha de seguridad son de la ficha química (ADR 0015, 0016): los añade el módulo,
+    // no la capacidad.
     const itemIds = [...new Set(page.items.map((position) => position.product.id))];
-    const controlled = new Set(
-      (await listControlled.run({ workspaceId: access.workspace.id, itemIds }, access.client)).map((row) => row.item_id),
+    const safety = new Map(
+      (await listProductSafety.run({ workspaceId: access.workspace.id, itemIds }, access.client)).map((row) => [
+        row.item_id,
+        row,
+      ]),
     );
     return {
       ...page,
-      items: page.items.map((position) => ({
-        ...position,
-        product: { ...position.product, controlled: controlled.has(position.product.id) },
-      })),
+      items: page.items.map((position) => {
+        const detail = safety.get(position.product.id);
+        return {
+          ...position,
+          product: {
+            ...position.product,
+            controlled: detail?.controlled ?? false,
+            sdsKind: (detail?.sds_kind ?? null) as Product['sdsKind'],
+            sdsUrl: detail?.sds_url ?? null,
+          },
+        };
+      }),
     };
   });
 }

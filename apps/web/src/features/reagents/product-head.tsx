@@ -1,14 +1,14 @@
 import type { ProductDetail } from '@platlab/contracts';
 import type { ReactNode } from 'react';
 import { Button, IconTile, Quantity, StockLevelBar, Tooltip, cn, formatDecimal } from '@platlab/ui';
-import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, QrCode, RefreshCw, ScanLine, TrendingDown, type LucideIcon } from 'lucide-react';
+import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, FlaskConical, Package, PackagePlus, PencilLine, QrCode, RefreshCw, ScanLine, TrendingDown, type LucideIcon } from 'lucide-react';
 import { formatAgo, formatDate } from '../../app/format';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { ControlledMark } from './controlled';
 import { HazardGlyphs } from './hazards';
-import { sdsLabels } from './ingress/safety-fields';
 import { InfoPill } from './pills';
 import { physicalStateIcon, physicalStateLabel } from './product-parts';
+import { SdsReference } from './sds';
 import { useNow } from './use-now';
 
 /**
@@ -122,19 +122,7 @@ export function ProductHeader({
             {/* Seguridad (ADR 0015): pictogramas, ficha de seguridad y densidad, como los registra el catálogo. */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-muted">
               {product.hazards.length > 0 ? <HazardGlyphs ids={product.hazards} large /> : <span>Sin pictogramas</span>}
-              {product.sdsKind === 'digital' && product.sdsUrl ? (
-                <a
-                  href={product.sdsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 font-medium text-action hover:text-action-hover"
-                >
-                  Ficha de seguridad
-                  <ExternalLink className="size-3.5" aria-hidden />
-                </a>
-              ) : (
-                <span>{product.sdsKind ? `Ficha de seguridad: ${sdsLabels[product.sdsKind].toLowerCase()}` : 'Ficha de seguridad sin indicar'}</span>
-              )}
+              <SdsReference kind={product.sdsKind} url={product.sdsUrl} />
               {product.density ? <span className="tabular-nums">Densidad {formatDecimal(product.density)} g/mL</span> : null}
             </div>
           </div>

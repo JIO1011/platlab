@@ -1277,6 +1277,8 @@ export interface IListOperationsResult {
   item_id: string;
   item_name: string;
   location_code: string;
+  location_name: string;
+  location_path: stringArray;
   lot_code: string;
   position_id: string;
   quantity: string;
@@ -1293,79 +1295,121 @@ export interface IListOperationsQuery {
   result: IListOperationsResult;
 }
 
-const listOperationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"types":true,"itemIds":true,"responsibleIds":true,"destinations":true,"reasons":true,"filterLocationIds":true,"positionId":true,"days":true,"timeZone":true,"fromDate":true,"toDate":true,"beforeId":true,"beforeAt":true,"beforeEntryId":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2197,"b":2209}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":2226,"b":2231}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":2260,"b":2272}]},{"name":"types","required":false,"transform":{"type":"scalar"},"locs":[{"a":2290,"b":2295},{"a":2330,"b":2335}]},{"name":"itemIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":2354,"b":2361},{"a":2399,"b":2406}]},{"name":"responsibleIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":2430,"b":2444},{"a":2536,"b":2550}]},{"name":"destinations","required":false,"transform":{"type":"scalar"},"locs":[{"a":2572,"b":2584},{"a":2626,"b":2638}]},{"name":"reasons","required":false,"transform":{"type":"scalar"},"locs":[{"a":2657,"b":2664},{"a":2701,"b":2708}]},{"name":"filterLocationIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":2727,"b":2744},{"a":2786,"b":2803}]},{"name":"positionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2822,"b":2832},{"a":2858,"b":2868}]},{"name":"days","required":false,"transform":{"type":"scalar"},"locs":[{"a":2980,"b":2984},{"a":3067,"b":3071}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":3046,"b":3055},{"a":3108,"b":3117},{"a":3310,"b":3319},{"a":3417,"b":3426}]},{"name":"fromDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":3224,"b":3232},{"a":3270,"b":3278}]},{"name":"toDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":3330,"b":3336},{"a":3374,"b":3380}]},{"name":"beforeId","required":false,"transform":{"type":"scalar"},"locs":[{"a":3442,"b":3450},{"a":3529,"b":3537}]},{"name":"beforeAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":3505,"b":3513}]},{"name":"beforeEntryId","required":false,"transform":{"type":"scalar"},"locs":[{"a":3546,"b":3559}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":3629,"b":3635}]}],"statement":"-- Un asiento por fila: un ingreso de varios frascos son varias filas de la misma operación. El\n-- cursor incluye el asiento para que una página nunca corte una operación a medias.\nSELECT\n  o.id,\n  e.id AS entry_id,\n  o.type,\n  o.effective_at,\n  -- Marca exacta (microsegundos, UTC) para el cursor; un Date de JavaScript la redondearía.\n  to_char(o.effective_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS \"cursor_at!\",\n  o.reason,\n  o.destination,\n  o.reference,\n  o.requested_by_principal_id,\n  o.actor_principal_id,\n  ident.display_name AS actor_name,\n  requester.display_name AS requester_name,\n  e.position_id,\n  trim_scale(e.quantity) AS \"quantity!\",\n  trim_scale(e.balance_after) AS \"balance_after!\",\n  p.item_id,\n  i.code AS item_code,\n  i.name AS item_name,\n  l.code AS lot_code,\n  c.code AS container_code,\n  loc.code AS location_code,\n  i.base_unit\nFROM inventory.operations AS o\nJOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id\nJOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nLEFT JOIN core.principals AS rqp ON rqp.workspace_id = o.workspace_id AND rqp.id = o.requested_by_principal_id\nLEFT JOIN core.memberships AS rqm ON rqm.workspace_id = rqp.workspace_id AND rqm.id = rqp.membership_id\nLEFT JOIN core.identities AS requester ON requester.id = rqm.identity_id\n-- Filtros del libro (ADR 0014), los mismos en operationFacets y operationTotals: si cambian aquí,\n-- cambian allí. `locationIds` es el ámbito del miembro; `filterLocationIds` solo lo estrecha.\nWHERE o.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND p.location_id = ANY (:locationIds!::uuid[])\n  AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))\n  AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))\n  AND (\n    :responsibleIds::uuid[] IS NULL\n    OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[])\n  )\n  AND (:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]))\n  AND (:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]))\n  AND (:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]))\n  AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)\n  -- Misma ventana que countOperationsByDay: desde la medianoche local de hace N - 1 días.\n  AND (\n    :days::int IS NULL\n    OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)\n  )\n  -- Desde la medianoche local de `fromDate` hasta antes de la del día siguiente a `toDate`.\n  AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))\n  AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))\n  AND (\n    :beforeId::uuid IS NULL\n    OR (o.effective_at, o.id, e.id) < (:beforeAt::timestamptz, :beforeId::uuid, :beforeEntryId::uuid)\n  )\nORDER BY o.effective_at DESC, o.id DESC, e.id DESC\nLIMIT :limit!"};
+const listOperationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"locationIds":true,"types":true,"itemIds":true,"responsibleIds":true,"destinations":true,"reasons":true,"filterLocationIds":true,"positionId":true,"days":true,"timeZone":true,"fromDate":true,"toDate":true,"beforeId":true,"beforeAt":true,"beforeEntryId":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2267,"b":2279},{"a":4898,"b":4910}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":2298,"b":2303}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":2334,"b":2346}]},{"name":"types","required":false,"transform":{"type":"scalar"},"locs":[{"a":2366,"b":2371},{"a":2406,"b":2411}]},{"name":"itemIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":2432,"b":2439},{"a":2477,"b":2484}]},{"name":"responsibleIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":2512,"b":2526},{"a":2620,"b":2634}]},{"name":"destinations","required":false,"transform":{"type":"scalar"},"locs":[{"a":2660,"b":2672},{"a":2714,"b":2726}]},{"name":"reasons","required":false,"transform":{"type":"scalar"},"locs":[{"a":2747,"b":2754},{"a":2791,"b":2798}]},{"name":"filterLocationIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":2819,"b":2836},{"a":2878,"b":2895}]},{"name":"positionId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2916,"b":2926},{"a":2952,"b":2962}]},{"name":"days","required":false,"transform":{"type":"scalar"},"locs":[{"a":3080,"b":3084},{"a":3169,"b":3173}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":3148,"b":3157},{"a":3210,"b":3219},{"a":3418,"b":3427},{"a":3527,"b":3536}]},{"name":"fromDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":3332,"b":3340},{"a":3378,"b":3386}]},{"name":"toDate","required":false,"transform":{"type":"scalar"},"locs":[{"a":3440,"b":3446},{"a":3484,"b":3490}]},{"name":"beforeId","required":false,"transform":{"type":"scalar"},"locs":[{"a":3556,"b":3564},{"a":3645,"b":3653}]},{"name":"beforeAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":3621,"b":3629}]},{"name":"beforeEntryId","required":false,"transform":{"type":"scalar"},"locs":[{"a":3662,"b":3675}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":3751,"b":3757}]}],"statement":"-- Un asiento por fila: un ingreso de varios frascos son varias filas de la misma operación. El\n-- cursor incluye el asiento para que una página nunca corte una operación a medias. La ruta de la\n-- ubicación se calcula fuera de `page`, solo para las filas de la página.\nWITH page AS (\n  SELECT\n    o.id,\n    e.id AS entry_id,\n    o.type,\n    o.effective_at,\n    -- Marca exacta (microsegundos, UTC) para el cursor; un Date de JavaScript la redondearía.\n    to_char(o.effective_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS cursor_at,\n    o.reason,\n    o.destination,\n    o.reference,\n    o.requested_by_principal_id,\n    o.actor_principal_id,\n    ident.display_name AS actor_name,\n    requester.display_name AS requester_name,\n    e.position_id,\n    trim_scale(e.quantity) AS quantity,\n    trim_scale(e.balance_after) AS balance_after,\n    p.item_id,\n    i.code AS item_code,\n    i.name AS item_name,\n    l.code AS lot_code,\n    c.code AS container_code,\n    p.location_id,\n    i.base_unit\n  FROM inventory.operations AS o\n  JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id\n  JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id\n  JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\n  JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n  LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\n  LEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id\n  LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n  LEFT JOIN core.identities AS ident ON ident.id = m.identity_id\n  LEFT JOIN core.principals AS rqp ON rqp.workspace_id = o.workspace_id AND rqp.id = o.requested_by_principal_id\n  LEFT JOIN core.memberships AS rqm ON rqm.workspace_id = rqp.workspace_id AND rqm.id = rqp.membership_id\n  LEFT JOIN core.identities AS requester ON requester.id = rqm.identity_id\n  -- Filtros del libro (ADR 0014), los mismos en operationFacets y operationTotals: si cambian aquí,\n  -- cambian allí. `locationIds` es el ámbito del miembro; `filterLocationIds` solo lo estrecha.\n  WHERE o.workspace_id = :workspaceId!\n    AND i.kind = :kind!\n    AND p.location_id = ANY (:locationIds!::uuid[])\n    AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))\n    AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))\n    AND (\n      :responsibleIds::uuid[] IS NULL\n      OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[])\n    )\n    AND (:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]))\n    AND (:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]))\n    AND (:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]))\n    AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)\n    -- Misma ventana que countOperationsByDay: desde la medianoche local de hace N - 1 días.\n    AND (\n      :days::int IS NULL\n      OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)\n    )\n    -- Desde la medianoche local de `fromDate` hasta antes de la del día siguiente a `toDate`.\n    AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))\n    AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))\n    AND (\n      :beforeId::uuid IS NULL\n      OR (o.effective_at, o.id, e.id) < (:beforeAt::timestamptz, :beforeId::uuid, :beforeEntryId::uuid)\n    )\n  ORDER BY o.effective_at DESC, o.id DESC, e.id DESC\n  LIMIT :limit!\n)\nSELECT\n  page.id,\n  page.entry_id,\n  page.type,\n  page.effective_at,\n  page.cursor_at AS \"cursor_at!\",\n  page.reason,\n  page.destination,\n  page.reference,\n  page.requested_by_principal_id,\n  page.actor_principal_id,\n  page.actor_name,\n  page.requester_name,\n  page.position_id,\n  page.quantity AS \"quantity!\",\n  page.balance_after AS \"balance_after!\",\n  page.item_id,\n  page.item_code,\n  page.item_name,\n  page.lot_code,\n  page.container_code,\n  loc.code AS location_code,\n  loc.name AS location_name,\n  -- La misma ruta que listPositions: desde el primer nivel bajo la sede, hasta 6 niveles.\n  (\n    WITH RECURSIVE up AS (\n      SELECT loc.parent_id, loc.kind, loc.name, 0 AS depth\n      UNION ALL\n      SELECT parent.parent_id, parent.kind, parent.name, up.depth + 1\n      FROM up\n      JOIN core.locations AS parent ON parent.workspace_id = loc.workspace_id AND parent.id = up.parent_id\n      WHERE up.depth < 5\n    )\n    SELECT array_agg(up.name ORDER BY up.depth DESC) FILTER (WHERE up.depth = 0 OR up.kind <> 'site')\n    FROM up\n  ) AS \"location_path!\",\n  page.base_unit\nFROM page\nJOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = page.location_id\nORDER BY page.effective_at DESC, page.id DESC, page.entry_id DESC"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Un asiento por fila: un ingreso de varios frascos son varias filas de la misma operación. El
- * -- cursor incluye el asiento para que una página nunca corte una operación a medias.
+ * -- cursor incluye el asiento para que una página nunca corte una operación a medias. La ruta de la
+ * -- ubicación se calcula fuera de `page`, solo para las filas de la página.
+ * WITH page AS (
+ *   SELECT
+ *     o.id,
+ *     e.id AS entry_id,
+ *     o.type,
+ *     o.effective_at,
+ *     -- Marca exacta (microsegundos, UTC) para el cursor; un Date de JavaScript la redondearía.
+ *     to_char(o.effective_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_at,
+ *     o.reason,
+ *     o.destination,
+ *     o.reference,
+ *     o.requested_by_principal_id,
+ *     o.actor_principal_id,
+ *     ident.display_name AS actor_name,
+ *     requester.display_name AS requester_name,
+ *     e.position_id,
+ *     trim_scale(e.quantity) AS quantity,
+ *     trim_scale(e.balance_after) AS balance_after,
+ *     p.item_id,
+ *     i.code AS item_code,
+ *     i.name AS item_name,
+ *     l.code AS lot_code,
+ *     c.code AS container_code,
+ *     p.location_id,
+ *     i.base_unit
+ *   FROM inventory.operations AS o
+ *   JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id
+ *   JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id
+ *   JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+ *   JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+ *   LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
+ *   LEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id
+ *   LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+ *   LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
+ *   LEFT JOIN core.principals AS rqp ON rqp.workspace_id = o.workspace_id AND rqp.id = o.requested_by_principal_id
+ *   LEFT JOIN core.memberships AS rqm ON rqm.workspace_id = rqp.workspace_id AND rqm.id = rqp.membership_id
+ *   LEFT JOIN core.identities AS requester ON requester.id = rqm.identity_id
+ *   -- Filtros del libro (ADR 0014), los mismos en operationFacets y operationTotals: si cambian aquí,
+ *   -- cambian allí. `locationIds` es el ámbito del miembro; `filterLocationIds` solo lo estrecha.
+ *   WHERE o.workspace_id = :workspaceId!
+ *     AND i.kind = :kind!
+ *     AND p.location_id = ANY (:locationIds!::uuid[])
+ *     AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))
+ *     AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))
+ *     AND (
+ *       :responsibleIds::uuid[] IS NULL
+ *       OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[])
+ *     )
+ *     AND (:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]))
+ *     AND (:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]))
+ *     AND (:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]))
+ *     AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)
+ *     -- Misma ventana que countOperationsByDay: desde la medianoche local de hace N - 1 días.
+ *     AND (
+ *       :days::int IS NULL
+ *       OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)
+ *     )
+ *     -- Desde la medianoche local de `fromDate` hasta antes de la del día siguiente a `toDate`.
+ *     AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))
+ *     AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))
+ *     AND (
+ *       :beforeId::uuid IS NULL
+ *       OR (o.effective_at, o.id, e.id) < (:beforeAt::timestamptz, :beforeId::uuid, :beforeEntryId::uuid)
+ *     )
+ *   ORDER BY o.effective_at DESC, o.id DESC, e.id DESC
+ *   LIMIT :limit!
+ * )
  * SELECT
- *   o.id,
- *   e.id AS entry_id,
- *   o.type,
- *   o.effective_at,
- *   -- Marca exacta (microsegundos, UTC) para el cursor; un Date de JavaScript la redondearía.
- *   to_char(o.effective_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "cursor_at!",
- *   o.reason,
- *   o.destination,
- *   o.reference,
- *   o.requested_by_principal_id,
- *   o.actor_principal_id,
- *   ident.display_name AS actor_name,
- *   requester.display_name AS requester_name,
- *   e.position_id,
- *   trim_scale(e.quantity) AS "quantity!",
- *   trim_scale(e.balance_after) AS "balance_after!",
- *   p.item_id,
- *   i.code AS item_code,
- *   i.name AS item_name,
- *   l.code AS lot_code,
- *   c.code AS container_code,
+ *   page.id,
+ *   page.entry_id,
+ *   page.type,
+ *   page.effective_at,
+ *   page.cursor_at AS "cursor_at!",
+ *   page.reason,
+ *   page.destination,
+ *   page.reference,
+ *   page.requested_by_principal_id,
+ *   page.actor_principal_id,
+ *   page.actor_name,
+ *   page.requester_name,
+ *   page.position_id,
+ *   page.quantity AS "quantity!",
+ *   page.balance_after AS "balance_after!",
+ *   page.item_id,
+ *   page.item_code,
+ *   page.item_name,
+ *   page.lot_code,
+ *   page.container_code,
  *   loc.code AS location_code,
- *   i.base_unit
- * FROM inventory.operations AS o
- * JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id
- * JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id
- * JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
- * JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
- * LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
- * JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
- * LEFT JOIN core.principals AS pr ON pr.workspace_id = o.workspace_id AND pr.id = o.actor_principal_id
- * LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
- * LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
- * LEFT JOIN core.principals AS rqp ON rqp.workspace_id = o.workspace_id AND rqp.id = o.requested_by_principal_id
- * LEFT JOIN core.memberships AS rqm ON rqm.workspace_id = rqp.workspace_id AND rqm.id = rqp.membership_id
- * LEFT JOIN core.identities AS requester ON requester.id = rqm.identity_id
- * -- Filtros del libro (ADR 0014), los mismos en operationFacets y operationTotals: si cambian aquí,
- * -- cambian allí. `locationIds` es el ámbito del miembro; `filterLocationIds` solo lo estrecha.
- * WHERE o.workspace_id = :workspaceId!
- *   AND i.kind = :kind!
- *   AND p.location_id = ANY (:locationIds!::uuid[])
- *   AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))
- *   AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))
- *   AND (
- *     :responsibleIds::uuid[] IS NULL
- *     OR coalesce(o.requested_by_principal_id, o.actor_principal_id) = ANY (:responsibleIds::uuid[])
- *   )
- *   AND (:destinations::text[] IS NULL OR o.destination = ANY (:destinations::text[]))
- *   AND (:reasons::text[] IS NULL OR o.reason = ANY (:reasons::text[]))
- *   AND (:filterLocationIds::uuid[] IS NULL OR p.location_id = ANY (:filterLocationIds::uuid[]))
- *   AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)
- *   -- Misma ventana que countOperationsByDay: desde la medianoche local de hace N - 1 días.
- *   AND (
- *     :days::int IS NULL
- *     OR o.effective_at >= (((now() AT TIME ZONE :timeZone!)::date - (:days::int - 1))::timestamp AT TIME ZONE :timeZone!)
- *   )
- *   -- Desde la medianoche local de `fromDate` hasta antes de la del día siguiente a `toDate`.
- *   AND (:fromDate::date IS NULL OR o.effective_at >= (:fromDate::date::timestamp AT TIME ZONE :timeZone!))
- *   AND (:toDate::date IS NULL OR o.effective_at < ((:toDate::date + 1)::timestamp AT TIME ZONE :timeZone!))
- *   AND (
- *     :beforeId::uuid IS NULL
- *     OR (o.effective_at, o.id, e.id) < (:beforeAt::timestamptz, :beforeId::uuid, :beforeEntryId::uuid)
- *   )
- * ORDER BY o.effective_at DESC, o.id DESC, e.id DESC
- * LIMIT :limit!
+ *   loc.name AS location_name,
+ *   -- La misma ruta que listPositions: desde el primer nivel bajo la sede, hasta 6 niveles.
+ *   (
+ *     WITH RECURSIVE up AS (
+ *       SELECT loc.parent_id, loc.kind, loc.name, 0 AS depth
+ *       UNION ALL
+ *       SELECT parent.parent_id, parent.kind, parent.name, up.depth + 1
+ *       FROM up
+ *       JOIN core.locations AS parent ON parent.workspace_id = loc.workspace_id AND parent.id = up.parent_id
+ *       WHERE up.depth < 5
+ *     )
+ *     SELECT array_agg(up.name ORDER BY up.depth DESC) FILTER (WHERE up.depth = 0 OR up.kind <> 'site')
+ *     FROM up
+ *   ) AS "location_path!",
+ *   page.base_unit
+ * FROM page
+ * JOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = page.location_id
+ * ORDER BY page.effective_at DESC, page.id DESC, page.entry_id DESC
  * ```
  */
 export const listOperations = new PreparedQuery<IListOperationsParams,IListOperationsResult>(listOperationsIR);

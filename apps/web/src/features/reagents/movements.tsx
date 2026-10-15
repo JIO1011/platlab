@@ -33,7 +33,7 @@ import {
   type FilterGroupId,
 } from './movement-text';
 import { MovementTotals } from './movement-totals';
-import { purposeOf } from './operation-text';
+import { placeOf, purposeOf } from './operation-text';
 import { canReadReports } from './queries';
 import { useMediaQuery, useStoredFlag } from './use-media-query';
 import { useNow } from './use-now';
@@ -391,7 +391,7 @@ function MovementRow({ operation, to, timeZone }: { operation: Operation; to: st
       <div className="min-w-0 flex-1">
         <p className="line-clamp-2 break-words font-bold text-ink">{tight(operation.product.name)}</p>
         <p className="line-clamp-2 text-[13px] text-ink-muted">
-          {operation.container?.code ?? operation.lot.code} · {operation.location.code}
+          {operation.container?.code ?? operation.lot.code} · {placeOf(operation)}
           {purpose ? ` · ${purpose}` : ''}
           {operation.reference ? ` · ${operation.reference}` : ''}
         </p>
