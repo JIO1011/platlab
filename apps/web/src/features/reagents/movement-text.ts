@@ -1,4 +1,4 @@
-import type { OperationFacets } from '@platlab/contracts';
+import type { OperationFacets, OperationGroupBy } from '@platlab/contracts';
 import { addDays } from '../../app/format';
 import type { MovementFilters } from './movement-filters';
 
@@ -15,7 +15,8 @@ export const filterGroups: ReadonlyArray<{ id: FilterGroupId; title: string }> =
   { id: 'location', title: 'Ubicación' },
 ];
 
-export const defaultOpenGroups: readonly FilterGroupId[] = ['period', 'type', 'product', 'responsible'];
+/** Período y Tipo van siempre a la vista, en pastillas; los demás grupos se pliegan, de uno en uno (ADR 0014). */
+export const foldingGroups: readonly FilterGroupId[] = ['product', 'responsible', 'destination', 'reason', 'location'];
 
 type OperationType = MovementFilters['types'][number];
 
@@ -26,6 +27,14 @@ export const typePlural: Record<OperationType, string> = {
   issue: 'Salidas',
   adjustment: 'Ajustes',
   transfer: 'Traslados',
+};
+
+/** El tipo en singular, como se lee en el libro y en el informe impreso. */
+export const typeSingular: Record<OperationType, string> = {
+  receipt: 'Ingreso',
+  issue: 'Salida',
+  adjustment: 'Ajuste',
+  transfer: 'Traslado',
 };
 
 export const noName = 'Sin nombre';
@@ -43,6 +52,9 @@ export const countFormat = new Intl.NumberFormat('es-EC');
 export function movementsText(total: number): string {
   return `${countFormat.format(total)} ${total === 1 ? 'movimiento' : 'movimientos'}`;
 }
+
+/** «1 elegido» / «3 elegidos»: lo que dice cada fila plegada con algo marcado. */
+export const chosenText = (count: number): string => `${countFormat.format(count)} ${count === 1 ? 'elegido' : 'elegidos'}`;
 
 function isoToDate(iso: string): Date {
   const [year = 1970, month = 1, day = 1] = iso.split('-').map(Number);
@@ -104,6 +116,72 @@ export function monthBounds(key: string): { from: string; to: string } {
   const first = new Date(Date.UTC(year, month - 1, 1)).toISOString().slice(0, 10);
   const next = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
   return { from: first, to: addDays(next, -1) };
+}
+
+/**
+ * Los filtros activos en palabras, uno por grupo, para el encabezado del informe impreso: a diferencia de
+ * las fichas, nombra todos los valores. Un valor que ya no sale en las opciones se cuenta («2 reactivos»).
+ */
+export function filterLines(
+  filters: MovementFilters,
+  facets: OperationFacets | undefined,
+  productName: (id: string) => string | undefined,
+): string[] {
+  const named = (title: string, names: ReadonlyArray<string | undefined>, noun: string) => {
+    const found = names.filter((name): name is string => name !== undefined);
+    return `${title}: ${found.length === names.length ? joinList(found) : `${names.length} ${noun}`}`;
+  };
+  return activeGroups(filters)
+    .filter((group) => group !== 'period')
+    .map((group) => {
+      const title = filterGroups.find((entry) => entry.id === group)?.title ?? '';
+      switch (group) {
+        case 'type':
+          return `${title}: ${joinList(typeOrder.filter((type) => filters.types.includes(type)).map((type) => typePlural[type]))}`;
+        case 'product':
+          return named(title, filters.productIds.map(productName), 'reactivos');
+        case 'responsible':
+          return named(
+            title,
+            filters.responsibleIds.map((id) => {
+              const found = facets?.responsibles.find((option) => option.principalId === id);
+              return found ? (found.displayName ?? noName) : undefined;
+            }),
+            'responsables',
+          );
+        case 'destination':
+          return `${title}: ${joinList(filters.destinations)}`;
+        case 'reason':
+          return `${title}: ${joinList(filters.reasons)}`;
+        default:
+          return named(
+            title,
+            filters.locationIds.map((id) => {
+              const found = facets?.locations.find((option) => option.id === id);
+              return found ? `${found.code} · ${found.name}` : undefined;
+            }),
+            'ubicaciones',
+          );
+      }
+    });
+}
+
+/** Hora «15:32» de un instante en la zona del espacio. */
+export function hourOf(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('es-EC', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
+}
+
+/** Cómo se llama cada agrupación de Totales. */
+export const groupNames: Record<OperationGroupBy, string> = {
+  product: 'Reactivo',
+  responsible: 'Responsable',
+  destination: 'Destino',
+  month: 'Mes',
+};
+
+/** Día civil de un instante en la zona del espacio, «AAAA-MM-DD», para agrupar y comparar. */
+export function dayKey(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
 
 /** Cuántos grupos del panel tienen algo marcado. */

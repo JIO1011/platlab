@@ -150,7 +150,7 @@ export function ReagentsProductPage() {
         <aside aria-label="Resumen del reactivo" className="xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:self-start">
           <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} expiry={expiry} onAction={openSheet} />
         </aside>
-        <div className="grid min-w-0 content-start gap-6 xl:col-start-1 xl:row-start-1">
+        <div className="grid min-w-0 content-start gap-9 xl:col-start-1 xl:row-start-1">
           <section aria-labelledby="frascos" className="grid gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 id="frascos" className="scroll-mt-20 text-xl font-bold text-ink">
@@ -176,7 +176,7 @@ export function ReagentsProductPage() {
                 {containers.length === 0 ? 'Este reactivo aún no tiene frascos. Regístralos con un ingreso.' : 'Todos sus frascos están vacíos.'}
               </p>
             ) : (
-              <ul className={cn('grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4 xl:grid-cols-3', labelsUsed && 'pb-24')}>
+              <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4 xl:grid-cols-3">
                 {visible.map((position) => (
                   <li key={position.id}>
                     <ContainerCard

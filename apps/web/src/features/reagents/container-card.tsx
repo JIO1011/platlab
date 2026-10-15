@@ -331,8 +331,9 @@ export function ContainerCard({
       aria-current={scanned ? 'true' : undefined}
       style={{ '--flip-delay': `${Math.min(labels?.order ?? 0, 12) * 40}ms` } as CSSProperties}
       className={cn(
+        // Frente y reverso comparten la misma celda: la tarjeta mide lo mayor de las dos caras, sin altura fija.
         // El giro: 300 ms con la curva de salida del sistema. Con movimiento reducido no hay giro: las caras se funden.
-        'relative h-full [transform-style:preserve-3d] [transform:perspective(1100px)_rotateY(0deg)] [transition-delay:var(--flip-delay)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out-expo',
+        'grid h-full grid-cols-[minmax(0,1fr)] [transform-style:preserve-3d] [transform:perspective(1100px)_rotateY(0deg)] [transition-delay:var(--flip-delay)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out-expo',
         flipped && '[transform:perspective(1100px)_rotateY(180deg)]',
         'motion-reduce:[transform:none] motion-reduce:[transform-style:flat]',
         scanned && 'scroll-mt-24',
@@ -343,7 +344,7 @@ export function ContainerCard({
         aria-hidden={flipped || undefined}
         className={cn(
           // El lenguaje de la tarjeta del Inventario; el color solo cuenta un estado y siempre con texto (ADR 0010).
-          'group relative flex h-full flex-col gap-2.5 rounded-[20px] bg-surface p-4 shadow-raised [backface-visibility:hidden] transition-[translate,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1',
+          'group relative flex flex-col gap-2.5 [grid-area:1/1] rounded-[20px] bg-surface p-4 shadow-raised [backface-visibility:hidden] transition-[translate,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1',
           'motion-reduce:transition-opacity motion-reduce:duration-300 motion-reduce:[transition-delay:var(--flip-delay)]',
           flipped && 'motion-reduce:opacity-0',
           scanned && 'ring-2 ring-action',
@@ -464,7 +465,7 @@ function LabelFace({ code, position, labels }: { code: string; position: Positio
         }
       }}
       className={cn(
-        'absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[20px] border bg-white p-4 shadow-raised [backface-visibility:hidden] [transform:rotateY(180deg)] transition-shadow duration-200 hover:shadow-float',
+        '@container relative flex cursor-pointer flex-col items-center [grid-area:1/1] justify-center gap-3 rounded-[20px] border bg-white p-4 shadow-raised [backface-visibility:hidden] [transform:rotateY(180deg)] transition-shadow duration-200 hover:shadow-float',
         'motion-reduce:opacity-0 motion-reduce:transition-opacity motion-reduce:duration-300 motion-reduce:[transform:none] motion-reduce:[transition-delay:var(--flip-delay)]',
         flipped && 'motion-reduce:opacity-100',
         picked ? 'border-action ring-2 ring-action' : 'border-white/80',
@@ -479,7 +480,10 @@ function LabelFace({ code, position, labels }: { code: string; position: Positio
       >
         {picked ? <Check className="size-4" strokeWidth={3} /> : null}
       </span>
-      <ContainerLabel position={position} product={product} url={url} />
+      {/* La etiqueta mide 63,5 mm: en una tarjeta más estrecha (tres por fila a 1280 px) se reduce para caber. */}
+      <div className="@max-[240px]:scale-[0.88]">
+        <ContainerLabel position={position} product={product} url={url} />
+      </div>
       <p className={cn('text-sm font-semibold', picked ? 'text-action' : 'text-ink-muted')}>{picked ? 'Se imprime' : 'No se imprime'}</p>
     </div>
   );

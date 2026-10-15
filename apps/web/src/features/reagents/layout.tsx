@@ -1,7 +1,7 @@
 import type { Position } from '@platlab/contracts';
 import { Button, cn } from '@platlab/ui';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpFromLine, Eye, PackagePlus, RefreshCw, Scale } from 'lucide-react';
+import { ArrowUpFromLine, Eye, PackagePlus, RefreshCw, Scale, ScanLine } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Outlet, useLocation, useSearchParams } from 'react-router';
 import { moduleApps, useShell } from '../../app/app-shell';
@@ -20,6 +20,7 @@ import {
 import { QueryErrorState } from '../../app/states';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { IngressSheet } from './ingress/ingress-sheet';
+import { ScanSheet } from './scan/scan-sheet';
 import { AdjustmentSheet, IssueSheet, MinimumSheet, ProductSheet, TransferSheet } from './sheets';
 import { useNow } from './use-now';
 
@@ -109,6 +110,9 @@ export function ReagentsLayout() {
     { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 && !inProduct },
   ] as const;
   const visibleSecondary = secondaryActions.filter((action) => action.shown);
+  // En el Resumen la tarjeta de acción rápida hace de acciones y en Solicitudes la tarea es decidir:
+  // ahí la cabecera lleva solo «Escanear», que sirve en todas las secciones.
+  const showRegisterActions = sectionPath !== '' && sectionPath !== 'solicitudes' && !inLabels;
   // «Actualizado hace…» informa lo más antiguo de lo que la sección muestra, nunca lo más fresco.
   const shown: Array<{ dataUpdatedAt: number }> =
     sectionPath === ''
@@ -146,6 +150,8 @@ export function ReagentsLayout() {
     },
   });
 
+  const scanProps = { open: current?.open === true, onOpenChange: sheetProps('scan').onOpenChange };
+
   // El Resumen cabe en una ventana en escritorio (ADR 0012, 05-10-2026): ocupa el alto que deja el
   // shell (barra superior y rellenos del main) y reparte el resto entre sus tarjetas.
   const fitsWindow = sectionPath === '' && detailId === undefined;
@@ -171,8 +177,17 @@ export function ReagentsLayout() {
           </p>
         </div>
         {/* En el Resumen, la tarjeta de acción rápida hace de acciones (ADR 0010, 04-10-2026); en Solicitudes, la tarea es decidir, y «Aprobar salida» es la primaria. */}
-        {sectionPath !== '' && sectionPath !== 'solicitudes' && !inLabels ? (
-          <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
+        <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
+          {/* «Escanear» lee la etiqueta QR de un frasco con la cámara (14-10-2026): lo puede usar quien lee Reactivos. En el móvil abre la cabecera, ancho y con el tinte del acento; desde 1024 px es una pastilla secundaria. */}
+          <Button
+            className="order-first col-span-2 h-12 border-action/25 bg-action-soft font-semibold text-action hover:bg-action-soft lg:order-none lg:h-10 lg:border-line-strong lg:bg-surface lg:font-medium lg:text-ink lg:hover:bg-surface-sunken"
+            onClick={() => sheets.open({ kind: 'scan' })}
+          >
+            <ScanLine aria-hidden />
+            Escanear
+          </Button>
+          {showRegisterActions ? (
+            <>
             {visibleSecondary.map(({ kind, label, icon: Icon }, index) => (
               <Button
                 key={kind}
@@ -193,8 +208,9 @@ export function ReagentsLayout() {
                 {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
               </Button>
             ) : null}
-          </div>
-        ) : null}
+            </>
+          ) : null}
+        </div>
       </header>
       )}
 
@@ -232,6 +248,8 @@ export function ReagentsLayout() {
           }
         />
       </div>
+
+      {current?.request.kind === 'scan' ? <ScanSheet {...scanProps} /> : null}
 
       {current?.request.kind === 'ingress' ? (
         <IngressSheet

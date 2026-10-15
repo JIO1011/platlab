@@ -6,6 +6,7 @@ import {
   ArrowUpFromLine,
   ChevronRight,
   History,
+  Printer,
   Scale,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -17,13 +18,18 @@ import { useReagents } from './context';
 import { MovementChips } from './movement-chips';
 import { serializeMovementFilters, type MovementFilters } from './movement-filters';
 import { MovementFilterPanel, type FocusRequest } from './movement-panel';
+import { MovementPrint } from './movement-print';
 import {
   activeGroups,
   clearedGroup,
-  defaultOpenGroups,
+  dayKey,
+  foldingGroups,
+  groupNames,
+  hourOf,
   movementsText,
   periodText,
   tight,
+  typeSingular,
   type FilterGroupId,
 } from './movement-text';
 import { MovementTotals } from './movement-totals';
@@ -32,12 +38,9 @@ import { canReadReports } from './queries';
 import { useMediaQuery, useStoredFlag } from './use-media-query';
 import { useNow } from './use-now';
 
-const groupOptions: ReadonlyArray<{ value: OperationGroupBy; label: string }> = [
-  { value: 'product', label: 'Reactivo' },
-  { value: 'responsible', label: 'Responsable' },
-  { value: 'destination', label: 'Destino' },
-  { value: 'month', label: 'Mes' },
-];
+const groupOptions: ReadonlyArray<{ value: OperationGroupBy; label: string }> = (['product', 'responsible', 'destination', 'month'] as const).map(
+  (value) => ({ value, label: groupNames[value] }),
+);
 const isGroupBy = (value: string): value is OperationGroupBy => groupOptions.some((option) => option.value === value);
 
 const panelId = 'filtros-movimientos';
@@ -53,7 +56,9 @@ export function ReagentsMovementsPage() {
   const wide = useMediaQuery('(min-width: 80rem)');
   const [panelOpen, setPanelOpen] = useStoredFlag('platlab.movimientos.filtros', true);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [openGroups, setOpenGroups] = useState<ReadonlySet<FilterGroupId>>(() => new Set(defaultOpenGroups));
+  // Solo un grupo plegable abierto a la vez (ADR 0014).
+  const [openFolding, setOpenFolding] = useState<FilterGroupId | null>(null);
+  const [printing, setPrinting] = useState(false);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const timeZone = me.workspace.timeZone;
   const canReport = canReadReports(me);
@@ -70,17 +75,12 @@ export function ReagentsMovementsPage() {
   const onFocusHandled = useCallback(() => setFocusRequest(null), []);
 
   const openGroup = (group: FilterGroupId) => {
-    setOpenGroups((previous) => new Set(previous).add(group));
+    if (foldingGroups.includes(group)) setOpenFolding(group);
     setFocusRequest((previous) => ({ group, nonce: (previous?.nonce ?? 0) + 1 }));
     if (wide) setPanelOpen(true);
     else setDrawerOpen(true);
   };
-  const toggleGroup = (group: FilterGroupId) =>
-    setOpenGroups((previous) => {
-      const next = new Set(previous);
-      if (!next.delete(group)) next.add(group);
-      return next;
-    });
+  const toggleGroup = (group: FilterGroupId) => setOpenFolding((previous) => (previous === group ? null : group));
   const clearAll = () =>
     setParams(serializeMovementFilters({ ...filters, types: [], productIds: [], responsibleIds: [], destinations: [], reasons: [], locationIds: [], period: { kind: 'all' } }), {
       replace: true,
@@ -92,7 +92,7 @@ export function ReagentsMovementsPage() {
       filters={filters}
       query={operationQuery}
       facets={operationFacets}
-      openGroups={openGroups}
+      openGroup={openFolding}
       onToggleGroup={toggleGroup}
       focusRequest={focusRequest}
       onFocusHandled={onFocusHandled}
@@ -126,17 +126,29 @@ export function ReagentsMovementsPage() {
               onValueChange={(next) => apply({ view: next })}
             />
           ) : null}
-          <Button
-            size="sm"
-            className="ml-auto h-[44px] sm:ml-0 sm:h-8"
-            aria-expanded={wide ? panelOpen : undefined}
-            aria-controls={wide ? panelId : undefined}
-            aria-haspopup={wide ? undefined : 'dialog'}
-            onClick={() => (wide ? setPanelOpen(!panelOpen) : setDrawerOpen(true))}
-          >
-            <SlidersHorizontal aria-hidden />
-            {filtersLabel}
-          </Button>
+          <div className="ml-auto flex items-center gap-2 sm:ml-0">
+            <Button
+              size="sm"
+              className="h-[44px] sm:h-8"
+              aria-expanded={wide ? panelOpen : undefined}
+              aria-controls={wide ? panelId : undefined}
+              aria-haspopup={wide ? undefined : 'dialog'}
+              onClick={() => (wide ? setPanelOpen(!panelOpen) : setDrawerOpen(true))}
+            >
+              <SlidersHorizontal aria-hidden />
+              {filtersLabel}
+            </Button>
+            <Button
+              size="sm"
+              className="h-[44px] sm:h-8"
+              aria-haspopup="dialog"
+              disabled={view === 'detail' ? operations.isPending : operationTotals.isPending}
+              onClick={() => setPrinting(true)}
+            >
+              <Printer aria-hidden />
+              Imprimir
+            </Button>
+          </div>
         </div>
         {/* Anuncia el total al cambiar los filtros, sin mover el foco. */}
         <p role="status" className="sr-only">
@@ -201,10 +213,13 @@ export function ReagentsMovementsPage() {
         <aside
           id={panelId}
           aria-label="Filtros"
-          className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain rounded-panel bg-surface p-2 shadow-raised"
+          className="sticky top-20 rounded-panel bg-surface p-2 shadow-raised"
         >
           {panel}
         </aside>
+      ) : null}
+      {printing ? (
+        <MovementPrint view={view} total={total} currentYear={currentYear} onClose={() => setPrinting(false)} />
       ) : null}
       <Drawer
         open={drawerOpen && !wide}
@@ -243,11 +258,6 @@ function MovementsSkeleton() {
   );
 }
 
-/** Día civil de un instante en la zona del espacio, «AAAA-MM-DD», para agrupar y comparar. */
-function dayKey(date: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
-}
-
 /** «Hoy», «Ayer» o el día completo; la fecha larga va siempre, para no depender de recordar qué es hoy. */
 function dayHeading(key: string, timeZone: string, now: Date): { relative: string | null; long: string } {
   const [year = 1970, month = 1, day = 1] = key.split('-').map(Number);
@@ -261,15 +271,11 @@ function dayHeading(key: string, timeZone: string, now: Date): { relative: strin
   };
 }
 
-function hourOf(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat('es-EC', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
-}
-
 const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }> = {
-  receipt: { label: 'Ingreso', icon: ArrowDownToLine },
-  issue: { label: 'Salida', icon: ArrowUpFromLine },
-  adjustment: { label: 'Ajuste', icon: Scale },
-  transfer: { label: 'Traslado', icon: ArrowLeftRight },
+  receipt: { label: typeSingular.receipt, icon: ArrowDownToLine },
+  issue: { label: typeSingular.issue, icon: ArrowUpFromLine },
+  adjustment: { label: typeSingular.adjustment, icon: Scale },
+  transfer: { label: typeSingular.transfer, icon: ArrowLeftRight },
 };
 
 /** Historial por días: cada día una tarjeta, cada fila un movimiento que abre la ficha del reactivo. */

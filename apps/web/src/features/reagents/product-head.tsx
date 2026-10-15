@@ -1,7 +1,7 @@
 import type { ProductDetail } from '@platlab/contracts';
 import type { ReactNode } from 'react';
 import { Button, IconTile, Quantity, StockLevelBar, cn, formatDecimal } from '@platlab/ui';
-import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, QrCode, RefreshCw, TrendingDown, type LucideIcon } from 'lucide-react';
+import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, QrCode, RefreshCw, ScanLine, TrendingDown, type LucideIcon } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { formatAgo, formatDate } from '../../app/format';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
@@ -59,8 +59,8 @@ function FreshnessBar({ freshness, slot }: { freshness: ReagentsContext['freshne
 /**
  * Cabecera de la ficha: el cuadro del módulo y el nombre, con el lápiz «Editar ficha» a su lado (solo icono, con
  * `catalog.manage`); la identidad en pastillas (código, CAS, estado, «Controlado»); los pictogramas; y las acciones,
- * con «Registrar salida» como la primaria y, debajo, una fila de pastillas claras: «Ingresar frascos» y «Etiquetas QR»
- * (gira las tarjetas de los frascos). «Ajustar» ya no está aquí: vive en la ficha ⚖ de cada frasco (ADR 0015,
+ * con «Registrar salida» como la primaria y, debajo, una fila de pastillas claras: «Ingresar frascos», «Etiquetas QR»
+ * (gira las tarjetas de los frascos) y «Escanear» (abre la hoja del lector de la cabecera de la sección). «Ajustar» ya no está aquí: vive en la ficha ⚖ de cada frasco (ADR 0015,
  * 14-10-2026). «Actualizado hace…» y ⟳ van en la barra superior de la página (`FreshnessBar`).
  */
 export function ProductHeader({
@@ -144,34 +144,37 @@ export function ProductHeader({
             </div>
           </div>
         </div>
-        {showIssue || allowed.receipt || showLabels ? (
-          <div className="grid shrink-0 gap-3 lg:w-64">
-            {showIssue ? (
-              <Button
-                variant="primary"
-                className="h-14 rounded-2xl bg-linear-to-r from-action to-action-deep px-6 text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep [&_svg]:size-5"
-                onClick={() => onAction({ kind: 'issue', productId: product.id })}
-              >
-                <ArrowUpFromLine aria-hidden />
-                {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
+        <div className="grid shrink-0 gap-3 lg:w-64">
+          {showIssue ? (
+            <Button
+              variant="primary"
+              className="h-14 rounded-2xl bg-linear-to-r from-action to-action-deep px-6 text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep [&_svg]:size-5"
+              onClick={() => onAction({ kind: 'issue', productId: product.id })}
+            >
+              <ArrowUpFromLine aria-hidden />
+              {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
+            </Button>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {allowed.receipt ? (
+              <Button className={pillAction} onClick={() => onAction({ kind: 'ingress', productId: product.id })}>
+                <PackagePlus aria-hidden />
+                Ingresar frascos
               </Button>
             ) : null}
-            <div className="flex flex-wrap gap-2">
-              {allowed.receipt ? (
-                <Button className={pillAction} onClick={() => onAction({ kind: 'ingress', productId: product.id })}>
-                  <PackagePlus aria-hidden />
-                  Ingresar frascos
-                </Button>
-              ) : null}
-              {showLabels ? (
-                <Button id={labelsButtonId} className={pillAction} aria-pressed={labels.active} onClick={labels.onToggle}>
-                  <QrCode aria-hidden />
-                  Etiquetas QR
-                </Button>
-              ) : null}
+            {showLabels ? (
+              <Button id={labelsButtonId} className={pillAction} aria-pressed={labels.active} onClick={labels.onToggle}>
+                <QrCode aria-hidden />
+                Etiquetas QR
+              </Button>
+            ) : null}
+            {/* Lee la etiqueta QR de otro frasco: abre la misma hoja que la cabecera de la sección (14-10-2026). */}
+            <Button className={pillAction} onClick={() => onAction({ kind: 'scan' })}>
+              <ScanLine aria-hidden />
+                Escanear
+              </Button>
             </div>
           </div>
-        ) : null}
       </div>
     </div>
   );

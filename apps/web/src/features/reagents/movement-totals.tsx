@@ -64,10 +64,13 @@ export function MovementTotals({
   totals,
   filters,
   base,
+  print = false,
 }: {
   totals: UseQueryResult<OperationTotals>;
   filters: MovementFilters;
   base: string;
+  /** Informe impreso: siempre la tabla, compacta y plana, sin enlaces. */
+  print?: boolean;
 }) {
   if (totals.isPending) return <TotalsSkeleton />;
   if (totals.isError) {
@@ -86,7 +89,11 @@ export function MovementTotals({
     );
   }
   const columns = shownColumns(filters);
+  // En papel, la tabla es más densa: más filas por hoja.
+  const dense = print ? 'h-8 px-2' : '';
+  const cell = print ? 'px-2 py-1.5' : '';
   const hrefOf = (group: Group, row: Row) => {
+    if (print) return null;
     const next = detailFilters(filters, groupBy, group, row);
     return next ? `${base}/movimientos?${serializeMovementFilters(next)}` : null;
   };
@@ -105,39 +112,39 @@ export function MovementTotals({
               <span className="ml-auto text-[13px] font-normal tabular-nums text-ink-muted">{movementsText(section.count)}</span>
             </h2>
           ) : null}
-          <div className="overflow-hidden rounded-card bg-surface shadow-raised">
-            <div className="hidden @2xl:block">
+          <div className={cn(!print && 'overflow-hidden rounded-card bg-surface shadow-raised')}>
+            <div className={print ? undefined : 'hidden @2xl:block'}>
               <Table>
                 <caption className="sr-only">{section.heading ?? 'Totales por reactivo'}</caption>
                 <TableHead>
                   <TableRow className="hover:bg-transparent">
-                    <TableHeader>Reactivo</TableHeader>
-                    {columns.receipts ? <TableHeader numeric>Ingresos</TableHeader> : null}
-                    {columns.issues ? <TableHeader numeric>Salidas</TableHeader> : null}
-                    {columns.adjustments ? <TableHeader numeric>Ajustes</TableHeader> : null}
-                    {columns.net ? <TableHeader numeric>Neto</TableHeader> : null}
-                    {columns.transfers ? <TableHeader numeric>Traslados</TableHeader> : null}
-                    <TableHeader numeric>Movimientos</TableHeader>
+                    <TableHeader className={dense}>Reactivo</TableHeader>
+                    {columns.receipts ? <TableHeader numeric className={dense}>Ingresos</TableHeader> : null}
+                    {columns.issues ? <TableHeader numeric className={dense}>Salidas</TableHeader> : null}
+                    {columns.adjustments ? <TableHeader numeric className={dense}>Ajustes</TableHeader> : null}
+                    {columns.net ? <TableHeader numeric className={dense}>Neto</TableHeader> : null}
+                    {columns.transfers ? <TableHeader numeric className={dense}>Traslados</TableHeader> : null}
+                    <TableHeader numeric className={dense}>Movimientos</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {section.group.rows.map((row) => {
                     const href = hrefOf(section.group, row);
                     return (
-                      <TableRow key={`${row.product.id}-${row.unit}`} className={cn('group relative', href && 'hover:bg-surface-sunken/60')}>
-                        <TableCell>
+                      <TableRow key={`${row.product.id}-${row.unit}`} className={cn('group relative', print && 'break-inside-avoid', href && 'hover:bg-surface-sunken/60')}>
+                        <TableCell className={cell}>
                           <ProductName row={row} href={href} stretched />
                         </TableCell>
-                        {columns.receipts ? <TableCell numeric><Amount value={row.receipts} unit={row.unit} /></TableCell> : null}
-                        {columns.issues ? <TableCell numeric><Amount value={row.issues} unit={row.unit} /></TableCell> : null}
-                        {columns.adjustments ? <TableCell numeric><Amount value={row.adjustments} unit={row.unit} /></TableCell> : null}
-                        {columns.net ? <TableCell numeric className="font-semibold"><Amount value={row.net} unit={row.unit} /></TableCell> : null}
-                        {columns.transfers ? <TableCell numeric><Count value={row.transfers} /></TableCell> : null}
-                        <TableCell numeric>
+                        {columns.receipts ? <TableCell numeric className={cell}><Amount value={row.receipts} unit={row.unit} /></TableCell> : null}
+                        {columns.issues ? <TableCell numeric className={cell}><Amount value={row.issues} unit={row.unit} /></TableCell> : null}
+                        {columns.adjustments ? <TableCell numeric className={cell}><Amount value={row.adjustments} unit={row.unit} /></TableCell> : null}
+                        {columns.net ? <TableCell numeric className={cn(cell, 'font-semibold')}><Amount value={row.net} unit={row.unit} /></TableCell> : null}
+                        {columns.transfers ? <TableCell numeric className={cell}><Count value={row.transfers} /></TableCell> : null}
+                        <TableCell numeric className={cell}>
                           <span className="inline-flex items-center justify-end gap-2">
                             {countFormat.format(row.count)}
                             {/* El chevron dice que la fila abre Detalle; sin enlace, un hueco mantiene la columna alineada. */}
-                            {href ? <ChevronRight className="size-4 shrink-0 text-ink-muted" aria-hidden /> : <span className="size-4 shrink-0" aria-hidden />}
+                            {print ? null : href ? <ChevronRight className="size-4 shrink-0 text-ink-muted" aria-hidden /> : <span className="size-4 shrink-0" aria-hidden />}
                           </span>
                         </TableCell>
                       </TableRow>
@@ -146,7 +153,7 @@ export function MovementTotals({
                 </TableBody>
               </Table>
             </div>
-            <ul className="divide-y divide-line @2xl:hidden">
+            <ul className={cn('divide-y divide-line @2xl:hidden', print && 'hidden')}>
               {section.group.rows.map((row) => {
                 const href = hrefOf(section.group, row);
                 const cells: Array<[string, ReactNode]> = [];

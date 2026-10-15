@@ -178,7 +178,7 @@ export function ReagentsInventoryPage() {
 
 /**
  * Tarjeta de catálogo (ADR 0010, 04-10-2026; réplica de la de ReactiLab el 05-10-2026, a escala de
- * cuatro por fila el 14-10-2026, con el contenido centrado en vertical): el nombre a todo el ancho; debajo, el icono del estado físico con el
+ * cuatro por fila el 14-10-2026, con el contenido centrado en vertical y sin fila reservada de avisos): el nombre a todo el ancho; debajo, el icono del estado físico con el
  * estado en mayúsculas pequeñas y el CAS en monoespaciado; y, tras una línea, «Total» con la cantidad a la
  * izquierda y, a su altura y en columna a la derecha, las insignias de frascos («Sin existencias» si no
  * hay), «N vencidos» y «Controlado»; al pie, los avisos de bajo mínimo y por vencer. Todo con texto, y el
@@ -247,21 +247,23 @@ function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
             ) : null}
           </div>
         </div>
-        {/* Altura reservada: los avisos no desalinean el total de las tarjetas de una misma fila. */}
-        <div className="flex min-h-5 flex-wrap gap-1">
-          {product.belowMinimum ? (
-            <Badge tone="warning" className="gap-1 whitespace-nowrap px-2 text-[11px]">
-              <TrendingDown className="size-3" aria-hidden />
-              Bajo mínimo
-            </Badge>
-          ) : null}
-          {product.expiringContainers ? (
-            <Badge tone="warning" className="gap-1 whitespace-nowrap px-2 text-[11px]">
-              <CalendarClock className="size-3" aria-hidden />
-              {product.expiringContainers} por vencer
-            </Badge>
-          ) : null}
-        </div>
+        {/* Los avisos solo ocupan sitio si los hay: la tarjeta queda centrada, con el mismo aire arriba y abajo. */}
+        {product.belowMinimum || product.expiringContainers ? (
+          <div className="flex flex-wrap gap-1">
+            {product.belowMinimum ? (
+              <Badge tone="warning" className="gap-1 whitespace-nowrap px-2 text-[11px]">
+                <TrendingDown className="size-3" aria-hidden />
+                Bajo mínimo
+              </Badge>
+            ) : null}
+            {product.expiringContainers ? (
+              <Badge tone="warning" className="gap-1 whitespace-nowrap px-2 text-[11px]">
+                <CalendarClock className="size-3" aria-hidden />
+                {product.expiringContainers} por vencer
+              </Badge>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </Link>
   );

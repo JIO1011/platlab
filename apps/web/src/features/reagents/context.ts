@@ -27,7 +27,9 @@ export type SheetRequest =
   | { kind: 'transfer'; position: Position }
   // Mínimo (ADR 0012, 05-10-2026) y edición de la ficha (ADR 0015): desde la ficha del reactivo.
   | { kind: 'minimum'; productId: string }
-  | { kind: 'product'; product: ProductDetail };
+  | { kind: 'product'; product: ProductDetail }
+  // «Escanear» (14-10-2026): la hoja del lector de etiquetas QR; la abren la cabecera de la sección y la de la ficha.
+  | { kind: 'scan' };
 
 /**
  * Lo que el rol puede hacer hoy; `product` es administrar el catálogo (también el mínimo, crear

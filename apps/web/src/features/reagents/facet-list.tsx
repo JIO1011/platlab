@@ -1,22 +1,26 @@
+/**
+ * Lista de casillas de un grupo plegable del panel de filtros de Movimientos (R-01C, ADR 0014):
+ * buscador, las opciones con más movimientos y «Ver más». Cada cambio escribe la URL desde quien la usa.
+ */
 import { Input, OptionRow } from '@platlab/ui';
 import { useState } from 'react';
+import { fold } from './fold';
 import { countFormat } from './movement-text';
 
 export interface FacetOption {
   key: string;
   label: string;
-  /** Dato que distingue opciones parecidas (el código del reactivo), atenuado. */
-  detail?: string;
   count: number;
 }
 
-/** Cuántas opciones se ven antes de «Ver todos»: las de más movimientos. */
-const TOP_OPTIONS = 8;
+/** Cuántas opciones se ven al abrir el grupo y cuántas suma cada «Ver más»: las de más movimientos. */
+const STEP = 5;
 
 /**
- * Lista de casillas como el filtro de Excel (R-01C): lo elegido sube arriba, después las opciones con
- * más movimientos y «Ver todos (n)»; con buscador cuando la lista puede ser larga. La cuenta de cada
- * opción ignora lo marcado en su propio grupo, así que se pueden sumar opciones sin que se vacíen.
+ * Lista de casillas como el filtro de Excel: lo elegido sube arriba, después las opciones con más
+ * movimientos de 5 en 5, y un buscador. La cuenta de cada opción ignora lo marcado en su propio grupo,
+ * así que se pueden sumar opciones sin que se vacíen. Los nombres largos se recortan en una línea (el
+ * nombre completo queda en el título) y la cifra nunca se corta.
  */
 export function FacetList({
   name,
@@ -25,47 +29,45 @@ export function FacetList({
   onToggle,
   search,
   loading = false,
-  fixedOrder = false,
 }: {
   name: string;
   options: readonly FacetOption[];
   selected: readonly string[];
   onToggle: (key: string) => void;
-  /** Con buscador: el texto escrito y quién lo cambia. La búsqueda la resuelve quien llama. */
+  /** Búsqueda que resuelve quien llama (el servidor, con muchos reactivos); sin ella, se filtra aquí. */
   search?: { value: string; onChange: (value: string) => void; label: string };
   loading?: boolean;
-  /** Orden de `options` tal cual, sin subir lo marcado (Tipo: son cuatro y no deben saltar). */
-  fixedOrder?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [shown, setShown] = useState(STEP);
+  const [typed, setTyped] = useState('');
   // Lo marcado sube arriba solo al montarse la lista (abrir el grupo, recargar, abrir el cajón),
   // nunca al marcar: la fila no debe saltar bajo el puntero.
   const [pinned] = useState(selected);
-  const chosen = fixedOrder ? [] : options.filter((option) => pinned.includes(option.key));
-  const rest = fixedOrder ? options : options.filter((option) => !pinned.includes(option.key));
-  const ordered = [...chosen, ...rest];
-  const searching = Boolean(search?.value.trim());
-  const limit = expanded || searching || fixedOrder ? ordered.length : Math.max(TOP_OPTIONS, chosen.length);
+  const text = search ? search.value : typed;
+  const needle = fold(text.trim());
+  // Con búsqueda externa, `options` ya viene filtrado; sin ella, se filtra aquí sin perder lo marcado.
+  const matching = search || needle === '' ? options : options.filter((option) => selected.includes(option.key) || fold(option.label).includes(needle));
+  const ordered = [...matching.filter((option) => pinned.includes(option.key)), ...matching.filter((option) => !pinned.includes(option.key))];
+  const chosen = ordered.filter((option) => pinned.includes(option.key)).length;
+  const limit = Math.max(shown, chosen);
   const visible = ordered.slice(0, limit);
-  const scrolls = visible.length > TOP_OPTIONS;
+  const label = search?.label ?? `Buscar ${name}`;
   return (
     <div className="grid gap-1">
-      {search ? (
-        <Input
-          type="search"
-          value={search.value}
-          onChange={(event) => search.onChange(event.target.value)}
-          aria-label={search.label}
-          placeholder="Buscar"
-          className="mb-1 h-[44px] sm:h-9"
-        />
-      ) : null}
+      <Input
+        type="search"
+        value={text}
+        onChange={(event) => (search ? search.onChange(event.target.value) : setTyped(event.target.value))}
+        aria-label={label}
+        placeholder="Buscar"
+        className="mb-1 h-[44px] sm:h-9"
+      />
       {loading ? (
         <p className="px-2 py-1.5 text-[13px] text-ink-subtle">Cargando opciones…</p>
       ) : visible.length === 0 ? (
-        <p className="px-2 py-1.5 text-[13px] text-ink-subtle">{searching ? 'Sin coincidencias.' : 'Sin opciones con estos filtros.'}</p>
+        <p className="px-2 py-1.5 text-[13px] text-ink-subtle">{needle ? 'Sin coincidencias.' : 'Sin opciones con estos filtros.'}</p>
       ) : (
-        <div className={scrolls ? 'max-h-72 overflow-y-auto overscroll-contain' : undefined}>
+        <div>
           {visible.map((option) => (
             <OptionRow
               key={option.key}
@@ -79,20 +81,20 @@ export function FacetList({
                 </>
               }
             >
-              {option.label}
-              {option.detail ? <span className="ml-1.5 whitespace-nowrap text-[13px] text-ink-subtle">{option.detail}</span> : null}
+              <span className="block truncate" title={option.label}>
+                {option.label}
+              </span>
             </OptionRow>
           ))}
         </div>
       )}
-      {!searching && !fixedOrder && ordered.length > TOP_OPTIONS ? (
+      {ordered.length > limit ? (
         <button
           type="button"
-          onClick={() => setExpanded((value) => !value)}
-          aria-expanded={expanded}
+          onClick={() => setShown(limit + STEP)}
           className="min-h-[44px] rounded-control px-2 text-left text-[13px] font-medium text-action transition-colors hover:bg-action-soft sm:min-h-8"
         >
-          {expanded ? 'Ver menos' : `Ver todos (${countFormat.format(ordered.length)})`}
+          Ver más
         </button>
       ) : null}
     </div>

@@ -574,6 +574,11 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   // Una sola primaria: «Registrar salida» de la cabecera; en la ficha el ingreso es de ese reactivo.
   await expect(admin.getByRole('button', { name: 'Nuevo reactivo' })).toHaveCount(0);
   await expect(admin.getByRole('button', { name: 'Ingresar frascos' })).toBeVisible();
+  // «Escanear» también está en la cabecera de la ficha y abre la misma hoja del lector.
+  await admin.getByRole('button', { name: 'Escanear' }).click();
+  await expect(admin.getByRole('dialog', { name: 'Escanear etiqueta' })).toBeVisible();
+  await admin.keyboard.press('Escape');
+  await expect(admin.getByRole('dialog', { name: 'Escanear etiqueta' })).toHaveCount(0);
   await expectAccessible(admin, 'ficha con varios frascos');
   await capture(admin, 'desktop-product-multi');
   await capture(admin, 'desktop-r01d-product');
@@ -771,11 +776,20 @@ test('etiquetas con giro: las tarjetas giran a su etiqueta, se elige una y se im
 
   const toggle = admin.getByRole('button', { name: 'Etiquetas QR' });
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  // Girar las tarjetas no mueve el Historial: ni la barra deja hueco ni el reverso cambia el alto.
+  const history = admin.getByRole('heading', { name: 'Historial del reactivo' });
+  // Posición en la página (la vista se desplaza a Frascos al girar, pero el Historial no cambia de sitio).
+  const pageTop = () => history.evaluate((node) => node.getBoundingClientRect().top + window.scrollY);
+  const historyTop = await pageTop();
+  const cardHeight = (await target.boundingBox())?.height;
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   // Al girar, cada tarjeta es una casilla con su etiqueta; ninguna elegida.
   const boxes = admin.getByRole('checkbox');
   await expect(boxes).toHaveCount(3);
+  await admin.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+  expect(await pageTop()).toBeCloseTo(historyTop, 0);
+  expect((await target.boundingBox())?.height).toBeCloseTo(cardHeight ?? 0, 0);
   const bar = admin.getByRole('region', { name: 'Elegir etiquetas' });
   await expect(bar).toContainText('0 elegidas');
   await expect(bar.getByRole('button', { name: 'Imprimir 0' })).toBeDisabled();
@@ -1017,6 +1031,22 @@ test('Movimientos como informe: el panel filtra por la URL, las fichas quitan y 
   await expect(admin.getByText(/^\d+ movimientos?$/).first()).toBeVisible();
   await capture(admin, 'desktop-movements-panel', false);
 
+  // El panel no se desplaza; los cinco grupos plegables abren de uno en uno, con buscador.
+  expect(await panel.evaluate((node) => node.scrollHeight <= node.clientHeight)).toBe(true);
+  const product = panel.getByRole('button', { name: /^Reactivo/ });
+  const responsible = panel.getByRole('button', { name: /^Responsable/ });
+  await product.click();
+  await expect(product).toHaveAttribute('aria-expanded', 'true');
+  await expect(panel.getByRole('searchbox', { name: 'Buscar reactivo' })).toBeVisible();
+  await responsible.click();
+  await expect(product).toHaveAttribute('aria-expanded', 'false');
+  await expect(responsible).toHaveAttribute('aria-expanded', 'true');
+  await expect(panel.getByRole('searchbox', { name: 'Buscar reactivo' })).toHaveCount(0);
+  await tick(panel.getByRole('group', { name: /^Responsable/ }).getByRole('checkbox').first());
+  await expect(responsible).toContainText('1 elegido');
+  await admin.getByRole('button', { name: 'Quitar filtro de responsable' }).click();
+  await expect(admin).not.toHaveURL(/responsable=/);
+
   // Marcar «Salidas» aplica al instante: cambia la URL, la ficha y la lista.
   await tick(panel.getByRole('checkbox', { name: /^Salidas/ }));
   await expect(admin).toHaveURL(/tipo=salida/);
@@ -1034,7 +1064,7 @@ test('Movimientos como informe: el panel filtra por la URL, las fichas quitan y 
   await expect(chips.getByText('Este mes', { exact: true })).toBeVisible();
 
   // Desde–hasta: si la fecha inicial es mayor, el aviso queda en el campo y no se aplica.
-  await tick(panel.getByRole('radio', { name: 'Desde–hasta' }));
+  await panel.getByRole('button', { name: 'Elegir fechas' }).click();
   await panel.getByLabel('Desde', { exact: true }).fill('2026-03-15');
   await panel.getByLabel('Hasta', { exact: true }).fill('2026-03-01');
   await expect(panel.getByText('La fecha inicial es posterior a la final.')).toBeVisible();
@@ -1081,6 +1111,50 @@ test('Movimientos como informe: el panel filtra por la URL, las fichas quitan y 
   await expect(admin.getByRole('button', { name: 'Detalle', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('Movimientos: Imprimir abre la vista imprimible con el encabezado y la tabla, y llama a imprimir (R-01C)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await openReagents(admin, 'Facultad de Ciencias');
+  // El diálogo de impresión del navegador no se puede ver: se cuenta cuántas veces se pidió.
+  await admin.evaluate(() => {
+    window.print = () => {
+      const data = document.documentElement.dataset;
+      data['prints'] = String(Number(data['prints'] ?? 0) + 1);
+    };
+  });
+  await goTo(admin, 'Movimientos');
+  await tick(admin.getByRole('complementary', { name: 'Filtros' }).getByRole('checkbox', { name: /^Salidas/ }));
+  const trigger = admin.getByRole('button', { name: 'Imprimir' });
+  await trigger.click();
+  const sheet = admin.getByRole('dialog', { name: 'Movimientos de reactivos' });
+  await expect(sheet).toBeVisible();
+  // Encabezado: espacio, período, filtros en texto y fecha de impresión.
+  await expect(sheet.getByText('Facultad de Ciencias', { exact: true })).toBeVisible();
+  await expect(sheet.getByText('Todo el historial')).toBeVisible();
+  await expect(sheet.getByText('Tipo: Salidas', { exact: true })).toBeVisible();
+  await expect(sheet.getByText('Impreso')).toBeVisible();
+  // Detalle: una fila por movimiento con sus siete columnas, y al terminar de cargar pide imprimir.
+  const table = sheet.getByRole('table');
+  for (const title of ['Fecha', 'Tipo', 'Reactivo', 'Frasco', 'Cantidad', 'Motivo o destino', 'Responsable']) {
+    await expect(table.getByRole('columnheader', { name: title })).toBeVisible();
+  }
+  const rows = table.getByRole('row').filter({ hasText: 'Salida' });
+  await expect(rows.first()).toBeVisible();
+  await expect(admin.locator('html')).toHaveAttribute('data-prints', '1');
+  await expectAccessible(admin, 'vista de impresión');
+  await capture(admin, 'desktop-movements-print', false);
+  // Esc vuelve a Movimientos y devuelve el foco al botón.
+  await admin.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+
+  // Totales: la misma vista imprime la tabla de totales.
+  await admin.getByRole('button', { name: 'Totales', exact: true }).click();
+  await trigger.click();
+  await expect(sheet.getByText('Totales por reactivo')).toBeVisible();
+  await expect(sheet.getByRole('columnheader', { name: 'Movimientos' })).toBeVisible();
+  await expect(admin.locator('html')).toHaveAttribute('data-prints', '2');
+});
+
 test('Movimientos: quien no tiene reportes no ve Totales (R-01C)', async ({ browser }) => {
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Facultad de Ciencias');
@@ -1103,7 +1177,7 @@ test('Movimientos en el móvil: el cajón de filtros abre, se cierra con Esc y d
   const drawer = admin.getByRole('dialog', { name: 'Filtros' });
   await expect(drawer).toBeVisible();
   // Áreas táctiles de 44 px reales (la raíz del módulo es de 15 px).
-  for (const target of [drawer.getByRole('button', { name: 'Cerrar' }), drawer.getByRole('checkbox', { name: /^Salidas/ }), drawer.getByRole('button', { name: /^Periodo/ })]) {
+  for (const target of [drawer.getByRole('button', { name: 'Cerrar' }), drawer.getByRole('checkbox', { name: /^Salidas/ }), drawer.getByRole('button', { name: /^Reactivo/ })]) {
     expect((await target.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(43.5);
   }
   await tick(drawer.getByRole('checkbox', { name: /^Salidas/ }));
@@ -1118,7 +1192,8 @@ test('Movimientos en el móvil: el cajón de filtros abre, se cierra con Esc y d
   // La ficha abre el cajón en su grupo; «Ver N movimientos» lo cierra.
   await admin.getByRole('button', { name: 'Tipo: Salidas', exact: true }).click();
   await expect(drawer).toBeVisible();
-  await expect(drawer.getByRole('button', { name: /^Tipo/ })).toBeFocused();
+  // Tipo va en pastillas: la ficha lleva el foco a la pastilla elegida.
+  await expect(drawer.getByRole('checkbox', { name: /^Salidas/ })).toBeFocused();
   await drawer.getByRole('button', { name: /^Ver \d+ movimientos?$/ }).click();
   await expect(drawer).toHaveCount(0);
   await expect(admin.getByRole('list', { name: 'Filtros activos' })).toBeVisible();
