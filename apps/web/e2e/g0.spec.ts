@@ -309,9 +309,10 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
   const topBar = owner.getByRole('banner');
   await expect(topBar).toContainText('Reactivos', { useInnerText: true });
   await expect(topBar).not.toContainText('Facultad de Ciencias', { useInnerText: true });
-  // El Resumen ofrece las acciones rápidas; ingresar y ajustar también están en el Inventario.
-  for (const name of ['Registrar salida', 'Nuevo reactivo']) {
-    await expect(owner.getByRole('button', { name, exact: true })).toBeVisible();
+  // El Resumen ofrece solo «Escanear» (una vez: la cabecera no lo repite); ingresar, ajustar y registrar salidas están en el Inventario.
+  await expect(owner.getByRole('button', { name: 'Escanear', exact: true })).toBeVisible();
+  for (const name of ['Registrar salida', 'Nuevo reactivo', 'Ajustar']) {
+    await expect(owner.getByRole('button', { name, exact: true })).toHaveCount(0);
   }
   await goTo(owner, 'Inventario');
   await expect(topBar).toContainText('Inventario', { useInnerText: true });
@@ -329,16 +330,16 @@ test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', as
   expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await capture(operator, 'mobile-home');
 
-  // La tarjeta abre el Resumen; su acción primaria abre la hoja de salida.
+  // La tarjeta abre el Resumen; su acción rápida, «Escanear», abre la hoja del lector.
   await operator.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(operator.getByRole('heading', { name: 'Actividad reciente' })).toBeVisible();
   await expectAccessible(operator, 'resumen móvil');
   expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await capture(operator, 'mobile-summary');
-  await operator.getByRole('button', { name: 'Registrar salida' }).click();
-  await expect(operator.getByRole('dialog', { name: 'Registrar salida' })).toBeVisible();
+  await operator.getByRole('button', { name: 'Escanear', exact: true }).click();
+  await expect(operator.getByRole('dialog', { name: 'Escanear etiqueta' })).toBeVisible();
   await operator.keyboard.press('Escape');
-  await expect(operator.getByRole('dialog', { name: 'Registrar salida' })).toHaveCount(0);
+  await expect(operator.getByRole('dialog', { name: 'Escanear etiqueta' })).toHaveCount(0);
 
   await goTo(operator, 'Inventario');
   await expect(operator.getByRole('heading', { name: /Etanol 96 %/ })).toBeVisible();
@@ -386,7 +387,7 @@ test('en tableta (820 px), Inicio y la app conservan la barra lateral y usan lis
 
   await admin.getByRole('link', { name: 'Abrir Reactivos' }).click();
   await expect(admin.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
-  await expect(admin.getByRole('button', { name: 'Registrar salida' })).toBeVisible();
+  await expect(admin.getByRole('button', { name: 'Escanear', exact: true })).toBeVisible();
   expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await capture(admin, 'tablet-summary');
   // Por debajo de 1024 px el inventario y el historial son listas: nada se corta dentro del panel.
@@ -494,6 +495,7 @@ test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelaci
   // El Operador pide otra salida, la cancela y ve el rechazo con su motivo.
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Facultad de Ciencias');
+  await goTo(operator, 'Inventario');
   await operator.getByRole('button', { name: 'Solicitar salida' }).click();
   const issue = operator.getByRole('dialog');
   await choose(operator, 'Frasco', /HCL-2026-01-01/);
@@ -566,11 +568,14 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await admin.getByRole('heading', { name: 'Ácido sulfúrico 98 %', level: 1 }).hover();
   await expect(admin.getByRole('tooltip')).toHaveCount(0);
   await expect(admin.getByRole('article').filter({ hasText: 'H2SO4-2026-02-01' })).toContainText('Usar primero');
-  await expect(admin.getByText('1 frasco vencido')).toBeVisible();
+  await expect(admin.getByText('1 vencido', { exact: true })).toBeVisible();
   // El saldo con su unidad y el % a la derecha.
   await expect(expiredCard).toContainText(/\d+ %/);
   await expect(expiredCard).toContainText('Vencido');
-  await expect(admin.getByRole('complementary', { name: 'Resumen del reactivo' })).toContainText('Vencidos');
+  await expect(admin.getByRole('region', { name: 'Resumen del reactivo' })).toContainText('1 vencido');
+  // «Actualizado hace…» ya no está en la barra superior: el ⟳ junto al lápiz lo dice en su nombre y su título.
+  await expect(admin.getByRole('banner')).not.toContainText('Actualizado', { useInnerText: true });
+  await expect(admin.getByRole('button', { name: /^Actualizar · actualizado hace / })).toHaveAttribute('title', /^Actualizar · actualizado hace /);
   // Una sola primaria: «Registrar salida» de la cabecera; en la ficha el ingreso es de ese reactivo.
   await expect(admin.getByRole('button', { name: 'Nuevo reactivo' })).toHaveCount(0);
   await expect(admin.getByRole('button', { name: 'Ingresar frascos' })).toBeVisible();
@@ -622,7 +627,7 @@ test('mínimos: bajo mínimo en el Resumen y el Inventario, y el Administrador l
 
   // El Administrador cambia el mínimo desde la ficha; por encima del nuevo, deja de estar bajo mínimo.
   await admin.getByRole('link', { name: /Hidróxido de sodio/ }).click();
-  const header = admin.getByRole('complementary', { name: 'Resumen del reactivo' });
+  const header = admin.getByRole('region', { name: 'Resumen del reactivo' });
   await expect(header).toContainText('Bajo mínimo');
   await admin.getByRole('button', { name: 'Cambiar mínimo' }).click();
   const minimum = admin.getByRole('dialog', { name: 'Mínimo del reactivo' });
@@ -913,6 +918,7 @@ test('stock insuficiente: la salida se rechaza en el formulario y el saldo no ca
 test('listas de la hoja de salida: la Administradora quita un destino con la papelera y lo deshace; el Operador no ve papeleras', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
   await openReagents(admin, 'Facultad de Ciencias');
+  await goTo(admin, 'Inventario');
   await admin.getByRole('button', { name: 'Registrar salida' }).click();
   const issue = admin.getByRole('dialog');
   const destinations = issue.getByRole('group', { name: 'Destino' });
@@ -936,6 +942,7 @@ test('listas de la hoja de salida: la Administradora quita un destino con la pap
   // El Operador elige de las listas, pero no las modifica.
   const operator = await signIn(browser, 'operador@demo.platlab.test');
   await openReagents(operator, 'Facultad de Ciencias');
+  await goTo(operator, 'Inventario');
   await operator.getByRole('button', { name: 'Solicitar salida' }).click();
   const request = operator.getByRole('dialog');
   await expect(request.getByRole('group', { name: 'Destino' }).getByRole('radio').first()).toBeAttached();
@@ -1029,6 +1036,10 @@ test('Movimientos como informe: el panel filtra por la URL, las fichas quitan y 
   const panel = admin.getByRole('complementary', { name: 'Filtros' });
   await expect(panel).toBeVisible();
   await expect(admin.getByText(/^\d+ movimientos?$/).first()).toBeVisible();
+  // La cabecera de Movimientos no lleva acciones de registro ni «Escanear»: la tarea es leer, filtrar e imprimir.
+  for (const name of ['Escanear', 'Nuevo reactivo', 'Ajustar', 'Registrar salida']) {
+    await expect(admin.getByRole('button', { name, exact: true })).toHaveCount(0);
+  }
   await capture(admin, 'desktop-movements-panel', false);
 
   // El panel no se desplaza; los cinco grupos plegables abren de uno en uno, con buscador.
@@ -1213,8 +1224,20 @@ test('Movimientos a 1280 px: el panel comparte la fila con la lista y Totales ca
   await openReagents(admin, 'Facultad de Ciencias');
   await goTo(admin, 'Movimientos');
   await expect(admin.getByRole('complementary', { name: 'Filtros' })).toBeVisible();
-  await tick(admin.getByRole('complementary', { name: 'Filtros' }).getByRole('checkbox', { name: /^Salidas/ }));
+  const panel = admin.getByRole('complementary', { name: 'Filtros' });
+  await tick(panel.getByRole('checkbox', { name: /^Salidas/ }));
   await expect(admin.locator('main').getByRole('listitem').first()).toBeVisible();
+  // Dos filtros en grupos plegados: sus opciones se ven bajo el rótulo como fichas con «×», aunque el grupo esté cerrado.
+  for (const group of [/^Reactivo/, /^Responsable/]) {
+    const toggle = panel.getByRole('button', { name: group });
+    await toggle.click();
+    await tick(panel.getByRole('group', { name: group }).getByRole('checkbox').first());
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  }
+  const chosen = panel.getByRole('list', { name: /opciones elegidas$/ });
+  await expect(chosen).toHaveCount(2);
+  await expect(chosen.first().getByRole('button', { name: /^Quitar «/ })).toBeVisible();
   expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expectAccessible(admin, 'movimientos 1280');
   await capture(admin, 'desktop-1280-movements-panel', false);

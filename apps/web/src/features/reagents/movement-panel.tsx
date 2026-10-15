@@ -1,7 +1,7 @@
 import type { OperationFacets } from '@platlab/contracts';
 import { Input, Skeleton, cn, sectionLabel } from '@platlab/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { FacetList, type FacetOption } from './facet-list';
 import { fold } from './fold';
@@ -69,20 +69,72 @@ function Pill({
   );
 }
 
+/** Cuántas fichas se ven bajo un grupo plegado; el resto se cuenta en «+N». */
+const CHIPS_SHOWN = 3;
+
+interface ChosenOption {
+  key: string;
+  label: string;
+}
+
+/**
+ * Las opciones elegidas de un grupo plegado, como fichas pequeñas bajo su rótulo: cada una con su «×» para
+ * quitarla sin abrir el grupo. Con más de tres se ven las tres primeras y «+N», que abre el grupo.
+ */
+function ChosenChips({ title, chosen, onRemove, onOpen }: { title: string; chosen: readonly ChosenOption[]; onRemove: (key: string) => void; onOpen: () => void }) {
+  const hidden = chosen.length - CHIPS_SHOWN;
+  return (
+    <ul aria-label={`${title}: opciones elegidas`} className="flex flex-wrap gap-1 px-2 pb-1.5 pt-0.5">
+      {chosen.slice(0, CHIPS_SHOWN).map((option) => (
+        <li key={option.key} className="inline-flex h-7 min-w-0 max-w-full items-center rounded-full bg-action-soft text-xs font-medium text-action sm:h-6">
+          <span className="min-w-0 truncate pl-2.5" title={option.label}>
+            {option.label}
+          </span>
+          <button
+            type="button"
+            onClick={() => onRemove(option.key)}
+            aria-label={`Quitar «${option.label}» de ${title.toLowerCase()}`}
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-action/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action sm:size-6"
+          >
+            <X className="size-3" aria-hidden />
+          </button>
+        </li>
+      ))}
+      {hidden > 0 ? (
+        <li className="inline-flex">
+          <button
+            type="button"
+            onClick={onOpen}
+            aria-label={`Ver ${hidden === 1 ? 'la otra opción elegida' : `las otras ${hidden} opciones elegidas`} de ${title.toLowerCase()}`}
+            className="inline-flex h-7 items-center rounded-full px-2 text-xs font-semibold tabular-nums text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action sm:h-6"
+          >
+            +{hidden}
+          </button>
+        </li>
+      ) : null}
+    </ul>
+  );
+}
+
 /** Un grupo plegable: `fieldset` con su rótulo como `legend`, fila con cuántos hay elegidos. Solo uno abierto a la vez. */
 function FilterGroup({
   id,
   title,
   marked,
+  chosen,
   open,
   onToggle,
+  onRemove,
   children,
 }: {
   id: FilterGroupId;
   title: string;
   marked: number;
+  /** Lo elegido, con su nombre: se ve bajo el rótulo mientras el grupo está plegado. */
+  chosen: readonly ChosenOption[];
   open: boolean;
   onToggle: () => void;
+  onRemove: (key: string) => void;
   children: ReactNode;
 }) {
   const bodyId = useId();
@@ -104,6 +156,7 @@ function FilterGroup({
           </span>
         </button>
       </legend>
+      {!open && chosen.length > 0 ? <ChosenChips title={title} chosen={chosen} onRemove={onRemove} onOpen={onToggle} /> : null}
       <div id={bodyId} hidden={!open} className="pb-1.5 pt-0.5">
         {/* Montado solo abierto: al abrir el grupo, lo marcado sube arriba. */}
         {open ? children : null}
@@ -323,6 +376,50 @@ export function MovementFilterPanel({
   const typeCounts = data ? new Map(data.types.map((entry) => [entry.value, entry.count])) : null;
   const loading = facets.isPending;
 
+  // Lo elegido de cada grupo plegable, con su nombre (el de la opción; si ya no sale en las opciones, el del grupo).
+  const chosenOf = (group: (typeof foldingGroups)[number]): ChosenOption[] => {
+    switch (group) {
+      case 'product':
+        return filters.productIds.map((key) => {
+          const found = [...(data?.products.options ?? []), ...(searched.data?.products.options ?? [])].find((option) => option.id === key);
+          return { key, label: found ? tight(found.name) : 'Reactivo' };
+        });
+      case 'responsible':
+        return filters.responsibleIds.map((key) => {
+          const found = data?.responsibles.find((option) => option.principalId === key);
+          return { key, label: found ? (found.displayName ?? noName) : 'Responsable' };
+        });
+      case 'destination':
+        return filters.destinations.map((key) => ({ key, label: key }));
+      case 'reason':
+        return filters.reasons.map((key) => ({ key, label: key }));
+      case 'location':
+        return filters.locationIds.map((key) => {
+          const found = data?.locations.find((option) => option.id === key);
+          return { key, label: found ? `${found.code} · ${found.name}` : 'Ubicación' };
+        });
+      default:
+        // Período y Tipo no se pliegan: sus pastillas ya muestran lo elegido.
+        return [];
+    }
+  };
+  const removeChosen = (group: (typeof foldingGroups)[number], key: string) => {
+    switch (group) {
+      case 'product':
+        return onChange({ productIds: filters.productIds.filter((item) => item !== key) });
+      case 'responsible':
+        return onChange({ responsibleIds: filters.responsibleIds.filter((item) => item !== key) });
+      case 'destination':
+        return onChange({ destinations: filters.destinations.filter((item) => item !== key) });
+      case 'reason':
+        return onChange({ reasons: filters.reasons.filter((item) => item !== key) });
+      case 'location':
+        return onChange({ locationIds: filters.locationIds.filter((item) => item !== key) });
+      default:
+        return;
+    }
+  };
+
   const body = (group: (typeof foldingGroups)[number]): ReactNode => {
     switch (group) {
       case 'product':
@@ -399,8 +496,10 @@ export function MovementFilterPanel({
           id={id}
           title={filterGroups.find((group) => group.id === id)?.title ?? ''}
           marked={selectedCount(filters, id)}
+          chosen={chosenOf(id)}
           open={openGroup === id}
           onToggle={() => onToggleGroup(id)}
+          onRemove={(key) => removeChosen(id, key)}
         >
           {body(id)}
         </FilterGroup>

@@ -43,7 +43,7 @@ function useSheets() {
  * para que registrar una salida esté a un clic desde cualquier sección.
  */
 export function ReagentsLayout() {
-  const { workspaceId, me, topbarSlot } = useShell();
+  const { workspaceId, me } = useShell();
   const { pathname } = useLocation();
   const [params] = useSearchParams();
   const queryClient = useQueryClient();
@@ -110,9 +110,11 @@ export function ReagentsLayout() {
     { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 && !inProduct },
   ] as const;
   const visibleSecondary = secondaryActions.filter((action) => action.shown);
-  // En el Resumen la tarjeta de acción rápida hace de acciones y en Solicitudes la tarea es decidir:
-  // ahí la cabecera lleva solo «Escanear», que sirve en todas las secciones.
-  const showRegisterActions = sectionPath !== '' && sectionPath !== 'solicitudes' && !inLabels;
+  // En Solicitudes la tarea es decidir: ahí la cabecera lleva solo «Escanear», que sirve en el resto de secciones.
+  const showRegisterActions = sectionPath !== 'solicitudes' && !inLabels;
+  // Sin acciones en la cabecera: el Resumen tiene su tarjeta «Escanear» (ADR 0010, 04-10-2026) y Movimientos es
+  // un libro para leer, filtrar e imprimir (14-10-2026).
+  const showHeaderActions = sectionPath !== '' && sectionPath !== 'movimientos';
   // «Actualizado hace…» informa lo más antiguo de lo que la sección muestra, nunca lo más fresco.
   const shown: Array<{ dataUpdatedAt: number }> =
     sectionPath === ''
@@ -176,7 +178,8 @@ export function ReagentsLayout() {
             </button>
           </p>
         </div>
-        {/* En el Resumen, la tarjeta de acción rápida hace de acciones (ADR 0010, 04-10-2026); en Solicitudes, la tarea es decidir, y «Aprobar salida» es la primaria. */}
+        {/* En el Resumen, la tarjeta de acción rápida hace de acciones (ADR 0010, 04-10-2026); en Movimientos no hay ninguna; en Solicitudes, la tarea es decidir. */}
+        {showHeaderActions ? (
         <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
           {/* «Escanear» lee la etiqueta QR de un frasco con la cámara (14-10-2026): lo puede usar quien lee Reactivos. En el móvil abre la cabecera, ancho y con el tinte del acento; desde 1024 px es una pastilla secundaria. */}
           <Button
@@ -211,6 +214,7 @@ export function ReagentsLayout() {
             </>
           ) : null}
         </div>
+        ) : null}
       </header>
       )}
 
@@ -243,7 +247,6 @@ export function ReagentsLayout() {
               canResolve,
               openSheet: sheets.open,
               freshness: { updatedAt, refreshing, refresh: () => void queryClient.invalidateQueries({ queryKey: reagentsKey }) },
-              topbarSlot,
             } satisfies ReagentsContext
           }
         />

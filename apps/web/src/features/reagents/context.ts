@@ -64,8 +64,6 @@ export interface ReagentsContext {
   openSheet: (request: SheetRequest) => void;
   /** Cuándo se pidieron los datos de la sección y cómo volver a pedirlos (la ficha lleva su propia cabecera). */
   freshness: { updatedAt: number; refreshing: boolean; refresh: () => void };
-  /** El hueco de la barra superior del shell: la ficha pone allí «Actualizado hace…» (ADR 0015, 14-10-2026). */
-  topbarSlot: HTMLElement | null;
 }
 
 export const useReagents = () => useOutletContext<ReagentsContext>();
