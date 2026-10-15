@@ -93,10 +93,8 @@ async function lockPending(ctx: InventoryContext, requestId: string) {
 export async function approveIssueRequest(
   ctx: InventoryContext,
   requestId: string,
-  authorize: (locationId: string) => Promise<void>,
 ): Promise<MovementResult> {
   const { position, allocation } = await lockPending(ctx, requestId);
-  await authorize(position.locationId);
   if (allocation.requested_by_principal_id === ctx.principalId) {
     throw new AppError('ACCESS_DENIED', 'Nadie aprueba su propia solicitud');
   }
@@ -154,23 +152,15 @@ export async function approveIssueRequest(
   };
 }
 
-/**
- * Rechaza (con motivo, quien aprueba) o cancela (quien la pidió, sin motivo): libera lo reservado.
- * `authorize` decide quién puede hacerlo en la ubicación del frasco.
- */
+/** Rechaza (con motivo, quien aprueba) o cancela (quien la pidió, sin motivo): libera lo reservado. */
 export async function releaseIssueRequest(
   ctx: InventoryContext,
   requestId: string,
   decision: { kind: 'reject'; reason: string } | { kind: 'cancel' },
-  authorize: (locationId: string) => Promise<void>,
 ): Promise<{ requestId: string; positionId: string; status: 'released' }> {
   const { position, allocation } = await lockPending(ctx, requestId);
-  if (decision.kind === 'cancel') {
-    if (allocation.requested_by_principal_id !== ctx.principalId) {
-      throw new AppError('ACCESS_DENIED', 'Solo quien la pidió puede cancelar la solicitud');
-    }
-  } else {
-    await authorize(position.locationId);
+  if (decision.kind === 'cancel' && allocation.requested_by_principal_id !== ctx.principalId) {
+    throw new AppError('ACCESS_DENIED', 'Solo quien la pidió puede cancelar la solicitud');
   }
   const [released] = await releaseReserved.run(
     { workspaceId: ctx.workspaceId, positionId: position.id, quantity: allocation.quantity },
@@ -197,16 +187,15 @@ function statusOf(row: { status: string; requested_by_principal_id: string; deci
   return 'pending';
 }
 
-/** Solicitudes en las ubicaciones dadas; `requestedBy` acota a las de una persona. */
+/** Solicitudes del espacio; `requestedBy` acota a las de una persona. */
 export async function listIssueRequests(
   ctx: InventoryContext,
-  filter: { locationIds: string[]; requestedBy: string | null; pendingOnly: boolean },
+  filter: { requestedBy: string | null; pendingOnly: boolean },
 ): Promise<IssueRequestItem[]> {
   const rows = await listAllocations.run(
     {
       workspaceId: ctx.workspaceId,
       kind: ctx.kind,
-      locationIds: filter.locationIds,
       status: filter.pendingOnly ? 'held' : null,
       requestedBy: filter.requestedBy,
       limit: 100,
@@ -235,10 +224,10 @@ export async function listIssueRequests(
 
 export async function pendingRequestCount(
   ctx: InventoryContext,
-  filter: { locationIds: string[]; requestedBy: string | null },
+  filter: { requestedBy: string | null },
 ): Promise<number> {
   const [row] = await countPendingAllocations.run(
-    { workspaceId: ctx.workspaceId, kind: ctx.kind, locationIds: filter.locationIds, requestedBy: filter.requestedBy },
+    { workspaceId: ctx.workspaceId, kind: ctx.kind, requestedBy: filter.requestedBy },
     ctx.client,
   );
   return row?.count ?? 0;

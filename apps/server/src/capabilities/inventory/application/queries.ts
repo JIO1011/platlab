@@ -38,17 +38,16 @@ export type StockPosition = Omit<Position, 'product'> & {
   product: Omit<Position['product'], 'controlled' | 'sdsKind' | 'sdsUrl'>;
 };
 
-/** Saldos de las ubicaciones autorizadas, de producto a lote y ubicación (01 §7). */
+/** Saldos del espacio, de producto a lote y ubicación (01 §7). */
 export async function listPositionPage(
   ctx: InventoryContext,
-  filter: { locationIds: string[]; itemId?: string | undefined; locationId?: string | undefined; cursor?: string | undefined; limit: number },
+  filter: { itemId?: string | undefined; locationId?: string | undefined; cursor?: string | undefined; limit: number },
 ): Promise<Page<StockPosition>> {
   const after = decodeCursor(filter.cursor, 5);
   const rows = await listPositions.run(
     {
       workspaceId: ctx.workspaceId,
       kind: ctx.kind,
-      locationIds: filter.locationIds,
       itemId: filter.itemId ?? null,
       locationId: filter.locationId ?? null,
       afterItem: after?.[0] ?? null,
@@ -100,12 +99,10 @@ export async function listPositionPage(
 
 /**
  * Filtros del libro (ADR 0014), comunes a la lista, los conteos por opción y los totales. Cada lista
- * admite cualquiera de sus valores; sin lista, no filtra. `locationIds` es el ámbito autorizado y
- * `filterLocationIds` solo lo estrecha. El periodo es `days` o `from`/`to` (días civiles en
- * `timeZone`, ambos incluidos).
+ * admite cualquiera de sus valores; sin lista, no filtra. El periodo es `days` o `from`/`to` (días
+ * civiles en `timeZone`, ambos incluidos).
  */
 export interface OperationFilter {
-  locationIds: string[];
   types?: Operation['type'][] | undefined;
   itemIds?: string[] | undefined;
   /** Quien pidió la salida si hubo solicitud; si no, quien registró la operación. */
@@ -125,7 +122,6 @@ function filterParams(ctx: InventoryContext, filter: OperationFilter) {
   return {
     workspaceId: ctx.workspaceId,
     kind: ctx.kind,
-    locationIds: filter.locationIds,
     types: filter.types ?? null,
     itemIds: filter.itemIds ?? null,
     responsibleIds: filter.responsibleIds ?? null,
@@ -140,7 +136,7 @@ function filterParams(ctx: InventoryContext, filter: OperationFilter) {
   };
 }
 
-/** Historial de las ubicaciones autorizadas, del más reciente al más antiguo, con su responsable. */
+/** Historial del espacio, del más reciente al más antiguo, con su responsable. */
 export async function listOperationPage(
   ctx: InventoryContext,
   filter: OperationFilter & { cursor?: string | undefined; limit: number },
@@ -266,14 +262,13 @@ export async function operationTotalsOf(
 /** Operaciones de un tipo por día, con ceros incluidos, para el gráfico de un resumen (ADR 0011). */
 export async function countOperationsPerDay(
   ctx: InventoryContext,
-  filter: { type: Operation['type']; locationIds: string[]; timeZone: string; days: number },
+  filter: { type: Operation['type']; timeZone: string; days: number },
 ): Promise<Array<{ date: string; value: number }>> {
   const rows = await countOperationsByDay.run(
     {
       workspaceId: ctx.workspaceId,
       kind: ctx.kind,
       type: filter.type,
-      locationIds: filter.locationIds,
       timeZone: filter.timeZone,
       days: filter.days,
     },

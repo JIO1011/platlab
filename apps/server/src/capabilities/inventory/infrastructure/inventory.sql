@@ -329,7 +329,6 @@ LEFT JOIN LATERAL (
 JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
 WHERE p.workspace_id = :workspaceId!
   AND i.kind = :kind!
-  AND p.location_id = ANY (:locationIds!::uuid[])
   AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)
   AND (:locationId::uuid IS NULL OR p.location_id = :locationId::uuid)
   -- Un frasco trasladado deja su posición de origen vacía: solo se muestra donde está.
@@ -387,10 +386,9 @@ WITH page AS (
   LEFT JOIN core.memberships AS rqm ON rqm.workspace_id = rqp.workspace_id AND rqm.id = rqp.membership_id
   LEFT JOIN core.identities AS requester ON requester.id = rqm.identity_id
   -- Filtros del libro (ADR 0014), los mismos en operationFacets y operationTotals: si cambian aquí,
-  -- cambian allí. `locationIds` es el ámbito del miembro; `filterLocationIds` solo lo estrecha.
+  -- cambian allí. `filterLocationIds` es la ubicación que elige el usuario.
   WHERE o.workspace_id = :workspaceId!
     AND i.kind = :kind!
-    AND p.location_id = ANY (:locationIds!::uuid[])
     AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))
     AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))
     AND (
@@ -458,9 +456,9 @@ JOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = page
 ORDER BY page.effective_at DESC, page.id DESC, page.entry_id DESC;
 
 /* @name countOperationsByDay */
--- Operaciones de un tipo por día, en la zona del espacio y en las ubicaciones autorizadas, para
--- los gráficos (ADR 0011). Cuenta sucesos: nunca suma cantidades de unidades distintas. Los días
--- sin operaciones salen con cero para que el gráfico no salte fechas.
+-- Operaciones de un tipo por día, en la zona del espacio, para los gráficos (ADR 0011). Cuenta
+-- sucesos: nunca suma cantidades de unidades distintas. Los días sin operaciones salen con cero para
+-- que el gráfico no salte fechas.
 WITH bounds AS (
   SELECT (now() AT TIME ZONE :timeZone!)::date - (:days!::int - 1) AS first_day,
          (now() AT TIME ZONE :timeZone!)::date AS last_day
@@ -484,7 +482,6 @@ scoped AS (
       WHERE e.workspace_id = o.workspace_id
         AND e.operation_id = o.id
         AND i.kind = :kind!
-        AND p.location_id = ANY (:locationIds!::uuid[])
     )
 )
 SELECT to_char(d.day, 'YYYY-MM-DD') AS "day!", count(s.day)::int AS "count!"
@@ -498,7 +495,7 @@ ORDER BY d.day;
 -- el total y los grupos salgan de la misma instantánea. Faceta disyuntiva: cada grupo aplica todos los
 -- filtros menos el suyo, así marcar «Salidas» sigue contando los ingresos. Llegan las opciones con
 -- asientos y las elegidas aunque queden en cero (para poder quitarlas), pero nunca un reactivo de otro
--- tipo, un principal de otro espacio ni una ubicación fuera del ámbito.
+-- tipo, un principal ni una ubicación de otro espacio.
 WITH scoped AS MATERIALIZED (
   SELECT
     o.type,
@@ -523,7 +520,6 @@ WITH scoped AS MATERIALIZED (
   JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
   WHERE o.workspace_id = :workspaceId!
     AND i.kind = :kind!
-    AND p.location_id = ANY (:locationIds!::uuid[])
     AND (:positionId::uuid IS NULL OR p.id = :positionId::uuid)
     AND (
       :days::int IS NULL
@@ -605,7 +601,6 @@ named AS (
     ON op.facet = 'product' AND item.workspace_id = :workspaceId! AND item.kind = :kind! AND item.id = op.id
   LEFT JOIN core.locations AS loc
     ON op.facet = 'location' AND loc.workspace_id = :workspaceId! AND loc.id = op.id
-       AND loc.id = ANY (:locationIds!::uuid[])
   LEFT JOIN core.principals AS pr
     ON op.facet = 'responsible' AND pr.workspace_id = :workspaceId! AND pr.id = op.id
   LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
@@ -666,7 +661,6 @@ WITH scoped AS (
   JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
   WHERE o.workspace_id = :workspaceId!
     AND i.kind = :kind!
-    AND p.location_id = ANY (:locationIds!::uuid[])
     AND (:types::text[] IS NULL OR o.type = ANY (:types::text[]))
     AND (:itemIds::uuid[] IS NULL OR p.item_id = ANY (:itemIds::uuid[]))
     AND (
@@ -902,7 +896,7 @@ WHERE workspace_id = :workspaceId! AND id = :allocationId! AND status = 'held'
 RETURNING id, decided_at;
 
 /* @name listAllocations */
--- Solicitudes en las ubicaciones autorizadas; `requestedBy` acota a las propias.
+-- Solicitudes del espacio; `requestedBy` acota a las de una persona.
 SELECT
   a.id,
   a.status,
@@ -938,7 +932,6 @@ LEFT JOIN core.memberships AS dm ON dm.workspace_id = dp.workspace_id AND dm.id 
 LEFT JOIN core.identities AS decider ON decider.id = dm.identity_id
 WHERE a.workspace_id = :workspaceId!
   AND i.kind = :kind!
-  AND p.location_id = ANY (:locationIds!::uuid[])
   AND (:status::text IS NULL OR a.status = :status::text)
   AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid)
 ORDER BY (a.status = 'held') DESC, a.created_at DESC, a.id DESC
@@ -952,5 +945,4 @@ JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_i
 WHERE a.workspace_id = :workspaceId!
   AND i.kind = :kind!
   AND a.status = 'held'
-  AND p.location_id = ANY (:locationIds!::uuid[])
   AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid);

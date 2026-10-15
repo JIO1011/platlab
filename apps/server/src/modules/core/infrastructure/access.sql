@@ -2,7 +2,8 @@
   Acceso y admisión (02 §5–§6). Cada consulta filtra el espacio de forma explícita;
   RLS es la segunda barrera, no la única. La decisión la toma siempre core.admission.
   Los permisos salen de core.effective_role_assignments: asignaciones más el rol Administrador
-  implícito del propietario (ADR 0008, cambio del 02-10-2026).
+  implícito del propietario (ADR 0008, cambio del 02-10-2026). Los roles valen para todo el
+  espacio: la ubicación es un dato del registro, no un límite de acceso (ADR 0016).
 */
 
 /* @name findIdentity */
@@ -134,8 +135,8 @@ WHERE ra.workspace_id = :workspaceId!
 ORDER BY rp.permission_code;
 
 /* @name listMemberRoles */
--- Nombres de los roles vigentes del miembro en algún ámbito, solo para mostrarlos (ADR 0011,
--- 05-10-2026): no autorizan nada. Incluye el Administrador implícito del propietario.
+-- Nombres de los roles vigentes del miembro, solo para mostrarlos (ADR 0011, 05-10-2026): no
+-- autorizan nada. Incluye el Administrador implícito del propietario.
 SELECT DISTINCT r.name
 FROM core.effective_role_assignments AS ra
 JOIN core.roles AS r ON r.code = ra.role_code
@@ -145,73 +146,3 @@ WHERE ra.workspace_id = :workspaceId!
   AND ra.valid_from <= now()
   AND (ra.valid_until IS NULL OR ra.valid_until > now())
 ORDER BY r.name;
-
-/* @name hasPermissionAt */
--- Un rol aplica en la ubicación si su ámbito es todo el espacio o un ancestro de ella (03 §3).
--- Una ubicación de otro espacio no tiene ancestros aquí: solo valdría un rol de todo el espacio,
--- y la operación la rechaza después por no encontrarla.
-WITH RECURSIVE ancestors (id, parent_id) AS (
-  SELECT l.id, l.parent_id
-  FROM core.locations AS l
-  WHERE l.workspace_id = :workspaceId! AND l.id = :locationId!
-  UNION
-  SELECT l.id, l.parent_id
-  FROM core.locations AS l
-  JOIN ancestors AS a ON l.id = a.parent_id
-  WHERE l.workspace_id = :workspaceId!
-)
-SELECT EXISTS (
-  SELECT 1
-  FROM core.effective_role_assignments AS ra
-  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
-  WHERE ra.workspace_id = :workspaceId!
-    AND ra.principal_id = :principalId!
-    AND rp.permission_code = :permission!
-    AND ra.revoked_at IS NULL
-    AND ra.valid_from <= now()
-    AND (ra.valid_until IS NULL OR ra.valid_until > now())
-    AND (ra.location_id IS NULL OR ra.location_id IN (SELECT id FROM ancestors))
-) AS "allowed!";
-
-/* @name hasWorkspacePermission */
--- Permiso con ámbito de todo el espacio: lo exige lo que no pertenece a una ubicación (catálogo).
-SELECT EXISTS (
-  SELECT 1
-  FROM core.effective_role_assignments AS ra
-  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
-  WHERE ra.workspace_id = :workspaceId!
-    AND ra.principal_id = :principalId!
-    AND rp.permission_code = :permission!
-    AND ra.location_id IS NULL
-    AND ra.revoked_at IS NULL
-    AND ra.valid_from <= now()
-    AND (ra.valid_until IS NULL OR ra.valid_until > now())
-) AS "allowed!";
-
-/* @name listPermissionScope */
--- Ubicaciones donde aplica el permiso: todas si el rol es de todo el espacio; si no, cada ámbito
--- y su descendencia (03 §3). Las listas de los módulos se filtran con este conjunto.
-WITH RECURSIVE grants (location_id) AS (
-  SELECT ra.location_id
-  FROM core.effective_role_assignments AS ra
-  JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
-  WHERE ra.workspace_id = :workspaceId!
-    AND ra.principal_id = :principalId!
-    AND rp.permission_code = :permission!
-    AND ra.revoked_at IS NULL
-    AND ra.valid_from <= now()
-    AND (ra.valid_until IS NULL OR ra.valid_until > now())
-),
-scope (id) AS (
-  SELECT l.id
-  FROM core.locations AS l
-  WHERE l.workspace_id = :workspaceId!
-    AND (l.id IN (SELECT g.location_id FROM grants AS g)
-         OR EXISTS (SELECT 1 FROM grants AS g WHERE g.location_id IS NULL))
-  UNION
-  SELECT l.id
-  FROM core.locations AS l
-  JOIN scope AS s ON l.parent_id = s.id
-  WHERE l.workspace_id = :workspaceId!
-)
-SELECT id AS "id!" FROM scope;

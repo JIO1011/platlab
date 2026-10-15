@@ -50,11 +50,9 @@ import { AppError } from '../../../platform/errors.js';
 import { withIdempotency } from '../../../platform/idempotency/idempotency.js';
 import {
   createLocation,
-  hasPermissionAt,
+  hasPermission,
   recordAudit,
   requirePermission,
-  requirePermissionAt,
-  requireWorkspacePermission,
   withModuleAccess,
   type WorkspaceAccess,
 } from '../../core/index.js';
@@ -86,8 +84,8 @@ const CATALOG = 'reagents.catalog.manage';
 /**
  * Una transacción por comando (primer incremento): admisión de Reactivos para operación nueva,
  * permiso, clave idempotente, negocio y auditoría; se confirma o revierte todo junto. El permiso se
- * comprueba antes de la clave, así un reintento también revalida el acceso; el ámbito de la
- * ubicación se comprueba dentro, cuando se conoce la posición.
+ * comprueba antes de la clave, así un reintento también revalida el acceso. Los roles valen para
+ * todo el espacio (ADR 0008): la ubicación la valida la operación, no el permiso.
  */
 function runCommand<T>(
   pool: pg.Pool,
@@ -179,7 +177,7 @@ export function createProduct(pool: pg.Pool, request: CommandRequest, input: z.i
     request,
     'reagents.product.create',
     input,
-    (access) => requireWorkspacePermission(access, CATALOG),
+    (access) => requirePermission(access, CATALOG),
     (access) => insertProduct(access, input),
   );
 }
@@ -211,7 +209,7 @@ export function updateProduct(
     request,
     'reagents.product.update',
     { productId, ...input },
-    (access) => requireWorkspacePermission(access, CATALOG),
+    (access) => requirePermission(access, CATALOG),
     async (access) => {
       const ctx = inventoryContext(access);
       const item = await lockItem(ctx, productId, { rename: input.name !== undefined });
@@ -260,7 +258,7 @@ export function setProductMinimum(
     request,
     'reagents.product.minimum',
     { productId, minimum },
-    (access) => requireWorkspacePermission(access, CATALOG),
+    (access) => requirePermission(access, CATALOG),
     async (access) => {
       const stored = await setMinimum(inventoryContext(access), productId, minimum);
       await recordAudit(access, {
@@ -288,7 +286,7 @@ export function createWorkspaceLocation(
     request,
     'reagents.location.create',
     input,
-    (access) => requireWorkspacePermission(access, CATALOG),
+    (access) => requirePermission(access, CATALOG),
     async (access) => {
       const { created, ...location } = await createLocation(access, input);
       await recordAudit(access, {
@@ -333,7 +331,7 @@ export function registerReceipt(
   const permission = 'reagents.receipt.create';
   const authorize = async (access: WorkspaceAccess) => {
     await requirePermission(access, permission);
-    if (input.newProduct) await requireWorkspacePermission(access, CATALOG);
+    if (input.newProduct) await requirePermission(access, CATALOG);
   };
   return runCommand(pool, request, permission, input, authorize, async (access) => {
     const created = input.newProduct ? await insertProduct(access, input.newProduct) : null;
@@ -355,7 +353,6 @@ export function registerReceipt(
         unit: input.unit,
         weight,
       },
-      (locationId) => requirePermissionAt(access, permission, locationId),
     );
     await recordAudit(access, {
       action: permission,
@@ -383,9 +380,9 @@ export function registerReceipt(
 const APPROVE = 'reagents.issue.approve';
 
 /**
- * Salida (ADR 0012): quien puede aprobar en la ubicación del frasco la registra al instante; el
- * Operador deja una solicitud pendiente que aparta la cantidad. Lo decide el servidor, nunca el
- * navegador: el mismo envío da una salida o una solicitud según el permiso de quien lo hace.
+ * Salida (ADR 0012): quien puede aprobar la registra al instante; el Operador deja una solicitud
+ * pendiente que aparta la cantidad. Lo decide el servidor, nunca el navegador: el mismo envío da una
+ * salida o una solicitud según el permiso de quien lo hace.
  */
 export function registerIssue(
   pool: pg.Pool,
@@ -396,8 +393,7 @@ export function registerIssue(
   return runCommand(pool, request, permission, input, (access) => requirePermission(access, permission), async (access) => {
     const ctx = inventoryContext(access);
     const position = await lockExistingPosition(ctx, input.positionId);
-    await requirePermissionAt(access, permission, position.locationId);
-    if (await hasPermissionAt(access, APPROVE, position.locationId)) {
+    if (await hasPermission(access, APPROVE)) {
       const result = await applyMovement(ctx, position, {
         type: 'issue',
         quantity: input.quantity,
@@ -434,9 +430,7 @@ export function approveRequest(pool: pg.Pool, request: CommandRequest, requestId
     { requestId },
     (access) => requirePermission(access, APPROVE),
     async (access) => {
-      const result = await approveIssueRequest(inventoryContext(access), requestId, (locationId) =>
-        requirePermissionAt(access, APPROVE, locationId),
-      );
+      const result = await approveIssueRequest(inventoryContext(access), requestId);
       await recordAudit(access, {
         action: APPROVE,
         entityType: 'inventory.allocation',
@@ -458,9 +452,7 @@ export function rejectRequest(pool: pg.Pool, request: CommandRequest, requestId:
     { requestId, reason },
     (access) => requirePermission(access, APPROVE),
     async (access) => {
-      const result = await releaseIssueRequest(inventoryContext(access), requestId, { kind: 'reject', reason }, (locationId) =>
-        requirePermissionAt(access, APPROVE, locationId),
-      );
+      const result = await releaseIssueRequest(inventoryContext(access), requestId, { kind: 'reject', reason });
       await recordAudit(access, {
         action: 'reagents.issue.reject',
         entityType: 'inventory.allocation',
@@ -483,7 +475,7 @@ export function cancelRequest(pool: pg.Pool, request: CommandRequest, requestId:
     { requestId },
     (access) => requirePermission(access, 'reagents.issue.create'),
     async (access) => {
-      const result = await releaseIssueRequest(inventoryContext(access), requestId, { kind: 'cancel' }, async () => {});
+      const result = await releaseIssueRequest(inventoryContext(access), requestId, { kind: 'cancel' });
       await recordAudit(access, {
         action: 'reagents.issue.cancel',
         entityType: 'inventory.allocation',
@@ -507,7 +499,6 @@ export function registerTransfer(
     const result = await transferContainer(
       inventoryContext(access),
       { positionId: input.positionId, locationId: input.locationId, reference: input.reference ?? null },
-      (locationId) => requirePermissionAt(access, permission, locationId),
     );
     await recordAudit(access, {
       action: permission,
@@ -527,9 +518,7 @@ export function registerCount(
 ): Promise<CountResponse> {
   const permission = 'reagents.adjustment.create';
   return runCommand(pool, request, 'reagents.count.create', input, (access) => requirePermission(access, permission), async (access) => {
-    const result = await countLocation(inventoryContext(access), input, (locationId) =>
-      requirePermissionAt(access, permission, locationId),
-    );
+    const result = await countLocation(inventoryContext(access), input);
     // El conteo queda auditado aunque todo cuadre: se sabe quién contó, dónde y cuándo.
     await recordAudit(access, {
       action: 'reagents.count.create',
@@ -552,7 +541,6 @@ export function registerAdjustment(
   return runCommand(pool, request, permission, input, (access) => requirePermission(access, permission), async (access) => {
     const ctx = inventoryContext(access);
     const position = await lockExistingPosition(ctx, input.positionId);
-    await requirePermissionAt(access, permission, position.locationId);
     const result = await applyMovement(ctx, position, {
       type: 'adjustment',
       quantity: input.quantity,
@@ -577,7 +565,6 @@ export function registerWeightAdjustment(
   return runCommand(pool, request, 'reagents.adjustment.weight', input, (access) => requirePermission(access, permission), async (access) => {
     const ctx = inventoryContext(access);
     const position = await lockExistingPosition(ctx, input.positionId);
-    await requirePermissionAt(access, permission, position.locationId);
     const result = await adjustByWeight(ctx, position, input.grossWeight);
     await auditMovement(access, permission, result, 'Pesada');
     return result;
@@ -585,7 +572,7 @@ export function registerWeightAdjustment(
 }
 
 /**
- * Fija la tara de un frasco (ADR 0015): la fija quien ajusta en su ubicación. Reemplaza la anterior y
+ * Fija la tara de un frasco (ADR 0015): la fija quien puede ajustar. Reemplaza la anterior y
  * la auditoría guarda ambas, con sus densidades.
  */
 export function setContainerTare(
@@ -610,7 +597,6 @@ export function setContainerTare(
           density: input.density ?? null,
           fallbackDensity: (itemId) => productDensity(access, itemId),
         },
-        (locationId) => requirePermissionAt(access, permission, locationId),
       );
       await recordAudit(access, {
         action: 'reagents.container.tare',
@@ -636,7 +622,7 @@ export function createReason(
   request: CommandRequest,
   input: z.infer<typeof createReasonRequest>,
 ): Promise<ListEntry> {
-  return runCommand(pool, request, 'reagents.reason.create', input, (access) => requireWorkspacePermission(access, CATALOG), async (access) => {
+  return runCommand(pool, request, 'reagents.reason.create', input, (access) => requirePermission(access, CATALOG), async (access) => {
     const entry = await addReason(inventoryContext(access), input.kind, input.name);
     await recordAudit(access, {
       action: 'reagents.reason.create',
@@ -649,7 +635,7 @@ export function createReason(
 }
 
 export function archiveReason(pool: pg.Pool, request: CommandRequest, id: string): Promise<{ id: string }> {
-  return runCommand(pool, request, 'reagents.reason.archive', { id }, (access) => requireWorkspacePermission(access, CATALOG), async (access) => {
+  return runCommand(pool, request, 'reagents.reason.archive', { id }, (access) => requirePermission(access, CATALOG), async (access) => {
     await retireReason(inventoryContext(access), id);
     await recordAudit(access, { action: 'reagents.reason.archive', entityType: 'inventory.reason', entityId: id, changes: {} });
     return { id };
@@ -664,7 +650,7 @@ export function createEntry(
   input: z.infer<typeof createEntryRequest>,
 ): Promise<ListEntry> {
   const action = `reagents.${list}.create`;
-  return runCommand(pool, request, action, input, (access) => requireWorkspacePermission(access, CATALOG), async (access) => {
+  return runCommand(pool, request, action, input, (access) => requirePermission(access, CATALOG), async (access) => {
     const entry = await addEntry(inventoryContext(access), list, input.name);
     await recordAudit(access, { action, entityType: `inventory.${list}`, entityId: entry.id, changes: { name: entry.name } });
     return entry;
@@ -673,7 +659,7 @@ export function createEntry(
 
 export function archiveEntry(pool: pg.Pool, request: CommandRequest, list: NamedList, id: string): Promise<{ id: string }> {
   const action = `reagents.${list}.archive`;
-  return runCommand(pool, request, action, { id }, (access) => requireWorkspacePermission(access, CATALOG), async (access) => {
+  return runCommand(pool, request, action, { id }, (access) => requirePermission(access, CATALOG), async (access) => {
     await retireEntry(inventoryContext(access), list, id);
     await recordAudit(access, { action, entityType: `inventory.${list}`, entityId: id, changes: {} });
     return { id };

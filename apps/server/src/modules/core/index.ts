@@ -1,10 +1,7 @@
 /** Interfaz pública de Core: los módulos solo importan desde aquí (02 §3). */
 export {
-  hasPermissionAt,
-  permissionScope,
+  hasPermission,
   requirePermission,
-  requirePermissionAt,
-  requireWorkspacePermission,
   withModuleAccess,
   withWorkspaceAccess,
   type WorkspaceAccess,

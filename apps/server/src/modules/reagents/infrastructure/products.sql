@@ -28,7 +28,7 @@ FROM reagents.products
 WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]);
 
 /* @name listProducts */
--- Con el total que el miembro puede consultar: suma exacta en numeric de sus ubicaciones autorizadas.
+-- Con el total del espacio: suma exacta en numeric de todas sus ubicaciones.
 -- Con :q, solo los reactivos cuyo nombre, código o CAS lo contienen, plegados con inventory.fold_text
 -- (código y CAS son ASCII por su CHECK). `\`, `%` y `_` se escapan con `\` (el escape por omisión de
 -- LIKE; chr(92), porque PgTyped no admite `\` en un literal) y cuentan como texto.
@@ -56,8 +56,7 @@ SELECT
      FROM inventory.positions AS p
     WHERE p.workspace_id = i.workspace_id
       AND p.item_id = i.id
-      AND p.balance > 0
-      AND p.location_id = ANY (:locationIds!::uuid[]))::int AS "containers_with_stock!",
+      AND p.balance > 0)::int AS "containers_with_stock!",
   -- Avisos de caducidad (ADR 0012, 05-10-2026): frascos con saldo; «hoy» es la fecha civil del espacio.
   (SELECT count(*)
      FROM inventory.positions AS p
@@ -65,7 +64,6 @@ SELECT
     WHERE p.workspace_id = i.workspace_id
       AND p.item_id = i.id
       AND p.balance > 0
-      AND p.location_id = ANY (:locationIds!::uuid[])
       AND l.expires_on < (now() AT TIME ZONE :timeZone!)::date)::int AS "expired_containers!",
   (SELECT count(*)
      FROM inventory.positions AS p
@@ -73,7 +71,6 @@ SELECT
     WHERE p.workspace_id = i.workspace_id
       AND p.item_id = i.id
       AND p.balance > 0
-      AND p.location_id = ANY (:locationIds!::uuid[])
       AND l.expires_on BETWEEN (now() AT TIME ZONE :timeZone!)::date
                            AND (now() AT TIME ZONE :timeZone!)::date + :expiringDays!::int)::int AS "expiring_containers!",
   lower(i.code) AS "sort_code!"
@@ -84,7 +81,6 @@ CROSS JOIN LATERAL (
   FROM inventory.positions AS p
   WHERE p.workspace_id = i.workspace_id
     AND p.item_id = i.id
-    AND p.location_id = ANY (:locationIds!::uuid[])
 ) AS stock
 CROSS JOIN search
 WHERE i.workspace_id = :workspaceId!
@@ -100,8 +96,7 @@ ORDER BY lower(i.code), i.id
 LIMIT :limit!;
 
 /* @name homeSummary */
--- Contadores del Resumen y de la tarjeta de Inicio: inventario que el miembro puede consultar, no
--- filas del catálogo. Vencido y por vencer (ADR 0012, 05-10-2026): frascos con saldo, con «hoy» en
+-- Contadores del Resumen y de la tarjeta de Inicio: inventario del espacio, no filas del catálogo. Vencido y por vencer (ADR 0012, 05-10-2026): frascos con saldo, con «hoy» en
 -- la fecha civil del espacio; por vencer incluye hoy y los próximos :expiringDays días (02 §12).
 -- Bajo mínimo: reactivos activos con mínimo cuya existencia física es menor (ADR 0012, 05-10-2026).
 WITH stocked AS (
@@ -112,7 +107,6 @@ WITH stocked AS (
   WHERE p.workspace_id = :workspaceId!
     AND i.kind = 'reagent'
     AND p.balance > 0
-    AND p.location_id = ANY (:locationIds!::uuid[])
 ), today AS (
   SELECT (now() AT TIME ZONE :timeZone!)::date AS d
 ), minimums AS (
@@ -120,8 +114,7 @@ WITH stocked AS (
          (SELECT coalesce(sum(p.balance), 0)
             FROM inventory.positions AS p
            WHERE p.workspace_id = i.workspace_id
-             AND p.item_id = i.id
-             AND p.location_id = ANY (:locationIds!::uuid[])) AS balance
+             AND p.item_id = i.id) AS balance
   FROM inventory.items AS i
   WHERE i.workspace_id = :workspaceId!
     AND i.kind = 'reagent'
@@ -137,10 +130,9 @@ SELECT
   (SELECT count(*) FROM minimums WHERE balance < minimum_quantity) AS "below_minimum!",
   (SELECT count(*) FROM minimums) AS "products_with_minimum!";
 
-/* @name listLocationsIn */
+/* @name listActiveLocations */
 SELECT id, code, name, kind, parent_id
 FROM core.locations
 WHERE workspace_id = :workspaceId!
-  AND id = ANY (:locationIds!::uuid[])
   AND archived_at IS NULL
 ORDER BY lower(code), id;
