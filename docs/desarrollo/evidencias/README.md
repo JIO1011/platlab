@@ -38,6 +38,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Registro
 | Fecha | Entrega | Commit | Veredicto | Pruebas | Nota |
 |---|---|---|---|---|---|
+| 2026-10-14 | Escáner QR, imprimir Movimientos y ficha final | `192361f` | Cumple | unit 90 · pgTAP 223 · int 136 · e2e 24 | Diseño aprobado; filtros sin scroll; ADR 0016; conteos del CI (run 38665227405) |
 | 2026-10-14 | «Nuevo reactivo», tarjeta del frasco y ficha (final) | `364b6bc` | Cumple | unit 87 · pgTAP 223 · int 136 · e2e 23 | Diseño aprobado por el usuario; ruta y quién ingresó en la API; conteos del CI (run 38639399270) |
 | 2026-10-13 | Ficha: resumen lateral y 3 frascos por fila | `019ec62` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 23 | Panel compacto fijo, tarjeta compacta con menú «⋯»; conteos del CI (run 38487126414) |
 | 2026-10-13 | Ficha: resumen, frascos y etiquetas con giro | `cdb3939` | Cumple | unit 87 · pgTAP 223 · int 135 · e2e 23 | `review-animations` aprobado (giro); conteos del CI (run 38483133110) |
