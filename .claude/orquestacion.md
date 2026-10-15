@@ -20,7 +20,7 @@ Reparto por riesgo, no por capa (ADR 0013): todo cambio que pueda alterar saldos
 | Revisar acabado de UI | `impeccable-finish-reviewer`: Sonnet 5.5 en `high` | Correcciones ordenadas; no edita |
 
 - **Escalada.** Un subagente no lanza otros. Los agentes Sonnet se detienen con «Bloqueo» si el cambio toca lo delicado, si la misma comprobación falla dos veces o si falta una decisión; la sesión principal lo reasigna a `platlab-implementer`. Las correcciones siguen con el mismo agente (`SendMessage`) mientras su contexto sea pequeño; si pasa de ~150k, agente nuevo con brief.
-- **Puertas automáticas** (ADR 0013, `.claude/hooks/`). `subagent-guard.sh` impide que los implementadores confirmen, suban, abran PR o editen sus puertas, y que los agentes Sonnet escriban en `supabase/`, `apps/server/`, `packages/contracts/` o `packages/modules/`. Al terminar, `subagent-gate.sh` detecta lo delicado que un agente Sonnet cambió por otra vía, exige capturas si el implementador de UI cambió la interfaz y corre `typecheck`, `lint`, `deps` y `knip`; si algo falla, devuelve el trabajo una vez. Las escrituras remotas por MCP, `supabase link`, `db push` y `git push --force` se bloquean en local; en GitHub, una regla impide el force-push y el borrado de `main`.
+- **Puertas automáticas** (ADR 0013, `.claude/hooks/`). `subagent-guard.sh` impide que los implementadores confirmen, suban, abran PR o editen sus puertas, y que los agentes Sonnet escriban en `supabase/`, `apps/server/`, `packages/contracts/` o `packages/modules/`. Al terminar, `subagent-gate.sh` detecta lo delicado que un agente Sonnet cambió por otra vía y corre `typecheck`; en cierre, además corre `lint`, `deps` y `knip` y exige capturas si el implementador de UI cambió la interfaz. Si algo falla, devuelve el trabajo una vez. En cambios, `subagent-guard.sh` rechaza que un agente corra pruebas. Las escrituras remotas por MCP, `supabase link`, `db push` y `git push --force` se bloquean en local; en GitHub, una regla impide el force-push y el borrado de `main`.
 - **Impeccable corre en Sonnet 5.5 en `high`.** Sus comandos de ejecución y revisión (`audit`, `harden`, `polish`, `animate`, `layout`…) los lanza `platlab-ui-implementer`. La sesión principal solo usa `shape` para proponer. Los roles de documentar, producir imágenes y aplicar ediciones de `live` no tienen agente: la skill los ejecuta en línea (`reference/degraded/`) dentro del implementador de UI. Al actualizar la skill, revisar que `impeccable-finish-reviewer` conserve `model: claude-sonnet-5-5`.
 - **Paquete para `impeccable-finish-reviewer`.** Se lo inyecta `subagent-gate.sh` al empezar: construcción guiada por código, contrato en `DESIGN.md` y ADR 0010, sin diseño de referencia, QUALITY BAR, `state.json` ni semilla, y reglas del dominio. El brief solo añade las capturas y los archivos.
 
@@ -34,15 +34,29 @@ Reparto por riesgo, no por capa (ADR 0013): todo cambio que pueda alterar saldos
 Medido: arrancar un subagente cuesta ~40k tokens antes del brief, y ese contexto se reprocesa en cada turno. Lo caro son el arranque por turnos, la exploración y repetir pruebas; el brief pesa poco.
 
 - **Delegar solo lo que lo merece.** Hasta ~20 líneas en uno o dos archivos, en línea. Nunca `fork` para implementar: hereda toda la conversación.
-- **Brief de 40 líneas como máximo:** objetivo, archivo:línea mapeados con codebase-memory, contrato o diseño exacto, casos de prueba con sus bordes (límites, paginación, duplicados, permisos), comandos y qué no tocar. Las decisiones se enlazan (`docs/05`, ADR), no se copian.
+- **Brief de 40 líneas como máximo, con esta plantilla.** Las decisiones se enlazan (`docs/05`, ADR), no se copian; lo que no aplica se omite.
+  ```
+  Etapa: cambios | cierre
+  Objetivo: …
+  Dónde: archivo:línea y símbolos (codebase-memory; en SQL, rangos de grep: el índice lo cubre parcialmente)
+  Skills: las que se cargan, o «ninguna» (`platlab-db-review` siempre que haya SQL)
+  Herramientas: codebase-memory solo para lo listado; context7 sí/no
+  Leer solo: … · No leer: …
+  Contrato o diseño: …
+  Pruebas a escribir (sin correrlas en cambios): casos y bordes (límites, paginación, duplicados, permisos)
+  No tocar: …
+  ```
 - **Entregas de 40 turnos como máximo.** Base y API, lógica web (Opus) y pantallas (Sonnet) van por separado.
-- **Los agentes implementan; la sesión principal prueba.** Los agentes se ubican con codebase-memory, escriben o ajustan las pruebas y no corren suites, e2e ni `pnpm check`; la puerta final ya corre tipos, lint, fronteras y knip. Solo `platlab-implementer` puede correr el archivo de pruebas que escribió. La sesión principal corre las pruebas dirigidas, y el CI del PR (`.github/workflows/ci.yml`) la suite completa. La verificación se hace con el log del CI, sin subagente.
-- **Una ronda de capturas** (4 como máximo, a 1×, recortadas), después de las correcciones.
+- **La sesión principal ubica y designa; los agentes ejecutan.** Mapea con codebase-memory y nombra en el brief skills y herramientas; el agente no precarga skills ni explora: si falta algo, una búsqueda puntual y, si no basta, «Bloqueo».
+- **Etapas de una entrega (ADR 0013).**
+  - *Cambios* (por defecto): los agentes implementan y escriben o ajustan las pruebas sin correrlas; el usuario revisa en el navegador (http://localhost:5173), sin capturas. Ni los agentes ni la sesión principal corren pruebas; la puerta solo vigila el carril y `typecheck`.
+  - *Cierre*, solo cuando el usuario aprueba: `echo cierre > .git/claude-fase`; la sesión principal corre las pruebas dirigidas y `pnpm check`, pide una ronda de capturas (4 como máximo, a 1×, recortadas) y el revisor de acabado, y verifica con el log del CI (`.github/workflows/ci.yml`), sin subagente. En cierre, `platlab-implementer` puede correr el archivo de pruebas que escribió.
+  - Al empezar la siguiente entrega: `echo cambios > .git/claude-fase` (sin el archivo también es *cambios*).
 - **Subagentes livianos.** Cada uno declara sus herramientas (`tools`, sin MCP ajenos) y los que no tocan lo delicado no cargan `CLAUDE.md` (`omitClaudeMd`). Los MCP ajenos al proyecto se deshabilitan en `/mcp`.
 
 ## Frontend (`apps/web`, `apps/console`, `packages/ui`)
 
-La dirección visual está en 01 «Dirección visual», el stack en 02 §2 y el sistema en el ADR 0010. Las skills viven en `.claude/skills/` y se usan sin esperar a que se pidan:
+La dirección visual está en 01 «Dirección visual», el stack en 02 §2 y el sistema en el ADR 0010. Las skills viven en `.claude/skills/`; la sesión principal las nombra en el brief según el momento, sin esperar a que se pidan:
 
 | Momento | Skill |
 |---|---|
@@ -50,7 +64,7 @@ La dirección visual está en 01 «Dirección visual», el stack en 02 §2 y el 
 | Movimiento, gestos y hojas | `animate` + `apple-design`; al terminar, `review-animations` |
 | Avisos | `ask-sonner` |
 | Una pieza que el stack no resuelve | `pick-ui-library`; la documentación se consulta con context7 |
-| Antes de cerrar una entrega con UI | Capturas de escritorio y móvil en `apps/web/.impeccable/review/` (la puerta las exige) e `impeccable-finish-reviewer`; después, `platlab-verify-increment` con el CI |
+| Cierre de una entrega con UI | Capturas de escritorio y móvil en `apps/web/.impeccable/review/` (en cierre, la puerta las exige) e `impeccable-finish-reviewer`; después, `platlab-verify-increment` con el CI |
 | Antes de cerrar una puerta (G0, G1…) | `impeccable audit`, `harden` y `polish` sobre todo el frontend, más `review-animations` |
 
 - **Sin duplicar documentos.** `PRODUCT.md` y `DESIGN.md`, de `impeccable init` o `document`, solo enlazan a 01, 02 y al ADR 0010.
