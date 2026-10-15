@@ -2119,10 +2119,10 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
 describe('mejoras pequeñas (ADR 0016)', () => {
   it('las posiciones traen la ficha de seguridad: digital con enlace, solo en físico o sin indicar', async () => {
     const lab = await createLab();
-    const create = async (name: string, safety: Record<string, unknown>) => {
+    const create = async (name: string, casNumber: string, safety: Record<string, unknown>) => {
       const created = await call(lab.adminMember.subject, `${lab.base}/products`, {
         method: 'POST',
-        body: { name, casNumber: null, physicalState: 'solid', baseUnit: 'g', ...safety },
+        body: { name, casNumber, physicalState: 'solid', baseUnit: 'g', ...safety },
       });
       expect(created.status).toBe(201);
       const product = productContract.parse(created.body);
@@ -2132,17 +2132,17 @@ describe('mejoras pequeñas (ADR 0016)', () => {
       ).items;
       return position!.product;
     };
-    expect(await create('Ficha digital', { sdsKind: 'digital', sdsUrl: 'https://ejemplo.org/sds.pdf' })).toMatchObject({
+    expect(await create('Ficha digital', '7647-14-5', { sdsKind: 'digital', sdsUrl: 'https://ejemplo.org/sds.pdf' })).toMatchObject({
       sdsKind: 'digital',
       sdsUrl: 'https://ejemplo.org/sds.pdf',
       controlled: false,
     });
-    expect(await create('Ficha en papel', { sdsKind: 'physical', controlled: true })).toMatchObject({
+    expect(await create('Ficha en papel', '7757-82-6', { sdsKind: 'physical', controlled: true })).toMatchObject({
       sdsKind: 'physical',
       sdsUrl: null,
       controlled: true,
     });
-    expect(await create('Ficha sin indicar', {})).toMatchObject({ sdsKind: null, sdsUrl: null, controlled: false });
+    expect(await create('Ficha sin indicar', '1310-73-2', {})).toMatchObject({ sdsKind: null, sdsUrl: null, controlled: false });
   });
 
   it('el historial trae la ruta de la ubicación: anidada en 3 niveles bajo la sede, o la sede sola', async () => {
@@ -2159,7 +2159,7 @@ describe('mejoras pequeñas (ADR 0016)', () => {
     expect((await receive(lab, product.id, '20', site, lab.adminMember.subject)).status).toBe(201);
 
     const history = operationList.parse(
-      (await call(lab.operator.subject, `${lab.base}/operations?type=receipt&limit=1000`)).body,
+      (await call(lab.operator.subject, `${lab.base}/operations?type=receipt&limit=100`)).body,
     ).items;
     const locationOf = (quantity: string) => history.find((entry) => entry.quantity === quantity)!.location;
     const [siteName, roomName, cabinetName, shelfName] = await Promise.all(
