@@ -511,7 +511,7 @@ Motivo: el usuario prioriza lo necesario para el piloto y menos superficie fuera
   - El QR impreso y la auditoría formal de la UI (R-01A).
   - Lo previo a G1: rendimiento con la carga sintética, aislamiento en todas las rutas y los pendientes de la tabla de abajo.
   - REG-01 y REG-02 reducido, y la preparación de soluciones.
-- **Reorganización sin cambiar la lógica**, antes de G1 y con las pruebas corriendo: partir por caso de uso `commands.ts`, `reagents.int.test.ts` y `contracts/src/reagents.ts`, y simplificar `MovementFilterPanel` e `IngressSheet`. Equipos nace con esa estructura.
+- **Reorganización sin cambiar la lógica**, hecha el 15-10-2026; falta correr las pruebas, que la confirman. Los comandos de Reactivos van por caso de uso en `application/` (catálogo, ficha, movimientos, salidas y listas), su prueba de integración en siete archivos con apoyo común, los contratos por área en `contracts/src/reagents/`, y `MovementFilterPanel` e `IngressSheet` en hooks y secciones. Equipos nace con esa estructura.
 - **Sigue E-01 Equipos**, con el mínimo que confirme el cliente.
 
 Motivo: el usuario da por concluido el módulo y no quiere lógica que el cliente no necesite. Reemplaza el orden del [ADR 0016](#adr-0016) y del [ADR 0017](#adr-0017), y la regla «Reactivos se completa antes de abrir otro módulo» del [ADR 0014](#adr-0014) (15-10-2026).

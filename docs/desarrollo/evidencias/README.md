@@ -37,6 +37,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Registro
 | Fecha | Entrega | Commit | Veredicto | Pruebas | Nota |
 |---|---|---|---|---|---|
+| 2026-10-15 | R-01B entrega 1 (ficha de seguridad en PDF) y reorganización de Reactivos sin cambiar la lógica (ADR 0017, 0018) | `88dda30` y la reorganización | Cumple | unit 94 · pgTAP 238 · int 142 · e2e 24 | Todo local sobre ambos commits: tipos, lint, fronteras, knip, PgTyped sin diferencias y Storage local; la prueba de integración pasa de 1 a 7 archivos con los mismos casos. Reactivos queda concluido para el piloto |
 | 2026-10-14 | Ámbito por ubicación retirado (ADR 0016, paso 2) | `2b913c7` | Cumple | unit 91 · pgTAP 224 · int 138 · e2e 24 | Sin cambios de UI ni de contrato; pgTAP y e2e del CI (run 38681271736), unit e int locales; primera entrega con «Quién implementa» del ADR 0013 |
 | 2026-10-14 | Mejoras pequeñas del ADR 0016 (ficha de seguridad en la salida, ruta en el historial, códigos sin palabras vacías) | `170cbb5` | Cumple | unit 91 · pgTAP 223 · int 139 · e2e 24 | Probado por el usuario en el navegador; primera entrega con etapas de cambios y cierre (ADR 0013); conteos del CI (run 38675089388) |
 | 2026-10-14 | Escáner QR, imprimir Movimientos y ficha final | `192361f` | Cumple | unit 90 · pgTAP 223 · int 136 · e2e 24 | Diseño aprobado; filtros sin scroll; ADR 0016; conteos del CI (run 38665227405) |

@@ -1,52 +1,21 @@
-import { location, receiptRequest, receiptResponse, type StockedProduct } from '@platlab/contracts';
-import { normalizeDecimalInput, toDecimalInput, toast } from '@platlab/ui';
-import { CircleCheck, MapPin, PackagePlus, Scale, ShieldAlert, Tag } from 'lucide-react';
+import type { StockedProduct } from '@platlab/contracts';
+import { PackagePlus, ShieldAlert, Tag } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { isApiError } from '../../../app/api';
-import { ChoiceField } from '../choices';
-import { commandErrorMessage, useCommand, useUploadSafetySheet } from '../commands';
-import { useAreas, useBrands, useCodeSuggestion, useProduct, useProductSearch, useReceiptLocations } from '../queries';
-import { warnSheetNotUploaded } from '../sds';
+import { useBrands, useReceiptLocations } from '../queries';
 import { FormSheet, type SheetBaseProps } from '../sheets/shared';
-import { useDebouncedValue } from '../use-media-query';
-import { isVolume } from '../weight';
-import { fieldLabel, filled } from './filled';
 import { BottlesStepper } from './bottles-stepper';
 import { Section } from './form-section';
+import { IngressStatus } from './ingress-status';
 import { LabelFields } from './label-fields';
-import { LocationPicker } from './location-picker';
-import {
-  casRequired,
-  catalogFields,
-  countOf,
-  countValid,
-  emptyBottles,
-  emptyDraft,
-  levelOneOf,
-  receiptTare,
-  sdsFileOf,
-  seriesOf,
-  toPlaces,
-  validateBottles,
-  validateDraft,
-  type BottlesForm,
-  type Draft,
-  type Errors,
-  type Place,
-} from './model';
-import { readRecents, rememberRecents } from './remembered';
+import { bottlesLabelOf, toPlaces } from './model';
+import { readRecents } from './remembered';
+import { reviewIngress } from './review';
 import { SafetyFields } from './safety-fields';
-import { WeightFields } from './weight-section';
-
-const densityInput = (product: StockedProduct | undefined | null) => (product?.density ? toDecimalInput(product.density) : '');
-
-/** Lo más largo que busca el servidor; un nombre más largo se busca por su principio. */
-/** Obligatorios que pueden faltar: su nombre en el pie y el orden en que se ven en la hoja. */
-const missingLabels = { name: 'Nombre', cas: 'CAS', quantity: 'Cantidad', placeId: 'Ubicación', state: 'Estado físico' } as const;
-const missingOrder = ['name', 'cas', 'quantity', 'placeId', 'state'] as const;
-const MAX_SEARCH = 100;
-const MIN_SEARCH = 2;
+import { StorageSection } from './storage-section';
+import { useIngressEntry } from './use-ingress-entry';
+import { useIngressLookup } from './use-ingress-lookup';
+import { useIngressSubmit } from './use-ingress-submit';
+import { WeightSection } from './weight-section';
 
 /**
  * «Nuevo reactivo» (ADR 0015, ajuste del 13-10-2026; «Ingresar frascos» desde la ficha): un solo
@@ -77,216 +46,28 @@ export function IngressSheet({
   canManageLists: boolean;
   base: string;
 }) {
-  const navigate = useNavigate();
-  // La ficha ya cargó su reactivo: suele venir de la caché, así que está desde la primera vista.
-  const preset = useProduct(workspaceId, productId ?? '', productId !== undefined).data;
-  const [initial] = useState(preset);
   const [recents] = useState(() => readRecents(workspaceId));
-  const [existing, setExisting] = useState<StockedProduct | null>(initial ?? null);
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [form, setForm] = useState<BottlesForm>(() => ({ ...emptyBottles, density: densityInput(initial) }));
-  const [attempted, setAttempted] = useState(false);
-  // Si no estaba en caché, se elige al llegar, salvo que ya se haya escrito o elegido otro.
-  const [presetPending, setPresetPending] = useState(productId !== undefined && initial === undefined);
-  if (presetPending && preset) {
-    setPresetPending(false);
-    if (!existing && draft.name === '') {
-      setExisting(preset);
-      setForm((previous) => ({ ...previous, code: null, density: densityInput(preset) }));
-    }
-  }
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  // Lo que respondió el servidor (nombre o código ocupado, ubicación no creada): se borra al cambiar los datos.
-  const [serverErrors, setServerErrors] = useState<Errors>({});
+  const entry = useIngressEntry(workspaceId, productId);
+  const { initial, existing, draft, form, patch, patchDraft } = entry;
+  const lookup = useIngressLookup(workspaceId, open, entry);
+  const review = reviewIngress({ entry, canCreate, code: lookup.code });
   const nameRef = useRef<HTMLInputElement>(null);
   const casRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const countRef = useRef<HTMLInputElement>(null);
 
-  const receipt = useCommand(workspaceId, '/receipts', receiptResponse);
-  const uploadSheet = useUploadSafetySheet(workspaceId);
-  const createLocation = useCommand(workspaceId, '/locations', location);
   const locations = useReceiptLocations(workspaceId, open);
   const brands = useBrands(workspaceId, open);
-  const areas = useAreas(workspaceId, open);
   const places = useMemo(() => toPlaces(locations.data?.items ?? []), [locations.data]);
-
-  const unit = existing ? existing.baseUnit : draft.unit;
-  const name = existing ? existing.name : draft.name.trim();
-  const count = countOf(form.count);
-  // El servidor sugiere la serie libre: la del reactivo elegido o una nueva a partir del nombre.
-  const typedName = useDebouncedValue(name, 300);
-  const suggestion = useCodeSuggestion(
-    workspaceId,
-    existing ? { productId: existing.id } : typedName ? { name: typedName } : null,
-    countValid(count) ? count : 1,
-    open && form.code === null,
-  );
-  const code = form.code ?? (name ? (suggestion.data?.codes[0] ?? '') : '');
-  // El buscador: lo escrito, con espera breve. «Crear» espera a la respuesta de lo escrito, para no
-  // ofrecerlo mientras llega un reactivo que ya se llama así.
-  const typing = existing ? '' : name.slice(0, MAX_SEARCH);
-  const term = existing ? '' : typedName.slice(0, MAX_SEARCH);
-  const search = useProductSearch(workspaceId, term, open);
-  const results = typing.length >= MIN_SEARCH ? (search.data?.items ?? []) : null;
-  const searched = typing.length < MIN_SEARCH || (term === typing && (search.isError || (search.isSuccess && !search.isPlaceholderData)));
-  const codes = seriesOf(code, count);
-  const volume = isVolume(unit);
-  // La densidad de un reactivo nuevo va a su ficha; la de uno existente, solo a estos frascos.
-  const density = existing ? form.density : draft.density;
-  const weight = receiptTare({
-    unit,
-    quantity: normalizeDecimalInput(form.quantity),
-    grossWeight: normalizeDecimalInput(form.grossWeight),
-    density: normalizeDecimalInput(density),
-  });
-
-  const creating = !existing && canCreate;
-  const catalogIssues: Errors = existing
-    ? {}
-    : creating
-      ? validateDraft(draft)
-      : { name: name ? 'Elige un reactivo del catálogo: tu rol no crea reactivos nuevos.' : 'Elige un reactivo del catálogo.' };
-  const issues: Errors = { ...catalogIssues, ...validateBottles(form, code), ...weight.errors, ...serverErrors };
-  // Los obligatorios vacíos se cuentan como «faltan»; el resto de errores, como datos por revisar.
-  const empty = new Set<keyof Errors>();
-  if (!name || (!existing && !canCreate)) empty.add('name');
-  if (creating && !draft.state) empty.add('state');
-  if (creating && casRequired(draft.state) && !draft.cas.trim()) empty.add('cas');
-  if (!form.quantity.trim()) empty.add('quantity');
-  if (!form.placeId) empty.add('placeId');
-  // Lo que falta, con su nombre y en el orden en que se ve la hoja.
-  const missingFields = missingOrder.filter((key) => empty.has(key));
-  const missing = missingFields.length;
-  const toReview = (Object.keys(issues) as Array<keyof Errors>).filter((key) => issues[key] && !empty.has(key)).length;
-  const errors = attempted ? issues : serverErrors;
-  // «Control por peso» empieza plegado (14-10-2026) y se abre solo cuando llega algo suyo: el peso escrito o un error de
-  // peso o densidad. Se abre en el momento en que aparece, no mientras dura: plegarlo después no lo reabre ni borra lo escrito.
-  const [weightOpen, setWeightOpen] = useState(false);
-  const weightWanted = form.grossWeight.trim() !== '' || Boolean(errors.weight || errors.density);
-  const [weightSeen, setWeightSeen] = useState(false);
-  if (weightWanted !== weightSeen) {
-    setWeightSeen(weightWanted);
-    if (weightWanted) setWeightOpen(true);
-  }
-
-  const patch = (next: Partial<BottlesForm>) => {
-    setForm((previous) => ({ ...previous, ...next }));
-    setServerErrors({});
-  };
-  const patchDraft = (next: Partial<Draft>) => setDraft((previous) => ({ ...previous, ...next }));
+  const submit = useIngressSubmit({ workspaceId, base, entry, lookup, review, places, bodyRef, countRef, onDone: () => onOpenChange(false) });
+  const errors = submit.attempted ? review.issues : entry.serverErrors;
+  const bottlesLabel = bottlesLabelOf(lookup.count);
 
   const pick = (product: StockedProduct) => {
-    setExisting(product);
-    patch({ code: null, density: densityInput(product) });
+    entry.choose(product);
     requestAnimationFrame(() => quantityRef.current?.focus());
   };
-  const changeName = (text: string) => {
-    setExisting(null);
-    patchDraft({ name: text });
-    setServerErrors({});
-  };
-
-  const createPlace = async (placeName: string, parentId: string | null): Promise<Place | null> => {
-    try {
-      const created = await createLocation.mutateAsync({ name: placeName, parentId });
-      setServerErrors({});
-      return { id: created.id, name: created.name, parentId: created.parentId };
-    } catch (error) {
-      setServerErrors({ placeId: commandErrorMessage(error) });
-      return null;
-    }
-  };
-
-  const confirm = async () => {
-    setGeneralError(null);
-    if (missing > 0 || toReview > 0) {
-      setAttempted(true);
-      // El número de frascos vive en el pie, fuera del cuerpo: si es el que falla, el foco va allí.
-      requestAnimationFrame(() => (bodyRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? (issues.count ? countRef.current : null))?.focus());
-      return;
-    }
-    const grossWeight = normalizeDecimalInput(form.grossWeight);
-    const parsed = receiptRequest.safeParse({
-      ...(existing ? { productId: existing.id } : { newProduct: catalogFields(draft) }),
-      brand: form.brand.trim() || null,
-      expiresOn: !form.noExpiry && form.expiresOn ? form.expiresOn : null,
-      quantity: normalizeDecimalInput(form.quantity),
-      unit,
-      codes,
-      area: form.area.trim() || null,
-      locationId: form.placeId,
-      // Uno nuevo pesa con la densidad de su ficha; uno existente, con la escrita para estos frascos.
-      weight: weight.tare ? { grossWeight, density: existing && volume ? normalizeDecimalInput(density) : null } : null,
-    });
-    if (!parsed.success) {
-      setGeneralError(parsed.error.issues[0]?.message ?? 'Revisa los datos del ingreso.');
-      return;
-    }
-    try {
-      const result = await receipt.mutateAsync(parsed.data);
-      rememberRecents(workspaceId, { productId: result.product.id, locationId: levelOneOf(places, form.placeId) });
-      const received = result.containers;
-      toast.success(received.length === 1 ? 'Frasco ingresado' : `${received.length} frascos ingresados`, {
-        description: `${result.product.name} · ${received.map((container) => container.code).join(', ')}`,
-        // Las etiquetas con QR de los frascos recién ingresados, a un clic (ADR 0012, entrega 4).
-        action: {
-          label: 'Imprimir etiquetas',
-          onClick: () =>
-            navigate(`${base}/inventario/${result.product.id}/etiquetas?frascos=${received.map((container) => container.containerId).join(',')}`),
-        },
-      });
-      // El ingreso ya quedó: si la ficha no sube, se avisa y se sube desde la ficha del reactivo.
-      const sheet = existing ? null : sdsFileOf(draft);
-      if (sheet) {
-        await uploadSheet.mutateAsync({ productId: result.product.id, file: sheet }).catch(warnSheetNotUploaded);
-      }
-      onOpenChange(false);
-    } catch (error) {
-      if (isApiError(error, 'NAME_TAKEN')) setServerErrors({ name: error.message });
-      else if (isApiError(error, 'CODE_TAKEN')) {
-        setServerErrors({ code: commandErrorMessage(error) });
-        if (form.code === null) void suggestion.refetch();
-      } else setGeneralError(commandErrorMessage(error));
-    }
-  };
-
-  /** Lleva el foco al primer campo que falta: la etiqueta apunta a su control. */
-  const focusMissing = () => {
-    const first = missingFields[0];
-    if (!first) return;
-    const wanted = missingLabels[first];
-    const label = Array.from(bodyRef.current?.querySelectorAll('label') ?? []).find((node) => node.textContent?.trim().startsWith(wanted));
-    const target = label?.htmlFor ? document.getElementById(label.htmlFor) : null;
-    target?.focus();
-  };
-  const bottlesLabel = countValid(count) ? `${count} ${count === 1 ? 'frasco' : 'frascos'}` : 'frascos';
-  const status =
-    missing > 0 ? (
-      missing > 2 ? (
-        <button
-          type="button"
-          onClick={focusMissing}
-          className="-my-2 inline-flex min-h-[44px] items-center rounded-[6px] font-medium text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:text-action hover:decoration-action focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:min-h-0 sm:py-2"
-        >
-          Faltan {missing} campos
-        </button>
-      ) : (
-        <span>
-          {missing === 1 ? 'Falta' : 'Faltan'}: {missingFields.map((key) => missingLabels[key]).join(', ')}
-        </span>
-      )
-    ) : toReview > 0 ? (
-      <span>
-        Revisa {toReview} {toReview === 1 ? 'dato' : 'datos'}
-      </span>
-    ) : (
-      <span className="inline-flex items-center gap-1.5 text-success">
-        <CircleCheck className="size-4" aria-hidden />
-        Listo: {bottlesLabel}
-      </span>
-    );
 
   return (
     <FormSheet
@@ -300,13 +81,13 @@ export function IngressSheet({
       open={open}
       onOpenChange={onOpenChange}
       submitLabel={`Ingresar ${bottlesLabel}`}
-      submitDisabled={missing > 0}
+      submitDisabled={review.missingFields.length > 0}
       submitLead={<BottlesStepper value={form.count} onChange={(next) => patch({ count: next })} error={errors.count} inputRef={countRef} />}
-      pending={receipt.isPending || uploadSheet.isPending}
-      generalError={generalError}
-      status={status}
+      pending={submit.pending}
+      generalError={submit.generalError}
+      status={<IngressStatus missingFields={review.missingFields} toReview={review.toReview} bottlesLabel={bottlesLabel} bodyRef={bodyRef} />}
       initialFocus={initial ? quantityRef : nameRef}
-      onSubmit={() => void confirm()}
+      onSubmit={() => void submit.confirm()}
     >
       <div ref={bodyRef} className="grid gap-5 px-3 py-4 sm:px-5 sm:py-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="grid min-w-0 content-start gap-5">
@@ -314,18 +95,18 @@ export function IngressSheet({
             <LabelFields
               existing={existing}
               products={products}
-              results={results}
+              results={lookup.results}
               recentIds={recents.products}
               draft={draft}
               onDraft={patchDraft}
-              onName={changeName}
+              onName={entry.changeName}
               form={form}
               onForm={patch}
-              code={code}
-              codes={codes}
+              code={lookup.code}
+              codes={lookup.codes}
               brands={brands.data?.items ?? []}
               errors={errors}
-              canCreate={canCreate && searched}
+              canCreate={canCreate && lookup.searched}
               nameRef={nameRef}
               casRef={casRef}
               quantityRef={quantityRef}
@@ -334,46 +115,29 @@ export function IngressSheet({
             />
           </Section>
 
-          <Section icon={MapPin} title="Dónde se guarda">
-            <div className="grid gap-4">
-              <ChoiceField
-                workspaceId={workspaceId}
-                label="Área o departamento"
-                labelClassName={fieldLabel}
-                display="select"
-                selectClassName={filled}
-                noneLabel="Sin área"
-                options={areas.data?.items ?? []}
-                loading={areas.isPending}
-                value={form.area}
-                onChange={(area) => patch({ area })}
-                canAdd={canManageLists}
-                addPath="/areas"
-                addBody={(entry) => ({ name: entry })}
-                addLabel="Nueva área"
-              />
-              <LocationPicker
-                places={places}
-                recentIds={recents.locations}
-                onChange={(placeId) => patch({ placeId })}
-                canCreate={canCreate}
-                onCreate={createPlace}
-                error={errors.placeId}
-              />
-            </div>
-          </Section>
+          <StorageSection
+            workspaceId={workspaceId}
+            open={open}
+            area={form.area}
+            onArea={(area) => patch({ area })}
+            places={places}
+            recentIds={recents.locations}
+            canCreate={canCreate}
+            canManageLists={canManageLists}
+            error={errors.placeId}
+            onPlace={(placeId) => patch({ placeId })}
+            onServerErrors={entry.setServerErrors}
+          />
 
-          <Section icon={Scale} title="Control por peso" badge="Opcional" fold={{ open: weightOpen, onToggle: () => setWeightOpen(!weightOpen) }}>
-            <WeightFields
-              grossWeight={form.grossWeight}
-              onGrossWeight={(grossWeight) => patch({ grossWeight })}
-              density={density}
-              onDensity={(value) => (existing ? patch({ density: value }) : patchDraft({ density: value }))}
-              volume={volume}
-              tare={weight.tare}
-              errors={errors}
-            />
-          </Section>
+          <WeightSection
+            grossWeight={form.grossWeight}
+            onGrossWeight={(grossWeight) => patch({ grossWeight })}
+            density={entry.density}
+            onDensity={entry.setDensity}
+            volume={review.volume}
+            tare={review.weight.tare}
+            errors={errors}
+          />
         </div>
 
         <Section card icon={ShieldAlert} title="Clasificación y seguridad">

@@ -53,7 +53,7 @@ import {
   listProducts as listProductsQuery,
   type IListProductsResult,
 } from '../infrastructure/products.queries.js';
-import { inventoryContext } from './commands.js';
+import { inventoryContext } from './command.js';
 
 const READ = 'reagents.catalog.read';
 const RECEIPT = 'reagents.receipt.create';

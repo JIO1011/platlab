@@ -35,27 +35,22 @@ import { verifiedSubject } from '../../../platform/http/auth.js';
 import { idempotencyKey } from '../../../platform/http/idempotency-key.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import {
-  approveRequest,
-  archiveEntry,
-  archiveReason,
-  cancelRequest,
-  createEntry,
   createProduct,
-  createReason,
   createWorkspaceLocation,
-  rejectRequest,
+  setProductMinimum,
+  updateProduct,
+} from '../application/catalog.js';
+import type { CommandRequest } from '../application/command.js';
+import { approveRequest, cancelRequest, registerIssue, rejectRequest } from '../application/issues.js';
+import { archiveEntry, archiveReason, createEntry, createReason } from '../application/lists.js';
+import {
   registerAdjustment,
   registerCount,
-  registerIssue,
   registerReceipt,
   registerTransfer,
   registerWeightAdjustment,
   setContainerTare,
-  setProductMinimum,
-  updateProduct,
-  uploadSafetySheet,
-  type CommandRequest,
-} from '../application/commands.js';
+} from '../application/movements.js';
 import {
   getContainer,
   getProduct,
@@ -74,6 +69,7 @@ import {
   listTransferLocations,
   suggestCodes,
 } from '../application/queries.js';
+import { uploadSafetySheet } from '../application/safety-sheet.js';
 
 /** Listas con solo un nombre, por su ruta: destinos de salida (ADR 0012) y áreas (ADR 0015). */
 const namedLists: Array<[path: string, list: NamedList]> = [

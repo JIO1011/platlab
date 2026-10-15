@@ -1,8 +1,32 @@
 import { HelpTip } from '@platlab/ui';
-import { useId, type ReactNode } from 'react';
+import { Scale } from 'lucide-react';
+import { useId, useState, type ReactNode } from 'react';
 import { formatWeight } from '../weight';
 import { FilledInput, fieldLabel } from './filled';
+import { Section } from './form-section';
 import type { Errors } from './model';
+
+type WeightFieldsProps = Parameters<typeof WeightFields>[0];
+
+/**
+ * «Control por peso» como sección plegable. Empieza plegado (14-10-2026) y se abre solo cuando llega algo suyo: el
+ * peso escrito o un error de peso o densidad. Se abre en el momento en que aparece, no mientras dura: plegarlo
+ * después no lo reabre ni borra lo escrito.
+ */
+export function WeightSection(props: WeightFieldsProps) {
+  const [open, setOpen] = useState(false);
+  const wanted = props.grossWeight.trim() !== '' || Boolean(props.errors.weight || props.errors.density);
+  const [seen, setSeen] = useState(false);
+  if (wanted !== seen) {
+    setSeen(wanted);
+    if (wanted) setOpen(true);
+  }
+  return (
+    <Section icon={Scale} title="Control por peso" badge="Opcional" fold={{ open, onToggle: () => setOpen(!open) }}>
+      <WeightFields {...props} />
+    </Section>
+  );
+}
 
 /**
  * Control por peso (opcional, ADR 0015): con el peso del frasco lleno, el servidor calcula la tara y
@@ -10,7 +34,7 @@ import type { Errors } from './model';
  * tiene, viene escrita. La tara que se ve es una vista previa. Cada campo explica qué se escribe en un
  * globo ⓘ, y una línea guía arriba dice para qué sirve la sección.
  */
-export function WeightFields({
+function WeightFields({
   grossWeight,
   onGrossWeight,
   density,

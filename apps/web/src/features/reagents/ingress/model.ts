@@ -101,6 +101,9 @@ export const MAX_BOTTLES = 50;
 export const countOf = (text: string) => (/^\d{1,3}$/.test(text.trim()) ? Number(text.trim()) : null);
 export const countValid = (count: number | null): count is number => count !== null && count >= 1 && count <= MAX_BOTTLES;
 
+/** El número de frascos con su unidad, para el botón y el pie; sin un número válido, solo «frascos». */
+export const bottlesLabelOf = (count: number | null) => (countValid(count) ? `${count} ${count === 1 ? 'frasco' : 'frascos'}` : 'frascos');
+
 /** El PDF de la ficha que se sube tras guardar: solo con ficha digital y en modo PDF. */
 export const sdsFileOf = (draft: Draft): File | null => (draft.sds === 'digital' && draft.sdsSource === 'pdf' ? draft.sdsFile : null);
 
