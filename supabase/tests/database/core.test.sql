@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(54);
+select plan(55);
 
 -- Solo dentro de esta transacción: pgTAP vive en `extensions` y se invoca también como platlab_api,
 -- y `postgres` (que administra el rol, pero no lo usa) necesita SET para adoptarlo.
@@ -13,7 +13,7 @@ grant platlab_api to postgres with set true, inherit false;
 -- ---------------------------------------------------------------------------
 -- Fixtures sintéticos, creados como dueño de las tablas
 -- ---------------------------------------------------------------------------
--- A y B activos; una identidad compartida es Administradora en A y Operadora con ámbito en B.
+-- A y B activos; una identidad compartida es Administradora en A y Operadora en B.
 
 insert into platform.customer_accounts (id, legal_name)
 values ('c0000000-0000-4000-8000-000000000001', 'Titular sintético');
@@ -52,9 +52,9 @@ insert into core.locations (id, workspace_id, parent_id, kind, code, name) value
   ('a3000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-00000000000a', 'a3000000-0000-4000-8000-000000000002', 'storage', 'ALM-1', 'Almacén 1'),
   ('b3000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', null, 'site', 'SEDE', 'Sede B');
 
-insert into core.role_assignments (workspace_id, principal_id, role_code, location_id) values
-  ('a0000000-0000-4000-8000-00000000000a', 'a2000000-0000-4000-8000-000000000001', 'admin', null),
-  ('b0000000-0000-4000-8000-00000000000b', 'b2000000-0000-4000-8000-000000000001', 'operator', 'b3000000-0000-4000-8000-000000000001');
+insert into core.role_assignments (workspace_id, principal_id, role_code) values
+  ('a0000000-0000-4000-8000-00000000000a', 'a2000000-0000-4000-8000-000000000001', 'admin'),
+  ('b0000000-0000-4000-8000-00000000000b', 'b2000000-0000-4000-8000-000000000001', 'operator');
 
 -- Los fixtures cumplen las restricciones diferidas; desde aquí cada sentencia se comprueba al instante.
 set constraints all immediate;
@@ -68,6 +68,10 @@ select tables_are('core',
         'role_permissions', 'locations', 'role_assignments', 'module_definitions',
         'module_dependencies', 'workspace_entitlements', 'audit_events'],
   'core contiene solo las tablas de T-02 a T-05');
+
+-- ADR 0008 y 0016: los roles valen para todo el espacio; la asignación no tiene ámbito.
+select hasnt_column('core', 'role_assignments', 'location_id',
+  'las asignaciones de rol no tienen ámbito de ubicación');
 
 select tables_are('platform',
   array['customer_accounts', 'environment', 'contracts', 'contract_revisions',
@@ -186,11 +190,6 @@ select throws_ok(
   '23503', null, 'una ubicación de A no cuelga de una ubicación de B');
 
 select throws_ok(
-  $$ insert into core.role_assignments (workspace_id, principal_id, role_code, location_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'a2000000-0000-4000-8000-000000000001', 'operator', 'b3000000-0000-4000-8000-000000000001') $$,
-  '23503', null, 'un rol en A no tiene ámbito en una ubicación de B');
-
-select throws_ok(
   $$ insert into core.role_assignments (workspace_id, principal_id, role_code)
      values ('a0000000-0000-4000-8000-00000000000a', 'b2000000-0000-4000-8000-000000000001', 'operator') $$,
   '23503', null, 'un rol en A no se asigna a un principal de B');
@@ -201,13 +200,21 @@ select throws_ok(
   '23514', null, 'un principal no mezcla actor humano y de servicio');
 
 -- ---------------------------------------------------------------------------
--- Roles con ámbito y árbol de ubicaciones
+-- Asignaciones de rol y árbol de ubicaciones
 -- ---------------------------------------------------------------------------
 
 select throws_ok(
   $$ insert into core.role_assignments (workspace_id, principal_id, role_code)
      values ('a0000000-0000-4000-8000-00000000000a', 'a2000000-0000-4000-8000-000000000001', 'admin') $$,
-  '23505', null, 'no se duplica una asignación abierta con ámbito de todo el espacio');
+  '23505', null, 'un principal no tiene dos asignaciones abiertas del mismo rol');
+
+update core.role_assignments set revoked_at = now()
+ where principal_id = 'b2000000-0000-4000-8000-000000000001' and role_code = 'operator';
+
+select lives_ok(
+  $$ insert into core.role_assignments (workspace_id, principal_id, role_code)
+     values ('b0000000-0000-4000-8000-00000000000b', 'b2000000-0000-4000-8000-000000000001', 'operator') $$,
+  'revocada la asignación, el mismo rol se vuelve a asignar');
 
 select throws_ok(
   $$ insert into core.role_assignments (workspace_id, principal_id, role_code)
@@ -356,9 +363,9 @@ set local role platlab_api;
 select set_config('platlab.workspace_id', 'a0000000-0000-4000-8000-00000000000a', true);
 
 select results_eq(
-  $$ select principal_id, role_code, location_id from core.effective_role_assignments order by principal_id $$,
-  $$ values ('a2000000-0000-4000-8000-000000000001'::uuid, 'admin'::text, null::uuid),
-            ('a2000000-0000-4000-8000-000000000002'::uuid, 'admin'::text, null::uuid) $$,
+  $$ select principal_id, role_code from core.effective_role_assignments order by principal_id $$,
+  $$ values ('a2000000-0000-4000-8000-000000000001'::uuid, 'admin'::text),
+            ('a2000000-0000-4000-8000-000000000002'::uuid, 'admin'::text) $$,
   'la propietaria de A tiene el rol Administrador en todo el espacio sin asignación');
 
 select set_eq('select distinct workspace_id from core.effective_role_assignments',

@@ -255,7 +255,7 @@ describe('G0 · recorrido visible', () => {
     expect(trend?.points.at(-1)).toEqual({ date: today, value: 1 });
     expect(trend?.points.reduce((sum, point) => sum + point.value, 0)).toBe(1);
 
-    // El Resumen de la app devuelve lo mismo que la tarjeta; el Operador lo ve con su ámbito.
+    // El Resumen de la app devuelve lo mismo que la tarjeta, también para el Operador.
     const summary = reagentsSummary.parse((await call(lab.operator.subject, `${lab.base}/summary`)).body);
     expect(summary).toEqual({ summary: home.cards[0]!.summary, activity: home.cards[0]!.activity, trend });
 
@@ -333,11 +333,16 @@ describe('G0 · roles', () => {
     productId = (await createProduct(lab)).id;
   });
 
-  it('un miembro sin rol no registra movimientos ni consulta el inventario', async () => {
-    const member = await addMember(admin, lab.workspace.id);
-    const receipt = await receive(lab, productId, '1', lab.storage, member.subject);
-    expect(receipt.status).toBe(403);
-    expect((await call(member.subject, `${lab.base}/positions`)).status).toBe(403);
+  it('un Estudiante, sin permisos de inventario, no registra movimientos ni consulta el inventario', async () => {
+    const student = await addMember(admin, lab.workspace.id, { roles: [{ role: 'student' }] });
+    const position = receivedPosition(await receive(lab, productId, '10'));
+    const issue = await call(student.subject, `${lab.base}/issues`, {
+      method: 'POST',
+      body: { positionId: position, quantity: '1', unit: 'g', reason: 'Práctica', destination: 'Lab' },
+    });
+    expect(issue.status).toBe(403);
+    expect((await receive(lab, productId, '1', lab.storage, student.subject)).status).toBe(403);
+    expect((await call(student.subject, `${lab.base}/positions`)).status).toBe(403);
   });
 
   it('el propietario opera como Administrador sin asignación: ingresa y ajusta (ADR 0008, 02-10-2026)', async () => {
@@ -369,20 +374,29 @@ describe('G0 · roles', () => {
     expect((await receive(lab, productId, '5')).status).toBe(201);
   });
 
-  it('un Operador con ámbito en un almacén no opera ni ve el otro', async () => {
-    const scoped = await addMember(admin, lab.workspace.id, {
-      roles: [{ role: 'operator', locationId: lab.storage }],
-    });
+  it('el rol vale en todo el espacio: el Operador opera y ve los dos almacenes, y nada de otro espacio (ADR 0008)', async () => {
+    const other = await createLab();
+    await receive(other, (await createProduct(other)).id, '3', other.storage);
+    await receive(lab, productId, '4', lab.storage);
     const otherPosition = receivedPosition(await receive(lab, productId, '10', lab.otherStorage));
-    const issue = await call(scoped.subject, `${lab.base}/issues`, {
+    const issue = await call(lab.operator.subject, `${lab.base}/issues`, {
       method: 'POST',
       body: { positionId: otherPosition, quantity: '1', unit: 'g', reason: 'Práctica', destination: 'Lab' },
     });
-    expect(issue.status).toBe(403);
-    expect((await receive(lab, productId, '1', lab.otherStorage, scoped.subject)).status).toBe(403);
-    expect((await receive(lab, productId, '1', lab.storage, scoped.subject)).status).toBe(201);
-    const positions = positionList.parse((await call(scoped.subject, `${lab.base}/positions`)).body);
-    expect(positions.items.every((p) => p.location.id === lab.storage)).toBe(true);
+    expect(issue.status).toBe(201);
+
+    const positions = positionList.parse((await call(lab.operator.subject, `${lab.base}/positions`)).body);
+    const seen = new Set(positions.items.map((p) => p.location.id));
+    expect([...seen]).toEqual(expect.arrayContaining([lab.storage, lab.otherStorage]));
+    expect([...seen]).not.toContain(other.storage);
+    const locations = locationList.parse((await call(lab.operator.subject, `${lab.base}/receipt-locations`)).body);
+    const ids = locations.items.map((l) => l.id);
+    expect(ids).toEqual(expect.arrayContaining([lab.storage, lab.otherStorage]));
+    expect(ids).not.toContain(other.storage);
+    expect(ids).not.toContain(other.otherStorage);
+    // El Resumen del Operador es el del espacio entero: el mismo que ve el Administrador.
+    const summaryOf = async (subject: string) => reagentsSummary.parse((await call(subject, `${lab.base}/summary`)).body).summary;
+    expect(await summaryOf(lab.operator.subject)).toEqual(await summaryOf(lab.adminMember.subject));
   });
 });
 
@@ -892,11 +906,6 @@ describe('R-01D · buscar reactivos en el catálogo', () => {
 describe('consultas de apoyo a la interfaz', () => {
   it('lista las ubicaciones donde el miembro puede registrar ingresos, con su padre', async () => {
     const lab = await createLab();
-    const scoped = await addMember(admin, lab.workspace.id, {
-      roles: [{ role: 'operator', locationId: lab.storage }],
-    });
-    const scopedLocations = locationList.parse((await call(scoped.subject, `${lab.base}/receipt-locations`)).body);
-    expect(scopedLocations.items.map((l) => l.id)).toEqual([lab.storage]);
     const allLocations = locationList.parse((await call(lab.adminMember.subject, `${lab.base}/receipt-locations`)).body);
     expect(allLocations.items.map((l) => l.id)).toEqual(expect.arrayContaining([lab.storage, lab.otherStorage]));
     expect(allLocations.items.find((l) => l.id === lab.storage)?.parentId).toEqual(expect.any(String));
@@ -1163,7 +1172,7 @@ describe('R-01A · salidas con aprobación y reserva (ADR 0012)', () => {
 });
 
 describe('R-01A · vencidos y por vencer (ADR 0012, 05-10-2026)', () => {
-  it('cuenta frascos con saldo vencidos y por vencer en 30 días, en la fecha del espacio y en el ámbito', async () => {
+  it('cuenta frascos con saldo vencidos y por vencer en 30 días, en la fecha del espacio', async () => {
     const lab = await createLab();
     const product = await createProduct(lab);
     // La fecha civil del espacio la da la propia base: la prueba no depende del reloj del runner.
@@ -1200,11 +1209,6 @@ describe('R-01A · vencidos y por vencer (ADR 0012, 05-10-2026)', () => {
     expect(summary).toMatchObject({ productsWithStock: 1, containersWithStock: 6, expiredContainers: 2, expiringContainers: 2 });
     const products = productList.parse((await call(lab.adminMember.subject, `${lab.base}/products`)).body);
     expect(products.items).toEqual([expect.objectContaining({ id: product.id, expiredContainers: 2, expiringContainers: 2 })]);
-
-    // Un Operador con ámbito en un almacén no cuenta el vencido del otro.
-    const scoped = await addMember(admin, lab.workspace.id, { roles: [{ role: 'operator', locationId: lab.storage }] });
-    const scopedSummary = reagentsSummary.parse((await call(scoped.subject, `${lab.base}/summary`)).body).summary;
-    expect(scopedSummary).toMatchObject({ containersWithStock: 5, expiredContainers: 1, expiringContainers: 2 });
   });
 });
 
@@ -1588,27 +1592,8 @@ describe('R-01C · Movimientos como informe (ADR 0014)', () => {
     ]);
   });
 
-  it('una ubicación fuera del ámbito no amplía nada, y otro espacio nunca aparece', async () => {
+  it('quien pertenece a dos espacios solo ve lo de A desde A, aunque pida un reactivo de B', async () => {
     const { lab, a, b } = await reportLab();
-    const scoped = await addMember(admin, lab.workspace.id, { roles: [{ role: 'operator', locationId: lab.storage }] });
-    const scopedAdmin = await addMember(admin, lab.workspace.id, { roles: [{ role: 'admin', locationId: lab.storage }] });
-
-    // El asiento que entra en el otro almacén no es de su ámbito: seis de siete.
-    expect(await walk(scoped.subject, lab.base)).toHaveLength(6);
-    expect(await walk(scoped.subject, lab.base, `locationId=${lab.otherStorage}`)).toEqual([]);
-    expect(await walk(scoped.subject, lab.base, `locationId=${lab.otherStorage}&locationId=${lab.storage}`)).toHaveLength(6);
-    const facets = await facetsOf(scoped.subject, lab, `locationId=${lab.otherStorage}`);
-    expect(facets.total).toBe(0);
-    // La ubicación elegida fuera del ámbito no se nombra; la del ámbito se cuenta con lo demás.
-    expect(facets.locations.map((option) => [option.id, option.count])).toEqual([[lab.storage, 6]]);
-    expect((await facetsOf(scoped.subject, lab)).total).toBe(6);
-
-    const totals = await totalsOf(scopedAdmin.subject, lab, `groupBy=product&locationId=${lab.otherStorage}`);
-    expect(totals.groups).toEqual([]);
-    const all = await totalsOf(scopedAdmin.subject, lab, 'groupBy=product');
-    expect(all.groups.find((group) => group.key === b.id)?.rows[0]).toMatchObject({ count: 2, transfers: 1, net: '50' });
-
-    // Quien pertenece a A y a B solo ve lo de A desde A, aunque pida un reactivo de B.
     const other = await reportLab();
     const shared = `shared-${uniqueSuffix()}`;
     await addMember(admin, lab.workspace.id, { subject: shared, roles: [{ role: 'admin' }] });
