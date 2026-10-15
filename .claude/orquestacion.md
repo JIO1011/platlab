@@ -13,8 +13,8 @@ Reparto por riesgo, no por capa (ADR 0013): todo cambio que pueda alterar saldos
 
 | Rol | Quién | Hace |
 |---|---|---|
-| Orquestar | Sesión principal: Opus 5.5 en `xhigh` | Analiza (codebase-memory), diseña datos, flujos e invariantes, decide con el usuario, registra en `docs/05`, escribe el brief con sus casos de prueba, revisa lo delicado (`platlab-db-review`), verifica con el CI (`platlab-verify-increment`), confirma y sube |
-| Código delicado y sus pruebas | `platlab-implementer`: Opus 5.5 en `high`, con `platlab-db-review` cargada | SQL y migraciones, permisos y aislamiento, concurrencia, cantidades y saldos, contratos de la API y la lógica web que los usa; pgTAP, integración y concurrencia |
+| Orquestar e implementar lo delicado | Sesión principal: Opus 5.5, `high` al implementar y `xhigh` al diseñar | Analiza (codebase-memory), diseña datos, flujos e invariantes, decide con el usuario, registra en `docs/05`, implementa en línea lo delicado con sus pruebas (`platlab-db-review`), verifica con el CI (`platlab-verify-increment`), confirma y sube |
+| Código delicado grande | `platlab-implementer`: Opus 5.5, `effort` `medium` en limpiezas y `high` en lógica nueva | Solo entregas de más de ~25 turnos o con mucha lectura de SQL, partidas desde el inicio en producción y pruebas |
 | Presentación | `platlab-ui-implementer`: Sonnet 5.5 en `high`, con las skills de diseño | Pantallas, pulido, movimiento, avisos, móvil y e2e de UI |
 | Docs y mecánico | `platlab-assistant`: Sonnet 5.5 en `medium` | Docs y skills, renombrar y consolidar, pruebas sin lógica nueva |
 | Revisar acabado de UI | `impeccable-finish-reviewer`: Sonnet 5.5 en `high` | Correcciones ordenadas; no edita |
@@ -31,9 +31,9 @@ Reparto por riesgo, no por capa (ADR 0013): todo cambio que pueda alterar saldos
 
 ## Economía de tokens (ADR 0013, 13-10-2026)
 
-Medido: arrancar un subagente cuesta ~40k tokens antes del brief, y ese contexto se reprocesa en cada turno. Lo caro son el arranque por turnos, la exploración y repetir pruebas; el brief pesa poco.
+Medido (14-10-2026): la sesión principal arranca con ~58k y un subagente con ~31k. Lo caro es el contexto, que crece con lecturas y razonamiento y se relee en cada turno. Sin monitores de tokens: el uso llega en el aviso de fin de cada agente y el detalle sale una vez de `.claude/scripts/agent-tokens.sh`. `read-guard.sh` rechaza un `Read` sin rango de un `.ts` o `.tsx` de más de 300 líneas.
 
-- **Delegar solo lo que lo merece.** Hasta ~20 líneas en uno o dos archivos, en línea. Nunca `fork` para implementar: hereda toda la conversación.
+- **Quién implementa (ADR 0013, 14-10-2026).** Lo delicado, la sesión principal en línea con sus pruebas, justo después de ubicarlo; `platlab-implementer`, solo lo grande. Sonnet: la UI, los docs y lo mecánico. Nunca `fork` para implementar: hereda toda la conversación.
 - **Brief de 40 líneas como máximo, con esta plantilla.** Las decisiones se enlazan (`docs/05`, ADR), no se copian; lo que no aplica se omite.
   ```
   Etapa: cambios | cierre
@@ -47,7 +47,7 @@ Medido: arrancar un subagente cuesta ~40k tokens antes del brief, y ese contexto
   No tocar: …
   ```
 - **Entregas de 40 turnos como máximo.** Base y API, lógica web (Opus) y pantallas (Sonnet) van por separado.
-- **La sesión principal ubica y designa; los agentes ejecutan.** Mapea con codebase-memory y nombra en el brief skills y herramientas; el agente no precarga skills ni explora: si falta algo, una búsqueda puntual y, si no basta, «Bloqueo».
+- **Al delegar, la sesión principal ubica y designa; los agentes ejecutan.** El brief nombra las funciones por su nombre calificado. Mapea con codebase-memory y nombra en el brief skills y herramientas; el agente no precarga skills ni explora: si falta algo, una búsqueda puntual y, si no basta, «Bloqueo».
 - **Etapas de una entrega (ADR 0013).**
   - *Cambios* (por defecto): los agentes implementan y escriben o ajustan las pruebas sin correrlas; el usuario revisa en el navegador (http://localhost:5173), sin capturas. Ni los agentes ni la sesión principal corren pruebas; la puerta solo vigila el carril y `typecheck`.
   - *Cierre*, solo cuando el usuario aprueba: `echo cierre > .git/claude-fase`; la sesión principal corre las pruebas dirigidas y `pnpm check`, pide una ronda de capturas (4 como máximo, a 1×, recortadas) y el revisor de acabado, y verifica con el log del CI (`.github/workflows/ci.yml`), sin subagente. En cierre, `platlab-implementer` puede correr el archivo de pruebas que escribió.

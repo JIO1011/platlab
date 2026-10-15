@@ -1,6 +1,6 @@
 ---
 name: platlab-implementer
-description: Implementa el código delicado de PlatLab y sus pruebas a partir de un brief cerrado por la sesión principal. Úsalo para todo cambio que pueda alterar saldos, permisos, datos, concurrencia o el contrato de la API, esté en SQL y migraciones, en el servidor o en la web (formularios que registran movimientos, idempotencia, errores de la API). No decide alcance ni producto.
+description: Implementa el código delicado de PlatLab y sus pruebas a partir de un brief cerrado por la sesión principal. Úsalo solo para entregas delicadas grandes (más de ~25 turnos o mucha lectura de SQL), partidas en producción y pruebas; lo delicado pequeño o mediano lo hace la sesión principal en línea (ADR 0013, 14-10-2026). No decide alcance ni producto.
 model: claude-opus-5-5
 effort: high
 tools: Read, Edit, Write, Bash, Grep, Glob, Skill, mcp__codebase-memory-mcp, mcp__claude_ai_Context7
