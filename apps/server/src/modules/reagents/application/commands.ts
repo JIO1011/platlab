@@ -354,7 +354,6 @@ export function registerReceipt(
         quantity: input.quantity,
         unit: input.unit,
         weight,
-        reference: input.reference ?? null,
       },
       (locationId) => requirePermissionAt(access, permission, locationId),
     );

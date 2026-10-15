@@ -5,17 +5,26 @@
  */
 
 /**
- * Código a partir de un nombre: sin tildes, en mayúsculas y con las palabras unidas por «-», hasta
- * `maxLength` caracteres sin cortar una palabra (`Ácido clorhídrico 37 %` → `ACIDO-CLORHIDRICO-37`).
- * Si el nombre no tiene letras ni números latinos, devuelve `fallback`.
+ * Palabras vacías que el código omite (ADR 0016), ya sin tildes y en mayúsculas. Las letras sueltas,
+ * salvo «Y», se conservan: en un reactivo suelen ser parte del nombre («Vitamina E»).
+ */
+const STOP_WORDS = new Set(['DE', 'DEL', 'LA', 'LAS', 'EL', 'LOS', 'Y', 'EN', 'CON', 'AL', 'PARA', 'POR']);
+
+/**
+ * Código a partir de un nombre: sin tildes, en mayúsculas, sin palabras vacías y con las palabras
+ * unidas por «-», hasta `maxLength` caracteres sin cortar una palabra (`Hidróxido de sodio 1 M` →
+ * `HIDROXIDO-SODIO-1-M`). Si todas son vacías, las conserva; si el nombre no tiene letras ni números
+ * latinos, devuelve `fallback`.
  */
 export function codeFromName(name: string, fallback: string, maxLength = 20): string {
-  const words = name
+  const all = name
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
     .toUpperCase()
     .split(/[^A-Z0-9]+/)
     .filter(Boolean);
+  const meaningful = all.filter((word) => !STOP_WORDS.has(word));
+  const words = meaningful.length > 0 ? meaningful : all;
   let code = '';
   for (const word of words) {
     const next = code ? `${code}-${word}` : word;

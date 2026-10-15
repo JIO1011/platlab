@@ -6,12 +6,12 @@ import { ControlledMark } from '../controlled';
 import { PillField } from '../pills';
 import { HazardGlyphs, HazardSelect } from '../hazards';
 import { physicalStateLabel } from '../product-parts';
+import { SdsReference, sdsLabels } from '../sds';
 import { isVolume } from '../weight';
 import { FilledInput, fieldGrid, fieldLabel, filled } from './filled';
 import type { Draft, Errors, SdsKind } from './model';
 
 const states = physicalState.options.map((value) => ({ value, label: physicalStateLabel[value] ?? value }));
-export const sdsLabels: Record<SdsKind, string> = { digital: 'Digital', physical: 'Solo en físico', none: 'No tiene' };
 const sdsOptions = (Object.keys(sdsLabels) as SdsKind[]).map((value) => ({ value, label: sdsLabels[value] }));
 
 /**
@@ -110,7 +110,7 @@ function CatalogSummary({ product }: { product: StockedProduct }) {
         <span>{(product.physicalState && physicalStateLabel[product.physicalState]) ?? 'Estado sin indicar'}</span>
         {product.hazards.length > 0 ? <HazardGlyphs ids={product.hazards} /> : null}
         {product.controlled ? <ControlledMark withText /> : null}
-        <span>{product.sdsKind ? `Ficha de seguridad: ${sdsLabels[product.sdsKind].toLowerCase()}` : 'Ficha de seguridad sin indicar'}</span>
+        <SdsReference kind={product.sdsKind} url={product.sdsUrl} />
       </div>
       <p className="text-[13px] text-ink-muted">Del catálogo</p>
     </div>
