@@ -127,35 +127,38 @@ const updateProductDetailIR: any = {"usedParamSet":{"casNumber":true,"physicalSt
 export const updateProductDetail = new PreparedQuery<IUpdateProductDetailParams,IUpdateProductDetailResult>(updateProductDetailIR);
 
 
-/** 'ListControlled' parameters type */
-export interface IListControlledParams {
+/** 'ListProductSafety' parameters type */
+export interface IListProductSafetyParams {
   itemIds: stringArray;
   workspaceId: string;
 }
 
-/** 'ListControlled' return type */
-export interface IListControlledResult {
+/** 'ListProductSafety' return type */
+export interface IListProductSafetyResult {
+  controlled: boolean;
   item_id: string;
+  sds_kind: string | null;
+  sds_url: string | null;
 }
 
-/** 'ListControlled' query type */
-export interface IListControlledQuery {
-  params: IListControlledParams;
-  result: IListControlledResult;
+/** 'ListProductSafety' query type */
+export interface IListProductSafetyQuery {
+  params: IListProductSafetyParams;
+  result: IListProductSafetyResult;
 }
 
-const listControlledIR: any = {"usedParamSet":{"workspaceId":true,"itemIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":129,"b":141}]},{"name":"itemIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":162,"b":170}]}],"statement":"-- Qué reactivos son controlados (ADR 0015), para marcar sus frascos.\nSELECT item_id\nFROM reagents.products\nWHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]) AND controlled"};
+const listProductSafetyIR: any = {"usedParamSet":{"workspaceId":true,"itemIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":190,"b":202}]},{"name":"itemIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":223,"b":231}]}],"statement":"-- Marca de controlado (ADR 0015) y ficha de seguridad (ADR 0016) de los reactivos de unos frascos.\nSELECT item_id, controlled, sds_kind, sds_url\nFROM reagents.products\nWHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[])"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Qué reactivos son controlados (ADR 0015), para marcar sus frascos.
- * SELECT item_id
+ * -- Marca de controlado (ADR 0015) y ficha de seguridad (ADR 0016) de los reactivos de unos frascos.
+ * SELECT item_id, controlled, sds_kind, sds_url
  * FROM reagents.products
- * WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[]) AND controlled
+ * WHERE workspace_id = :workspaceId! AND item_id = ANY (:itemIds!::uuid[])
  * ```
  */
-export const listControlled = new PreparedQuery<IListControlledParams,IListControlledResult>(listControlledIR);
+export const listProductSafety = new PreparedQuery<IListProductSafetyParams,IListProductSafetyResult>(listProductSafetyIR);
 
 
 /** 'ListProducts' parameters type */

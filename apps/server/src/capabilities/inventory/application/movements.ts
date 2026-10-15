@@ -117,7 +117,6 @@ interface ReceiptInput {
   unit: string;
   /** Peso en g de un frasco lleno y la densidad para pasar el volumen a gramos (ADR 0015). */
   weight: { grossWeight: string; density: string | null } | null;
-  reference: string | null;
 }
 
 /**
@@ -165,7 +164,8 @@ export async function receiveContainers(
       principalId: ctx.principalId,
       reason: null,
       destination: null,
-      reference: input.reference,
+      // El ingreso no lleva referencia (ADR 0016); la usan los ajustes por peso y los traslados.
+      reference: null,
       correlationId: ctx.correlationId,
       requestedBy: null,
     },

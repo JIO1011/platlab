@@ -2,9 +2,10 @@
 # Puertas de los subagentes de PlatLab (ADR 0013).
 # Al empezar: guarda el contenido de lo delicado y de la interfaz con cambios (agentes Sonnet)
 # y le da al revisor de UI el paquete de PlatLab.
-# Al terminar: lo delicado que un agente Sonnet cambió por cualquier vía, las capturas del
-# implementador de UI y tipos, lint, fronteras y código muerto. La primera vez que algo falla
-# bloquea (exit 2) para que el agente corrija o reporte; la segunda lo deja terminar y avisa.
+# Al terminar: lo delicado que un agente Sonnet cambió por cualquier vía y tipos; en la etapa de
+# cierre (.git/claude-fase), además las capturas del implementador de UI, lint, fronteras y
+# código muerto. La primera vez que algo falla bloquea (exit 2) para que el agente corrija o
+# reporte; la segunda lo deja terminar y avisa.
 set -u
 export LC_ALL=C
 input=$(cat)
@@ -19,6 +20,7 @@ delicate='^(supabase|apps/server|packages/contracts|packages/modules)/'
 ui='^(apps/web/src|apps/console/src|packages/ui/src)/.*\.(tsx|css)$'
 shots=apps/web/.impeccable/review
 state=$(git rev-parse --git-path claude-agents)
+fase=$(cat "$(git rev-parse --git-path claude-fase)" 2>/dev/null)
 base="$state/$id"
 
 reviewer='Paquete de PlatLab. Construcción guiada por código que refina un sistema existente: no hay diseño de referencia (comp), tarjeta QUALITY BAR, .impeccable/build/state.json, spec ni semilla, y las comprobaciones que los exigen no aplican ni son hallazgos. El contrato de dirección es DESIGN.md y el ADR 0010 de docs/05_decisiones.md; PRODUCT.md enlaza a los documentos de producto. Las capturas están en apps/web/.impeccable/review/ como desktop-<pantalla>.png, mobile-<pantalla>.png y tablet-<pantalla>.png: mandan las que nombra el brief, y un par desktop/mobile de la misma pantalla es un juego completo de vistas. Las reglas del dominio están por encima del estilo: nada de UI optimista sobre existencias ni de «deshacer» en movimientos confirmados, y el color solo comunica un estado, siempre con texto.'
@@ -62,7 +64,7 @@ if [ -n "$lane" ]; then
   out+="No lo deshagas por tu cuenta: repórtalo como «Bloqueo». Si lo cambió otro agente en paralelo o una regeneración (pnpm db:types), dilo."$'\n'
 fi
 
-if [ "$agent" = platlab-ui-implementer ] && grep -qE "$ui" <<<"$changed"; then
+if [ "$fase" = cierre ] && [ "$agent" = platlab-ui-implementer ] && grep -qE "$ui" <<<"$changed"; then
   desktop=$(find "$shots" -maxdepth 1 -name 'desktop*.png' -newer "$base" -print -quit 2>/dev/null)
   mobile=$(find "$shots" -maxdepth 1 -name 'mobile*.png' -newer "$base" -print -quit 2>/dev/null)
   if [ -z "$desktop" ] || [ -z "$mobile" ]; then
@@ -72,7 +74,9 @@ if [ "$agent" = platlab-ui-implementer ] && grep -qE "$ui" <<<"$changed"; then
 fi
 
 if git status --porcelain --untracked-files=all | grep -qE '\.(ts|tsx|js|mjs|cjs)$'; then
-  for c in typecheck lint deps knip; do
+  checks=typecheck
+  [ "$fase" = cierre ] && checks="typecheck lint deps knip"
+  for c in $checks; do
     if ! r=$(pnpm -s "$c" 2>&1); then
       failed+=" $c"
       out+="pnpm $c falló:"$'\n'"$(tail -n 20 <<<"$r")"$'\n'
