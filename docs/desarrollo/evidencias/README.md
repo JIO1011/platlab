@@ -5,7 +5,6 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Pendiente de verificar
 - **R-01A** · `impeccable audit` y `review-animations` formales, nunca ejecutados → ejecutarlos sobre `apps/web/src` y `packages/ui/src`. Deben cubrir también lo suelto de entregas anteriores: hover y foco, contraste del encabezado de la ficha, falta «Saltar al contenido», botones `sm` de 32 px en el móvil, radios de 6 px fuera de la escala, rótulos de las hojas de ingreso y nuevo reactivo, y capturas móviles nunca tomadas (día fijo de Movimientos, hoja de mínimo, selector de módulos, icono «gas», saldo largo)
 - **R-01A** · QR solo probado en Chromium; densidad medida solo en Chromium → imprimir una hoja adhesiva A4 de 3 × 8 y escanear con Android e iOS
-- **R-01A** · ámbito por ubicación (`location_id`) sigue en el código y en una prueba → retirarlo en una entrega aparte (docs/05, Pendientes)
 - **R-01A** · la hoja de ajuste abierta desde un frasco lo busca en la primera página de frascos → llevar el frasco en la petición, como salida y traslado
 - **R-01D** · inventario de más de 100 reactivos: la web carga solo la primera página → paginación o búsqueda en el servidor antes de G1 (docs/05, Pendientes)
 - **Rendimiento** · bloque principal > 500 kB (P2 desde el paso 5) → dividir por rutas antes del piloto
