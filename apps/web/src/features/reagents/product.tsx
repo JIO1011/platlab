@@ -11,8 +11,10 @@ import { fefoCandidates } from './sheets';
 import { availableOf } from './stock';
 import { ContainerCard } from './container-card';
 import { EmptyToggle } from './product-parts';
-import { ProductHeader, ProductSummary, type ExpiryDates } from './product-head';
+import { ProductHeader, ProductSummary, labelsButtonId, type ExpiryDates } from './product-head';
 import { containerUrl } from './labels';
+
+const focusLabelsButton = () => document.getElementById(labelsButtonId)?.focus();
 
 export function ReagentsProductPage() {
   const { productId = '', containerId } = useParams();
@@ -27,10 +29,9 @@ export function ReagentsProductPage() {
   const [labelMode, setLabelMode] = useState(false);
   const [labelsUsed, setLabelsUsed] = useState(false);
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
-  const labelsButton = useRef<HTMLButtonElement>(null);
   const closeLabels = () => {
     setLabelMode(false);
-    labelsButton.current?.focus();
+    focusLabelsButton();
   };
   useEffect(() => {
     if (!labelMode) return;
@@ -38,7 +39,7 @@ export function ReagentsProductPage() {
       // Un cuadro abierto (hoja de salida, por ejemplo) se cierra primero con su propio Esc.
       if (event.key === 'Escape' && !document.querySelector('[role="dialog"]')) {
         setLabelMode(false);
-        labelsButton.current?.focus();
+        focusLabelsButton();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -117,6 +118,15 @@ export function ReagentsProductPage() {
       if (!next.delete(id)) next.add(id);
       return next;
     });
+  // «Etiquetas QR» (cabecera): gira las tarjetas y lleva la vista a Frascos con suavidad (sin movimiento si se pidió menos).
+  const toggleLabels = () => {
+    setLabelsUsed(true);
+    if (labelMode) return setLabelMode(false);
+    setPicked(new Set());
+    setLabelMode(true);
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById('frascos')?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
+  };
   // La página de etiquetas ya preselecciona `?frascos=` y trae su hoja A4.
   const printPicked = () =>
     void navigate(`${base}/inventario/${productId}/etiquetas?frascos=${pickedNow.map((position) => position.container?.id ?? '').join(',')}`);
@@ -129,6 +139,7 @@ export function ReagentsProductPage() {
           allowed={allowed}
           canIssue={positionList.length > 0}
           freshness={freshness}
+          labels={{ active: labelMode, onToggle: toggleLabels }}
           onAction={openSheet}
         />
       </section>
@@ -138,36 +149,14 @@ export function ReagentsProductPage() {
         <aside aria-label="Resumen del reactivo" className="xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:self-start">
           <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} expiry={expiry} onAction={openSheet} />
         </aside>
-        <div className="grid min-w-0 content-start gap-6 xl:col-start-1 xl:row-start-1">
+        <div className="grid min-w-0 content-start gap-9 xl:col-start-1 xl:row-start-1">
           <section aria-labelledby="frascos" className="grid gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="frascos" className="text-xl font-bold text-ink">
+              <h2 id="frascos" className="scroll-mt-20 text-xl font-bold text-ink">
                 Frascos
               </h2>
               <div className="flex flex-wrap items-center gap-2">
                 <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="vacíos" />
-                {product.data.containersWithStock > 0 ? (
-                  <button
-                    ref={labelsButton}
-                    type="button"
-                    aria-pressed={labelMode}
-                    onClick={() => {
-                      setLabelsUsed(true);
-                      if (labelMode) setLabelMode(false);
-                      else {
-                        setPicked(new Set());
-                        setLabelMode(true);
-                      }
-                    }}
-                    className={cn(
-                      'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors',
-                      labelMode ? 'bg-action-soft text-action' : 'bg-surface-sunken text-ink-muted hover:text-ink',
-                    )}
-                  >
-                    <QrIcon className="size-4" aria-hidden />
-                    Etiquetas
-                  </button>
-                ) : null}
               </div>
             </div>
             {/* Escaneado pero sin descarga posible: se dice por qué, con texto (ADR 0012, entrega 4). */}
@@ -186,7 +175,7 @@ export function ReagentsProductPage() {
                 {containers.length === 0 ? 'Este reactivo aún no tiene frascos. Regístralos con un ingreso.' : 'Todos sus frascos están vacíos.'}
               </p>
             ) : (
-              <ul className={cn('grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4 xl:grid-cols-3', labelsUsed && 'pb-24')}>
+              <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4 xl:grid-cols-3">
                 {visible.map((position) => (
                   <li key={position.id}>
                     <ContainerCard

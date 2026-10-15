@@ -306,6 +306,12 @@ Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las p
   - Cada documento vive donde se usa. La SDS va en la ficha del reactivo y en la hoja de salida, y el Inventario filtra «Sin SDS». La factura o la guía va en el ingreso, y las autorizaciones en Fiscalizados. La carpeta de SDS para una inspección se obtiene exportando las de los reactivos filtrados.
   - Motivos y destinos: el Administrador los añade y los archiva desde la misma lista donde los elige ([ADR 0012](#adr-0012)). Cada etiqueta lleva una papelera que la archiva de un clic, con aviso «Deshacer» (13-10-2026). En Movimientos son filtros.
 - **Movimientos como informe (R-01C).** Lo que se filtra es lo que se exporta. Los filtros van en la URL, así que un informe es un enlace.
+  - «Imprimir» saca lo filtrado (hasta 1.000 filas, con aviso si hay más) en una página con el espacio, el período y los filtros. En la vista Totales imprime los totales.
+  - El panel de filtros no se desplaza:
+    - Período y Tipo van en pastillas; «Mes anterior» se quita.
+    - Los demás grupos se pliegan, de uno en uno, con buscador, las 5 opciones más usadas y «Ver más».
+    - Reactivo muestra solo el nombre.
+  (14-10-2026)
   - **Panel de filtros a la derecha**, plegable. Filtra por periodo (todo, 7 y 30 días, este mes, mes anterior, desde–hasta), tipo, reactivo (con búsqueda), responsable, destino, motivo y ubicación.
     - **Responsable** es quien pidió la salida si hubo solicitud y, si no, quien la registró: responde «¿qué consumió Ana?».
     - Cada filtro admite varios valores.
@@ -388,6 +394,7 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 - El error del CAS aparece en un globo junto al campo. «Control por peso» explica cada campo con globos de ayuda.
 - Área o departamento es un desplegable.
 - La ubicación muestra sus tres niveles con texto guía; cada nivel se habilita al elegir el anterior.
+- «Control por peso» es una sección desplegable, plegada al abrir y bajo «Dónde se guarda»; se abre sola si tiene datos o un error.
 - El número de frascos va en el pie, unido al botón: [− N +] «Ingresar N frascos». «Caducidad» ocupa su lugar, junto a Cantidad.
 - Tarjeta del frasco (14-10-2026):
   - Los estados van sobre el borde: «★ Usar primero» (FEFO), «Vencido», «Apartado», «Cuarentena» y «Restringido».
@@ -398,6 +405,13 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
     - La ubicación va en dos líneas, como una dirección: la sala arriba y, en gris, el estante y el nivel.
     - La ficha ⚖ dice «Debe pesar N g» y ofrece «Corregir con la balanza». La tara y el neto pasan a «Detalles del frasco».
     - «Ajustar» vuelve como botón y abre una sola ventana que elige el método. Con control por balanza, pregunta «¿Qué marca la balanza?» y ofrece escribir la cantidad. Sin control, pregunta la cantidad y ofrece «Pesar el frasco para activar la balanza» (antes «Fijar tara»).
+  - La tarjeta queda con «Salida» y ⇄. «Etiquetas QR» pasa a la cabecera de la ficha y gira las tarjetas (14-10-2026).
+  - «Ajustar» vive solo en la ficha ⚖ de cada frasco, que ve quien puede ajustar:
+    - con tara, «Debe pesar N g», con «Corregir con la balanza» y «Escribir la cantidad»;
+    - sin tara, «Sin pesar», con «Pesar ahora para activar la balanza» y «Escribir la cantidad»;
+    - el Operador la ve solo con tara, como información.
+  - El icono del estado va junto al código del frasco.
+  - En la cabecera, «Editar» es un lápiz junto al nombre. «Actualizado hace N min» y ⟳ pasan a la barra superior, junto a la miga de pan.
 - Resumen de la ficha: tres tarjetas pequeñas separadas en una columna angosta.
 - Inventario (nivel 1): 4 tarjetas por fila desde 1280 px, con el contenido centrado y las insignias (frascos, vencidos y controlado) en una fila bajo el total.
 
@@ -418,6 +432,29 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 
 Motivo: quien registra tiene el frasco en la mano y llena lo que lee, de arriba abajo; separar el catálogo y el ingreso en dos ventanas lo hacía lento. La tara permite comprobar con la balanza lo que dice el sistema. «Controlado» se entiende igual en universidades, empresas y uso individual. Cambia el [ADR 0012](#adr-0012) (tara, densidad, código de frasco y ventanas de registro) y el término del [ADR 0014](#adr-0014).
 
+<a id="adr-0016"></a>
+
+## ADR 0016 — Controlados al final y orden para completar Reactivos
+
+- **Controlados (REG-02) va al final y se reduce a lo que confirme REG-01.**
+  - En el piloto, el reporte de controlados sale de Movimientos e Inventario filtrados por «Controlado» y exportados a PDF o Excel.
+  - Cupos, custodia y reporte en formato oficial se hacen solo si REG-01 los exige.
+- **Orden para completar Reactivos:**
+  1. Mejoras pequeñas:
+     - indicadores del Resumen con enlace a su lista;
+     - «Ficha de seguridad» al escanear;
+     - «Factura o guía» en el ingreso;
+     - ruta de la ubicación en el historial;
+     - código automático sin palabras vacías.
+  2. Ámbito por ubicación: solo limpieza de permisos. Las ubicaciones y la vista por laboratorio no cambian; esa vista es del módulo Laboratorios (F3).
+  3. T-07.
+  4. R-01B: ficha de seguridad en PDF por reactivo (también al escanear y en la salida), avisos y exportar a Excel y PDF.
+  5. Preparación de soluciones.
+  6. Antes de G1: catálogo de más de 100 reactivos, auditoría de UI, QR impreso y rendimiento.
+  7. REG-01 y REG-02 reducido.
+
+Motivo: el usuario prioriza un módulo completo y usable. El reporte exportable cubre la obligación periódica mientras REG-01 confirma con el laboratorio y la norma qué más hace falta. Cambia la barrera de `CLAUDE.md` y el orden del [ADR 0014](#adr-0014) (14-10-2026).
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |
@@ -431,7 +468,7 @@ Motivo: quien registra tiene el frasco en la mano y llena lo que lee, de arriba 
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
 | Ámbito por ubicación | Los roles valen para todo el espacio (ADR 0008). Retirar `location_id` de las asignaciones y simplificar las consultas que filtran por ámbito | Entrega aparte, antes de T-07 |
-| Escaneo con cámara | La etiqueta QR abre el frasco con la cámara del móvil (ADR 0012). ¿Hace falta además un escáner dentro de la app para registrar salidas en serie? | P-03 |
+| Escaneo con cámara | Resuelto el 14-10-2026: «Escanear» en Reactivos abre la cámara en la app y lleva al frasco listo para «Salida». Usa el lector nativo del navegador o, si no lo hay, una librería. ¿Hace falta registrar salidas en serie? | P-03 |
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
 | Libro sin filtros | La lista sin filtros (también la actividad del Resumen) entra por frascos y ordena todo el libro del espacio: unos 250 ms con 40 000 operaciones (medido en R-01C). ¿Índice o consulta distinta? | Antes de G1, con el escenario de carga (04 §4) |
 | Inventario de más de 100 reactivos | La web carga solo la primera página del catálogo (100). El Inventario y sus filtros no muestran el resto. ¿Paginación, búsqueda en el servidor o ambas? | Antes de G1 |

@@ -1,13 +1,13 @@
 import { Skeleton, StatCard, type StatCardProps } from '@platlab/ui';
 import {
   ArrowRight,
-  ArrowUpFromLine,
   PackagePlus,
   CalendarClock,
   CalendarX,
   CircleCheck,
   Clock,
   FlaskConical,
+  ScanLine,
   TrendingDown,
 } from 'lucide-react';
 import { Link } from 'react-router';
@@ -31,9 +31,7 @@ function StatLink({ to, ...stat }: { to: string } & StatCardProps) {
  * acento con las acciones de ingreso y salida, debajo de los indicadores para no empujar los datos.
  * Sustituye a las acciones de la cabecera en el Resumen: sus botones son la acción primaria.
  */
-function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canIssue: boolean; openSheet: (request: SheetRequest) => void }) {
-  const issue = canIssue && allowed.issue;
-  if (!issue && !allowed.receipt) return null;
+function QuickActions({ allowed, openSheet }: { allowed: Allowed; openSheet: (request: SheetRequest) => void }) {
   return (
     <section
       aria-labelledby="acciones-rapidas"
@@ -58,16 +56,15 @@ function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canI
           </p>
         </div>
         <div className="grid gap-2 sm:flex sm:flex-wrap @2xl:shrink-0">
-          {issue ? (
-            <button
-              type="button"
-              onClick={() => openSheet({ kind: 'issue' })}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-control bg-surface px-6 text-sm font-bold text-action shadow-lg transition-[background-color,transform] duration-150 hover:bg-action-soft motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98]"
-            >
-              <ArrowUpFromLine className="size-[18px]" aria-hidden />
-              {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
-            </button>
-          ) : null}
+          {/* «Escanear» (14-10-2026) ocupa el lugar de «Registrar salida»: lo puede usar quien lee Reactivos. */}
+          <button
+            type="button"
+            onClick={() => openSheet({ kind: 'scan' })}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-control bg-surface px-6 text-sm font-bold text-action shadow-lg transition-[background-color,transform] duration-150 hover:bg-action-soft motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98]"
+          >
+            <ScanLine className="size-[18px]" aria-hidden />
+            Escanear
+          </button>
           {allowed.receipt ? (
             <button
               type="button"
@@ -92,7 +89,7 @@ function QuickActions({ allowed, canIssue, openSheet }: { allowed: Allowed; canI
  * el gráfico de salidas con su total y la actividad reciente.
  */
 export function ReagentsSummaryPage() {
-  const { me, base, summary, allowed, positionList, openSheet } = useReagents();
+  const { me, base, summary, allowed, openSheet } = useReagents();
 
   if (summary.isPending) {
     return (
@@ -193,7 +190,7 @@ export function ReagentsSummaryPage() {
       </section>
       <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2 xl:grid-cols-12 fit:min-h-0 fit:gap-4 fit-tall:gap-6">
         <div className="flex min-w-0 flex-col gap-5 sm:gap-6 xl:col-span-7 fit:min-h-0 fit:gap-4 fit-tall:gap-6">
-          <QuickActions allowed={allowed} canIssue={positionList.length > 0} openSheet={openSheet} />
+          <QuickActions allowed={allowed} openSheet={openSheet} />
           {/* Crece hasta llenar la columna, pero nunca por debajo de su contenido. */}
           <article className="flex min-w-0 flex-col rounded-card bg-surface p-6 shadow-raised fit:flex-1 fit:p-5">
             {/* El total va con su gráfico (ADR 0012, 05-10-2026), junto al título y a la izquierda, para

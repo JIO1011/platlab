@@ -1,12 +1,23 @@
 import type { OperationFacets } from '@platlab/contracts';
-import { Field, Input, OptionRow, Skeleton, cn, sectionLabel } from '@platlab/ui';
+import { Input, Skeleton, cn, sectionLabel } from '@platlab/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { FacetList, type FacetOption } from './facet-list';
 import { fold } from './fold';
 import type { MovementFilters, OperationQuery } from './movement-filters';
-import { filterGroups, noName, selectedCount, tight, typeOrder, typePlural, type FilterGroupId } from './movement-text';
+import {
+  chosenText,
+  countFormat,
+  filterGroups,
+  foldingGroups,
+  noName,
+  selectedCount,
+  tight,
+  typeOrder,
+  typePlural,
+  type FilterGroupId,
+} from './movement-text';
 import { useDebouncedValue } from './use-media-query';
 import { useOperationFacets } from './queries';
 
@@ -17,25 +28,118 @@ export interface FocusRequest {
 
 const toggle = (list: readonly string[], key: string): string[] => (list.includes(key) ? list.filter((item) => item !== key) : [...list, key]);
 
-/** Un grupo del panel: `fieldset` con su rótulo como `legend`, plegable, con cuántos hay marcados. */
+/** Pastilla de una opción (Período y Tipo): casilla o radio nativos dentro; la elegida se rellena con el acento (no solo cambia de matiz). */
+function Pill({
+  type,
+  name,
+  checked,
+  onChange,
+  count,
+  toggleGroup,
+  children,
+}: {
+  type: 'checkbox' | 'radio';
+  name: string;
+  checked: boolean;
+  onChange: () => void;
+  /** Cuántos movimientos tiene; sin dato mientras llegan los conteos. */
+  count?: number | undefined;
+  /** Marca la pastilla a la que lleva el foco una ficha de este grupo. */
+  toggleGroup?: FilterGroupId | undefined;
+  children: ReactNode;
+}) {
+  return (
+    <label className="group relative inline-flex min-h-[44px] min-w-0 cursor-pointer items-center gap-1.5 rounded-full border border-line-strong bg-surface px-2 text-[13px] font-medium text-ink transition-colors hover:bg-surface-sunken has-[:checked]:border-action has-[:checked]:bg-action has-[:checked]:font-semibold has-[:checked]:text-on-action has-[:checked]:hover:bg-action-hover has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-action sm:min-h-8">
+      <input
+        type={type}
+        name={name}
+        checked={checked}
+        onChange={onChange}
+        data-group-toggle={toggleGroup}
+        className="absolute -inset-px m-0 cursor-pointer opacity-0"
+      />
+      <span className="min-w-0 truncate">{children}</span>
+      {count === undefined ? null : (
+        <span className="ml-auto shrink-0 pl-1 tabular-nums text-ink-muted group-has-[:checked]:text-on-action">
+          {countFormat.format(count)}
+          <span className="sr-only"> movimientos</span>
+        </span>
+      )}
+    </label>
+  );
+}
+
+/** Cuántas fichas se ven bajo un grupo plegado; el resto se cuenta en «+N». */
+const CHIPS_SHOWN = 3;
+
+interface ChosenOption {
+  key: string;
+  label: string;
+}
+
+/**
+ * Las opciones elegidas de un grupo plegado, como fichas pequeñas bajo su rótulo: cada una con su «×» para
+ * quitarla sin abrir el grupo. Con más de tres se ven las tres primeras y «+N», que abre el grupo.
+ */
+function ChosenChips({ title, chosen, onRemove, onOpen }: { title: string; chosen: readonly ChosenOption[]; onRemove: (key: string) => void; onOpen: () => void }) {
+  const hidden = chosen.length - CHIPS_SHOWN;
+  return (
+    <ul aria-label={`${title}: opciones elegidas`} className="flex flex-wrap gap-1 px-2 pb-1.5 pt-0.5">
+      {chosen.slice(0, CHIPS_SHOWN).map((option) => (
+        <li key={option.key} className="inline-flex h-7 min-w-0 max-w-full items-center rounded-full bg-action-soft text-xs font-medium text-action sm:h-6">
+          <span className="min-w-0 truncate pl-2.5" title={option.label}>
+            {option.label}
+          </span>
+          <button
+            type="button"
+            onClick={() => onRemove(option.key)}
+            aria-label={`Quitar «${option.label}» de ${title.toLowerCase()}`}
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-action/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action sm:size-6"
+          >
+            <X className="size-3" aria-hidden />
+          </button>
+        </li>
+      ))}
+      {hidden > 0 ? (
+        <li className="inline-flex">
+          <button
+            type="button"
+            onClick={onOpen}
+            aria-label={`Ver ${hidden === 1 ? 'la otra opción elegida' : `las otras ${hidden} opciones elegidas`} de ${title.toLowerCase()}`}
+            className="inline-flex h-7 items-center rounded-full px-2 text-xs font-semibold tabular-nums text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action sm:h-6"
+          >
+            +{hidden}
+          </button>
+        </li>
+      ) : null}
+    </ul>
+  );
+}
+
+/** Un grupo plegable: `fieldset` con su rótulo como `legend`, fila con cuántos hay elegidos. Solo uno abierto a la vez. */
 function FilterGroup({
   id,
   title,
   marked,
+  chosen,
   open,
   onToggle,
+  onRemove,
   children,
 }: {
   id: FilterGroupId;
   title: string;
   marked: number;
+  /** Lo elegido, con su nombre: se ve bajo el rótulo mientras el grupo está plegado. */
+  chosen: readonly ChosenOption[];
   open: boolean;
   onToggle: () => void;
+  onRemove: (key: string) => void;
   children: ReactNode;
 }) {
   const bodyId = useId();
   return (
-    <fieldset className="min-w-0 border-t border-line py-1.5 first:border-t-0">
+    <fieldset className="min-w-0 border-t border-line py-1">
       <legend className="w-full p-0">
         <button
           type="button"
@@ -46,17 +150,13 @@ function FilterGroup({
           className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-control px-2 text-left transition-colors hover:bg-surface-sunken sm:min-h-8"
         >
           <span className={sectionLabel}>{title}</span>
-          <span className="flex items-center gap-2">
-            {!open && marked > 0 ? (
-              <span className="rounded-full bg-action-soft px-2 text-xs font-semibold tabular-nums text-action">
-                {marked}
-                <span className="sr-only"> marcados</span>
-              </span>
-            ) : null}
-            <ChevronDown aria-hidden className={cn('size-4 text-ink-muted transition-transform duration-150', open && 'rotate-180')} />
+          <span className="flex min-w-0 items-center gap-2">
+            {marked > 0 ? <span className="whitespace-nowrap rounded-full bg-action-soft px-2 text-xs font-semibold tabular-nums text-action">{chosenText(marked)}</span> : null}
+            <ChevronDown aria-hidden className={cn('size-4 shrink-0 text-ink-muted transition-transform duration-150', open && 'rotate-180')} />
           </span>
         </button>
       </legend>
+      {!open && chosen.length > 0 ? <ChosenChips title={title} chosen={chosen} onRemove={onRemove} onOpen={onToggle} /> : null}
       <div id={bodyId} hidden={!open} className="pb-1.5 pt-0.5">
         {/* Montado solo abierto: al abrir el grupo, lo marcado sube arriba. */}
         {open ? children : null}
@@ -70,10 +170,10 @@ const periodPresets = [
   { id: '7', label: '7 días' },
   { id: '30', label: '30 días' },
   { id: 'month', label: 'Este mes' },
-  { id: 'previous-month', label: 'Mes anterior' },
 ] as const;
 
-function PeriodGroup({ period, onChange }: { period: MovementFilters['period']; onChange: (period: MovementFilters['period']) => void }) {
+/** Período: pastillas y, tras «Elegir fechas», desde–hasta. */
+function PeriodSection({ period, onChange }: { period: MovementFilters['period']; onChange: (period: MovementFilters['period']) => void }) {
   const name = useId();
   const [custom, setCustom] = useState(period.kind === 'range');
   const [draft, setDraft] = useState({ from: period.kind === 'range' ? (period.from ?? '') : '', to: period.kind === 'range' ? (period.to ?? '') : '' });
@@ -98,60 +198,129 @@ function PeriodGroup({ period, onChange }: { period: MovementFilters['period']; 
     onChange(next.from === '' && next.to === '' ? { kind: 'all' } : { kind: 'range', from: next.from || null, to: next.to || null });
   };
 
-  const current = custom || period.kind === 'range' ? 'range' : period.kind === 'days' ? String(period.days) : period.kind;
+  const current = period.kind === 'range' ? 'range' : period.kind === 'days' ? String(period.days) : period.kind;
   const preset = (id: (typeof periodPresets)[number]['id']): MovementFilters['period'] =>
-    id === 'all' ? { kind: 'all' } : id === 'month' ? { kind: 'month' } : id === 'previous-month' ? { kind: 'previous-month' } : { kind: 'days', days: Number(id) };
-  // Un enlace puede traer otro número de días (hasta 90): se muestra marcado y se puede cambiar.
-  const odd = period.kind === 'days' && period.days !== 7 && period.days !== 30 && !custom ? period.days : null;
+    id === 'all' ? { kind: 'all' } : id === 'month' ? { kind: 'month' } : { kind: 'days', days: Number(id) };
+  // Un enlace puede traer otro número de días (hasta 90) o «mes anterior»: se muestra marcado y se puede cambiar.
+  const odd = period.kind === 'days' && period.days !== 7 && period.days !== 30 ? `${period.days} días` : period.kind === 'previous-month' ? 'Mes anterior' : null;
+  const fromId = useId();
+  const toId = useId();
+  const errorId = useId();
+  const firstFocus = current === 'range' ? null : (periodPresets.find((option) => option.id === current)?.id ?? periodPresets[0].id);
   return (
-    <div>
-      {periodPresets.map((option) => (
-        <OptionRow
-          key={option.id}
-          type="radio"
-          name={name}
-          checked={current === option.id}
-          onChange={() => {
-            setCustom(false);
-            onChange(preset(option.id));
-          }}
-        >
-          {option.label}
-        </OptionRow>
-      ))}
-      {odd !== null ? (
-        <OptionRow type="radio" name={name} checked onChange={() => undefined}>
-          {odd} días
-        </OptionRow>
-      ) : null}
-      <OptionRow type="radio" name={name} checked={current === 'range'} onChange={() => setCustom(true)}>
-        Desde–hasta
-      </OptionRow>
-      {current === 'range' ? (
-        <div className="grid grid-cols-2 gap-2 px-2 pb-1 pt-1.5">
-          <Field label="Desde" error={reversed ? 'La fecha inicial es posterior a la final.' : undefined} className="col-span-2 min-[400px]:col-span-1">
-            <Input type="date" value={draft.from} onChange={(event) => editRange({ ...draft, from: event.target.value })} className="h-[44px] sm:h-9" />
-          </Field>
-          <Field label="Hasta" className="col-span-2 min-[400px]:col-span-1">
-            <Input type="date" value={draft.to} onChange={(event) => editRange({ ...draft, to: event.target.value })} className="h-[44px] sm:h-9" />
-          </Field>
+    <fieldset className="min-w-0 px-2 pb-2.5 pt-1">
+      <legend className={cn(sectionLabel, 'flex min-h-8 items-center px-0')}>Periodo</legend>
+      <div className="flex flex-wrap gap-1">
+        {periodPresets.map((option) => (
+          <Pill
+            key={option.id}
+            type="radio"
+            name={name}
+            checked={current === option.id}
+            toggleGroup={firstFocus === option.id ? 'period' : undefined}
+            onChange={() => {
+              setCustom(false);
+              onChange(preset(option.id));
+            }}
+          >
+            {option.label}
+          </Pill>
+        ))}
+        {odd !== null ? (
+          <Pill type="radio" name={name} checked onChange={() => undefined}>
+            {odd}
+          </Pill>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        data-group-toggle={current === 'range' ? 'period' : undefined}
+        aria-expanded={custom}
+        onClick={() => setCustom(!custom)}
+        className="mt-1 inline-flex min-h-[44px] items-center gap-1 rounded-control text-[13px] font-medium text-action transition-colors hover:text-action-hover sm:min-h-8"
+      >
+        Elegir fechas
+        <ChevronDown aria-hidden className={cn('size-3.5 transition-transform duration-150', custom && 'rotate-180')} />
+      </button>
+      {custom ? (
+        <div className="grid gap-1.5 pt-0.5">
+          {(
+            [
+              ['Desde', fromId, draft.from, (value: string) => editRange({ ...draft, from: value })],
+              ['Hasta', toId, draft.to, (value: string) => editRange({ ...draft, to: value })],
+            ] as const
+          ).map(([label, id, value, edit]) => (
+            <div key={label} className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2">
+              <label htmlFor={id} className="text-[13px] text-ink-muted">
+                {label}
+              </label>
+              <Input
+                id={id}
+                type="date"
+                value={value}
+                aria-invalid={label === 'Desde' && reversed ? true : undefined}
+                aria-describedby={label === 'Desde' && reversed ? errorId : undefined}
+                onChange={(event) => edit(event.target.value)}
+                className="h-[44px] min-w-0 px-2 text-[13px] sm:h-9"
+              />
+            </div>
+          ))}
+          {reversed ? (
+            <p id={errorId} role="alert" className="text-[13px] font-medium text-danger">
+              La fecha inicial es posterior a la final.
+            </p>
+          ) : null}
         </div>
       ) : null}
-    </div>
+    </fieldset>
+  );
+}
+
+/** Tipo: cuatro pastillas con su número, en 2×2 y en orden fijo (no deben cambiar de sitio al marcarlas). */
+function TypeSection({
+  selected,
+  counts,
+  onToggle,
+}: {
+  selected: readonly string[];
+  counts: ReadonlyMap<string, number> | null;
+  onToggle: (type: MovementFilters['types'][number]) => void;
+}) {
+  const first = typeOrder.find((type) => selected.includes(type)) ?? typeOrder[0];
+  return (
+    <fieldset className="min-w-0 border-t border-line px-2 pb-2.5 pt-1">
+      <legend className={cn(sectionLabel, 'flex min-h-8 items-center px-0')}>Tipo</legend>
+      <div className="grid grid-cols-2 gap-1">
+        {typeOrder.map((type) => (
+          <Pill
+            key={type}
+            type="checkbox"
+            name="tipo"
+            checked={selected.includes(type)}
+            count={counts ? (counts.get(type) ?? 0) : undefined}
+            toggleGroup={type === first ? 'type' : undefined}
+            onChange={() => onToggle(type)}
+          >
+            {typePlural[type]}
+          </Pill>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
 /**
- * Panel de filtros de Movimientos (R-01C): siete grupos que se aplican al marcarlos, sin botón
- * «Aplicar». Es el mismo contenido en el panel de escritorio y en el cajón del móvil. Cada cambio
- * escribe la URL (`onChange`); los conteos llegan con las facetas de la API.
+ * Panel de filtros de Movimientos (R-01C, ADR 0014): Período y Tipo en pastillas y cinco grupos plegables,
+ * de uno en uno, que se aplican al marcarlos, sin botón «Aplicar». El panel no se desplaza. Es el mismo
+ * contenido en el panel de escritorio y en el cajón del móvil. Cada cambio escribe la URL (`onChange`);
+ * los conteos llegan con las facetas de la API.
  */
 export function MovementFilterPanel({
   workspaceId,
   filters,
   query,
   facets,
-  openGroups,
+  openGroup,
   onToggleGroup,
   focusRequest,
   onFocusHandled,
@@ -161,7 +330,8 @@ export function MovementFilterPanel({
   filters: MovementFilters;
   query: OperationQuery;
   facets: UseQueryResult<OperationFacets>;
-  openGroups: ReadonlySet<FilterGroupId>;
+  /** El grupo plegable abierto: solo uno a la vez. */
+  openGroup: FilterGroupId | null;
   onToggleGroup: (group: FilterGroupId) => void;
   focusRequest: FocusRequest | null;
   onFocusHandled: () => void;
@@ -169,7 +339,6 @@ export function MovementFilterPanel({
 }) {
   const root = useRef<HTMLDivElement>(null);
   const [productSearch, setProductSearch] = useState('');
-  const [responsibleSearch, setResponsibleSearch] = useState('');
   const typedProduct = useDebouncedValue(productSearch.trim(), 250);
   const data = facets.data;
   // Con más de 300 reactivos la lista local es parcial: la búsqueda se hace en el servidor (productQuery).
@@ -186,10 +355,10 @@ export function MovementFilterPanel({
     return () => window.cancelAnimationFrame(frame);
   }, [focusRequest, onFocusHandled]);
 
+  // Solo el nombre: el código no ayuda a elegir, aunque la búsqueda lo siga entendiendo.
   const asOption = (option: { id: string; name: string; code: string; count: number }): FacetOption => ({
     key: option.id,
     label: tight(option.name),
-    detail: option.code,
     count: option.count,
   });
   const needle = fold(typedProduct);
@@ -204,30 +373,55 @@ export function MovementFilterPanel({
     label: option.displayName ?? noName,
     count: option.count,
   }));
-  const typedResponsible = fold(responsibleSearch.trim());
-  const shownResponsibles = responsibleOptions.filter(
-    (option) => typedResponsible === '' || filters.responsibleIds.includes(option.key) || fold(option.label).includes(typedResponsible),
-  );
-  const typeCounts = new Map((data?.types ?? []).map((entry) => [entry.value, entry.count]));
-  const typeOptions: FacetOption[] = typeOrder.map((type) => ({ key: type, label: typePlural[type], count: typeCounts.get(type) ?? 0 }));
+  const typeCounts = data ? new Map(data.types.map((entry) => [entry.value, entry.count])) : null;
   const loading = facets.isPending;
 
-  const body = (group: FilterGroupId): ReactNode => {
+  // Lo elegido de cada grupo plegable, con su nombre (el de la opción; si ya no sale en las opciones, el del grupo).
+  const chosenOf = (group: (typeof foldingGroups)[number]): ChosenOption[] => {
     switch (group) {
-      case 'period':
-        return <PeriodGroup period={filters.period} onChange={(period) => onChange({ period })} />;
-      case 'type':
-        return loading ? (
-          <GroupSkeleton rows={4} />
-        ) : (
-          <FacetList
-            name="tipo"
-            fixedOrder
-            options={typeOptions}
-            selected={filters.types}
-            onToggle={(key) => onChange({ types: toggle(filters.types, key) as MovementFilters['types'] })}
-          />
-        );
+      case 'product':
+        return filters.productIds.map((key) => {
+          const found = [...(data?.products.options ?? []), ...(searched.data?.products.options ?? [])].find((option) => option.id === key);
+          return { key, label: found ? tight(found.name) : 'Reactivo' };
+        });
+      case 'responsible':
+        return filters.responsibleIds.map((key) => {
+          const found = data?.responsibles.find((option) => option.principalId === key);
+          return { key, label: found ? (found.displayName ?? noName) : 'Responsable' };
+        });
+      case 'destination':
+        return filters.destinations.map((key) => ({ key, label: key }));
+      case 'reason':
+        return filters.reasons.map((key) => ({ key, label: key }));
+      case 'location':
+        return filters.locationIds.map((key) => {
+          const found = data?.locations.find((option) => option.id === key);
+          return { key, label: found ? `${found.code} · ${found.name}` : 'Ubicación' };
+        });
+      default:
+        // Período y Tipo no se pliegan: sus pastillas ya muestran lo elegido.
+        return [];
+    }
+  };
+  const removeChosen = (group: (typeof foldingGroups)[number], key: string) => {
+    switch (group) {
+      case 'product':
+        return onChange({ productIds: filters.productIds.filter((item) => item !== key) });
+      case 'responsible':
+        return onChange({ responsibleIds: filters.responsibleIds.filter((item) => item !== key) });
+      case 'destination':
+        return onChange({ destinations: filters.destinations.filter((item) => item !== key) });
+      case 'reason':
+        return onChange({ reasons: filters.reasons.filter((item) => item !== key) });
+      case 'location':
+        return onChange({ locationIds: filters.locationIds.filter((item) => item !== key) });
+      default:
+        return;
+    }
+  };
+
+  const body = (group: (typeof foldingGroups)[number]): ReactNode => {
+    switch (group) {
       case 'product':
         return loading ? (
           <GroupSkeleton rows={5} />
@@ -247,10 +441,9 @@ export function MovementFilterPanel({
         ) : (
           <FacetList
             name="responsable"
-            options={shownResponsibles}
+            options={responsibleOptions}
             selected={filters.responsibleIds}
             onToggle={(key) => onChange({ responsibleIds: toggle(filters.responsibleIds, key) })}
-            search={{ value: responsibleSearch, onChange: setResponsibleSearch, label: 'Buscar responsable' }}
           />
         );
       case 'destination':
@@ -291,16 +484,24 @@ export function MovementFilterPanel({
 
   return (
     <div ref={root}>
-      {filterGroups.map((group) => (
+      <PeriodSection period={filters.period} onChange={(period) => onChange({ period })} />
+      <TypeSection
+        selected={filters.types}
+        counts={typeCounts}
+        onToggle={(type) => onChange({ types: toggle(filters.types, type) as MovementFilters['types'] })}
+      />
+      {foldingGroups.map((id) => (
         <FilterGroup
-          key={group.id}
-          id={group.id}
-          title={group.title}
-          marked={selectedCount(filters, group.id)}
-          open={openGroups.has(group.id)}
-          onToggle={() => onToggleGroup(group.id)}
+          key={id}
+          id={id}
+          title={filterGroups.find((group) => group.id === id)?.title ?? ''}
+          marked={selectedCount(filters, id)}
+          chosen={chosenOf(id)}
+          open={openGroup === id}
+          onToggle={() => onToggleGroup(id)}
+          onRemove={(key) => removeChosen(id, key)}
         >
-          {body(group.id)}
+          {body(id)}
         </FilterGroup>
       ))}
     </div>

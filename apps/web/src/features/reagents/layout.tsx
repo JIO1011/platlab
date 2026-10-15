@@ -1,7 +1,7 @@
 import type { Position } from '@platlab/contracts';
 import { Button, cn } from '@platlab/ui';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpFromLine, Eye, PackagePlus, RefreshCw, Scale } from 'lucide-react';
+import { ArrowUpFromLine, Eye, PackagePlus, RefreshCw, Scale, ScanLine } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Outlet, useLocation, useSearchParams } from 'react-router';
 import { moduleApps, useShell } from '../../app/app-shell';
@@ -20,6 +20,7 @@ import {
 import { QueryErrorState } from '../../app/states';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { IngressSheet } from './ingress/ingress-sheet';
+import { ScanSheet } from './scan/scan-sheet';
 import { AdjustmentSheet, IssueSheet, MinimumSheet, ProductSheet, TransferSheet } from './sheets';
 import { useNow } from './use-now';
 
@@ -99,7 +100,7 @@ export function ReagentsLayout() {
   // Por debajo de 1024 px (móvil y tableta), la primaria ocupa su fila y las secundarias van de dos
   // en dos: si son impares, la última toma la fila entera para no dejar un hueco.
   // En la ficha (ADR 0012) las acciones se acotan a ese reactivo: ingreso y salida con él ya elegido;
-  // «Ajustar» vive en cada frasco.
+  // «Ajustar» vive en la ficha ⚖ de cada frasco (ADR 0015, 14-10-2026).
   const inProduct = detailId !== undefined;
   // En la página de etiquetas la tarea es imprimir: sin acciones de registro en la cabecera.
   const inLabels = pathname.endsWith('/etiquetas');
@@ -109,6 +110,11 @@ export function ReagentsLayout() {
     { kind: 'adjustment', label: 'Ajustar', icon: Scale, shown: allowed.adjustment && positionList.length > 0 && !inProduct },
   ] as const;
   const visibleSecondary = secondaryActions.filter((action) => action.shown);
+  // En Solicitudes la tarea es decidir: ahí la cabecera lleva solo «Escanear», que sirve en el resto de secciones.
+  const showRegisterActions = sectionPath !== 'solicitudes' && !inLabels;
+  // Sin acciones en la cabecera: el Resumen tiene su tarjeta «Escanear» (ADR 0010, 04-10-2026) y Movimientos es
+  // un libro para leer, filtrar e imprimir (14-10-2026).
+  const showHeaderActions = sectionPath !== '' && sectionPath !== 'movimientos';
   // «Actualizado hace…» informa lo más antiguo de lo que la sección muestra, nunca lo más fresco.
   const shown: Array<{ dataUpdatedAt: number }> =
     sectionPath === ''
@@ -135,6 +141,9 @@ export function ReagentsLayout() {
   }
 
   const current = sheets.current;
+  // «Ajustar» desde un frasco de la ficha lleva su reactivo; desde el Inventario, ofrece todos los frascos.
+  const adjustProductId = current?.request.kind === 'adjustment' ? current.request.productId : undefined;
+  const adjustable = adjustProductId ? positionList.filter((position) => position.product.id === adjustProductId) : positionList;
   const sheetProps = (kind: SheetRequest['kind']) => ({
     workspaceId,
     open: current?.open === true && current.request.kind === kind,
@@ -142,6 +151,8 @@ export function ReagentsLayout() {
       if (!open) sheets.close();
     },
   });
+
+  const scanProps = { open: current?.open === true, onOpenChange: sheetProps('scan').onOpenChange };
 
   // El Resumen cabe en una ventana en escritorio (ADR 0012, 05-10-2026): ocupa el alto que deja el
   // shell (barra superior y rellenos del main) y reparte el resto entre sus tarjetas.
@@ -167,9 +178,19 @@ export function ReagentsLayout() {
             </button>
           </p>
         </div>
-        {/* En el Resumen, la tarjeta de acción rápida hace de acciones (ADR 0010, 04-10-2026); en Solicitudes, la tarea es decidir, y «Aprobar salida» es la primaria. */}
-        {sectionPath !== '' && sectionPath !== 'solicitudes' && !inLabels ? (
-          <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
+        {/* En el Resumen, la tarjeta de acción rápida hace de acciones (ADR 0010, 04-10-2026); en Movimientos no hay ninguna; en Solicitudes, la tarea es decidir. */}
+        {showHeaderActions ? (
+        <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
+          {/* «Escanear» lee la etiqueta QR de un frasco con la cámara (14-10-2026): lo puede usar quien lee Reactivos. En el móvil abre la cabecera, ancho y con el tinte del acento; desde 1024 px es una pastilla secundaria. */}
+          <Button
+            className="order-first col-span-2 h-12 border-action/25 bg-action-soft font-semibold text-action hover:bg-action-soft lg:order-none lg:h-10 lg:border-line-strong lg:bg-surface lg:font-medium lg:text-ink lg:hover:bg-surface-sunken"
+            onClick={() => sheets.open({ kind: 'scan' })}
+          >
+            <ScanLine aria-hidden />
+            Escanear
+          </Button>
+          {showRegisterActions ? (
+            <>
             {visibleSecondary.map(({ kind, label, icon: Icon }, index) => (
               <Button
                 key={kind}
@@ -190,7 +211,9 @@ export function ReagentsLayout() {
                 {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
               </Button>
             ) : null}
-          </div>
+            </>
+          ) : null}
+        </div>
         ) : null}
       </header>
       )}
@@ -228,6 +251,8 @@ export function ReagentsLayout() {
           }
         />
       </div>
+
+      {current?.request.kind === 'scan' ? <ScanSheet {...scanProps} /> : null}
 
       {current?.request.kind === 'ingress' ? (
         <IngressSheet
@@ -273,8 +298,8 @@ export function ReagentsLayout() {
         <AdjustmentSheet
           key={current.id}
           {...sheetProps('adjustment')}
-          positions={positionList}
-          positionId={current.request.positionId}
+          positions={adjustable}
+          positionId={current.request.positionId ?? (adjustable.length === 1 && current.request.productId ? adjustable[0]?.id : undefined)}
           products={productList}
           {...(current.request.mode ? { initialMode: current.request.mode } : {})}
           canManageLists={allowed.lists}

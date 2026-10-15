@@ -1,10 +1,13 @@
 import type { HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from 'react';
 import { cn } from '../lib/cn';
 
-/** Tabla densa de trabajo: encabezado fijo al desplazar y cifras alineadas a la derecha. */
+/**
+ * Tabla densa de trabajo: encabezado fijo al desplazar y cifras alineadas a la derecha. Si no cabe,
+ * se desplaza en horizontal y el contenedor es enfocable para recorrerla con el teclado (WCAG 2.1.1).
+ */
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="overflow-x-auto">
+    <div tabIndex={0} className="overflow-x-auto rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action">
       <table className={cn('w-full border-collapse text-sm', className)} {...props} />
     </div>
   );

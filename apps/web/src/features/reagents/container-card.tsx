@@ -1,7 +1,7 @@
 import type { Position } from '@platlab/contracts';
-import { Band, Button, HelpTip, IconChip, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, FlaskConical, MapPin, QrCode as QrIcon, Scale, SlidersHorizontal, Star, TriangleAlert } from 'lucide-react';
-import { formatGrams, weightFigures } from './weight';
+import { Band, Button, HelpTip, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
+import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, FlaskConical, MapPin, QrCode as QrIcon, Scale, Star, TriangleAlert } from 'lucide-react';
+import { formatGrams, gramsPerUnit, weightFigures } from './weight';
 import { type ComponentProps, type CSSProperties } from 'react';
 import { formatDate, formatDateTime, formatShortDate, relativeDays } from '../../app/format';
 import { ModuleMark } from '../../app/module-mark';
@@ -171,44 +171,69 @@ function ExpiryChip({ expiresOn, today }: { expiresOn: string | null; today: str
   );
 }
 
+/** Botón de la nube oscura (`HelpTip`): relleno blanco, para la acción que el globo ofrece. */
+const tipAction =
+  'inline-flex h-8 items-center justify-center rounded-lg bg-white px-3 text-[13px] font-semibold text-ink transition-colors hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-sm:h-10';
+/** Enlace de la nube oscura: la salida alternativa, subrayada y sin relleno. */
+const tipLink =
+  'inline-flex h-8 items-center justify-self-start rounded-sm text-[13px] font-medium text-white underline underline-offset-4 decoration-white/50 transition-colors hover:decoration-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-sm:h-10';
+
 /**
- * La ficha ⚖, solo con tara (ADR 0015, «Ajuste del mismo día»): el peso bruto que debe marcar la balanza
- * (tara + contenido). Su nube dice cómo comprobarlo y, para quien ajusta, ofrece «Corregir con la balanza»,
- * que abre Ajustar en modo balanza. Los pesos no son cantidades de inventario: son vista previa del servidor.
+ * La ficha ⚖ de todos los frascos para quien ajusta (ADR 0015, 14-10-2026). Con tara, «Debe pesar N g» (tara +
+ * contenido): su nube dice cómo comprobarlo y trae «Corregir con la balanza» (Ajustar en modo balanza) y el
+ * enlace «Escribir la cantidad» (Ajustar en modo cantidad). Sin tara, «Sin pesar» (gris, borde punteado): la nube
+ * dice que el frasco no tiene peso de referencia y trae «Pesar ahora» (Ajustar con la balanza por activar) y el
+ * mismo enlace. Sin permiso de ajuste, solo la ficha con tara, como información. Los pesos no son cantidades de
+ * inventario: son vista previa del servidor.
  */
-function WeightChip({ figures, onCorrect }: { figures: NonNullable<ReturnType<typeof weightFigures>>; onCorrect: (() => void) | null }) {
-  const gross = shortGrams(figures.expectedGross);
+function WeightChip({
+  figures,
+  adjust,
+}: {
+  figures: ReturnType<typeof weightFigures>;
+  /** Quien puede ajustar: abre Ajustar en el modo que se pida. `null` si no puede. */
+  adjust: ((mode: 'weight' | 'quantity') => void) | null;
+}) {
+  const gross = figures ? shortGrams(figures.expectedGross) : null;
   return (
     <HelpTip
       hover
-      label={`Debe pesar ${gross}`}
+      label={gross ? `Debe pesar ${gross}` : 'Sin pesar'}
       trigger={
         <>
           <Scale className="size-3 shrink-0" aria-hidden />
-          Debe pesar {gross}
+          {gross ? `Debe pesar ${gross}` : 'Sin pesar'}
         </>
       }
-      className={chipClass('neutral')}
+      className={cn(chipClass('neutral'), !gross && 'border border-dashed border-line-strong bg-transparent')}
     >
-      {(close) => (
-        <div className="grid gap-2">
-          <p>
-            Pon el frasco cerrado en la balanza: debería marcar <span className="font-semibold tabular-nums">{gross}</span>. ¿Marca otra cosa?
-          </p>
-          {onCorrect ? (
-            <button
-              type="button"
-              onClick={() => {
-                close();
-                onCorrect();
-              }}
-              className="inline-flex h-8 items-center justify-center rounded-lg bg-white px-3 text-[13px] font-semibold text-ink transition-colors hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-sm:h-10"
-            >
-              Corregir con la balanza
-            </button>
-          ) : null}
-        </div>
-      )}
+      {(close) => {
+        const run = (mode: 'weight' | 'quantity') => () => {
+          close();
+          adjust?.(mode);
+        };
+        return (
+          <div className="grid gap-2">
+            {gross ? (
+              <p>
+                Pon el frasco cerrado en la balanza: debería marcar <span className="font-semibold tabular-nums">{gross}</span>. ¿Marca otra cosa?
+              </p>
+            ) : (
+              <p>Este frasco no tiene peso de referencia. Pésalo una vez para comprobarlo con la balanza.</p>
+            )}
+            {adjust ? (
+              <>
+                <button type="button" onClick={run('weight')} className={tipAction}>
+                  {gross ? 'Corregir con la balanza' : 'Pesar ahora'}
+                </button>
+                <button type="button" onClick={run('quantity')} className={tipLink}>
+                  Escribir la cantidad
+                </button>
+              </>
+            ) : null}
+          </div>
+        );
+      }}
     </HelpTip>
   );
 }
@@ -241,11 +266,11 @@ function Place({ path, name }: { path: string[]; name: string }) {
  * reactivo en el Inventario (14-10-2026): radio de 20 px, `bg-surface`, `p-4`, el matraz del módulo de marca
  * de agua y todo el contenido centrado. Caben tres por fila junto al resumen lateral. Los estados son
  * insignias sobre el borde superior («Usar primero», «Vencido», «Apartado», «Cuarentena», «Restringido»).
- * De arriba abajo: el `IconChip` del estado físico del reactivo; el código mono en negrita de 17 px, un
- * botón que abre «Detalles del frasco»; una línea gris con la marca y el área; tras una línea, «Saldo» y la
+ * De arriba abajo: el código mono en negrita de 17 px, un botón que abre «Detalles del frasco», con el icono
+ * del estado físico del reactivo en línea a su izquierda; una línea gris con la marca y el área; tras una línea, «Saldo» y la
  * cantidad de 22 px con su unidad y el %, y la barra por nivel a todo el ancho; la ubicación en dos líneas (la
  * sala y, en gris, el resto del camino); una fila de fichas, la caducidad corta (ámbar o roja según el estado)
- * y, con tara, «Debe pesar N g», cada una con su nube; y, tras una línea de borde a borde, «Salida»,
+ * y la ficha ⚖ («Debe pesar N g» con tara; «Sin pesar» sin ella, solo para quien ajusta), cada una con su nube; y, tras una línea de borde a borde, «Salida»,
  * «Ajustar» y «Trasladar». El color solo cuenta un estado y siempre con texto.
  *
  * Con el modo de etiquetas el artículo gira 180° y muestra su reverso: la etiqueta impresa, y la tarjeta
@@ -263,7 +288,7 @@ export function ContainerCard({
   onAction,
 }: {
   position: Position;
-  /** Estado físico del reactivo: su icono encabeza la tarjeta, como en el Inventario. */
+  /** Estado físico del reactivo: su icono va junto al código. */
   physicalState?: string | null | undefined;
   today: string;
   /** Zona del espacio: la fecha de ingreso de «Detalles del frasco» se escribe en ella. */
@@ -294,16 +319,21 @@ export function ContainerCard({
   const code = position.container?.code ?? position.lot.code;
   const figures = weightFigures(position);
   const flipped = labels?.flipped === true;
-  // «Ajustar» abre una sola ventana; el frasco decide el método (balanza si tiene tara, cantidad si no).
-  const canAdjust = allowed.adjustment;
+  const StateIcon = (physicalState && physicalStateIcon[physicalState]) || FlaskConical;
+  // La ficha ⚖ (ADR 0015, 14-10-2026): con tara la ve todo el mundo; sin tara («Sin pesar»), solo quien ajusta, y
+  // solo si el frasco se puede pesar (g, kg, mL o L) y tiene saldo. Ajustar abre con el frasco y el modo elegidos.
+  const adjust = allowed.adjustment ? (mode: 'weight' | 'quantity') => onAction({ kind: 'adjustment', positionId: position.id, mode }) : null;
+  const weighable = position.container !== null && gramsPerUnit(position.unit, '1') !== null;
+  const showWeight = figures !== null || (adjust !== null && weighable && !empty);
   return (
     <article
       id={position.container ? `frasco-${position.container.id}` : undefined}
       aria-current={scanned ? 'true' : undefined}
       style={{ '--flip-delay': `${Math.min(labels?.order ?? 0, 12) * 40}ms` } as CSSProperties}
       className={cn(
+        // Frente y reverso comparten la misma celda: la tarjeta mide lo mayor de las dos caras, sin altura fija.
         // El giro: 300 ms con la curva de salida del sistema. Con movimiento reducido no hay giro: las caras se funden.
-        'relative h-full [transform-style:preserve-3d] [transform:perspective(1100px)_rotateY(0deg)] [transition-delay:var(--flip-delay)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out-expo',
+        'grid h-full grid-cols-[minmax(0,1fr)] [transform-style:preserve-3d] [transform:perspective(1100px)_rotateY(0deg)] [transition-delay:var(--flip-delay)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out-expo',
         flipped && '[transform:perspective(1100px)_rotateY(180deg)]',
         'motion-reduce:[transform:none] motion-reduce:[transform-style:flat]',
         scanned && 'scroll-mt-24',
@@ -314,7 +344,7 @@ export function ContainerCard({
         aria-hidden={flipped || undefined}
         className={cn(
           // El lenguaje de la tarjeta del Inventario; el color solo cuenta un estado y siempre con texto (ADR 0010).
-          'group relative flex h-full flex-col gap-2.5 rounded-[20px] bg-surface p-4 shadow-raised [backface-visibility:hidden] transition-[translate,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1',
+          'group relative flex flex-col gap-2.5 [grid-area:1/1] rounded-[20px] bg-surface p-4 shadow-raised [backface-visibility:hidden] transition-[translate,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1',
           'motion-reduce:transition-opacity motion-reduce:duration-300 motion-reduce:[transition-delay:var(--flip-delay)]',
           flipped && 'motion-reduce:opacity-0',
           scanned && 'ring-2 ring-action',
@@ -330,10 +360,10 @@ export function ContainerCard({
             className="absolute -bottom-4 -right-3 size-24 rotate-12 text-surface-sunken transition-[color,transform] duration-500 group-hover:text-action-soft motion-safe:group-hover:scale-110"
           />
         </div>
-        <IconChip icon={(physicalState && physicalStateIcon[physicalState]) || FlaskConical} tone={empty ? 'neutral' : 'accent'} size="md" className="relative mx-auto" />
         <div className="relative grid gap-1 text-center">
-          {/* El código es la identidad de la etiqueta: si no cabe, se corta con puntos y el título lo dice entero. */}
-          <h3 title={code} className="flex min-w-0 justify-center">
+          {/* El estado físico va en línea, a la izquierda del código (misma fila, centrada). El código es la identidad de la etiqueta: si no cabe, se corta con puntos y el título lo dice entero. */}
+          <h3 title={code} className="flex min-w-0 items-center justify-center gap-2">
+            <StateIcon aria-hidden className={cn('size-5 shrink-0', empty ? 'text-ink-subtle' : 'text-action')} />
             <CodeButton position={position} code={code} timeZone={timeZone} />
           </h3>
           {/* Siempre mide una línea: el saldo de todas las tarjetas de una fila cae a la misma altura. */}
@@ -375,15 +405,10 @@ export function ContainerCard({
         </div>
         <div className="relative flex flex-wrap justify-center gap-1">
           <ExpiryChip expiresOn={expiresOn} today={today} />
-          {figures ? (
-            <WeightChip
-              figures={figures}
-              onCorrect={canAdjust ? () => onAction({ kind: 'adjustment', positionId: position.id, mode: 'weight' }) : null}
-            />
-          ) : null}
+          {showWeight ? <WeightChip figures={figures} adjust={adjust} /> : null}
         </div>
-        {canIssue || canAdjust || canTransfer ? (
-          // Banda inferior de borde a borde: «Salida» es la primaria; «Ajustar» y «Trasladar» son botones propios.
+        {canIssue || canTransfer ? (
+          // Banda inferior de borde a borde: «Salida» es la primaria y «⇄» traslada. «Ajustar» vive en la ficha ⚖.
           <Band ruled className="relative -mx-4 -mb-1 mt-auto flex items-center gap-1.5 px-4 pt-3">
             {canIssue ? (
               // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
@@ -398,24 +423,13 @@ export function ContainerCard({
                 {allowed.approve ? 'Salida' : 'Solicitar salida'}
               </Button>
             ) : null}
-            {canAdjust ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                className={cn('h-10 shrink-0 rounded-xl border-line-strong bg-white/70 px-2.5 font-semibold text-ink-muted hover:bg-white hover:text-ink', !canIssue && 'ml-auto')}
-                onClick={() => onAction({ kind: 'adjustment', positionId: position.id })}
-              >
-                <SlidersHorizontal aria-hidden />
-                Ajustar
-              </Button>
-            ) : null}
             {canTransfer ? (
               <Button
                 size="icon"
                 variant="secondary"
                 aria-label={`Trasladar ${code}`}
                 title="Trasladar"
-                className={cn('size-10 rounded-xl border-line-strong bg-white/70 text-ink-muted hover:bg-white hover:text-ink', !canIssue && !canAdjust && 'ml-auto')}
+                className={cn('size-10 rounded-xl border-line-strong bg-white/70 text-ink-muted hover:bg-white hover:text-ink', !canIssue && 'ml-auto')}
                 onClick={() => onAction({ kind: 'transfer', position })}
               >
                 <ArrowLeftRight aria-hidden />
@@ -451,7 +465,7 @@ function LabelFace({ code, position, labels }: { code: string; position: Positio
         }
       }}
       className={cn(
-        'absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[20px] border bg-white p-4 shadow-raised [backface-visibility:hidden] [transform:rotateY(180deg)] transition-shadow duration-200 hover:shadow-float',
+        '@container relative flex cursor-pointer flex-col items-center [grid-area:1/1] justify-center gap-3 rounded-[20px] border bg-white p-4 shadow-raised [backface-visibility:hidden] [transform:rotateY(180deg)] transition-shadow duration-200 hover:shadow-float',
         'motion-reduce:opacity-0 motion-reduce:transition-opacity motion-reduce:duration-300 motion-reduce:[transform:none] motion-reduce:[transition-delay:var(--flip-delay)]',
         flipped && 'motion-reduce:opacity-100',
         picked ? 'border-action ring-2 ring-action' : 'border-white/80',
@@ -466,7 +480,10 @@ function LabelFace({ code, position, labels }: { code: string; position: Positio
       >
         {picked ? <Check className="size-4" strokeWidth={3} /> : null}
       </span>
-      <ContainerLabel position={position} product={product} url={url} />
+      {/* La etiqueta mide 63,5 mm: en una tarjeta más estrecha (tres por fila a 1280 px) se reduce para caber. */}
+      <div className="@max-[240px]:scale-[0.88]">
+        <ContainerLabel position={position} product={product} url={url} />
+      </div>
       <p className={cn('text-sm font-semibold', picked ? 'text-action' : 'text-ink-muted')}>{picked ? 'Se imprime' : 'No se imprime'}</p>
     </div>
   );

@@ -20,13 +20,16 @@ export type SheetRequest =
   | { kind: 'ingress'; productId?: string }
   // Con `position`, el frasco viaja en la petición (el de una etiqueta QR puede no estar en la lista global).
   | { kind: 'issue'; positionId?: string; productId?: string; position?: Position }
-  // `mode: 'weight'`: desde «Corregir con la balanza» (ADR 0015); un frasco sin tara abre ya con la balanza por activar.
-  | { kind: 'adjustment'; positionId?: string; mode?: 'weight' }
+  // Desde la ficha ⚖ del frasco (ADR 0015, 14-10-2026): `mode: 'weight'` es «Corregir con la balanza» o «Pesar ahora»
+  // (un frasco sin tara abre ya con la balanza por activar); `mode: 'quantity'` es «Escribir la cantidad».
+  | { kind: 'adjustment'; positionId?: string; productId?: string; mode?: 'weight' | 'quantity' }
   // El frasco viaja en la petición: la lista global de frascos puede no incluirlo (llega por páginas).
   | { kind: 'transfer'; position: Position }
   // Mínimo (ADR 0012, 05-10-2026) y edición de la ficha (ADR 0015): desde la ficha del reactivo.
   | { kind: 'minimum'; productId: string }
-  | { kind: 'product'; product: ProductDetail };
+  | { kind: 'product'; product: ProductDetail }
+  // «Escanear» (14-10-2026): la hoja del lector de etiquetas QR; la abren la cabecera de la sección y la de la ficha.
+  | { kind: 'scan' };
 
 /**
  * Lo que el rol puede hacer hoy; `product` es administrar el catálogo (también el mínimo, crear

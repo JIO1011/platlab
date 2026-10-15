@@ -158,6 +158,15 @@ export function IngressSheet({
   const missing = missingFields.length;
   const toReview = (Object.keys(issues) as Array<keyof Errors>).filter((key) => issues[key] && !empty.has(key)).length;
   const errors = attempted ? issues : serverErrors;
+  // «Control por peso» empieza plegado (14-10-2026) y se abre solo cuando llega algo suyo: el peso escrito o un error de
+  // peso o densidad. Se abre en el momento en que aparece, no mientras dura: plegarlo después no lo reabre ni borra lo escrito.
+  const [weightOpen, setWeightOpen] = useState(false);
+  const weightWanted = form.grossWeight.trim() !== '' || Boolean(errors.weight || errors.density);
+  const [weightSeen, setWeightSeen] = useState(false);
+  if (weightWanted !== weightSeen) {
+    setWeightSeen(weightWanted);
+    if (weightWanted) setWeightOpen(true);
+  }
 
   const patch = (next: Partial<BottlesForm>) => {
     setForm((previous) => ({ ...previous, ...next }));
@@ -317,18 +326,6 @@ export function IngressSheet({
             />
           </Section>
 
-          <Section icon={Scale} title="Control por peso" badge="Opcional">
-            <WeightFields
-              grossWeight={form.grossWeight}
-              onGrossWeight={(grossWeight) => patch({ grossWeight })}
-              density={density}
-              onDensity={(value) => (existing ? patch({ density: value }) : patchDraft({ density: value }))}
-              volume={volume}
-              tare={weight.tare}
-              errors={errors}
-            />
-          </Section>
-
           <Section icon={MapPin} title="Dónde se guarda">
             <div className="grid gap-4">
               <ChoiceField
@@ -356,6 +353,18 @@ export function IngressSheet({
                 error={errors.placeId}
               />
             </div>
+          </Section>
+
+          <Section icon={Scale} title="Control por peso" badge="Opcional" fold={{ open: weightOpen, onToggle: () => setWeightOpen(!weightOpen) }}>
+            <WeightFields
+              grossWeight={form.grossWeight}
+              onGrossWeight={(grossWeight) => patch({ grossWeight })}
+              density={density}
+              onDensity={(value) => (existing ? patch({ density: value }) : patchDraft({ density: value }))}
+              volume={volume}
+              tare={weight.tare}
+              errors={errors}
+            />
           </Section>
         </div>
 

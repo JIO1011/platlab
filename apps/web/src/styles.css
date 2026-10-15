@@ -3,3 +3,21 @@
 
 /* Los componentes de packages/ui también generan utilidades. */
 @source "../../../packages/ui/src";
+
+/*
+ * Informe impreso de Movimientos (ADR 0014): la vista de impresión es un diálogo montado en el `body`
+ * (`data-print-root`); en papel es lo único que queda, en una hoja A4 propia (los márgenes de la
+ * página de etiquetas, en el CSS del sistema, no se tocan) y sin la barra lateral.
+ */
+@page report {
+  size: A4;
+  margin: 14mm 12mm;
+}
+.print-report {
+  page: report;
+}
+@media print {
+  body > :not([data-print-root]) {
+    display: none !important;
+  }
+}

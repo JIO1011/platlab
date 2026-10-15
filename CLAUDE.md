@@ -74,7 +74,7 @@ Roles, delegación, economía de tokens, skills de frontend y ReactiLab están e
 
 Las decisiones cerradas están en `docs/README.md` («Decisiones cerradas») y en `docs/05`; no volver a preguntarlas.
 
-- Las sustancias fiscalizadas son necesarias desde el piloto: no diferirlas a Analítica ni excluirlas sin una nueva decisión explícita.
+- Las sustancias controladas se cubren en el piloto con el informe exportable (marca «Controlado», filtro y PDF/Excel); cupos, custodia y reporte oficial (REG-02) van al final, según lo que confirme REG-01 ([ADR 0016](docs/05_decisiones.md#adr-0016)).
 - El modelo comercial sigue pendiente: la recomendación está en 01 §4 y debe confirmarla el usuario.
 - No fijar fechas, horas ni presupuestos contractuales inventados.
 - Parámetros, matrices de roles y fases viven solo en sus fuentes; enlazarlas, no copiarlas.

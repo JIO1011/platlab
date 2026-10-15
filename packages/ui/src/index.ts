@@ -20,6 +20,7 @@ export { StatePanel } from './components/state-panel';
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/table';
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 export { Toaster, toast, sheetToasterId } from './components/toaster';
+export { Tooltip } from './components/tooltip';
 export { cn } from './lib/cn';
 export {
   addDecimal,

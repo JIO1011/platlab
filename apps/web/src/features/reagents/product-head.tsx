@@ -1,7 +1,7 @@
 import type { ProductDetail } from '@platlab/contracts';
 import type { ReactNode } from 'react';
-import { Button, IconTile, Quantity, StockLevelBar, cn, formatDecimal } from '@platlab/ui';
-import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, RefreshCw, TrendingDown, type LucideIcon } from 'lucide-react';
+import { Button, IconTile, Quantity, StockLevelBar, Tooltip, cn, formatDecimal } from '@platlab/ui';
+import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, ExternalLink, FlaskConical, Package, PackagePlus, PencilLine, QrCode, RefreshCw, ScanLine, TrendingDown, type LucideIcon } from 'lucide-react';
 import { formatAgo, formatDate } from '../../app/format';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { ControlledMark } from './controlled';
@@ -20,38 +20,89 @@ import { useNow } from './use-now';
 const glassCard =
   'rounded-[28px] border border-white/70 bg-white/70 shadow-raised backdrop-blur-xl backdrop-saturate-150 not-supports-[backdrop-filter]:bg-surface';
 
-const quietLink =
-  'inline-flex min-h-8 items-center gap-1.5 rounded-control px-1.5 text-[13px] font-medium text-action transition-colors hover:bg-action-soft';
+/** Botón redondo de las acciones secundarias de la cabecera: solo icono, 40 px, borde suave; marcado, relleno suave. */
+const iconAction =
+  'size-[40px] rounded-full border-line-strong bg-white/80 text-action hover:bg-white aria-pressed:border-action/40 aria-pressed:bg-action-soft [&_svg]:size-[18px]';
+
+/** El id de «Etiquetas QR»: la ficha le devuelve el foco al cerrar el modo. */
+export const labelsButtonId = 'etiquetas-qr';
 
 /**
- * Cabecera de la ficha: el cuadro del módulo y el nombre; la identidad en pastillas (código,
- * CAS, estado, «Controlado»); los pictogramas; y las acciones, con «Registrar salida» como la primaria
- * y «Ingresar frascos» como pastilla clara. «Editar» y «Actualizar» quedan como enlaces discretos.
+ * ⟳ «Actualizar» (ADR 0015, 14-10-2026): solo icono, junto al lápiz de «Editar ficha». Su nombre accesible y su
+ * `title` dicen cuándo se pidieron los datos: «Actualizar · actualizado hace N min». La frescura es la que ya da el
+ * contexto: lo más antiguo de lo que la ficha muestra.
+ */
+function RefreshButton({ freshness }: { freshness: ReagentsContext['freshness'] }) {
+  const now = useNow(15_000);
+  const name = freshness.refreshing
+    ? 'Actualizando…'
+    : freshness.updatedAt > 0
+      ? `Actualizar · actualizado ${formatAgo(freshness.updatedAt, now)}`
+      : 'Actualizar';
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label={name}
+      title={name}
+      aria-busy={freshness.refreshing || undefined}
+      className="-my-0.5 size-9 shrink-0 rounded-full text-ink-muted hover:text-action [&_svg]:size-[18px]"
+      onClick={freshness.refresh}
+    >
+      <RefreshCw className={cn(freshness.refreshing && 'motion-safe:animate-spin')} aria-hidden />
+    </Button>
+  );
+}
+
+/**
+ * Cabecera de la ficha: el cuadro del módulo y el nombre, con el lápiz «Editar ficha» a su lado (solo icono, con
+ * `catalog.manage`) y ⟳ «Actualizar» (`RefreshButton`); la identidad en pastillas (código, CAS, estado, «Controlado»); los pictogramas; y las acciones,
+ * con «Registrar salida» como la primaria y, debajo, una fila de tres botones redondos solo icono, con tooltip: «Ingresar frascos», «Etiquetas QR»
+ * (gira las tarjetas de los frascos) y «Escanear» (abre la hoja del lector). «Ajustar» ya no está aquí: vive en la ficha ⚖ de cada frasco (ADR 0015,
+ * 14-10-2026).
  */
 export function ProductHeader({
   product,
   allowed,
   canIssue,
   freshness,
+  labels,
   onAction,
 }: {
   product: ProductDetail;
   allowed: Allowed;
   canIssue: boolean;
   freshness: ReagentsContext['freshness'];
+  /** El modo de etiquetas vive en la página (las tarjetas giran allí); el botón solo lo activa. */
+  labels: { active: boolean; onToggle: () => void };
   onAction: (request: SheetRequest) => void;
 }) {
-  const now = useNow(15_000);
   const state = product.physicalState ?? undefined;
   const StateIcon = (state && physicalStateIcon[state]) || FlaskConical;
   const showIssue = allowed.issue && canIssue;
+  const showLabels = product.containersWithStock > 0;
   return (
     <div className={cn(glassCard, 'p-5 md:p-6')}>
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
         <div className="flex min-w-0 items-start gap-4">
           <IconTile icon={FlaskConical} size="lg" />
           <div className="grid min-w-0 gap-3">
-            <h1 className="text-display text-balance break-words leading-tight text-ink">{product.name}</h1>
+            <div className="flex min-w-0 items-start gap-1">
+              <h1 className="min-w-0 text-display text-balance break-words leading-tight text-ink">{product.name}</h1>
+              {allowed.product ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Editar ficha"
+                  title="Editar ficha"
+                  className="-my-0.5 size-9 shrink-0 rounded-full text-ink-muted hover:text-action [&_svg]:size-[18px]"
+                  onClick={() => onAction({ kind: 'product', product })}
+                >
+                  <PencilLine aria-hidden />
+                </Button>
+              ) : null}
+              <RefreshButton freshness={freshness} />
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <InfoPill mono>
                 <span className="sr-only">Código </span>
@@ -86,44 +137,43 @@ export function ProductHeader({
               )}
               {product.density ? <span className="tabular-nums">Densidad {formatDecimal(product.density)} g/mL</span> : null}
             </div>
-            <p className="-ml-1.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[13px] text-ink-muted">
-              <span className="px-1.5">{freshness.updatedAt > 0 ? `Actualizado ${formatAgo(freshness.updatedAt, now)}` : 'Cargando…'}</span>
-              <button type="button" className={quietLink} onClick={freshness.refresh}>
-                <RefreshCw className="size-3.5" aria-hidden />
-                {freshness.refreshing ? 'Actualizando…' : 'Actualizar'}
-              </button>
-              {allowed.product ? (
-                <button type="button" className={quietLink} onClick={() => onAction({ kind: 'product', product })}>
-                  <PencilLine className="size-3.5" aria-hidden />
-                  Editar
-                </button>
-              ) : null}
-            </p>
           </div>
         </div>
-        {showIssue || allowed.receipt ? (
-          <div className="grid shrink-0 gap-2.5 sm:grid-cols-2 lg:w-60 lg:grid-cols-1">
-            {showIssue ? (
-              <Button
-                variant="primary"
-                className="h-14 rounded-2xl bg-linear-to-r from-action to-action-deep px-6 text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep [&_svg]:size-5"
-                onClick={() => onAction({ kind: 'issue', productId: product.id })}
-              >
-                <ArrowUpFromLine aria-hidden />
-                {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
-              </Button>
-            ) : null}
+        <div className="grid shrink-0 gap-3 lg:w-64">
+          {showIssue ? (
+            <Button
+              variant="primary"
+              className="h-14 rounded-2xl bg-linear-to-r from-action to-action-deep px-6 text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep [&_svg]:size-5"
+              onClick={() => onAction({ kind: 'issue', productId: product.id })}
+            >
+              <ArrowUpFromLine aria-hidden />
+              {allowed.approve ? 'Registrar salida' : 'Solicitar salida'}
+            </Button>
+          ) : null}
+          {/* Tres botones solo icono: cada uno dice su nombre con `aria-label` y lo muestra en un tooltip. */}
+          <div className="flex flex-wrap gap-2">
             {allowed.receipt ? (
-              <Button
-                className="h-11 rounded-full border-line-strong bg-white/80 px-5 font-semibold text-action hover:bg-white"
-                onClick={() => onAction({ kind: 'ingress', productId: product.id })}
-              >
-                <PackagePlus aria-hidden />
-                Ingresar frascos
-              </Button>
+              <Tooltip label="Ingresar frascos">
+                <Button size="icon" className={iconAction} aria-label="Ingresar frascos" onClick={() => onAction({ kind: 'ingress', productId: product.id })}>
+                  <PackagePlus aria-hidden />
+                </Button>
+              </Tooltip>
             ) : null}
+            {showLabels ? (
+              <Tooltip label="Etiquetas QR">
+                <Button id={labelsButtonId} size="icon" className={iconAction} aria-label="Etiquetas QR" aria-pressed={labels.active} onClick={labels.onToggle}>
+                  <QrCode aria-hidden />
+                </Button>
+              </Tooltip>
+            ) : null}
+            {/* Lee la etiqueta QR de otro frasco: abre la misma hoja que la cabecera de la sección (14-10-2026). */}
+            <Tooltip label="Escanear">
+              <Button size="icon" className={iconAction} aria-label="Escanear" onClick={() => onAction({ kind: 'scan' })}>
+                <ScanLine aria-hidden />
+              </Button>
+            </Tooltip>
           </div>
-        ) : null}
+        </div>
       </div>
     </div>
   );
