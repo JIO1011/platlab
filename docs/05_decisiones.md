@@ -460,13 +460,29 @@ Motivo: quien registra tiene el frasco en la mano y llena lo que lee, de arriba 
 
      Revisado el 14-10-2026: los indicadores del Resumen ya enlazaban a su lista, y «Factura o guía» se descarta, junto con la referencia de texto que aceptaba el ingreso y la web no usaba.
   2. Ámbito por ubicación: solo limpieza de permisos. Las ubicaciones y la vista por laboratorio no cambian; esa vista es del módulo Laboratorios (F3). Hecho el 14-10-2026 (ADR 0008, «Sin ámbito técnico»).
-  3. T-07.
+  3. T-07: aplazado ([ADR 0017](#adr-0017)).
   4. R-01B: ficha de seguridad en PDF por reactivo (también al escanear y en la salida), avisos y exportar a Excel y PDF.
-  5. Preparación de soluciones.
+  5. Preparación de soluciones: pasa al final, como submódulo ([ADR 0017](#adr-0017)).
   6. Antes de G1: catálogo de más de 100 reactivos, auditoría de UI, QR impreso y rendimiento.
   7. REG-01 y REG-02 reducido.
 
 Motivo: el usuario prioriza un módulo completo y usable. El reporte exportable cubre la obligación periódica mientras REG-01 confirma con el laboratorio y la norma qué más hace falta. Cambia la barrera de `CLAUDE.md` y el orden del [ADR 0014](#adr-0014) (14-10-2026).
+
+<a id="adr-0017"></a>
+
+## ADR 0017 — Ficha de seguridad pública, exportación por streaming y T-07 aplazado
+
+- **Ficha de seguridad: enlace o PDF.** El Administrador pega el enlace del fabricante o sube el PDF. La ficha es informativa, no sensible: el PDF queda en un bucket público de Supabase Storage con enlace permanente.
+  - Solo la API sube, con el permiso de catálogo del espacio; el navegador nunca escribe en Storage.
+  - Ruta `<workspace_id>/sds/<uuid>.pdf`: nadie lista, sobrescribe ni borra archivos de otro espacio. Quien recibe un enlace ve esa ficha, y se acepta por ser informativa.
+  - Solo PDF, comprobado por su contenido (`%PDF`), de 6 MiB como máximo ([02 §12](02_arquitectura.md#12-parámetros-iniciales)).
+  - Nunca se sobrescribe: una ficha nueva es un archivo nuevo y la anterior queda para trazabilidad.
+  - Storage se enciende en el entorno local y en el CI.
+- **Exportar por streaming.** El Excel de Movimientos e Inventario sale de la misma consulta aislada del espacio, por lotes con cursor, sin cargarlo entero en memoria ni guardarlo. El PDF sale de «Imprimir».
+- **T-07 se aplaza** (archivos privados, outbox y worker) hasta el primer efecto externo: correo, integración o trabajo en segundo plano. Los avisos de R-01B van solo en la app y se calculan al consultar.
+- **Orden de Reactivos revisado:** R-01B; lo previo a G1, que suma el rendimiento con la carga sintética del roadmap y una prueba de aislamiento en todas las rutas; REG-01 y REG-02 reducido; y al final la preparación de soluciones, como submódulo de Reactivos.
+
+Motivo: el usuario prioriza lo necesario para el piloto y menos superficie fuera de la base, donde un cliente podría mezclarse con otro; la ficha de seguridad no es un dato sensible. Cambia el orden del [ADR 0016](#adr-0016) y, solo para las fichas, la regla «Storage es privado» de 02 (14-10-2026).
 
 ## Pendientes
 
@@ -474,7 +490,7 @@ Motivo: el usuario prioriza un módulo completo y usable. El reporte exportable 
 |---|---|---|
 | Fiscalizados | Sustancias, concentraciones, cupos, sitios, custodia, formato vigente del reporte y si las salidas reguladas requieren aprobación | REG-01 (F0) |
 | Espacios del piloto | ¿Una o varias unidades operan el inventario? ¿La calificación abarca varias? ¿Necesita el titular una vista consolidada de sus espacios (informes o traslados entre ellos)? Hoy los espacios no comparten nada, aunque sean del mismo titular; abrirlo exige una decisión nueva | F0, con REG-01 |
-| Soluciones preparadas | Mejora posterior a completar Reactivos (ADR 0014); el diseño ya está decidido (03 §4). Falta saber si el laboratorio almacena soluciones y si siguen siendo fiscalizadas | REG-01 |
+| Soluciones preparadas | Submódulo de Reactivos, al final ([ADR 0017](#adr-0017)); el diseño ya está decidido (03 §4). Falta saber si el laboratorio almacena soluciones y si siguen siendo fiscalizadas | REG-01 |
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
 | Reglas de Prácticas | Anticipación, cancelaciones, salas exclusivas, devoluciones químicas y quién declara el consumo al cerrar | P-04, antes de F3 |
@@ -484,6 +500,7 @@ Motivo: el usuario prioriza un módulo completo y usable. El reporte exportable 
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
 | Libro sin filtros | La lista sin filtros (también la actividad del Resumen) entra por frascos y ordena todo el libro del espacio: unos 250 ms con 40 000 operaciones (medido en R-01C). ¿Índice o consulta distinta? | Antes de G1, con el escenario de carga (04 §4) |
 | Inventario de más de 100 reactivos | La web carga solo la primera página del catálogo (100). El Inventario y sus filtros no muestran el resto. ¿Paginación, búsqueda en el servidor o ambas? | Antes de G1 |
+| Lecturas de Reactivos sobre inventario | `reagents/infrastructure/products.sql` lee directamente `inventory.positions`, `lots` e `items` (12 uniones): las fronteras de código no lo detectan y un cambio de esas tablas rompería Reactivos. ¿Vista de lectura propia de la capacidad o consultas movidas a su interfaz? | Antes de G1, con el rendimiento |
 | Índice por frasco | La ficha busca quién ingresó cada frasco recorriendo sus posiciones; no hay índice en `inventory.positions (workspace_id, container_id)`. Añadirlo si crece el número de posiciones | Antes de G1, con el escenario de carga |
 | Conexión a PostgreSQL | ¿Conexión directa con el complemento IPv4 o Supavisor en modo sesión? | S-01 |
 | Credencial local del rol de runtime | `supabase/seed.sql` fija una contraseña de desarrollo. Antes de usar ramas de Supabase o staging, pasarla a una variable de entorno local o desactivar el seed fuera de local y CI | S-01 |
