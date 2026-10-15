@@ -5,7 +5,7 @@ Solo para la sesión principal: lo inyecta el hook `SessionStart` de `.claude/se
 ## MCP
 
 - context7 para documentación de librerías.
-- codebase-memory para analizar código local; hay una skill global.
+- **codebase-memory, obligatorio** (pedido del usuario, 14-10-2026): para ubicar código, la sesión principal y los agentes usan `search_graph`, `search_code`, `get_code_snippet` y `trace_path`, nunca `grep` ni `sed` sobre código. `grep` solo para docs y para los rangos que `index_status` marca como parciales (SQL).
 
 ## Modelos y delegación
 
