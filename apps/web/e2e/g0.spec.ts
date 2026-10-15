@@ -161,7 +161,8 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   await ingress.getByRole('button', { name: 'Ingresar 2 frascos' }).click();
   await expect(ingress.getByRole('alert').filter({ hasText: 'Revisa el CAS' })).toBeVisible();
   await expect(ingress.getByRole('textbox', { name: 'CAS' })).toHaveAttribute('aria-invalid', 'true');
-  // Los globos ⓘ se abren con clic y se cierran con Esc sin cerrar la ventana.
+  // Los globos ⓘ se abren con clic y se cierran con Esc sin cerrar la ventana (con la sección desplegada).
+  if ((await weightToggle.getAttribute('aria-expanded')) !== 'true') await weightToggle.click();
   const weightTip = ingress.getByRole('button', { name: 'Cómo pesar el frasco' });
   await weightTip.click();
   await expect(weightTip).toHaveAttribute('aria-expanded', 'true');
@@ -1173,7 +1174,7 @@ test('Movimientos: Imprimir abre la vista imprimible con el encabezado y la tabl
   // Totales: la misma vista imprime la tabla de totales.
   await admin.getByRole('button', { name: 'Totales', exact: true }).click();
   await trigger.click();
-  await expect(sheet.getByText('Totales por reactivo')).toBeVisible();
+  await expect(sheet.getByText(/^Totales por reactivo ·/)).toBeVisible();
   await expect(sheet.getByRole('columnheader', { name: 'Movimientos' })).toBeVisible();
   await expect(admin.locator('html')).toHaveAttribute('data-prints', '2');
 });

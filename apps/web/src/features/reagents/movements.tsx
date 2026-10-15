@@ -105,7 +105,8 @@ export function ReagentsMovementsPage() {
     <div className={cn(showPanel && 'grid grid-cols-[minmax(0,1fr)_18rem] items-start gap-6')}>
       <div className="min-w-0">
         <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3">
-          <p className="min-w-0 basis-full text-sm text-ink-muted sm:flex-1 sm:basis-0">
+          {/* `div`, no `p`: el esqueleto es un bloque y un `p` no puede contenerlo. */}
+          <div className="min-w-0 basis-full text-sm text-ink-muted sm:flex-1 sm:basis-0">
             {total === undefined ? (
               <Skeleton className="h-5 w-52" />
             ) : (
@@ -114,7 +115,7 @@ export function ReagentsMovementsPage() {
                 <span> · {periodText(filters.period, currentYear)}</span>
               </>
             )}
-          </p>
+          </div>
           {canReport ? (
             <Segmented
               label="Vista"

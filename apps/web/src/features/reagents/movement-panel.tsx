@@ -56,7 +56,7 @@ function Pill({
         checked={checked}
         onChange={onChange}
         data-group-toggle={toggleGroup}
-        className="absolute inset-0 m-0 size-full cursor-pointer opacity-0"
+        className="absolute -inset-px m-0 cursor-pointer opacity-0"
       />
       <span className="min-w-0 truncate">{children}</span>
       {count === undefined ? null : (

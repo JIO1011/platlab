@@ -83,8 +83,8 @@ export function Section({
         id={bodyId}
         inert={!fold.open}
         className={cn(
-          'grid transition-[grid-template-rows] duration-200 ease-out-expo motion-reduce:transition-none',
-          fold.open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+          'grid transition-[grid-template-rows,visibility] duration-200 ease-out-expo motion-reduce:transition-none',
+          fold.open ? 'visible grid-rows-[1fr]' : 'invisible grid-rows-[0fr]',
         )}
       >
         <div className="-mx-1 min-h-0 overflow-hidden px-1">

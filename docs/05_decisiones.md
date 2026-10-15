@@ -432,6 +432,29 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 
 Motivo: quien registra tiene el frasco en la mano y llena lo que lee, de arriba abajo; separar el catálogo y el ingreso en dos ventanas lo hacía lento. La tara permite comprobar con la balanza lo que dice el sistema. «Controlado» se entiende igual en universidades, empresas y uso individual. Cambia el [ADR 0012](#adr-0012) (tara, densidad, código de frasco y ventanas de registro) y el término del [ADR 0014](#adr-0014).
 
+<a id="adr-0016"></a>
+
+## ADR 0016 — Controlados al final y orden para completar Reactivos
+
+- **Controlados (REG-02) va al final y se reduce a lo que confirme REG-01.**
+  - En el piloto, el reporte de controlados sale de Movimientos e Inventario filtrados por «Controlado» y exportados a PDF o Excel.
+  - Cupos, custodia y reporte en formato oficial se hacen solo si REG-01 los exige.
+- **Orden para completar Reactivos:**
+  1. Mejoras pequeñas:
+     - indicadores del Resumen con enlace a su lista;
+     - «Ficha de seguridad» al escanear;
+     - «Factura o guía» en el ingreso;
+     - ruta de la ubicación en el historial;
+     - código automático sin palabras vacías.
+  2. Ámbito por ubicación: solo limpieza de permisos. Las ubicaciones y la vista por laboratorio no cambian; esa vista es del módulo Laboratorios (F3).
+  3. T-07.
+  4. R-01B: ficha de seguridad en PDF por reactivo (también al escanear y en la salida), avisos y exportar a Excel y PDF.
+  5. Preparación de soluciones.
+  6. Antes de G1: catálogo de más de 100 reactivos, auditoría de UI, QR impreso y rendimiento.
+  7. REG-01 y REG-02 reducido.
+
+Motivo: el usuario prioriza un módulo completo y usable. El reporte exportable cubre la obligación periódica mientras REG-01 confirma con el laboratorio y la norma qué más hace falta. Cambia la barrera de `CLAUDE.md` y el orden del [ADR 0014](#adr-0014) (14-10-2026).
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |
