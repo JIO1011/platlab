@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { product } from '@platlab/contracts';
 import { z } from 'zod';
 import { api, isApiError } from '../../app/api';
 import { workspaceKey } from '../../app/queries';
@@ -52,6 +53,26 @@ export function useArchiveEntry(workspaceId: string, path: '/reasons' | '/destin
         method: 'POST',
         idempotencyKey: crypto.randomUUID(),
         schema: archived,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: reagentsKey }),
+  });
+}
+
+/**
+ * Sube el PDF de la ficha de seguridad (ADR 0017), que reemplaza a la vigente. El reactivo va en cada
+ * envío: en el ingreso solo se conoce al confirmarlo. Cada envío lleva su clave; repetirlo deja otra
+ * ficha en el historial, nunca otro movimiento.
+ */
+export function useUploadSafetySheet(workspaceId: string) {
+  const queryClient = useQueryClient();
+  const reagentsKey = useReagentsKey(workspaceId);
+  return useMutation({
+    mutationFn: ({ productId, file }: { productId: string; file: Blob }) =>
+      api(`/workspaces/${workspaceId}/reagents/products/${productId}/safety-sheet`, {
+        method: 'PUT',
+        pdf: file,
+        idempotencyKey: crypto.randomUUID(),
+        schema: product,
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: reagentsKey }),
   });

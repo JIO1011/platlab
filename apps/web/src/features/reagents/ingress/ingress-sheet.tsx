@@ -5,8 +5,9 @@ import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { isApiError } from '../../../app/api';
 import { ChoiceField } from '../choices';
-import { commandErrorMessage, useCommand } from '../commands';
+import { commandErrorMessage, useCommand, useUploadSafetySheet } from '../commands';
 import { useAreas, useBrands, useCodeSuggestion, useProduct, useProductSearch, useReceiptLocations } from '../queries';
+import { warnSheetNotUploaded } from '../sds';
 import { FormSheet, type SheetBaseProps } from '../sheets/shared';
 import { useDebouncedValue } from '../use-media-query';
 import { isVolume } from '../weight';
@@ -24,6 +25,7 @@ import {
   emptyDraft,
   levelOneOf,
   receiptTare,
+  sdsFileOf,
   seriesOf,
   toPlaces,
   validateBottles,
@@ -103,6 +105,7 @@ export function IngressSheet({
   const countRef = useRef<HTMLInputElement>(null);
 
   const receipt = useCommand(workspaceId, '/receipts', receiptResponse);
+  const uploadSheet = useUploadSafetySheet(workspaceId);
   const createLocation = useCommand(workspaceId, '/locations', location);
   const locations = useReceiptLocations(workspaceId, open);
   const brands = useBrands(workspaceId, open);
@@ -234,6 +237,11 @@ export function IngressSheet({
             navigate(`${base}/inventario/${result.product.id}/etiquetas?frascos=${received.map((container) => container.containerId).join(',')}`),
         },
       });
+      // El ingreso ya quedó: si la ficha no sube, se avisa y se sube desde la ficha del reactivo.
+      const sheet = existing ? null : sdsFileOf(draft);
+      if (sheet) {
+        await uploadSheet.mutateAsync({ productId: result.product.id, file: sheet }).catch(warnSheetNotUploaded);
+      }
       onOpenChange(false);
     } catch (error) {
       if (isApiError(error, 'NAME_TAKEN')) setServerErrors({ name: error.message });
@@ -294,7 +302,7 @@ export function IngressSheet({
       submitLabel={`Ingresar ${bottlesLabel}`}
       submitDisabled={missing > 0}
       submitLead={<BottlesStepper value={form.count} onChange={(next) => patch({ count: next })} error={errors.count} inputRef={countRef} />}
-      pending={receipt.isPending}
+      pending={receipt.isPending || uploadSheet.isPending}
       generalError={generalError}
       status={status}
       initialFocus={initial ? quantityRef : nameRef}

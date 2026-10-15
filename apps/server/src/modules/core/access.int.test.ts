@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { errorResponse, myWorkspacesResponse, workspaceMeResponse } from '@platlab/contracts';
 import { buildApp } from '../../app.js';
+import { localPublicFiles } from '../../testing/storage.js';
 import { createPool } from '../../platform/db/pool.js';
 import {
   addLocation,
@@ -28,7 +29,7 @@ const pool = createPool({
   max: 1,
 });
 const signer = await createTestSigner();
-const app = buildApp({ pool, verifyToken: signer.verifier });
+const app = buildApp({ pool, verifyToken: signer.verifier, publicFiles: localPublicFiles });
 
 const permission = 'reagents.catalog.read';
 const adminPermission = 'reagents.report.read';

@@ -93,7 +93,8 @@ Reglas:
 | Tabla | Esencial |
 |---|---|
 | `inventory.items` | Código, nombre, `kind`, unidad base, mínimo opcional (en la unidad base), modo de seguimiento y archivado |
-| `reagents.products` | Extensión 1:1 del item: CAS (obligatorio salvo en mezclas), estado físico (sólido, líquido, acuoso, mezcla, gas), pictogramas SGA, controlado, ficha de seguridad (digital con enlace, física o ninguna) y densidad en g/mL ([ADR 0015](05_decisiones.md#adr-0015)) |
+| `reagents.products` | Extensión 1:1 del item: CAS (obligatorio salvo en mezclas), estado físico (sólido, líquido, acuoso, mezcla, gas), pictogramas SGA, controlado, ficha de seguridad (digital con enlace o PDF, física o ninguna) y densidad en g/mL ([ADR 0015](05_decisiones.md#adr-0015)) |
+| `reagents.safety_sheets` | Cada PDF subido de la ficha de seguridad: ruta en el bucket público, enlace, tamaño, SHA-256 y quién lo subió. Nunca se edita ni se borra; el reactivo apunta a la vigente ([ADR 0017](05_decisiones.md#adr-0017)) |
 | `inventory.lots` | Item (FK compuesta), código automático, marca, área y caducidad (puede ser desconocida). Sin estado propio: cada frasco se gestiona por separado ([ADR 0012](05_decisiones.md#adr-0012), 05-10-2026) |
 | `inventory.containers` | Envase identificable (frasco): código propio y único en el espacio, lote, cantidad inicial y, con control por peso, tara en g y la densidad con que se calculó ([ADR 0015](05_decisiones.md#adr-0015)). La apertura y la caducidad tras abrir, cuando el proceso lo exija |
 | `inventory.positions` | Item, lote, envase y retorno opcionales, ubicación, disposición, saldo, reservado y versión |

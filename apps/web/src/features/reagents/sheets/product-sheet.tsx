@@ -3,12 +3,13 @@ import { Field, toast } from '@platlab/ui';
 import { CircleCheck, PencilLine, Save, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { isApiError } from '../../../app/api';
-import { commandErrorMessage, useCommand } from '../commands';
+import { commandErrorMessage, useCommand, useUploadSafetySheet } from '../commands';
 import { checkCas } from '../ingress/cas';
 import { FilledInput, fieldGrid, fieldLabel } from '../ingress/filled';
-import { casRequired, catalogFields, draftOf, productUnits, validateDraft, type Draft, type Errors } from '../ingress/model';
+import { casRequired, catalogFields, draftOf, productUnits, sdsFileOf, validateDraft, type Draft, type Errors } from '../ingress/model';
 import { SafetyFields } from '../ingress/safety-fields';
 import { PillField } from '../pills';
+import { warnSheetNotUploaded } from '../sds';
 import { type SheetBaseProps, FormSheet } from './shared';
 
 /** Las unidades admitidas y, si es otra (un reactivo anterior: mg, u…), también la suya, para mostrarla. */
@@ -17,11 +18,12 @@ const unitOptions = (unit: string) =>
 
 /**
  * Editar la ficha (ADR 0015), solo con el permiso de catálogo: nombre, CAS, estado, peligros,
- * controlado, ficha de seguridad y densidad. La unidad cambia solo mientras el reactivo no tenga
+ * controlado, ficha de seguridad (enlace o PDF, ADR 0017) y densidad. La unidad cambia solo mientras el reactivo no tenga
  * movimientos. Se envían solo los campos que cambiaron: la unidad, solo si se eligió otra.
  */
 export function ProductSheet({ workspaceId, open, onOpenChange, product }: SheetBaseProps & { product: ProductDetail }) {
   const command = useCommand(workspaceId, `/products/${product.id}`, productSchema, 'PATCH');
+  const uploadSheet = useUploadSafetySheet(workspaceId);
   const [initial] = useState(() => draftOf(product));
   const [draft, setDraft] = useState<Draft>(initial);
   const [attempted, setAttempted] = useState(false);
@@ -43,12 +45,19 @@ export function ProductSheet({ workspaceId, open, onOpenChange, product }: Sheet
   const submit = async () => {
     setGeneralError(null);
     if (Object.keys(issues).length > 0) return setAttempted(true);
-    if (Object.keys(changes).length === 0) return onOpenChange(false);
-    const parsed = updateProductRequest.safeParse(changes);
-    if (!parsed.success) return setGeneralError(parsed.error.issues[0]?.message ?? 'Revisa los datos de la ficha.');
+    const sheet = sdsFileOf(draft);
+    const hasChanges = Object.keys(changes).length > 0;
+    if (!hasChanges && !sheet) return onOpenChange(false);
+    const parsed = hasChanges ? updateProductRequest.safeParse(changes) : null;
+    if (parsed && !parsed.success) return setGeneralError(parsed.error.issues[0]?.message ?? 'Revisa los datos de la ficha.');
     try {
-      const result = await command.mutateAsync(parsed.data);
-      toast.success('Ficha actualizada', { description: result.name });
+      const saved = parsed ? await command.mutateAsync(parsed.data) : product;
+      if (sheet) {
+        const upload = uploadSheet.mutateAsync({ productId: product.id, file: sheet });
+        // Con datos ya guardados, un fallo del PDF solo se avisa; sin ellos, el error se queda en la hoja.
+        await (parsed ? upload.catch(warnSheetNotUploaded) : upload);
+      }
+      toast.success('Ficha actualizada', { description: saved.name });
       onOpenChange(false);
     } catch (error) {
       if (isApiError(error, 'NAME_TAKEN')) setNameTaken(error.message);
@@ -68,7 +77,7 @@ export function ProductSheet({ workspaceId, open, onOpenChange, product }: Sheet
       open={open}
       onOpenChange={onOpenChange}
       submitLabel="Guardar cambios"
-      pending={command.isPending}
+      pending={command.isPending || uploadSheet.isPending}
       generalError={generalError}
       onSubmit={() => void submit()}
     >
@@ -116,7 +125,7 @@ export function ProductSheet({ workspaceId, open, onOpenChange, product }: Sheet
             hint={product.unitEditable ? undefined : 'No cambia: el reactivo ya tiene movimientos.'}
           />
         </div>
-        <SafetyFields existing={null} draft={draft} onDraft={patchDraft} errors={errors} withDensity />
+        <SafetyFields existing={null} sdsFileUrl={product.sdsFileUrl} draft={draft} onDraft={patchDraft} errors={errors} withDensity />
       </div>
     </FormSheet>
   );

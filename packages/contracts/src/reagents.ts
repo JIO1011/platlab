@@ -23,6 +23,8 @@ const adjustmentQuantity = z
 
 /** «Por vencer»: caduca entre hoy y los próximos días (02 §12, ADR 0012); lo usan el servidor y la web. */
 export const EXPIRING_DAYS = 30;
+/** PDF de la ficha de seguridad (02 §12, ADR 0017); lo usan el servidor y la web. */
+export const SAFETY_SHEET_MAX_BYTES = 6 * 1024 * 1024;
 
 export const physicalState = z.enum(['solid', 'liquid', 'aqueous', 'mixture', 'gas']);
 /** Los nueve pictogramas SGA (ADR 0015). */
@@ -131,7 +133,9 @@ export const product = z.object({
   hazards: z.array(hazard),
   controlled: z.boolean(),
   sdsKind: sdsKind.nullable(),
+  /** Enlace del fabricante; el PDF subido va en `sdsFileUrl`. Solo hay uno vigente (ADR 0017). */
   sdsUrl: z.string().nullable(),
+  sdsFileUrl: z.string().nullable(),
   density: decimalString.nullable(),
 });
 
@@ -425,9 +429,10 @@ export const position = z.object({
     code: z.string(),
     name: z.string(),
     controlled: z.boolean(),
-    /** Ficha de seguridad del reactivo (ADR 0016), para consultarla al entregar. */
+    /** Ficha de seguridad del reactivo (ADR 0016), para consultarla al entregar: enlace o PDF (ADR 0017). */
     sdsKind: sdsKind.nullable(),
     sdsUrl: z.string().nullable(),
+    sdsFileUrl: z.string().nullable(),
   }),
   lot: z.object({
     id: z.uuid(),

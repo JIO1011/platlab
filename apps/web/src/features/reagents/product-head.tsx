@@ -122,7 +122,7 @@ export function ProductHeader({
             {/* Seguridad (ADR 0015): pictogramas, ficha de seguridad y densidad, como los registra el catálogo. */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-muted">
               {product.hazards.length > 0 ? <HazardGlyphs ids={product.hazards} large /> : <span>Sin pictogramas</span>}
-              <SdsReference kind={product.sdsKind} url={product.sdsUrl} />
+              <SdsReference kind={product.sdsKind} url={product.sdsFileUrl ?? product.sdsUrl} />
               {product.density ? <span className="tabular-nums">Densidad {formatDecimal(product.density)} g/mL</span> : null}
             </div>
           </div>

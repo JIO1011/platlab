@@ -19,6 +19,9 @@ Revisión: 12 de octubre de 2026. Registro resumido de decisiones de arquitectur
 | [0013](#adr-0013) | Delegación por riesgo y puertas del harness | Aceptado el 07-10-2026 |
 | [0014](#adr-0014) | Reactivos completo: cinco secciones, Movimientos como informe y avisos comunes | Aceptado el 12-10-2026 |
 | [0015](#adr-0015) | Ingreso en un paso, control por peso y controlados | Aceptado el 12-10-2026 |
+| [0016](#adr-0016) | Controlados al final y orden para completar Reactivos | Aceptado el 14-10-2026 |
+| [0017](#adr-0017) | Ficha de seguridad pública, exportación por streaming y T-07 aplazado | Aceptado el 14-10-2026 |
+| [0018](#adr-0018) | Reactivos concluido para el piloto; sigue Equipos | Aceptado el 15-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -483,6 +486,35 @@ Motivo: el usuario prioriza un módulo completo y usable. El reporte exportable 
 - **Orden de Reactivos revisado:** R-01B; lo previo a G1, que suma el rendimiento con la carga sintética del roadmap y una prueba de aislamiento en todas las rutas; REG-01 y REG-02 reducido; y al final la preparación de soluciones, como submódulo de Reactivos.
 
 Motivo: el usuario prioriza lo necesario para el piloto y menos superficie fuera de la base, donde un cliente podría mezclarse con otro; la ficha de seguridad no es un dato sensible. Cambia el orden del [ADR 0016](#adr-0016) y, solo para las fichas, la regla «Storage es privado» de 02 (14-10-2026).
+
+**Implementación de R-01B (15-10-2026).** Tres entregas, una rama cada una: ficha en PDF, Excel e «Imprimir», y avisos.
+
+- **Ficha en PDF.**
+  - Cada archivo es una fila de `reagents.safety_sheets`, que nunca se borra; el reactivo apunta a la vigente. Hay una sola ficha vigente: enlace o PDF.
+  - La API sube con las claves S3 de Storage, que solo alcanzan archivos; nunca con la clave `service_role`, que abre la base.
+  - Autoriza, sube fuera de la transacción y registra en otra que vuelve a autorizar: nada externo con la transacción abierta. Si el registro falla, queda un archivo sin referencia; se acepta por ser público, con nombre aleatorio y sin datos sensibles.
+  - Bucket público `public-files` en `supabase/config.toml` para el entorno local y el CI; en Supabase alojado se crea en S-01.
+- **Excel.**
+  - Se escribe con `fflate` (sin dependencias): las cantidades pasan como texto decimal exacto, nunca por `number`. Tope en [02 §12](02_arquitectura.md#12-parámetros-iniciales).
+  - El Inventario lleva dos hojas: reactivos, como en pantalla, y frascos con saldo (lote, ubicación, caducidad y saldo).
+- **Avisos.** Core los compone desde el manifiesto de cada módulo, como las tarjetas del Inicio, y cada uno exige su permiso.
+  - Reactivos: solicitudes por aprobar (`reagents.issue.approve`), bajo mínimo, vencidos y por vencer (`reagents.catalog.read`).
+  - Son condiciones vigentes: sin «leído», desaparecen al resolverse. «Mis avisos» llega con el correo (T-07). Reemplaza la emisión por outbox del [ADR 0014](#adr-0014).
+
+<a id="adr-0018"></a>
+
+## ADR 0018 — Reactivos concluido para el piloto; sigue Equipos
+
+- **Reactivos queda concluido** con la ficha de seguridad en PDF (R-01B, entrega 1). Sus pruebas están escritas y se corren más adelante.
+- **Lo pendiente se programa solo si el cliente lo confirma** (F0):
+  - «Exportar a Excel», con el Inventario en dos hojas, y los avisos en la app (resto de R-01B, [ADR 0017](#adr-0017)).
+  - El QR impreso y la auditoría formal de la UI (R-01A).
+  - Lo previo a G1: rendimiento con la carga sintética, aislamiento en todas las rutas y los pendientes de la tabla de abajo.
+  - REG-01 y REG-02 reducido, y la preparación de soluciones.
+- **Reorganización sin cambiar la lógica**, antes de G1 y con las pruebas corriendo: partir por caso de uso `commands.ts`, `reagents.int.test.ts` y `contracts/src/reagents.ts`, y simplificar `MovementFilterPanel` e `IngressSheet`. Equipos nace con esa estructura.
+- **Sigue E-01 Equipos**, con el mínimo que confirme el cliente.
+
+Motivo: el usuario da por concluido el módulo y no quiere lógica que el cliente no necesite. Reemplaza el orden del [ADR 0016](#adr-0016) y del [ADR 0017](#adr-0017), y la regla «Reactivos se completa antes de abrir otro módulo» del [ADR 0014](#adr-0014) (15-10-2026).
 
 ## Pendientes
 

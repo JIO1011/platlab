@@ -3,6 +3,7 @@ import {
   newProduct,
   productRuleViolation,
   receiptRequest,
+  SAFETY_SHEET_MAX_BYTES,
   type Location,
   type physicalState,
   type Product,
@@ -30,12 +31,17 @@ export interface Draft {
   controlled: boolean;
   hazards: Hazard[];
   sds: SdsKind | '';
+  /** Con ficha digital: el enlace del fabricante o el PDF que se sube (ADR 0017). */
+  sdsSource: 'link' | 'pdf';
+  /** Solo el enlace del fabricante: nunca se precarga con el PDF vigente. */
   sdsUrl: string;
+  /** El PDF elegido para subir; se sube después de guardar los datos, con su propia petición. */
+  sdsFile: File | null;
   /** g/mL; solo cuenta en volumen. */
   density: string;
 }
 
-export const emptyDraft: Draft = { name: '', cas: '', unit: 'g', state: '', controlled: false, hazards: [], sds: '', sdsUrl: '', density: '' };
+export const emptyDraft: Draft = { name: '', cas: '', unit: 'g', state: '', controlled: false, hazards: [], sds: '', sdsSource: 'link', sdsUrl: '', sdsFile: null, density: '' };
 
 /** La ficha de un reactivo como borrador, para editarla. */
 export function draftOf(product: Product): Draft {
@@ -47,7 +53,9 @@ export function draftOf(product: Product): Draft {
     controlled: product.controlled,
     hazards: product.hazards,
     sds: product.sdsKind ?? '',
+    sdsSource: product.sdsFileUrl ? 'pdf' : 'link',
     sdsUrl: product.sdsUrl ?? '',
+    sdsFile: null,
     density: product.density ? toDecimalInput(product.density) : '',
   };
 }
@@ -84,7 +92,7 @@ export const emptyBottles: BottlesForm = {
 };
 
 export type Errors = Partial<
-  Record<'name' | 'state' | 'cas' | 'sdsUrl' | 'density' | 'quantity' | 'count' | 'code' | 'placeId' | 'weight', string>
+  Record<'name' | 'state' | 'cas' | 'sdsUrl' | 'sdsFile' | 'density' | 'quantity' | 'count' | 'code' | 'placeId' | 'weight', string>
 >;
 
 /** Frascos por ingreso: el máximo de códigos que acepta el contrato. */
@@ -92,6 +100,12 @@ export const MAX_BOTTLES = 50;
 
 export const countOf = (text: string) => (/^\d{1,3}$/.test(text.trim()) ? Number(text.trim()) : null);
 export const countValid = (count: number | null): count is number => count !== null && count >= 1 && count <= MAX_BOTTLES;
+
+/** El PDF de la ficha que se sube tras guardar: solo con ficha digital y en modo PDF. */
+export const sdsFileOf = (draft: Draft): File | null => (draft.sds === 'digital' && draft.sdsSource === 'pdf' ? draft.sdsFile : null);
+
+/** El enlace del fabricante, solo con ficha digital en modo enlace. */
+const sdsLinkOf = (draft: Draft) => (draft.sds === 'digital' && draft.sdsSource === 'link' ? draft.sdsUrl.trim() : '');
 
 /** El CAS es obligatorio salvo en mezclas: la regla compartida del contrato. */
 export const casRequired = (state: Draft['state']) => productRuleViolation({ casNumber: null, physicalState: state || null }) !== null;
@@ -112,16 +126,22 @@ export function validateDraft(draft: Draft, { cas: requireCas = true } = {}): Er
   if (cas === 'empty') {
     if (requireCas && casRequired(draft.state)) errors.cas = 'Escribe el CAS, como 7647-14-5; solo una mezcla puede no tenerlo.';
   } else if (cas !== 'valid') errors.cas = 'Revisa el CAS: su dígito de control no coincide.';
-  const url = draft.sdsUrl.trim();
-  if (draft.sds === 'digital' && url && !sdsUrlValid(url)) errors.sdsUrl = 'Escribe el enlace completo, empieza por https://.';
+  const url = sdsLinkOf(draft);
+  if (url && !sdsUrlValid(url)) errors.sdsUrl = 'Escribe el enlace completo, empieza por https://.';
+  const file = sdsFileOf(draft);
+  if (file && file.type !== 'application/pdf') errors.sdsFile = 'Solo se admite PDF';
+  else if (file && file.size > SAFETY_SHEET_MAX_BYTES) errors.sdsFile = 'El PDF supera 6 MiB';
   const density = normalizeDecimalInput(draft.density);
   if (isVolume(draft.unit) && density && !isPositiveQuantity(density)) errors.density = 'Escribe la densidad en g/mL, como 0,789.';
   return errors;
 }
 
-/** Los datos de catálogo como los pide la API: el enlace solo con ficha digital y la densidad solo en volumen. */
+/**
+ * Los datos de catálogo como los pide la API: el enlace solo con ficha digital en modo enlace y la
+ * densidad solo en volumen. Con PDF (elegido o vigente) no hay enlace: el servidor conserva el vigente.
+ */
 export function catalogFields(draft: Draft) {
-  const url = draft.sdsUrl.trim();
+  const url = sdsLinkOf(draft);
   const density = normalizeDecimalInput(draft.density);
   return {
     name: draft.name.trim(),
@@ -131,7 +151,7 @@ export function catalogFields(draft: Draft) {
     hazards: draft.hazards,
     controlled: draft.controlled,
     sdsKind: draft.sds || null,
-    sdsUrl: draft.sds === 'digital' && url ? url : null,
+    sdsUrl: url || null,
     density: isVolume(draft.unit) && density ? density : null,
   };
 }

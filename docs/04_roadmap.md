@@ -178,7 +178,7 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | V-01 | G2 de la oferta inicial | Combinaciones, importación, incorporación, soporte, carga, costos y salida completos; Reactivos y Equipos pasan a etapa `general` | V-P01, R-01B, E-01, I-01, X-01, O-02 |
 | V-Mx | G0 y G2 de cada módulo posterior (M4–M8) | Criterios propios, definidos al iniciar su fase | Su fase; el G1 de su alcance para G2 |
 
-- Para el cliente confirmado, R-01A, R-01B, R-01C, R-01D y REG-02 son obligatorias; REG-02 va al final y reducido según REG-01 ([ADR 0016](05_decisiones.md#adr-0016)). Reactivos se completa antes de abrir otro módulo ([ADR 0014](05_decisiones.md#adr-0014)).
+- Reactivos queda concluido para el piloto con R-00, R-01A, R-01C, R-01D y la ficha en PDF de R-01B. El resto de R-01B, REG-02 y lo previo a G1 se programan solo si el cliente los confirma; sigue E-01 ([ADR 0018](05_decisiones.md#adr-0018)).
 - T-01 puede empezar mientras se recogen muestras.
 - R-00 no depende de SMTP, de la consola ni de tener un cliente.
 - Después de G0, F1b y F2 avanzan en paralelo hasta encontrarse en G1.

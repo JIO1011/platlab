@@ -22,6 +22,7 @@ import {
   productParams,
   reasonListQuery,
   receiptRequest,
+  SAFETY_SHEET_MAX_BYTES,
   setMinimumRequest,
   setTareRequest,
   transferRequest,
@@ -32,6 +33,7 @@ import {
 import type { NamedList } from '../../../capabilities/inventory/index.js';
 import { verifiedSubject } from '../../../platform/http/auth.js';
 import { idempotencyKey } from '../../../platform/http/idempotency-key.js';
+import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import {
   approveRequest,
   archiveEntry,
@@ -51,6 +53,7 @@ import {
   setContainerTare,
   setProductMinimum,
   updateProduct,
+  uploadSafetySheet,
   type CommandRequest,
 } from '../application/commands.js';
 import {
@@ -92,8 +95,13 @@ const commandRequest = (request: FastifyRequest): CommandRequest => ({
  * Rutas de Reactivos bajo /v1/workspaces/:workspaceId/reagents (primer incremento, «Rutas»).
  * Las operaciones de inventario se exponen aquí, con permisos `reagents.*`, nunca bajo /inventory.
  */
-export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync {
+export function reagentsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: PublicFiles }): FastifyPluginAsync {
   return async (app) => {
+    // La ficha de seguridad en PDF llega como cuerpo binario, con su propio límite (ADR 0017, 02 §12).
+    app.addContentTypeParser('application/pdf', { parseAs: 'buffer', bodyLimit: SAFETY_SHEET_MAX_BYTES }, (_request, body, done) =>
+      done(null, body),
+    );
+
     app.get('/summary', async (request) => getSummary(pool, queryRequest(request)));
 
     app.get('/products', async (request) =>
@@ -117,6 +125,11 @@ export function reagentsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync 
         productParams.parse(request.params).productId,
         updateProductRequest.parse(request.body),
       ),
+    );
+
+    // Ficha de seguridad en PDF (ADR 0017): la sube el Administrador y reemplaza a la vigente.
+    app.put('/products/:productId/safety-sheet', async (request) =>
+      uploadSafetySheet(pool, publicFiles, commandRequest(request), productParams.parse(request.params).productId, request.body),
     );
 
     // Mínimo (ADR 0012, 05-10-2026): lo fija el Administrador.

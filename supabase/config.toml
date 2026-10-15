@@ -116,6 +116,13 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
+# Fichas de seguridad (ADR 0017): públicas, solo PDF; solo la API sube, con las claves S3.
+# En Supabase alojado el bucket se crea en S-01 con estos mismos valores.
+[storage.buckets.public-files]
+public = true
+file_size_limit = "6MiB"
+allowed_mime_types = ["application/pdf"]
+
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]
 # public = false

@@ -4,7 +4,7 @@ import { formatGrams, gramsPerUnit, grossFor, hasTare, scaleBalance, tareOf, wei
 
 const bottle = (unit: string, balance: string, tare: string | null, density: string | null): Position => ({
   id: '00000000-0000-4000-8000-000000000001',
-  product: { id: '00000000-0000-4000-8000-000000000002', code: 'HCL-37', name: 'Ácido clorhídrico 37 %', controlled: true, sdsKind: null, sdsUrl: null },
+  product: { id: '00000000-0000-4000-8000-000000000002', code: 'HCL-37', name: 'Ácido clorhídrico 37 %', controlled: true, sdsKind: null, sdsUrl: null, sdsFileUrl: null },
   lot: { id: '00000000-0000-4000-8000-000000000003', code: 'L-001', expiresOn: null, brand: null, area: null },
   container: {
     id: '00000000-0000-4000-8000-000000000004',

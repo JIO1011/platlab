@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { myWorkspacesResponse } from '@platlab/contracts';
 import { buildApp } from '../../app.js';
+import { localPublicFiles } from '../../testing/storage.js';
 import { addMember, createAdminPool, seedWorkspace } from '../../testing/core-fixtures.js';
 import { createPool } from '../db/pool.js';
 import { createTokenVerifier, remoteJwks } from './jwt.js';
@@ -59,7 +60,7 @@ describe('Supabase Auth local', () => {
     const session = await signUp();
     const workspace = await seedWorkspace(admin);
     await addMember(admin, workspace.id, { subject: session.user.id });
-    const app = buildApp({ pool, verifyToken });
+    const app = buildApp({ pool, verifyToken, publicFiles: localPublicFiles });
 
     const response = await app.inject({
       method: 'GET',

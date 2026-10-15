@@ -2,6 +2,7 @@ import { buildApp } from '../app.js';
 import { loadConfig } from '../config.js';
 import { createTokenVerifier, remoteJwks } from '../platform/auth/jwt.js';
 import { createPool } from '../platform/db/pool.js';
+import { publicFiles } from '../platform/storage/public-files.js';
 
 const config = loadConfig();
 const pool = createPool({
@@ -15,7 +16,7 @@ const verifyToken = createTokenVerifier({
   audience: config.auth.audience,
 });
 
-const app = buildApp({ pool, verifyToken });
+const app = buildApp({ pool, verifyToken, publicFiles: publicFiles(config.storage) });
 app.addHook('onClose', async () => {
   await pool.end();
 });

@@ -2,6 +2,7 @@ import type pg from 'pg';
 import { describe, expect, it, vi } from 'vitest';
 import { errorResponse, healthResponse } from '@platlab/contracts';
 import { buildApp } from './app.js';
+import { localPublicFiles } from './testing/storage.js';
 import { createTestSigner } from './testing/tokens.js';
 
 const signer = await createTestSigner();
@@ -13,7 +14,7 @@ const untouchablePool = {
   }),
 } as unknown as pg.Pool;
 
-const app = () => buildApp({ pool: untouchablePool, verifyToken: signer.verifier });
+const app = () => buildApp({ pool: untouchablePool, verifyToken: signer.verifier, publicFiles: localPublicFiles });
 
 describe('GET /health', () => {
   it('responde con el contrato de salud', async () => {

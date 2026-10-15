@@ -341,6 +341,7 @@ Son valores de arranque para pruebas. Se ajustan con mediciones y no son comprom
 | Ficha de seguridad | PDF de hasta 6 MiB ([ADR 0017](05_decisiones.md#adr-0017)) |
 | Logo del espacio | PNG, WebP o JPEG de hasta 2 MiB y 2048 × 2048 px |
 | Importación CSV | 10 MiB, 10 000 filas, en lotes de 500 |
+| Exportación a Excel | 100 000 filas por archivo, leídas en lotes de 1 000 ([ADR 0017](05_decisiones.md#adr-0017)) |
 | Trabajos pesados | 1 simultáneo por espacio, 2 en total, 5 pendientes por espacio |
 | Recuperación objetivo | Pruebas y piloto: RPO 24 h y RTO 8 h, aceptado por el usuario el 30-09-2026. Se recomienda que el laboratorio conserve su registro actual durante el piloto para reconstruir. Si PlatLab pasa a ser el único registro o se opera con prácticas: RPO ≤ 1 h y RTO 4 h, lo que exige PITR (en Supabase, pérdida máxima de unos 2 min, desde unos USD 100/mes más cómputo Small) |
 | Monitoreo | Disponibilidad cada minuto; alerta tras 3 heartbeats ausentes o una copia con más de 26 h |

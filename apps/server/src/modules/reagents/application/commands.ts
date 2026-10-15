@@ -1,7 +1,9 @@
+import { createHash, randomUUID } from 'node:crypto';
 import type pg from 'pg';
 import type { z } from 'zod';
 import {
   productRuleViolation,
+  SAFETY_SHEET_MAX_BYTES,
   type adjustmentRequest,
   type countRequest,
   type CountResponse,
@@ -48,6 +50,7 @@ import {
 } from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
 import { withIdempotency } from '../../../platform/idempotency/idempotency.js';
+import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import {
   createLocation,
   hasPermission,
@@ -59,6 +62,8 @@ import {
 import {
   findProductDetail,
   insertProductDetail,
+  insertSafetySheet,
+  pointProductSheet,
   updateProductDetail,
   type IFindProductDetailResult,
 } from '../infrastructure/products.queries.js';
@@ -139,6 +144,7 @@ const toProduct = (
   controlled: detail.controlled,
   sdsKind: detail.sds_kind as Product['sdsKind'],
   sdsUrl: detail.sds_url,
+  sdsFileUrl: detail.sds_file_url,
   density: detail.density,
 });
 
@@ -218,6 +224,11 @@ export function updateProduct(
       const violation = productRuleViolation(after, { cas: input.casNumber !== undefined || input.physicalState !== undefined });
       if (violation) throw new AppError('VALIDATION_FAILED', violation);
 
+      // El PDF sigue vigente solo con ficha digital y sin enlace: un enlace nuevo o «física»/«no tiene»
+      // lo reemplazan (ADR 0017); el archivo queda en el historial.
+      const keepSheet = after.sdsFileUrl !== null && after.sdsKind === 'digital' && !after.sdsUrl;
+      after.sdsFileUrl = keepSheet ? after.sdsFileUrl : null;
+
       await updateItemFields(ctx, item, { name: after.name, baseUnit: after.baseUnit });
       const [updated] = await updateProductDetail.run(
         {
@@ -230,11 +241,12 @@ export function updateProduct(
           sdsKind: after.sdsKind,
           sdsUrl: after.sdsUrl,
           density: after.density,
+          keepSheet,
         },
         access.client,
       );
       if (!updated) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
-      const fields = Object.keys(input) as Array<keyof typeof input>;
+      const fields: Array<keyof Product> = [...(Object.keys(input) as Array<keyof typeof input>), 'sdsFileUrl'];
       const changes = Object.fromEntries(
         fields
           .filter((field) => JSON.stringify(before[field]) !== JSON.stringify(after[field]))
@@ -244,6 +256,82 @@ export function updateProduct(
       return after;
     },
   );
+}
+
+/** El PDF tal como llegó: se reconoce por su contenido (`%PDF-`), nunca por el tipo que declara el cliente. */
+function safetySheetPdf(body: unknown): Buffer {
+  const valid =
+    Buffer.isBuffer(body) &&
+    body.byteLength <= SAFETY_SHEET_MAX_BYTES &&
+    body.subarray(0, 5).toString('latin1') === '%PDF-';
+  if (!valid) throw new AppError('VALIDATION_FAILED', 'La ficha de seguridad debe ser un PDF de hasta 6 MiB');
+  return body;
+}
+
+/**
+ * Sube el PDF de la ficha de seguridad y lo deja como vigente (ADR 0017). Nada externo ocurre con la
+ * transacción abierta: una primera autoriza, el archivo se sube fuera y otra vuelve a autorizar y lo
+ * registra. Si el registro falla, el archivo queda sin referencia en el bucket público.
+ */
+export async function uploadSafetySheet(
+  pool: pg.Pool,
+  files: PublicFiles,
+  request: CommandRequest,
+  productId: string,
+  body: unknown,
+): Promise<Product> {
+  const pdf = safetySheetPdf(body);
+  const authorize = (access: WorkspaceAccess) => requirePermission(access, CATALOG);
+  // Sin el permiso de catálogo o sin el reactivo, nada llega al bucket.
+  await withModuleAccess(
+    pool,
+    { subject: request.subject, workspaceId: request.workspaceId, moduleCode: 'reagents', actionClass: 'new_operation' },
+    async (access) => {
+      await authorize(access);
+      await productDetailOf(access, productId);
+    },
+  );
+  const sheetId = randomUUID();
+  const objectPath = `${request.workspaceId}/sds/${sheetId}.pdf`;
+  const url = await files.put(objectPath, pdf, 'application/pdf');
+  const sha256 = createHash('sha256').update(pdf).digest('hex');
+
+  return runCommand(pool, request, 'reagents.product.safety_sheet', { productId, sha256 }, authorize, async (access) => {
+    const item = await lockItem(inventoryContext(access), productId);
+    const before = toProduct(item, await productDetailOf(access, productId));
+    await insertSafetySheet.run(
+      {
+        workspaceId: access.workspace.id,
+        id: sheetId,
+        productId,
+        objectPath,
+        url,
+        byteSize: pdf.byteLength,
+        sha256,
+        uploadedBy: access.principalId,
+      },
+      access.client,
+    );
+    const [pointed] = await pointProductSheet.run(
+      { workspaceId: access.workspace.id, itemId: productId, sheetId },
+      access.client,
+    );
+    if (!pointed) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
+    const after: Product = { ...before, sdsKind: 'digital', sdsUrl: null, sdsFileUrl: url };
+    await recordAudit(access, {
+      action: 'reagents.product.safety_sheet',
+      entityType: 'inventory.item',
+      entityId: productId,
+      changes: {
+        sdsKind: { from: before.sdsKind, to: after.sdsKind },
+        sdsUrl: { from: before.sdsUrl, to: null },
+        sdsFileUrl: { from: before.sdsFileUrl, to: url },
+        sha256,
+        byteSize: pdf.byteLength,
+      },
+    });
+    return after;
+  });
 }
 
 /** Fija o quita el mínimo de un reactivo, para todo el espacio (ADR 0012, 05-10-2026). */

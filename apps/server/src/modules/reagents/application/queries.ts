@@ -104,6 +104,7 @@ const toStockedProduct = (row: IListProductsResult): StockedProduct => ({
   controlled: row.controlled,
   sdsKind: row.sds_kind as Product['sdsKind'],
   sdsUrl: row.sds_url,
+  sdsFileUrl: row.sds_file_url,
   density: row.density,
   balance: row.balance,
   containersWithStock: row.containers_with_stock,
@@ -256,6 +257,7 @@ export function listPositions(
             controlled: detail?.controlled ?? false,
             sdsKind: (detail?.sds_kind ?? null) as Product['sdsKind'],
             sdsUrl: detail?.sds_url ?? null,
+            sdsFileUrl: detail?.sds_file_url ?? null,
           },
         };
       }),
