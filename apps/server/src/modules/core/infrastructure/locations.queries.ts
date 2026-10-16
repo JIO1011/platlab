@@ -1,25 +1,61 @@
 /** Types generated for queries found in "src/modules/core/infrastructure/locations.sql" */
 import { PreparedQuery } from '@pgtyped/runtime';
 
-/** 'FindParentLocation' parameters type */
-export interface IFindParentLocationParams {
+/** 'ListActiveLocations' parameters type */
+export interface IListActiveLocationsParams {
+  workspaceId: string;
+}
+
+/** 'ListActiveLocations' return type */
+export interface IListActiveLocationsResult {
+  code: string;
+  id: string;
+  kind: string;
+  name: string;
+  parent_id: string | null;
+}
+
+/** 'ListActiveLocations' query type */
+export interface IListActiveLocationsQuery {
+  params: IListActiveLocationsParams;
+  result: IListActiveLocationsResult;
+}
+
+const listActiveLocationsIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":142,"b":154}]}],"statement":"-- Con su padre, para que la web arme los niveles (ADR 0015).\nSELECT id, code, name, kind, parent_id\nFROM core.locations\nWHERE workspace_id = :workspaceId!\n  AND archived_at IS NULL\nORDER BY lower(code), id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Con su padre, para que la web arme los niveles (ADR 0015).
+ * SELECT id, code, name, kind, parent_id
+ * FROM core.locations
+ * WHERE workspace_id = :workspaceId!
+ *   AND archived_at IS NULL
+ * ORDER BY lower(code), id
+ * ```
+ */
+export const listActiveLocations = new PreparedQuery<IListActiveLocationsParams,IListActiveLocationsResult>(listActiveLocationsIR);
+
+
+/** 'FindActiveLocation' parameters type */
+export interface IFindActiveLocationParams {
   locationId: string;
   workspaceId: string;
 }
 
-/** 'FindParentLocation' return type */
-export interface IFindParentLocationResult {
+/** 'FindActiveLocation' return type */
+export interface IFindActiveLocationResult {
   id: string;
   kind: string;
 }
 
-/** 'FindParentLocation' query type */
-export interface IFindParentLocationQuery {
-  params: IFindParentLocationParams;
-  result: IFindParentLocationResult;
+/** 'FindActiveLocation' query type */
+export interface IFindActiveLocationQuery {
+  params: IFindActiveLocationParams;
+  result: IFindActiveLocationResult;
 }
 
-const findParentLocationIR: any = {"usedParamSet":{"workspaceId":true,"locationId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":57,"b":69}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":80,"b":91}]}],"statement":"SELECT id, kind\nFROM core.locations\nWHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL"};
+const findActiveLocationIR: any = {"usedParamSet":{"workspaceId":true,"locationId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":57,"b":69}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":80,"b":91}]}],"statement":"SELECT id, kind\nFROM core.locations\nWHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL"};
 
 /**
  * Query generated from SQL:
@@ -29,7 +65,7 @@ const findParentLocationIR: any = {"usedParamSet":{"workspaceId":true,"locationI
  * WHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL
  * ```
  */
-export const findParentLocation = new PreparedQuery<IFindParentLocationParams,IFindParentLocationResult>(findParentLocationIR);
+export const findActiveLocation = new PreparedQuery<IFindActiveLocationParams,IFindActiveLocationResult>(findActiveLocationIR);
 
 
 /** 'LocationCodesLike' parameters type */

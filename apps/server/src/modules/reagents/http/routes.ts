@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
+import type { FastifyPluginAsync } from 'fastify';
 import type pg from 'pg';
 import {
   adjustmentRequest,
@@ -28,11 +28,9 @@ import {
   transferRequest,
   updateProductRequest,
   weightAdjustmentRequest,
-  workspaceParams,
 } from '@platlab/contracts';
 import type { NamedList } from '../../../capabilities/inventory/index.js';
-import { verifiedSubject } from '../../../platform/http/auth.js';
-import { idempotencyKey } from '../../../platform/http/idempotency-key.js';
+import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import {
   createProduct,
@@ -40,7 +38,6 @@ import {
   setProductMinimum,
   updateProduct,
 } from '../application/catalog.js';
-import type { CommandRequest } from '../application/command.js';
 import { approveRequest, cancelRequest, registerIssue, rejectRequest } from '../application/issues.js';
 import { archiveEntry, archiveReason, createEntry, createReason } from '../application/lists.js';
 import {
@@ -76,16 +73,6 @@ const namedLists: Array<[path: string, list: NamedList]> = [
   ['destinations', 'destination'],
   ['areas', 'area'],
 ];
-
-const queryRequest = (request: FastifyRequest) => ({
-  subject: verifiedSubject(request),
-  workspaceId: workspaceParams.parse(request.params).workspaceId,
-});
-
-const commandRequest = (request: FastifyRequest): CommandRequest => ({
-  ...queryRequest(request),
-  idempotencyKey: idempotencyKey(request),
-});
 
 /**
  * Rutas de Reactivos bajo /v1/workspaces/:workspaceId/reagents (primer incremento, «Rutas»).

@@ -1,5 +1,5 @@
 import { useCodeSuggestion, useProductSearch } from '../queries';
-import { useDebouncedValue } from '../use-media-query';
+import { useDebouncedValue } from '../../../app/use-media-query';
 import { countOf, countValid, seriesOf } from './model';
 import type { IngressEntry } from './use-ingress-entry';
 

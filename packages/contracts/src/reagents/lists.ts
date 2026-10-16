@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { text } from './shared.js';
+import { text } from '../common.js';
 
 // ---------------------------------------------------------------------------
 // Motivos, destinos (ADR 0012) y áreas (ADR 0015): listas del espacio; se guarda el texto elegido

@@ -4,7 +4,7 @@ import { TrendingDown } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { commandErrorMessage, useCommand } from '../commands';
-import { type SheetBaseProps, validate, FormSheet } from './shared';
+import { FormSheet, validate, type SheetBaseProps } from '../../../app/form-sheet';
 
 /**
  * Mínimo del reactivo (ADR 0012, 05-10-2026): uno para todo el espacio, en su unidad base. Vacío lo

@@ -430,38 +430,3 @@ const homeSummaryIR: any = {"usedParamSet":{"workspaceId":true,"timeZone":true,"
 export const homeSummary = new PreparedQuery<IHomeSummaryParams,IHomeSummaryResult>(homeSummaryIR);
 
 
-/** 'ListActiveLocations' parameters type */
-export interface IListActiveLocationsParams {
-  workspaceId: string;
-}
-
-/** 'ListActiveLocations' return type */
-export interface IListActiveLocationsResult {
-  code: string;
-  id: string;
-  kind: string;
-  name: string;
-  parent_id: string | null;
-}
-
-/** 'ListActiveLocations' query type */
-export interface IListActiveLocationsQuery {
-  params: IListActiveLocationsParams;
-  result: IListActiveLocationsResult;
-}
-
-const listActiveLocationsIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":80,"b":92}]}],"statement":"SELECT id, code, name, kind, parent_id\nFROM core.locations\nWHERE workspace_id = :workspaceId!\n  AND archived_at IS NULL\nORDER BY lower(code), id"};
-
-/**
- * Query generated from SQL:
- * ```
- * SELECT id, code, name, kind, parent_id
- * FROM core.locations
- * WHERE workspace_id = :workspaceId!
- *   AND archived_at IS NULL
- * ORDER BY lower(code), id
- * ```
- */
-export const listActiveLocations = new PreparedQuery<IListActiveLocationsParams,IListActiveLocationsResult>(listActiveLocationsIR);
-
-

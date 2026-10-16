@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTransferLocations } from '../queries';
 import { commandErrorMessage, useCommand } from '../commands';
-import { type SheetBaseProps, validate, FormSheet } from './shared';
+import { FormSheet, validate, type SheetBaseProps } from '../../../app/form-sheet';
 
 /**
  * Traslado en un paso (ADR 0012, entrega 4): el frasco entero pasa a otra ubicación. Solo se elige el

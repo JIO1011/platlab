@@ -1,7 +1,13 @@
 import { AppError } from '../../../platform/errors.js';
 import { freeCodeFor } from '../../../platform/db/codes.js';
-import { findParentLocation, insertLocation, locationCodesLike } from '../infrastructure/locations.queries.js';
+import {
+  findActiveLocation,
+  insertLocation,
+  listActiveLocations,
+  locationCodesLike,
+} from '../infrastructure/locations.queries.js';
 import type { WorkspaceAccess } from './access.js';
+import { recordAudit } from './audit.js';
 
 export interface LocationRecord {
   id: string;
@@ -27,14 +33,14 @@ function childKind(parentKind: string | null): 'room' | 'storage' {
  * Crea una ubicación del espacio con código automático a partir del nombre (ADR 0015). Quien llama ya
  * comprobó su permiso; el bloqueo de códigos es el mismo que serializa los cambios del árbol.
  */
-export async function createLocation(
+async function createLocation(
   access: WorkspaceAccess,
   input: { name: string; parentId: string | null },
 ): Promise<LocationRecord> {
   const workspaceId = access.workspace.id;
   let parentKind: string | null = null;
   if (input.parentId !== null) {
-    const [parent] = await findParentLocation.run({ workspaceId, locationId: input.parentId }, access.client);
+    const [parent] = await findActiveLocation.run({ workspaceId, locationId: input.parentId }, access.client);
     if (!parent) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
     parentKind = parent.kind;
   }
@@ -52,4 +58,24 @@ export async function createLocation(
   );
   if (!row) throw new Error('La ubicación no devolvió fila');
   return { id: row.id, code: row.code, name: row.name, kind: row.kind, parentId: row.parent_id, created: row.created };
+}
+
+/** Ubicaciones activas del espacio, con su padre para armar los niveles (ADR 0015). */
+export async function activeLocations(access: WorkspaceAccess): Promise<Array<Omit<LocationRecord, 'created'>>> {
+  const rows = await listActiveLocations.run({ workspaceId: access.workspace.id }, access.client);
+  return rows.map(({ id, code, name, kind, parent_id }) => ({ id, code, name, kind, parentId: parent_id }));
+}
+
+/**
+ * Crea la ubicación desde un módulo (ADR 0015) y la audita con la acción de ese módulo: Core no tiene
+ * permisos propios, así que quien llama ya exigió el permiso de catálogo del módulo.
+ */
+export async function createAuditedLocation(
+  access: WorkspaceAccess,
+  input: { name: string; parentId: string | null },
+  action: string,
+): Promise<Omit<LocationRecord, 'created'>> {
+  const { created, ...location } = await createLocation(access, input);
+  await recordAudit(access, { action, entityType: 'core.location', entityId: location.id, changes: { ...location, created } });
+  return location;
 }

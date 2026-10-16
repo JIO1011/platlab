@@ -33,13 +33,13 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 | `platform` | Plataforma | Titulares, paquetes, contratos, staff, límites, cuotas, admisión de datos, idempotencia, outbox, trabajos, importaciones y disposición | F1a–F1b |
 | `inventory` | Capacidad inventario | Items, lotes, posiciones, operaciones y asientos, motivos, preparaciones, custodias, retornos, reservas y transferencias | R-00; F2–F4 |
 | `reagents` | Módulo Reactivos | Datos químicos y perfil fiscalizado | R-00; F2 + REG-02 |
-| `equipment` | Módulo Equipos | Tipos de equipo, activos, condición, ubicación y custodias | F2 |
-| `incidents` | Capacidad incidencias | Casos y acciones | F2 |
+| `equipment` | Módulo Equipos | Tipos de equipo, activos con su foto, condición, ubicación y documentos | F2 |
+| `incidents` | Capacidad incidencias | Fallas de los recursos de cada módulo | F2 |
 | `laboratories` | Módulo Laboratorios | Capacidad, horarios y excepciones | F3 |
 | `scheduling` | Capacidad agenda | Reservas de laboratorios, equipos y materiales | F3 |
 | `practices` | Módulo Prácticas | Plantillas, actividades, revisiones, decisiones y vínculos | F3 |
 | `materials` | Módulo Materiales | Consumibles, reutilizables y préstamos | F4, o un mínimo en F3 si P-04 lo exige |
-| `maintenance` | Módulo Mantenimiento | Planes y órdenes | F5 |
+| `maintenance` | Módulo Mantenimiento | Planes, registros y órdenes | M-01 en F2; F5 |
 | `analytics` | Módulo Analítica | Indicadores y alertas avanzadas | F5 |
 
 - Solo el propietario técnico escribe en su esquema.
@@ -153,18 +153,19 @@ Reglas:
 | Tabla | Esencial |
 |---|---|
 | `equipment.asset_types` | Tipo de equipo y características que se pueden solicitar |
-| `equipment.assets` | Tipo, código, marca, modelo, serie, ubicación, responsable, condición y archivado |
-| `equipment.condition_changes` | Condición anterior y nueva, actor, motivo e incidencia |
+| `equipment.assets` | Tipo, código, marca, modelo, serie, alimentación, ubicación, responsable, condición, conservación, proveedor, fecha de compra, garantía, vida útil, valor de reposición y foto vigente |
+| `equipment.condition_changes` | Condición anterior y nueva, actor, motivo, resultado y falla de origen |
 | `equipment.location_changes` | Traslado trazado entre ubicaciones |
-| `equipment.custodies` | Entrega y devolución de un activo; solo una abierta por activo |
-| `incidents.cases`, `actions` | Contexto heredado, gravedad, responsable, estado y acciones |
+| `equipment.asset_photos` | Foto de un activo: imagen pública, tamaño y huella; nunca se sobrescribe y el activo apunta a la vigente ([ADR 0019](05_decisiones.md#adr-0019)) |
+| `equipment.documents` | Documento de un activo (manual, factura, garantía, informe): PDF público, tipo y fecha; nunca se sobrescribe |
+| `incidents.cases` | Falla de un recurso con FK tipada (hoy, el activo de Equipos) y su módulo dueño; tipo, descripción, si se puede seguir usando, estado, y quién y cuándo la reportó, atendió, resolvió y cerró. Las notas de seguimiento (`actions`) se suman cuando hagan falta |
 | `materials.products`, `assets` | Consumible o reutilizable; unidades identificables |
-| `materials.loans`, `loan_lines`, `return_lines` | Préstamo, líneas y devoluciones parciales |
-| `maintenance.plans`, `orders` | Frecuencia, fecha prevista, tareas, resultado y siguiente intervención |
+| `materials.loans`, `loan_lines`, `return_lines` | Préstamo de material o de equipos (FK tipada al activo), líneas y devoluciones parciales |
+| `maintenance.plans`, `records`, `orders` | Tipo (preventivo, calibración, verificación, limpieza), frecuencia y próxima fecha; mantenimiento hecho con quién, resultado, conservación, costo exacto, informe y «válida hasta»; orden correctiva desde una falla de M3; en F5, técnico, bloqueo de agenda y repuestos |
 
 Estados:
 
-- **Equipo:** `operational`, `restricted`, `faulted` o `retired`. Reserva, uso y mantenimiento son dimensiones separadas.
+- **Equipo:** condición `operational`, `restricted`, `faulted` o `retired`, y conservación `good`, `fair` o `poor`. La disponibilidad (disponible o no disponible; prestado con M6, en mantenimiento con M7 y reservado con la agenda) se calcula y no se guarda.
 - **Incidencia:** abierta → en atención → resuelta → cerrada. Resolverla exige un resultado.
 - **Préstamo:** abierto → parcialmente devuelto → cerrado. Se puede cancelar antes de entregar.
 

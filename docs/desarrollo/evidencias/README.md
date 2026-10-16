@@ -10,6 +10,9 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 - **Rendimiento** · bloque principal > 500 kB (P2 desde el paso 5) → dividir por rutas antes del piloto
 - **Cabecera de los módulos** · «Actualizado… Actualizar» queda entre el título y la identidad de la ficha; las acciones ocupan mucho alto en el móvil → rediseñarla en una entrega aparte
 - **T-02/T-03** · movimiento concurrente del árbol de ubicaciones sin prueba → dos conexiones que muevan A bajo B y B bajo A, cuando exista el comando de mover ubicaciones
+- **E-01a/E-01b** · sin e2e de Equipos (alta con foto, condición, traslado y el ciclo de una falla) → escribirlo antes del G0 de Equipos
+- **E-01a** · `SectionHeader` de Equipos repite la cabecera de Reactivos (`features/reagents/layout.tsx`) → moverla a `app/` en la entrega de la cabecera de los módulos; `RowLabel` (`app/summary-card.tsx`) sigue en 10 px en mayúsculas
+- **e2e** · no se puede repetir sobre la misma base: la segunda corrida falla en traslado, mínimos y solicitudes → `pnpm db:reset` antes de `pnpm e2e`, o hacer que el e2e cree sus propios datos
 - **DP-01** · retención de `platform.idempotency_records` y disposición de las revisiones aplicadas, que son inmutables (revisar) → decidir y probar en DP-01
 
 ## Puertas
@@ -37,6 +40,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Registro
 | Fecha | Entrega | Commit | Veredicto | Pruebas | Nota |
 |---|---|---|---|---|---|
+| 2026-10-15 | E-01a y E-01b: Equipos con inventario, ficha, foto, condición, traslado e historial, y reportes de fallas (ADR 0019) | `071cd5a` (PR #21) | Cumple | unit 142 · pgTAP 272 · int 170 · e2e 24 | Local y CI en verde, PgTyped sin diferencias; revisión de acabado con 4 capturas y 6 correcciones aplicadas. Sin e2e propio de Equipos (pendiente para su G0) |
 | 2026-10-15 | R-01B entrega 1 (ficha de seguridad en PDF) y reorganización de Reactivos sin cambiar la lógica (ADR 0017, 0018) | `88dda30` y la reorganización | Cumple | unit 94 · pgTAP 238 · int 142 · e2e 24 | Todo local sobre ambos commits: tipos, lint, fronteras, knip, PgTyped sin diferencias y Storage local; la prueba de integración pasa de 1 a 7 archivos con los mismos casos. Reactivos queda concluido para el piloto |
 | 2026-10-14 | Ámbito por ubicación retirado (ADR 0016, paso 2) | `2b913c7` | Cumple | unit 91 · pgTAP 224 · int 138 · e2e 24 | Sin cambios de UI ni de contrato; pgTAP y e2e del CI (run 38681271736), unit e int locales; primera entrega con «Quién implementa» del ADR 0013 |
 | 2026-10-14 | Mejoras pequeñas del ADR 0016 (ficha de seguridad en la salida, ruta en el historial, códigos sin palabras vacías) | `170cbb5` | Cumple | unit 91 · pgTAP 223 · int 139 · e2e 24 | Probado por el usuario en el navegador; primera entrega con etapas de cambios y cierre (ADR 0013); conteos del CI (run 38675089388) |

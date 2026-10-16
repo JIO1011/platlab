@@ -3,7 +3,7 @@ import { Button, Input, Select, cn, sectionLabel, sheetToasterId, toast } from '
 import { Plus, Trash2, type LucideIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 import { commandErrorMessage, useArchiveEntry, useCommand } from './commands';
-import { pillStyles } from './pills';
+import { pillStyles } from '../../app/pills';
 
 const listEntry = entryList.shape.items.element;
 

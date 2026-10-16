@@ -8,8 +8,9 @@ import { useReasons } from '../queries';
 import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
 import { formatGrams, gramsPerUnit, hasTare, isPositiveQuantity, scaleBalance } from '../weight';
-import { fieldLabel } from '../ingress/filled';
-import { type SheetBaseProps, validate, FormSheet, QuantityPreview, positionOption, byProductThenExpiry } from './shared';
+import { fieldLabel } from '../../../app/filled';
+import { FormSheet, validate, type SheetBaseProps } from '../../../app/form-sheet';
+import { QuantityPreview, positionOption, byProductThenExpiry } from './shared';
 import { TareFields, useTareForm } from './tare-form';
 
 /** Enlace de texto bajo el campo: cambia de método sin salir de la ventana. */

@@ -41,11 +41,11 @@ M1 es obligatorio. Cada módulo se contrata por espacio y funciona con sus depen
 |---|---|---|---|---|
 | M1 Núcleo | Espacio, personas y control | Miembros, invitaciones, roles, ubicaciones, suscripción, documentos, auditoría y avisos | — | F1a |
 | M2 Reactivos | Qué hay, dónde y en qué estado | Catálogo químico (CAS, concentración, peligros, SDS), lotes, ingresos, salidas, ajustes, traslados y bajas (ajuste a cero con motivo); custodia y retorno; caducidad y mínimos; fiscalizados y su reporte | M1 | R-00 en F1a; F2 |
-| M3 Equipos | Activos y su condición | Tipos de equipo; ficha (marca, modelo, serie, ubicación, responsable, documentos), condición, traslado trazado, custodia, incidencias e historial | M1 | F2 |
+| M3 Equipos | Activos y su estado | Resumen, Inventario y Reportes (fallas) ([ADR 0019](05_decisiones.md#adr-0019)); tipos de equipo; ficha con foto (código, marca, modelo, serie, alimentación, ubicación, responsable); condición, conservación y disponibilidad calculada; traslado trazado, fallas, QR, documentos, hoja de vida e historial; con M6, «Prestado» | M1 | F2 |
 | M4 Laboratorios | Espacios físicos y agenda | Capacidad, responsable, horarios y cierres; reservas directas sin conflictos; tiempos de preparación y limpieza | M1 | F3 |
 | M5 Prácticas y Solicitudes | Operación central integrada | Plantillas, solicitudes de docencia e investigación, revisión, aprobación condicionada, preparación, ejecución, cierre e impresión | M1 + M4 | F3 |
-| M6 Materiales y Préstamos | Consumibles y reutilizables | Existencias, préstamos, devoluciones parciales, daños, pérdidas y transferencias | M1 | F4; un mínimo en F3 si P-04 lo exige |
-| M7 Mantenimiento | Continuidad de equipos | Planes preventivos, órdenes correctivas, bloqueo de agenda, liberación con resultado y próximo mantenimiento | M1 + M3 | F5 |
+| M6 Materiales y Préstamos | Consumibles, reutilizables y préstamos | Existencias, préstamos de material y de equipos ([ADR 0019](05_decisiones.md#adr-0019)), devoluciones parciales, daños, pérdidas y transferencias | M1 | F4; un mínimo en F3 si P-04 lo exige |
+| M7 Mantenimiento | Continuidad de equipos | Planes preventivos y calibraciones con próxima fecha, registro con informe y costo, órdenes correctivas desde una falla y aviso de reemplazo (M-01, tras E-01); después, órdenes asignadas, bloqueo de agenda y repuestos | M1 + M3 | F2 (M-01); F5 |
 | M8 Analítica y Alertas | Prevención y decisiones | Indicadores con periodo y fórmula, alertas configurables, resúmenes, escalamiento y reportes | M1 + un módulo operativo | F5 |
 
 Construir un módulo no lo pone a la venta. Cada módulo avanza por etapas: desarrollo → piloto → general. Solo en etapa general entra en los paquetes publicados ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
@@ -175,11 +175,12 @@ Casos especiales:
 
 ### 6.3 Equipos (M3, M7)
 
-- La condición (operativo, restringido, averiado, retirado) es independiente de reservas y custodia.
-- Reportar una avería bloquea nuevas asignaciones y marca las reservas afectadas, sin cancelar nada en silencio.
-- Una incidencia pasa por abierta → en atención → resuelta → cerrada, y resolverla exige un resultado. Si nace de una práctica, hereda fecha, laboratorio, personas y recurso.
+- El estado tiene cuatro dimensiones ([ADR 0019](05_decisiones.md#adr-0019)): condición (operativo, con restricción, fuera de servicio, dado de baja), conservación (bueno, regular, malo), tipo de falla, que vive en la falla, y disponibilidad, que se calcula.
+- Reportar una falla indica si el equipo se puede seguir usando; si no, bloquea nuevas asignaciones y marca las reservas afectadas, sin cancelar nada en silencio.
+- Una falla pasa por abierta → en atención → resuelta → cerrada, y resolverla exige un resultado. Si nace de una práctica, hereda fecha, laboratorio, personas y recurso.
 - Volver a operativo exige resultado y responsable. Un traslado cambia la ubicación y queda en el historial.
-- Con M7: planes y órdenes de mantenimiento que bloquean la agenda del equipo.
+- Una falla en garantía avisa que se reclame al proveedor. El uso del equipo se registra con Laboratorios y Prácticas, no en M3.
+- Con M7: planes y calibraciones con próxima fecha y semáforo, registros con informe y costo, órdenes correctivas desde una falla (cerrarlas devuelve el equipo a operativo) y el aviso «Evaluar reemplazo»; la ficha suma la pestaña Mantenimiento y el Inventario, «Próximo mantenimiento».
 
 ### 6.4 Alta de un cliente y cambio de módulos
 
@@ -235,7 +236,7 @@ Un módulo por dentro, con Reactivos como ejemplo:
 - Los botones visibles dependen del permiso del usuario.
 - La ficha de producto reúne datos químicos, SDS, lotes, existencias por ubicación e historial.
 - Registrar una salida toma pocos pasos: buscar el producto, indicar la cantidad con atajos, elegir motivo y destino de listas y ver el saldo resultante.
-- La ficha de un equipo tiene pestañas Información, Reservas, Historial, Mantenimiento e Incidencias, según los módulos contratados.
+- La ficha de un equipo tiene pestañas Información, Mantenimiento, Fallas e Historial, y Reservas cuando llega la agenda ([ADR 0019](05_decisiones.md#adr-0019)).
 - Nueva práctica: Plantilla → Fecha y condiciones → Recursos → Revisión. La agenda se ve por laboratorio y franja, con vista de lista en el móvil.
 
 Dirección visual (tomada de ReactiLab desde el 04-10-2026, [ADR 0010](05_decisiones.md#adr-0010)):

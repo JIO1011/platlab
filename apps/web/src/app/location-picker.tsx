@@ -3,10 +3,10 @@ import { MapPin, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Combobox, type ComboOption } from './combobox';
 import { fieldLabel } from './filled';
-import { childrenOf, levelOneParent, recentFirst, type Place } from './model';
+import { childrenOf, levelOneParent, recentFirst, type Place } from './places';
 
 const LEVELS = 3;
-const placeholders = ['Laboratorio o bodega', 'Estante o armario', 'Nivel o repisa (opcional)'];
+const defaultPlaceholders = ['Laboratorio o bodega', 'Estante o armario', 'Nivel o repisa (opcional)'];
 /** Nombre accesible de los niveles que siguen; el primero lo nombra el rótulo «Ubicación». */
 const levelNames = ['Ubicación', 'Estante o armario', 'Nivel o repisa'];
 
@@ -26,6 +26,7 @@ export function LocationPicker({
   onCreate,
   error,
   className,
+  placeholders = defaultPlaceholders,
 }: {
   places: Place[];
   recentIds: string[];
@@ -36,6 +37,8 @@ export function LocationPicker({
   onCreate: (name: string, parentId: string | null) => Promise<Place | null>;
   error?: string | undefined;
   className?: string;
+  /** Texto guía de los tres niveles; por omisión, el de un almacén de reactivos. */
+  placeholders?: readonly string[];
 }) {
   const id = useId();
   const errorId = `${id}-error`;

@@ -1,7 +1,9 @@
 import { cn, sectionLabel } from '@platlab/ui';
 import { ChevronDown, X } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
-import { chosenText, type FilterGroupId } from './movement-text';
+
+/** «1 elegido» / «3 elegidos»: lo que dice cada fila plegada con algo marcado. */
+const chosenText = (count: number): string => `${new Intl.NumberFormat('es-EC').format(count)} ${count === 1 ? 'elegido' : 'elegidos'}`;
 
 /** Cuántas fichas se ven bajo un grupo plegado; el resto se cuenta en «+N». */
 const CHIPS_SHOWN = 3;
@@ -61,7 +63,7 @@ export function FilterGroup({
   onRemove,
   children,
 }: {
-  id: FilterGroupId;
+  id: string;
   title: string;
   marked: number;
   /** Lo elegido, con su nombre: se ve bajo el rótulo mientras el grupo está plegado. */

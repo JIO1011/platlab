@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { decimalString } from '../decimal.js';
 import { newProduct } from './catalog.js';
-import { adjustmentQuantity, code, list, operationType, page, positiveQuantity, sdsKind, text, unit } from './shared.js';
+import { code, list, page, text } from '../common.js';
+import { adjustmentQuantity, operationType, positiveQuantity, sdsKind, unit } from './shared.js';
 
 // ---------------------------------------------------------------------------
 // Movimientos

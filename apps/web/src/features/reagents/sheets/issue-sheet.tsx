@@ -29,7 +29,8 @@ import { ControlledMark } from '../controlled';
 import { SdsReference } from '../sds';
 import { formatGrams, grossFor } from '../weight';
 import { availableOf } from '../stock';
-import { type SheetBaseProps, validate, FormSheet, expiryText, positionOption, byProductThenExpiry, isExpired } from './shared';
+import { FormSheet, validate, type SheetBaseProps } from '../../../app/form-sheet';
+import { expiryText, positionOption, byProductThenExpiry, isExpired } from './shared';
 import { fefoCandidates, fefoSuggestion } from './fefo';
 
 /** En la salida, lo disponible: lo apartado por solicitudes no se ofrece (ADR 0012). */

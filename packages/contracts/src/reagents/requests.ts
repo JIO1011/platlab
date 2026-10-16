@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { decimalString } from '../decimal.js';
-import { text } from './shared.js';
+import { text } from '../common.js';
 
 /** Solicitud de salida en la bandeja o en «mis solicitudes». */
 const issueRequestItem = z.object({

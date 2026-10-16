@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { commandErrorMessage, useCommand } from '../commands';
 import { formatGrams, isPositiveQuantity, isVolume, tareOf } from '../weight';
-import { fieldLabel } from '../ingress/filled';
-import { validate } from './shared';
+import { fieldLabel } from '../../../app/filled';
+import { validate } from '../../../app/form-sheet';
 
 /**
  * Activar la balanza de un frasco (ADR 0015): con el frasco en la balanza, tara = peso − saldo pasado a

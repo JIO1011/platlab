@@ -2,8 +2,8 @@ import { HelpTip } from '@platlab/ui';
 import { Scale } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { formatWeight } from '../weight';
-import { FilledInput, fieldLabel } from './filled';
-import { Section } from './form-section';
+import { FilledInput, fieldLabel } from '../../../app/filled';
+import { Section } from '../../../app/form-section';
 import type { Errors } from './model';
 
 type WeightFieldsProps = Parameters<typeof WeightFields>[0];

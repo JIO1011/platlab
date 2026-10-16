@@ -160,13 +160,23 @@ export function listMyWorkspaces(pool: pg.Pool, subject: string): Promise<Worksp
   });
 }
 
+/**
+ * Permisos del miembro, leídos una vez por transacción: cada comprobación posterior no vuelve a la
+ * base. Es seguro porque la admisión bloqueó la membresía (FOR SHARE) y un cambio de roles la
+ * modifica, así que espera a que termine esta operación (02 §6).
+ */
+const grantedByAccess = new WeakMap<WorkspaceAccess, Promise<string[]>>();
+
 /** Permisos vigentes del miembro, sin filtrar por módulo. */
-export async function listGrantedPermissions(access: WorkspaceAccess): Promise<string[]> {
-  const rows = await listPermissionCodes.run(
-    { workspaceId: access.workspace.id, principalId: access.principalId },
-    access.client,
-  );
-  return rows.map((row) => row.permission_code);
+export function listGrantedPermissions(access: WorkspaceAccess): Promise<string[]> {
+  let granted = grantedByAccess.get(access);
+  if (!granted) {
+    granted = listPermissionCodes
+      .run({ workspaceId: access.workspace.id, principalId: access.principalId }, access.client)
+      .then((rows) => rows.map((row) => row.permission_code));
+    grantedByAccess.set(access, granted);
+  }
+  return granted;
 }
 
 /** Nombres de los roles vigentes del miembro, para mostrarlos; no autorizan nada. */

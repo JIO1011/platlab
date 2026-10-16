@@ -5,12 +5,12 @@ import { useState } from 'react';
 import { isApiError } from '../../../app/api';
 import { commandErrorMessage, useCommand, useUploadSafetySheet } from '../commands';
 import { checkCas } from '../ingress/cas';
-import { FilledInput, fieldGrid, fieldLabel } from '../ingress/filled';
+import { FilledInput, fieldGrid, fieldLabel } from '../../../app/filled';
 import { casRequired, catalogFields, draftOf, productUnits, sdsFileOf, validateDraft, type Draft, type Errors } from '../ingress/model';
 import { SafetyFields } from '../ingress/safety-fields';
-import { PillField } from '../pills';
+import { PillField } from '../../../app/pills';
 import { warnSheetNotUploaded } from '../sds';
-import { type SheetBaseProps, FormSheet } from './shared';
+import { FormSheet, type SheetBaseProps } from '../../../app/form-sheet';
 
 /** Las unidades admitidas y, si es otra (un reactivo anterior: mg, u…), también la suya, para mostrarla. */
 const unitOptions = (unit: string) =>

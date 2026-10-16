@@ -22,7 +22,7 @@ import { type Allowed, type ReagentsContext, type SheetRequest } from './context
 import { IngressSheet } from './ingress/ingress-sheet';
 import { ScanSheet } from './scan/scan-sheet';
 import { AdjustmentSheet, IssueSheet, MinimumSheet, ProductSheet, TransferSheet } from './sheets';
-import { useNow } from './use-now';
+import { useNow } from '../../app/use-now';
 
 /**
  * La hoja se monta de nuevo en cada apertura (clave nueva: formulario limpio y clave idempotente
@@ -171,7 +171,7 @@ export function ReagentsLayout() {
               type="button"
               // Todo lo de Reactivos: las consultas activas se vuelven a pedir y las demás quedan viejas.
               onClick={() => void queryClient.invalidateQueries({ queryKey: reagentsKey })}
-              className="inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 font-medium text-action transition-colors hover:bg-action-soft"
+              className="-my-1 inline-flex items-center gap-1 rounded-[6px] px-1.5 py-1.5 font-medium text-action transition-colors hover:bg-action-soft"
             >
               <RefreshCw className="size-3.5" aria-hidden />
               {refreshing ? 'Actualizando…' : 'Actualizar'}

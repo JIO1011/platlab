@@ -212,6 +212,20 @@
   --color-canvas-glow: #eef0ff;
 }
 
+[data-module='equipment'] {
+  /*
+   * Azul degradado de Equipos (ADR 0019): 5,4:1 con blanco; el texto #1967D2 sobre #EAF1FE, 4,7:1. El
+   * extremo claro del degradado (#2370E4, 4,7:1 con blanco) es el más claro que deja leer el texto
+   * blanco centrado de los botones degradados.
+   */
+  --color-action: #1967d2;
+  --color-action-hover: #1558b8;
+  --color-action-pressed: #114a9c;
+  --color-action-soft: #eaf1fe;
+  --color-action-deep: #2370e4;
+  --color-canvas-glow: #eaf2ff;
+}
+
 /*
  * Impresión de etiquetas (ADR 0012, entrega 4): si la página tiene una zona `.print-area`, solo
  * ella se imprime, sin el menú, la barra ni las acciones.
