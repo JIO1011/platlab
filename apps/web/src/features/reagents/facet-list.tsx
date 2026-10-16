@@ -4,7 +4,7 @@
  */
 import { Input, OptionRow } from '@platlab/ui';
 import { useState } from 'react';
-import { fold } from './fold';
+import { fold } from '../../app/fold';
 import { countFormat } from './movement-text';
 
 export interface FacetOption {

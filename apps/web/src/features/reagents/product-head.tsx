@@ -1,58 +1,19 @@
 import type { ProductDetail } from '@platlab/contracts';
-import type { ReactNode } from 'react';
 import { Button, IconTile, Quantity, StockLevelBar, Tooltip, cn, formatDecimal } from '@platlab/ui';
-import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, FlaskConical, Package, PackagePlus, PencilLine, QrCode, RefreshCw, ScanLine, TrendingDown, type LucideIcon } from 'lucide-react';
-import { formatAgo, formatDate } from '../../app/format';
+import { ArrowUpFromLine, CalendarCheck, CalendarClock, CalendarX, FlaskConical, Package, PackagePlus, PencilLine, QrCode, ScanLine, TrendingDown } from 'lucide-react';
+import { formatDate } from '../../app/format';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { ControlledMark } from './controlled';
 import { HazardGlyphs } from './hazards';
-import { InfoPill } from './pills';
+import { InfoPill } from '../../app/pills';
 import { physicalStateIcon, physicalStateLabel } from './product-parts';
 import { SdsReference } from './sds';
-import { useNow } from './use-now';
-
-/**
- * Vidrio de la ficha (ADR 0010, «Ventanas como ReactiLab»): blanco al 70 % sobre el fondo del módulo,
- * desenfocado y con borde blanco translúcido. Sin `backdrop-filter`, sólido. Solo la cabecera lo lleva;
- * el resumen es un panel blanco y los frascos, translúcidos sin desenfoque, para que el desplazamiento
- * sea fluido.
- */
-const glassCard =
-  'rounded-[28px] border border-white/70 bg-white/70 shadow-raised backdrop-blur-xl backdrop-saturate-150 not-supports-[backdrop-filter]:bg-surface';
-
-/** Botón redondo de las acciones secundarias de la cabecera: solo icono, 40 px, borde suave; marcado, relleno suave. */
-const iconAction =
-  'size-[40px] rounded-full border-line-strong bg-white/80 text-action hover:bg-white aria-pressed:border-action/40 aria-pressed:bg-action-soft [&_svg]:size-[18px]';
+import { glassCard, iconAction, primaryAction } from '../../app/glass';
+import { RefreshButton } from '../../app/refresh-button';
+import { RowLabel, SummaryCard } from '../../app/summary-card';
 
 /** El id de «Etiquetas QR»: la ficha le devuelve el foco al cerrar el modo. */
 export const labelsButtonId = 'etiquetas-qr';
-
-/**
- * ⟳ «Actualizar» (ADR 0015, 14-10-2026): solo icono, junto al lápiz de «Editar ficha». Su nombre accesible y su
- * `title` dicen cuándo se pidieron los datos: «Actualizar · actualizado hace N min». La frescura es la que ya da el
- * contexto: lo más antiguo de lo que la ficha muestra.
- */
-function RefreshButton({ freshness }: { freshness: ReagentsContext['freshness'] }) {
-  const now = useNow(15_000);
-  const name = freshness.refreshing
-    ? 'Actualizando…'
-    : freshness.updatedAt > 0
-      ? `Actualizar · actualizado ${formatAgo(freshness.updatedAt, now)}`
-      : 'Actualizar';
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label={name}
-      title={name}
-      aria-busy={freshness.refreshing || undefined}
-      className="-my-0.5 size-9 shrink-0 rounded-full text-ink-muted hover:text-action [&_svg]:size-[18px]"
-      onClick={freshness.refresh}
-    >
-      <RefreshCw className={cn(freshness.refreshing && 'motion-safe:animate-spin')} aria-hidden />
-    </Button>
-  );
-}
 
 /**
  * Cabecera de la ficha: el cuadro del módulo y el nombre, con el lápiz «Editar ficha» a su lado (solo icono, con
@@ -131,7 +92,7 @@ export function ProductHeader({
           {showIssue ? (
             <Button
               variant="primary"
-              className="h-14 rounded-2xl bg-linear-to-r from-action to-action-deep px-6 text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep [&_svg]:size-5"
+              className={primaryAction}
               onClick={() => onAction({ kind: 'issue', productId: product.id })}
             >
               <ArrowUpFromLine aria-hidden />
@@ -174,31 +135,6 @@ export type ExpiryDates = {
   /** La más antigua ya vencida. */
   oldestExpired: string | null;
 };
-
-/** Color del icono del rótulo: el de su estado, o el tenue cuando no cuenta ninguno. */
-const labelIconTone = { soft: 'text-ink-subtle', success: 'text-success', warning: 'text-warning', danger: 'text-danger' } as const;
-
-/**
- * Rótulo de una tarjeta del resumen: icono de 12 px en línea y el nombre en mayúsculas de 10 px. El propio
- * `dt` los agrupa: dentro de un `dl`, un `dt` no puede ir envuelto en otro elemento (axe). En el móvil, el
- * icono va sobre el rótulo para que quepan tres columnas.
- */
-function RowLabel({ children, icon: Icon, tone = 'soft' }: { children: string; icon: LucideIcon; tone?: keyof typeof labelIconTone }) {
-  return (
-    <dt className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase leading-none tracking-wider text-ink-muted max-sm:flex-col max-sm:items-start">
-      <Icon className={cn('size-3 shrink-0', labelIconTone[tone])} aria-hidden />
-      <span className="min-w-0">{children}</span>
-    </dt>
-  );
-}
-
-/**
- * Una tarjeta pequeña del resumen: separada de las otras (`gap-2` del `dl`), con borde suave y radio de 16 px. El
- * `div` que agrupa `dt` y `dd` es válido dentro de un `dl`.
- */
-function SummaryCard({ children }: { children: ReactNode }) {
-  return <div className="grid min-w-0 content-start gap-1.5 rounded-2xl border border-line/70 bg-surface p-3 shadow-raised">{children}</div>;
-}
 
 const valueClass = 'text-[18px] font-bold leading-tight tracking-tight';
 const detailClass = 'text-[11px] leading-snug text-ink-muted max-sm:hidden';

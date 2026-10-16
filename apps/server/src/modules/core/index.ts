@@ -7,6 +7,17 @@ export {
   type WorkspaceAccess,
 } from './application/access.js';
 export { recordAudit, type AuditEntry } from './application/audit.js';
-export { createLocation, type LocationRecord } from './application/locations.js';
+export {
+  activeLocations,
+  createAuditedLocation,
+  type LocationRecord,
+} from './application/locations.js';
+export {
+  moduleCommand,
+  moduleQuery,
+  requires,
+  type CommandRequest,
+  type QueryRequest,
+} from './application/module-operations.js';
 export type { HomeContribution } from './application/workspace-view.js';
 export { coreRoutes } from './http/routes.js';

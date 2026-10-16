@@ -35,8 +35,8 @@ import {
 import { MovementTotals } from './movement-totals';
 import { placeOf, purposeOf } from './operation-text';
 import { canReadReports } from './queries';
-import { useMediaQuery, useStoredFlag } from './use-media-query';
-import { useNow } from './use-now';
+import { useMediaQuery, useStoredFlag } from '../../app/use-media-query';
+import { useNow } from '../../app/use-now';
 
 const groupOptions: ReadonlyArray<{ value: OperationGroupBy; label: string }> = (['product', 'responsible', 'destination', 'month'] as const).map(
   (value) => ({ value, label: groupNames[value] }),

@@ -3,12 +3,12 @@ import { Skeleton } from '@platlab/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useState, type ComponentProps } from 'react';
 import { FacetList, type FacetOption } from './facet-list';
-import { FilterGroup, type ChosenOption } from './filter-group';
-import { fold } from './fold';
+import { FilterGroup, type ChosenOption } from '../../app/filter-group';
+import { fold } from '../../app/fold';
 import { toggle, type MovementFilters, type OperationQuery } from './movement-filters';
 import { filterGroups, noName, selectedCount, tight, type FilterGroupId } from './movement-text';
 import { useOperationFacets } from './queries';
-import { useDebouncedValue } from './use-media-query';
+import { useDebouncedValue } from '../../app/use-media-query';
 
 type FoldingGroupId = Exclude<FilterGroupId, 'period' | 'type'>;
 

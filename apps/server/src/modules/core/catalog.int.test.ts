@@ -68,7 +68,7 @@ describe('catálogo de roles y permisos', () => {
     const expected = moduleRegistry
       .flatMap((module) =>
         Object.entries(module.roleGrants).flatMap(([role_code, permissions]) =>
-          (permissions ?? []).map((permission_code) => ({ role_code, permission_code })),
+          (permissions ?? []).map((permission_code: string) => ({ role_code, permission_code })),
         ),
       )
       .sort(

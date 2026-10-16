@@ -153,9 +153,3 @@ SELECT
   (SELECT count(*) FROM minimums WHERE balance < minimum_quantity) AS "below_minimum!",
   (SELECT count(*) FROM minimums) AS "products_with_minimum!";
 
-/* @name listActiveLocations */
-SELECT id, code, name, kind, parent_id
-FROM core.locations
-WHERE workspace_id = :workspaceId!
-  AND archived_at IS NULL
-ORDER BY lower(code), id;

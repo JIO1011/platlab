@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import type { HealthResponse } from '@platlab/contracts';
 import { coreRoutes } from './modules/core/index.js';
+import { equipmentHomeSummary, equipmentRoutes } from './modules/equipment/index.js';
 import { reagentsHomeSummary, reagentsRoutes } from './modules/reagents/index.js';
 import type { TokenVerifier } from './platform/auth/jwt.js';
 import { requireAuthentication } from './platform/http/auth.js';
@@ -26,8 +27,11 @@ export function buildApp({ pool, verifyToken, publicFiles }: AppDependencies): F
   app.register(
     async (v1) => {
       requireAuthentication(v1, verifyToken);
-      await v1.register(coreRoutes({ pool, homeSummaries: { reagents: reagentsHomeSummary } }));
+      await v1.register(
+        coreRoutes({ pool, homeSummaries: { reagents: reagentsHomeSummary, equipment: equipmentHomeSummary } }),
+      );
       await v1.register(reagentsRoutes({ pool, publicFiles }), { prefix: '/workspaces/:workspaceId/reagents' });
+      await v1.register(equipmentRoutes({ pool, publicFiles }), { prefix: '/workspaces/:workspaceId/equipment' });
     },
     { prefix: '/v1' },
   );

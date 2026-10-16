@@ -1,5 +1,5 @@
 import { homeResponse, myWorkspacesResponse, workspaceMeResponse } from '@platlab/contracts';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type Query } from '@tanstack/react-query';
 import { api } from './api';
 import { useSession } from './session';
 
@@ -38,4 +38,13 @@ export function useHome(workspaceId: string) {
     queryKey: [...workspaceKey(user, workspaceId), 'home'],
     queryFn: () => api(`/workspaces/${workspaceId}/home`, { schema: homeResponse }),
   });
+}
+
+/**
+ * `placeholderData` de una consulta con filtros: mientras llega la nueva se conserva la anterior, solo
+ * si es de la misma persona y el mismo espacio (claves de `workspaceKey`).
+ */
+export function keepWithinWorkspace<T>(user: string, workspaceId: string) {
+  return (previous: T | undefined, previousQuery: Query<T, Error, T, readonly unknown[]> | undefined) =>
+    previousQuery?.queryKey[1] === user && previousQuery.queryKey[3] === workspaceId ? previous : undefined;
 }

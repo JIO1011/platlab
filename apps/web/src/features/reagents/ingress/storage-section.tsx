@@ -3,10 +3,11 @@ import { MapPin } from 'lucide-react';
 import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
 import { useAreas } from '../queries';
-import { fieldLabel, filled } from './filled';
-import { Section } from './form-section';
-import { LocationPicker } from './location-picker';
-import type { Errors, Place } from './model';
+import { fieldLabel, filled } from '../../../app/filled';
+import { Section } from '../../../app/form-section';
+import { LocationPicker } from '../../../app/location-picker';
+import type { Place } from '../../../app/places';
+import type { Errors } from './model';
 
 /**
  * «Dónde se guarda»: el área o departamento y la ubicación por niveles. Quien administra el catálogo crea

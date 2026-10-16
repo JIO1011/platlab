@@ -1,6 +1,14 @@
 /* Ubicaciones creadas desde la API (ADR 0015): Core es su dueño; las piden los módulos con su permiso. */
 
-/* @name findParentLocation */
+/* @name listActiveLocations */
+-- Con su padre, para que la web arme los niveles (ADR 0015).
+SELECT id, code, name, kind, parent_id
+FROM core.locations
+WHERE workspace_id = :workspaceId!
+  AND archived_at IS NULL
+ORDER BY lower(code), id;
+
+/* @name findActiveLocation */
 SELECT id, kind
 FROM core.locations
 WHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL;

@@ -136,7 +136,7 @@ select ok(
   'aprobar salidas es del Administrador (ADR 0012)');
 
 select set_eq(
-  'select permission_code from core.role_permissions where role_code = ''operator''',
+  'select permission_code from core.role_permissions where role_code = ''operator'' and permission_code like ''reagents.%''',
   array['reagents.catalog.read', 'reagents.receipt.create', 'reagents.issue.create', 'reagents.transfer.create'],
   'el Operador traslada, pero no ajusta ni administra el catálogo (01 §5)');
 

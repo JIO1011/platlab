@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router';
 import { LoginPage } from '../features/auth/login-page';
 import { HomePage } from '../features/home/home-page';
+import { equipmentRoutes } from '../features/equipment/routes';
 import { reagentsRoutes } from '../features/reagents/routes';
 import { WorkspacePicker } from '../features/workspaces/workspace-picker';
 import { AppShell } from './app-shell';
@@ -9,7 +10,7 @@ import { NotFound, PageLoading } from './states';
 import { useSession } from './session';
 
 /** Rutas de los módulos de la web: una línea por módulo (02 §4, paso 6). */
-const moduleRoutes: ModuleRoutes[] = [reagentsRoutes];
+const moduleRoutes: ModuleRoutes[] = [reagentsRoutes, equipmentRoutes];
 
 /** Las rutas privadas esperan a conocer la sesión y, sin ella, llevan al acceso. */
 function RequireSession() {

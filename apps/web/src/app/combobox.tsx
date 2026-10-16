@@ -2,7 +2,7 @@ import { Input, cn } from '@platlab/ui';
 import { Plus } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { filled } from './filled';
-import { fold } from '../fold';
+import { fold } from './fold';
 
 export interface ComboOption {
   id: string;

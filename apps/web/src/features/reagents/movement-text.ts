@@ -53,9 +53,6 @@ export function movementsText(total: number): string {
   return `${countFormat.format(total)} ${total === 1 ? 'movimiento' : 'movimientos'}`;
 }
 
-/** «1 elegido» / «3 elegidos»: lo que dice cada fila plegada con algo marcado. */
-export const chosenText = (count: number): string => `${countFormat.format(count)} ${count === 1 ? 'elegido' : 'elegidos'}`;
-
 function isoToDate(iso: string): Date {
   const [year = 1970, month = 1, day = 1] = iso.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day, 12));

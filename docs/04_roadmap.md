@@ -89,7 +89,8 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
   - Envases, si el cliente los exige.
   - Preparaciones, si REG-01 confirma que el laboratorio almacena soluciones.
 - Fiscalizados: REG-02, con custodia y retornos si el laboratorio entrega a docentes.
-- Equipos: tipos de equipo, activos, condición, traslado, custodio, importación, documentos e incidencias.
+- Equipos ([ADR 0019](05_decisiones.md#adr-0019)): Resumen, Inventario y Reportes (fallas); tipos de equipo, activos con foto, condición y conservación, traslado, QR, documentos, hoja de vida e importación. El préstamo de equipos va en Materiales y Préstamos (F4).
+- Mantenimiento (M-01, después de E-01): planes preventivos y calibraciones, registros con informe y costo, órdenes correctivas desde una falla y aviso de reemplazo.
 - Común: Inicio por paquete, búsqueda, marca, exportación y desactivación con pendientes.
 
 **F3.**
@@ -103,11 +104,11 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 - Materiales mínimo, si P-04 lo exige.
 - Impresión HTML con la marca del espacio.
 
-**F4.** Consumibles y reutilizables, préstamos con devoluciones parciales, daños, pérdidas y transferencias.
+**F4.** Consumibles y reutilizables, préstamos de material y de equipos con devoluciones parciales, daños, pérdidas y transferencias.
 
 **F5.**
 
-- Mantenimiento: planes, órdenes, bloqueos y liberación con resultado.
+- Mantenimiento avanzado (sobre M-01): órdenes asignadas a técnicos, bloqueos de agenda y repuestos.
 - Analítica: indicadores con fuente y fórmula, alertas y resúmenes.
 
 ## 4. Criterios de aceptación clave
@@ -167,7 +168,8 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | R-01D | Ingreso en un paso y control por peso ([ADR 0015](05_decisiones.md#adr-0015)) | Ventana «Ingresar reactivo»; peligros, controlado, ficha de seguridad, densidad y estados nuevos en el catálogo; código de frasco editable y único; tara, «En balanza», ajuste por peso y «Fijar tara» exactos; editar la ficha; área o departamento; ubicaciones por niveles creadas desde el ingreso; Conteo fuera de la interfaz | R-01C |
 | R-01B | Reactivos para el piloto | Ficha de seguridad con enlace o PDF público, avisos comunes en Core solo en la app (aprobaciones, bajo mínimo, por vencer) y «Exportar a Excel» por streaming de Movimientos e Inventario ([ADR 0014](05_decisiones.md#adr-0014), [ADR 0017](05_decisiones.md#adr-0017)); ajustes que exija el alcance pactado | R-01A, R-01C, R-01D, P-02 |
 | REG-02 | Trazabilidad y reporte fiscalizado | Perfil implementado, custodia y retorno si aplica, periodo conciliado y exportación revisada | REG-01, R-01A, R-01B |
-| E-01 | Equipos e incidencias | Tipos de equipo, activos, condición, traslados e historial; `incidents` separado de Core | T-04, T-05, T-07, P-02 |
+| E-01 | Equipos e incidencias ([ADR 0019](05_decisiones.md#adr-0019)) | Resumen, Inventario y Reportes (fallas); tipos de equipo, activos con foto, condición y conservación, disponibilidad calculada, traslados, QR, documentos públicos, hoja de vida e historial; `incidents` separado de Core | T-04, T-05, P-02 |
+| M-01 | Mantenimiento ([ADR 0019](05_decisiones.md#adr-0019)) | Módulo propio: planes preventivos y calibraciones con próxima fecha y semáforo, registros con informe y costo, órdenes correctivas desde una falla y aviso de reemplazo; integración con la ficha y el Inventario de Equipos | E-01 |
 | I-01 | Importación conciliada | Lotes reiniciables e idempotentes por módulo | Q-01 y R-01A o E-01 |
 | X-00 | Salida del primer módulo | Exportación, documentos, supresión y otros espacios intactos, incluidos los datos regulatorios | DP-01, T-07, R-01A o E-01; REG-02 para este cliente |
 | T-06 | Recuperación del alcance piloto | Base, archivos y configuración recuperados; supresiones respetadas | S-01, T-07, DP-01, R-01A o E-01; REG-02 para este cliente |

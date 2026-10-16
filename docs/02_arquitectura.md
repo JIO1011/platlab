@@ -249,7 +249,7 @@ La infraestructura se incorpora cuando la exige una puerta, no antes.
 | `api.<dominio>` | Render Web Service | G0 si la demo se publica; G1 |
 | Worker | Render Background Worker, mismo release que la API | G1 (T-07) |
 | Base y Auth | Supabase: local en G0, Pro desde G1 | G0 en local |
-| Storage | Bucket público para fichas de seguridad; privado para el resto | R-01B ([ADR 0017](05_decisiones.md#adr-0017)); el privado, con T-07 |
+| Storage | Bucket público para fichas de seguridad, documentos y fotos de equipos; privado para el resto | R-01B ([ADR 0017](05_decisiones.md#adr-0017)) y E-01 ([ADR 0019](05_decisiones.md#adr-0019)); el privado, con T-07 |
 | Correo | Resend: SMTP de Auth y avisos del worker | G1 (T-03B) |
 | Respaldos externos | Cloudflare R2 en una cuenta separada, cifrados | G1 (T-06) |
 | Observabilidad | Better Stack: errores, logs, métricas y heartbeats | G1 |
@@ -293,7 +293,7 @@ La infraestructura se incorpora cuando la exige una puerta, no antes.
   - La automatización: migraciones, copias y disposición.
   - La intervención excepcional nominativa, con MFA, motivo y evidencia.
 - **Secretos y respuestas.** Los secretos se guardan por ambiente en los proveedores y en CI, nunca en Git ni en variables `VITE_*`. Las respuestas privadas llevan `Cache-Control: no-store` y CORS acepta solo orígenes exactos.
-- **Storage.** Es privado: la API autoriza y emite URL firmadas de corta duración. Excepción: las fichas de seguridad van a un bucket público con enlace permanente y solo la API las sube ([ADR 0017](05_decisiones.md#adr-0017)). Cada cambio crea una versión nueva en vez de sobrescribir.
+- **Storage.** Es privado: la API autoriza y emite URL firmadas de corta duración. Excepción: las fichas de seguridad y los documentos y fotos de equipos van a un bucket público con enlace permanente y solo la API los sube ([ADR 0017](05_decisiones.md#adr-0017), [ADR 0019](05_decisiones.md#adr-0019)). Cada cambio crea una versión nueva en vez de sobrescribir.
 - **Respaldos.**
   - Supabase Pro hace una copia diaria y conserva 7 días. Incluye la base y los metadatos de los archivos, pero no los bytes de los archivos ni las contraseñas de roles propios, que se restablecen tras restaurar.
   - Se añade una copia diaria cifrada de base y archivos en R2, con manifiesto y checksums.
@@ -339,6 +339,8 @@ Son valores de arranque para pruebas. Se ajustan con mediciones y no son comprom
 | Tiempos SQL | Interactivos: `statement_timeout` 5 s y espera de bloqueo 1 s. Worker: 30 s por lote |
 | Archivos | 20 MiB por archivo; 5 GiB por espacio |
 | Ficha de seguridad | PDF de hasta 6 MiB ([ADR 0017](05_decisiones.md#adr-0017)) |
+| Documento de equipo | PDF dentro del límite de Archivos ([ADR 0019](05_decisiones.md#adr-0019)) |
+| Foto de equipo | JPEG, PNG o WebP de hasta 2 MiB; la web la envía como WebP de 1600 px como máximo ([ADR 0019](05_decisiones.md#adr-0019)) |
 | Logo del espacio | PNG, WebP o JPEG de hasta 2 MiB y 2048 × 2048 px |
 | Importación CSV | 10 MiB, 10 000 filas, en lotes de 500 |
 | Exportación a Excel | 100 000 filas por archivo, leídas en lotes de 1 000 ([ADR 0017](05_decisiones.md#adr-0017)) |

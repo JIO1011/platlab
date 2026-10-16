@@ -1,7 +1,7 @@
 import type { hazard } from '@platlab/contracts';
 import { cn } from '@platlab/ui';
 import type { z } from 'zod';
-import { pillStyles } from './pills';
+import { pillStyles } from '../../app/pills';
 
 export type Hazard = z.infer<typeof hazard>;
 

@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { homeActivity, homeTrend } from '../access.js';
 import { decimalString } from '../decimal.js';
-import { list, many, operationType, page } from './shared.js';
+import { list, many, page } from '../common.js';
+import { operationType } from './shared.js';
 
 /**
  * Filtros del libro de Movimientos (ADR 0014), comunes a la lista, a los conteos por opción y a los

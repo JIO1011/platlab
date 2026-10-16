@@ -19,9 +19,9 @@ import {
   type ReasonKind,
   type WorkspaceMeResponse,
 } from '@platlab/contracts';
-import { keepPreviousData, useInfiniteQuery, useQuery, type InfiniteData, type Query } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useQuery, type InfiniteData } from '@tanstack/react-query';
 import { api } from '../../app/api';
-import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
+import { jitteredPoll, keepWithinWorkspace, useUserKey, workspaceKey } from '../../app/queries';
 import { operationSearch, type OperationQuery } from './movement-filters';
 
 const reagentsKey = (user: string, workspaceId: string) => [...workspaceKey(user, workspaceId), 'reagents'] as const;
@@ -107,15 +107,6 @@ export function useOperations(workspaceId: string, query: OperationQuery = {}) {
     placeholderData: keepWithinWorkspace<InfiniteData<OperationList, string | undefined>>(user, workspaceId),
     refetchInterval: jitteredPoll,
   });
-}
-
-/**
- * Conserva los datos anteriores mientras cambian los filtros, pero nunca los de otro usuario u otro
- * espacio: la clave empieza por `['user', id, 'ws', workspaceId]`.
- */
-function keepWithinWorkspace<T>(user: string, workspaceId: string) {
-  return (previous: T | undefined, previousQuery: Query<T, Error, T, readonly unknown[]> | undefined) =>
-    previousQuery?.queryKey[1] === user && previousQuery.queryKey[3] === workspaceId ? previous : undefined;
 }
 
 /**

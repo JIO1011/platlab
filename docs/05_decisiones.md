@@ -22,6 +22,7 @@ Revisión: 12 de octubre de 2026. Registro resumido de decisiones de arquitectur
 | [0016](#adr-0016) | Controlados al final y orden para completar Reactivos | Aceptado el 14-10-2026 |
 | [0017](#adr-0017) | Ficha de seguridad pública, exportación por streaming y T-07 aplazado | Aceptado el 14-10-2026 |
 | [0018](#adr-0018) | Reactivos concluido para el piloto; sigue Equipos | Aceptado el 15-10-2026 |
+| [0019](#adr-0019) | Equipos con la forma de Reactivos: estado separado y Mantenimiento como módulo propio | Aceptado el 15-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -516,6 +517,40 @@ Motivo: el usuario prioriza lo necesario para el piloto y menos superficie fuera
 
 Motivo: el usuario da por concluido el módulo y no quiere lógica que el cliente no necesite. Reemplaza el orden del [ADR 0016](#adr-0016) y del [ADR 0017](#adr-0017), y la regla «Reactivos se completa antes de abrir otro módulo» del [ADR 0014](#adr-0014) (15-10-2026).
 
+<a id="adr-0019"></a>
+
+## ADR 0019 — Equipos con la forma de Reactivos: estado separado y Mantenimiento como módulo propio
+
+- **Tres secciones**, como Reactivos ([ADR 0011](#adr-0011), [ADR 0014](#adr-0014)):
+  - *Resumen.* Equipos por condición y fallas abiertas. Acciones rápidas: registrar equipo, reportar falla y escanear. Indicadores: días fuera de servicio, fallas por equipo en 12 meses y tiempo promedio de reparación.
+  - *Inventario.* Foto, código, nombre, tipo, marca, modelo, serie, alimentación, ubicación, condición, disponibilidad y responsable, con el panel de filtros de Movimientos. La ficha tiene las pestañas Información, Fallas e Historial. Los informes salen del Inventario con filtros y «Exportar», como en Reactivos.
+  - *Reportes*, que son las fallas: abierta → en atención → resuelta → cerrada; resolverla exige un resultado y puede devolver el equipo a operativo. Quien reporta elige el tipo y dice si el equipo se puede seguir usando; si no, pasa a fuera de servicio, ligado a la falla. Cada falla guarda quién la reportó, atendió, resolvió y cerró, y cuándo. Docente y Estudiante solo reportan y ven sus reportes: buscan el equipo por código o nombre sin ver el inventario completo.
+- **Estado en cuatro dimensiones**, nunca en una sola lista:
+  - Condición, es decir, si se puede usar: operativo, con restricción, fuera de servicio o dado de baja (03 §5). Cambia con motivo; volver a operativo exige resultado y responsable.
+  - Conservación: bueno, regular o malo. Se anota en el alta, al editar la ficha o en un mantenimiento.
+  - Tipo de falla: eléctrica, mecánica, requiere repuesto u otra. Vive en la falla, no en el equipo.
+  - Disponibilidad: se calcula (disponible o no disponible; «prestado» con M6 y «en mantenimiento» con M7) y nadie la edita. «Reservado» llega con la agenda (F3).
+- **Mantenimiento es un módulo propio (M7)**, como en la proforma: se vende aparte, requiere Equipos y se construye justo después de E-01 (M-01).
+  - Lleva los planes preventivos y las calibraciones con su frecuencia y su próxima fecha automática; el registro de cada mantenimiento con quién lo hizo, resultado, costo, informe del proveedor (el certificado de calibración va dentro) y «válida hasta»; las órdenes correctivas a partir de una falla; y el aviso «Evaluar reemplazo» —un aviso, no una decisión— si la edad alcanza la vida útil, si los costos de 12 meses llegan al 50 % del valor de reposición o si hay tres fallas en 12 meses. Los importes son exactos (`numeric`). La curva de la bañera, el MTBF y Weibull quedan fuera: con las pocas fallas de un laboratorio no son confiables.
+  - Sin M7, Equipos atiende y resuelve la falla con su resultado. Con los dos, la ficha suma la pestaña Mantenimiento, el Inventario la columna «Próximo mantenimiento» con su semáforo (al día, próximo, vencido), y cerrar una orden correctiva devuelve el equipo a operativo.
+  - Su esquema `maintenance` apunta a los equipos sin escribir en `equipment`. Las órdenes asignadas a técnicos, el bloqueo de agenda y los repuestos siguen en F5.
+- **Foto del equipo.** Una foto principal: al registrar o editar el equipo se elige un archivo o se toma con la cámara, y el navegador la reduce (WebP de 1600 px como máximo) antes de subirla. Se ve en la cabecera de la ficha y en miniatura en el Inventario. Es pública con las reglas de la ficha de seguridad ([ADR 0017](#adr-0017)): solo la API sube, JPEG, PNG o WebP comprobado por su contenido, con el límite de [02 §12](02_arquitectura.md#12-parámetros-iniciales); una foto nueva es un archivo nuevo y la anterior queda en el historial.
+- **Lo que sigue en Equipos:** el QR por equipo, que el «Escanear» de Reactivos abre en la ficha con «Reportar falla», y la hoja de vida (ficha, fallas y, con M7, mantenimientos) desde «Imprimir», como el PDF de Reactivos. Una falla dentro de la garantía avisa que se reclame al proveedor.
+- **El préstamo va en Préstamos (M6)**, como en la proforma: un solo mostrador para material y equipos. Equipos se centra en qué hay, si funciona o falla y desde cuándo; con M6, muestra «Prestado».
+- **Documentos.** La ficha suma proveedor, fecha de compra, garantía, vida útil y valor de reposición, y una sección Documentos (manual, factura, garantía, informes) con lo que el cliente considere necesario. Los archivos son PDF públicos con las reglas de la ficha de seguridad ([ADR 0017](#adr-0017)) y el límite general de archivos de [02 §12](02_arquitectura.md#12-parámetros-iniciales); el usuario acepta que quien reciba un enlace vea el documento, aunque tenga costos.
+- **El uso de equipos queda fuera de Equipos.** Se define con Laboratorios y Prácticas (F3); la disponibilidad «en uso» llega entonces.
+- **Se reutiliza lo común.** Las ubicaciones por niveles son las de Core, las mismas de Reactivos; crear una desde Equipos usa un permiso de Equipos. Las fallas viven en la capacidad `incidents`, con rutas y permisos de Equipos. La estructura por caso de uso es la del [ADR 0018](#adr-0018).
+
+Motivo: el usuario quiere Equipos con la forma de Reactivos. Separar el estado conserva el porqué de cada falla y evita editar la disponibilidad a mano; así lo hacen herramientas como MaintainX y Snipe-IT, y la ISO/IEC 17025 (6.4.13) pide la hoja de vida por equipo. Mantenimiento queda como módulo propio porque la proforma lo vende aparte y el usuario lo confirma. Cambia M3 y M7 en 01 §3, 03 §5, E-01 y M-01 del roadmap y la excepción de Storage de 02.
+
+Cambios: 15-10-2026 (Mantenimiento vuelve a M7, construido después de E-01; foto del equipo; el préstamo pasa a M6).
+
+**Implementación de E-01 (15-10-2026).** Cuatro entregas, una rama cada una: E-01a (tipos, ficha con foto, condición, traslados e historial), E-01b (fallas), E-01c (documentos y aviso de garantía) y E-01d (Resumen completo, QR, hoja de vida y exportar); después, M-01 Mantenimiento. E-01a deja en común lo que ya compartían los módulos: comandos y consultas de módulo y ubicaciones activas en Core, cursor y edición parcial en `platform/`, contratos comunes en `contracts/src/common.ts` y el arnés HTTP de pruebas en `testing/api.ts`. Los datos de demo de Equipos entran con su primera pantalla.
+
+**Pantallas de E-01a (15-10-2026, `impeccable shape` aprobado).** Inventario en tabla con el panel de filtros de Movimientos (Condición, Tipo y Ubicación; en el móvil, cada fila es una tarjeta); Resumen con cuatro cifras por condición, la banda «Registrar equipo» y la lista «Requieren atención»; ficha como la del reactivo, con Información e Historial; hojas «Registrar equipo», «Cambiar condición» (dar de baja aparte, con confirmación) y «Trasladar equipo». Color de Equipos: el azul de referencia del usuario, de `#1967D2` a `#2370E4`, oscurecido lo justo para AA con texto blanco. La demo habilita Equipos solo en A; C sigue sin módulos.
+
+**Latencia (15-10-2026).** Lo que más pesa son los viajes a la base, no las consultas. Core lee los permisos una vez por transacción; un alta valida tipo, ubicación y responsable en una consulta y resuelve el código y el nombre únicos con su índice (`ON CONFLICT`); cambiar la condición o trasladar escribe historial y equipo en una sentencia. El inventario pagina primero por `assets_code` (también su cursor) y arma niveles y responsable solo para la página; busca en `search_text`, plegado al escribir; el Resumen cuenta desde `assets_condition`. Con 5.000 equipos, la página tarda 0,07 ms y la búsqueda 1,5 ms; un índice de trigramas (`pg_trgm`) se añade solo si un espacio supera unos 50.000 equipos.
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |
@@ -524,6 +559,7 @@ Motivo: el usuario da por concluido el módulo y no quiere lógica que el client
 | Espacios del piloto | ¿Una o varias unidades operan el inventario? ¿La calificación abarca varias? ¿Necesita el titular una vista consolidada de sus espacios (informes o traslados entre ellos)? Hoy los espacios no comparten nada, aunque sean del mismo titular; abrirlo exige una decisión nueva | F0, con REG-01 |
 | Soluciones preparadas | Submódulo de Reactivos, al final ([ADR 0017](#adr-0017)); el diseño ya está decidido (03 §4). Falta saber si el laboratorio almacena soluciones y si siguen siendo fiscalizadas | REG-01 |
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
+| Equipos | ¿Qué campos de la ficha y qué documentos considera necesarios el cliente? ¿Qué valores de alimentación usa? ¿Quiere un aviso al pesar en Reactivos con una balanza de calibración vencida? ([ADR 0019](#adr-0019)) | F0, antes de E-01 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
 | Reglas de Prácticas | Anticipación, cancelaciones, salas exclusivas, devoluciones químicas y quién declara el consumo al cerrar | P-04, antes de F3 |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |

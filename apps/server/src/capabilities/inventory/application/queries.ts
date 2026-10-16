@@ -1,5 +1,5 @@
 import type { Operation, OperationFacets, OperationGroupBy, OperationTotals, Position } from '@platlab/contracts';
-import { AppError } from '../../../platform/errors.js';
+import { decodeCursor, encodeCursor } from '../../../platform/http/cursor.js';
 import {
   countOperationsByDay,
   findContainerItem,
@@ -9,24 +9,6 @@ import {
   operationTotals,
 } from '../infrastructure/inventory.queries.js';
 import type { InventoryContext } from './context.js';
-
-/** Cursor opaco para paginar por clave: el cliente no elige orden ni filtros arbitrarios. */
-function encodeCursor(values: string[]): string {
-  return Buffer.from(JSON.stringify(values)).toString('base64url');
-}
-
-function decodeCursor(cursor: string | undefined, size: number): string[] | null {
-  if (cursor === undefined) return null;
-  try {
-    const values: unknown = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
-    if (Array.isArray(values) && values.length === size && values.every((v) => typeof v === 'string')) {
-      return values as string[];
-    }
-  } catch {
-    // Se responde abajo como datos inválidos.
-  }
-  throw new AppError('VALIDATION_FAILED', 'Cursor inválido');
-}
 
 export interface Page<T> {
   items: T[];

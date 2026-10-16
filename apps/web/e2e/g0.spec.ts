@@ -965,7 +965,9 @@ test('listas de la hoja de salida: la Administradora quita un destino con la pap
 
 test('sin permiso: el docente que abre Reactivos por URL ve «Sin permiso»', async ({ browser }) => {
   const teacher = await signIn(browser, 'docente@demo.platlab.test');
-  await expect(teacher.getByText('No hay módulos para tu rol en este espacio')).toBeVisible();
+  // Con Equipos el docente solo reporta fallas (ADR 0019): ve su tarjeta, pero no la de Reactivos.
+  await expect(teacher.getByRole('link', { name: 'Abrir Equipos' })).toBeVisible();
+  await expect(teacher.getByRole('link', { name: 'Abrir Reactivos' })).toHaveCount(0);
   await teacher.goto(`${teacher.url()}/reactivos`);
   await expect(teacher.getByRole('heading', { name: 'Sin permiso' })).toBeVisible();
   await expect(teacher.getByRole('button', { name: /Registrar/ })).toHaveCount(0);

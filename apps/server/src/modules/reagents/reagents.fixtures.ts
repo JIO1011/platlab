@@ -1,59 +1,10 @@
-import { afterAll, expect } from 'vitest';
-import { errorResponse, product as productContract, entryList, receiptResponse } from '@platlab/contracts';
-import { buildApp } from '../../app.js';
-import { localPublicFiles } from '../../testing/storage.js';
-import { createPool } from '../../platform/db/pool.js';
-import {
-  addLocation,
-  addMember,
-  createAdminPool,
-  seedWorkspace,
-  uniqueSuffix,
-  type Member,
-  type Workspace,
-} from '../../testing/core-fixtures.js';
-import { createTestSigner } from '../../testing/tokens.js';
+import { expect } from 'vitest';
+import { product as productContract, entryList, receiptResponse } from '@platlab/contracts';
+import { admin, call, count } from '../../testing/api.js';
+import { addLocation, addMember, seedWorkspace, uniqueSuffix, type Member, type Workspace } from '../../testing/core-fixtures.js';
 
-/**
- * R-00 por HTTP contra la base local, con el rol de runtime y conexiones reales: el recorrido de
- * la demo y la evidencia de G0 (primer incremento, «Evidencia para cerrar G0»).
- */
-export const admin = createAdminPool();
-const pool = createPool({
-  connectionString:
-    process.env['DATABASE_URL_API'] ??
-    'postgres://platlab_api:platlab_api_local@127.0.0.1:54322/postgres',
-  max: 4,
-});
-export const signer = await createTestSigner();
-export const app = buildApp({ pool, verifyToken: signer.verifier, publicFiles: localPublicFiles });
-
-afterAll(async () => {
-  await app.close();
-  await pool.end();
-  await admin.end();
-});
-
-interface Call {
-  method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
-  body?: unknown;
-  key?: string;
-}
-
-export async function call(subject: string, url: string, { method = 'GET', body, key }: Call = {}) {
-  const response = await app.inject({
-    method,
-    url: `/v1${url}`,
-    headers: {
-      authorization: `Bearer ${await signer.sign(subject)}`,
-      ...(key ? { 'idempotency-key': key } : {}),
-    },
-    ...(body === undefined ? {} : { payload: body as Record<string, unknown> }),
-  });
-  return { status: response.statusCode, body: response.json() as unknown };
-}
-
-export const errorCode = (body: unknown) => errorResponse.parse(body).error.code;
+/** R-00 por HTTP: el recorrido de la demo y la evidencia de G0 (primer incremento, «Evidencia para cerrar G0»). */
+export { admin, app, auditsIn, call, count, errorCode, signer } from '../../testing/api.js';
 
 export interface Lab {
   workspace: Workspace;
@@ -113,9 +64,5 @@ export const listEntry = entryList.shape.items.element;
 /** Posición del primer frasco de un ingreso (ADR 0012: la posición es frasco + ubicación). */
 export const receivedPosition = (response: { body: unknown }) => receiptResponse.parse(response.body).containers[0]!.positionId;
 
-export const count = async (sql: string, params: unknown[]) =>
-  Number((await admin.query<{ n: string }>(sql, params)).rows[0]!.n);
 export const operationsIn = (workspaceId: string) =>
   count('select count(*) as n from inventory.operations where workspace_id = $1', [workspaceId]);
-export const auditsIn = (workspaceId: string) =>
-  count('select count(*) as n from core.audit_events where workspace_id = $1', [workspaceId]);

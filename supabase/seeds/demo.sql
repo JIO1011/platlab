@@ -8,8 +8,8 @@
 --                                  permisos del Administrador por ser propietaria (ADR 0008, 02-10-2026).
 --   docente@demo.platlab.test      Diego Docente: Docente en A, sin permisos de Reactivos.
 --
--- Espacios: A y B con Reactivos (A con 30 días de historial y B con existencias propias); C sin
--- Reactivos.
+-- Espacios: A con Reactivos y Equipos (30 días de historial y 12 equipos), B con Reactivos y
+-- existencias propias; C sin módulos.
 
 begin;
 
@@ -115,6 +115,8 @@ insert into platform.contract_revisions (id, workspace_id, contract_id, revision
 
 insert into platform.contract_revision_modules (workspace_id, revision_id, module_code, valid_from) values
   ('da000000-0000-4000-8000-00000000000a', 'da500000-0000-4000-8000-000000000001', 'reagents', now() - interval '1 day'),
+  -- Equipos (ADR 0019) en etapa development: la demo es sintética, así que la admisión lo permite.
+  ('da000000-0000-4000-8000-00000000000a', 'da500000-0000-4000-8000-000000000001', 'equipment', now() - interval '1 day'),
   ('db000000-0000-4000-8000-00000000000b', 'db500000-0000-4000-8000-000000000001', 'reagents', now() - interval '1 day');
 
 select platform.apply_contract_revision('da500000-0000-4000-8000-000000000001', 'seed demo');
@@ -350,5 +352,88 @@ insert into inventory.allocations
   (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id, created_at)
 values ('da000000-0000-4000-8000-00000000000a', 'da800000-0000-4000-8000-000000000001', 50,
         'Práctica de Análisis Químico', 'Laboratorio de Física', 'da200000-0000-4000-8000-000000000002', now() - interval '2 hours');
+
+-- ---------------------------------------------------------------------------
+-- Equipos de A (ADR 0019): doce equipos en las ubicaciones existentes, con cada condición, un traslado,
+-- fallas en cada estado y su historial. Solo el seed puede fechar en el pasado.
+-- ---------------------------------------------------------------------------
+
+insert into equipment.asset_types (id, workspace_id, name) values
+  ('da910000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'Centrífuga'),
+  ('da910000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'Balanza'),
+  ('da910000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'Espectrofotómetro'),
+  ('da910000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'Estufa y mufla'),
+  ('da910000-0000-4000-8000-000000000005', 'da000000-0000-4000-8000-00000000000a', 'Microscopio'),
+  ('da910000-0000-4000-8000-000000000006', 'da000000-0000-4000-8000-00000000000a', 'pH-metro'),
+  ('da910000-0000-4000-8000-000000000007', 'da000000-0000-4000-8000-00000000000a', 'Campana de extracción'),
+  ('da910000-0000-4000-8000-000000000008', 'da000000-0000-4000-8000-00000000000a', 'Autoclave'),
+  ('da910000-0000-4000-8000-000000000009', 'da000000-0000-4000-8000-00000000000a', 'Agitador');
+
+-- Ubicaciones: Química (…03), Física (…04) y el almacén (…02). Responsables: Ana (…01) y Óscar (…02).
+insert into equipment.assets
+  (id, workspace_id, type_id, code, name, brand, model, serial_number, power_supply, location_id,
+   responsible_principal_id, condition, conservation, supplier, acquired_on, warranty_until,
+   useful_life_years, replacement_value, created_by_principal_id, created_at)
+select a.id::uuid, 'da000000-0000-4000-8000-00000000000a', ('da910000-0000-4000-8000-00000000000' || a.type)::uuid,
+       a.code, a.name, a.brand, a.model, a.serial, a.power, ('da300000-0000-4000-8000-00000000000' || a.loc)::uuid,
+       ('da200000-0000-4000-8000-00000000000' || a.resp)::uuid, a.condition, a.conservation, a.supplier,
+       a.acquired::date, a.warranty::date, a.life, a.value::numeric, 'da200000-0000-4000-8000-000000000001',
+       now() - interval '90 days'
+  from (values
+    ('da920000-0000-4000-8000-000000000001', 1, 'CEN-01', 'Centrífuga refrigerada', 'Eppendorf', '5810R', '5811AB0042', '220 V', 3, 2, 'operational', 'good', 'Labtech Ecuador', '2021-03-15', '2024-03-15', 10, '9800.00'),
+    ('da920000-0000-4000-8000-000000000002', 2, 'BAL-01', 'Balanza analítica', 'Ohaus', 'PX224', 'B-4471', '110 V', 3, 1, 'operational', 'good', 'Científica Andina', '2023-06-01', '2027-06-01', 8, '2500.50'),
+    ('da920000-0000-4000-8000-000000000003', 2, 'BAL-02', 'Balanza de precisión', 'Mettler Toledo', 'ML3002', 'MT-20931', '110 V', 4, 1, 'restricted', 'fair', null, '2019-09-10', null, 8, '1850.00'),
+    ('da920000-0000-4000-8000-000000000004', 3, 'ESP-01', 'Espectrofotómetro UV-Vis', 'Thermo Scientific', 'Genesys 30', 'GEN30-7712', '110 V', 3, 2, 'faulted', 'fair', 'Labtech Ecuador', '2018-02-20', null, 10, '7200.00'),
+    ('da920000-0000-4000-8000-000000000005', 4, 'EST-01', 'Estufa de secado', 'Memmert', 'UN55', 'UN55-3381', '220 V', 3, 2, 'operational', 'good', null, '2022-08-05', '2025-08-05', 15, '4100.00'),
+    ('da920000-0000-4000-8000-000000000006', 5, 'MIC-01', 'Microscopio óptico', 'Olympus', 'CX23', 'CX23-10021', '110 V', 4, 2, 'operational', 'good', 'Científica Andina', '2024-01-12', '2027-01-12', 10, '1600.00'),
+    ('da920000-0000-4000-8000-000000000007', 5, 'MIC-02', 'Microscopio óptico', 'Olympus', 'CX23', 'CX23-10022', '110 V', 4, 2, 'operational', 'fair', 'Científica Andina', '2024-01-12', '2027-01-12', 10, '1600.00'),
+    ('da920000-0000-4000-8000-000000000008', 6, 'PHM-01', 'pH-metro de mesa', 'Hanna', 'HI2211', 'HI-55810', '110 V', 3, 2, 'operational', 'good', null, '2023-04-03', null, 6, '650.00'),
+    ('da920000-0000-4000-8000-000000000009', 7, 'CAM-01', 'Campana de extracción', 'Esco', 'Frontier Duo', 'EF-4410', '220 V', 3, 1, 'operational', 'good', null, '2020-11-30', null, 15, '12500.00'),
+    ('da920000-0000-4000-8000-000000000010', 8, 'AUT-01', 'Autoclave vertical', 'Tuttnauer', '2540EL', 'TT-88213', '220 V', 4, 1, 'operational', 'fair', 'Labtech Ecuador', '2017-05-22', null, 12, '8900.00'),
+    ('da920000-0000-4000-8000-000000000011', 9, 'AGI-01', 'Agitador magnético con calefacción', 'IKA', 'C-MAG HS 7', 'IKA-30217', '110 V', 3, 2, 'restricted', 'fair', null, '2021-07-19', null, 7, '780.00'),
+    ('da920000-0000-4000-8000-000000000012', 4, 'MUF-01', 'Mufla', 'Thermolyne', 'F48055', 'TH-7702', '220 V', 4, 1, 'retired', 'poor', null, '2012-03-01', null, 15, '5400.00')
+  ) as a (id, type, code, name, brand, model, serial, power, loc, resp, condition, conservation, supplier, acquired, warranty, life, value);
+
+-- Fallas (E-01b): el docente reportó la del espectrofotómetro; la del agitador está en atención; la
+-- del autoclave se resolvió y se cerró; y una del microscopio no impide usarlo.
+insert into incidents.cases
+  (id, workspace_id, module_code, asset_id, fault_type, description, usable, status, reported_by_principal_id, reported_at,
+   attended_by_principal_id, attended_at, resolution, resolved_by_principal_id, resolved_at, closed_by_principal_id, closed_at)
+values
+  ('da930000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'equipment', 'da920000-0000-4000-8000-000000000004',
+   'electrical', 'La lámpara de deuterio no enciende al iniciar el equipo', false, 'open', 'da200000-0000-4000-8000-000000000004', now() - interval '3 days',
+   null, null, null, null, null, null, null),
+  ('da930000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'equipment', 'da920000-0000-4000-8000-000000000011',
+   'electrical', 'La calefacción no regula la temperatura', true, 'in_progress', 'da200000-0000-4000-8000-000000000002', now() - interval '5 days',
+   'da200000-0000-4000-8000-000000000002', now() - interval '4 days', null, null, null, null, null),
+  ('da930000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'equipment', 'da920000-0000-4000-8000-000000000010',
+   'mechanical', 'No alcanza 121 °C en el ciclo de esterilización', false, 'closed', 'da200000-0000-4000-8000-000000000002', now() - interval '20 days',
+   'da200000-0000-4000-8000-000000000001', now() - interval '18 days', 'Cambio de termostato; ciclo de prueba correcto',
+   'da200000-0000-4000-8000-000000000001', now() - interval '12 days', 'da200000-0000-4000-8000-000000000001', now() - interval '11 days'),
+  ('da930000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'equipment', 'da920000-0000-4000-8000-000000000007',
+   'mechanical', 'El tornillo del enfoque fino está duro', true, 'open', 'da200000-0000-4000-8000-000000000004', now() - interval '1 day',
+   null, null, null, null, null, null, null);
+
+insert into equipment.condition_changes
+  (workspace_id, asset_id, from_condition, to_condition, reason, result, actor_principal_id, occurred_at, case_id)
+select 'da000000-0000-4000-8000-00000000000a', ('da920000-0000-4000-8000-0000000000' || c.asset)::uuid, c.from_c, c.to_c,
+       c.reason, c.result, ('da200000-0000-4000-8000-00000000000' || c.actor)::uuid, now() - c.ago::interval,
+       ('da930000-0000-4000-8000-00000000000' || c.fault)::uuid
+  from (values
+    ('04', 'operational', 'faulted', 'Falla eléctrica reportada: no se puede usar', null, 4, '3 days', '1'),
+    ('03', 'operational', 'restricted', 'Desviación de 0,02 g en la verificación con pesa patrón: usar solo para pesadas gruesas', null, 1, '10 days', null),
+    ('10', 'operational', 'faulted', 'Falla mecánica reportada: no se puede usar', null, 2, '20 days', '3'),
+    ('10', 'faulted', 'operational', 'Falla resuelta', 'Cambio de termostato; ciclo de prueba correcto', 1, '12 days', '3'),
+    ('11', 'operational', 'restricted', 'La calefacción no regula: usar solo para agitar', null, 2, '5 days', null),
+    ('12', 'operational', 'faulted', 'La resistencia se quemó', null, 2, '60 days', null),
+    ('12', 'faulted', 'retired', 'Resistencia irreparable; el repuesto ya no se fabrica', null, 1, '30 days', null)
+  ) as c (asset, from_c, to_c, reason, result, actor, ago, fault);
+
+-- El pH-metro pasó de Física a Química para las prácticas de titulación.
+insert into equipment.location_changes
+  (workspace_id, asset_id, from_location_id, to_location_id, note, actor_principal_id, occurred_at)
+values ('da000000-0000-4000-8000-00000000000a', 'da920000-0000-4000-8000-000000000008',
+        'da300000-0000-4000-8000-000000000004', 'da300000-0000-4000-8000-000000000003',
+        'Para las prácticas de titulación', 'da200000-0000-4000-8000-000000000002', now() - interval '7 days');
 
 commit;

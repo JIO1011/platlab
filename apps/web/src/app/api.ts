@@ -22,8 +22,8 @@ interface Request<S extends z.ZodType> {
   schema: S;
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
   body?: unknown;
-  /** Un PDF (ficha de seguridad, ADR 0017): va tal cual, en lugar de `body`. */
-  pdf?: Blob;
+  /** Un archivo (ficha de seguridad en PDF, ADR 0017; foto de equipo, ADR 0019): va tal cual, en lugar de `body`. */
+  file?: { body: Blob; type: 'application/pdf' | 'image/jpeg' | 'image/png' | 'image/webp' };
   /** Misma clave en los reintentos de un mismo envío: el servidor no repite el efecto (02 §7). */
   idempotencyKey?: string;
 }
@@ -39,11 +39,11 @@ export async function api<S extends z.ZodType>(path: string, request: Request<S>
       method: request.method ?? 'GET',
       headers: {
         authorization: `Bearer ${token}`,
-        ...(request.pdf ? { 'content-type': 'application/pdf' } : {}),
+        ...(request.file ? { 'content-type': request.file.type } : {}),
         ...(request.body === undefined ? {} : { 'content-type': 'application/json' }),
         ...(request.idempotencyKey ? { 'idempotency-key': request.idempotencyKey } : {}),
       },
-      ...(request.pdf ? { body: request.pdf } : {}),
+      ...(request.file ? { body: request.file.body } : {}),
       ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
     });
   } catch {

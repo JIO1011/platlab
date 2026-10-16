@@ -10,6 +10,9 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 - **Rendimiento** · bloque principal > 500 kB (P2 desde el paso 5) → dividir por rutas antes del piloto
 - **Cabecera de los módulos** · «Actualizado… Actualizar» queda entre el título y la identidad de la ficha; las acciones ocupan mucho alto en el móvil → rediseñarla en una entrega aparte
 - **T-02/T-03** · movimiento concurrente del árbol de ubicaciones sin prueba → dos conexiones que muevan A bajo B y B bajo A, cuando exista el comando de mover ubicaciones
+- **E-01a/E-01b** · sin e2e de Equipos (alta con foto, condición, traslado y el ciclo de una falla) → escribirlo antes del G0 de Equipos
+- **E-01a** · `SectionHeader` de Equipos repite la cabecera de Reactivos (`features/reagents/layout.tsx`) → moverla a `app/` en la entrega de la cabecera de los módulos; `RowLabel` (`app/summary-card.tsx`) sigue en 10 px en mayúsculas
+- **e2e** · no se puede repetir sobre la misma base: la segunda corrida falla en traslado, mínimos y solicitudes → `pnpm db:reset` antes de `pnpm e2e`, o hacer que el e2e cree sus propios datos
 - **DP-01** · retención de `platform.idempotency_records` y disposición de las revisiones aplicadas, que son inmutables (revisar) → decidir y probar en DP-01
 
 ## Puertas

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { decimalString } from '../decimal.js';
-import { hazard, list, page, physicalState, positiveQuantity, sdsKind, text } from './shared.js';
+import { list, page, text } from '../common.js';
+import { hazard, physicalState, positiveQuantity, sdsKind } from './shared.js';
 
 // ---------------------------------------------------------------------------
 // Catálogo
@@ -117,21 +118,6 @@ export const productParams = z.object({ workspaceId: z.uuid(), productId: z.uuid
 /** `q`: busca en nombre, código o CAS, sin distinguir mayúsculas ni tildes (el buscador del ingreso). */
 export const productListQuery = z.object({ ...page, q: z.string().trim().min(2).max(100).optional() }).strict();
 
-/** Ubicación donde el miembro puede registrar el movimiento (su ámbito y descendencia). */
-export const location = z.object({
-  id: z.uuid(),
-  code: z.string(),
-  name: z.string(),
-  kind: z.string(),
-  parentId: z.uuid().nullable(),
-});
-
-/**
- * POST /locations (ADR 0015): una ubicación bajo otra, o en la raíz; el tipo y el código los decide el
- * servidor. Un nombre activo repetido bajo el mismo padre devuelve la existente.
- */
-export const createLocationRequest = z.object({ name: text(200), parentId: z.uuid().nullable() }).strict();
-
 /** Reactivo con su total y sus frascos con saldo en las ubicaciones que el miembro puede consultar. */
 export const stockedProduct = product.extend({
   balance: decimalString,
@@ -145,11 +131,8 @@ export const stockedProduct = product.extend({
 export const productList = list(stockedProduct);
 /** Ficha (GET /products/:productId): además, si la unidad aún puede cambiar (sin movimientos). */
 export const productDetail = stockedProduct.extend({ unitEditable: z.boolean() });
-export const locationList = z.object({ items: z.array(location) });
 
 export type Product = z.infer<typeof product>;
 export type ProductList = z.infer<typeof productList>;
 export type ProductDetail = z.infer<typeof productDetail>;
-export type Location = z.infer<typeof location>;
-export type LocationList = z.infer<typeof locationList>;
 export type StockedProduct = z.infer<typeof stockedProduct>;

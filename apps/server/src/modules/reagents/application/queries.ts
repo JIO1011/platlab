@@ -39,16 +39,18 @@ import {
   type OperationFilter,
 } from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
+import { decodeCursor, encodeCursor } from '../../../platform/http/cursor.js';
 import {
+  activeLocations,
   hasPermission,
+  moduleQuery,
   requirePermission,
-  withModuleAccess,
   type HomeContribution,
+  type QueryRequest,
   type WorkspaceAccess,
 } from '../../core/index.js';
 import {
   homeSummary,
-  listActiveLocations,
   listProductSafety,
   listProducts as listProductsQuery,
   type IListProductsResult,
@@ -62,35 +64,8 @@ const REPORT = 'reagents.report.read';
 /** Ventana del gráfico de salidas del resumen (ADR 0011). */
 const TREND_DAYS = 30;
 
-interface QueryRequest {
-  subject: string;
-  workspaceId: string;
-}
-
 /** Consultas de Reactivos: admisión de consulta y lectura del catálogo. */
-function runQuery<T>(pool: pg.Pool, request: QueryRequest, work: (access: WorkspaceAccess) => Promise<T>) {
-  return withModuleAccess(
-    pool,
-    { ...request, moduleCode: 'reagents', actionClass: 'read_export' },
-    async (access) => {
-      await requirePermission(access, READ);
-      return work(access);
-    },
-  );
-}
-
-function decodeProductCursor(cursor: string | undefined): [string, string] | null {
-  if (cursor === undefined) return null;
-  try {
-    const values: unknown = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
-    if (Array.isArray(values) && values.length === 2 && values.every((v) => typeof v === 'string')) {
-      return [values[0] as string, values[1] as string];
-    }
-  } catch {
-    // Se responde abajo como datos inválidos.
-  }
-  throw new AppError('VALIDATION_FAILED', 'Cursor inválido');
-}
+const runQuery = moduleQuery('reagents', READ);
 
 const toStockedProduct = (row: IListProductsResult): StockedProduct => ({
   id: row.id,
@@ -199,7 +174,7 @@ export function listProducts(
   query: z.infer<typeof productListQuery>,
 ): Promise<ProductList> {
   return runQuery(pool, request, async (access) => {
-    const after = decodeProductCursor(query.cursor);
+    const after = decodeCursor(query.cursor, 2);
     const rows = await listProductsQuery.run(
       {
         workspaceId: access.workspace.id,
@@ -219,7 +194,7 @@ export function listProducts(
       items: visible.map(toStockedProduct),
       nextCursor:
         rows.length > query.limit && last
-          ? Buffer.from(JSON.stringify([last.sort_code, last.id])).toString('base64url')
+          ? encodeCursor([last.sort_code, last.id])
           : null,
     };
   });
@@ -382,8 +357,7 @@ export function getSummary(pool: pg.Pool, request: QueryRequest): Promise<HomeCo
 function locationsWith(pool: pg.Pool, request: QueryRequest, permission: string): Promise<LocationList> {
   return runQuery(pool, request, async (access) => {
     if (!(await hasPermission(access, permission))) return { items: [] };
-    const rows = await listActiveLocations.run({ workspaceId: access.workspace.id }, access.client);
-    return { items: rows.map(({ id, code, name, kind, parent_id }) => ({ id, code, name, kind, parentId: parent_id })) };
+    return { items: await activeLocations(access) };
   });
 }
 

@@ -10,7 +10,8 @@ import {
 } from '@platlab/contracts';
 import { createItem, lockItem, setMinimum, updateItemFields } from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
-import { createLocation, recordAudit, type WorkspaceAccess } from '../../core/index.js';
+import { definedFields } from '../../../platform/objects.js';
+import { createAuditedLocation, recordAudit, type WorkspaceAccess } from '../../core/index.js';
 import {
   findProductDetail,
   insertProductDetail,
@@ -82,12 +83,6 @@ export function createProduct(pool: pg.Pool, request: CommandRequest, input: z.i
     (access) => insertProduct(access, input),
   );
 }
-
-/** Solo los campos enviados: en una edición parcial, lo ausente conserva su valor. */
-const definedFields = <T extends object>(value: T) =>
-  Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined)) as {
-    [K in keyof T]?: Exclude<T[K], undefined>;
-  };
 
 export async function productDetailOf(access: WorkspaceAccess, itemId: string): Promise<IFindProductDetailResult> {
   const [detail] = await findProductDetail.run({ workspaceId: access.workspace.id, itemId }, access.client);
@@ -194,15 +189,6 @@ export function createWorkspaceLocation(
     'reagents.location.create',
     input,
     requires(CATALOG),
-    async (access) => {
-      const { created, ...location } = await createLocation(access, input);
-      await recordAudit(access, {
-        action: 'reagents.location.create',
-        entityType: 'core.location',
-        entityId: location.id,
-        changes: { ...location, created },
-      });
-      return location;
-    },
+    (access) => createAuditedLocation(access, input, 'reagents.location.create'),
   );
 }

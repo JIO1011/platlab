@@ -3,12 +3,12 @@ import { Field, Select, cn } from '@platlab/ui';
 import { Lock, LockOpen } from 'lucide-react';
 import { useId } from 'react';
 import { ControlledMark } from '../controlled';
-import { PillField } from '../pills';
+import { PillField } from '../../../app/pills';
 import { HazardGlyphs, HazardSelect } from '../hazards';
 import { physicalStateLabel } from '../product-parts';
 import { SdsReference, sdsLabels } from '../sds';
 import { isVolume } from '../weight';
-import { FilledInput, fieldGrid, fieldLabel, filled } from './filled';
+import { FilledInput, fieldGrid, fieldLabel, filled } from '../../../app/filled';
 import type { Draft, Errors, SdsKind } from './model';
 
 const states = physicalState.options.map((value) => ({ value, label: physicalStateLabel[value] ?? value }));

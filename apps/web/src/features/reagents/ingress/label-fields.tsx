@@ -6,9 +6,11 @@ import { ControlledMark } from '../controlled';
 import { HazardGlyphs } from '../hazards';
 import { ErrorBalloon } from './balloon';
 import { checkCas } from './cas';
-import { Combobox, type ComboOption } from './combobox';
-import { FilledInput, QuantityInput, fieldGrid, fieldLabel } from './filled';
-import { casRequired, lastSuffix, productUnits, recentFirst, type BottlesForm, type Draft, type Errors } from './model';
+import { Combobox, type ComboOption } from '../../../app/combobox';
+import { FilledInput, fieldGrid, fieldLabel } from '../../../app/filled';
+import { QuantityInput } from './filled';
+import { recentFirst } from '../../../app/places';
+import { casRequired, lastSuffix, productUnits, type BottlesForm, type Draft, type Errors } from './model';
 
 /**
  * «Datos de la etiqueta» (ADR 0015): lo que se copia del frasco. El nombre es el buscador del
