@@ -40,6 +40,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Registro
 | Fecha | Entrega | Commit | Veredicto | Pruebas | Nota |
 |---|---|---|---|---|---|
+| 2026-10-15 | E-01a y E-01b: Equipos con inventario, ficha, foto, condición, traslado e historial, y reportes de fallas (ADR 0019) | `071cd5a` (PR #21) | Cumple | unit 142 · pgTAP 272 · int 170 · e2e 24 | Local y CI en verde, PgTyped sin diferencias; revisión de acabado con 4 capturas y 6 correcciones aplicadas. Sin e2e propio de Equipos (pendiente para su G0) |
 | 2026-10-15 | R-01B entrega 1 (ficha de seguridad en PDF) y reorganización de Reactivos sin cambiar la lógica (ADR 0017, 0018) | `88dda30` y la reorganización | Cumple | unit 94 · pgTAP 238 · int 142 · e2e 24 | Todo local sobre ambos commits: tipos, lint, fronteras, knip, PgTyped sin diferencias y Storage local; la prueba de integración pasa de 1 a 7 archivos con los mismos casos. Reactivos queda concluido para el piloto |
 | 2026-10-14 | Ámbito por ubicación retirado (ADR 0016, paso 2) | `2b913c7` | Cumple | unit 91 · pgTAP 224 · int 138 · e2e 24 | Sin cambios de UI ni de contrato; pgTAP y e2e del CI (run 38681271736), unit e int locales; primera entrega con «Quién implementa» del ADR 0013 |
 | 2026-10-14 | Mejoras pequeñas del ADR 0016 (ficha de seguridad en la salida, ruta en el historial, códigos sin palabras vacías) | `170cbb5` | Cumple | unit 91 · pgTAP 223 · int 139 · e2e 24 | Probado por el usuario en el navegador; primera entrega con etapas de cambios y cierre (ADR 0013); conteos del CI (run 38675089388) |
