@@ -20,6 +20,8 @@ export const errorCodes = [
   'NAME_TAKEN',
   // Otra persona ya aprobó, rechazó o canceló la solicitud (ADR 0012).
   'REQUEST_RESOLVED',
+  // Otra persona cambió el recurso desde la versión que se editaba (errores estables de 02).
+  'VERSION_CONFLICT',
   'IDEMPOTENCY_KEY_REUSED',
   'TRANSIENT_CONFLICT',
   'INTERNAL',

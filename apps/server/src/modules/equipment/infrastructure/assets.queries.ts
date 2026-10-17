@@ -770,6 +770,39 @@ const listAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"location
 export const listAssets = new PreparedQuery<IListAssetsParams,IListAssetsResult>(listAssetsIR);
 
 
+/** 'SetAssetConservation' parameters type */
+export interface ISetAssetConservationParams {
+  assetId: string;
+  conservation: string;
+  workspaceId: string;
+}
+
+/** 'SetAssetConservation' return type */
+export interface ISetAssetConservationResult {
+  id: string;
+}
+
+/** 'SetAssetConservation' query type */
+export interface ISetAssetConservationQuery {
+  params: ISetAssetConservationParams;
+  result: ISetAssetConservationResult;
+}
+
+const setAssetConservationIR: any = {"usedParamSet":{"conservation":true,"workspaceId":true,"assetId":true},"params":[{"name":"conservation","required":true,"transform":{"type":"scalar"},"locs":[{"a":139,"b":152}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":198,"b":210}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":221,"b":229}]}],"statement":"-- Solo el estado físico, con el equipo ya bloqueado: lo usa la interfaz de Equipos (ADR 0020).\nUPDATE equipment.assets\nSET conservation = :conservation!, version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :assetId!\nRETURNING id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Solo el estado físico, con el equipo ya bloqueado: lo usa la interfaz de Equipos (ADR 0020).
+ * UPDATE equipment.assets
+ * SET conservation = :conservation!, version = version + 1
+ * WHERE workspace_id = :workspaceId! AND id = :assetId!
+ * RETURNING id
+ * ```
+ */
+export const setAssetConservation = new PreparedQuery<ISetAssetConservationParams,ISetAssetConservationResult>(setAssetConservationIR);
+
+
 /** 'InsertConservationChange' parameters type */
 export interface IInsertConservationChangeParams {
   actorId: string;

@@ -18,9 +18,12 @@ export interface EquipmentLab {
   otherLab: string;
 }
 
-/** Espacio con Equipos, un Administrador, un Operador, un Docente y ubicaciones en dos niveles. */
-export async function createEquipmentLab(): Promise<EquipmentLab> {
-  const workspace = await seedWorkspace(admin, { modules: ['equipment'] });
+/**
+ * Espacio con Equipos, un Administrador, un Operador, un Docente y ubicaciones en dos niveles. Con
+ * `modules`, también los módulos que dependen de Equipos (Mantenimiento).
+ */
+export async function createEquipmentLab(modules: string[] = ['equipment']): Promise<EquipmentLab> {
+  const workspace = await seedWorkspace(admin, { modules });
   const site = await addLocation(admin, workspace.id, { kind: 'site' });
   const lab = await addLocation(admin, workspace.id, { kind: 'room', parentId: site });
   const shelf = await addLocation(admin, workspace.id, { kind: 'storage', parentId: lab });

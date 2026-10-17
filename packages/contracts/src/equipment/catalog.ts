@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { homeActivity, homeTrend } from '../access.js';
-import { code, list, many, page, text } from '../common.js';
+import { code, list, many, money, page, text } from '../common.js';
 
 // ---------------------------------------------------------------------------
 // Estado del equipo (ADR 0019): cuatro dimensiones, nunca una sola lista
@@ -19,9 +19,6 @@ export const assetAvailability = z.enum(['available', 'unavailable']);
 /** Foto del equipo (ADR 0019, 02 §12): la web la envía reducida; lo usan el servidor y la web. */
 export const ASSET_PHOTO_MAX_BYTES = 2 * 1024 * 1024;
 export const assetPhotoTypes = ['image/jpeg', 'image/png', 'image/webp'] as const;
-
-/** Importe exacto con dos decimales (numeric(14,2)); nunca se opera como number. */
-const money = z.string().regex(/^\d{1,12}(?:\.\d{1,2})?$/, 'Debe ser un importe con hasta dos decimales');
 
 // ---------------------------------------------------------------------------
 // Tipos de equipo

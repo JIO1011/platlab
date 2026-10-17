@@ -162,7 +162,12 @@ Reglas:
 | `incidents.cases` | Falla de un recurso con FK tipada (hoy, el activo de Equipos) y su módulo dueño; tipo, descripción, si se puede seguir usando, estado, y quién y cuándo la reportó, empezó a repararla y la solucionó. Las notas de seguimiento (`actions`) se suman cuando hagan falta |
 | `materials.products`, `assets` | Consumible o reutilizable; unidades identificables |
 | `materials.loans`, `loan_lines`, `return_lines` | Préstamo de material o de equipos (FK tipada al activo), líneas y devoluciones parciales |
-| `maintenance.plans`, `records`, `orders` | Tipo (preventivo, calibración, verificación, limpieza), frecuencia y próxima fecha; mantenimiento hecho con quién, resultado, conservación, costo exacto, informe y «válida hasta»; orden correctiva desde una falla de M3; en F5, técnico, bloqueo de agenda y repuestos |
+| `maintenance.providers` | Proveedor de servicio del espacio: nombre y contacto; se archiva ([ADR 0020](05_decisiones.md#adr-0020)) |
+| `maintenance.plans` | Tipo de trabajo (preventivo, calibración, verificación, limpieza), título, alcance (un tipo de equipo o un equipo), frecuencia (cada N días, semanas, meses o años), fecha de inicio, lista de verificación y criterio de aceptación; se archiva |
+| `maintenance.plan_exclusions` | Equipo excluido de un plan de su tipo, con motivo; se archiva |
+| `maintenance.records` | Mantenimiento hecho: equipo, plan o tipo de trabajo, fecha, interno o proveedor, resultado (conforme, con observaciones, no conforme), observaciones, lista marcada, costo exacto, «válida hasta» y estado físico observado; inmutable |
+| `maintenance.record_certificates` | Certificado PDF de un registro, uno por registro, con las reglas de los documentos de Equipos |
+| `maintenance.orders` | Orden programada, en ejecución o completada, y correctiva desde una falla de M3 (M-01b); en F5, técnico, bloqueo de agenda y repuestos |
 
 Estados:
 

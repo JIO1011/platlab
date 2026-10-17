@@ -611,6 +611,15 @@ Cambios: 15-10-2026 (Mantenimiento vuelve a M7, construido después de E-01; fot
 - **Roles.** El Administrador crea planes y proveedores. El Operador programa, inicia y registra, y ve costos e Informe. Docente y Estudiante no entran a Mantenimiento: reportan en Equipos.
 - **Sin tareas en segundo plano** (T-07 sigue aplazado): «Por hacer», el semáforo y los avisos se calculan al consultar; una orden existe cuando alguien la programa o la inicia. Los avisos van en la app (Resumen y píldora del Inicio).
 - **Entregas:** M-01a (planes, proveedores, «Por hacer» y «Registrar mantenimiento», con la pestaña y el semáforo en Equipos), M-01b (órdenes en tres pasos y correctiva desde un incidente), M-01c (Resumen y «Evaluar reemplazo»), M-01d (Informe, exportación y hoja de vida) y el G0 de Mantenimiento junto con el de Equipos.
+- **Diseño de M-01a (17-10-2026).**
+  - *Fechas* (decididas por el usuario). Sin registros, un equipo toca en la fecha de inicio del plan o, si se registró después, el día de su alta. Luego toca en la «válida hasta» del último registro del plan o, sin ella, en su fecha más la frecuencia (cada N días, semanas, meses o años). Un registro con fecha pasada carga la última vez que se hizo.
+  - *Plan propio.* Reemplaza al del tipo: crear el plan del equipo lo excluye del plan del tipo en el mismo paso. Excluir pide motivo y se archiva, no se borra.
+  - *Registro.* Inmutable y asociado al plan que se elige, o a ninguno con su tipo de trabajo. El certificado PDF se adjunta al registrar o después, uno por registro.
+  - *Dos módulos en una operación.* Registrar admite Mantenimiento y Equipos en la misma consulta de admisión, con el orden espacio → derechos → membresía. El estado físico lo cambia una función de la interfaz de Equipos, con su permiso `equipment.condition.change` y su historial.
+  - *Lectura de Equipos.* Mantenimiento lee los equipos por una vista de Equipos, no por sus tablas; sus FKs compuestas apuntan a los equipos y a sus tipos.
+  - *Web.* Equipos ofrece puntos de extensión (pestaña de la ficha y columna del Inventario) y Mantenimiento los llena; Equipos no importa nada de Mantenimiento. Semáforo: rojo vencido, ámbar en los próximos 30 días y verde después.
+  - *Permisos.* `maintenance.work.read` y `maintenance.work.record` para Administrador y Operador; `maintenance.plan.manage` para el Administrador.
+  - *Secciones.* Resumen con la banda y las cifras Vencidos y Próximos 30 días; Trabajos con Por hacer y Completados; Planes con los proveedores. M-01b y M-01c completan el resto.
 
 Motivo: el usuario quiere un módulo intermedio con la estructura de los demás, sin repetir la información de Equipos. Las decisiones de planes por tipo, el Operador con costos, el «No conforme» que propone y la lista de proveedores las tomó el 17-10-2026. Precisa M-01 del roadmap y el M7 del [ADR 0019](#adr-0019).
 
@@ -627,6 +636,7 @@ Motivo: el usuario quiere un módulo intermedio con la estructura de los demás,
 | Reglas de Prácticas | Anticipación, cancelaciones, salas exclusivas, devoluciones químicas y quién declara el consumo al cerrar | P-04, antes de F3 |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
+| Datos de Mantenimiento | ¿Qué datos del proveedor necesita el cliente (acreditación, identificación tributaria)? ¿Hace falta corregir un registro equivocado o reemplazar su certificado? M-01a guarda nombre y contacto, y el registro es inmutable ([ADR 0020](#adr-0020)) | F0, con el cliente |
 | Escaneo con cámara | Resuelto el 14-10-2026: «Escanear» en Reactivos abre la cámara en la app y lleva al frasco listo para «Salida». Usa el lector nativo del navegador o, si no lo hay, una librería. ¿Hace falta registrar salidas en serie? | P-03 |
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
 | Libro sin filtros | La lista sin filtros (también la actividad del Resumen) entra por frascos y ordena todo el libro del espacio: unos 250 ms con 40 000 operaciones (medido en R-01C). ¿Índice o consulta distinta? | Antes de G1, con el escenario de carga (04 §4) |
