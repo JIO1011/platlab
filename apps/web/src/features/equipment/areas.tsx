@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { ModuleMark } from '../../app/module-mark';
 import { QueryErrorState } from '../../app/states';
 import { AreaManagerLine } from './area-manager';
+import { hasSeveralSites } from './area-order';
 import { AssetResults } from './asset-results';
 import { AssetSearch, useAssetSearch } from './asset-search';
 import { useEquipment } from './context';
@@ -20,7 +21,7 @@ const number = new Intl.NumberFormat('es-EC');
  * Lo que cuesta atención en el área, con color y con texto: los fuera de servicio y los de uso limitado; si no
  * hay ninguno, «Todos operativos».
  */
-function AreaStatus({ area }: { area: Area }) {
+export function AreaStatus({ area }: { area: Area }) {
   if (area.faulted === 0 && area.restricted === 0) return <Badge tone="success">Todos operativos</Badge>;
   return (
     <div className="flex flex-wrap gap-1.5 tabular-nums">
@@ -114,8 +115,7 @@ export function EquipmentAreasPage() {
   const areas = useAreas(workspaceId);
   const search = useAssetSearch();
   const items = areas.data?.items ?? [];
-  // Con una sola sede, repetirla en cada tarjeta no dice nada.
-  const showParent = new Set(items.flatMap((area) => area.parentName ?? [])).size > 1;
+  const showParent = hasSeveralSites(items);
 
   return (
     <>

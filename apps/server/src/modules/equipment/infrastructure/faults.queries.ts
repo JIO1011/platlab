@@ -177,3 +177,132 @@ const reportableAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"as
 export const reportableAssets = new PreparedQuery<IReportableAssetsParams,IReportableAssetsResult>(reportableAssetsIR);
 
 
+/** 'FaultCounts' parameters type */
+export interface IFaultCountsParams {
+  reportedBy?: string | null | void;
+  workspaceId: string;
+}
+
+/** 'FaultCounts' return type */
+export interface IFaultCountsResult {
+  in_progress: string;
+  open: string;
+  resolved: string;
+}
+
+/** 'FaultCounts' query type */
+export interface IFaultCountsQuery {
+  params: IFaultCountsParams;
+  result: IFaultCountsResult;
+}
+
+const faultCountsIR: any = {"usedParamSet":{"workspaceId":true,"reportedBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":410,"b":422}]},{"name":"reportedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":461,"b":471},{"a":517,"b":527}]}],"statement":"-- Las pestañas de Incidentes: cuántos hay en cada paso (índices cases_status y cases_reporter), con el\n-- alcance de la lista: con :reportedBy, solo los de esa persona.\nSELECT count(*) FILTER (WHERE status = 'open') AS \"open!\",\n       count(*) FILTER (WHERE status = 'in_progress') AS \"in_progress!\",\n       count(*) FILTER (WHERE status = 'resolved') AS \"resolved!\"\nFROM incidents.cases\nWHERE workspace_id = :workspaceId! AND module_code = 'equipment'\n  AND (:reportedBy::uuid IS NULL OR reported_by_principal_id = :reportedBy::uuid)"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Las pestañas de Incidentes: cuántos hay en cada paso (índices cases_status y cases_reporter), con el
+ * -- alcance de la lista: con :reportedBy, solo los de esa persona.
+ * SELECT count(*) FILTER (WHERE status = 'open') AS "open!",
+ *        count(*) FILTER (WHERE status = 'in_progress') AS "in_progress!",
+ *        count(*) FILTER (WHERE status = 'resolved') AS "resolved!"
+ * FROM incidents.cases
+ * WHERE workspace_id = :workspaceId! AND module_code = 'equipment'
+ *   AND (:reportedBy::uuid IS NULL OR reported_by_principal_id = :reportedBy::uuid)
+ * ```
+ */
+export const faultCounts = new PreparedQuery<IFaultCountsParams,IFaultCountsResult>(faultCountsIR);
+
+
+/** 'FaultStats' parameters type */
+export interface IFaultStatsParams {
+  timeZone: string;
+  workspaceId: string;
+}
+
+/** 'FaultStats' return type */
+export interface IFaultStatsResult {
+  month: string;
+  out_of_service_assets: number;
+  out_of_service_seconds: string;
+  repair_seconds: string;
+  reported: number;
+  resolved: number;
+}
+
+/** 'FaultStats' query type */
+export interface IFaultStatsQuery {
+  params: IFaultStatsParams;
+  result: IFaultStatsResult;
+}
+
+const faultStatsIR: any = {"usedParamSet":{"timeZone":true,"workspaceId":true},"params":[{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":371,"b":380},{"a":469,"b":478},{"a":569,"b":578},{"a":837,"b":846}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":675,"b":687},{"a":1019,"b":1031},{"a":1451,"b":1463},{"a":1616,"b":1628},{"a":2053,"b":2065},{"a":2345,"b":2357}]}],"statement":"-- «Incidentes en 12 meses» del Resumen (ADR 0019): los 12 meses de calendario hasta el actual en la zona\n-- :timeZone, cada uno con sus reportados y sus solucionados y cuánto tardaron estos, de reportado a\n-- solucionado. Cada fila repite los días fuera de servicio del período, en un solo viaje a la base.\nWITH span AS (\n  SELECT date_trunc('month', now() AT TIME ZONE :timeZone!) - interval '11 months' AS first_month\n), since AS (\n  SELECT first_month AT TIME ZONE :timeZone! AS at FROM span\n), reported AS (\n  SELECT date_trunc('month', c.reported_at AT TIME ZONE :timeZone!) AS month, count(*) AS n\n  FROM incidents.cases AS c CROSS JOIN since\n  WHERE c.workspace_id = :workspaceId! AND c.module_code = 'equipment' AND c.reported_at >= since.at\n  GROUP BY 1\n), resolved AS (\n  SELECT date_trunc('month', c.resolved_at AT TIME ZONE :timeZone!) AS month, count(*) AS n,\n         sum(extract(epoch FROM c.resolved_at - c.reported_at)) AS seconds\n  FROM incidents.cases AS c CROSS JOIN since\n  WHERE c.workspace_id = :workspaceId! AND c.module_code = 'equipment' AND c.status = 'resolved'\n    AND c.resolved_at >= since.at\n  GROUP BY 1\n), ends AS (\n  -- Un tramo fuera de servicio termina en el cambio que sacó al equipo de ese estado (también la baja) o\n  -- sigue abierto si el equipo está fuera de servicio ahora.\n  SELECT cc.asset_id, cc.occurred_at AS ends_at\n  FROM equipment.condition_changes AS cc CROSS JOIN since\n  WHERE cc.workspace_id = :workspaceId! AND cc.from_condition = 'faulted' AND cc.occurred_at > since.at\n  UNION ALL\n  SELECT a.id, now()\n  FROM equipment.assets AS a\n  WHERE a.workspace_id = :workspaceId! AND a.condition = 'faulted'\n), spans AS (\n  -- Y empieza en el último cambio a fuera de servicio anterior (índice condition_changes_asset) o, sin él,\n  -- en el alta: entre los dos no hay otro cambio, porque cada uno parte del estado que deja el anterior.\n  SELECT ends.asset_id, ends.ends_at,\n         coalesce(\n           (SELECT cc.occurred_at FROM equipment.condition_changes AS cc\n             WHERE cc.workspace_id = :workspaceId! AND cc.asset_id = ends.asset_id\n               AND cc.to_condition = 'faulted' AND cc.occurred_at <= ends.ends_at\n             ORDER BY cc.occurred_at DESC\n             LIMIT 1),\n           a.created_at) AS starts_at\n  FROM ends\n  JOIN equipment.assets AS a ON a.workspace_id = :workspaceId! AND a.id = ends.asset_id\n), out_of_service AS (\n  -- Cada tramo, recortado al período.\n  SELECT count(DISTINCT spans.asset_id) AS assets,\n         coalesce(sum(extract(epoch FROM spans.ends_at - greatest(spans.starts_at, since.at))), 0) AS seconds\n  FROM spans CROSS JOIN since\n)\nSELECT to_char(m.month, 'YYYY-MM') AS \"month!\",\n       coalesce(reported.n, 0)::integer AS \"reported!\",\n       coalesce(resolved.n, 0)::integer AS \"resolved!\",\n       round(coalesce(resolved.seconds, 0))::bigint AS \"repair_seconds!\",\n       out_of_service.assets::integer AS \"out_of_service_assets!\",\n       round(out_of_service.seconds)::bigint AS \"out_of_service_seconds!\"\nFROM span\nCROSS JOIN LATERAL generate_series(span.first_month, span.first_month + interval '11 months', interval '1 month') AS m(month)\nCROSS JOIN out_of_service\nLEFT JOIN reported ON reported.month = m.month\nLEFT JOIN resolved ON resolved.month = m.month\nORDER BY m.month"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- «Incidentes en 12 meses» del Resumen (ADR 0019): los 12 meses de calendario hasta el actual en la zona
+ * -- :timeZone, cada uno con sus reportados y sus solucionados y cuánto tardaron estos, de reportado a
+ * -- solucionado. Cada fila repite los días fuera de servicio del período, en un solo viaje a la base.
+ * WITH span AS (
+ *   SELECT date_trunc('month', now() AT TIME ZONE :timeZone!) - interval '11 months' AS first_month
+ * ), since AS (
+ *   SELECT first_month AT TIME ZONE :timeZone! AS at FROM span
+ * ), reported AS (
+ *   SELECT date_trunc('month', c.reported_at AT TIME ZONE :timeZone!) AS month, count(*) AS n
+ *   FROM incidents.cases AS c CROSS JOIN since
+ *   WHERE c.workspace_id = :workspaceId! AND c.module_code = 'equipment' AND c.reported_at >= since.at
+ *   GROUP BY 1
+ * ), resolved AS (
+ *   SELECT date_trunc('month', c.resolved_at AT TIME ZONE :timeZone!) AS month, count(*) AS n,
+ *          sum(extract(epoch FROM c.resolved_at - c.reported_at)) AS seconds
+ *   FROM incidents.cases AS c CROSS JOIN since
+ *   WHERE c.workspace_id = :workspaceId! AND c.module_code = 'equipment' AND c.status = 'resolved'
+ *     AND c.resolved_at >= since.at
+ *   GROUP BY 1
+ * ), ends AS (
+ *   -- Un tramo fuera de servicio termina en el cambio que sacó al equipo de ese estado (también la baja) o
+ *   -- sigue abierto si el equipo está fuera de servicio ahora.
+ *   SELECT cc.asset_id, cc.occurred_at AS ends_at
+ *   FROM equipment.condition_changes AS cc CROSS JOIN since
+ *   WHERE cc.workspace_id = :workspaceId! AND cc.from_condition = 'faulted' AND cc.occurred_at > since.at
+ *   UNION ALL
+ *   SELECT a.id, now()
+ *   FROM equipment.assets AS a
+ *   WHERE a.workspace_id = :workspaceId! AND a.condition = 'faulted'
+ * ), spans AS (
+ *   -- Y empieza en el último cambio a fuera de servicio anterior (índice condition_changes_asset) o, sin él,
+ *   -- en el alta: entre los dos no hay otro cambio, porque cada uno parte del estado que deja el anterior.
+ *   SELECT ends.asset_id, ends.ends_at,
+ *          coalesce(
+ *            (SELECT cc.occurred_at FROM equipment.condition_changes AS cc
+ *              WHERE cc.workspace_id = :workspaceId! AND cc.asset_id = ends.asset_id
+ *                AND cc.to_condition = 'faulted' AND cc.occurred_at <= ends.ends_at
+ *              ORDER BY cc.occurred_at DESC
+ *              LIMIT 1),
+ *            a.created_at) AS starts_at
+ *   FROM ends
+ *   JOIN equipment.assets AS a ON a.workspace_id = :workspaceId! AND a.id = ends.asset_id
+ * ), out_of_service AS (
+ *   -- Cada tramo, recortado al período.
+ *   SELECT count(DISTINCT spans.asset_id) AS assets,
+ *          coalesce(sum(extract(epoch FROM spans.ends_at - greatest(spans.starts_at, since.at))), 0) AS seconds
+ *   FROM spans CROSS JOIN since
+ * )
+ * SELECT to_char(m.month, 'YYYY-MM') AS "month!",
+ *        coalesce(reported.n, 0)::integer AS "reported!",
+ *        coalesce(resolved.n, 0)::integer AS "resolved!",
+ *        round(coalesce(resolved.seconds, 0))::bigint AS "repair_seconds!",
+ *        out_of_service.assets::integer AS "out_of_service_assets!",
+ *        round(out_of_service.seconds)::bigint AS "out_of_service_seconds!"
+ * FROM span
+ * CROSS JOIN LATERAL generate_series(span.first_month, span.first_month + interval '11 months', interval '1 month') AS m(month)
+ * CROSS JOIN out_of_service
+ * LEFT JOIN reported ON reported.month = m.month
+ * LEFT JOIN resolved ON resolved.month = m.month
+ * ORDER BY m.month
+ * ```
+ */
+export const faultStats = new PreparedQuery<IFaultStatsParams,IFaultStatsResult>(faultStatsIR);
+
+

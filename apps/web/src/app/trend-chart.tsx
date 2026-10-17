@@ -1,6 +1,7 @@
 import type { HomeTrend } from '@platlab/contracts';
 import { cn } from '@platlab/ui';
 import { useState, type KeyboardEvent } from 'react';
+import { niceScale, stepIndex } from './chart-scale';
 
 type Point = HomeTrend['points'][number];
 
@@ -17,13 +18,7 @@ function formatDay(date: string, style: 'short' | 'long' = 'short'): string {
   }).format(new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1)));
 }
 
-/** Escala entera y limpia: 0, la mitad si es entera y el máximo (1, 2, 3, 4, 5, 10, 15…). */
-function scale(points: Point[]): { max: number; ticks: number[] } {
-  const peak = Math.max(1, ...points.map((point) => point.value));
-  const max = peak <= 5 ? peak : Math.ceil(peak / 5) * 5;
-  const ticks = max % 2 === 0 ? [0, max / 2, max] : [0, max];
-  return { max, ticks };
-}
+const scale = (points: Point[]) => niceScale(Math.max(...points.map((point) => point.value)));
 
 const countLabel = (value: number, unit: { one: string; many: string }) => `${value} ${value === 1 ? unit.one : unit.many}`;
 
@@ -72,13 +67,7 @@ export function TrendChart({
   }.`;
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const last = points.length - 1;
-    const next =
-      event.key === 'ArrowRight' ? Math.min(last, (active ?? -1) + 1)
-      : event.key === 'ArrowLeft' ? Math.max(0, (active ?? points.length) - 1)
-      : event.key === 'Home' ? 0
-      : event.key === 'End' ? last
-      : null;
+    const next = stepIndex(event.key, active, points.length);
     if (next === null) return;
     event.preventDefault();
     setActive(next);

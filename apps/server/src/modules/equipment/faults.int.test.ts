@@ -1,6 +1,15 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { asset as assetContract, assetHistory, fault as faultContract, faultList, reportableAsset, reportableAssetList } from '@platlab/contracts';
-import { call, createAsset, createEquipmentLab, errorCode, type EquipmentLab } from './equipment.fixtures.js';
+import {
+  asset as assetContract,
+  assetHistory,
+  fault as faultContract,
+  faultCounts,
+  faultList,
+  faultStats,
+  reportableAsset,
+  reportableAssetList,
+} from '@platlab/contracts';
+import { admin, call, createAsset, createEquipmentLab, errorCode, type EquipmentLab } from './equipment.fixtures.js';
 
 /** E-01b (ADR 0019): Reportes de fallas por la API, con los permisos de Equipos. */
 
@@ -178,5 +187,106 @@ describe('alcance y listas', () => {
     };
     expect(await pending(fresh.operator.subject)).toMatchObject({ openFaults: 2, pendingRequests: 2 });
     expect(await pending(fresh.teacher.subject)).toMatchObject({ openFaults: 2, pendingRequests: 1 });
+  });
+});
+
+describe('Resumen e Incidentes (ADR 0019, 17-10-2026)', () => {
+  const DAY = 86_400;
+  /** Cada paso se espera con unos segundos de holgura: el reloj corre entre la petición y la cuenta. */
+  const near = (value: number, expected: number) => expect(Math.abs(value - expected)).toBeLessThan(120);
+
+  it('las pestañas cuentan cada paso con el alcance de la lista: quien reporta, solo lo suyo', async () => {
+    const fresh = await createEquipmentLab();
+    const asset = await createAsset(fresh);
+    const reportBy = async (subject: string, description: string) =>
+      faultContract.parse(
+        (await call(subject, `${fresh.base}/faults`, { method: 'POST', body: { assetId: asset.id, faultType: 'other', description, usable: true } }))
+          .body,
+      );
+    await reportBy(fresh.teacher.subject, 'Reportada');
+    const attended = await reportBy(fresh.teacher.subject, 'En reparación');
+    const solved = await reportBy(fresh.operator.subject, 'Solucionada');
+    await call(fresh.operator.subject, `${fresh.base}/faults/${attended.id}/attend`, { method: 'POST' });
+    await call(fresh.operator.subject, `${fresh.base}/faults/${solved.id}/resolve`, {
+      method: 'POST',
+      body: { resolution: 'Listo', returnToOperational: false },
+    });
+
+    const counts = async (subject: string) => faultCounts.parse((await call(subject, `${fresh.base}/faults/counts`)).body);
+    expect(await counts(fresh.operator.subject)).toEqual({ open: 1, inProgress: 1, resolved: 1 });
+    expect(await counts(fresh.teacher.subject)).toEqual({ open: 1, inProgress: 1, resolved: 0 });
+  });
+
+  it('«Incidentes en 12 meses»: los meses del espacio, la reparación promedio y los días fuera de servicio recortados al período', async () => {
+    const fresh = await createEquipmentLab();
+    const statsOf = async () => faultStats.parse((await call(fresh.operator.subject, `${fresh.base}/faults/stats`)).body);
+    // El período empieza el primer día del mes de hace 11 meses, en la zona del espacio.
+    const { rows } = await admin.query<{ current: string; first: string; since_seconds: string }>(
+      `select to_char(now() at time zone w.time_zone, 'YYYY-MM') as current,
+              to_char(date_trunc('month', now() at time zone w.time_zone) - interval '11 months', 'YYYY-MM') as first,
+              extract(epoch from now() - ((date_trunc('month', now() at time zone w.time_zone) - interval '11 months') at time zone w.time_zone)) as since_seconds
+         from core.workspaces as w where w.id = $1`,
+      [fresh.workspace.id],
+    );
+    const period = rows[0]!;
+
+    const empty = await statsOf();
+    expect(empty.months).toHaveLength(12);
+    expect(empty.months[0]!.month).toBe(period.first);
+    expect(empty.months[11]!.month).toBe(period.current);
+    expect(empty.months.every((month) => month.reported === 0 && month.resolved === 0)).toBe(true);
+    expect(empty).toMatchObject({ meanRepairSeconds: null, outOfService: { seconds: 0, assets: 0 } });
+
+    const backdate = (sql: string, id: string, days: number) => admin.query(sql, [id, `${days} days`]);
+    const reportCase = `update incidents.cases set reported_at = now() - $2::interval where id = $1`;
+    const toFaulted = `update equipment.condition_changes set occurred_at = now() - $2::interval where asset_id = $1 and to_condition = 'faulted'`;
+    const toRetired = `update equipment.condition_changes set occurred_at = now() - $2::interval where asset_id = $1 and to_condition = 'retired'`;
+
+    // Reportado hace 3 días sin poder usarse y solucionado ahora: 3 días de reparación y 3 fuera de servicio.
+    const repaired = await createAsset(fresh);
+    const fault = faultContract.parse(
+      (await call(fresh.teacher.subject, `${fresh.base}/faults`, {
+        method: 'POST',
+        body: { assetId: repaired.id, faultType: 'electrical', description: 'No enciende', usable: false },
+      })).body,
+    );
+    await backdate(reportCase, fault.id, 3);
+    await backdate(toFaulted, repaired.id, 3);
+    await call(fresh.operator.subject, `${fresh.base}/faults/${fault.id}/resolve`, {
+      method: 'POST',
+      body: { resolution: 'Fusible cambiado', returnToOperational: true },
+    });
+
+    // Fuera de servicio desde hace 14 meses y todavía: cuenta solo desde el inicio del período. Su incidente,
+    // reportado antes del período, no cuenta entre los reportados.
+    const stale = await createAsset(fresh);
+    const old = faultContract.parse(
+      (await call(fresh.operator.subject, `${fresh.base}/faults`, {
+        method: 'POST',
+        body: { assetId: stale.id, faultType: 'spare_part', description: 'Sin repuesto', usable: false },
+      })).body,
+    );
+    await backdate(reportCase, old.id, 425);
+    await backdate(toFaulted, stale.id, 425);
+
+    // Fuera de servicio hace 10 días y dado de baja hace 5: cuentan los 5 días anteriores a la baja.
+    const retired = await createAsset(fresh);
+    const change = (condition: string, reason: string) =>
+      call(fresh.adminMember.subject, `${fresh.base}/assets/${retired.id}/condition`, { method: 'POST', body: { condition, reason } });
+    await change('faulted', 'Se quemó la resistencia');
+    await backdate(toFaulted, retired.id, 10);
+    await change('retired', 'Irreparable');
+    await backdate(toRetired, retired.id, 5);
+
+    const stats = await statsOf();
+    expect(stats.months.reduce((sum, month) => sum + month.reported, 0)).toBe(1);
+    expect(stats.months.reduce((sum, month) => sum + month.resolved, 0)).toBe(1);
+    expect(stats.months[11]!.resolved).toBe(1);
+    near(stats.meanRepairSeconds!, 3 * DAY);
+    expect(stats.outOfService.assets).toBe(3);
+    near(stats.outOfService.seconds, 3 * DAY + Number(period.since_seconds) + 5 * DAY);
+
+    // Las cifras de todo el espacio son de quien atiende: quien solo reporta no las ve.
+    expect((await call(fresh.teacher.subject, `${fresh.base}/faults/stats`)).status).toBe(403);
   });
 });

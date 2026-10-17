@@ -1,4 +1,4 @@
-import type { Fault, FaultStatus, FaultType } from '@platlab/contracts';
+import type { Fault, FaultCounts, FaultStatus, FaultType } from '@platlab/contracts';
 
 /** Cómo se llama cada tipo de falla en pantalla (ADR 0019). */
 export const faultTypeLabel: Record<FaultType, string> = {
@@ -28,17 +28,21 @@ export const faultStatusTone: Record<FaultStatus, 'danger' | 'warning' | 'succes
   resolved: 'success',
 };
 
-/** Las vistas de la lista, en la URL como `?estado=`; «En curso» es la de por omisión y no se escribe. */
-export type FaultView = 'en-curso' | 'solucionados';
+/**
+ * Las pestañas de la lista, una por paso (ADR 0019, 17-10-2026), en la URL como `?estado=`; «Reportados» es la
+ * de por omisión y no se escribe. `count` es su cifra en `GET /faults/counts`.
+ */
+export type FaultView = 'reportados' | 'en-reparacion' | 'solucionados';
 
-export const faultViews: ReadonlyArray<{ value: FaultView; label: string; statuses: FaultStatus[] }> = [
-  { value: 'en-curso', label: 'En curso', statuses: ['open', 'in_progress'] },
-  { value: 'solucionados', label: 'Solucionados', statuses: ['resolved'] },
+export const faultViews: ReadonlyArray<{ value: FaultView; label: string; status: FaultStatus; count: keyof FaultCounts }> = [
+  { value: 'reportados', label: 'Reportados', status: 'open', count: 'open' },
+  { value: 'en-reparacion', label: 'En reparación', status: 'in_progress', count: 'inProgress' },
+  { value: 'solucionados', label: 'Solucionados', status: 'resolved', count: 'resolved' },
 ];
 
-/** La vista que nombra la URL; cualquier otro valor es «En curso». */
+/** La pestaña que nombra la URL; cualquier otro valor es «Reportados». */
 export function faultViewFrom(value: string | null): FaultView {
-  return faultViews.find((view) => view.value === value)?.value ?? 'en-curso';
+  return faultViews.find((view) => view.value === value)?.value ?? 'reportados';
 }
 
 /** Lo que dice el equipo según se pueda seguir usando o no. */
@@ -70,6 +74,44 @@ export function faultAgo(iso: string, now: number): string {
   if (months < 12) return `hace ${plural(months, 'mes', 'meses')}`;
   const years = Math.round(days / 365);
   return `hace ${plural(years, 'año', 'años')}`;
+}
+
+const decimal = new Intl.NumberFormat('es-EC', { maximumFractionDigits: 1 });
+
+/**
+ * Una duración en palabras: «menos de 1 min», «45 min», «5 h», «2,5 días» (con un decimal hasta 10 días) y
+ * «31 días». La usan la reparación promedio, los días fuera de servicio y lo que tardó un incidente.
+ */
+export function durationText(seconds: number): string {
+  if (seconds < 60) return 'menos de 1 min';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  const days = seconds / 86_400;
+  const shown = days < 10 ? Math.round(days * 10) / 10 : Math.round(days);
+  return `${decimal.format(shown)} ${shown === 1 ? 'día' : 'días'}`;
+}
+
+/**
+ * El paso en que está el incidente, para su fila, en dos líneas: `when` dice cuándo («Reportado hace 2 h», «En
+ * reparación desde hace 1 día», «Solucionado en 3 días · hace 2 días») y `who`, quién lo hizo («Ana»).
+ */
+export function faultStepParts(fault: Fault, now: number): { when: string; who: string } {
+  if (fault.status === 'resolved' && fault.resolvedAt) {
+    const took = (Date.parse(fault.resolvedAt) - Date.parse(fault.reportedAt)) / 1000;
+    return { when: `Solucionado en ${durationText(Math.max(0, took))} · ${faultAgo(fault.resolvedAt, now)}`, who: personText(fault.resolvedBy) };
+  }
+  if (fault.status === 'in_progress' && fault.attendedAt) {
+    return { when: `En reparación desde ${faultAgo(fault.attendedAt, now)}`, who: personText(fault.attendedBy) };
+  }
+  return { when: `Reportado ${faultAgo(fault.reportedAt, now)}`, who: personText(fault.reportedBy) };
+}
+
+/** Lo que sumaron los equipos fuera de servicio en el período: «31 días · en 4 equipos», «2 h · en 1 equipo» o «Ninguno». */
+export function outOfServiceText({ seconds, assets }: { seconds: number; assets: number }): string {
+  if (assets === 0) return 'Ninguno';
+  return `${durationText(seconds)} · en ${plural(assets, 'equipo', 'equipos')}`;
 }
 
 export interface FaultStep {
