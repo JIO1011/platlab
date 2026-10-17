@@ -120,6 +120,7 @@ export {
   assetEvent,
   assetFilterQuery,
   assetHistory,
+  assetHistoryQuery,
   assetList,
   assetListQuery,
   assetParams,

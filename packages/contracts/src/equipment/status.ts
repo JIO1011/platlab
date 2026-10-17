@@ -35,7 +35,11 @@ export const assetEvent = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('conservation'), ...event, from: assetConservation.nullable(), to: assetConservation.nullable() }),
 ]);
 
-/** GET /assets/:assetId/history: los últimos hechos (02 §12 no fija otro límite que la página). */
+/**
+ * GET /assets/:assetId/history: los últimos `limit` hechos; la ficha pide 200 y la hoja de vida, toda la vida
+ * hasta 1.000 (E-01f).
+ */
+export const assetHistoryQuery = z.object({ limit: z.coerce.number().int().min(1).max(1000).default(200) }).strict();
 export const assetHistory = z.object({ items: z.array(assetEvent) });
 
 export type AssetEvent = z.infer<typeof assetEvent>;

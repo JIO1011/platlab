@@ -110,12 +110,16 @@ export function useAsset(workspaceId: string, assetId: string) {
   });
 }
 
-/** Historial del equipo: alta, cambios de estado y traslados, del más reciente al más antiguo. */
-export function useAssetHistory(workspaceId: string, assetId: string, enabled = true) {
+/**
+ * Historial del equipo: alta, cambios de estado y traslados, del más reciente al más antiguo. Sin `limit`, los
+ * últimos que da el servidor (la ficha); la hoja de vida pide toda la vida hasta `PRINT_LIMIT`.
+ */
+export function useAssetHistory(workspaceId: string, assetId: string, enabled = true, limit?: number) {
   const user = useUserKey();
   return useQuery({
-    queryKey: [...equipmentKey(user, workspaceId), 'asset', assetId, 'history'],
-    queryFn: () => api(`${base(workspaceId)}/assets/${assetId}/history`, { schema: assetHistory }),
+    queryKey: [...equipmentKey(user, workspaceId), 'asset', assetId, 'history', limit ?? null],
+    queryFn: () =>
+      api(`${base(workspaceId)}/assets/${assetId}/history${limit ? `?limit=${limit}` : ''}`, { schema: assetHistory }),
     enabled,
   });
 }

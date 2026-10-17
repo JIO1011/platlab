@@ -3,6 +3,11 @@ export function formatDateTime(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat('es-EC', { timeZone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
 }
 
+/** Solo el día de un instante, «3 oct 2026», en la zona del espacio. */
+export function formatDayInZone(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('es-EC', { timeZone, dateStyle: 'medium' }).format(new Date(iso));
+}
+
 /** Versión corta para listas estrechas: «1 oct, 8:23 p. m.»; el año solo si no es el actual. */
 export function formatShortDateTime(iso: string, timeZone: string): string {
   const date = new Date(iso);

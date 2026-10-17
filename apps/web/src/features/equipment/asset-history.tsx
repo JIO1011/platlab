@@ -30,8 +30,8 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 /** El estado físico de un hecho del historial; sin dato, «Sin dato». */
 const conservationText = (value: AssetConservation | null) => (value ? conservationLabel[value] : 'Sin dato');
 
-/** Lo que dice cada hecho del historial: el título, su icono y las líneas que lo explican. */
-function describe(event: AssetEvent): { icon: LucideIcon; title: ReactNode; details: ReactNode } {
+/** Lo que dice cada hecho del historial: el título, su icono y las líneas que lo explican. La hoja de vida lo imprime con el mismo texto. */
+export function describeEvent(event: AssetEvent): { icon: LucideIcon; title: ReactNode; details: ReactNode } {
   if (event.kind === 'created') {
     return { icon: CirclePlus, title: 'Alta del equipo', details: null };
   }
@@ -84,7 +84,7 @@ export function AssetHistory({ history, timeZone }: { history: UseQueryResult<As
         // Línea de tiempo, como en el Resumen: el hilo pasa por detrás de los círculos de icono.
         <ol className="relative space-y-6 before:absolute before:bottom-5 before:left-5 before:top-5 before:w-0.5 before:bg-line">
           {history.data.items.map((event, index) => {
-            const { icon: Icon, title, details } = describe(event);
+            const { icon: Icon, title, details } = describeEvent(event);
             return (
               <li key={`${event.kind}-${event.occurredAt}-${index}`} className="flex items-start gap-3.5">
                 <span className="relative z-10 inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-action-soft text-action ring-4 ring-surface">
