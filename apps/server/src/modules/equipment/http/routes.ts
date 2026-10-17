@@ -45,7 +45,9 @@ import {
 } from '../application/queries.js';
 import {
   attendFault,
+  countFaults,
   getFault,
+  getFaultStats,
   getReportableAsset,
   listFaults,
   listReportableAssets,
@@ -139,6 +141,11 @@ export function equipmentRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFi
 
     // Incidentes, que son las fallas (ADR 0019): todos reportan; empezar la reparación y solucionar resuelven un pendiente.
     app.get('/faults', async (request) => listFaults(pool, queryRequest(request), faultListQuery.parse(request.query)));
+
+    app.get('/faults/counts', async (request) => countFaults(pool, queryRequest(request)));
+
+    // «Incidentes en 12 meses» del Resumen: lo de todo el espacio, para quien atiende.
+    app.get('/faults/stats', async (request) => getFaultStats(pool, queryRequest(request)));
 
     app.get('/faults/assets', async (request) =>
       listReportableAssets(pool, queryRequest(request), reportableAssetQuery.parse(request.query).q),

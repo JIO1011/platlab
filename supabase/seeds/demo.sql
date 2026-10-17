@@ -359,7 +359,7 @@ values ('da000000-0000-4000-8000-00000000000a', 'da800000-0000-4000-8000-0000000
 
 -- ---------------------------------------------------------------------------
 -- Equipos de A (ADR 0019): doce equipos en tres áreas, con cada condición, un traslado,
--- fallas en cada estado y su historial. Solo el seed puede fechar en el pasado.
+-- fallas en cada estado, las solucionadas del último año y su historial. Solo el seed puede fechar en el pasado.
 -- ---------------------------------------------------------------------------
 
 insert into equipment.asset_types (id, workspace_id, name) values
@@ -383,7 +383,7 @@ select a.id::uuid, 'da000000-0000-4000-8000-00000000000a', ('da910000-0000-4000-
        a.code, a.name, a.brand, a.model, a.serial, a.power, ('da300000-0000-4000-8000-00000000000' || a.loc)::uuid,
        ('da200000-0000-4000-8000-00000000000' || a.resp)::uuid, a.condition, a.conservation, a.supplier,
        a.acquired::date, a.warranty::date, a.life, a.value::numeric, 'da200000-0000-4000-8000-000000000001',
-       now() - interval '90 days'
+       now() - interval '400 days'
   from (values
     ('da920000-0000-4000-8000-000000000001', 1, 'CEN-01', 'Centrífuga refrigerada', 'Eppendorf', '5810R', '5811AB0042', '220 V', 7, 1, 'operational', 'good', 'Labtech Ecuador', '2021-03-15', '2024-03-15', 10, '9800.00'),
     ('da920000-0000-4000-8000-000000000002', 2, 'BAL-01', 'Balanza analítica', 'Ohaus', 'PX224', 'B-4471', '110 V', 3, 1, 'operational', 'good', 'Científica Andina', '2023-06-01', '2027-06-01', 8, '2500.50'),
@@ -419,6 +419,29 @@ values
    'mechanical', 'El tornillo del enfoque fino está duro', true, 'open', 'da200000-0000-4000-8000-000000000004', now() - interval '1 day',
    null, null, null, null, null);
 
+-- Incidentes solucionados del último año, para «Incidentes en 12 meses» del Resumen (ADR 0019): cada uno con
+-- cuándo se reportó, cuántos días tardó en empezar la reparación y en solucionarse, y si impidió usar el equipo.
+insert into incidents.cases
+  (id, workspace_id, module_code, asset_id, fault_type, description, usable, status, reported_by_principal_id, reported_at,
+   attended_by_principal_id, attended_at, resolution, resolved_by_principal_id, resolved_at)
+select ('da930000-0000-4000-8000-0000000001' || h.n)::uuid, 'da000000-0000-4000-8000-00000000000a', 'equipment',
+       ('da920000-0000-4000-8000-0000000000' || h.asset)::uuid, h.type, h.description, h.usable, 'resolved',
+       ('da200000-0000-4000-8000-00000000000' || h.reporter)::uuid, now() - (h.ago || ' days')::interval,
+       'da200000-0000-4000-8000-000000000002', now() - ((h.ago - 1) || ' days')::interval, h.resolution,
+       'da200000-0000-4000-8000-000000000001', now() - ((h.ago - h.took) || ' days')::interval
+  from (values
+    ('01', '01', 'mechanical', 'Vibra mucho al pasar de 3000 rpm', false, 4, 330, 6, 'Rotor balanceado y rodamiento cambiado'),
+    ('02', '02', 'other', 'La pantalla parpadea al tarar', true, 2, 290, 2, 'Cable de la pantalla reajustado'),
+    ('03', '06', 'mechanical', 'El revólver de objetivos no queda fijo', true, 4, 250, 1, 'Resorte del revólver ajustado'),
+    ('04', '09', 'electrical', 'El extractor no arranca', false, 2, 215, 9, 'Motor del extractor reemplazado'),
+    ('05', '05', 'electrical', 'No pasa de 60 °C', false, 4, 180, 4, 'Resistencia y fusible cambiados'),
+    ('06', '08', 'spare_part', 'El electrodo responde lento', true, 4, 150, 12, 'Electrodo nuevo instalado y calibrado'),
+    ('07', '10', 'mechanical', 'La puerta no sella y pierde presión', false, 2, 120, 5, 'Empaque de la puerta reemplazado'),
+    ('08', '01', 'electrical', 'Se apaga a mitad del ciclo', false, 2, 95, 3, 'Tarjeta de control reparada'),
+    ('09', '07', 'other', 'El condensador está descentrado', true, 4, 70, 1, 'Condensador centrado y lámpara revisada'),
+    ('10', '03', 'spare_part', 'El protector contra corrientes de aire está roto', true, 2, 45, 8, 'Protector nuevo instalado')
+  ) as h (n, asset, type, description, usable, reporter, ago, took, resolution);
+
 insert into equipment.condition_changes
   (workspace_id, asset_id, from_condition, to_condition, reason, result, actor_principal_id, occurred_at, case_id)
 select 'da000000-0000-4000-8000-00000000000a', ('da920000-0000-4000-8000-0000000000' || c.asset)::uuid, c.from_c, c.to_c,
@@ -433,6 +456,18 @@ select 'da000000-0000-4000-8000-00000000000a', ('da920000-0000-4000-8000-0000000
     ('12', 'operational', 'faulted', 'La resistencia se quemó', null, 2, '60 days', null),
     ('12', 'faulted', 'retired', 'Resistencia irreparable; el repuesto ya no se fabrica', null, 1, '30 days', null)
   ) as c (asset, from_c, to_c, reason, result, actor, ago, fault);
+
+-- Los incidentes del último año que impidieron usar el equipo lo dejaron fuera de servicio hasta solucionarse.
+insert into equipment.condition_changes
+  (workspace_id, asset_id, from_condition, to_condition, reason, result, actor_principal_id, occurred_at, case_id)
+select c.workspace_id, c.asset_id, s.from_c, s.to_c, s.reason, case when s.to_c = 'operational' then c.resolution end,
+       case when s.to_c = 'faulted' then c.reported_by_principal_id else c.resolved_by_principal_id end,
+       case when s.to_c = 'faulted' then c.reported_at else c.resolved_at end, c.id
+  from incidents.cases as c
+ cross join (values ('operational', 'faulted', 'Falla reportada: no se puede usar'), ('faulted', 'operational', 'Falla resuelta'))
+       as s (from_c, to_c, reason)
+ where c.workspace_id = 'da000000-0000-4000-8000-00000000000a' and c.id::text like 'da930000-0000-4000-8000-0000000001%'
+   and not c.usable;
 
 -- El segundo microscopio pasó de bueno a regular al revisar su ficha (E-01c: el estado físico deja historial).
 insert into equipment.conservation_changes (workspace_id, asset_id, from_conservation, to_conservation, actor_principal_id, occurred_at)

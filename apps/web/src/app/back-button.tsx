@@ -20,14 +20,17 @@ function BackButton({ parent }: { parent: string }) {
 }
 
 /**
- * El membrete de una pantalla con su «Volver»: a la izquierda desde `sm`, en su propia columna y alineado
- * arriba; en el móvil, encima y a la izquierda.
+ * El membrete de una pantalla con su «Volver», sin quitarle ancho: en el margen izquierdo, alineado arriba,
+ * cuando cabe en él (desde 1536 px: la barra lateral, el contenido de 72 rem y una barra de desplazamiento
+ * dejan más de 80 px); por debajo, encima y a la izquierda.
  */
 export function WithBack({ parent, children }: { parent: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
-      <BackButton parent={parent} />
-      <div className="min-w-0 w-full sm:flex-1">{children}</div>
+    <div className="relative grid gap-3">
+      <div className="2xl:absolute 2xl:right-full 2xl:top-0 2xl:mr-3">
+        <BackButton parent={parent} />
+      </div>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }

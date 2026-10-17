@@ -1,14 +1,17 @@
 import type { Fault } from '@platlab/contracts';
 import { describe, expect, it } from 'vitest';
 import {
+  durationText,
   faultAgo,
   faultStatusLabel,
   faultStatusOrder,
   faultStatusTone,
+  faultStepParts,
   faultSteps,
   faultTypeLabel,
   faultViewFrom,
   faultViews,
+  outOfServiceText,
   pendingFaultsText,
   personText,
   usableText,
@@ -47,16 +50,19 @@ describe('etiquetas y tonos', () => {
 });
 
 describe('faultViewFrom', () => {
-  it('lee la vista de la URL y cae en «En curso» con cualquier otro valor', () => {
+  it('lee la pestaña de la URL y cae en «Reportados» con cualquier otro valor', () => {
     expect(faultViewFrom('solucionados')).toBe('solucionados');
-    expect(faultViewFrom('en-curso')).toBe('en-curso');
-    expect(faultViewFrom(null)).toBe('en-curso');
-    expect(faultViewFrom('cerradas')).toBe('en-curso');
+    expect(faultViewFrom('en-reparacion')).toBe('en-reparacion');
+    expect(faultViewFrom(null)).toBe('reportados');
+    expect(faultViewFrom('en-curso')).toBe('reportados');
   });
 
-  it('«En curso» reúne los reportados y los en reparación', () => {
-    expect(faultViews.find((view) => view.value === 'en-curso')?.statuses).toEqual(['open', 'in_progress']);
-    expect(faultViews.find((view) => view.value === 'solucionados')?.statuses).toEqual(['resolved']);
+  it('hay una pestaña por paso, en orden, con su cifra', () => {
+    expect(faultViews.map((view) => [view.value, view.label, view.status, view.count])).toEqual([
+      ['reportados', 'Reportados', 'open', 'open'],
+      ['en-reparacion', 'En reparación', 'in_progress', 'inProgress'],
+      ['solucionados', 'Solucionados', 'resolved', 'resolved'],
+    ]);
   });
 });
 
@@ -132,5 +138,60 @@ describe('pendingFaultsText', () => {
     expect(pendingFaultsText(3, true)).toBe('3 incidentes esperan atención');
     expect(pendingFaultsText(1, false)).toBe('Tienes 1 incidente abierto');
     expect(pendingFaultsText(2, false)).toBe('Tienes 2 incidentes abiertos');
+  });
+});
+
+describe('durationText', () => {
+  it('dice minutos y horas sin decimales', () => {
+    expect(durationText(20)).toBe('menos de 1 min');
+    expect(durationText(45 * 60)).toBe('45 min');
+    expect(durationText(59 * 60 + 40)).toBe('1 h');
+    expect(durationText(5 * 3600)).toBe('5 h');
+    expect(durationText(23 * 3600 + 20 * 60)).toBe('23 h');
+  });
+
+  it('dice días con un decimal hasta 10 y enteros desde ahí', () => {
+    expect(durationText(24 * 3600)).toBe('1 día');
+    expect(durationText(2.5 * 86_400)).toBe('2,5 días');
+    expect(durationText(3 * 86_400 + 60)).toBe('3 días');
+    expect(durationText(9.96 * 86_400)).toBe('10 días');
+    expect(durationText(31.4 * 86_400)).toBe('31 días');
+    expect(durationText(1250 * 86_400)).toBe('1.250 días');
+  });
+});
+
+describe('outOfServiceText', () => {
+  it('suma los días y dice en cuántos equipos, con 1 en singular', () => {
+    expect(outOfServiceText({ seconds: 31.4 * 86_400, assets: 4 })).toBe('31 días · en 4 equipos');
+    expect(outOfServiceText({ seconds: 5 * 3600, assets: 1 })).toBe('5 h · en 1 equipo');
+  });
+
+  it('sin equipos fuera de servicio dice «Ninguno»', () => {
+    expect(outOfServiceText({ seconds: 0, assets: 0 })).toBe('Ninguno');
+  });
+});
+
+describe('faultStepParts', () => {
+  const base = {
+    reportedAt: before(2 * HOUR),
+    reportedBy: { name: 'Ana' },
+    attendedAt: null,
+    attendedBy: null,
+    resolvedAt: null,
+    resolvedBy: null,
+  };
+
+  it('reportado: cuándo y quién lo reportó', () => {
+    expect(faultStepParts({ ...base, status: 'open' } as Fault, now)).toEqual({ when: 'Reportado hace 2 h', who: 'Ana' });
+  });
+
+  it('en reparación: desde cuándo y quién la lleva; un miembro que ya no está se nombra', () => {
+    const repairing = { ...base, status: 'in_progress', attendedAt: before(DAY), attendedBy: null } as Fault;
+    expect(faultStepParts(repairing, now)).toEqual({ when: 'En reparación desde hace 1 día', who: 'Miembro anterior' });
+  });
+
+  it('solucionado: cuánto tardó desde el reporte, cuándo se solucionó y quién lo hizo', () => {
+    const solved = { ...base, status: 'resolved', reportedAt: before(5 * DAY), resolvedAt: before(2 * DAY), resolvedBy: { name: 'Óscar' } } as Fault;
+    expect(faultStepParts(solved, now)).toEqual({ when: 'Solucionado en 3 días · hace 2 días', who: 'Óscar' });
   });
 });

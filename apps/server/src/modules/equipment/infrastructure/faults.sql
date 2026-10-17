@@ -93,3 +93,75 @@ JOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = p.lo
 JOIN paths ON paths.asset_id = p.id
 LEFT JOIN equipment.asset_photos AS photo ON photo.workspace_id = :workspaceId! AND photo.id = p.photo_id
 ORDER BY lower(p.code);
+
+/* @name faultCounts */
+-- Las pestañas de Incidentes: cuántos hay en cada paso (índices cases_status y cases_reporter), con el
+-- alcance de la lista: con :reportedBy, solo los de esa persona.
+SELECT count(*) FILTER (WHERE status = 'open') AS "open!",
+       count(*) FILTER (WHERE status = 'in_progress') AS "in_progress!",
+       count(*) FILTER (WHERE status = 'resolved') AS "resolved!"
+FROM incidents.cases
+WHERE workspace_id = :workspaceId! AND module_code = 'equipment'
+  AND (:reportedBy::uuid IS NULL OR reported_by_principal_id = :reportedBy::uuid);
+
+/* @name faultStats */
+-- «Incidentes en 12 meses» del Resumen (ADR 0019): los 12 meses de calendario hasta el actual en la zona
+-- :timeZone, cada uno con sus reportados y sus solucionados y cuánto tardaron estos, de reportado a
+-- solucionado. Cada fila repite los días fuera de servicio del período, en un solo viaje a la base.
+WITH span AS (
+  SELECT date_trunc('month', now() AT TIME ZONE :timeZone!) - interval '11 months' AS first_month
+), since AS (
+  SELECT first_month AT TIME ZONE :timeZone! AS at FROM span
+), reported AS (
+  SELECT date_trunc('month', c.reported_at AT TIME ZONE :timeZone!) AS month, count(*) AS n
+  FROM incidents.cases AS c CROSS JOIN since
+  WHERE c.workspace_id = :workspaceId! AND c.module_code = 'equipment' AND c.reported_at >= since.at
+  GROUP BY 1
+), resolved AS (
+  SELECT date_trunc('month', c.resolved_at AT TIME ZONE :timeZone!) AS month, count(*) AS n,
+         sum(extract(epoch FROM c.resolved_at - c.reported_at)) AS seconds
+  FROM incidents.cases AS c CROSS JOIN since
+  WHERE c.workspace_id = :workspaceId! AND c.module_code = 'equipment' AND c.status = 'resolved'
+    AND c.resolved_at >= since.at
+  GROUP BY 1
+), ends AS (
+  -- Un tramo fuera de servicio termina en el cambio que sacó al equipo de ese estado (también la baja) o
+  -- sigue abierto si el equipo está fuera de servicio ahora.
+  SELECT cc.asset_id, cc.occurred_at AS ends_at
+  FROM equipment.condition_changes AS cc CROSS JOIN since
+  WHERE cc.workspace_id = :workspaceId! AND cc.from_condition = 'faulted' AND cc.occurred_at > since.at
+  UNION ALL
+  SELECT a.id, now()
+  FROM equipment.assets AS a
+  WHERE a.workspace_id = :workspaceId! AND a.condition = 'faulted'
+), spans AS (
+  -- Y empieza en el último cambio a fuera de servicio anterior (índice condition_changes_asset) o, sin él,
+  -- en el alta: entre los dos no hay otro cambio, porque cada uno parte del estado que deja el anterior.
+  SELECT ends.asset_id, ends.ends_at,
+         coalesce(
+           (SELECT cc.occurred_at FROM equipment.condition_changes AS cc
+             WHERE cc.workspace_id = :workspaceId! AND cc.asset_id = ends.asset_id
+               AND cc.to_condition = 'faulted' AND cc.occurred_at <= ends.ends_at
+             ORDER BY cc.occurred_at DESC
+             LIMIT 1),
+           a.created_at) AS starts_at
+  FROM ends
+  JOIN equipment.assets AS a ON a.workspace_id = :workspaceId! AND a.id = ends.asset_id
+), out_of_service AS (
+  -- Cada tramo, recortado al período.
+  SELECT count(DISTINCT spans.asset_id) AS assets,
+         coalesce(sum(extract(epoch FROM spans.ends_at - greatest(spans.starts_at, since.at))), 0) AS seconds
+  FROM spans CROSS JOIN since
+)
+SELECT to_char(m.month, 'YYYY-MM') AS "month!",
+       coalesce(reported.n, 0)::integer AS "reported!",
+       coalesce(resolved.n, 0)::integer AS "resolved!",
+       round(coalesce(resolved.seconds, 0))::bigint AS "repair_seconds!",
+       out_of_service.assets::integer AS "out_of_service_assets!",
+       round(out_of_service.seconds)::bigint AS "out_of_service_seconds!"
+FROM span
+CROSS JOIN LATERAL generate_series(span.first_month, span.first_month + interval '11 months', interval '1 month') AS m(month)
+CROSS JOIN out_of_service
+LEFT JOIN reported ON reported.month = m.month
+LEFT JOIN resolved ON resolved.month = m.month
+ORDER BY m.month;

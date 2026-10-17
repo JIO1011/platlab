@@ -2,7 +2,9 @@ import type pg from 'pg';
 import type { z } from 'zod';
 import type {
   Fault,
+  FaultCounts,
   FaultList,
+  FaultStats,
   faultListQuery,
   reportFaultRequest,
   ReportableAsset,
@@ -29,13 +31,21 @@ import {
   type WorkspaceAccess,
 } from '../../core/index.js';
 import { changeAssetCondition, lockAsset } from '../infrastructure/assets.queries.js';
-import { listFaults as listFaultsQuery, reportableAssets, type IListFaultsResult } from '../infrastructure/faults.queries.js';
+import {
+  faultCounts,
+  faultStats,
+  listFaults as listFaultsQuery,
+  reportableAssets,
+  type IListFaultsResult,
+} from '../infrastructure/faults.queries.js';
 import { CONDITION, FAULT_MANAGE, FAULT_REPORT, lockActiveAsset, runCommand } from './command.js';
 
 /** Reportes de fallas (ADR 0019): todos reportan; el Operador y el Administrador atienden, resuelven y cierran. */
 
 /** Consultas de Reportes: las abre todo el que reporta; el alcance lo decide `faultScope`. */
 const runReporterQuery = moduleQuery('equipment', FAULT_REPORT);
+/** Las cifras de todo el espacio son de quien atiende, que ve todas las fallas. */
+const runManagerQuery = moduleQuery('equipment', FAULT_MANAGE);
 
 const incidents = (access: WorkspaceAccess): IncidentsContext => ({
   client: access.client,
@@ -218,6 +228,28 @@ export function listFaults(pool: pg.Pool, request: QueryRequest, query: z.infer<
     return {
       items: visible.map(toFault),
       nextCursor: rows.length > query.limit && last ? encodeCursor([last.reported_at.toISOString(), last.id]) : null,
+    };
+  });
+}
+
+/** Las pestañas de Incidentes: cuántos hay en cada paso, con el alcance de la lista. */
+export function countFaults(pool: pg.Pool, request: QueryRequest): Promise<FaultCounts> {
+  return runReporterQuery(pool, request, async (access) => {
+    const [row] = await faultCounts.run({ workspaceId: access.workspace.id, reportedBy: await faultScope(access) }, access.client);
+    return { open: Number(row?.open ?? 0), inProgress: Number(row?.in_progress ?? 0), resolved: Number(row?.resolved ?? 0) };
+  });
+}
+
+/** «Incidentes en 12 meses» del Resumen (ADR 0019): cada mes, la reparación promedio y los días fuera de servicio. */
+export function getFaultStats(pool: pg.Pool, request: QueryRequest): Promise<FaultStats> {
+  return runManagerQuery(pool, request, async (access) => {
+    const rows = await faultStats.run({ workspaceId: access.workspace.id, timeZone: access.workspace.timeZone }, access.client);
+    const resolved = rows.reduce((sum, row) => sum + row.resolved, 0);
+    const repairSeconds = rows.reduce((sum, row) => sum + Number(row.repair_seconds), 0);
+    return {
+      months: rows.map((row) => ({ month: row.month, reported: row.reported, resolved: row.resolved })),
+      meanRepairSeconds: resolved > 0 ? Math.round(repairSeconds / resolved) : null,
+      outOfService: { seconds: Number(rows[0]?.out_of_service_seconds ?? 0), assets: rows[0]?.out_of_service_assets ?? 0 },
     };
   });
 }

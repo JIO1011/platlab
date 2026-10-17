@@ -8,7 +8,9 @@ import {
   assetTypeList,
   equipmentSummary,
   fault,
+  faultCounts,
   faultList,
+  faultStats,
   locationList,
   reportableAsset,
   reportableAssetList,
@@ -168,6 +170,27 @@ export function useFaults(workspaceId: string, filter: { statuses: FaultStatus[]
     },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     placeholderData: keepWithinWorkspace<InfiniteData<FaultList, string | undefined>>(user, workspaceId),
+    refetchInterval: jitteredPoll,
+  });
+}
+
+/** Las pestañas de Incidentes: cuántos hay en cada paso, con el alcance de la lista (lo decide el servidor). */
+export function useFaultCounts(workspaceId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...equipmentKey(user, workspaceId), 'fault-counts'],
+    queryFn: () => api(`${base(workspaceId)}/faults/counts`, { schema: faultCounts }),
+    refetchInterval: jitteredPoll,
+  });
+}
+
+/** «Incidentes en 12 meses» del Resumen (ADR 0019): solo para quien atiende fallas (`equipment.fault.manage`). */
+export function useFaultStats(workspaceId: string, enabled = true) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...equipmentKey(user, workspaceId), 'fault-stats'],
+    queryFn: () => api(`${base(workspaceId)}/faults/stats`, { schema: faultStats }),
+    enabled,
     refetchInterval: jitteredPoll,
   });
 }

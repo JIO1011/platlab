@@ -5,9 +5,11 @@ import { Link } from 'react-router';
 import { QuickActions, quickActionPrimary, quickActionSecondary } from '../../app/quick-actions';
 import { StatLink } from '../../app/stat-link';
 import { QueryErrorState } from '../../app/states';
+import { AreaStatusCard } from './area-status-card';
 import { assetSearch } from './asset-filters';
 import { useEquipment } from './context';
 import { EquipmentScan } from './equipment-scan';
+import { IncidentsCard } from './incidents-card';
 import { useEquipmentSummary } from './queries';
 import { SectionHeader } from './section-header';
 import { RegisterAsset } from './sheets/register-asset';
@@ -20,10 +22,12 @@ const reportLink = (base: string, conditions: AssetCondition[]) => {
 
 /**
  * Resumen de Equipos (ADR 0011, 0019): cuatro cifras por estado, cada una con su lista en el
- * Informe, y la banda para registrar, escanear o ir al inventario.
+ * Informe; debajo, a la izquierda, la banda para registrar, escanear o ir al inventario y los incidentes de los
+ * últimos 12 meses (solo para quien atiende fallas) y, a la derecha, el estado de las áreas.
  */
 export function EquipmentSummaryPage() {
   const { workspaceId, me, base, canManage } = useEquipment();
+  const canHandleFaults = me.permissions.includes('equipment.fault.manage');
   const summary = useEquipmentSummary(workspaceId);
   const title = me.modules.find((entry) => entry.code === 'equipment')?.name ?? 'Equipos';
 
@@ -32,47 +36,55 @@ export function EquipmentSummaryPage() {
       <SectionHeader title={title} updatedAt={summary.dataUpdatedAt} />
       <div className="mt-6">
         {summary.isPending ? (
-          <SummarySkeleton />
+          <SummarySkeleton withIncidents={canHandleFaults} />
         ) : summary.isError ? (
           <QueryErrorState error={summary.error} onRetry={() => void summary.refetch()} />
         ) : (
           <div className="grid gap-5 sm:gap-6">
             <Indicators counters={summary.data.summary} base={base} />
-            <QuickActions
-              moduleCode="equipment"
-              title="Inventario de equipos"
-              badge={{ icon: Microscope, label: 'Gestión rápida' }}
-              description={
-                canManage
-                  ? 'Registra un equipo con su tipo, su ubicación y quién responde. Para buscar o filtrar, abre Inventario.'
-                  : 'Busca por nombre, código, marca, modelo o serie, o filtra por estado, tipo y ubicación.'
-              }
-              className="xl:py-9"
-            >
-              {canManage ? (
-                <RegisterAsset>
-                  {(open) => (
-                    <button type="button" className={quickActionPrimary} onClick={open}>
-                      <Plus className="size-[18px]" aria-hidden />
-                      Registrar equipo
-                    </button>
+            <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2 xl:grid-cols-12">
+              <div className="flex min-w-0 flex-col gap-5 sm:gap-6 xl:col-span-7">
+                <QuickActions
+                  moduleCode="equipment"
+                  title="Inventario de equipos"
+                  badge={{ icon: Microscope, label: 'Gestión rápida' }}
+                  description={
+                    canManage
+                      ? 'Registra un equipo con su tipo, su ubicación y quién responde. Para buscar o filtrar, abre Inventario.'
+                      : 'Busca por nombre, código, marca, modelo o serie, o filtra por estado, tipo y ubicación.'
+                  }
+                  className="xl:py-9"
+                >
+                  {canManage ? (
+                    <RegisterAsset>
+                      {(open) => (
+                        <button type="button" className={quickActionPrimary} onClick={open}>
+                          <Plus className="size-[18px]" aria-hidden />
+                          Registrar equipo
+                        </button>
+                      )}
+                    </RegisterAsset>
+                  ) : (
+                    <Link to={`${base}/inventario`} className={quickActionPrimary}>
+                      <List className="size-[18px]" aria-hidden />
+                      Ver inventario
+                    </Link>
                   )}
-                </RegisterAsset>
-              ) : (
-                <Link to={`${base}/inventario`} className={quickActionPrimary}>
-                  <List className="size-[18px]" aria-hidden />
-                  Ver inventario
-                </Link>
-              )}
-              <EquipmentScan>
-                {(open) => (
-                  <button type="button" className={quickActionSecondary} onClick={open}>
-                    <ScanLine className="size-[18px]" aria-hidden />
-                    Escanear
-                  </button>
-                )}
-              </EquipmentScan>
-            </QuickActions>
+                  <EquipmentScan>
+                    {(open) => (
+                      <button type="button" className={quickActionSecondary} onClick={open}>
+                        <ScanLine className="size-[18px]" aria-hidden />
+                        Escanear
+                      </button>
+                    )}
+                  </EquipmentScan>
+                </QuickActions>
+                {canHandleFaults ? <IncidentsCard /> : null}
+              </div>
+              <div className="min-w-0 xl:col-span-5">
+                <AreaStatusCard />
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -128,8 +140,8 @@ function Indicators({ counters, base }: { counters: EquipmentSummary['summary'];
   );
 }
 
-/** Esqueleto quieto con la forma real: cuatro cifras y la banda. */
-function SummarySkeleton() {
+/** Esqueleto quieto con la forma real: cuatro cifras, la banda y las tarjetas de las dos columnas. */
+function SummarySkeleton({ withIncidents }: { withIncidents: boolean }) {
   return (
     <div className="grid gap-5 sm:gap-6" role="status" aria-busy="true" aria-label="Cargando">
       <div className="grid grid-cols-2 gap-4 sm:gap-6 xl:grid-cols-4">
@@ -137,7 +149,13 @@ function SummarySkeleton() {
           <Skeleton key={key} className="h-28 rounded-card" />
         ))}
       </div>
-      <Skeleton className="h-40 rounded-card" />
+      <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2 xl:grid-cols-12">
+        <div className="flex min-w-0 flex-col gap-5 sm:gap-6 xl:col-span-7">
+          <Skeleton className="h-40 rounded-card" />
+          {withIncidents ? <Skeleton className="h-96 rounded-card" /> : null}
+        </div>
+        <Skeleton className="h-96 rounded-card xl:col-span-5" />
+      </div>
     </div>
   );
 }
