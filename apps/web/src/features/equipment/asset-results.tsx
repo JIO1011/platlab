@@ -4,7 +4,7 @@ import type { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query
 import type { ReactNode } from 'react';
 import { QueryErrorState } from '../../app/states';
 import { useMediaQuery } from '../../app/use-media-query';
-import { AssetCards, AssetTable, AssetTiles, tileGrid, tileHeight } from './asset-list';
+import { AssetCards, AssetTable, AssetTiles, tileGrid, tileHeight, type AssetPicks } from './asset-list';
 import { assetsText } from './asset-text';
 
 /** Esqueleto quieto con la forma real: cuadros, filas de una tarjeta (tabla) o tarjetas apiladas. */
@@ -44,19 +44,21 @@ function ResultsSkeleton({ shape }: { shape: 'tiles' | 'table' | 'cards' }) {
 /**
  * Los equipos de una consulta del Inventario con todos sus estados: carga, error con «Reintentar», vacío (lo
  * dibuja quien lo usa, que sabe por qué), la cuenta (salvo con `count={false}`) y «Ver más». Con `tilesIn` (el nombre del área) salen
- * en cuadros; sin él, en tabla desde 1024 px y en tarjetas apiladas por debajo.
+ * en cuadros; sin él, en tabla desde 1024 px y en tarjetas apiladas por debajo. Con `picks` (el área), el modo etiquetas.
  */
 export function AssetResults({
   assets,
   base,
   tilesIn,
   count = true,
+  picks,
   empty,
 }: {
   assets: UseInfiniteQueryResult<InfiniteData<AssetList>>;
   base: string;
   tilesIn?: string | undefined;
   count?: boolean;
+  picks?: AssetPicks | undefined;
   empty: ReactNode;
 }) {
   const table = useMediaQuery('(min-width: 64rem)');
@@ -78,11 +80,11 @@ export function AssetResults({
         </p>
       ) : null}
       {tilesIn ? (
-        <AssetTiles assets={items} base={base} areaName={tilesIn} />
+        <AssetTiles assets={items} base={base} areaName={tilesIn} picks={picks} />
       ) : table ? (
-        <AssetTable assets={items} base={base} />
+        <AssetTable assets={items} base={base} picks={picks} />
       ) : (
-        <AssetCards assets={items} base={base} />
+        <AssetCards assets={items} base={base} picks={picks} />
       )}
       {assets.hasNextPage ? (
         <div className="mt-5 text-center">

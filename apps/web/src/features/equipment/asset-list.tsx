@@ -3,8 +3,29 @@ import { IconChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 import { MapPin, Microscope, Tag, User } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import { flipCard, flipDelay, flipFront, LabelBack } from '../../app/labels/label-flip';
+import { EquipmentLabel } from './asset-labels';
+import { assetLabelUrl } from './asset-link';
 import { assetMeta, noResponsibleLabel, placeInArea, placeLines } from './asset-text';
 import { ConditionBadge } from './condition-badge';
+import { useEquipment } from './context';
+import { PickBox } from './pick-box';
+
+/**
+ * El modo etiquetas en las unidades de la pantalla (E-01d), solo en el área: `flipped` es el modo activo (los
+ * cuadros giran a su etiqueta y las filas suman su casilla); `picked` y `onPick` son la elección.
+ */
+export interface AssetPicks {
+  flipped: boolean;
+  picked: (asset: Asset) => boolean;
+  onPick: (asset: Asset) => void;
+}
+
+/**
+ * La etiqueta, del tamaño de impresión (63,5 mm), dentro del reverso de un cuadro: en un cuadro más estrecho se
+ * reduce a pasos para caber (140 px a 360 px de pantalla).
+ */
+export const labelFit = '@max-[250px]:scale-90 @max-[220px]:scale-80 @max-[190px]:scale-[0.68] @max-[160px]:scale-[0.56]';
 
 /**
  * Miniatura del equipo, de tamaño fijo para que las filas no salten (40 px, 32 px con `size="sm"` en la
@@ -42,12 +63,17 @@ function Place({ location }: { location: Asset['location'] }) {
  * su columna cuando la tarjeta mide lo bastante (con el panel de filtros abierto no siempre cabe) y, si no,
  * baja bajo el nombre.
  */
-export function AssetTable({ assets, base }: { assets: Asset[]; base: string }) {
+export function AssetTable({ assets, base, picks }: { assets: Asset[]; base: string; picks?: AssetPicks | undefined }) {
   return (
     <div className="@container overflow-hidden rounded-card bg-surface shadow-raised">
       <Table className="table-fixed">
         <TableHead>
           <tr>
+            {picks?.flipped ? (
+              <TableHeader className="w-14 pl-3 pr-0">
+                <span className="sr-only">Etiqueta</span>
+              </TableHeader>
+            ) : null}
             <TableHeader className="w-28 px-3 pl-5">Código</TableHeader>
             <TableHeader className="px-3">Equipo</TableHeader>
             <TableHeader className="w-[22%] px-3">Ubicación</TableHeader>
@@ -63,6 +89,11 @@ export function AssetTable({ assets, base }: { assets: Asset[]; base: string }) 
                 key={asset.id}
                 className="relative has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-action"
               >
+                {picks?.flipped ? (
+                  <TableCell className="pl-3 pr-0 align-top">
+                    <PickBox checked={picks.picked(asset)} label={`Etiqueta de ${asset.code}`} onChange={() => picks.onPick(asset)} />
+                  </TableCell>
+                ) : null}
                 <TableCell className="whitespace-nowrap px-3 pl-5 align-top font-mono text-[13px] tabular-nums text-ink-muted">
                   {asset.code}
                 </TableCell>
@@ -102,17 +133,20 @@ export function AssetTable({ assets, base }: { assets: Asset[]; base: string }) 
 }
 
 /** En pantallas estrechas, cada equipo es una tarjeta apilada que abre su ficha. */
-export function AssetCards({ assets, base }: { assets: Asset[]; base: string }) {
+export function AssetCards({ assets, base, picks }: { assets: Asset[]; base: string; picks?: AssetPicks | undefined }) {
   return (
     <ul className="grid gap-3">
       {assets.map((asset) => {
         const meta = assetMeta(asset);
         const place = placeLines(asset.location);
         return (
-          <li key={asset.id}>
+          <li key={asset.id} className="flex items-start gap-1">
+            {picks?.flipped ? (
+              <PickBox checked={picks.picked(asset)} label={`Etiqueta de ${asset.code}`} onChange={() => picks.onPick(asset)} />
+            ) : null}
             <Link
               to={`${base}/inventario/${asset.id}`}
-              className="group block rounded-card bg-surface p-4 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-0.5"
+              className="group block min-w-0 flex-1 rounded-card bg-surface p-4 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-0.5"
             >
               <div className="flex items-start gap-3">
                 <AssetThumb asset={asset} />
@@ -169,7 +203,19 @@ const stackLayer = 'pointer-events-none absolute inset-0 rounded-card border bor
  * De alto fijo. Con `stacked` (un tipo es un grupo) asoman dos capas detrás, a 8 y 16 px. El enlace o botón de
  * `children` se extiende sobre todo el cuadro (`after:absolute after:inset-0`).
  */
-export function Tile({ photoUrl, stacked = false, children }: { photoUrl: string | null; stacked?: boolean; children: ReactNode }) {
+export function Tile({
+  photoUrl,
+  stacked = false,
+  labels,
+  children,
+}: {
+  photoUrl: string | null;
+  stacked?: boolean;
+  /** El modo etiquetas: el reverso de la tarjeta, si ya se usó, y si está girada; `order` escalona el giro. */
+  labels?: { flipped: boolean; order: number; back: ReactNode } | undefined;
+  children: ReactNode;
+}) {
+  const flipped = labels?.flipped === true;
   return (
     <li className="group relative rounded-card transition-transform duration-200 ease-out-expo has-[a:focus-visible,button:focus-visible]:outline-2 has-[a:focus-visible,button:focus-visible]:outline-offset-2 has-[a:focus-visible,button:focus-visible]:outline-action motion-safe:hover:-translate-y-0.5">
       {stacked ? (
@@ -178,22 +224,49 @@ export function Tile({ photoUrl, stacked = false, children }: { photoUrl: string
           <span aria-hidden className={cn(stackLayer, 'translate-x-2 translate-y-2 bg-surface-sunken')} />
         </>
       ) : null}
-      <div
-        className={cn(
-          tileHeight,
-          'relative flex flex-col overflow-hidden rounded-card bg-surface shadow-raised transition-shadow duration-200 ease-out-expo group-hover:shadow-float',
-        )}
-      >
-        <div className={cn('flex h-40 shrink-0 items-center justify-center md:h-44', photoUrl ? 'bg-surface' : 'bg-action-soft/70')}>
-          {photoUrl ? (
-            <img src={photoUrl} alt="" loading="lazy" decoding="async" className="size-full object-contain p-3" />
-          ) : (
-            <Microscope className="size-12 text-action/50" strokeWidth={1.5} aria-hidden />
+      {/* Gira solo la tarjeta: las capas de la pila se quedan detrás. Frente y reverso comparten la celda. */}
+      <div style={flipDelay(labels?.order ?? 0)} className={cn(flipCard(flipped), 'relative')}>
+        <div
+          inert={flipped}
+          aria-hidden={flipped || undefined}
+          className={cn(
+            tileHeight,
+            'relative flex flex-col overflow-hidden rounded-card bg-surface shadow-raised [backface-visibility:hidden] [grid-area:1/1] transition-shadow duration-200 ease-out-expo group-hover:shadow-float',
+            flipFront(flipped),
           )}
+        >
+          <div className={cn('flex h-40 shrink-0 items-center justify-center md:h-44', photoUrl ? 'bg-surface' : 'bg-action-soft/70')}>
+            {photoUrl ? (
+              <img src={photoUrl} alt="" loading="lazy" decoding="async" className="size-full object-contain p-3" />
+            ) : (
+              <Microscope className="size-12 text-action/50" strokeWidth={1.5} aria-hidden />
+            )}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col justify-center gap-1 overflow-hidden p-3.5">{children}</div>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col justify-center gap-1 overflow-hidden p-3.5">{children}</div>
+        {labels?.back}
       </div>
     </li>
+  );
+}
+
+/** El reverso del cuadro de un equipo: su etiqueta impresa y la casilla para elegirla. */
+function AssetBack({ asset, picks }: { asset: Asset; picks: AssetPicks }) {
+  const { workspaceId } = useEquipment();
+  const picked = picks.picked(asset);
+  return (
+    <LabelBack
+      flipped={picks.flipped}
+      picked={picked}
+      label={`Etiqueta del equipo ${asset.code}`}
+      status={picked ? 'Se imprime' : 'No se imprime'}
+      onPick={() => picks.onPick(asset)}
+      className="rounded-card"
+    >
+      <div className={labelFit}>
+        <EquipmentLabel asset={asset} url={assetLabelUrl(workspaceId, asset.id)} />
+      </div>
+    </LabelBack>
   );
 }
 
@@ -202,13 +275,17 @@ export function Tile({ photoUrl, stacked = false, children }: { photoUrl: string
  * debajo, el nombre (1 línea, enlace sobre todo el cuadro), el código con la condición y el lugar dentro del
  * área (si el equipo no está en el área misma).
  */
-export function AssetTiles({ assets, base, areaName }: { assets: Asset[]; base: string; areaName: string }) {
+export function AssetTiles({ assets, base, areaName, picks }: { assets: Asset[]; base: string; areaName: string; picks?: AssetPicks | undefined }) {
   return (
     <ul className={tileGrid}>
-      {assets.map((asset) => {
+      {assets.map((asset, order) => {
         const place = placeInArea(asset.location, areaName);
         return (
-          <Tile key={asset.id} photoUrl={asset.photoUrl}>
+          <Tile
+            key={asset.id}
+            photoUrl={asset.photoUrl}
+            labels={picks ? { flipped: picks.flipped, order, back: <AssetBack asset={asset} picks={picks} /> } : undefined}
+          >
             <Link
               to={`${base}/inventario/${asset.id}`}
               title={asset.name}

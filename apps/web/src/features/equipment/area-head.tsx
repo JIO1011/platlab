@@ -1,6 +1,6 @@
 import type { Area, AssetCondition } from '@platlab/contracts';
-import { IconTile, cn } from '@platlab/ui';
-import { Check, Microscope } from 'lucide-react';
+import { Button, IconTile, cn } from '@platlab/ui';
+import { Check, Microscope, QrCode } from 'lucide-react';
 import { glassCard, primaryAction } from '../../app/glass';
 import { ModuleMark } from '../../app/module-mark';
 import { RefreshButton } from '../../app/refresh-button';
@@ -9,6 +9,9 @@ import { conditionLabel, stateParts } from './asset-text';
 import { RegisterAssetButton } from './sheets/register-asset';
 
 const number = new Intl.NumberFormat('es-EC');
+
+/** El botón «Etiquetas QR» del membrete: el área devuelve el foco ahí al cerrar el modo con Escape. */
+export const labelsButtonId = 'etiquetas-qr';
 
 const dot = { operational: 'bg-success', restricted: 'bg-warning', faulted: 'bg-danger' } as const;
 
@@ -21,7 +24,9 @@ const pressed = {
 
 /**
  * Membrete del área (E-01c), en vidrio con el degradado suave del módulo y el microscopio de marca de agua:
- * el icono, el nombre con ⟳ «Actualizar» y, a la derecha, «Registrar equipo» con el área ya puesta; debajo, el
+ * el icono, el nombre con ⟳ «Actualizar» y, a la derecha, «Registrar equipo» con el área ya puesta (solo si se
+ * administra el catálogo) y «Etiquetas QR», un interruptor (`aria-pressed`) del modo etiquetas que gira los
+ * cuadros del área a su etiqueta; lo ve todo el que ve el área si tiene equipos activos; debajo, el
  * encargado con su lápiz (solo del Administrador) y cuántos equipos y tipos tiene. La barra de salud reparte
  * el área en operativos, uso limitado y fuera de servicio; las tres pastillas de debajo dicen lo mismo con
  * texto y filtran el área: tocar una la pinta de su tono con un ✓, tocarla otra vez quita el filtro. Los dados
@@ -34,6 +39,7 @@ export function AreaHeader({
   freshness,
   filter,
   onFilter,
+  labels,
 }: {
   area: Area;
   /** Cuántos tipos hay en el área, si ya se cargaron; si no, se omite. */
@@ -43,6 +49,8 @@ export function AreaHeader({
   /** La pastilla tocada, o el enlace de los dados de baja; nula, sin filtro. */
   filter: AssetCondition | null;
   onFilter: (filter: AssetCondition | null) => void;
+  /** El modo etiquetas: si está activo y cómo se alterna. */
+  labels: { active: boolean; onToggle: () => void };
 }) {
   const toggle = (next: AssetCondition) => onFilter(filter === next ? null : next);
   const counts = { operational: area.total - area.faulted - area.restricted, restricted: area.restricted, faulted: area.faulted };
@@ -68,8 +76,21 @@ export function AreaHeader({
           <h1 className="min-w-0 text-balance break-words text-[1.75rem] font-bold leading-tight tracking-tight text-ink">{area.name}</h1>
           <RefreshButton freshness={freshness} />
         </div>
-        {canManage ? (
-          <RegisterAssetButton initialLocationId={area.id} className={cn(primaryAction, 'h-12 w-full px-5 sm:w-auto')} />
+        {canManage || area.total > 0 ? (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row-reverse sm:items-center">
+            {canManage ? <RegisterAssetButton initialLocationId={area.id} className={cn(primaryAction, 'h-12 w-full px-5 sm:w-auto')} /> : null}
+            {area.total > 0 ? (
+              <Button
+                id={labelsButtonId}
+                aria-pressed={labels.active}
+                className="h-12 w-full rounded-2xl bg-white/80 px-5 text-base font-semibold text-action hover:bg-white aria-pressed:border-action/40 aria-pressed:bg-action-soft sm:w-auto [&_svg]:size-5"
+                onClick={labels.onToggle}
+              >
+                <QrCode aria-hidden />
+                Etiquetas QR
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">

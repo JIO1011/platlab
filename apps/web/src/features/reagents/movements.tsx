@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { FilterPanelClear } from '../../app/filter-group';
 import { addDays } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
 import { useReagents } from './context';
@@ -172,14 +173,17 @@ export function ReagentsMovementsPage() {
           </div>
         ) : null}
 
-        <MovementChips
-          filters={filters}
-          facets={operationFacets.data}
-          currentYear={currentYear}
-          onOpen={openGroup}
-          onRemove={(group) => apply(clearedGroup(group))}
-          onClear={clearAll}
-        />
+        {/* Con el panel a la vista, sus filtros ya se ven ahí. */}
+        {showPanel ? null : (
+          <MovementChips
+            filters={filters}
+            facets={operationFacets.data}
+            currentYear={currentYear}
+            onOpen={openGroup}
+            onRemove={(group) => apply(clearedGroup(group))}
+            onClear={clearAll}
+          />
+        )}
 
         <div aria-busy={stale} className={cn('transition-opacity duration-150', stale && 'opacity-60')}>
           {view === 'totals' ? (
@@ -216,6 +220,7 @@ export function ReagentsMovementsPage() {
           aria-label="Filtros"
           className="sticky top-20 rounded-panel bg-surface p-2 shadow-raised"
         >
+          {active.length > 0 ? <FilterPanelClear onClear={clearAll} /> : null}
           {panel}
         </aside>
       ) : null}

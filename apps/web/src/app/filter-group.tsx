@@ -1,4 +1,4 @@
-import { cn, sectionLabel } from '@platlab/ui';
+import { Button, cn, sectionLabel } from '@platlab/ui';
 import { ChevronDown, X } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 
@@ -98,5 +98,19 @@ export function FilterGroup({
         {open ? children : null}
       </div>
     </fieldset>
+  );
+}
+
+/**
+ * «Limpiar filtros» en la cabecera del panel lateral, solo con filtros puestos: con el panel a la vista no se
+ * muestran las fichas (E-01d), así que quitar todo de una vez vive aquí.
+ */
+export function FilterPanelClear({ onClear }: { onClear: () => void }) {
+  return (
+    <div className="flex justify-end px-1 pb-1">
+      <Button variant="ghost" size="sm" className="h-[44px] sm:h-8" onClick={onClear}>
+        Limpiar filtros
+      </Button>
+    </div>
   );
 }

@@ -20,7 +20,7 @@ import {
 import { QueryErrorState } from '../../app/states';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { IngressSheet } from './ingress/ingress-sheet';
-import { ScanSheet } from './scan/scan-sheet';
+import { ScanSheet } from '../../app/scan/scan-sheet';
 import { AdjustmentSheet, IssueSheet, MinimumSheet, ProductSheet, TransferSheet } from './sheets';
 import { useNow } from '../../app/use-now';
 
@@ -252,7 +252,7 @@ export function ReagentsLayout() {
         />
       </div>
 
-      {current?.request.kind === 'scan' ? <ScanSheet {...scanProps} /> : null}
+      {current?.request.kind === 'scan' ? <ScanSheet {...scanProps} description="Apunta la cámara al código QR del frasco." /> : null}
 
       {current?.request.kind === 'ingress' ? (
         <IngressSheet

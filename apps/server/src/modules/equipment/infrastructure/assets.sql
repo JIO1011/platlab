@@ -265,8 +265,8 @@ VALUES (:workspaceId!, :assetId!, :fromConservation, :toConservation, :actorId!)
 
 /* @name assetTotals */
 -- Indicadores del Informe (E-01c) con los mismos filtros que listAssets, sin paginar: cuántos equipos,
--- su valor de reposición sumado (exacto), sin responsable, con la garantía por vencer y con la vida útil
--- cumplida a :today.
+-- su valor de reposición sumado (exacto) y cuántos lo tienen, sin responsable, con la garantía por vencer
+-- y con la vida útil cumplida a :today.
 WITH RECURSIVE search AS (
   SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),
            chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
@@ -282,6 +282,7 @@ WITH RECURSIVE search AS (
 )
 SELECT count(*)::integer AS "count!",
        trim_scale(coalesce(sum(a.replacement_value), 0))::text AS "replacement_value!",
+       count(a.replacement_value)::integer AS "with_replacement_value!",
        count(*) FILTER (WHERE a.responsible_principal_id IS NULL)::integer AS "without_responsible!",
        count(*) FILTER (
          WHERE equipment.warranty_state(a.warranty_until, :today::date, :warrantyHorizon::date) = 'expiring'

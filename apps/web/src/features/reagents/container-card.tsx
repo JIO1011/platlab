@@ -1,9 +1,10 @@
 import type { Position } from '@platlab/contracts';
 import { Band, Button, HelpTip, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, Check, FlaskConical, MapPin, QrCode as QrIcon, Scale, Star, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, FlaskConical, MapPin, QrCode as QrIcon, Scale, Star, TriangleAlert } from 'lucide-react';
 import { formatGrams, gramsPerUnit, weightFigures } from './weight';
-import { type ComponentProps, type CSSProperties } from 'react';
+import { type ComponentProps } from 'react';
 import { formatDate, formatDateTime, formatShortDate, relativeDays } from '../../app/format';
+import { flipCard, flipDelay, flipFront, LabelBack } from '../../app/labels/label-flip';
 import { ModuleMark } from '../../app/module-mark';
 import { type Allowed, type SheetRequest } from './context';
 import { ContainerLabel, type LabelProduct } from './labels';
@@ -329,15 +330,8 @@ export function ContainerCard({
     <article
       id={position.container ? `frasco-${position.container.id}` : undefined}
       aria-current={scanned ? 'true' : undefined}
-      style={{ '--flip-delay': `${Math.min(labels?.order ?? 0, 12) * 40}ms` } as CSSProperties}
-      className={cn(
-        // Frente y reverso comparten la misma celda: la tarjeta mide lo mayor de las dos caras, sin altura fija.
-        // El giro: 300 ms con la curva de salida del sistema. Con movimiento reducido no hay giro: las caras se funden.
-        'grid h-full grid-cols-[minmax(0,1fr)] [transform-style:preserve-3d] [transform:perspective(1100px)_rotateY(0deg)] [transition-delay:var(--flip-delay)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out-expo',
-        flipped && '[transform:perspective(1100px)_rotateY(180deg)]',
-        'motion-reduce:[transform:none] motion-reduce:[transform-style:flat]',
-        scanned && 'scroll-mt-24',
-      )}
+      style={flipDelay(labels?.order ?? 0)}
+      className={cn(flipCard(flipped), scanned && 'scroll-mt-24')}
     >
       <div
         inert={flipped}
@@ -345,8 +339,7 @@ export function ContainerCard({
         className={cn(
           // El lenguaje de la tarjeta del Inventario; el color solo cuenta un estado y siempre con texto (ADR 0010).
           'group relative flex flex-col gap-2.5 [grid-area:1/1] rounded-[20px] bg-surface p-4 shadow-raised [backface-visibility:hidden] transition-[translate,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1',
-          'motion-reduce:transition-opacity motion-reduce:duration-300 motion-reduce:[transition-delay:var(--flip-delay)]',
-          flipped && 'motion-reduce:opacity-0',
+          flipFront(flipped),
           scanned && 'ring-2 ring-action',
           !scanned && recommended && 'ring-2 ring-success/50',
           !scanned && !recommended && expired && 'ring-1 ring-danger/40',
@@ -445,46 +438,23 @@ export function ContainerCard({
 
 /**
  * Reverso del frasco: la etiqueta impresa (la misma de la hoja A4) y, en toda la tarjeta, una casilla para
- * elegirla. La marca y «Se imprime» / «No se imprime» dicen el estado con texto, no solo con el anillo.
+ * elegirla.
  */
 function LabelFace({ code, position, labels }: { code: string; position: Position; labels: NonNullable<ComponentProps<typeof ContainerCard>['labels']> }) {
   const { flipped, picked, product, url, onPick } = labels;
   return (
-    <div
-      role="checkbox"
-      aria-checked={picked}
-      aria-label={`Etiqueta del frasco ${code}`}
-      tabIndex={flipped ? 0 : -1}
-      inert={!flipped}
-      aria-hidden={!flipped || undefined}
-      onClick={onPick}
-      onKeyDown={(event) => {
-        if (event.key === ' ' || event.key === 'Enter') {
-          event.preventDefault();
-          onPick();
-        }
-      }}
-      className={cn(
-        '@container relative flex cursor-pointer flex-col items-center [grid-area:1/1] justify-center gap-3 rounded-[20px] border bg-white p-4 shadow-raised [backface-visibility:hidden] [transform:rotateY(180deg)] transition-shadow duration-200 hover:shadow-float',
-        'motion-reduce:opacity-0 motion-reduce:transition-opacity motion-reduce:duration-300 motion-reduce:[transform:none] motion-reduce:[transition-delay:var(--flip-delay)]',
-        flipped && 'motion-reduce:opacity-100',
-        picked ? 'border-action ring-2 ring-action' : 'border-white/80',
-      )}
+    <LabelBack
+      flipped={flipped}
+      picked={picked}
+      label={`Etiqueta del frasco ${code}`}
+      status={picked ? 'Se imprime' : 'No se imprime'}
+      onPick={onPick}
+      className="rounded-[20px]"
     >
-      <span
-        aria-hidden
-        className={cn(
-          'absolute right-4 top-4 inline-flex size-6 items-center justify-center rounded-md border-2 transition-colors',
-          picked ? 'border-action bg-action text-on-action' : 'border-line-strong bg-white',
-        )}
-      >
-        {picked ? <Check className="size-4" strokeWidth={3} /> : null}
-      </span>
       {/* La etiqueta mide 63,5 mm: en una tarjeta más estrecha (tres por fila a 1280 px) se reduce para caber. */}
       <div className="@max-[240px]:scale-[0.88]">
         <ContainerLabel position={position} product={product} url={url} />
       </div>
-      <p className={cn('text-sm font-semibold', picked ? 'text-action' : 'text-ink-muted')}>{picked ? 'Se imprime' : 'No se imprime'}</p>
-    </div>
+    </LabelBack>
   );
 }

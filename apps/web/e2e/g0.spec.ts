@@ -436,20 +436,21 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
   // El total de salidas va en la cabecera del gráfico (ADR 0012, 05-10-2026) y abre la lista.
   await admin.getByRole('link', { name: /\d+ salidas? en 30 días/ }).click();
   await expect(admin.getByRole('heading', { name: 'Movimientos', level: 1 })).toBeVisible();
-  // La lista llega filtrada como la cifra: solo salidas de los últimos 30 días, marcadas en el panel y en las fichas.
+  // La lista llega filtrada como la cifra: solo salidas de los últimos 30 días, marcadas en el panel. Con el panel
+  // a la vista, las fichas no lo repiten (E-01d).
   const filters = admin.getByRole('complementary', { name: 'Filtros' });
   await expect(filters.getByRole('checkbox', { name: /^Salidas/ })).toBeChecked();
   await expect(filters.getByRole('radio', { name: '30 días', exact: true })).toBeChecked();
-  const active = admin.getByRole('list', { name: 'Filtros activos' });
-  await expect(active.getByText('Tipo: Salidas')).toBeVisible();
-  await expect(active.getByText('Últimos 30 días')).toBeVisible();
+  await expect(admin.getByRole('list', { name: 'Filtros activos' })).toHaveCount(0);
   const rows = admin.locator('main').getByRole('listitem').filter({ hasNot: admin.getByRole('button') });
   await expect(rows.first()).toBeVisible();
   for (const row of await rows.all()) await expect(row).toContainText('Salida');
   await expectAccessible(admin, 'movimientos filtrados');
   await capture(admin, 'desktop-movements-filtered', false);
-  await admin.getByRole('button', { name: 'Limpiar' }).click();
+  // Con el panel a la vista, «Limpiar filtros» vive en su cabecera.
+  await filters.getByRole('button', { name: 'Limpiar filtros' }).click();
   await expect(admin).not.toHaveURL(/tipo=|dias=/);
+  await expect(filters.getByRole('button', { name: 'Limpiar filtros' })).toHaveCount(0);
   await expect(admin.getByRole('list', { name: 'Filtros activos' })).toHaveCount(0);
   await expect(admin.locator('main').getByRole('listitem').first()).toBeVisible();
 
@@ -1044,7 +1045,7 @@ test('sesión expirada: un token que la API rechaza cierra la sesión y vuelve a
   await expectAccessible(admin, 'sesión expirada');
 });
 
-test('Movimientos como informe: el panel filtra por la URL, las fichas quitan y Totales abre Detalle (R-01C)', async ({ browser }) => {
+test('Movimientos como informe: el panel filtra por la URL, las fichas (con el panel plegado) quitan y Totales abre Detalle (R-01C)', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
   await openReagents(admin, 'Facultad de Ciencias');
   await goTo(admin, 'Movimientos');
@@ -1068,26 +1069,28 @@ test('Movimientos como informe: el panel filtra por la URL, las fichas quitan y 
   await expect(product).toHaveAttribute('aria-expanded', 'false');
   await expect(responsible).toHaveAttribute('aria-expanded', 'true');
   await expect(panel.getByRole('searchbox', { name: 'Buscar reactivo' })).toHaveCount(0);
-  await tick(panel.getByRole('group', { name: /^Responsable/ }).getByRole('checkbox').first());
+  const people = panel.getByRole('group', { name: /^Responsable/ });
+  await tick(people.getByRole('checkbox').first());
   await expect(responsible).toContainText('1 elegido');
-  await admin.getByRole('button', { name: 'Quitar filtro de responsable' }).click();
+  // Con el panel a la vista no hay fichas: se quita desmarcando la casilla elegida.
+  await people.getByRole('checkbox', { checked: true }).click();
+  await expect(people.getByRole('checkbox', { checked: true })).toHaveCount(0);
   await expect(admin).not.toHaveURL(/responsable=/);
 
-  // Marcar «Salidas» aplica al instante: cambia la URL, la ficha y la lista.
+  // Marcar «Salidas» aplica al instante: cambia la URL y la lista. Con el panel a la vista no hay fichas (E-01d).
   await tick(panel.getByRole('checkbox', { name: /^Salidas/ }));
   await expect(admin).toHaveURL(/tipo=salida/);
   const chips = admin.getByRole('list', { name: 'Filtros activos' });
-  await expect(chips.getByText('Tipo: Salidas', { exact: true })).toBeVisible();
+  await expect(chips).toHaveCount(0);
   // El orden de Tipo es fijo: marcar no mueve las filas.
   await expect(panel.getByRole('group', { name: /^Tipo/ }).getByRole('checkbox').first()).toHaveAccessibleName(/^Ingresos/);
   const ledger = admin.locator('main').getByRole('listitem').filter({ has: admin.getByRole('link') });
   await expect(ledger.first()).toBeVisible();
   for (const row of await ledger.all()) await expect(row).toContainText('Salida');
   await tick(panel.getByRole('checkbox', { name: /^Ajustes/ }));
-  await expect(chips.getByText('Tipo: Salidas y Ajustes')).toBeVisible();
+  await expect(admin).toHaveURL(/tipo=salida.*ajuste|tipo=ajuste.*salida/);
   await tick(panel.getByRole('radio', { name: 'Este mes' }));
   await expect(admin).toHaveURL(/periodo=mes/);
-  await expect(chips.getByText('Este mes', { exact: true })).toBeVisible();
 
   // Desde–hasta: si la fecha inicial es mayor, el aviso queda en el campo y no se aplica.
   await panel.getByRole('button', { name: 'Elegir fechas' }).click();
@@ -1097,19 +1100,20 @@ test('Movimientos como informe: el panel filtra por la URL, las fichas quitan y 
   await expect(admin).not.toHaveURL(/hasta=2026-03-01/);
   await panel.getByLabel('Hasta', { exact: true }).fill('2026-03-20');
   await expect(admin).toHaveURL(/desde=2026-03-15&hasta=2026-03-20/);
-  await expect(chips.getByText('15–20 mar', { exact: true })).toBeVisible();
   await expectAccessible(admin, 'movimientos con panel');
 
-  // La × de la ficha quita ese grupo; «Limpiar» vuelve a Todo.
+  // El panel se pliega: las fichas dicen lo que filtra y su × quita ese grupo.
+  await admin.getByRole('button', { name: 'Ocultar filtros' }).click();
+  await expect(panel).toHaveCount(0);
+  await expect(chips.getByText('Tipo: Salidas y Ajustes')).toBeVisible();
+  await expect(chips.getByText('15–20 mar', { exact: true })).toBeVisible();
   await chips.getByRole('button', { name: 'Quitar filtro de periodo' }).click();
   await expect(admin).not.toHaveURL(/desde=|periodo=/);
   await chips.getByRole('button', { name: 'Quitar filtro de tipo' }).click();
   await expect(admin).not.toHaveURL(/tipo=/);
   await expect(chips).toHaveCount(0);
 
-  // El panel se pliega y el navegador lo recuerda.
-  await admin.getByRole('button', { name: 'Ocultar filtros' }).click();
-  await expect(panel).toHaveCount(0);
+  // El navegador recuerda el panel plegado.
   await admin.reload();
   await expect(admin.getByRole('button', { name: 'Filtros', exact: true })).toBeVisible();
   await expect(panel).toHaveCount(0);
@@ -1133,7 +1137,7 @@ test('Movimientos como informe: el panel filtra por la URL, las fichas quitan y 
   await table.getByRole('link').first().click();
   await expect(admin).toHaveURL(/reactivo=/);
   await expect(admin).not.toHaveURL(/vista=/);
-  await expect(admin.getByRole('list', { name: 'Filtros activos' }).getByText(/^Reactivo: /)).toBeVisible();
+  await expect(panel.getByRole('button', { name: /^Reactivo/ })).toContainText('1 elegido');
   await expect(admin.getByRole('button', { name: 'Detalle', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });
 

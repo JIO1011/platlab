@@ -50,9 +50,16 @@ export function EquipmentFaultsPage() {
   const canSeeAssets = me.permissions.includes('equipment.catalog.read');
   const timeZone = me.workspace.timeZone;
 
-  const [reporting, setReporting] = useState<OpenSheet | null>(null);
+  // `scanned`: el equipo del QR con que se llegó (`?reportar=`), que la hoja busca y deja elegido.
+  const [reporting, setReporting] = useState<(OpenSheet & { scanned: string | null }) | null>(null);
   const [detail, setDetail] = useState<(OpenSheet & { id: string }) | null>(null);
   const faultId = params.get('falla');
+  const scannedId = params.get('reportar');
+
+  // El QR de un equipo llega con `?reportar=`: abre «Reportar incidente» con ese equipo (E-01d).
+  if (scannedId && canReport && reporting?.scanned !== scannedId) {
+    setReporting({ open: true, n: (reporting?.n ?? 0) + 1, scanned: scannedId });
+  }
 
   // La hoja del incidente sigue a la URL: un enlace `?falla=` la abre y quitarlo (atrás) la cierra.
   if (faultId && (!detail || detail.id !== faultId || !detail.open)) {
@@ -88,7 +95,22 @@ export function EquipmentFaultsPage() {
     search.set('falla', id);
     return { search: `?${search}` };
   };
-  const openReport = () => setReporting({ open: true, n: (reporting?.n ?? 0) + 1 });
+  const openReport = () => setReporting({ open: true, n: (reporting?.n ?? 0) + 1, scanned: null });
+  // Al cerrar se olvida el equipo del QR y se quita `?reportar=`: volver a escanearlo abre la hoja otra vez.
+  const closeReport = (open: boolean) => {
+    if (open) return;
+    setReporting((current) => (current ? { ...current, open: false, scanned: null } : current));
+    if (scannedId) {
+      setParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          next.delete('reportar');
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  };
 
   const items = faults.data?.pages.flatMap((page) => page.items) ?? [];
   const reportButton = canReport ? (
@@ -149,7 +171,15 @@ export function EquipmentFaultsPage() {
           </div>
         ) : null}
       </div>
-      {reporting ? <ReportFaultSheet key={reporting.n} workspaceId={workspaceId} open={reporting.open} onOpenChange={(open) => setReporting((current) => (current ? { ...current, open } : current))} /> : null}
+      {reporting ? (
+        <ReportFaultSheet
+          key={reporting.n}
+          workspaceId={workspaceId}
+          open={reporting.open}
+          onOpenChange={closeReport}
+          scannedAssetId={reporting.scanned}
+        />
+      ) : null}
       {detail ? (
         <FaultSheet
           key={detail.n}

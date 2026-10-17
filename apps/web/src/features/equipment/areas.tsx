@@ -1,6 +1,6 @@
 import type { Area } from '@platlab/contracts';
 import { Badge, Button, Skeleton, StatePanel } from '@platlab/ui';
-import { Microscope, SearchX } from 'lucide-react';
+import { Microscope, ScanLine, SearchX } from 'lucide-react';
 import { Link } from 'react-router';
 import { ModuleMark } from '../../app/module-mark';
 import { QueryErrorState } from '../../app/states';
@@ -9,6 +9,7 @@ import { AssetResults } from './asset-results';
 import { AssetSearch, useAssetSearch } from './asset-search';
 import { useEquipment } from './context';
 import { emptyAssetQuery } from './asset-filters';
+import { EquipmentScan } from './equipment-scan';
 import { useAreas, useAssets } from './queries';
 import { SectionHeader } from './section-header';
 import { RegisterAssetButton } from './sheets/register-asset';
@@ -105,8 +106,8 @@ function SearchResults({ term, onClear }: { term: string; onClear: () => void })
 
 /**
  * Inventario por áreas (ADR 0019, E-01c): una tarjeta por área con equipos, en orden alfabético, y un buscador
- * que, desde 2 letras, muestra los equipos de todas las áreas. «Registrar equipo» y el encargado de cada área
- * son del Administrador.
+ * que, desde 2 letras, muestra los equipos de todas las áreas, con «Escanear» junto a él. «Registrar equipo» y
+ * el encargado de cada área son del Administrador.
  */
 export function EquipmentAreasPage() {
   const { workspaceId, base, canManage } = useEquipment();
@@ -124,12 +125,22 @@ export function EquipmentAreasPage() {
         actions={canManage ? <RegisterAssetButton className="h-12 sm:h-10" /> : undefined}
       />
       <div className="mt-6 grid gap-5">
-        <AssetSearch
-          label="Buscar equipo por código o nombre"
-          placeholder="Buscar equipo por código o nombre…"
-          text={search.text}
-          onChange={search.setText}
-        />
+        <div className="flex flex-wrap items-start gap-3">
+          <AssetSearch
+            label="Buscar equipo por código o nombre"
+            placeholder="Buscar equipo por código o nombre…"
+            text={search.text}
+            onChange={search.setText}
+          />
+          <EquipmentScan>
+            {(open) => (
+              <Button className="h-[44px] w-full sm:h-10 sm:w-auto" onClick={open}>
+                <ScanLine aria-hidden />
+                Escanear
+              </Button>
+            )}
+          </EquipmentScan>
+        </div>
         {search.term ? (
           <SearchResults term={search.term} onClear={() => search.setText('')} />
         ) : areas.isPending ? (

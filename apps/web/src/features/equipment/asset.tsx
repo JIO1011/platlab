@@ -2,6 +2,7 @@ import { Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from '@platlab/ui'
 import { Archive } from 'lucide-react';
 import { useState } from 'react';
 import { useParams } from 'react-router';
+import { WithBack } from '../../app/back-button';
 import { formatDateTime } from '../../app/format';
 import { useShellTrail } from '../../app/shell-trail';
 import { QueryErrorState } from '../../app/states';
@@ -26,7 +27,7 @@ interface OpenSheet {
  * Ficha del equipo, segundo nivel del inventario (ADR 0019): el membrete de vidrio con sus acciones y todos sus
  * datos y, en pestañas, Incidentes (a quien los ve) e Historial. Un equipo dado de baja lo dice en una franja
  * neutra, con la fecha y el motivo del último cambio, y no ofrece ninguna acción. Las migas de la barra suman
- * el área y el nombre del equipo.
+ * el área y el nombre del equipo; ← vuelve un paso, o al área.
  */
 export function EquipmentAssetPage() {
   const { workspaceId, me, base, canManage, canOperate, freshness } = useEquipment();
@@ -74,19 +75,21 @@ export function EquipmentAssetPage() {
 
   return (
     <div className="grid gap-6">
-      <section aria-label="Datos del equipo">
-        <AssetHeader
-          asset={data}
-          canChangeCondition={canOperate && me.permissions.includes('equipment.condition.change')}
-          canTransfer={canOperate && me.permissions.includes('equipment.transfer.create')}
-          canEdit={canManage}
-          canReport={canReport}
-          freshness={{ updatedAt, refreshing: freshness.refreshing, refresh: freshness.refresh }}
-          area={{ to: `${base}/inventario/area/${data.location.areaId}`, label: areaName ?? 'Volver al área' }}
-          timeZone={timeZone}
-          onAction={openSheet}
-        />
-      </section>
+      <WithBack parent={`${base}/inventario/area/${data.location.areaId}`}>
+        <section aria-label="Datos del equipo">
+          <AssetHeader
+            asset={data}
+            canChangeCondition={canOperate && me.permissions.includes('equipment.condition.change')}
+            canTransfer={canOperate && me.permissions.includes('equipment.transfer.create')}
+            canEdit={canManage}
+            canReport={canReport}
+            freshness={{ updatedAt, refreshing: freshness.refreshing, refresh: freshness.refresh }}
+            labelsTo={`${base}/inventario/area/${data.location.areaId}/etiquetas?${new URLSearchParams({ equipos: data.id })}`}
+            timeZone={timeZone}
+            onAction={openSheet}
+          />
+        </section>
+      </WithBack>
       {data.condition === 'retired' ? (
         <p role="status" className="flex items-start gap-2.5 rounded-control bg-surface-sunken px-4 py-3 text-sm text-ink-muted">
           <Archive className="mt-0.5 size-4 shrink-0" aria-hidden />

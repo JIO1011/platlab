@@ -111,7 +111,8 @@ export const listFaults = new PreparedQuery<IListFaultsParams,IListFaultsResult>
 
 /** 'ReportableAssets' parameters type */
 export interface IReportableAssetsParams {
-  q: string;
+  assetId?: string | null | void;
+  q?: string | null | void;
   workspaceId: string;
 }
 
@@ -131,21 +132,24 @@ export interface IReportableAssetsQuery {
   result: IReportableAssetsResult;
 }
 
-const reportableAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true},"params":[{"name":"q","required":true,"transform":{"type":"scalar"},"locs":[{"a":277,"b":279}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":535,"b":547},{"a":804,"b":816},{"a":1003,"b":1015},{"a":1397,"b":1409},{"a":1540,"b":1552}]}],"statement":"-- Para reportar: equipos no dados de baja cuyo nombre o código contiene :q, plegado como en el\n-- inventario; solo lo que identifica al equipo (quien solo reporta no ve la ficha completa).\nWITH RECURSIVE search AS (\n  SELECT '%' || replace(replace(replace(inventory.fold_text(:q!::text),\n           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern\n), page AS (\n  SELECT a.id, a.code, a.name, a.location_id, a.photo_id\n  FROM equipment.assets AS a\n  CROSS JOIN search\n  WHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired' AND a.search_text LIKE search.pattern\n  ORDER BY lower(a.code)\n  LIMIT 20\n), up AS (\n  SELECT p.id AS asset_id, loc.parent_id, loc.kind, loc.name, 0 AS depth\n  FROM page AS p\n  JOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = p.location_id\n  UNION ALL\n  SELECT up.asset_id, parent.parent_id, parent.kind, parent.name, up.depth + 1\n  FROM up\n  JOIN core.locations AS parent ON parent.workspace_id = :workspaceId! AND parent.id = up.parent_id\n  WHERE up.depth < 5\n), paths AS (\n  SELECT asset_id, array_agg(name ORDER BY depth DESC) FILTER (WHERE depth = 0 OR kind <> 'site') AS path\n  FROM up\n  GROUP BY asset_id\n)\nSELECT p.id, p.code, p.name, photo.url AS \"photo_url?\", loc.name AS location_name, paths.path AS \"location_path!\"\nFROM page AS p\nJOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = p.location_id\nJOIN paths ON paths.asset_id = p.id\nLEFT JOIN equipment.asset_photos AS photo ON photo.workspace_id = :workspaceId! AND photo.id = p.photo_id\nORDER BY lower(p.code)"};
+const reportableAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"assetId":true},"params":[{"name":"q","required":false,"transform":{"type":"scalar"},"locs":[{"a":362,"b":363}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":619,"b":631},{"a":978,"b":990},{"a":1177,"b":1189},{"a":1571,"b":1583},{"a":1714,"b":1726}]},{"name":"assetId","required":false,"transform":{"type":"scalar"},"locs":[{"a":671,"b":678},{"a":704,"b":711}]}],"statement":"-- Para reportar: equipos no dados de baja cuyo nombre o código contiene :q, plegado como en el\n-- inventario, o el equipo :assetId (el del QR de su etiqueta); quien llama pasa uno de los dos. Solo\n-- lo que identifica al equipo (quien solo reporta no ve la ficha completa).\nWITH RECURSIVE search AS (\n  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),\n           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern\n), page AS (\n  SELECT a.id, a.code, a.name, a.location_id, a.photo_id\n  FROM equipment.assets AS a\n  CROSS JOIN search\n  WHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired'\n    AND (:assetId::uuid IS NULL OR a.id = :assetId::uuid)\n    AND (search.pattern IS NULL OR a.search_text LIKE search.pattern)\n  ORDER BY lower(a.code)\n  LIMIT 20\n), up AS (\n  SELECT p.id AS asset_id, loc.parent_id, loc.kind, loc.name, 0 AS depth\n  FROM page AS p\n  JOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = p.location_id\n  UNION ALL\n  SELECT up.asset_id, parent.parent_id, parent.kind, parent.name, up.depth + 1\n  FROM up\n  JOIN core.locations AS parent ON parent.workspace_id = :workspaceId! AND parent.id = up.parent_id\n  WHERE up.depth < 5\n), paths AS (\n  SELECT asset_id, array_agg(name ORDER BY depth DESC) FILTER (WHERE depth = 0 OR kind <> 'site') AS path\n  FROM up\n  GROUP BY asset_id\n)\nSELECT p.id, p.code, p.name, photo.url AS \"photo_url?\", loc.name AS location_name, paths.path AS \"location_path!\"\nFROM page AS p\nJOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = p.location_id\nJOIN paths ON paths.asset_id = p.id\nLEFT JOIN equipment.asset_photos AS photo ON photo.workspace_id = :workspaceId! AND photo.id = p.photo_id\nORDER BY lower(p.code)"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Para reportar: equipos no dados de baja cuyo nombre o código contiene :q, plegado como en el
- * -- inventario; solo lo que identifica al equipo (quien solo reporta no ve la ficha completa).
+ * -- inventario, o el equipo :assetId (el del QR de su etiqueta); quien llama pasa uno de los dos. Solo
+ * -- lo que identifica al equipo (quien solo reporta no ve la ficha completa).
  * WITH RECURSIVE search AS (
- *   SELECT '%' || replace(replace(replace(inventory.fold_text(:q!::text),
+ *   SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),
  *            chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
  * ), page AS (
  *   SELECT a.id, a.code, a.name, a.location_id, a.photo_id
  *   FROM equipment.assets AS a
  *   CROSS JOIN search
- *   WHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired' AND a.search_text LIKE search.pattern
+ *   WHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired'
+ *     AND (:assetId::uuid IS NULL OR a.id = :assetId::uuid)
+ *     AND (search.pattern IS NULL OR a.search_text LIKE search.pattern)
  *   ORDER BY lower(a.code)
  *   LIMIT 20
  * ), up AS (

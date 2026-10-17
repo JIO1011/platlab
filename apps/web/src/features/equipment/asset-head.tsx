@@ -1,8 +1,8 @@
 import type { Asset } from '@platlab/contracts';
 import { Button, IconTile, Sheet, Tooltip, cn } from '@platlab/ui';
-import { Activity, ArrowLeft, ArrowLeftRight, Microscope, Pencil, TriangleAlert } from 'lucide-react';
+import { Activity, ArrowLeftRight, Microscope, Pencil, QrCode, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { useNavigate } from 'react-router';
 import { glassCard, iconAction, primaryAction } from '../../app/glass';
 import { InfoPill } from '../../app/pills';
 import { RefreshButton } from '../../app/refresh-button';
@@ -13,10 +13,11 @@ import { assetMeta } from './asset-text';
 export type AssetSheet = 'condition' | 'transfer' | 'edit' | 'fault';
 
 /**
- * Membrete de la ficha del equipo, como el del reactivo: la flecha ← al área, la foto del equipo (cuadrada, de
+ * Membrete de la ficha del equipo, como el del reactivo: la foto del equipo (cuadrada, de
  * 112 a 160 px, entera sobre blanco; al tocarla se abre ampliada en un diálogo) o, sin foto, el cuadro del módulo, y el nombre, con ⟳ «Actualizar»; las pastillas (código en
  * mono, tipo, marca · modelo · serie, alimentación) y, a la derecha, «Cambiar estado» como primaria y los botones
- * redondos «Trasladar equipo», «Reportar incidente» y «Editar ficha» (el lápiz), cada uno solo con su permiso.
+ * redondos «Trasladar equipo», «Reportar incidente», «Etiqueta QR» y «Editar ficha» (el lápiz), cada uno solo con
+ * su permiso; la etiqueta, en cambio, la ve quien ve la ficha, también en modo consulta (imprimirla es consultar).
  * Debajo, la franja con todos los datos del equipo. Un equipo dado de baja no ofrece ninguna acción.
  */
 export function AssetHeader({
@@ -26,7 +27,7 @@ export function AssetHeader({
   canEdit,
   canReport,
   freshness,
-  area,
+  labelsTo,
   timeZone,
   onAction,
 }: {
@@ -38,8 +39,8 @@ export function AssetHeader({
   /** Puede reportar un incidente (`equipment.fault.report` y Equipos admite cambios). */
   canReport: boolean;
   freshness: { updatedAt: number; refreshing: boolean; refresh: () => void };
-  /** El área del equipo: adonde vuelve la flecha. */
-  area: { to: string; label: string };
+  /** La hoja de etiquetas del área con este equipo elegido. */
+  labelsTo: string;
   /** La zona del espacio: la garantía y la vida útil se cuentan contra hoy en ella. */
   timeZone: string;
   onAction: (sheet: AssetSheet) => void;
@@ -49,17 +50,12 @@ export function AssetHeader({
   const showTransfer = canTransfer && !retired;
   const showEdit = canEdit && !retired;
   const showFault = canReport && !retired;
+  const showLabel = !retired;
+  const navigate = useNavigate();
   const meta = assetMeta(asset);
   const [zoomed, setZoomed] = useState(false);
   return (
     <div className={cn(glassCard, 'p-5 md:p-6')}>
-      <Link
-        to={area.to}
-        className="-ml-2 -mt-1 mb-3 inline-flex h-11 max-w-full items-center gap-1.5 rounded-control px-2 text-[13px] font-medium text-ink-muted transition-colors hover:bg-white hover:text-action sm:h-9"
-      >
-        <ArrowLeft className="size-4 shrink-0" aria-hidden />
-        <span className="truncate">{area.label}</span>
-      </Link>
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
         <div className="flex min-w-0 items-start gap-4">
           {asset.photoUrl ? (
@@ -95,7 +91,7 @@ export function AssetHeader({
             </div>
           </div>
         </div>
-        {showCondition || showTransfer || showEdit || showFault ? (
+        {showCondition || showTransfer || showEdit || showFault || showLabel ? (
           <div className="grid shrink-0 gap-3 lg:w-64">
             {showCondition ? (
               <Button variant="primary" className={primaryAction} onClick={() => onAction('condition')}>
@@ -103,7 +99,7 @@ export function AssetHeader({
                 Cambiar estado
               </Button>
             ) : null}
-            {showTransfer || showEdit || showFault ? (
+            {showTransfer || showEdit || showFault || showLabel ? (
               <div className="flex flex-wrap gap-2">
                 {showTransfer ? (
                   <Tooltip label="Trasladar equipo">
@@ -116,6 +112,13 @@ export function AssetHeader({
                   <Tooltip label="Reportar incidente">
                     <Button size="icon" className={iconAction} aria-label="Reportar incidente" onClick={() => onAction('fault')}>
                       <TriangleAlert aria-hidden />
+                    </Button>
+                  </Tooltip>
+                ) : null}
+                {showLabel ? (
+                  <Tooltip label="Etiqueta QR">
+                    <Button size="icon" className={iconAction} aria-label="Etiqueta QR" onClick={() => void navigate(labelsTo)}>
+                      <QrCode aria-hidden />
                     </Button>
                   </Tooltip>
                 ) : null}

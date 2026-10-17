@@ -14,6 +14,13 @@ const tones = {
   warning: 'aria-pressed:border-warning aria-pressed:bg-warning-soft aria-pressed:text-warning',
 } as const;
 
+/** Cuántos de los equipos filtrados suman al valor de reposición; nada que decir si todos lo tienen. */
+function coverageNote(withValue: number, count: number): string | null {
+  if (withValue === count) return null;
+  if (withValue === 0) return 'Sin datos';
+  return `${number.format(withValue)} de ${number.format(count)} con valor`;
+}
+
 const tile = 'flex min-w-0 flex-col items-start justify-start gap-0.5 rounded-control border border-line bg-surface px-3 py-2 text-left';
 
 /**
@@ -51,6 +58,7 @@ export function AssetIndicators({
   const noResponsible = only(query.responsibles, NO_RESPONSIBLE);
   const expiring = only(query.warranties, 'expiring');
   const reached = only(query.usefulLives, 'reached');
+  const coverage = data ? coverageNote(data.withReplacementValue, data.count) : null;
 
   return (
     <div className="@container mb-4">
@@ -69,6 +77,7 @@ export function AssetIndicators({
               <div className={cn(tile, 'h-full')}>
                 <span className="text-lg font-bold leading-tight tabular-nums text-ink">{formatMoney(data.replacementValue)}</span>
                 <span className="text-[13px] leading-tight text-ink-muted">Valor de reposición</span>
+                {coverage ? <span className="text-xs leading-tight text-ink-muted">{coverage}</span> : null}
               </div>
             </li>
             <Indicator

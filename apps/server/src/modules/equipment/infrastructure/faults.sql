@@ -59,15 +59,18 @@ ORDER BY f.reported_at DESC, f.id DESC;
 
 /* @name reportableAssets */
 -- Para reportar: equipos no dados de baja cuyo nombre o código contiene :q, plegado como en el
--- inventario; solo lo que identifica al equipo (quien solo reporta no ve la ficha completa).
+-- inventario, o el equipo :assetId (el del QR de su etiqueta); quien llama pasa uno de los dos. Solo
+-- lo que identifica al equipo (quien solo reporta no ve la ficha completa).
 WITH RECURSIVE search AS (
-  SELECT '%' || replace(replace(replace(inventory.fold_text(:q!::text),
+  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),
            chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
 ), page AS (
   SELECT a.id, a.code, a.name, a.location_id, a.photo_id
   FROM equipment.assets AS a
   CROSS JOIN search
-  WHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired' AND a.search_text LIKE search.pattern
+  WHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired'
+    AND (:assetId::uuid IS NULL OR a.id = :assetId::uuid)
+    AND (search.pattern IS NULL OR a.search_text LIKE search.pattern)
   ORDER BY lower(a.code)
   LIMIT 20
 ), up AS (

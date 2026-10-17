@@ -196,12 +196,13 @@ describe('filtros e indicadores del Informe', () => {
     expect(await totals('')).toEqual({
       count: 4,
       replacementValue: '1200.75',
+      withReplacementValue: 2,
       withoutResponsible: 3,
       warrantyExpiring: 1,
       usefulLifeReached: 2,
     });
     // Los indicadores se recalculan con los filtros.
-    expect(await totals('warranty=expired&warranty=expiring')).toMatchObject({ count: 2, replacementValue: '1200.75', withoutResponsible: 1 });
+    expect(await totals('warranty=expired&warranty=expiring')).toMatchObject({ count: 2, replacementValue: '1200.75', withReplacementValue: 2, withoutResponsible: 1 });
     expect((await call(fresh.teacher.subject, `${fresh.base}/assets/totals`)).status).toBe(403);
   });
 });
