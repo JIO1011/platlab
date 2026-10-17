@@ -60,7 +60,7 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 | `core.invitations` | Email, hash del token, expiración, roles propuestos y estado; se canjea en una transacción |
 | `core.permissions`, `roles`, `role_permissions` | Catálogo global fijo, sincronizado desde los manifiestos |
 | `core.role_assignments` | Principal, rol y vigencia. Los roles valen para todo el espacio, sin ámbito por ubicación ([ADR 0008](05_decisiones.md#adr-0008)); una sola asignación abierta por principal y rol |
-| `core.locations` | Árbol por `parent_id`: sede, edificio, sala, almacén, custodia o tránsito |
+| `core.locations` | Árbol por `parent_id`: sede, edificio, sala, almacén, custodia o tránsito. Un nombre activo no se repite en el mismo nivel sin distinguir tildes ni mayúsculas. El área es el primer nivel bajo la sede o el edificio (vista `core.location_areas`) y guarda su encargado, un miembro del espacio ([ADR 0019](05_decisiones.md#adr-0019)) |
 | `core.module_definitions`, `module_dependencies` | Registro global de módulos |
 | `core.workspace_entitlements` | Módulo, vigencia, estado operativo, contrato y revisión aplicada |
 | `core.documents`, `core.branding` | Archivos versionados y marca validada |
@@ -156,9 +156,10 @@ Reglas:
 | `equipment.assets` | Tipo, código, marca, modelo, serie, alimentación, ubicación, responsable, condición, conservación, proveedor, fecha de compra, garantía, vida útil, valor de reposición y foto vigente |
 | `equipment.condition_changes` | Condición anterior y nueva, actor, motivo, resultado y falla de origen |
 | `equipment.location_changes` | Traslado trazado entre ubicaciones |
+| `equipment.conservation_changes` | Cambio de estado físico desde la ficha: de, a (nulo es «sin dato»), quién y cuándo; inmutable ([ADR 0019](05_decisiones.md#adr-0019)) |
 | `equipment.asset_photos` | Foto de un activo: imagen pública, tamaño y huella; nunca se sobrescribe y el activo apunta a la vigente ([ADR 0019](05_decisiones.md#adr-0019)) |
 | `equipment.documents` | Documento de un activo (manual, factura, garantía, informe): PDF público, tipo y fecha; nunca se sobrescribe |
-| `incidents.cases` | Falla de un recurso con FK tipada (hoy, el activo de Equipos) y su módulo dueño; tipo, descripción, si se puede seguir usando, estado, y quién y cuándo la reportó, atendió, resolvió y cerró. Las notas de seguimiento (`actions`) se suman cuando hagan falta |
+| `incidents.cases` | Falla de un recurso con FK tipada (hoy, el activo de Equipos) y su módulo dueño; tipo, descripción, si se puede seguir usando, estado, y quién y cuándo la reportó, empezó a repararla y la solucionó. Las notas de seguimiento (`actions`) se suman cuando hagan falta |
 | `materials.products`, `assets` | Consumible o reutilizable; unidades identificables |
 | `materials.loans`, `loan_lines`, `return_lines` | Préstamo de material o de equipos (FK tipada al activo), líneas y devoluciones parciales |
 | `maintenance.plans`, `records`, `orders` | Tipo (preventivo, calibración, verificación, limpieza), frecuencia y próxima fecha; mantenimiento hecho con quién, resultado, conservación, costo exacto, informe y «válida hasta»; orden correctiva desde una falla de M3; en F5, técnico, bloqueo de agenda y repuestos |
@@ -166,7 +167,7 @@ Reglas:
 Estados:
 
 - **Equipo:** condición `operational`, `restricted`, `faulted` o `retired`, y conservación `good`, `fair` o `poor`. La disponibilidad (disponible o no disponible; prestado con M6, en mantenimiento con M7 y reservado con la agenda) se calcula y no se guarda.
-- **Incidencia:** abierta → en atención → resuelta → cerrada. Resolverla exige un resultado.
+- **Incidencia:** reportada (`open`) → en reparación (`in_progress`) → solucionada (`resolved`, definitiva). Solucionarla exige un resultado ([ADR 0019](05_decisiones.md#adr-0019), 16-10-2026).
 - **Préstamo:** abierto → parcialmente devuelto → cerrado. Se puede cancelar antes de entregar.
 
 Reglas:

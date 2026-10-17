@@ -47,7 +47,11 @@ export const location = z.object({
  */
 export const createLocationRequest = z.object({ name: text(200), parentId: z.uuid().nullable() }).strict();
 
-export const locationList = z.object({ items: z.array(location) });
+/** Ubicación activa con su área (ADR 0019, E-01c) y, si es un área, su encargado. */
+const activeLocation = location.extend({ areaId: z.uuid(), managerId: z.uuid().nullable() });
+
+export const locationList = z.object({ items: z.array(activeLocation) });
 
 export type Location = z.infer<typeof location>;
+export type ActiveLocation = z.infer<typeof activeLocation>;
 export type LocationList = z.infer<typeof locationList>;

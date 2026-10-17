@@ -114,8 +114,9 @@ select set_eq(
       where grantee = 'platlab_api' and table_schema in ('core', 'platform')
         and privilege_type = 'UPDATE' $$,
   array['core.workspaces.version', 'core.memberships.version',
-        'core.workspace_entitlements.version', 'platform.idempotency_records.response'],
-  'platlab_api solo actualiza version (para FOR SHARE) y la respuesta idempotente');
+        'core.workspace_entitlements.version', 'platform.idempotency_records.response',
+        'core.locations.manager_principal_id', 'core.locations.version'],
+  'platlab_api solo actualiza version (para FOR SHARE), la respuesta idempotente y el encargado del área (E-01c)');
 
 select ok(
   not has_table_privilege('platlab_api', 'platform.customer_accounts', 'SELECT'),

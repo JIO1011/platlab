@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from 'class-variance-authority';
-import type { ButtonHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
 import { cn } from '../lib/cn';
 
 const buttonStyles = cva(
@@ -26,7 +26,7 @@ const buttonStyles = cva(
 );
 
 export interface ButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>,
+  extends ComponentProps<'button'>,
     VariantProps<typeof buttonStyles> {
   /**
    * Mientras el servidor confirma: deshabilita, anuncia la espera (aria-busy) y muestra el cursor de

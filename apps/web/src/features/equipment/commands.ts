@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { asset, assetType, fault, location } from '@platlab/contracts';
-import { api, isApiError } from '../../app/api';
+import { areaManager, asset, assetType, fault, location } from '@platlab/contracts';
+import { api, apiDownload, isApiError } from '../../app/api';
 import { useModuleCommand } from '../../app/commands';
+import { saveFile } from '../../app/save-file';
+import { assetFilterSearch, type AssetQuery } from './asset-filters';
 import type { PhotoType } from './photo';
 import { useEquipmentKey } from './queries';
 
@@ -20,7 +22,7 @@ export function useUpdateAsset(workspaceId: string, assetId: string) {
   return useModuleCommand(workspaceId, `/equipment/assets/${assetId}`, asset, useEquipmentKey(workspaceId), 'PATCH');
 }
 
-/** «Cambiar condición»: motivo siempre; resultado al volver a operativo. Dar de baja es definitivo. */
+/** «Cambiar estado»: motivo siempre; resultado al volver a operativo. Dar de baja es definitivo. */
 export function useChangeCondition(workspaceId: string, assetId: string) {
   return useModuleCommand(workspaceId, `/equipment/assets/${assetId}/condition`, asset, useEquipmentKey(workspaceId));
 }
@@ -60,13 +62,31 @@ export function useUploadAssetPhoto(workspaceId: string) {
   });
 }
 
-/** «Reportar falla»: tipo, descripción y si el equipo se puede seguir usando. */
+/** Encargado de un área (E-01c, Administrador): un miembro activo, o `null` para quitarlo. */
+export function useAssignAreaManager(workspaceId: string, areaId: string) {
+  return useModuleCommand(workspaceId, `/equipment/areas/${areaId}/manager`, areaManager, useEquipmentKey(workspaceId), 'PUT');
+}
+
+/**
+ * «Exportar a Excel» del Informe (ADR 0017, 0019): lo filtrado, con el nombre de archivo del servidor.
+ * Es una consulta: no cambia nada, así que no lleva clave idempotente ni refresca la caché.
+ */
+export function useExportAssets(workspaceId: string) {
+  return useMutation({
+    mutationFn: async (query: AssetQuery) => {
+      const { blob, fileName } = await apiDownload(`/workspaces/${workspaceId}/equipment/assets/export?${assetFilterSearch(query)}`);
+      saveFile(blob, fileName);
+    },
+  });
+}
+
+/** «Reportar incidente»: tipo, descripción y si el equipo se puede seguir usando. */
 export function useReportFault(workspaceId: string) {
   return useModuleCommand(workspaceId, '/equipment/faults', fault, useEquipmentKey(workspaceId));
 }
 
-/** «Atender», «Resolver» y «Cerrar» una falla; resolver lleva el resultado y si vuelve a operativo. */
-export function useFaultStep(workspaceId: string, faultId: string, step: 'attend' | 'resolve' | 'close') {
+/** «Empezar reparación» y «Marcar como solucionado»; solucionar lleva el resultado y si vuelve a operativo. */
+export function useFaultStep(workspaceId: string, faultId: string, step: 'attend' | 'resolve') {
   return useModuleCommand(workspaceId, `/equipment/faults/${faultId}/${step}`, fault, useEquipmentKey(workspaceId));
 }
 
@@ -74,7 +94,7 @@ export function useFaultStep(workspaceId: string, faultId: string, step: 'attend
 export function equipmentErrorMessage(error: unknown): string {
   if (isApiError(error, 'CODE_TAKEN')) return `${error.message}: cambia el código o déjalo vacío para que se genere.`;
   if (isApiError(error, 'NAME_TAKEN')) return error.message;
-  if (isApiError(error, 'REQUEST_RESOLVED')) return 'Otra persona ya avanzó esta falla: actualiza para ver su estado.';
+  if (isApiError(error, 'REQUEST_RESOLVED')) return 'Otra persona ya avanzó este incidente: actualiza para ver su estado.';
   if (isApiError(error, 'ACCESS_DENIED')) return 'No tienes permiso para esta acción.';
   if (isApiError(error, 'MODULE_READ_ONLY', 'MODULE_UNAVAILABLE', 'WORKSPACE_RESTRICTED')) {
     return 'Equipos no admite cambios en este momento. Puedes consultar el inventario.';

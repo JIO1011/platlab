@@ -12,13 +12,14 @@ import { QueryErrorState } from '../../../app/states';
 import { AssetThumb } from '../asset-list';
 import { placeLines } from '../asset-text';
 import { equipmentErrorMessage, useFaultStep } from '../commands';
-import { faultStatusLabel, faultStatusTone, faultSteps, faultTypeLabel, personText, usableText } from '../fault-text';
+import { FaultSteps } from '../fault-steps';
+import { faultSteps, faultTypeLabel, personText, usableText } from '../fault-text';
 import { useEquipmentKey, useFault } from '../queries';
 
-const formId = 'form-resolver-falla';
-const resolveButtonId = 'falla-resolver';
+const formId = 'form-solucionar-falla';
+const resolveButtonId = 'falla-solucionar';
 
-/** El equipo de la falla: miniatura, código, nombre y ubicación, con el enlace a su ficha si puede verla. */
+/** El equipo del incidente: miniatura, código, nombre y ubicación, con el enlace a su ficha si puede verla. */
 function FaultAsset({ fault, fichaTo }: { fault: Fault; fichaTo: string | null }) {
   const place = placeLines(fault.asset.location);
   return (
@@ -43,7 +44,7 @@ function FaultAsset({ fault, fichaTo }: { fault: Fault; fichaTo: string | null }
   );
 }
 
-/** Los pasos de la falla: quién y cuándo (zona del espacio); «Resuelta» trae su resultado. */
+/** Los pasos del incidente: quién y cuándo (zona del espacio); «Solucionado» trae qué se hizo. */
 function FaultTimeline({ fault, timeZone }: { fault: Fault; timeZone: string }) {
   return (
     <ol className="relative space-y-5 before:absolute before:bottom-4 before:left-4 before:top-4 before:w-0.5 before:bg-line">
@@ -69,10 +70,10 @@ function FaultTimeline({ fault, timeZone }: { fault: Fault; timeZone: string }) 
 }
 
 /**
- * Detalle de la falla (ADR 0019), en una hoja sobre la lista: el equipo, qué se reportó y su línea de tiempo.
- * Quien atiende (y puede operar) ve el paso que sigue: Atender o Resolver una abierta, Resolver una en
- * atención, Cerrar una resuelta. «Resolver» abre en esta misma hoja pidiendo el resultado. Sin interfaz
- * optimista: la falla cambia con lo que el servidor confirma, y si otra persona se adelantó, se recarga.
+ * Detalle del incidente (ADR 0019), en una hoja sobre la lista: el equipo, qué se reportó y su línea de tiempo.
+ * Quien atiende (y puede operar) ve el paso que sigue: «Empezar reparación» o «Marcar como solucionado» un
+ * incidente reportado, «Marcar como solucionado» uno en reparación. Solucionado es definitivo y se pide en esta
+ * misma hoja: qué se hizo y si el equipo vuelve a funcionar. Sin interfaz optimista: el incidente cambia con lo que el servidor confirma, y si otra persona se adelantó, se recarga.
  */
 export function FaultSheet({
   workspaceId,
@@ -87,13 +88,12 @@ export function FaultSheet({
   timeZone: string;
   /** Puede atender: `equipment.fault.manage` y Equipos admite cambios. */
   canHandle: boolean;
-  /** `/e/:espacio/equipos/inventario` si puede leer el catálogo; sin eso, la falla no enlaza a la ficha. */
+  /** `/e/:espacio/equipos/inventario` si puede leer el catálogo; sin eso, el incidente no enlaza a la ficha. */
   fichaBase: string | null;
 }) {
   const fault = useFault(workspaceId, faultId, open);
   const attend = useFaultStep(workspaceId, faultId, 'attend');
   const resolve = useFaultStep(workspaceId, faultId, 'resolve');
-  const close = useFaultStep(workspaceId, faultId, 'close');
   const queryClient = useQueryClient();
   const equipmentKey = useEquipmentKey(workspaceId);
   const [resolving, setResolving] = useState(false);
@@ -103,7 +103,7 @@ export function FaultSheet({
   const resolutionField = form.register('resolution');
   const wasResolving = useRef(false);
 
-  // Al volver de «Resolver», el foco regresa al botón que lo abrió (el que lo tenía se desmontó).
+  // Al volver de «Marcar como solucionado», el foco regresa al botón que lo abrió (el que lo tenía se desmontó).
   useEffect(() => {
     if (wasResolving.current && !resolving) document.getElementById(resolveButtonId)?.focus();
     wasResolving.current = resolving;
@@ -111,21 +111,20 @@ export function FaultSheet({
 
   const failed = (error: unknown) => {
     setGeneralError(equipmentErrorMessage(error));
-    // Otra persona ya avanzó la falla: se recarga y se vuelve a su detalle.
+    // Otra persona ya avanzó el incidente: se recarga y se vuelve a su detalle.
     if (isApiError(error, 'REQUEST_RESOLVED')) {
       setResolving(false);
       void queryClient.invalidateQueries({ queryKey: equipmentKey });
     }
   };
 
-  const step = async (kind: 'attend' | 'close') => {
+  const startRepair = async () => {
     setGeneralError(null);
     try {
-      await (kind === 'attend' ? attend : close).mutateAsync(undefined);
-      toast.success(kind === 'attend' ? 'Falla en atención' : 'Falla cerrada', {
+      await attend.mutateAsync(undefined);
+      toast.success('Reparación en curso', {
         description: fault.data ? `${fault.data.asset.code} · ${fault.data.asset.name}` : undefined,
       });
-      if (kind === 'close') onOpenChange(false);
     } catch (error) {
       failed(error);
     }
@@ -140,7 +139,7 @@ export function FaultSheet({
   const submitResolution = form.handleSubmit(async (values) => {
     setGeneralError(null);
     if (!values.resolution.trim()) {
-      form.setError('resolution', { message: 'Escribe qué se hizo para resolverla.' });
+      form.setError('resolution', { message: 'Escribe qué se hizo para solucionarlo.' });
       return;
     }
     const payload = validate(
@@ -151,7 +150,7 @@ export function FaultSheet({
     if (!payload) return;
     try {
       await resolve.mutateAsync(payload);
-      toast.success('Falla resuelta', {
+      toast.success('Incidente solucionado', {
         description: payload.returnToOperational ? 'El equipo volvió a Operativo.' : fault.data ? fault.data.asset.name : undefined,
       });
       onOpenChange(false);
@@ -161,11 +160,11 @@ export function FaultSheet({
   });
 
   const data = fault.data;
-  const busy = attend.isPending || close.isPending;
-  const sheetTitle = resolving ? 'Resolver falla' : 'Falla de equipo';
+  const busy = attend.isPending;
+  const sheetTitle = resolving ? 'Marcar como solucionado' : 'Incidente de equipo';
   const description = resolving
-    ? 'Queda en la línea de tiempo de la falla, con quién la resolvió y cuándo.'
-    : 'Qué se reportó, quién la atendió y cómo se resolvió.';
+    ? 'Queda en la línea de tiempo del incidente, con quién lo solucionó y cuándo.'
+    : 'Qué se reportó, cómo va la reparación y cómo se solucionó.';
 
   let footer: React.ReactNode;
   if (data && canHandle) {
@@ -176,7 +175,7 @@ export function FaultSheet({
             Volver
           </Button>
           <Button type="submit" form={formId} variant="primary" loading={resolve.isPending} className="h-12 flex-1 rounded-2xl text-base font-bold">
-            Resolver falla
+            Marcar como solucionado
           </Button>
         </div>
       );
@@ -184,8 +183,8 @@ export function FaultSheet({
       footer = (
         <div className="flex w-full flex-wrap items-center gap-3">
           {data.status === 'open' ? (
-            <Button className="h-12 flex-1 rounded-2xl" loading={attend.isPending} disabled={busy} onClick={() => void step('attend')}>
-              Atender
+            <Button className="h-12 flex-1 rounded-2xl" loading={attend.isPending} disabled={busy} onClick={() => void startRepair()}>
+              Empezar reparación
             </Button>
           ) : null}
           <Button
@@ -195,15 +194,9 @@ export function FaultSheet({
             disabled={busy}
             onClick={() => startResolving(data)}
           >
-            Resolver
+            Marcar como solucionado
           </Button>
         </div>
-      );
-    } else if (data.status === 'resolved') {
-      footer = (
-        <Button variant="primary" className="h-12 w-full rounded-2xl text-base font-bold" loading={close.isPending} onClick={() => void step('close')}>
-          Cerrar falla
-        </Button>
       );
     }
   }
@@ -213,7 +206,7 @@ export function FaultSheet({
       {!data && fault.isError ? (
         <QueryErrorState error={fault.error} onRetry={() => void fault.refetch()} />
       ) : !data ? (
-        <div role="status" aria-busy="true" aria-label="Cargando la falla" className="grid gap-3">
+        <div role="status" aria-busy="true" aria-label="Cargando el incidente" className="grid gap-3">
           <Skeleton className="h-16" />
           <Skeleton className="h-24" />
           <Skeleton className="h-32" />
@@ -236,7 +229,7 @@ export function FaultSheet({
                 void submitResolution();
               }}
             >
-              <Field label="Resultado" required hint="Qué se hizo o se comprobó para resolver la falla." error={errors.resolution?.message}>
+              <Field label="Qué se hizo" required hint="Qué se reparó o se comprobó para solucionar el incidente." error={errors.resolution?.message}>
                 <Textarea
                   rows={4}
                   maxLength={2000}
@@ -247,11 +240,11 @@ export function FaultSheet({
               <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm font-medium text-ink">
                 <input type="checkbox" className="mt-0.5 size-5 shrink-0 cursor-pointer accent-action" {...form.register('returnToOperational')} />
                 <span>
-                  Devolver el equipo a Operativo
+                  El equipo vuelve a funcionar
                   <span className="block text-[13px] font-normal text-ink-muted">
                     {data.usable
-                      ? 'Déjala sin marcar si el equipo ya estaba en uso.'
-                      : 'Estaba fuera de servicio por esta falla. Desmárcala si aún no puede usarse.'}
+                      ? 'Pasa a Operativo. Déjala sin marcar si el equipo ya estaba en uso.'
+                      : 'Estaba fuera de servicio por este incidente y pasa a Operativo. Desmárcala si aún no puede usarse.'}
                   </span>
                 </span>
               </label>
@@ -259,7 +252,6 @@ export function FaultSheet({
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={faultStatusTone[data.status]}>{faultStatusLabel[data.status]}</Badge>
                 <span className="text-sm text-ink-muted">{faultTypeLabel[data.faultType]}</span>
                 <span aria-hidden className="text-ink-subtle">
                   ·
@@ -280,6 +272,7 @@ export function FaultSheet({
                 <h3 id="falla-pasos" className={sectionLabel}>
                   Pasos
                 </h3>
+                <FaultSteps status={data.status} />
                 <FaultTimeline fault={data} timeZone={timeZone} />
               </section>
             </>

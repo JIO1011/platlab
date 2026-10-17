@@ -9,6 +9,8 @@ export interface EquipmentContext {
   base: string;
   /** Administra el catálogo (`equipment.catalog.manage`): registrar y editar equipos. */
   canManage: boolean;
+  /** Imprime y exporta el Informe (`equipment.report.read`), aun en modo consulta. */
+  canExport: boolean;
   /** Puede registrar cambios; sin esto, Equipos está en modo consulta. */
   canOperate: boolean;
   freshness: { refreshing: boolean; refresh: () => void };

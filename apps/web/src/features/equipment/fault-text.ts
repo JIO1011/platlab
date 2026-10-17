@@ -11,34 +11,34 @@ export const faultTypeLabel: Record<FaultType, string> = {
 /** Los tipos en el orden en que se ofrecen al reportar. */
 export const faultTypes: FaultType[] = ['electrical', 'mechanical', 'spare_part', 'other'];
 
+/** Los tres pasos de un incidente, en orden: reportado, en reparación y solucionado (definitivo). */
+export const faultStatusOrder: FaultStatus[] = ['open', 'in_progress', 'resolved'];
+
 /** Cómo se llama cada estado: siempre con texto, nunca solo con color (ADR 0010). */
 export const faultStatusLabel: Record<FaultStatus, string> = {
-  open: 'Abierta',
-  in_progress: 'En atención',
-  resolved: 'Resuelta',
-  closed: 'Cerrada',
+  open: 'Reportado',
+  in_progress: 'En reparación',
+  resolved: 'Solucionado',
 };
 
-/** El tono de cada estado: abierta ámbar, en atención acento, resuelta verde y cerrada neutra. */
-export const faultStatusTone: Record<FaultStatus, 'warning' | 'info' | 'success' | 'neutral'> = {
-  open: 'warning',
-  in_progress: 'info',
+/** El tono de cada estado: reportado rojo, en reparación ámbar y solucionado verde. */
+export const faultStatusTone: Record<FaultStatus, 'danger' | 'warning' | 'success'> = {
+  open: 'danger',
+  in_progress: 'warning',
   resolved: 'success',
-  closed: 'neutral',
 };
 
-/** Las vistas de la lista, en la URL como `?estado=`; «Abiertas» es la de por omisión y no se escribe. */
-export type FaultView = 'abiertas' | 'resueltas' | 'cerradas';
+/** Las vistas de la lista, en la URL como `?estado=`; «En curso» es la de por omisión y no se escribe. */
+export type FaultView = 'en-curso' | 'solucionados';
 
 export const faultViews: ReadonlyArray<{ value: FaultView; label: string; statuses: FaultStatus[] }> = [
-  { value: 'abiertas', label: 'Abiertas', statuses: ['open', 'in_progress'] },
-  { value: 'resueltas', label: 'Resueltas', statuses: ['resolved'] },
-  { value: 'cerradas', label: 'Cerradas', statuses: ['closed'] },
+  { value: 'en-curso', label: 'En curso', statuses: ['open', 'in_progress'] },
+  { value: 'solucionados', label: 'Solucionados', statuses: ['resolved'] },
 ];
 
-/** La vista que nombra la URL; cualquier otro valor es «Abiertas». */
+/** La vista que nombra la URL; cualquier otro valor es «En curso». */
 export function faultViewFrom(value: string | null): FaultView {
-  return faultViews.find((view) => view.value === value)?.value ?? 'abiertas';
+  return faultViews.find((view) => view.value === value)?.value ?? 'en-curso';
 }
 
 /** Lo que dice el equipo según se pueda seguir usando o no. */
@@ -73,32 +73,29 @@ export function faultAgo(iso: string, now: number): string {
 }
 
 export interface FaultStep {
-  key: 'reported' | 'attended' | 'resolved' | 'closed';
-  label: 'Reportada' | 'Atendida' | 'Resuelta' | 'Cerrada';
+  key: 'reported' | 'repairing' | 'resolved';
+  label: string;
   /** Quién lo hizo; `null` si ya no es miembro. */
   by: string | null;
   at: string;
-  /** Lo que se escribió en el paso: el resultado de «Resuelta». */
+  /** Lo que se escribió en el paso: qué se hizo al solucionarlo. */
   note: string | null;
 }
 
-/** La línea de tiempo de la falla: solo los pasos que ya ocurrieron, del primero al último. */
+/** La línea de tiempo del incidente: solo los pasos que ya ocurrieron, del primero al último, con el nombre de su estado. */
 export function faultSteps(fault: Fault): FaultStep[] {
-  const steps: FaultStep[] = [{ key: 'reported', label: 'Reportada', by: fault.reportedBy?.name ?? null, at: fault.reportedAt, note: null }];
+  const steps: FaultStep[] = [{ key: 'reported', label: faultStatusLabel.open, by: fault.reportedBy?.name ?? null, at: fault.reportedAt, note: null }];
   if (fault.attendedAt) {
-    steps.push({ key: 'attended', label: 'Atendida', by: fault.attendedBy?.name ?? null, at: fault.attendedAt, note: null });
+    steps.push({ key: 'repairing', label: faultStatusLabel.in_progress, by: fault.attendedBy?.name ?? null, at: fault.attendedAt, note: null });
   }
   if (fault.resolvedAt) {
-    steps.push({ key: 'resolved', label: 'Resuelta', by: fault.resolvedBy?.name ?? null, at: fault.resolvedAt, note: fault.resolution });
-  }
-  if (fault.closedAt) {
-    steps.push({ key: 'closed', label: 'Cerrada', by: fault.closedBy?.name ?? null, at: fault.closedAt, note: null });
+    steps.push({ key: 'resolved', label: faultStatusLabel.resolved, by: fault.resolvedBy?.name ?? null, at: fault.resolvedAt, note: fault.resolution });
   }
   return steps;
 }
 
-/** Lo pendiente de Equipos con las mismas palabras en Inicio y en el Resumen: a quien atiende, las fallas por atender; a quien reporta, las suyas abiertas. */
+/** Lo pendiente de Equipos con las mismas palabras en Inicio y en el Resumen: a quien atiende, los incidentes por atender; a quien reporta, los suyos abiertos. */
 export function pendingFaultsText(n: number, handles: boolean): string {
-  if (handles) return n === 1 ? '1 falla espera atención' : `${n} fallas esperan atención`;
-  return n === 1 ? 'Tienes 1 reporte abierto' : `Tienes ${n} reportes abiertos`;
+  if (handles) return n === 1 ? '1 incidente espera atención' : `${n} incidentes esperan atención`;
+  return n === 1 ? 'Tienes 1 incidente abierto' : `Tienes ${n} incidentes abiertos`;
 }

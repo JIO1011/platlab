@@ -171,7 +171,7 @@ export function ReagentsLayout() {
               type="button"
               // Todo lo de Reactivos: las consultas activas se vuelven a pedir y las demás quedan viejas.
               onClick={() => void queryClient.invalidateQueries({ queryKey: reagentsKey })}
-              className="-my-1 inline-flex items-center gap-1 rounded-[6px] px-1.5 py-1.5 font-medium text-action transition-colors hover:bg-action-soft"
+              className="-my-3 inline-flex min-h-11 items-center gap-1 rounded-[6px] px-1.5 py-1.5 font-medium text-action transition-colors hover:bg-action-soft sm:-my-1 sm:min-h-0"
             >
               <RefreshCw className="size-3.5" aria-hidden />
               {refreshing ? 'Actualizando…' : 'Actualizar'}

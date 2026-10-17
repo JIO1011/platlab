@@ -98,7 +98,8 @@ export const asset = z.object({
   serialNumber: z.string().nullable(),
   powerSupply: z.string().nullable(),
   /** `path`: nombres desde la raíz hasta la ubicación, para mostrar sus niveles. */
-  location: z.object({ id: z.uuid(), code: z.string(), name: z.string(), path: z.array(z.string()) }),
+  /** Con su área (E-01c): la ficha vuelve a ella. */
+  location: z.object({ id: z.uuid(), code: z.string(), name: z.string(), path: z.array(z.string()), areaId: z.uuid() }),
   responsible: z.object({ id: z.uuid(), name: z.string() }).nullable(),
   condition: assetCondition,
   conservation: assetConservation.nullable(),
@@ -113,6 +114,15 @@ export const asset = z.object({
   createdAt: z.string(),
 });
 
+/** Días que cuentan como «garantía por vencer» en el Informe (E-01c). */
+export const WARRANTY_EXPIRING_DAYS = 90;
+
+/** Garantía a hoy: vigente (más de 90 días), por vencer (90 días o menos), vencida o sin dato. */
+export const warrantyState = z.enum(['active', 'expiring', 'expired', 'none']);
+
+/** Vida útil a hoy, desde la compra: cumplida, vigente o sin dato (falta la compra o los años). */
+export const usefulLifeState = z.enum(['reached', 'current', 'none']);
+
 /**
  * GET /assets: `q` busca en nombre, código, marca, modelo y serie, sin mayúsculas ni tildes. Los
  * filtros admiten varios valores; la ubicación incluye sus niveles inferiores. Sin `condition`, los
@@ -125,6 +135,11 @@ export const assetListQuery = z
     type: many(z.uuid()),
     condition: many(assetCondition),
     location: many(z.uuid()),
+    // Filtros del Informe (E-01c); `none` es «sin dato».
+    responsible: many(z.union([z.uuid(), z.literal('none')])),
+    conservation: many(z.union([assetConservation, z.literal('none')])),
+    warranty: many(warrantyState),
+    usefulLife: many(usefulLifeState),
   })
   .strict();
 

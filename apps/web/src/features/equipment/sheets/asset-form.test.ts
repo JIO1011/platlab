@@ -11,7 +11,7 @@ const asset: Asset = {
   model: null,
   serialNumber: null,
   powerSupply: '110 V',
-  location: { id: '3f1a4b2c-0000-4000-8000-000000000003', code: 'L-1', name: 'Sala 1', path: ['Sala 1'] },
+  location: { id: '3f1a4b2c-0000-4000-8000-000000000003', code: 'L-1', name: 'Sala 1', path: ['Sala 1'], areaId: '3f1a4b2c-0000-4000-8000-000000000003' },
   responsible: null,
   condition: 'operational',
   conservation: null,

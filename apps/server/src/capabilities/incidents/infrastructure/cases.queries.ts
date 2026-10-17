@@ -123,12 +123,12 @@ export interface IResolveCaseQuery {
   result: IResolveCaseResult;
 }
 
-const resolveCaseIR: any = {"usedParamSet":{"resolution":true,"actorId":true,"workspaceId":true,"caseId":true},"params":[{"name":"resolution","required":true,"transform":{"type":"scalar"},"locs":[{"a":133,"b":144}]},{"name":"actorId","required":true,"transform":{"type":"scalar"},"locs":[{"a":174,"b":182},{"a":272,"b":280}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":375,"b":387}]},{"name":"caseId","required":true,"transform":{"type":"scalar"},"locs":[{"a":398,"b":405}]}],"statement":"-- Resolver una falla abierta la da por atendida por quien la resuelve.\nUPDATE incidents.cases\nSET status = 'resolved', resolution = :resolution!, resolved_by_principal_id = :actorId!, resolved_at = now(),\n    attended_by_principal_id = coalesce(attended_by_principal_id, :actorId!),\n    attended_at = coalesce(attended_at, now()), version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :caseId! AND status IN ('open', 'in_progress')\nRETURNING id"};
+const resolveCaseIR: any = {"usedParamSet":{"resolution":true,"actorId":true,"workspaceId":true,"caseId":true},"params":[{"name":"resolution","required":true,"transform":{"type":"scalar"},"locs":[{"a":160,"b":171}]},{"name":"actorId","required":true,"transform":{"type":"scalar"},"locs":[{"a":201,"b":209},{"a":299,"b":307}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":402,"b":414}]},{"name":"caseId","required":true,"transform":{"type":"scalar"},"locs":[{"a":425,"b":432}]}],"statement":"-- Solucionar un incidente reportado lo da por atendido por quien lo soluciona; es el último paso.\nUPDATE incidents.cases\nSET status = 'resolved', resolution = :resolution!, resolved_by_principal_id = :actorId!, resolved_at = now(),\n    attended_by_principal_id = coalesce(attended_by_principal_id, :actorId!),\n    attended_at = coalesce(attended_at, now()), version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :caseId! AND status IN ('open', 'in_progress')\nRETURNING id"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Resolver una falla abierta la da por atendida por quien la resuelve.
+ * -- Solucionar un incidente reportado lo da por atendido por quien lo soluciona; es el último paso.
  * UPDATE incidents.cases
  * SET status = 'resolved', resolution = :resolution!, resolved_by_principal_id = :actorId!, resolved_at = now(),
  *     attended_by_principal_id = coalesce(attended_by_principal_id, :actorId!),
@@ -138,37 +138,5 @@ const resolveCaseIR: any = {"usedParamSet":{"resolution":true,"actorId":true,"wo
  * ```
  */
 export const resolveCase = new PreparedQuery<IResolveCaseParams,IResolveCaseResult>(resolveCaseIR);
-
-
-/** 'CloseCase' parameters type */
-export interface ICloseCaseParams {
-  actorId: string;
-  caseId: string;
-  workspaceId: string;
-}
-
-/** 'CloseCase' return type */
-export interface ICloseCaseResult {
-  id: string;
-}
-
-/** 'CloseCase' query type */
-export interface ICloseCaseQuery {
-  params: ICloseCaseParams;
-  result: ICloseCaseResult;
-}
-
-const closeCaseIR: any = {"usedParamSet":{"actorId":true,"workspaceId":true,"caseId":true},"params":[{"name":"actorId","required":true,"transform":{"type":"scalar"},"locs":[{"a":71,"b":79}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":144,"b":156}]},{"name":"caseId","required":true,"transform":{"type":"scalar"},"locs":[{"a":167,"b":174}]}],"statement":"UPDATE incidents.cases\nSET status = 'closed', closed_by_principal_id = :actorId!, closed_at = now(), version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :caseId! AND status = 'resolved'\nRETURNING id"};
-
-/**
- * Query generated from SQL:
- * ```
- * UPDATE incidents.cases
- * SET status = 'closed', closed_by_principal_id = :actorId!, closed_at = now(), version = version + 1
- * WHERE workspace_id = :workspaceId! AND id = :caseId! AND status = 'resolved'
- * RETURNING id
- * ```
- */
-export const closeCase = new PreparedQuery<ICloseCaseParams,ICloseCaseResult>(closeCaseIR);
 
 

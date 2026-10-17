@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { childrenOf, levelOneOf, levelOneParent, recentFirst, toPlaces } from './places';
+import { childrenOf, levelOneOf, levelOneParent, pathTo, recentFirst, toPlaces } from './places';
 
 const location = (id: string, parentId: string | null) => ({ id, code: id.toUpperCase(), name: `Ubicación ${id}`, kind: 'room', parentId });
 
@@ -17,6 +17,13 @@ describe('ubicaciones por niveles', () => {
     const scoped = toPlaces([location('a', 's')]);
     expect(childrenOf(scoped, null).map((place) => place.id)).toEqual(['a']);
     expect(levelOneParent(scoped)).toBeNull();
+  });
+
+  it('arma el camino desde el primer nivel hasta la ubicación', () => {
+    const places = toPlaces([location('s', null), location('r', 's'), location('e', 'r')]);
+    expect(pathTo(places, 'e').map((place) => place.id)).toEqual(['r', 'e']);
+    expect(pathTo(places, 'r').map((place) => place.id)).toEqual(['r']);
+    expect(pathTo(places, 'x')).toEqual([]);
   });
 
   it('ordena los recientes primero', () => {

@@ -5,6 +5,8 @@ import {
   insertLocation,
   listActiveLocations,
   locationCodesLike,
+  lockArea,
+  setAreaManager,
 } from '../infrastructure/locations.queries.js';
 import type { WorkspaceAccess } from './access.js';
 import { recordAudit } from './audit.js';
@@ -60,10 +62,50 @@ async function createLocation(
   return { id: row.id, code: row.code, name: row.name, kind: row.kind, parentId: row.parent_id, created: row.created };
 }
 
-/** Ubicaciones activas del espacio, con su padre para armar los niveles (ADR 0015). */
-export async function activeLocations(access: WorkspaceAccess): Promise<Array<Omit<LocationRecord, 'created'>>> {
+/** Ubicación activa con su área y, si es un área, su encargado (ADR 0019, E-01c). */
+export interface ActiveLocation extends Omit<LocationRecord, 'created'> {
+  areaId: string;
+  managerId: string | null;
+}
+
+/** Ubicaciones activas del espacio, con su padre para armar los niveles (ADR 0015) y su área. */
+export async function activeLocations(access: WorkspaceAccess): Promise<ActiveLocation[]> {
   const rows = await listActiveLocations.run({ workspaceId: access.workspace.id }, access.client);
-  return rows.map(({ id, code, name, kind, parent_id }) => ({ id, code, name, kind, parentId: parent_id }));
+  return rows.map(({ id, code, name, kind, parent_id, area_id, manager_principal_id }) => ({
+    id,
+    code,
+    name,
+    kind,
+    parentId: parent_id,
+    areaId: area_id,
+    managerId: manager_principal_id,
+  }));
+}
+
+/**
+ * Asigna o quita el encargado de un área (ADR 0019, E-01c) y lo audita con la acción del módulo que
+ * llama, que ya exigió su permiso: Core no tiene permisos propios. El área queda bloqueada hasta el
+ * final de la transacción; sin cambio, no escribe ni audita.
+ */
+export async function assignAreaManager(
+  access: WorkspaceAccess,
+  input: { areaId: string; managerId: string | null },
+  action: string,
+): Promise<{ areaId: string; managerId: string | null }> {
+  const workspaceId = access.workspace.id;
+  const [area] = await lockArea.run({ workspaceId, areaId: input.areaId, managerId: input.managerId }, access.client);
+  if (!area) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
+  if (!area.manager_ok) throw new AppError('VALIDATION_FAILED', 'El encargado debe ser un miembro activo del espacio');
+  if (area.manager_principal_id !== input.managerId) {
+    await setAreaManager.run({ workspaceId, areaId: input.areaId, managerId: input.managerId }, access.client);
+    await recordAudit(access, {
+      action,
+      entityType: 'core.location',
+      entityId: input.areaId,
+      changes: { managerId: { from: area.manager_principal_id, to: input.managerId } },
+    });
+  }
+  return { areaId: input.areaId, managerId: input.managerId };
 }
 
 /**

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   faultAgo,
   faultStatusLabel,
+  faultStatusOrder,
   faultStatusTone,
   faultSteps,
   faultTypeLabel,
@@ -23,11 +24,15 @@ const DAY = 24 * HOUR;
 describe('etiquetas y tonos', () => {
   it('nombra cada tipo y cada estado con texto', () => {
     expect(faultTypeLabel).toEqual({ electrical: 'Eléctrica', mechanical: 'Mecánica', spare_part: 'Requiere repuesto', other: 'Otra' });
-    expect(faultStatusLabel).toEqual({ open: 'Abierta', in_progress: 'En atención', resolved: 'Resuelta', closed: 'Cerrada' });
+    expect(faultStatusLabel).toEqual({ open: 'Reportado', in_progress: 'En reparación', resolved: 'Solucionado' });
   });
 
-  it('abierta es ámbar, en atención acento, resuelta verde y cerrada neutra', () => {
-    expect(faultStatusTone).toEqual({ open: 'warning', in_progress: 'info', resolved: 'success', closed: 'neutral' });
+  it('reportado es rojo, en reparación ámbar y solucionado verde', () => {
+    expect(faultStatusTone).toEqual({ open: 'danger', in_progress: 'warning', resolved: 'success' });
+  });
+
+  it('los tres pasos van en orden', () => {
+    expect(faultStatusOrder).toEqual(['open', 'in_progress', 'resolved']);
   });
 
   it('dice si el equipo se puede usar', () => {
@@ -42,18 +47,16 @@ describe('etiquetas y tonos', () => {
 });
 
 describe('faultViewFrom', () => {
-  it('lee la vista de la URL y cae en «Abiertas» con cualquier otro valor', () => {
-    expect(faultViewFrom('resueltas')).toBe('resueltas');
-    expect(faultViewFrom('cerradas')).toBe('cerradas');
-    expect(faultViewFrom('abiertas')).toBe('abiertas');
-    expect(faultViewFrom(null)).toBe('abiertas');
-    expect(faultViewFrom('todas')).toBe('abiertas');
+  it('lee la vista de la URL y cae en «En curso» con cualquier otro valor', () => {
+    expect(faultViewFrom('solucionados')).toBe('solucionados');
+    expect(faultViewFrom('en-curso')).toBe('en-curso');
+    expect(faultViewFrom(null)).toBe('en-curso');
+    expect(faultViewFrom('cerradas')).toBe('en-curso');
   });
 
-  it('«Abiertas» reúne las abiertas y las en atención', () => {
-    expect(faultViews.find((view) => view.value === 'abiertas')?.statuses).toEqual(['open', 'in_progress']);
-    expect(faultViews.find((view) => view.value === 'resueltas')?.statuses).toEqual(['resolved']);
-    expect(faultViews.find((view) => view.value === 'cerradas')?.statuses).toEqual(['closed']);
+  it('«En curso» reúne los reportados y los en reparación', () => {
+    expect(faultViews.find((view) => view.value === 'en-curso')?.statuses).toEqual(['open', 'in_progress']);
+    expect(faultViews.find((view) => view.value === 'solucionados')?.statuses).toEqual(['resolved']);
   });
 });
 
@@ -100,38 +103,34 @@ const base: Fault = {
   resolution: null,
   resolvedBy: null,
   resolvedAt: null,
-  closedBy: null,
-  closedAt: null,
 };
 
 describe('faultSteps', () => {
-  it('una falla abierta solo tiene su reporte', () => {
-    expect(faultSteps(base)).toEqual([{ key: 'reported', label: 'Reportada', by: 'Docente', at: base.reportedAt, note: null }]);
+  it('un incidente abierto solo tiene su reporte', () => {
+    expect(faultSteps(base)).toEqual([{ key: 'reported', label: 'Reportado', by: 'Docente', at: base.reportedAt, note: null }]);
   });
 
-  it('suma los pasos que ocurrieron, en orden, con el resultado en «Resuelta»', () => {
+  it('suma los pasos que ocurrieron, en orden, con qué se hizo en «Solucionado»', () => {
     const steps = faultSteps({
       ...base,
-      status: 'closed',
+      status: 'resolved',
       attendedBy: { name: 'Técnico' },
       attendedAt: '2026-10-11T09:00:00Z',
       resolution: 'Se cambió el fusible',
-      resolvedBy: { name: 'Técnico' },
+      resolvedBy: null,
       resolvedAt: '2026-10-12T09:00:00Z',
-      closedBy: null,
-      closedAt: '2026-10-13T09:00:00Z',
     });
-    expect(steps.map((step) => step.label)).toEqual(['Reportada', 'Atendida', 'Resuelta', 'Cerrada']);
+    expect(steps.map((step) => step.label)).toEqual(['Reportado', 'En reparación', 'Solucionado']);
     expect(steps[2]?.note).toBe('Se cambió el fusible');
-    expect(steps[3]?.by).toBeNull();
+    expect(steps[2]?.by).toBeNull();
   });
 });
 
 describe('pendingFaultsText', () => {
-  it('a quien atiende, las fallas por atender; a quien reporta, las suyas abiertas', () => {
-    expect(pendingFaultsText(1, true)).toBe('1 falla espera atención');
-    expect(pendingFaultsText(3, true)).toBe('3 fallas esperan atención');
-    expect(pendingFaultsText(1, false)).toBe('Tienes 1 reporte abierto');
-    expect(pendingFaultsText(2, false)).toBe('Tienes 2 reportes abiertos');
+  it('a quien atiende, los incidentes por atender; a quien reporta, los suyos abiertos', () => {
+    expect(pendingFaultsText(1, true)).toBe('1 incidente espera atención');
+    expect(pendingFaultsText(3, true)).toBe('3 incidentes esperan atención');
+    expect(pendingFaultsText(1, false)).toBe('Tienes 1 incidente abierto');
+    expect(pendingFaultsText(2, false)).toBe('Tienes 2 incidentes abiertos');
   });
 });

@@ -1,20 +1,18 @@
 /*
- * Reportes de fallas de Equipos (ADR 0019): lecturas sobre la capacidad incidencias, con los datos del
+ * Incidentes de Equipos (ADR 0019): lecturas sobre la capacidad incidencias, con los datos del
  * equipo. Las escrituras son de la capacidad (capabilities/incidents).
  */
 
 /* @name listFaults */
 -- Primero la página (índices cases_status, cases_asset, cases_reporter) y después, solo para ella, el
--- equipo, su ubicación y quién hizo cada paso. Con :faultId, una falla. Sin :statuses, las no cerradas.
+-- equipo, su ubicación y quién hizo cada paso. Con :faultId, una falla. Sin :statuses, todas.
 -- Con :reportedBy, solo las de esa persona (quien solo reporta ve las suyas).
 WITH RECURSIVE page AS (
   SELECT c.*
   FROM incidents.cases AS c
   WHERE c.workspace_id = :workspaceId! AND c.module_code = 'equipment'
     AND (:faultId::uuid IS NULL OR c.id = :faultId::uuid)
-    AND (CASE WHEN :statuses::text[] IS NULL
-              THEN :faultId::uuid IS NOT NULL OR c.status <> 'closed'
-              ELSE c.status = ANY (:statuses::text[]) END)
+    AND (:statuses::text[] IS NULL OR c.status = ANY (:statuses::text[]))
     AND (:assetId::uuid IS NULL OR c.asset_id = :assetId::uuid)
     AND (:reportedBy::uuid IS NULL OR c.reported_by_principal_id = :reportedBy::uuid)
     AND (:afterAt::timestamptz IS NULL OR (c.reported_at, c.id) < (:afterAt::timestamptz, :afterId::uuid))
@@ -37,11 +35,11 @@ WITH RECURSIVE page AS (
 )
 SELECT
   f.id, f.fault_type, f.description, f.usable, f.status,
-  f.reported_at, f.attended_at, f.resolution, f.resolved_at, f.closed_at,
+  f.reported_at, f.attended_at, f.resolution, f.resolved_at,
   a.id AS asset_id, a.code AS asset_code, a.name AS asset_name, photo.url AS "asset_photo_url?",
   loc.name AS location_name, paths.path AS "location_path!",
   names.reported AS "reported_by_name?", names.attended AS "attended_by_name?",
-  names.resolved AS "resolved_by_name?", names.closed AS "closed_by_name?"
+  names.resolved AS "resolved_by_name?"
 FROM page AS f
 JOIN equipment.assets AS a ON a.workspace_id = :workspaceId! AND a.id = f.asset_id
 JOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = a.location_id
@@ -55,9 +53,7 @@ LEFT JOIN LATERAL (
     (SELECT i.display_name FROM core.principals AS p JOIN core.memberships AS m ON m.workspace_id = p.workspace_id AND m.id = p.membership_id
        JOIN core.identities AS i ON i.id = m.identity_id WHERE p.workspace_id = :workspaceId! AND p.id = f.attended_by_principal_id) AS attended,
     (SELECT i.display_name FROM core.principals AS p JOIN core.memberships AS m ON m.workspace_id = p.workspace_id AND m.id = p.membership_id
-       JOIN core.identities AS i ON i.id = m.identity_id WHERE p.workspace_id = :workspaceId! AND p.id = f.resolved_by_principal_id) AS resolved,
-    (SELECT i.display_name FROM core.principals AS p JOIN core.memberships AS m ON m.workspace_id = p.workspace_id AND m.id = p.membership_id
-       JOIN core.identities AS i ON i.id = m.identity_id WHERE p.workspace_id = :workspaceId! AND p.id = f.closed_by_principal_id) AS closed
+       JOIN core.identities AS i ON i.id = m.identity_id WHERE p.workspace_id = :workspaceId! AND p.id = f.resolved_by_principal_id) AS resolved
 ) AS names ON true
 ORDER BY f.reported_at DESC, f.id DESC;
 

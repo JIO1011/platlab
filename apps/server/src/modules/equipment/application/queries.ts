@@ -5,6 +5,7 @@ import type {
   AssetHistory,
   AssetList,
   assetListQuery,
+  AssetTotals,
   AssetTypeList,
   LocationList,
   ResponsibleList,
@@ -13,6 +14,7 @@ import { AppError } from '../../../platform/errors.js';
 import { decodeCursor, encodeCursor } from '../../../platform/http/cursor.js';
 import { activeLocations, hasPermission, type HomeContribution, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import {
+  assetTotals,
   equipmentSummary,
   listAssetHistory,
   listAssets as listAssetsQuery,
@@ -22,11 +24,12 @@ import {
   type IListAssetsResult,
 } from '../infrastructure/assets.queries.js';
 import { FAULT_MANAGE, runQuery } from './command.js';
+import { assetFilterParams, type AssetFilters } from './filters.js';
 
 /** Hechos del historial de un equipo que se devuelven (02 §12 no fija otro límite). */
 const HISTORY_LIMIT = 200;
 
-const toAsset = (row: IListAssetsResult): Asset => ({
+export const toAsset = (row: IListAssetsResult): Asset => ({
   id: row.id,
   code: row.code,
   name: row.name,
@@ -35,7 +38,13 @@ const toAsset = (row: IListAssetsResult): Asset => ({
   model: row.model,
   serialNumber: row.serial_number,
   powerSupply: row.power_supply,
-  location: { id: row.location_id, code: row.location_code, name: row.location_name, path: row.location_path },
+  location: {
+    id: row.location_id,
+    code: row.location_code,
+    name: row.location_name,
+    path: row.location_path,
+    areaId: row.location_area_id,
+  },
   responsible:
     row.responsible_principal_id && row.responsible_name
       ? { id: row.responsible_principal_id, name: row.responsible_name }
@@ -63,7 +72,7 @@ export function getAsset(pool: pg.Pool, request: QueryRequest, assetId: string):
   return runQuery(pool, request, (access) => assetById(access, assetId));
 }
 
-/** Inventario (ADR 0019): página por código, con búsqueda y filtros de varios valores. */
+/** Inventario e Informe (ADR 0019): página por código, con búsqueda y filtros de varios valores. */
 export function listAssets(pool: pg.Pool, request: QueryRequest, query: z.infer<typeof assetListQuery>): Promise<AssetList> {
   return runQuery(pool, request, async (access) => {
     // El código en minúsculas es único en el espacio: basta como cursor (índice assets_code).
@@ -71,10 +80,7 @@ export function listAssets(pool: pg.Pool, request: QueryRequest, query: z.infer<
     const rows = await listAssetsQuery.run(
       {
         workspaceId: access.workspace.id,
-        q: query.q ?? null,
-        typeIds: query.type ?? null,
-        conditions: query.condition ?? null,
-        locationIds: query.location ?? null,
+        ...assetFilterParams(access.workspace.timeZone, query),
         afterCode: after?.[0] ?? null,
         limit: query.limit + 1,
       },
@@ -85,6 +91,24 @@ export function listAssets(pool: pg.Pool, request: QueryRequest, query: z.infer<
     return {
       items: visible.map(toAsset),
       nextCursor: rows.length > query.limit && last ? encodeCursor([last.sort_code]) : null,
+    };
+  });
+}
+
+/** Indicadores del Informe (E-01c): se recalculan con sus filtros. */
+export function getAssetTotals(pool: pg.Pool, request: QueryRequest, filters: AssetFilters): Promise<AssetTotals> {
+  return runQuery(pool, request, async (access) => {
+    const [row] = await assetTotals.run(
+      { workspaceId: access.workspace.id, ...assetFilterParams(access.workspace.timeZone, filters) },
+      access.client,
+    );
+    if (!row) throw new Error('Los indicadores no devolvieron fila');
+    return {
+      count: row.count,
+      replacementValue: row.replacement_value,
+      withoutResponsible: row.without_responsible,
+      warrantyExpiring: row.warranty_expiring,
+      usefulLifeReached: row.useful_life_reached,
     };
   });
 }
@@ -101,13 +125,21 @@ const toEvent = (row: IListAssetHistoryResult): AssetHistory['items'][number] =>
       result: row.result,
     };
   }
+  if (row.kind === 'conservation') {
+    return {
+      kind: 'conservation',
+      ...base,
+      from: row.from_value as Asset['conservation'],
+      to: row.to_value as Asset['conservation'],
+    };
+  }
   if (row.kind === 'transfer') {
     return { kind: 'transfer', ...base, from: row.from_value ?? '', to: row.to_value ?? '', note: row.note };
   }
   return { kind: 'created', ...base };
 };
 
-/** Historial del equipo (01 §6.3): alta, cambios de condición y traslados, del más reciente al más antiguo. */
+/** Historial del equipo (01 §6.3): alta, cambios de estado y de estado físico, y traslados, del más reciente al más antiguo. */
 export function getAssetHistory(pool: pg.Pool, request: QueryRequest, assetId: string): Promise<AssetHistory> {
   return runQuery(pool, request, async (access) => {
     await assetById(access, assetId);

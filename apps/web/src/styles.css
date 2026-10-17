@@ -5,16 +5,24 @@
 @source "../../../packages/ui/src";
 
 /*
- * Informe impreso de Movimientos (ADR 0014): la vista de impresión es un diálogo montado en el `body`
- * (`data-print-root`); en papel es lo único que queda, en una hoja A4 propia (los márgenes de la
- * página de etiquetas, en el CSS del sistema, no se tocan) y sin la barra lateral.
+ * Informes impresos (ADR 0014 Movimientos, ADR 0019 Equipos): la vista de impresión es un diálogo montado
+ * en el `body` (`data-print-root`); en papel es lo único que queda, en una hoja A4 propia (los márgenes de
+ * la página de etiquetas, en el CSS del sistema, no se tocan) y sin la barra lateral. Movimientos va
+ * vertical; el Informe de Equipos, apaisado.
  */
 @page report {
   size: A4;
   margin: 14mm 12mm;
 }
+@page report-landscape {
+  size: A4 landscape;
+  margin: 12mm 10mm;
+}
 .print-report {
   page: report;
+}
+.print-report-landscape {
+  page: report-landscape;
 }
 @media print {
   body > :not([data-print-root]) {

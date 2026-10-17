@@ -45,6 +45,12 @@ export async function call(subject: string, url: string, { method = 'GET', body,
   return { status: response.statusCode, body: response.json() as unknown };
 }
 
+/** Una descarga (el Excel del Informe): estado, cabeceras y bytes, sin leerla como JSON. */
+export async function download(subject: string, url: string) {
+  const response = await app.inject({ method: 'GET', url: `/v1${url}`, headers: { authorization: `Bearer ${await signer.sign(subject)}` } });
+  return { status: response.statusCode, headers: response.headers, bytes: response.rawPayload };
+}
+
 export const errorCode = (body: unknown) => errorResponse.parse(body).error.code;
 
 export const count = async (sql: string, params: unknown[]) =>

@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 import { QuickActions, quickActionPrimary } from '../../app/quick-actions';
 import { StatLink } from '../../app/stat-link';
 import { QueryErrorState } from '../../app/states';
-import { assetSearch, type AssetQuery } from './asset-filters';
+import { assetSearch, emptyAssetQuery, type AssetQuery } from './asset-filters';
 import { placeLines } from './asset-text';
 import { ConditionBadge } from './condition-badge';
 import { pendingFaultsText } from './fault-text';
@@ -14,18 +14,18 @@ import { useAssets, useEquipmentSummary } from './queries';
 import { SectionHeader } from './section-header';
 import { RegisterAsset } from './sheets/register-asset';
 
-/** Los que requieren atención: con restricción o fuera de servicio (ADR 0019). */
+/** Los que requieren atención: con uso limitado o fuera de servicio (ADR 0019). */
 const attentionConditions: AssetCondition[] = ['faulted', 'restricted'];
-const attentionQuery: AssetQuery = { q: '', conditions: attentionConditions, types: [], locations: [] };
+const attentionQuery: AssetQuery = { ...emptyAssetQuery, conditions: attentionConditions };
 
-/** El Inventario con estas condiciones ya filtradas: lo que abre cada cifra. */
-const inventoryLink = (base: string, conditions: AssetCondition[]) => {
+/** El Informe con estas condiciones ya filtradas: lo que abre cada cifra. */
+const reportLink = (base: string, conditions: AssetCondition[]) => {
   const search = assetSearch({ conditions }).toString();
-  return search ? `${base}/inventario?${search}` : `${base}/inventario`;
+  return search ? `${base}/informe?${search}` : `${base}/informe`;
 };
 
 /**
- * Resumen de Equipos (ADR 0011, 0019): cuatro cifras por condición, cada una con su lista en el
+ * Resumen de Equipos (ADR 0011, 0019): cuatro cifras por estado, cada una con su lista en el
  * Inventario; la banda para ir al inventario y los equipos que requieren atención.
  */
 export function EquipmentSummaryPage() {
@@ -49,7 +49,7 @@ export function EquipmentSummaryPage() {
           <div className="grid gap-5 sm:gap-6">
             {summary.data.summary.pendingRequests > 0 ? (
               <PendingNotice
-                to={`${base}/reportes`}
+                to={`${base}/incidentes`}
                 text={pendingFaultsText(summary.data.summary.pendingRequests, me.permissions.includes('equipment.fault.manage'))}
               />
             ) : null}
@@ -61,7 +61,7 @@ export function EquipmentSummaryPage() {
               description={
                 canManage
                   ? 'Registra un equipo con su tipo, su ubicación y quién responde. Para buscar o filtrar, abre Inventario.'
-                  : 'Busca por nombre, código, marca, modelo o serie, o filtra por condición, tipo y ubicación.'
+                  : 'Busca por nombre, código, marca, modelo o serie, o filtra por estado, tipo y ubicación.'
               }
               className="xl:py-9"
             >
@@ -94,7 +94,7 @@ export function EquipmentSummaryPage() {
   );
 }
 
-/** Lo pendiente de las fallas, en ámbar y solo si existe: abre la sección Reportes. */
+/** Lo pendiente de los incidentes, en ámbar y solo si existe: abre la sección Incidentes. */
 function PendingNotice({ to, text }: { to: string; text: string }) {
   return (
     <Link
@@ -104,21 +104,21 @@ function PendingNotice({ to, text }: { to: string; text: string }) {
       <TriangleAlert className="size-5 shrink-0" aria-hidden />
       <span className="min-w-0 flex-1 font-semibold">{text}</span>
       <span className="flex shrink-0 items-center gap-1 text-sm font-medium">
-        Ver reportes
+        Ver incidentes
         <ArrowRight className="size-4 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
       </span>
     </Link>
   );
 }
 
-/** Las cuatro cifras: el color cuenta un estado y solo si lo hay (ámbar con restricciones, rojo con fallas). */
+/** Las cuatro cifras: el color cuenta un estado y solo si lo hay (ámbar con uso limitado, rojo con fallas). */
 function Indicators({ counters, base }: { counters: EquipmentSummary['summary']; base: string }) {
   const { assets, operational, restricted, faulted } = counters;
   const attentionHint = (n: number) => (n === 1 ? 'Requiere atención' : 'Requieren atención');
   return (
     <section aria-label="Indicadores" className="grid grid-cols-2 gap-4 sm:gap-6 xl:grid-cols-4">
       <StatLink
-        to={inventoryLink(base, [])}
+        to={reportLink(base, [])}
         label="Equipos"
         value={assets}
         hint="Sin contar los dados de baja"
@@ -126,7 +126,7 @@ function Indicators({ counters, base }: { counters: EquipmentSummary['summary'];
         compact
       />
       <StatLink
-        to={inventoryLink(base, ['operational'])}
+        to={reportLink(base, ['operational'])}
         label="Operativos"
         value={operational}
         hint={operational === 0 ? 'Ninguno' : 'Listos para usar'}
@@ -136,8 +136,8 @@ function Indicators({ counters, base }: { counters: EquipmentSummary['summary'];
         compact
       />
       <StatLink
-        to={inventoryLink(base, ['restricted'])}
-        label="Con restricción"
+        to={reportLink(base, ['restricted'])}
+        label="Uso limitado"
         value={restricted}
         hint={restricted === 0 ? 'Ninguno' : attentionHint(restricted)}
         hintTone={restricted === 0 ? 'neutral' : 'warning'}
@@ -146,7 +146,7 @@ function Indicators({ counters, base }: { counters: EquipmentSummary['summary'];
         compact
       />
       <StatLink
-        to={inventoryLink(base, ['faulted'])}
+        to={reportLink(base, ['faulted'])}
         label="Fuera de servicio"
         value={faulted}
         hint={faulted === 0 ? 'Ninguno' : attentionHint(faulted)}
@@ -160,7 +160,7 @@ function Indicators({ counters, base }: { counters: EquipmentSummary['summary'];
 }
 
 /**
- * «Requieren atención»: los equipos con restricción o fuera de servicio, cada fila con su ficha. Sin
+ * «Requieren atención»: los equipos con uso limitado o fuera de servicio, cada fila con su ficha. Sin
  * ninguno, lo dice; sin equipos en el espacio, dice eso.
  */
 function Attention({
@@ -184,10 +184,10 @@ function Attention({
         </h2>
         {total > 0 ? (
           <Link
-            to={inventoryLink(base, attentionConditions)}
+            to={reportLink(base, attentionConditions)}
             className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-action transition-colors hover:text-action-hover"
           >
-            Ver en el inventario
+            Ver en el informe
             <ArrowRight className="size-4" aria-hidden />
           </Link>
         ) : null}
@@ -206,8 +206,8 @@ function Attention({
           title={empty ? 'Aún no hay equipos' : 'Todos los equipos están operativos'}
           description={
             empty
-              ? 'Cuando se registren equipos, los que tengan restricciones o fallas aparecerán aquí.'
-              : 'Los equipos con restricción o fuera de servicio aparecerán aquí.'
+              ? 'Cuando se registren equipos, los que tengan uso limitado o fallas aparecerán aquí.'
+              : 'Los equipos con uso limitado o fuera de servicio aparecerán aquí.'
           }
           className="py-10"
         />

@@ -4,7 +4,7 @@ import { admin, call } from '../../testing/api.js';
 import { addLocation, addMember, seedWorkspace, uniqueSuffix, type Member, type Workspace } from '../../testing/core-fixtures.js';
 
 /** E-01a por HTTP contra la base local (ADR 0019): el arnés común y el laboratorio de Equipos. */
-export { admin, auditsIn, call, count, errorCode } from '../../testing/api.js';
+export { admin, auditsIn, call, count, download, errorCode } from '../../testing/api.js';
 
 export interface EquipmentLab {
   workspace: Workspace;

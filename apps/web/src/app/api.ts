@@ -28,7 +28,8 @@ interface Request<S extends z.ZodType> {
   idempotencyKey?: string;
 }
 
-export async function api<S extends z.ZodType>(path: string, request: Request<S>): Promise<z.infer<S>> {
+/** Envía la petición con la sesión y traduce un rechazo a `ApiError`; devuelve la respuesta aceptada. */
+async function send(path: string, request: Omit<Request<z.ZodType>, 'schema'>): Promise<Response> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new ApiError(401, 'IDENTITY_INVALID', 'Tu sesión terminó. Vuelve a iniciar sesión.');
@@ -50,12 +51,23 @@ export async function api<S extends z.ZodType>(path: string, request: Request<S>
     throw new ApiError(0, 'NETWORK', 'No hay conexión con PlatLab. Revisa tu red y vuelve a intentarlo.');
   }
 
-  const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    const parsed = errorResponse.safeParse(payload);
+    const parsed = errorResponse.safeParse(await response.json().catch(() => null));
     throw parsed.success
       ? new ApiError(response.status, parsed.data.error.code, parsed.data.error.message)
       : new ApiError(response.status, 'INTERNAL', 'PlatLab no pudo completar la acción.');
   }
-  return request.schema.parse(payload);
+  return response;
+}
+
+export async function api<S extends z.ZodType>(path: string, request: Request<S>): Promise<z.infer<S>> {
+  const response = await send(path, request);
+  return request.schema.parse(await response.json().catch(() => null));
+}
+
+/** Una descarga (el Excel del Informe, ADR 0019): el archivo y el nombre que le da el servidor. */
+export async function apiDownload(path: string): Promise<{ blob: Blob; fileName: string }> {
+  const response = await send(path, {});
+  const fileName = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') ?? '')?.[1] ?? 'descarga';
+  return { blob: await response.blob(), fileName };
 }

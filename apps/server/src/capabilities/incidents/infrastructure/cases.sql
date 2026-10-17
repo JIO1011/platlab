@@ -20,16 +20,10 @@ WHERE workspace_id = :workspaceId! AND id = :caseId! AND status = 'open'
 RETURNING id;
 
 /* @name resolveCase */
--- Resolver una falla abierta la da por atendida por quien la resuelve.
+-- Solucionar un incidente reportado lo da por atendido por quien lo soluciona; es el último paso.
 UPDATE incidents.cases
 SET status = 'resolved', resolution = :resolution!, resolved_by_principal_id = :actorId!, resolved_at = now(),
     attended_by_principal_id = coalesce(attended_by_principal_id, :actorId!),
     attended_at = coalesce(attended_at, now()), version = version + 1
 WHERE workspace_id = :workspaceId! AND id = :caseId! AND status IN ('open', 'in_progress')
-RETURNING id;
-
-/* @name closeCase */
-UPDATE incidents.cases
-SET status = 'closed', closed_by_principal_id = :actorId!, closed_at = now(), version = version + 1
-WHERE workspace_id = :workspaceId! AND id = :caseId! AND status = 'resolved'
 RETURNING id;

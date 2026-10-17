@@ -22,7 +22,7 @@ export function RefreshButton({ freshness }: { freshness: { updatedAt: number; r
       aria-label={name}
       title={name}
       aria-busy={freshness.refreshing || undefined}
-      className="-my-0.5 size-9 shrink-0 rounded-full text-ink-muted hover:text-action [&_svg]:size-[18px]"
+      className="-mx-1 -my-1.5 size-11 shrink-0 rounded-full sm:mx-0 sm:-my-0.5 sm:size-9 text-ink-muted hover:text-action [&_svg]:size-[18px]"
       onClick={freshness.refresh}
     >
       <RefreshCw className={cn(freshness.refreshing && 'motion-safe:animate-spin')} aria-hidden />

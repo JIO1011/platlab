@@ -4,7 +4,7 @@ import { Microscope, Receipt } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { Combobox, type ComboOption } from '../../../app/combobox';
-import { fieldGrid, fieldLabel, FilledInput } from '../../../app/filled';
+import { fieldLabel, FilledInput } from '../../../app/filled';
 import { fold } from '../../../app/fold';
 import { Section } from '../../../app/form-section';
 import { equipmentErrorMessage, useCreateAssetType } from '../commands';
@@ -44,7 +44,7 @@ function TypeField({ form, workspaceId, canManage }: { form: AssetFormApi; works
   };
 
   return (
-    <Field label="Tipo" required labelClassName={fieldLabel} className="sm:col-span-2" error={form.formState.errors.typeId?.message}>
+    <Field label="Tipo" required labelClassName={fieldLabel} error={form.formState.errors.typeId?.message}>
       <Combobox
         value={form.watch('typeName')}
         onChange={(text) => {
@@ -78,35 +78,38 @@ export const typeIdOf = (types: ReadonlyArray<{ id: string; name: string }>, typ
   types.find((entry) => fold(entry.name) === fold(typed.trim()))?.id ?? '';
 
 /**
- * «Identificación»: la foto, el tipo, el nombre y los datos de la placa. El código es opcional al registrar (el servidor lo
- * propone a partir del nombre); al editar es obligatorio, porque un equipo no queda sin código.
+ * «Identificación», compacta para que el alta quepa sin desplazarse: arriba, la foto en un cuadro pequeño junto a Tipo y
+ * Nombre; debajo, Código, Marca, Modelo, Serie y Alimentación en tres columnas (una sola en el móvil). El código es
+ * opcional al registrar (el servidor lo propone a partir del nombre); al editar es obligatorio, porque un equipo no
+ * queda sin código.
  */
 export function IdentitySection({
   form,
   workspaceId,
   canManage,
   creating,
-  tall = false,
   photo,
 }: {
   form: AssetFormApi;
   workspaceId: string;
   canManage: boolean;
   creating: boolean;
-  /** Ocupa el alto de las dos secciones de la derecha (el alta). */
-  tall?: boolean;
-  /** «Foto» (opcional), al inicio de la sección. */
-  photo?: ReactNode;
+  /** «Foto» (opcional), el cuadro junto a Tipo y Nombre. */
+  photo: ReactNode;
 }) {
   const errors = form.formState.errors;
   return (
-    <Section icon={Microscope} title="Identificación" className={tall ? 'lg:row-span-2' : ''}>
-      {photo}
-      <div className={fieldGrid}>
-        <TypeField form={form} workspaceId={workspaceId} canManage={canManage} />
-        <Field label="Nombre" required labelClassName={fieldLabel} className="sm:col-span-2" error={errors.name?.message}>
-          <FilledInput autoComplete="off" placeholder="Microscopio binocular" {...form.register('name', { onChange: () => form.clearErrors('name') })} />
-        </Field>
+    <Section icon={Microscope} title="Identificación">
+      <div className="grid gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
+        {photo}
+        <div className="grid min-w-0 content-start gap-3">
+          <TypeField form={form} workspaceId={workspaceId} canManage={canManage} />
+          <Field label="Nombre" required labelClassName={fieldLabel} error={errors.name?.message}>
+            <FilledInput autoComplete="off" placeholder="Microscopio binocular" {...form.register('name', { onChange: () => form.clearErrors('name') })} />
+          </Field>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-x-3 gap-y-3 sm:grid-cols-3">
         <Field
           label="Código"
           required={!creating}

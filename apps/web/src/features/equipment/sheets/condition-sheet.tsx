@@ -1,19 +1,22 @@
 import { conditionChangeRequest, type Asset, type AssetCondition } from '@platlab/contracts';
-import { Button, Field, Textarea, sectionLabel, toast } from '@platlab/ui';
+import { Button, Field, OptionRow, Textarea, sectionLabel, toast } from '@platlab/ui';
 import { Activity, Ban } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { FormSheet, validate, type SheetBaseProps } from '../../../app/form-sheet';
-import { PillField } from '../../../app/pills';
 import { conditionLabel } from '../asset-text';
 import { ConditionBadge } from '../condition-badge';
 import { equipmentErrorMessage, useChangeCondition } from '../commands';
 
-/** Las condiciones a las que se puede pasar con solo un motivo; «Dado de baja» tiene su propio bloque. */
-const choices: AssetCondition[] = ['operational', 'restricted', 'faulted'];
+/** Los estados a los que se puede pasar con solo un motivo, cada uno con su ayuda; «Dado de baja» tiene su propio bloque. */
+const choices: Array<{ value: Exclude<AssetCondition, 'retired'>; help: string }> = [
+  { value: 'operational', help: 'Funciona normalmente' },
+  { value: 'restricted', help: 'Funciona, pero con una limitación (sin calibrar, falta un accesorio)' },
+  { value: 'faulted', help: 'No se puede usar' },
+];
 
 /**
- * «Cambiar condición» (ADR 0019): la nueva condición con su motivo, que queda en el historial. Volver a
+ * «Cambiar estado» (ADR 0019): el nuevo estado con su motivo, que queda en el historial. Volver a
  * Operativo pide además el resultado de lo que se hizo. Dar de baja es definitivo: vive en un bloque
  * aparte, solo para quien administra el catálogo, y no se envía hasta confirmarlo.
  */
@@ -42,7 +45,7 @@ export function ConditionSheet({
     setGeneralError(null);
     const next = retiring ? 'retired' : values.condition;
     if (next === '') {
-      form.setError('condition', { message: 'Elige la nueva condición.' });
+      form.setError('condition', { message: 'Elige el nuevo estado.' });
       return;
     }
     if (retiring && !confirmed) return;
@@ -82,11 +85,11 @@ export function ConditionSheet({
   return (
     <FormSheet
       icon={Activity}
-      title="Cambiar condición"
+      title="Cambiar estado"
       description="Queda en el historial del equipo, con quién lo cambió, cuándo y por qué."
       open={open}
       onOpenChange={onOpenChange}
-      submitLabel={retiring ? 'Dar de baja' : 'Cambiar condición'}
+      submitLabel={retiring ? 'Dar de baja' : 'Cambiar estado'}
       pending={command.isPending}
       generalError={generalError}
       onSubmit={() => void submit()}
@@ -106,18 +109,39 @@ export function ConditionSheet({
           control={form.control}
           name="condition"
           render={({ field }) => (
-            <PillField
-              label="Nueva condición"
-              required
-              value={retiring ? '' : field.value}
-              options={choices.filter((entry) => entry !== asset.condition).map((entry) => ({ value: entry, label: conditionLabel[entry] }))}
-              onChange={(value) => {
-                field.onChange(value);
-                form.clearErrors('condition');
-              }}
-              disabled={retiring}
-              error={errors.condition?.message}
-            />
+            <fieldset disabled={retiring} className="grid min-w-0 gap-1.5">
+              <legend className="mb-1.5 text-sm font-medium text-ink">
+                Nuevo estado
+                <span aria-hidden className="ml-0.5">
+                  *
+                </span>
+              </legend>
+              <div className="grid gap-0.5 rounded-xl border border-line bg-white/60 p-1">
+                {choices
+                  .filter((entry) => entry.value !== asset.condition)
+                  .map((entry) => (
+                    <OptionRow
+                      key={entry.value}
+                      type="radio"
+                      name="estado"
+                      checked={!retiring && field.value === entry.value}
+                      aria-invalid={errors.condition ? true : undefined}
+                      onChange={() => {
+                        field.onChange(entry.value);
+                        form.clearErrors('condition');
+                      }}
+                    >
+                      <span className="block font-medium">{conditionLabel[entry.value]}</span>
+                      <span className="block text-[13px] font-normal text-ink-muted">{entry.help}</span>
+                    </OptionRow>
+                  ))}
+              </div>
+              {errors.condition?.message ? (
+                <p role="alert" className="text-[13px] font-medium text-danger">
+                  {errors.condition.message}
+                </p>
+              ) : null}
+            </fieldset>
           )}
         />
         <Field
@@ -158,7 +182,7 @@ export function ConditionSheet({
             </div>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="min-w-0 flex-1 basis-48 text-sm text-ink-muted">Para un equipo que no volverá a usarse.</p>
+              <p className="min-w-0 flex-1 basis-48 text-sm text-ink-muted">Ya no forma parte del inventario.</p>
               <Button variant="secondary" onClick={startRetiring}>
                 <Ban aria-hidden />
                 Dar de baja…

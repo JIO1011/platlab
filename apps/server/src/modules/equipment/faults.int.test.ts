@@ -55,8 +55,8 @@ describe('reportar', () => {
   });
 });
 
-describe('atender, resolver y cerrar', () => {
-  it('el Operador lleva la falla de abierta a cerrada y el equipo vuelve a operativo con el resultado', async () => {
+describe('empezar la reparación y solucionar', () => {
+  it('el Operador lleva el incidente de reportado a solucionado y el equipo vuelve a operativo con el resultado', async () => {
     const asset = await createAsset(lab);
     const { id } = faultContract.parse(
       (await report(lab.teacher.subject, { assetId: asset.id, faultType: 'mechanical', description: 'Vibra', usable: false })).body,
@@ -70,7 +70,6 @@ describe('atender, resolver y cerrar', () => {
     expect(again.status).toBe(409);
     expect(errorCode(again.body)).toBe('REQUEST_RESOLVED');
 
-    expect((await call(lab.operator.subject, `${url}/close`, { method: 'POST' })).status).toBe(409);
     const resolved = await call(lab.operator.subject, `${url}/resolve`, {
       method: 'POST',
       body: { resolution: 'Cambio de rodamiento', returnToOperational: true },
@@ -80,9 +79,14 @@ describe('atender, resolver y cerrar', () => {
     const history = assetHistory.parse((await call(lab.adminMember.subject, `${lab.base}/assets/${asset.id}/history`)).body);
     expect(history.items[0]).toMatchObject({ kind: 'condition', from: 'faulted', to: 'operational', result: 'Cambio de rodamiento' });
 
-    const closed = await call(lab.operator.subject, `${url}/close`, { method: 'POST' });
-    expect(faultContract.parse(closed.body)).toMatchObject({ status: 'closed', closedBy: { name: 'Operador' } });
-    expect((await call(lab.operator.subject, `${url}/close`, { method: 'POST' })).status).toBe(409);
+    // Solucionado es el último paso (E-01c): no se vuelve a solucionar ni existe «cerrar».
+    const twice = await call(lab.operator.subject, `${url}/resolve`, {
+      method: 'POST',
+      body: { resolution: 'Otra vez', returnToOperational: false },
+    });
+    expect(twice.status).toBe(409);
+    expect(errorCode(twice.body)).toBe('REQUEST_RESOLVED');
+    expect((await call(lab.operator.subject, `${url}/close`, { method: 'POST' })).status).toBe(404);
   });
 
   it('resolver sin devolver a operativo deja la condición; resolver una abierta la da por atendida', async () => {
@@ -100,7 +104,7 @@ describe('atender, resolver y cerrar', () => {
 });
 
 describe('alcance y listas', () => {
-  it('quien solo reporta ve las suyas; quien atiende, todas; las cerradas solo con su filtro', async () => {
+  it('quien solo reporta ve los suyos; quien atiende, todos; la lista pagina', async () => {
     const asset = await createAsset(lab);
     const mine = faultContract.parse(
       (await report(lab.teacher.subject, { assetId: asset.id, faultType: 'other', description: 'Mía', usable: true })).body,

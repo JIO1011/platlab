@@ -8,10 +8,9 @@ import { useNow } from '../../app/use-now';
 import { AssetThumb } from './asset-list';
 import { placeLines } from './asset-text';
 import { useEquipment } from './context';
+import { FaultSteps } from './fault-steps';
 import {
   faultAgo,
-  faultStatusLabel,
-  faultStatusTone,
   faultTypeLabel,
   faultViewFrom,
   faultViews,
@@ -30,15 +29,14 @@ interface OpenSheet {
 }
 
 const emptyTitle: Record<FaultView, string> = {
-  abiertas: 'No hay fallas abiertas',
-  resueltas: 'No hay fallas resueltas',
-  cerradas: 'No hay fallas cerradas',
+  'en-curso': 'No hay incidentes en curso',
+  solucionados: 'No hay incidentes solucionados',
 };
 
 /**
- * Reportes de Equipos (ADR 0019): las fallas, una tarjeta por falla, en tres vistas (Abiertas, Resueltas,
- * Cerradas) que viven en la URL. La falla se abre en una hoja enlazable con `?falla=`. Quien atiende ve
- * todas; quien solo reporta, las suyas («Mis reportes»), y desde aquí reporta una nueva.
+ * Incidentes de Equipos (ADR 0019): una tarjeta por incidente (la falla de un equipo), en tres vistas
+ * (En curso y Solucionados) que viven en la URL. El incidente se abre en una hoja enlazable con
+ * `?falla=`. Quien atiende ve todos; quien solo reporta, los suyos («Mis incidentes»), y desde aquí reporta uno nuevo.
  */
 export function EquipmentFaultsPage() {
   const { workspaceId, me, base, canOperate } = useEquipment();
@@ -56,7 +54,7 @@ export function EquipmentFaultsPage() {
   const [detail, setDetail] = useState<(OpenSheet & { id: string }) | null>(null);
   const faultId = params.get('falla');
 
-  // La hoja de la falla sigue a la URL: un enlace `?falla=` la abre y quitarlo (atrás) la cierra.
+  // La hoja del incidente sigue a la URL: un enlace `?falla=` la abre y quitarlo (atrás) la cierra.
   if (faultId && (!detail || detail.id !== faultId || !detail.open)) {
     setDetail({ id: faultId, open: true, n: (detail?.n ?? 0) + 1 });
   } else if (!faultId && detail?.open) {
@@ -79,7 +77,7 @@ export function EquipmentFaultsPage() {
     setParams(
       (previous) => {
         const search = new URLSearchParams(previous);
-        if (next === 'abiertas') search.delete('estado');
+        if (next === 'en-curso') search.delete('estado');
         else search.set('estado', next);
         return search;
       },
@@ -96,16 +94,16 @@ export function EquipmentFaultsPage() {
   const reportButton = canReport ? (
     <Button variant="primary" className="h-12 sm:h-10" onClick={openReport}>
       <TriangleAlert aria-hidden />
-      Reportar falla
+      Reportar incidente
     </Button>
   ) : undefined;
 
   return (
     <>
-      <SectionHeader title={canHandle ? 'Reportes' : 'Mis reportes'} updatedAt={faults.dataUpdatedAt} actions={reportButton} />
+      <SectionHeader title={canHandle ? 'Incidentes' : 'Mis incidentes'} updatedAt={faults.dataUpdatedAt} actions={reportButton} />
       <div className="mt-6">
         <Segmented
-          label="Filtrar reportes"
+          label="Filtrar incidentes"
           value={view}
           options={faultViews.map((entry) => ({ value: entry.value, label: entry.label }))}
           onValueChange={chooseView}
@@ -125,13 +123,13 @@ export function EquipmentFaultsPage() {
           <div className="rounded-card bg-surface shadow-raised">
             <StatePanel
               icon={Inbox}
-              title={!canHandle && view === 'abiertas' ? 'No has reportado fallas' : emptyTitle[view]}
+              title={!canHandle && view === 'en-curso' ? 'No has reportado incidentes' : emptyTitle[view]}
               description={
                 canHandle
-                  ? 'Cuando alguien reporte una falla de un equipo, aparecerá aquí.'
-                  : 'Cada falla que reportes quedará aquí con su estado hasta que se resuelva.'
+                  ? 'Cuando alguien reporte un incidente de un equipo, aparecerá aquí.'
+                  : 'Cada incidente que reportes quedará aquí con su estado hasta que se solucione.'
               }
-              action={view === 'abiertas' && reportButton ? reportButton : undefined}
+              action={view === 'en-curso' && reportButton ? reportButton : undefined}
             />
           </div>
         ) : (
@@ -168,7 +166,7 @@ export function EquipmentFaultsPage() {
   );
 }
 
-/** Una tarjeta por falla, como las de Solicitudes: el nombre del equipo es el enlace y se extiende sobre la tarjeta. */
+/** Una tarjeta por incidente, como las de Solicitudes: el nombre del equipo es el enlace y se extiende sobre la tarjeta. */
 function FaultCard({ fault, now, to }: { fault: Fault; now: number; to: { search: string } }) {
   const place = placeLines(fault.asset.location);
   const titleId = `falla-${fault.id}`;
@@ -188,16 +186,14 @@ function FaultCard({ fault, now, to }: { fault: Fault; now: number; to: { search
           </h3>
           <p className="break-words text-[13px] text-ink-muted">{place.full}</p>
         </div>
-        <Badge tone={faultStatusTone[fault.status]} className="shrink-0">
-          {faultStatusLabel[fault.status]}
-        </Badge>
       </div>
+      <FaultSteps status={fault.status} className="mt-3" />
       <p className="mt-3 line-clamp-2 break-words text-sm text-ink">{fault.description}</p>
       <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[13px] text-ink-muted">
         <span>{faultTypeLabel[fault.faultType]}</span>
         {fault.usable ? null : <Badge tone="danger">No se puede usar</Badge>}
         <span className="basis-full">
-          Reportada por {personText(fault.reportedBy)} · <time dateTime={fault.reportedAt}>{faultAgo(fault.reportedAt, now)}</time>
+          Reportado por {personText(fault.reportedBy)} · <time dateTime={fault.reportedAt}>{faultAgo(fault.reportedAt, now)}</time>
         </span>
       </p>
     </article>

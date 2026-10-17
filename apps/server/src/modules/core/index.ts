@@ -9,7 +9,9 @@ export {
 export { recordAudit, type AuditEntry } from './application/audit.js';
 export {
   activeLocations,
+  assignAreaManager,
   createAuditedLocation,
+  type ActiveLocation,
   type LocationRecord,
 } from './application/locations.js';
 export {

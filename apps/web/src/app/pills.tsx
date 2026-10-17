@@ -109,7 +109,7 @@ export function InfoPill({
     <span
       title={title}
       className={cn(
-        'inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-full border px-3 py-0.5 text-[13px] tabular-nums [&>svg]:size-3.5 [&>svg]:shrink-0',
+        'inline-flex min-h-7 max-w-full items-center gap-1.5 break-words rounded-[14px] border px-3 py-1 text-[13px] tabular-nums [&>svg]:size-3.5 [&>svg]:shrink-0',
         mono && 'font-mono',
         tone === 'neutral' && 'border-line bg-white/70 text-ink-muted',
         tone === 'accent' && 'border-action/20 bg-action-soft text-action',

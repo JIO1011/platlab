@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 
 export interface ActiveFilter {
   key: string;
-  /** El grupo al que pertenece («Condición»): va delante y en el nombre del botón que la quita. */
+  /** El grupo al que pertenece («Estado»): va delante y en el nombre del botón que la quita. */
   group: string;
   label: string;
   onRemove: () => void;

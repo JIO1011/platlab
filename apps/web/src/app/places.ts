@@ -39,6 +39,20 @@ export function levelOneOf(places: readonly Place[], placeId: string): string {
   return current?.id ?? placeId;
 }
 
+/** El camino del selector por niveles hasta una ubicación: de la de primer nivel a ella; vacío si no está. */
+export function pathTo(places: readonly Place[], placeId: string): Place[] {
+  const root = levelOneParent(places);
+  const path: Place[] = [];
+  let current = places.find((place) => place.id === placeId);
+  while (current && current.id !== root) {
+    path.unshift(current);
+    if (current.parentId === root) break;
+    const parentId: string | null = current.parentId;
+    current = places.find((place) => place.id === parentId);
+  }
+  return path;
+}
+
 /** Los recientes primero, en su orden, y después el resto. */
 export function recentFirst<T extends { id: string }>(items: readonly T[], recentIds: readonly string[]): T[] {
   const recent = recentIds.flatMap((id) => items.filter((item) => item.id === id));

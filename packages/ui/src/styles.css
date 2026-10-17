@@ -136,6 +136,8 @@
   html {
     color-scheme: light;
     -webkit-text-size-adjust: 100%;
+    /* La barra de desplazamiento de la página reserva su sitio: al alternar vistas el contenido no salta. */
+    scrollbar-gutter: stable;
   }
   body {
     /* Un brillo muy leve desde arriba a la izquierda da profundidad a los paneles flotantes. */
