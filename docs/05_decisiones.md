@@ -23,6 +23,7 @@ Revisión: 12 de octubre de 2026. Registro resumido de decisiones de arquitectur
 | [0017](#adr-0017) | Ficha de seguridad pública, exportación por streaming y T-07 aplazado | Aceptado el 14-10-2026 |
 | [0018](#adr-0018) | Reactivos concluido para el piloto; sigue Equipos | Aceptado el 15-10-2026 |
 | [0019](#adr-0019) | Equipos con la forma de Reactivos: estado separado y Mantenimiento como módulo propio | Aceptado el 15-10-2026 |
+| [0020](#adr-0020) | Mantenimiento intermedio sin inventario propio | Aceptado el 17-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -584,6 +585,34 @@ Cambios: 15-10-2026 (Mantenimiento vuelve a M7, construido después de E-01; fot
 - *Incidentes*: pestañas Reportados, En reparación y Solucionados con su conteo; se abre en Reportados y la pestaña va en la URL. Docente y Estudiante ven las mismas pestañas con lo suyo. Las filas van en una tarjeta, sin la línea de tres pasos: foto, código y nombre, lugar, tipo, «No se puede usar» y la hora de su paso («Reportado hace 2 h», «En reparación desde hace 1 día», «Solucionado en 3 días»).
 
 **Latencia (15-10-2026).** Lo que más pesa son los viajes a la base, no las consultas. Core lee los permisos una vez por transacción; un alta valida tipo, ubicación y responsable en una consulta y resuelve el código y el nombre únicos con su índice (`ON CONFLICT`); cambiar la condición o trasladar escribe historial y equipo en una sentencia. El inventario pagina primero por `assets_code` (también su cursor) y arma niveles y responsable solo para la página; busca en `search_text`, plegado al escribir; el Resumen cuenta desde `assets_condition`. Con 5.000 equipos, la página tarda 0,07 ms y la búsqueda 1,5 ms; un índice de trigramas (`pg_trgm`) se añade solo si un espacio supera unos 50.000 equipos.
+
+<a id="adr-0020"></a>
+
+## ADR 0020 — Mantenimiento intermedio sin inventario propio
+
+- **Sin inventario propio.** Equipos dice qué hay, dónde y cómo está; Mantenimiento, qué toca hacerle, qué se hizo y cuánto costó.
+  - Cada trabajo apunta al equipo y lee de Equipos su código, nombre y área, con enlace a la ficha; no copia sus datos.
+  - El estado y el estado físico cambian solo por los comandos de Equipos, con admisión de los dos módulos. El esquema `maintenance` no escribe en `equipment` ([ADR 0019](#adr-0019)).
+- **Nivel intermedio.**
+  - Entra: planes por tiempo de preventivo, calibración, verificación intermedia (ISO/IEC 17025 6.4.10) y limpieza, con lista de verificación y criterio de aceptación; órdenes en tres pasos; correctivo desde un incidente; costos exactos (`numeric`); proveedores de servicio; certificado en PDF, con las reglas de los documentos de Equipos; «Evaluar reemplazo».
+  - Queda fuera: técnicos con carga de trabajo, bloqueo de agenda y repuestos (F5); frecuencia por uso, que no tiene contador; MTBF y predictivo; correo (T-07).
+- **Cuatro secciones**, con la forma de los otros módulos:
+  - *Resumen*: Vencidos, Próximos 30 días, En ejecución y % a tiempo; banda con «Registrar mantenimiento» y «Escanear»; el gráfico «Carga de las próximas 8 semanas»; y las listas «Próximos 14 días» y «Evaluar reemplazo».
+  - *Trabajos*: pestañas Por hacer, Programados, En ejecución y Completados. «Por hacer» se calcula desde los planes: vencidos, esta semana y este mes.
+  - *Planes*: por tipo de equipo, que cubre todas sus unidades y las nuevas, con excepciones por equipo (plan propio o excluido); muestra la cobertura («3 equipos sin plan») y la lista de proveedores del espacio.
+  - *Informe*: historial filtrable con costo preventivo frente a correctivo, cumplimiento, calibraciones vencidas y equipos sin plan; Excel e «Imprimir».
+- **En Equipos, sin duplicar:** la pestaña Mantenimiento de la ficha, la columna «Próximo mantenimiento» con semáforo, la disponibilidad «En mantenimiento» mientras un trabajo está en ejecución, la sección de la hoja de vida y «Crear orden correctiva» en la hoja del incidente.
+- **Flujos.**
+  - *Planificado*: el plan aparece en «Por hacer» unos días antes. Se programa (fecha, interno o proveedor), se inicia y se registra (lista, Conforme / Con observaciones / No conforme, costo, certificado, «válida hasta» y estado físico). La próxima fecha se recalcula.
+  - *No conforme*: la hoja propone «Cambiar estado», con Fuera de servicio o Uso limitado y el motivo ya llenos, y quien registra lo confirma.
+  - *Correctivo*: «Crear orden correctiva» desde un incidente lo pasa a «En reparación». Completar la orden soluciona el incidente con ese resultado y, si se elige, devuelve el equipo a operativo. Se registra una sola vez.
+  - *Sin plan*: «Registrar mantenimiento» por búsqueda o QR; si corresponde a un plan, lo da por cumplido.
+  - *Evaluar reemplazo*: se calcula y el Administrador lo descarta por 6 meses con motivo, o da de baja el equipo en Equipos.
+- **Roles.** El Administrador crea planes y proveedores. El Operador programa, inicia y registra, y ve costos e Informe. Docente y Estudiante no entran a Mantenimiento: reportan en Equipos.
+- **Sin tareas en segundo plano** (T-07 sigue aplazado): «Por hacer», el semáforo y los avisos se calculan al consultar; una orden existe cuando alguien la programa o la inicia. Los avisos van en la app (Resumen y píldora del Inicio).
+- **Entregas:** M-01a (planes, proveedores, «Por hacer» y «Registrar mantenimiento», con la pestaña y el semáforo en Equipos), M-01b (órdenes en tres pasos y correctiva desde un incidente), M-01c (Resumen y «Evaluar reemplazo»), M-01d (Informe, exportación y hoja de vida) y el G0 de Mantenimiento junto con el de Equipos.
+
+Motivo: el usuario quiere un módulo intermedio con la estructura de los demás, sin repetir la información de Equipos. Las decisiones de planes por tipo, el Operador con costos, el «No conforme» que propone y la lista de proveedores las tomó el 17-10-2026. Precisa M-01 del roadmap y el M7 del [ADR 0019](#adr-0019).
 
 ## Pendientes
 
