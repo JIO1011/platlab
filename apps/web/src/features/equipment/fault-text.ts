@@ -1,4 +1,5 @@
 import type { Fault, FaultCounts, FaultStatus, FaultType } from '@platlab/contracts';
+import { formatDate } from '../../app/format';
 
 /** Cómo se llama cada tipo de falla en pantalla (ADR 0019). */
 export const faultTypeLabel: Record<FaultType, string> = {
@@ -53,6 +54,14 @@ export function usableText(usable: boolean): string {
 /** Quien hizo un paso; un miembro que ya no está se dice, no se oculta. */
 export function personText(person: { name: string } | null): string {
   return person?.name ?? 'Miembro anterior';
+}
+
+/** El aviso de una falla reportada con la garantía vigente (E-01e): hasta cuándo vale y a quién reclamar, si se sabe. */
+export function warrantyNotice({ until, supplier }: NonNullable<Fault['warranty']>): { lead: string; claim: string } {
+  return {
+    lead: `Falla dentro de la garantía, vigente hasta ${formatDate(until)}.`,
+    claim: supplier ? `Reclama al proveedor: ${supplier}.` : 'Reclama al proveedor.',
+  };
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;

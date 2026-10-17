@@ -16,6 +16,7 @@ const open: Fault = {
   resolution: null,
   resolvedBy: null,
   resolvedAt: null,
+  warranty: null,
 };
 
 describe('oldestFirst', () => {

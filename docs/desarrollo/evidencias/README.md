@@ -13,6 +13,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 - **E-01a/E-01b** · sin e2e de Equipos (alta con foto, condición, traslado y el ciclo de una falla) → escribirlo antes del G0 de Equipos
 - **E-01a** · `SectionHeader` de Equipos repite la cabecera de Reactivos (`features/reagents/layout.tsx`) → moverla a `app/` en la entrega de la cabecera de los módulos; `RowLabel` (`app/summary-card.tsx`) sigue en 10 px en mayúsculas
 - **e2e** · no se puede repetir sobre la misma base: la segunda corrida falla en traslado, mínimos y solicitudes → `pnpm db:reset` antes de `pnpm e2e`, o hacer que el e2e cree sus propios datos
+- **E-01e** · archivar el mismo documento a la vez no tiene prueba de concurrencia (el segundo debe dar 404); un reintento con la misma clave deja un PDF sin referencia en el bucket, como la foto y la ficha de seguridad; el bucket alojado debe crearse con 20 MiB en S-01 → prueba con dos conexiones; revisar en T-07 la limpieza de archivos huérfanos
 - **DP-01** · retención de `platform.idempotency_records` y disposición de las revisiones aplicadas, que son inmutables (revisar) → decidir y probar en DP-01
 
 ## Puertas

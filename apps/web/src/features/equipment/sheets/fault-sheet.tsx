@@ -1,7 +1,7 @@
 import { resolveFaultRequest, type Fault } from '@platlab/contracts';
 import { Badge, Button, Field, Sheet, Skeleton, Textarea, sectionLabel, toast } from '@platlab/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, CircleCheck, TriangleAlert } from 'lucide-react';
+import { ArrowRight, CircleCheck, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router';
@@ -13,7 +13,7 @@ import { AssetThumb } from '../asset-list';
 import { placeLines } from '../asset-text';
 import { equipmentErrorMessage, useFaultStep } from '../commands';
 import { FaultSteps } from '../fault-steps';
-import { faultSteps, faultTypeLabel, personText, usableText } from '../fault-text';
+import { faultSteps, faultTypeLabel, personText, usableText, warrantyNotice } from '../fault-text';
 import { useEquipmentKey, useFault } from '../queries';
 
 const formId = 'form-solucionar-falla';
@@ -40,6 +40,31 @@ function FaultAsset({ fault, fichaTo }: { fault: Fault; fichaTo: string | null }
           <ArrowRight className="size-3.5" aria-hidden />
         </Link>
       ) : null}
+    </div>
+  );
+}
+
+/** El aviso de una falla reportada con la garantía vigente (E-01e): informa, no alerta; con la garantía en PDF si la hay. */
+function WarrantyNotice({ warranty }: { warranty: NonNullable<Fault['warranty']> }) {
+  const { lead, claim } = warrantyNotice(warranty);
+  return (
+    <div className="flex items-start gap-2.5 rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink">
+      <ShieldCheck className="mt-0.5 size-4 shrink-0 text-ink-muted" aria-hidden />
+      <div className="grid min-w-0 gap-1">
+        <p className="break-words">
+          {lead} <strong className="font-bold">{claim}</strong>
+        </p>
+        {warranty.documentUrl ? (
+          <a
+            href={warranty.documentUrl}
+            target="_blank"
+            rel="noopener"
+            className="inline-flex min-h-11 items-center justify-self-start font-medium text-action hover:text-action-hover sm:min-h-8"
+          >
+            Ver garantía (PDF)
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -73,7 +98,8 @@ function FaultTimeline({ fault, timeZone }: { fault: Fault; timeZone: string }) 
  * Detalle del incidente (ADR 0019), en una hoja sobre la lista: el equipo, qué se reportó y su línea de tiempo.
  * Quien atiende (y puede operar) ve el paso que sigue: «Empezar reparación» o «Marcar como solucionado» un
  * incidente reportado, «Marcar como solucionado» uno en reparación. Solucionado es definitivo y se pide en esta
- * misma hoja: qué se hizo y si el equipo vuelve a funcionar. Sin interfaz optimista: el incidente cambia con lo que el servidor confirma, y si otra persona se adelantó, se recarga.
+ * misma hoja: qué se hizo y si el equipo vuelve a funcionar. Si se reportó con la garantía vigente, justo antes de las
+ * acciones le recuerda reclamarla al proveedor (E-01e). Sin interfaz optimista: el incidente cambia con lo que el servidor confirma, y si otra persona se adelantó, se recarga.
  */
 export function FaultSheet({
   workspaceId,
@@ -277,6 +303,7 @@ export function FaultSheet({
               </section>
             </>
           )}
+          {canHandle && data.warranty ? <WarrantyNotice warranty={data.warranty} /> : null}
         </div>
       )}
     </Sheet>

@@ -120,7 +120,7 @@ file_size_limit = "50MiB"
 # En Supabase alojado el bucket se crea en S-01 con estos mismos valores.
 [storage.buckets.public-files]
 public = true
-file_size_limit = "6MiB"
+file_size_limit = "20MiB"
 # Fichas de seguridad y documentos en PDF; fotos de equipos en imagen (ADR 0017, 0019).
 allowed_mime_types = ["application/pdf", "image/jpeg", "image/png", "image/webp"]
 

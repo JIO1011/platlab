@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { asset as assetContract, assetType as assetTypeContract } from '@platlab/contracts';
-import { admin, call } from '../../testing/api.js';
+import { admin, app, call, signer } from '../../testing/api.js';
 import { addLocation, addMember, seedWorkspace, uniqueSuffix, type Member, type Workspace } from '../../testing/core-fixtures.js';
 
 /** E-01a por HTTP contra la base local (ADR 0019): el arnés común y el laboratorio de Equipos. */
@@ -53,4 +53,29 @@ export async function createAsset(lab: EquipmentLab, body: Record<string, unknow
   });
   expect(created.status).toBe(201);
   return assetContract.parse(created.body);
+}
+
+/** Un PDF mínimo: la API lo reconoce por su firma (`%PDF-`), no por el tipo declarado. */
+export const pdf = (text: string) => Buffer.from(`%PDF-1.4\n% ${text}\n%%EOF\n`, 'latin1');
+
+/** Sube un documento del equipo como lo hace la web: el PDF en el cuerpo y su tipo y nombre en la consulta. */
+export async function uploadDocument(
+  lab: EquipmentLab,
+  subject: string,
+  assetId: string,
+  file: Buffer,
+  { kind = 'manual', title = 'Manual de uso' }: { kind?: string; title?: string } = {},
+) {
+  const response = await app.inject({
+    method: 'POST',
+    url: `/v1${lab.base}/assets/${assetId}/documents`,
+    query: { kind, title },
+    headers: {
+      authorization: `Bearer ${await signer.sign(subject)}`,
+      'content-type': 'application/pdf',
+      'idempotency-key': `documento-${uniqueSuffix()}`,
+    },
+    payload: file,
+  });
+  return { status: response.statusCode, body: response.json() as unknown };
 }
