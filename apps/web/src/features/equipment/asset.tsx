@@ -7,6 +7,7 @@ import { formatDateTime } from '../../app/format';
 import { useShellTrail } from '../../app/shell-trail';
 import { QueryErrorState } from '../../app/states';
 import { AssetHeader, type AssetSheet } from './asset-head';
+import { AssetDocuments } from './asset-documents';
 import { AssetFaults } from './asset-faults';
 import { AssetHistory } from './asset-history';
 import { useEquipment } from './context';
@@ -26,7 +27,7 @@ interface OpenSheet {
 
 /**
  * Ficha del equipo, segundo nivel del inventario (ADR 0019): el membrete de vidrio con sus acciones y todos sus
- * datos y, en pestañas, Incidentes (a quien los ve) e Historial. Un equipo dado de baja lo dice en una franja
+ * datos y, en pestañas, Incidentes (a quien los ve), Documentos e Historial. Un equipo dado de baja lo dice en una franja
  * neutra, con la fecha y el motivo del último cambio, y no ofrece ninguna acción (salvo la Hoja de vida imprimible). Las migas de la barra suman
  * el área y el nombre del equipo; ← vuelve un paso, o al área.
  */
@@ -107,6 +108,7 @@ export function EquipmentAssetPage() {
       <Tabs defaultValue={seesFaults ? 'incidentes' : 'historial'} className="min-w-0">
         <TabsList aria-label="Secciones de la ficha">
           {seesFaults ? <TabsTrigger value="incidentes">Incidentes</TabsTrigger> : null}
+          <TabsTrigger value="documentos">Documentos</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
         {seesFaults ? (
@@ -114,6 +116,9 @@ export function EquipmentAssetPage() {
             <AssetFaults assetId={data.id} />
           </TabsContent>
         ) : null}
+        <TabsContent value="documentos">
+          <AssetDocuments assetId={data.id} retired={data.condition === 'retired'} />
+        </TabsContent>
         <TabsContent value="historial">
           <AssetHistory history={history} timeZone={timeZone} />
         </TabsContent>

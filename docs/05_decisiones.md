@@ -574,6 +574,13 @@ Cambios: 15-10-2026 (Mantenimiento vuelve a M7, construido después de E-01; fot
   - al pie, «Elaborado por» y «Revisado por», con nombre, firma y fecha en blanco.
 
   Con M7 se suma la sección Mantenimiento; sin él, no aparece. Imprime hasta 1.000 hechos de cada tabla y avisa si hay más.
+- *Documentos, E-01e* (17-10-2026, decidido con el usuario):
+  - La ficha suma la pestaña Documentos, con tipo, nombre, fecha y quién lo subió. Los tipos son Manual, Factura, Garantía, Informe técnico y Acta de entrega, y cada documento lleva un nombre escrito.
+  - Solo el Administrador sube y quita, con el permiso de catálogo; el Operador los ve.
+  - Son PDF de hasta 20 MiB (el límite general de 02 §12) con las reglas de la ficha de seguridad: solo la API sube, comprobado por su contenido, y nunca se sobrescribe.
+  - «Quitar» archiva: el documento deja de verse y su archivo público se conserva. Un equipo dado de baja no recibe ni pierde documentos.
+  - La hoja de vida lista los documentos vigentes (tipo, nombre y fecha).
+  - Un incidente reportado con la garantía vigente avisa en su hoja, a quien lo atiende: «Reclama al proveedor», con la fecha, el proveedor y la garantía en PDF si la hay.
 - *Incidentes*: pestañas Reportados, En reparación y Solucionados con su conteo; se abre en Reportados y la pestaña va en la URL. Docente y Estudiante ven las mismas pestañas con lo suyo. Las filas van en una tarjeta, sin la línea de tres pasos: foto, código y nombre, lugar, tipo, «No se puede usar» y la hora de su paso («Reportado hace 2 h», «En reparación desde hace 1 día», «Solucionado en 3 días»).
 
 **Latencia (15-10-2026).** Lo que más pesa son los viajes a la base, no las consultas. Core lee los permisos una vez por transacción; un alta valida tipo, ubicación y responsable en una consulta y resuelve el código y el nombre únicos con su índice (`ON CONFLICT`); cambiar la condición o trasladar escribe historial y equipo en una sentencia. El inventario pagina primero por `assets_code` (también su cursor) y arma niveles y responsable solo para la página; busca en `search_text`, plegado al escribir; el Resumen cuenta desde `assets_condition`. Con 5.000 equipos, la página tarda 0,07 ms y la búsqueda 1,5 ms; un índice de trigramas (`pg_trgm`) se añade solo si un espacio supera unos 50.000 equipos.

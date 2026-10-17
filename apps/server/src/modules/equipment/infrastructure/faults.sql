@@ -6,7 +6,8 @@
 /* @name listFaults */
 -- Primero la página (índices cases_status, cases_asset, cases_reporter) y después, solo para ella, el
 -- equipo, su ubicación y quién hizo cada paso. Con :faultId, una falla. Sin :statuses, todas.
--- Con :reportedBy, solo las de esa persona (quien solo reporta ve las suyas).
+-- Con :reportedBy, solo las de esa persona (quien solo reporta ve las suyas). Con la garantía vigente
+-- el día del reporte en la zona :timeZone (E-01e), su fecha, el proveedor y la garantía en PDF más reciente.
 WITH RECURSIVE page AS (
   SELECT c.*
   FROM incidents.cases AS c
@@ -39,7 +40,9 @@ SELECT
   a.id AS asset_id, a.code AS asset_code, a.name AS asset_name, photo.url AS "asset_photo_url?",
   loc.name AS location_name, paths.path AS "location_path!",
   names.reported AS "reported_by_name?", names.attended AS "attended_by_name?",
-  names.resolved AS "resolved_by_name?"
+  names.resolved AS "resolved_by_name?",
+  CASE WHEN (f.reported_at AT TIME ZONE :timeZone!)::date <= a.warranty_until THEN a.warranty_until END AS "warranty_until?",
+  a.supplier, warranty.url AS "warranty_document_url?"
 FROM page AS f
 JOIN equipment.assets AS a ON a.workspace_id = :workspaceId! AND a.id = f.asset_id
 JOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = a.location_id
@@ -55,6 +58,14 @@ LEFT JOIN LATERAL (
     (SELECT i.display_name FROM core.principals AS p JOIN core.memberships AS m ON m.workspace_id = p.workspace_id AND m.id = p.membership_id
        JOIN core.identities AS i ON i.id = m.identity_id WHERE p.workspace_id = :workspaceId! AND p.id = f.resolved_by_principal_id) AS resolved
 ) AS names ON true
+-- La garantía en PDF vigente más reciente del equipo (índice asset_documents_current).
+LEFT JOIN LATERAL (
+  SELECT d.url
+  FROM equipment.asset_documents AS d
+  WHERE d.workspace_id = :workspaceId! AND d.asset_id = a.id AND d.kind = 'warranty' AND d.archived_at IS NULL
+  ORDER BY d.uploaded_at DESC, d.id DESC
+  LIMIT 1
+) AS warranty ON true
 ORDER BY f.reported_at DESC, f.id DESC;
 
 /* @name reportableAssets */

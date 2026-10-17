@@ -2,6 +2,7 @@ import {
   areaList,
   areaTypeList,
   asset,
+  assetDocumentList,
   assetTotals,
   assetHistory,
   assetList,
@@ -121,6 +122,15 @@ export function useAssetHistory(workspaceId: string, assetId: string, enabled = 
     queryFn: () =>
       api(`${base(workspaceId)}/assets/${assetId}/history${limit ? `?limit=${limit}` : ''}`, { schema: assetHistory }),
     enabled,
+  });
+}
+
+/** Documentos vigentes del equipo (E-01e), del más reciente al más antiguo: la pestaña de la ficha y la hoja de vida. */
+export function useAssetDocuments(workspaceId: string, assetId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...equipmentKey(user, workspaceId), 'asset', assetId, 'documents'],
+    queryFn: () => api(`${base(workspaceId)}/assets/${assetId}/documents`, { schema: assetDocumentList }),
   });
 }
 

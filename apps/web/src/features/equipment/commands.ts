@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { areaManager, asset, assetType, fault, location } from '@platlab/contracts';
+import { areaManager, asset, assetDocument, assetType, fault, location, type AssetDocumentKind } from '@platlab/contracts';
 import { api, apiDownload, isApiError } from '../../app/api';
 import { useModuleCommand } from '../../app/commands';
 import { saveFile } from '../../app/save-file';
@@ -57,6 +57,40 @@ export function useUploadAssetPhoto(workspaceId: string) {
         file: photo,
         idempotencyKey: crypto.randomUUID(),
         schema: asset,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: equipmentKey }),
+  });
+}
+
+/**
+ * Sube un PDF a los documentos del equipo (E-01e, Administrador): su tipo y su nombre van en la consulta y el archivo,
+ * en el cuerpo. Cada envío lleva su clave; repetirlo agrega otro documento, nunca sobrescribe uno.
+ */
+export function useUploadAssetDocument(workspaceId: string, assetId: string) {
+  const queryClient = useQueryClient();
+  const equipmentKey = useEquipmentKey(workspaceId);
+  return useMutation({
+    mutationFn: ({ kind, title, file }: { kind: AssetDocumentKind; title: string; file: Blob }) =>
+      api(`/workspaces/${workspaceId}/equipment/assets/${assetId}/documents?${new URLSearchParams({ kind, title })}`, {
+        method: 'POST',
+        file: { body: file, type: 'application/pdf' },
+        idempotencyKey: crypto.randomUUID(),
+        schema: assetDocument,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: equipmentKey }),
+  });
+}
+
+/** «Quitar» un documento (E-01e, Administrador): lo archiva y deja de verse; el archivo se conserva y no hay deshacer. */
+export function useArchiveAssetDocument(workspaceId: string, assetId: string) {
+  const queryClient = useQueryClient();
+  const equipmentKey = useEquipmentKey(workspaceId);
+  return useMutation({
+    mutationFn: (documentId: string) =>
+      api(`/workspaces/${workspaceId}/equipment/assets/${assetId}/documents/${documentId}/archive`, {
+        method: 'POST',
+        idempotencyKey: crypto.randomUUID(),
+        schema: assetDocument,
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: equipmentKey }),
   });

@@ -79,12 +79,21 @@ const toFault = (row: IListFaultsResult): Fault => ({
   resolution: row.resolution,
   resolvedBy: row.resolved_by_name ? { name: row.resolved_by_name } : null,
   resolvedAt: row.resolved_at?.toISOString() ?? null,
+  warranty: row.warranty_until
+    ? { until: row.warranty_until, supplier: row.supplier, documentUrl: row.warranty_document_url }
+    : null,
 });
 
 /** Una falla dentro del alcance de la persona; NOT_FOUND fuera de él. */
 async function faultById(access: WorkspaceAccess, faultId: string): Promise<Fault> {
   const [row] = await listFaultsQuery.run(
-    { workspaceId: access.workspace.id, faultId, reportedBy: await faultScope(access), limit: 1 },
+    {
+      workspaceId: access.workspace.id,
+      faultId,
+      reportedBy: await faultScope(access),
+      limit: 1,
+      timeZone: access.workspace.timeZone,
+    },
     access.client,
   );
   if (!row) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
@@ -220,6 +229,7 @@ export function listFaults(pool: pg.Pool, request: QueryRequest, query: z.infer<
         afterAt: after?.[0] ?? null,
         afterId: after?.[1] ?? null,
         limit: query.limit + 1,
+        timeZone: access.workspace.timeZone,
       },
       access.client,
     );

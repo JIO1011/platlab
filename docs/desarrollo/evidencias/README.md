@@ -13,6 +13,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 - **E-01a/E-01b** · sin e2e de Equipos (alta con foto, condición, traslado y el ciclo de una falla) → escribirlo antes del G0 de Equipos
 - **E-01a** · `SectionHeader` de Equipos repite la cabecera de Reactivos (`features/reagents/layout.tsx`) → moverla a `app/` en la entrega de la cabecera de los módulos; `RowLabel` (`app/summary-card.tsx`) sigue en 10 px en mayúsculas
 - **e2e** · no se puede repetir sobre la misma base: la segunda corrida falla en traslado, mínimos y solicitudes → `pnpm db:reset` antes de `pnpm e2e`, o hacer que el e2e cree sus propios datos
+- **E-01e** · archivar el mismo documento a la vez no tiene prueba de concurrencia (el segundo debe dar 404); un reintento con la misma clave deja un PDF sin referencia en el bucket, como la foto y la ficha de seguridad; el bucket alojado debe crearse con 20 MiB en S-01 → prueba con dos conexiones; revisar en T-07 la limpieza de archivos huérfanos
 - **DP-01** · retención de `platform.idempotency_records` y disposición de las revisiones aplicadas, que son inmutables (revisar) → decidir y probar en DP-01
 
 ## Puertas
@@ -40,6 +41,7 @@ Una fila por verificación ejecutada con la skill `platlab-verify-increment`, la
 ## Registro
 | Fecha | Entrega | Commit | Veredicto | Pruebas | Nota |
 |---|---|---|---|---|---|
+| 2026-10-17 | E-01e: documentos del equipo en PDF y aviso de garantía en el incidente (ADR 0019) | `d96151a` (PR #26) | Cumple | unit 229 · pgTAP 300 · int 191 · e2e 24 | Local y CI en verde, PgTyped sin diferencias; subida y garantía probadas de punta a punta con Storage local; revisión de acabado con 4 capturas, 6 de 6 correcciones |
 | 2026-10-17 | E-01f: hoja de vida imprimible del equipo con Incidentes, Historial y firmas (ADR 0019) | `75e8795` (PR #25) | Cumple | unit 216 · pgTAP 288 · int 184 · e2e 24 | Local y CI en verde; PDF A4 real de una página con la demo; revisión de acabado con 3 capturas, 5 de 6 correcciones (el Historial conserva Motivo y Resultado) |
 | 2026-10-17 | Resumen de Equipos con «Incidentes en 12 meses» y «Estado por área», Incidentes con pestañas por paso y «Volver» en el margen (ADR 0019) | `8df40ed` (PR #24) | Cumple | unit 208 · pgTAP 288 · int 184 · e2e 24 | Local y CI en verde, PgTyped sin diferencias; revisión de acabado con 4 capturas, 7 de 8 correcciones (la banda de acción rápida sigue como en Reactivos); sin capturar el Resumen en 360 px ni el tooltip del gráfico |
 | 2026-10-17 | E-01d: QR por equipo, escanear para reportar, etiquetas giratorias por área, volver circular y limpiezas del Resumen y el Informe (ADR 0019) | `5c8ecca` (PR #23) | Cumple | unit 175 · pgTAP 288 · int 182 · e2e 24 | Local y CI en verde, PgTyped sin diferencias; revisión de acabado con 4 capturas y 4 correcciones aplicadas. El e2e completo se verificó en CI (en local, la demo ya mutada por una corrida anterior). El e2e propio de Equipos sigue pendiente para su G0 |

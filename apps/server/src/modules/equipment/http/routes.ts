@@ -3,7 +3,9 @@ import type { FastifyPluginAsync } from 'fastify';
 import type pg from 'pg';
 import {
   areaParams,
+  ASSET_DOCUMENT_MAX_BYTES,
   ASSET_PHOTO_MAX_BYTES,
+  assetDocumentParams,
   assetFilterQuery,
   assetListQuery,
   assetHistoryQuery,
@@ -22,6 +24,7 @@ import {
   resolveFaultRequest,
   transferAssetRequest,
   updateAssetRequest,
+  uploadAssetDocumentQuery,
 } from '@platlab/contracts';
 import { XLSX_TYPE } from '../../../platform/export/xlsx.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
@@ -55,6 +58,7 @@ import {
   reportFault,
   resolveFault,
 } from '../application/faults.js';
+import { archiveAssetDocument, listAssetDocuments, uploadAssetDocument } from '../application/documents.js';
 import { exportAssets } from '../application/export.js';
 import { uploadAssetPhoto } from '../application/photo.js';
 import { changeCondition, transferAsset } from '../application/status.js';
@@ -66,6 +70,10 @@ export function equipmentRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFi
   return async (app) => {
     // La foto del equipo llega como cuerpo binario, con su propio límite (ADR 0019, 02 §12).
     app.addContentTypeParser([...assetPhotoTypes], { parseAs: 'buffer', bodyLimit: ASSET_PHOTO_MAX_BYTES }, (_request, body, done) =>
+      done(null, body),
+    );
+    // Los documentos del equipo, en PDF (E-01e), con el límite general de archivos (02 §12).
+    app.addContentTypeParser('application/pdf', { parseAs: 'buffer', bodyLimit: ASSET_DOCUMENT_MAX_BYTES }, (_request, body, done) =>
       done(null, body),
     );
 
@@ -122,6 +130,22 @@ export function equipmentRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFi
     app.put('/assets/:assetId/photo', async (request) =>
       uploadAssetPhoto(pool, publicFiles, commandRequest(request), assetParams.parse(request.params).assetId, request.body),
     );
+
+    // Documentos del equipo (E-01e): los sube y los quita el Administrador; quitar archiva.
+    app.get('/assets/:assetId/documents', async (request) =>
+      listAssetDocuments(pool, queryRequest(request), assetParams.parse(request.params).assetId),
+    );
+
+    app.post('/assets/:assetId/documents', async (request, reply) => {
+      const input = uploadAssetDocumentQuery.parse(request.query);
+      const { assetId } = assetParams.parse(request.params);
+      return reply.status(201).send(await uploadAssetDocument(pool, publicFiles, commandRequest(request), assetId, input, request.body));
+    });
+
+    app.post('/assets/:assetId/documents/:documentId/archive', async (request) => {
+      const { assetId, documentId } = assetDocumentParams.parse(request.params);
+      return archiveAssetDocument(pool, commandRequest(request), assetId, documentId);
+    });
 
     app.get('/assets/:assetId/history', async (request) =>
       getAssetHistory(

@@ -39,6 +39,8 @@ export const fault = z.object({
   resolution: z.string().nullable(),
   resolvedBy: person,
   resolvedAt: z.string().nullable(),
+  /** Reportado con la garantía vigente (E-01e): hasta cuándo, el proveedor y la garantía en PDF si la hay; si no, null. */
+  warranty: z.object({ until: z.iso.date(), supplier: z.string().nullable(), documentUrl: z.string().nullable() }).nullable(),
 });
 
 /**

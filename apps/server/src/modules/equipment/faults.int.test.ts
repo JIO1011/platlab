@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   asset as assetContract,
+  assetDocument,
   assetHistory,
   fault as faultContract,
   faultCounts,
@@ -9,7 +10,16 @@ import {
   reportableAsset,
   reportableAssetList,
 } from '@platlab/contracts';
-import { admin, call, createAsset, createEquipmentLab, errorCode, type EquipmentLab } from './equipment.fixtures.js';
+import {
+  admin,
+  call,
+  createAsset,
+  createEquipmentLab,
+  errorCode,
+  pdf,
+  uploadDocument,
+  type EquipmentLab,
+} from './equipment.fixtures.js';
 
 /** E-01b (ADR 0019): Reportes de fallas por la API, con los permisos de Equipos. */
 
@@ -288,5 +298,23 @@ describe('Resumen e Incidentes (ADR 0019, 17-10-2026)', () => {
 
     // Las cifras de todo el espacio son de quien atiende: quien solo reporta no las ve.
     expect((await call(fresh.teacher.subject, `${fresh.base}/faults/stats`)).status).toBe(403);
+  });
+});
+
+describe('garantía en el incidente (E-01e)', () => {
+  it('reportado con la garantía vigente trae su fecha, el proveedor y la garantía en PDF; vencida, nada', async () => {
+    const covered = await createAsset(lab, { supplier: 'Proveedor Andino', warrantyUntil: '2099-12-31' });
+    const warranty = assetDocument.parse(
+      (await uploadDocument(lab, lab.adminMember.subject, covered.id, pdf('garantía'), { kind: 'warranty', title: 'Garantía' })).body,
+    );
+    await uploadDocument(lab, lab.adminMember.subject, covered.id, pdf('manual'), { kind: 'manual', title: 'Manual' });
+    const reported = await report(lab.teacher.subject, { assetId: covered.id, faultType: 'other', description: 'Ruido', usable: true });
+    const fault = faultContract.parse(reported.body);
+    expect(fault.warranty).toEqual({ until: '2099-12-31', supplier: 'Proveedor Andino', documentUrl: warranty.url });
+    expect(faultContract.parse((await call(lab.operator.subject, `${lab.base}/faults/${fault.id}`)).body).warranty).toEqual(fault.warranty);
+
+    const expired = await createAsset(lab, { supplier: 'Proveedor Andino', warrantyUntil: '2020-01-01' });
+    const late = await report(lab.teacher.subject, { assetId: expired.id, faultType: 'other', description: 'Ruido', usable: true });
+    expect(faultContract.parse(late.body).warranty).toBeNull();
   });
 });

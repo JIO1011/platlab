@@ -1,4 +1,4 @@
-import type { Asset, AssetEvent, Fault } from '@platlab/contracts';
+import type { Asset, AssetDocument, AssetEvent, Fault } from '@platlab/contracts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, cn } from '@platlab/ui';
 import { useState, type ReactNode } from 'react';
 import { formatDate, formatDateTime, formatDayInZone } from '../../app/format';
@@ -9,14 +9,16 @@ import { describeEvent } from './asset-history';
 import { formatMoney, todayIn, usefulLifeText, warrantyText } from './asset-facts';
 import { availabilityLabel, conditionLabel, conservationLabel, placeLines } from './asset-text';
 import { useEquipment } from './context';
+import { documentKindLabel } from './document-text';
 import { faultStatusOrder, faultTypeLabel, personText } from './fault-text';
 import { faultOutcome, limitNote, oldestFirst, usableThenText } from './life-record';
-import { useAsset, useAssetHistory, useFaults } from './queries';
+import { useAsset, useAssetDocuments, useAssetHistory, useFaults } from './queries';
 
 const NO_DATA = 'Sin dato';
 const NONE = '—';
 
 const faultColumns = ['Reportado', 'Tipo', 'Qué pasó', '¿Se podía usar?', 'Reportó', 'Qué se hizo', 'Solucionó', 'Tardó'];
+const documentColumns = ['Tipo', 'Nombre', 'Fecha'];
 const historyColumns = ['Fecha', 'Hecho', 'Detalle', 'Quién'];
 /** El título de cada sección y de cada firma: una línea fina debajo. */
 const sectionTitle = 'mb-2 border-b border-line pb-1 text-[13px] font-bold uppercase tracking-wider';
@@ -96,14 +98,52 @@ function IdentitySection({ asset, timeZone }: { asset: Asset; timeZone: string }
           <Field label="Vida útil">{usefulLifeText(asset.acquiredOn, asset.usefulLifeYears, today)}</Field>
         </Fields>
       </Section>
-      <Section title="Estado actual">
-        <Fields>
-          <Field label="Estado">{conditionLabel[asset.condition]}</Field>
-          <Field label="Estado físico">{asset.conservation ? conservationLabel[asset.conservation] : NO_DATA}</Field>
-          <Field label="Disponibilidad">{availabilityLabel[asset.availability]}</Field>
-        </Fields>
-      </Section>
     </>
+  );
+}
+
+function ConditionSection({ asset }: { asset: Asset }) {
+  return (
+    <Section title="Estado actual">
+      <Fields>
+        <Field label="Estado">{conditionLabel[asset.condition]}</Field>
+        <Field label="Estado físico">{asset.conservation ? conservationLabel[asset.conservation] : NO_DATA}</Field>
+        <Field label="Disponibilidad">{availabilityLabel[asset.availability]}</Field>
+      </Fields>
+    </Section>
+  );
+}
+
+/** Los documentos vigentes (E-01e): tipo, nombre y fecha en que se subieron, del más antiguo al más reciente. */
+function DocumentsSection({ documents, timeZone }: { documents: AssetDocument[]; timeZone: string }) {
+  return (
+    <Section title={`Documentos (${documents.length})`}>
+      {documents.length === 0 ? (
+        <Empty>Sin documentos</Empty>
+      ) : (
+        <Table className="text-[12px]">
+          <caption className="sr-only">Documentos del equipo, del más antiguo al más reciente</caption>
+          <TableHead>
+            <TableRow className="hover:bg-transparent">
+              {documentColumns.map((title) => (
+                <TableHeader key={title} className={printHead}>
+                  {title}
+                </TableHeader>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {oldestFirst(documents).map((entry) => (
+              <TableRow key={entry.id} className="break-inside-avoid hover:bg-transparent">
+                <TableCell className={cn(printCell, 'whitespace-nowrap')}>{documentKindLabel[entry.kind]}</TableCell>
+                <TableCell className={printCell}>{entry.title}</TableCell>
+                <TableCell className={cn(printCell, 'whitespace-nowrap')}>{formatDayInZone(entry.uploadedAt, timeZone)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </Section>
   );
 }
 
@@ -225,11 +265,13 @@ function Signatures() {
 function LifeRecordSheet({
   asset,
   history,
+  documents,
   faults,
   onClose,
 }: {
   asset: ReturnType<typeof useAsset>;
   history: ReturnType<typeof useAssetHistory>;
+  documents: ReturnType<typeof useAssetDocuments>;
   faults: FaultRows | null;
   onClose: () => void;
 }) {
@@ -238,7 +280,8 @@ function LifeRecordSheet({
   const [printedAt] = useState(() => new Date().toISOString());
 
   const faultsReady = !faults || (faults.query.isSuccess && !faults.query.isPlaceholderData && !faults.loadingMore);
-  const failed = [asset, history, faults?.query].find((query) => query?.isError);
+  const ready = asset.isSuccess && history.isSuccess && documents.isSuccess && faultsReady;
+  const failed = [asset, history, documents, faults?.query].find((query) => query?.isError);
 
   return (
     <PrintDialog
@@ -259,16 +302,18 @@ function LifeRecordSheet({
       ]}
       closeLabel="Volver a la ficha"
       loadingText="Cargando la hoja de vida…"
-      ready={asset.isSuccess && history.isSuccess && faultsReady}
+      ready={ready}
       failed={Boolean(failed)}
       hasContent={asset.isSuccess}
       onClose={onClose}
     >
       {failed ? (
         <QueryErrorState error={failed.error} onRetry={() => void failed.refetch()} />
-      ) : asset.isSuccess && history.isSuccess && faultsReady ? (
+      ) : ready ? (
         <>
           <IdentitySection asset={asset.data} timeZone={timeZone} />
+          <DocumentsSection documents={documents.data.items} timeZone={timeZone} />
+          <ConditionSection asset={asset.data} />
           {faults ? <FaultsSection faults={faults} timeZone={timeZone} /> : null}
           <HistorySection events={history.data.items} timeZone={timeZone} />
           <Signatures />
@@ -290,6 +335,7 @@ function WithFaults({
   assetId: string;
   asset: ReturnType<typeof useAsset>;
   history: ReturnType<typeof useAssetHistory>;
+  documents: ReturnType<typeof useAssetDocuments>;
   onClose: () => void;
 }) {
   const query = useFaults(workspaceId, { statuses: faultStatusOrder, assetId }, 100);
@@ -299,7 +345,7 @@ function WithFaults({
 
 /**
  * Vista imprimible de la Hoja de vida del equipo (E-01f, ADR 0019): A4 vertical con la identificación, la compra y
- * la garantía, el estado actual, los incidentes y el historial de toda la vida del equipo (hasta 1.000 de cada
+ * la garantía, los documentos vigentes, el estado actual, los incidentes y el historial de toda la vida del equipo (hasta 1.000 de cada
  * uno, del más antiguo al más reciente) y, al pie, las firmas de quien elabora y de quien revisa. Reutiliza los
  * cachés de la ficha; el diálogo y la hoja son los de `PrintDialog`. Quien no ve los incidentes imprime sin esa tabla.
  */
@@ -307,9 +353,10 @@ export function LifeRecordPrint({ assetId, seesFaults, onClose }: { assetId: str
   const { workspaceId } = useEquipment();
   const asset = useAsset(workspaceId, assetId);
   const history = useAssetHistory(workspaceId, assetId, true, PRINT_LIMIT);
+  const documents = useAssetDocuments(workspaceId, assetId);
   return seesFaults ? (
-    <WithFaults workspaceId={workspaceId} assetId={assetId} asset={asset} history={history} onClose={onClose} />
+    <WithFaults workspaceId={workspaceId} assetId={assetId} asset={asset} history={history} documents={documents} onClose={onClose} />
   ) : (
-    <LifeRecordSheet asset={asset} history={history} faults={null} onClose={onClose} />
+    <LifeRecordSheet asset={asset} history={history} documents={documents} faults={null} onClose={onClose} />
   );
 }

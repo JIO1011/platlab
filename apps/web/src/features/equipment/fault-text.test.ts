@@ -15,6 +15,7 @@ import {
   pendingFaultsText,
   personText,
   usableText,
+  warrantyNotice,
 } from './fault-text';
 
 const now = Date.parse('2026-10-15T12:00:00Z');
@@ -109,6 +110,7 @@ const base: Fault = {
   resolution: null,
   resolvedBy: null,
   resolvedAt: null,
+  warranty: null,
 };
 
 describe('faultSteps', () => {
@@ -193,5 +195,21 @@ describe('faultStepParts', () => {
   it('solucionado: cuánto tardó desde el reporte, cuándo se solucionó y quién lo hizo', () => {
     const solved = { ...base, status: 'resolved', reportedAt: before(5 * DAY), resolvedAt: before(2 * DAY), resolvedBy: { name: 'Óscar' } } as Fault;
     expect(faultStepParts(solved, now)).toEqual({ when: 'Solucionado en 3 días · hace 2 días', who: 'Óscar' });
+  });
+});
+
+describe('warrantyNotice', () => {
+  it('dice hasta cuándo vale la garantía y a qué proveedor reclamar', () => {
+    expect(warrantyNotice({ until: '2027-03-15', supplier: 'Labtech Ecuador', documentUrl: null })).toEqual({
+      lead: 'Falla dentro de la garantía, vigente hasta 15 mar 2027.',
+      claim: 'Reclama al proveedor: Labtech Ecuador.',
+    });
+  });
+
+  it('sin proveedor, solo dice que se reclame', () => {
+    expect(warrantyNotice({ until: '2027-03-15', supplier: null, documentUrl: 'https://x.test/g.pdf' })).toEqual({
+      lead: 'Falla dentro de la garantía, vigente hasta 15 mar 2027.',
+      claim: 'Reclama al proveedor.',
+    });
   });
 });
