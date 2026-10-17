@@ -1,8 +1,6 @@
-import { Button, Sheet, cn } from '@platlab/ui';
-import { Check, CameraOff, LockKeyhole, ScanLine, TriangleAlert, VideoOff, type LucideIcon } from 'lucide-react';
+import { Button, cn } from '@platlab/ui';
+import { Check, CameraOff, LockKeyhole, TriangleAlert, VideoOff, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { readLabelLink } from './scan-link';
 import { useLabelScanner, type ScannerPhase } from './use-label-scanner';
 
 /** Lo que se ve cuando no hay imagen: el motivo y, si tiene arreglo, cómo intentarlo de nuevo. */
@@ -13,76 +11,61 @@ const problems: Record<Exclude<ScannerPhase, 'starting' | 'scanning'>, { icon: L
   failed: { icon: TriangleAlert, title: 'No se pudo abrir la cámara', text: 'Cierra otras apps que la estén usando y vuelve a intentarlo.', retry: true },
 };
 
-/** Pausa corta entre leer la etiqueta y abrir el frasco: lo justo para ver (y oír) que se leyó. */
+/** Pausa corta entre leer la etiqueta y seguir: lo justo para ver (y oír) que se leyó. */
 const FOUND_DELAY_MS = 350;
 const NOTICE_MS = 3500;
 
-/**
- * Hoja «Escanear etiqueta»: la cámara trasera dentro de la app, con un marco guía. El QR de la etiqueta
- * es el enlace `/q/:código`; al leerlo se apaga la cámara, vibra y se navega a esa ruta, que resuelve el
- * frasco y lleva a su ficha. Un QR de otra cosa avisa y sigue escaneando.
- */
-export function ScanSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const navigate = useNavigate();
-  return (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Escanear etiqueta"
-      description="Apunta la cámara al código QR del frasco."
-      icon={ScanLine}
-      footer={
-        <Button className="w-full" onClick={() => onOpenChange(false)}>
-          Cancelar
-        </Button>
-      }
-    >
-      <ScannerView
-        active={open}
-        onFound={(path) => {
-          onOpenChange(false);
-          void navigate(path);
-        }}
-      />
-    </Sheet>
-  );
-}
+/** Qué hacer con un QR leído: aceptarlo, con el texto que lo confirma, o decir por qué no sirve aquí. */
+export type ScanReading<T> = { value: T; found: string } | { notice: string };
 
-function ScannerView({ active, onFound }: { active: boolean; onFound: (path: string) => void }) {
-  const [found, setFound] = useState(false);
-  // Cada aviso de «no es de PlatLab» lleva su número: reinicia el temporizador y el latido del marco.
+/**
+ * La cámara trasera con un marco guía (14-10-2026). Quien la usa decide qué etiqueta sirve (`read`): al
+ * aceptar una, se apaga la cámara, vibra y, tras una pausa corta, entrega lo leído; un QR que no sirve
+ * avisa por qué y sigue escaneando.
+ */
+export function ScannerView<T>({
+  active,
+  read,
+  onFound,
+}: {
+  active: boolean;
+  read: (text: string) => ScanReading<T>;
+  onFound: (value: T) => void;
+}) {
+  const [found, setFound] = useState<string | null>(null);
+  // Cada aviso lleva su número: reinicia el temporizador y el latido del marco.
   const [rejection, setRejection] = useState(0);
-  const [showNotice, setShowNotice] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const lastRejected = useRef({ text: '', at: 0 });
   const foundTimer = useRef<number | undefined>(undefined);
 
   const { videoRef, phase, retry } = useLabelScanner({
     active,
     onText: (text) => {
-      const path = readLabelLink(text);
+      const reading = read(text);
       const now = Date.now();
-      if (!path) {
+      if ('notice' in reading) {
         // El mismo código a la vista no se vuelve a anunciar a cada cuadro.
         if (text !== lastRejected.current.text || now - lastRejected.current.at > NOTICE_MS) {
           setRejection((value) => value + 1);
-          setShowNotice(true);
+          setNotice(reading.notice);
         }
         lastRejected.current = { text, at: now };
         return false;
       }
       if (typeof navigator.vibrate === 'function') navigator.vibrate(40);
-      setShowNotice(false);
-      setFound(true);
-      foundTimer.current = window.setTimeout(() => onFound(path), FOUND_DELAY_MS);
+      setNotice(null);
+      setFound(reading.found);
+      foundTimer.current = window.setTimeout(() => onFound(reading.value), FOUND_DELAY_MS);
       return true;
     },
   });
 
   useEffect(() => {
-    if (!showNotice) return undefined;
-    const timer = window.setTimeout(() => setShowNotice(false), NOTICE_MS);
+    if (notice === null) return undefined;
+    const timer = window.setTimeout(() => setNotice(null), NOTICE_MS);
     return () => window.clearTimeout(timer);
-  }, [showNotice, rejection]);
+  }, [notice, rejection]);
   useEffect(() => () => window.clearTimeout(foundTimer.current), []);
 
   const problem = phase === 'starting' || phase === 'scanning' ? null : problems[phase];
@@ -92,7 +75,7 @@ function ScannerView({ active, onFound }: { active: boolean; onFound: (path: str
       <div className="relative aspect-[4/5] overflow-hidden rounded-panel bg-ink sm:aspect-[4/3]">
         {/* El video no lleva nombre: el estado se anuncia en el texto de abajo. */}
         <video ref={videoRef} muted playsInline aria-hidden className="absolute inset-0 size-full object-cover" />
-        {phase === 'scanning' || found ? (
+        {phase === 'scanning' || found !== null ? (
           <div aria-hidden className="pointer-events-none absolute inset-0">
             <div
               key={rejection}
@@ -126,18 +109,18 @@ function ScannerView({ active, onFound }: { active: boolean; onFound: (path: str
         role="status"
         className={cn(
           'flex min-h-10 items-center justify-center gap-2 rounded-control px-3 text-center text-sm',
-          found ? 'bg-success-soft font-medium text-success' : showNotice ? 'bg-danger-soft font-medium text-danger' : 'text-ink-muted',
+          found !== null ? 'bg-success-soft font-medium text-success' : notice !== null ? 'bg-danger-soft font-medium text-danger' : 'text-ink-muted',
         )}
       >
-        {found ? (
+        {found !== null ? (
           <>
             <Check className="size-4 shrink-0" aria-hidden />
-            Etiqueta leída. Abriendo el frasco…
+            {found}
           </>
-        ) : showNotice ? (
+        ) : notice !== null ? (
           <>
             <TriangleAlert className="size-4 shrink-0" aria-hidden />
-            Este código no es una etiqueta de PlatLab
+            {notice}
           </>
         ) : phase === 'starting' ? (
           'Abriendo la cámara…'

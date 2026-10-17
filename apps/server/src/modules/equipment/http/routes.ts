@@ -46,6 +46,7 @@ import {
 import {
   attendFault,
   getFault,
+  getReportableAsset,
   listFaults,
   listReportableAssets,
   reportFault,
@@ -141,6 +142,11 @@ export function equipmentRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFi
 
     app.get('/faults/assets', async (request) =>
       listReportableAssets(pool, queryRequest(request), reportableAssetQuery.parse(request.query).q),
+    );
+
+    // El equipo del QR de su etiqueta (E-01d): quien solo reporta lo recibe sin ver la ficha.
+    app.get('/faults/assets/:assetId', async (request) =>
+      getReportableAsset(pool, queryRequest(request), assetParams.parse(request.params).assetId),
     );
 
     app.post('/faults', async (request, reply) => {

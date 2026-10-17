@@ -1,6 +1,14 @@
 import type pg from 'pg';
 import type { z } from 'zod';
-import type { Fault, FaultList, faultListQuery, reportFaultRequest, ReportableAssetList, resolveFaultRequest } from '@platlab/contracts';
+import type {
+  Fault,
+  FaultList,
+  faultListQuery,
+  reportFaultRequest,
+  ReportableAsset,
+  ReportableAssetList,
+  resolveFaultRequest,
+} from '@platlab/contracts';
 import {
   attendFault as attendCase,
   lockFault,
@@ -218,18 +226,31 @@ export function getFault(pool: pg.Pool, request: QueryRequest, faultId: string):
   return runReporterQuery(pool, request, (access) => faultById(access, faultId));
 }
 
-/** Para reportar sin ver el inventario: equipos activos por nombre o código, con lo que los identifica. */
+/** Equipos activos que se pueden reportar, por nombre o código o por su id, con lo que los identifica. */
+async function findReportable(
+  access: WorkspaceAccess,
+  filter: { q: string; assetId: null } | { q: null; assetId: string },
+): Promise<ReportableAsset[]> {
+  const rows = await reportableAssets.run({ workspaceId: access.workspace.id, ...filter }, access.client);
+  return rows.map((row) => ({
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    photoUrl: row.photo_url,
+    location: { name: row.location_name, path: row.location_path },
+  }));
+}
+
+/** Para reportar sin ver el inventario: equipos activos por nombre o código. */
 export function listReportableAssets(pool: pg.Pool, request: QueryRequest, q: string): Promise<ReportableAssetList> {
+  return runReporterQuery(pool, request, async (access) => ({ items: await findReportable(access, { q, assetId: null }) }));
+}
+
+/** El equipo del QR de su etiqueta (ADR 0019, E-01d), para reportarlo: uno dado de baja no se encuentra. */
+export function getReportableAsset(pool: pg.Pool, request: QueryRequest, assetId: string): Promise<ReportableAsset> {
   return runReporterQuery(pool, request, async (access) => {
-    const rows = await reportableAssets.run({ workspaceId: access.workspace.id, q }, access.client);
-    return {
-      items: rows.map((row) => ({
-        id: row.id,
-        code: row.code,
-        name: row.name,
-        photoUrl: row.photo_url,
-        location: { name: row.location_name, path: row.location_path },
-      })),
-    };
+    const [asset] = await findReportable(access, { q: null, assetId });
+    if (!asset) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
+    return asset;
   });
 }

@@ -10,6 +10,7 @@ import {
   fault,
   faultList,
   locationList,
+  reportableAsset,
   reportableAssetList,
   responsibleList,
   type AssetList,
@@ -190,5 +191,16 @@ export function useReportableAssets(workspaceId: string, q: string, enabled = tr
     queryFn: () => api(`${base(workspaceId)}/faults/assets?${new URLSearchParams({ q: term })}`, { schema: reportableAssetList }),
     enabled: enabled && term.length >= 2,
     placeholderData: (previous) => previous,
+  });
+}
+
+/** El equipo del QR de su etiqueta, para reportarlo (E-01d); uno dado de baja o de otro espacio da 404 sin reintentos. */
+export function useReportableAsset(workspaceId: string, assetId: string | null) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...equipmentKey(user, workspaceId), 'reportable-asset', assetId],
+    queryFn: () => api(`${base(workspaceId)}/faults/assets/${assetId ?? ''}`, { schema: reportableAsset }),
+    enabled: assetId !== null,
+    retry: false,
   });
 }

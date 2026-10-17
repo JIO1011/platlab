@@ -106,6 +106,7 @@ export function getAssetTotals(pool: pg.Pool, request: QueryRequest, filters: As
     return {
       count: row.count,
       replacementValue: row.replacement_value,
+      withReplacementValue: row.with_replacement_value,
       withoutResponsible: row.without_responsible,
       warrantyExpiring: row.warranty_expiring,
       usefulLifeReached: row.useful_life_reached,

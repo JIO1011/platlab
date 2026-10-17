@@ -3,6 +3,7 @@ import { Microscope, Plus, Search, SearchX, SlidersHorizontal } from 'lucide-rea
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { conservationLabel, usefulLifeStateLabel, warrantyStateLabel } from '@platlab/contracts';
 import { useSearchParams } from 'react-router';
+import { FilterPanelClear } from '../../app/filter-group';
 import { toPlaces } from '../../app/places';
 import { QueryErrorState } from '../../app/states';
 import { useMediaQuery, useStoredFlag } from '../../app/use-media-query';
@@ -207,7 +208,8 @@ export function EquipmentReportPage() {
             </Button>
           </div>
 
-          <AssetChips filters={filters} onClear={clearAll} />
+          {/* Con el panel a la vista, sus filtros ya se ven ahí. */}
+          {showPanel ? null : <AssetChips filters={filters} onClear={clearAll} />}
 
           <div aria-busy={assets.isPlaceholderData} className={cn('transition-opacity duration-150', assets.isPlaceholderData && 'opacity-60')}>
             {assets.isPending ? (
@@ -274,6 +276,7 @@ export function EquipmentReportPage() {
             aria-label="Filtros"
             className="sticky top-20 max-h-[calc(100dvh-6.5rem)] overflow-y-auto rounded-panel bg-surface p-2 shadow-raised"
           >
+            {filters.length > 0 ? <FilterPanelClear onClear={clearAll} /> : null}
             {panel}
           </aside>
         ) : null}

@@ -8,7 +8,8 @@ const pages = () => import('./pages');
  * servidor filtra por permiso en /me.
  */
 export const equipmentRoutes: ModuleRoutes = {
-  top: [],
+  // Enlace corto de la etiqueta QR de un equipo (E-01d): resuelve el espacio y lleva a la app.
+  top: [{ path: '/q/e/:code', lazy: async () => ({ Component: (await pages()).EquipmentLinkPage }) }],
   workspace: [
     {
       path: 'equipos',
@@ -18,12 +19,16 @@ export const equipmentRoutes: ModuleRoutes = {
         // Inventario por áreas (E-01c): las tarjetas y, dentro de un área, sus equipos.
         { path: 'inventario', lazy: async () => ({ Component: (await pages()).EquipmentAreasPage }) },
         { path: 'inventario/area/:areaId', lazy: async () => ({ Component: (await pages()).EquipmentAreaPage }) },
+        // Etiquetas QR de los equipos activos de un área (E-01d); `?equipos=` preselecciona.
+        { path: 'inventario/area/:areaId/etiquetas', lazy: async () => ({ Component: (await pages()).EquipmentLabelsPage }) },
         // Ficha del equipo: se abre desde el Inventario, el Informe, el Resumen y los incidentes.
         { path: 'inventario/:assetId', lazy: async () => ({ Component: (await pages()).EquipmentAssetPage }) },
         // La tabla con filtros que se imprime y se exporta.
         { path: 'informe', lazy: async () => ({ Component: (await pages()).EquipmentReportPage }) },
-        // Incidentes, que son las fallas; la hoja de una se abre con `?falla=`.
+        // Incidentes, que son las fallas; la hoja de una se abre con `?falla=` y «Reportar incidente», con `?reportar=`.
         { path: 'incidentes', lazy: async () => ({ Component: (await pages()).EquipmentFaultsPage }) },
+        // Lo abre el QR del equipo: lleva a la ficha o a reportarlo, según el rol.
+        { path: 'q/:assetId', lazy: async () => ({ Component: (await pages()).EquipmentScanPage }) },
       ],
     },
   ],

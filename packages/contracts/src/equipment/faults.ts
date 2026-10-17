@@ -50,20 +50,19 @@ export const faultList = list(fault);
 
 /** GET /faults/assets: para reportar, quien no consulta el inventario busca el equipo por código o nombre. */
 export const reportableAssetQuery = z.object({ q: z.string().trim().min(2).max(100) }).strict();
-export const reportableAssetList = z.object({
-  items: z.array(
-    z.object({
-      id: z.uuid(),
-      code: z.string(),
-      name: z.string(),
-      photoUrl: z.string().nullable(),
-      location: z.object({ name: z.string(), path: z.array(z.string()) }),
-    }),
-  ),
+/** Lo que identifica al equipo para reportarlo, sin su ficha completa. */
+export const reportableAsset = z.object({
+  id: z.uuid(),
+  code: z.string(),
+  name: z.string(),
+  photoUrl: z.string().nullable(),
+  location: z.object({ name: z.string(), path: z.array(z.string()) }),
 });
+export const reportableAssetList = z.object({ items: z.array(reportableAsset) });
 
 export type FaultType = z.infer<typeof faultType>;
 export type FaultStatus = z.infer<typeof faultStatus>;
 export type Fault = z.infer<typeof fault>;
 export type FaultList = z.infer<typeof faultList>;
+export type ReportableAsset = z.infer<typeof reportableAsset>;
 export type ReportableAssetList = z.infer<typeof reportableAssetList>;

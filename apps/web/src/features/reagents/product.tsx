@@ -1,8 +1,10 @@
-import { Button, Skeleton, StatePanel, addDecimal, cn, ratioPercent } from '@platlab/ui';
-import { ArrowRight, History, Printer, QrCode as QrIcon } from 'lucide-react';
+import { Skeleton, StatePanel, addDecimal, ratioPercent } from '@platlab/ui';
+import { ArrowRight, History, QrCode as QrIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
+import { LabelBar } from '../../app/labels/label-bar';
+import { useLabelMode } from '../../app/labels/use-label-mode';
 import { useOperations, usePositions, useProduct } from './queries';
 import { QueryErrorState } from '../../app/states';
 import { useReagents } from './context';
@@ -14,8 +16,6 @@ import { EmptyToggle } from './product-parts';
 import { ProductHeader, ProductSummary, labelsButtonId, type ExpiryDates } from './product-head';
 import { containerUrl } from './labels';
 
-const focusLabelsButton = () => document.getElementById(labelsButtonId)?.focus();
-
 export function ReagentsProductPage() {
   const { productId = '', containerId } = useParams();
   const { workspaceId, me, base, allowed, openSheet, positionList, freshness } = useReagents();
@@ -23,28 +23,10 @@ export function ReagentsProductPage() {
   const positions = usePositions(workspaceId, productId);
   const history = useOperations(workspaceId, { productId: [productId] });
   const [showEmpty, setShowEmpty] = useState(false);
-  // Modo de etiquetas (ADR 0010): las tarjetas giran a su etiqueta y se eligen cuáles imprimir. El
-  // reverso se monta la primera vez que se usa y se queda para poder girar de vuelta con animación.
+  // Modo de etiquetas (ADR 0010): las tarjetas giran a su etiqueta y se eligen cuáles imprimir.
   const navigate = useNavigate();
-  const [labelMode, setLabelMode] = useState(false);
-  const [labelsUsed, setLabelsUsed] = useState(false);
+  const labelMode = useLabelMode(labelsButtonId);
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
-  const closeLabels = () => {
-    setLabelMode(false);
-    focusLabelsButton();
-  };
-  useEffect(() => {
-    if (!labelMode) return;
-    const onKey = (event: KeyboardEvent) => {
-      // Un cuadro abierto (hoja de salida, por ejemplo) se cierra primero con su propio Esc.
-      if (event.key === 'Escape' && !document.querySelector('[role="dialog"]')) {
-        setLabelMode(false);
-        focusLabelsButton();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [labelMode]);
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: me.workspace.timeZone }).format(new Date());
   const containers = useMemo(() => positions.data?.pages.flatMap((page) => page.items) ?? [], [positions.data]);
   const emptyCount = containers.filter((position) => position.balance === '0').length;
@@ -119,14 +101,12 @@ export function ReagentsProductPage() {
       return next;
     });
   // «Etiquetas QR» (cabecera): gira las tarjetas y lleva la vista a Frascos con suavidad (sin movimiento si se pidió menos).
-  const toggleLabels = () => {
-    setLabelsUsed(true);
-    if (labelMode) return setLabelMode(false);
-    setPicked(new Set());
-    setLabelMode(true);
-    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    document.getElementById('frascos')?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
-  };
+  const toggleLabels = () =>
+    labelMode.toggle(() => {
+      setPicked(new Set());
+      const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.getElementById('frascos')?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
+    });
   // La página de etiquetas ya preselecciona `?frascos=` y trae su hoja A4.
   const printPicked = () =>
     void navigate(`${base}/inventario/${productId}/etiquetas?frascos=${pickedNow.map((position) => position.container?.id ?? '').join(',')}`);
@@ -139,7 +119,7 @@ export function ReagentsProductPage() {
           allowed={allowed}
           canIssue={positionList.length > 0}
           freshness={freshness}
-          labels={{ active: labelMode, onToggle: toggleLabels }}
+          labels={{ active: labelMode.active, onToggle: toggleLabels }}
           onAction={openSheet}
         />
       </section>
@@ -187,11 +167,11 @@ export function ReagentsProductPage() {
                       recommended={position.id === recommendedId}
                       scanned={containerId !== undefined && position.container?.id === containerId}
                       labels={
-                        labelsUsed && position.container && position.balance !== '0'
+                        labelMode.used && position.container && position.balance !== '0'
                           ? {
                               product: product.data,
                               url: containerUrl(workspaceId, position.container.id),
-                              flipped: labelMode,
+                              flipped: labelMode.active,
                               picked: picked.has(position.id),
                               order: labelable.indexOf(position),
                               onPick: () => togglePick(position.id),
@@ -206,32 +186,15 @@ export function ReagentsProductPage() {
             )}
           </section>
 
-          {labelsUsed ? (
-            // Barra fija de las etiquetas: sale y entra desde abajo; cerrada, queda inerte y fuera de la vista.
-            <div
-              role="region"
-              aria-label="Elegir etiquetas"
-              inert={!labelMode}
-              className={cn(
-                'fixed inset-x-3 bottom-4 z-30 mx-auto flex max-w-2xl flex-wrap items-center gap-2 rounded-3xl border border-white/70 bg-white/85 p-2.5 shadow-overlay backdrop-blur-xl not-supports-[backdrop-filter]:bg-surface',
-                'transition-[opacity,translate] duration-200 ease-out-expo starting:translate-y-6 starting:opacity-0',
-                labelMode ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-6 opacity-0 motion-reduce:translate-y-0',
-              )}
-            >
-              <p aria-live="polite" className="basis-full px-2 text-sm font-semibold tabular-nums text-ink sm:mr-auto sm:basis-auto">
-                {pickedNow.length === 1 ? '1 elegida' : `${pickedNow.length} elegidas`}
-              </p>
-              <Button variant="ghost" size="sm" onClick={() => setPicked(new Set(allPicked ? [] : labelable.map((position) => position.id)))}>
-                {allPicked ? 'Ninguna' : 'Todas'}
-              </Button>
-              <Button variant="secondary" size="sm" onClick={closeLabels}>
-                Listo
-              </Button>
-              <Button variant="primary" size="sm" className="ml-auto sm:ml-0" disabled={pickedNow.length === 0} onClick={printPicked}>
-                <Printer aria-hidden />
-                Imprimir {pickedNow.length}
-              </Button>
-            </div>
+          {labelMode.used ? (
+            <LabelBar
+              open={labelMode.active}
+              count={pickedNow.length}
+              allPicked={allPicked}
+              onToggleAll={() => setPicked(new Set(allPicked ? [] : labelable.map((position) => position.id)))}
+              onDone={labelMode.close}
+              onPrint={printPicked}
+            />
           ) : null}
 
           <section aria-labelledby="historial-reactivo" className="rounded-card bg-surface p-6 shadow-raised md:p-8">

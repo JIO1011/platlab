@@ -55,6 +55,8 @@ export const assetFilterQuery = assetListQuery.omit({ cursor: true, limit: true 
 export const assetTotals = z.object({
   count: z.number().int(),
   replacementValue: z.string(),
+  /** Cuántos de los filtrados tienen valor de reposición: los demás no suman. */
+  withReplacementValue: z.number().int(),
   withoutResponsible: z.number().int(),
   warrantyExpiring: z.number().int(),
   usefulLifeReached: z.number().int(),

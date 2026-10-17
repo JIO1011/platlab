@@ -144,6 +144,7 @@ export {
   faultStatus,
   faultType,
   newAsset,
+  reportableAsset,
   reportableAssetList,
   reportableAssetQuery,
   reportFaultRequest,
@@ -173,6 +174,7 @@ export {
   type FaultList,
   type FaultStatus,
   type FaultType,
+  type ReportableAsset,
   type ReportableAssetList,
   type ResponsibleList,
 } from './equipment.js';

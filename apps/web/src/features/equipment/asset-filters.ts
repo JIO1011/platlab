@@ -29,6 +29,10 @@ export const emptyAssetQuery: AssetQuery = {
   usefulLives: [],
 };
 
+/** «Todos» deja fuera a los dados de baja, que solo se ven con su enlace del membrete. */
+export const conditionsOf = (filter: AssetCondition | null): AssetCondition[] =>
+  filter ? [filter] : ['operational', 'restricted', 'faulted'];
+
 /** Condición en la URL: una palabra legible por código de la API. */
 const conditionSlugs: Record<AssetCondition, string> = {
   operational: 'operativo',

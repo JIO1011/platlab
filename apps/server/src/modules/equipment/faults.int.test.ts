@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { asset as assetContract, assetHistory, fault as faultContract, faultList, reportableAssetList } from '@platlab/contracts';
+import { asset as assetContract, assetHistory, fault as faultContract, faultList, reportableAsset, reportableAssetList } from '@platlab/contracts';
 import { call, createAsset, createEquipmentLab, errorCode, type EquipmentLab } from './equipment.fixtures.js';
 
 /** E-01b (ADR 0019): Reportes de fallas por la API, con los permisos de Equipos. */
@@ -52,6 +52,26 @@ describe('reportar', () => {
     expect(found.items.map((item) => item.id)).toContain(asset.id);
     expect(Object.keys(found.items[0]!)).toEqual(['id', 'code', 'name', 'photoUrl', 'location']);
     expect((await call(lab.teacher.subject, `${lab.base}/assets`)).status).toBe(403);
+  });
+
+  it('el QR de la etiqueta da el equipo a quien solo reporta; uno dado de baja o de otro espacio no se encuentra', async () => {
+    const asset = await createAsset(lab);
+    const scanned = await call(lab.teacher.subject, `${lab.base}/faults/assets/${asset.id}`);
+    expect(scanned.status).toBe(200);
+    expect(reportableAsset.parse(scanned.body)).toMatchObject({ id: asset.id, code: asset.code, name: asset.name });
+    expect(Object.keys(scanned.body as object)).toEqual(['id', 'code', 'name', 'photoUrl', 'location']);
+
+    const foreign = await createAsset(other);
+    const crossed = await call(lab.teacher.subject, `${lab.base}/faults/assets/${foreign.id}`);
+    expect(crossed.status).toBe(404);
+    expect(errorCode(crossed.body)).toBe('NOT_FOUND');
+    expect((await call(lab.teacher.subject, `${lab.base}/faults/assets/no-es-un-id`)).status).toBe(400);
+
+    await call(lab.adminMember.subject, `${lab.base}/assets/${asset.id}/condition`, {
+      method: 'POST',
+      body: { condition: 'retired', reason: 'Obsoleto' },
+    });
+    expect((await call(lab.teacher.subject, `${lab.base}/faults/assets/${asset.id}`)).status).toBe(404);
   });
 });
 
