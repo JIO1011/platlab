@@ -6,6 +6,7 @@ import {
   ASSET_PHOTO_MAX_BYTES,
   assetFilterQuery,
   assetListQuery,
+  assetHistoryQuery,
   assetParams,
   assetPhotoTypes,
   assetTypeParams,
@@ -123,7 +124,12 @@ export function equipmentRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFi
     );
 
     app.get('/assets/:assetId/history', async (request) =>
-      getAssetHistory(pool, queryRequest(request), assetParams.parse(request.params).assetId),
+      getAssetHistory(
+        pool,
+        queryRequest(request),
+        assetParams.parse(request.params).assetId,
+        assetHistoryQuery.parse(request.query).limit,
+      ),
     );
 
     // Condición y traslado dejan su fila de historial (201).

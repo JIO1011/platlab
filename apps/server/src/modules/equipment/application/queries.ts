@@ -26,9 +26,6 @@ import {
 import { FAULT_MANAGE, runQuery } from './command.js';
 import { assetFilterParams, type AssetFilters } from './filters.js';
 
-/** Hechos del historial de un equipo que se devuelven (02 §12 no fija otro límite). */
-const HISTORY_LIMIT = 200;
-
 export const toAsset = (row: IListAssetsResult): Asset => ({
   id: row.id,
   code: row.code,
@@ -141,13 +138,10 @@ const toEvent = (row: IListAssetHistoryResult): AssetHistory['items'][number] =>
 };
 
 /** Historial del equipo (01 §6.3): alta, cambios de estado y de estado físico, y traslados, del más reciente al más antiguo. */
-export function getAssetHistory(pool: pg.Pool, request: QueryRequest, assetId: string): Promise<AssetHistory> {
+export function getAssetHistory(pool: pg.Pool, request: QueryRequest, assetId: string, limit: number): Promise<AssetHistory> {
   return runQuery(pool, request, async (access) => {
     await assetById(access, assetId);
-    const rows = await listAssetHistory.run(
-      { workspaceId: access.workspace.id, assetId, limit: HISTORY_LIMIT },
-      access.client,
-    );
+    const rows = await listAssetHistory.run({ workspaceId: access.workspace.id, assetId, limit }, access.client);
     return { items: rows.map(toEvent) };
   });
 }

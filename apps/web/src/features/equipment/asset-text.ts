@@ -1,4 +1,4 @@
-import type { Asset, AssetCondition } from '@platlab/contracts';
+import type { Asset, AssetAvailability, AssetCondition } from '@platlab/contracts';
 export { conditionLabel, conservationLabel } from '@platlab/contracts';
 
 /** El tono de cada estado del equipo: «Dado de baja» es definitivo y no alarma, por eso neutro. */
@@ -7,6 +7,12 @@ export const conditionTone: Record<AssetCondition, 'success' | 'warning' | 'dang
   restricted: 'warning',
   faulted: 'danger',
   retired: 'neutral',
+};
+
+/** La disponibilidad del equipo, calculada por el servidor: se dice con texto. */
+export const availabilityLabel: Record<AssetAvailability, string> = {
+  available: 'Disponible',
+  unavailable: 'No disponible',
 };
 
 /** «Sin responsable»: el valor `none` del filtro Responsable (E-01c) y el texto de quien no lo tiene. */

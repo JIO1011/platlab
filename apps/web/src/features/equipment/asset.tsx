@@ -10,6 +10,7 @@ import { AssetHeader, type AssetSheet } from './asset-head';
 import { AssetFaults } from './asset-faults';
 import { AssetHistory } from './asset-history';
 import { useEquipment } from './context';
+import { LifeRecordPrint } from './life-record-print';
 import { useAreas, useAsset, useAssetHistory } from './queries';
 import { AssetFormSheet } from './sheets/asset-sheet';
 import { ConditionSheet } from './sheets/condition-sheet';
@@ -26,7 +27,7 @@ interface OpenSheet {
 /**
  * Ficha del equipo, segundo nivel del inventario (ADR 0019): el membrete de vidrio con sus acciones y todos sus
  * datos y, en pestañas, Incidentes (a quien los ve) e Historial. Un equipo dado de baja lo dice en una franja
- * neutra, con la fecha y el motivo del último cambio, y no ofrece ninguna acción. Las migas de la barra suman
+ * neutra, con la fecha y el motivo del último cambio, y no ofrece ninguna acción (salvo la Hoja de vida imprimible). Las migas de la barra suman
  * el área y el nombre del equipo; ← vuelve un paso, o al área.
  */
 export function EquipmentAssetPage() {
@@ -36,6 +37,7 @@ export function EquipmentAssetPage() {
   const history = useAssetHistory(workspaceId, assetId);
   const areas = useAreas(workspaceId);
   const [sheet, setSheet] = useState<OpenSheet | null>(null);
+  const [printing, setPrinting] = useState(false);
   const timeZone = me.workspace.timeZone;
   const canReport = canOperate && me.permissions.includes('equipment.fault.report');
   // Los incidentes de un equipo los ve quien las reporta o las atiende.
@@ -87,6 +89,7 @@ export function EquipmentAssetPage() {
             labelsTo={`${base}/inventario/area/${data.location.areaId}/etiquetas?${new URLSearchParams({ equipos: data.id })}`}
             timeZone={timeZone}
             onAction={openSheet}
+            onLifeRecord={() => setPrinting(true)}
           />
         </section>
       </WithBack>
@@ -154,6 +157,7 @@ export function EquipmentAssetPage() {
       {sheet?.kind === 'transfer' ? (
         <TransferSheet key={sheet.id} workspaceId={workspaceId} open={sheet.open} onOpenChange={closeSheet} asset={data} />
       ) : null}
+      {printing ? <LifeRecordPrint assetId={data.id} seesFaults={seesFaults} onClose={() => setPrinting(false)} /> : null}
     </div>
   );
 }

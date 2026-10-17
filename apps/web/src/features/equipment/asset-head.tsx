@@ -1,6 +1,6 @@
 import type { Asset } from '@platlab/contracts';
 import { Button, IconTile, Sheet, Tooltip, cn } from '@platlab/ui';
-import { Activity, ArrowLeftRight, Microscope, Pencil, QrCode, TriangleAlert } from 'lucide-react';
+import { Activity, ArrowLeftRight, FileText, Microscope, Pencil, QrCode, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { glassCard, iconAction, primaryAction } from '../../app/glass';
@@ -16,9 +16,9 @@ export type AssetSheet = 'condition' | 'transfer' | 'edit' | 'fault';
  * Membrete de la ficha del equipo, como el del reactivo: la foto del equipo (cuadrada, de
  * 112 a 160 px, entera sobre blanco; al tocarla se abre ampliada en un diálogo) o, sin foto, el cuadro del módulo, y el nombre, con ⟳ «Actualizar»; las pastillas (código en
  * mono, tipo, marca · modelo · serie, alimentación) y, a la derecha, «Cambiar estado» como primaria y los botones
- * redondos «Trasladar equipo», «Reportar incidente», «Etiqueta QR» y «Editar ficha» (el lápiz), cada uno solo con
- * su permiso; la etiqueta, en cambio, la ve quien ve la ficha, también en modo consulta (imprimirla es consultar).
- * Debajo, la franja con todos los datos del equipo. Un equipo dado de baja no ofrece ninguna acción.
+ * redondos «Trasladar equipo», «Reportar incidente», «Etiqueta QR», «Hoja de vida» (el documento) y «Editar ficha» (el lápiz), cada uno solo con
+ * su permiso; la etiqueta y la hoja de vida, en cambio, las ve quien ve la ficha, también en modo consulta (imprimirlas es consultar); la hoja
+ * de vida también con el equipo dado de baja. Debajo, la franja con todos los datos del equipo. Un equipo dado de baja no ofrece ninguna otra acción.
  */
 export function AssetHeader({
   asset,
@@ -30,6 +30,7 @@ export function AssetHeader({
   labelsTo,
   timeZone,
   onAction,
+  onLifeRecord,
 }: {
   asset: Asset;
   canChangeCondition: boolean;
@@ -44,6 +45,8 @@ export function AssetHeader({
   /** La zona del espacio: la garantía y la vida útil se cuentan contra hoy en ella. */
   timeZone: string;
   onAction: (sheet: AssetSheet) => void;
+  /** Abre la Hoja de vida imprimible. */
+  onLifeRecord: () => void;
 }) {
   const retired = asset.condition === 'retired';
   const showCondition = canChangeCondition && !retired;
@@ -91,48 +94,49 @@ export function AssetHeader({
             </div>
           </div>
         </div>
-        {showCondition || showTransfer || showEdit || showFault || showLabel ? (
-          <div className="grid shrink-0 gap-3 lg:w-64">
-            {showCondition ? (
-              <Button variant="primary" className={primaryAction} onClick={() => onAction('condition')}>
-                <Activity aria-hidden />
-                Cambiar estado
-              </Button>
+        <div className="grid shrink-0 gap-3 lg:w-64">
+          {showCondition ? (
+            <Button variant="primary" className={primaryAction} onClick={() => onAction('condition')}>
+              <Activity aria-hidden />
+              Cambiar estado
+            </Button>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {showTransfer ? (
+              <Tooltip label="Trasladar equipo">
+                <Button size="icon" className={iconAction} aria-label="Trasladar equipo" onClick={() => onAction('transfer')}>
+                  <ArrowLeftRight aria-hidden />
+                </Button>
+              </Tooltip>
             ) : null}
-            {showTransfer || showEdit || showFault || showLabel ? (
-              <div className="flex flex-wrap gap-2">
-                {showTransfer ? (
-                  <Tooltip label="Trasladar equipo">
-                    <Button size="icon" className={iconAction} aria-label="Trasladar equipo" onClick={() => onAction('transfer')}>
-                      <ArrowLeftRight aria-hidden />
-                    </Button>
-                  </Tooltip>
-                ) : null}
-                {showFault ? (
-                  <Tooltip label="Reportar incidente">
-                    <Button size="icon" className={iconAction} aria-label="Reportar incidente" onClick={() => onAction('fault')}>
-                      <TriangleAlert aria-hidden />
-                    </Button>
-                  </Tooltip>
-                ) : null}
-                {showLabel ? (
-                  <Tooltip label="Etiqueta QR">
-                    <Button size="icon" className={iconAction} aria-label="Etiqueta QR" onClick={() => void navigate(labelsTo)}>
-                      <QrCode aria-hidden />
-                    </Button>
-                  </Tooltip>
-                ) : null}
-                {showEdit ? (
-                  <Tooltip label="Editar ficha">
-                    <Button size="icon" className={iconAction} aria-label="Editar ficha" onClick={() => onAction('edit')}>
-                      <Pencil aria-hidden />
-                    </Button>
-                  </Tooltip>
-                ) : null}
-              </div>
+            {showFault ? (
+              <Tooltip label="Reportar incidente">
+                <Button size="icon" className={iconAction} aria-label="Reportar incidente" onClick={() => onAction('fault')}>
+                  <TriangleAlert aria-hidden />
+                </Button>
+              </Tooltip>
+            ) : null}
+            {showLabel ? (
+              <Tooltip label="Etiqueta QR">
+                <Button size="icon" className={iconAction} aria-label="Etiqueta QR" onClick={() => void navigate(labelsTo)}>
+                  <QrCode aria-hidden />
+                </Button>
+              </Tooltip>
+            ) : null}
+            <Tooltip label="Hoja de vida">
+              <Button size="icon" className={iconAction} aria-label="Hoja de vida" onClick={onLifeRecord}>
+                <FileText aria-hidden />
+              </Button>
+            </Tooltip>
+            {showEdit ? (
+              <Tooltip label="Editar ficha">
+                <Button size="icon" className={iconAction} aria-label="Editar ficha" onClick={() => onAction('edit')}>
+                  <Pencil aria-hidden />
+                </Button>
+              </Tooltip>
             ) : null}
           </div>
-        ) : null}
+        </div>
       </div>
       <AssetData asset={asset} timeZone={timeZone} />
     </div>

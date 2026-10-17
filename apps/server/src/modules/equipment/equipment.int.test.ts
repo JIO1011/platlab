@@ -232,6 +232,13 @@ describe('condición, traslados e historial', () => {
     expect(history.items.map((event) => event.kind)).toEqual(['transfer', 'condition', 'condition', 'created']);
     expect(history.items[1]).toMatchObject({ from: 'faulted', to: 'operational', result: 'Cambio de fusible; funciona', actor: 'Operador' });
     expect(history.items[0]).toMatchObject({ note: 'A reparación' });
+
+    // La hoja de vida (E-01f) pide hasta 1.000 hechos; `limit` corta desde el más reciente y no pasa de ahí.
+    const latest = assetHistory.parse((await call(lab.operator.subject, `${url}/history?limit=2`)).body);
+    expect(latest.items.map((event) => event.kind)).toEqual(['transfer', 'condition']);
+    expect((await call(lab.operator.subject, `${url}/history?limit=1000`)).status).toBe(200);
+    expect((await call(lab.operator.subject, `${url}/history?limit=1001`)).status).toBe(400);
+    expect((await call(lab.operator.subject, `${url}/history?otro=1`)).status).toBe(400);
   });
 
   it('un traslado a la misma ubicación o a una de otro espacio se rechaza', async () => {

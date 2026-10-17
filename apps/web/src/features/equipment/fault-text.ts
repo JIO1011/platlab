@@ -93,14 +93,18 @@ export function durationText(seconds: number): string {
   return `${decimal.format(shown)} ${shown === 1 ? 'día' : 'días'}`;
 }
 
+/** Lo que tardó un incidente, de reportado a solucionado, en segundos (nunca negativo). */
+export function repairSeconds(reportedAt: string, resolvedAt: string): number {
+  return Math.max(0, (Date.parse(resolvedAt) - Date.parse(reportedAt)) / 1000);
+}
+
 /**
  * El paso en que está el incidente, para su fila, en dos líneas: `when` dice cuándo («Reportado hace 2 h», «En
  * reparación desde hace 1 día», «Solucionado en 3 días · hace 2 días») y `who`, quién lo hizo («Ana»).
  */
 export function faultStepParts(fault: Fault, now: number): { when: string; who: string } {
   if (fault.status === 'resolved' && fault.resolvedAt) {
-    const took = (Date.parse(fault.resolvedAt) - Date.parse(fault.reportedAt)) / 1000;
-    return { when: `Solucionado en ${durationText(Math.max(0, took))} · ${faultAgo(fault.resolvedAt, now)}`, who: personText(fault.resolvedBy) };
+    return { when: `Solucionado en ${durationText(repairSeconds(fault.reportedAt, fault.resolvedAt))} · ${faultAgo(fault.resolvedAt, now)}`, who: personText(fault.resolvedBy) };
   }
   if (fault.status === 'in_progress' && fault.attendedAt) {
     return { when: `En reparación desde ${faultAgo(fault.attendedAt, now)}`, who: personText(fault.attendedBy) };
