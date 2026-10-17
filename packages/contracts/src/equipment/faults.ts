@@ -1,17 +1,18 @@
 import { z } from 'zod';
 import { list, many, page, text } from '../common.js';
 
-/** Reportes de fallas (ADR 0019): la capacidad incidencias con rutas y permisos de Equipos. */
+/** Incidentes, que son las fallas (ADR 0019): la capacidad incidencias con rutas y permisos de Equipos. */
 
 export const faultType = z.enum(['electrical', 'mechanical', 'spare_part', 'other']);
-export const faultStatus = z.enum(['open', 'in_progress', 'resolved', 'closed']);
+/** Reportado → en reparación → solucionado (definitivo). */
+export const faultStatus = z.enum(['open', 'in_progress', 'resolved']);
 
 /** POST /faults: quien reporta dice si el equipo se puede seguir usando; si no, pasa a fuera de servicio. */
 export const reportFaultRequest = z
   .object({ assetId: z.uuid(), faultType, description: text(2000), usable: z.boolean() })
   .strict();
 
-/** POST /faults/:faultId/resolve: el resultado es obligatorio; puede devolver el equipo a operativo. */
+/** POST /faults/:faultId/resolve, «Marcar como solucionado»: qué se hizo es obligatorio; puede devolver el equipo a operativo. */
 export const resolveFaultRequest = z.object({ resolution: text(2000), returnToOperational: z.boolean() }).strict();
 
 export const faultParams = z.object({ workspaceId: z.uuid(), faultId: z.uuid() });
@@ -38,13 +39,11 @@ export const fault = z.object({
   resolution: z.string().nullable(),
   resolvedBy: person,
   resolvedAt: z.string().nullable(),
-  closedBy: person,
-  closedAt: z.string().nullable(),
 });
 
 /**
  * GET /faults: del más reciente al más antiguo. Quien atiende fallas ve todas; quien solo reporta, las
- * suyas. Sin `status`, las que no están cerradas.
+ * suyos. Sin `status`, todos.
  */
 export const faultListQuery = z.object({ ...page, status: many(faultStatus), asset: z.uuid().optional() }).strict();
 export const faultList = list(fault);

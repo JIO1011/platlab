@@ -1,34 +1,39 @@
 import { Button, Drawer, Input, Skeleton, StatePanel, cn } from '@platlab/ui';
 import { Microscope, Plus, Search, SearchX, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { conservationLabel, usefulLifeStateLabel, warrantyStateLabel } from '@platlab/contracts';
 import { useSearchParams } from 'react-router';
 import { toPlaces } from '../../app/places';
 import { QueryErrorState } from '../../app/states';
 import { useMediaQuery, useStoredFlag } from '../../app/use-media-query';
 import { AssetChips, type ActiveFilter } from './asset-chips';
+import { AssetIndicators } from './asset-indicators';
 import { AssetFilterPanel, type AssetGroupId } from './asset-filter-panel';
-import { assetQueryFrom, assetSearch, isFiltered, type AssetQuery } from './asset-filters';
+import { assetQueryFrom, assetSearch, emptyAssetQuery, isFiltered, type AssetQuery } from './asset-filters';
 import { AssetCards, AssetTable } from './asset-list';
-import { assetsText, conditionLabel } from './asset-text';
+import { assetsText, conditionLabel, noResponsibleLabel, NO_RESPONSIBLE } from './asset-text';
 import { useEquipment } from './context';
-import { useAssets, useAssetTypes, useEquipmentLocations } from './queries';
+import { useAssets, useAssetTotals, useAssetTypes, useEquipmentLocations, useResponsibles } from './queries';
 import { SectionHeader } from './section-header';
+import { ReportExport } from './report-export';
 import { RegisterAsset } from './sheets/register-asset';
 
 const panelId = 'filtros-equipos';
 const SEARCH_DELAY_MS = 250;
 
 /**
- * Inventario de equipos (ADR 0019): la tabla (en el móvil, tarjetas apiladas) con buscador y el panel
+ * Informe de equipos (ADR 0019): los indicadores, la tabla (en el móvil, tarjetas apiladas) con buscador y el panel
  * de filtros a la derecha desde 1280 px y en un cajón por debajo. Búsqueda y filtros viven en la URL:
  * cada cifra del Resumen abre exactamente su lista y una vista es un enlace. Se aplican al marcarlos.
  */
-export function EquipmentInventoryPage() {
-  const { workspaceId, base, canManage } = useEquipment();
+export function EquipmentReportPage() {
+  const { workspaceId, base, canManage, canExport } = useEquipment();
   const [params, setParams] = useSearchParams();
   const query = useMemo(() => assetQueryFrom(params), [params]);
   const assets = useAssets(workspaceId, query);
+  const totals = useAssetTotals(workspaceId, query);
   const types = useAssetTypes(workspaceId);
+  const responsibles = useResponsibles(workspaceId);
   const locations = useEquipmentLocations(workspaceId);
   const places = useMemo(() => (locations.data ? toPlaces(locations.data.items) : undefined), [locations.data]);
 
@@ -73,7 +78,7 @@ export function EquipmentInventoryPage() {
   const clearAll = () => {
     window.clearTimeout(timer.current);
     setText('');
-    latest.current = { q: '', conditions: [], types: [], locations: [] };
+    latest.current = emptyAssetQuery;
     setParams(new URLSearchParams(), { replace: true });
   };
   const clearSearch = () => {
@@ -84,11 +89,12 @@ export function EquipmentInventoryPage() {
 
   const typeNames = new Map((types.data?.items ?? []).map((entry) => [entry.id, entry.name]));
   const placeNames = new Map((places ?? []).map((place) => [place.id, place.name]));
+  const responsibleNames = new Map((responsibles.data?.items ?? []).map((member) => [member.id, member.name]));
   const filters: ActiveFilter[] = [
     ...(query.q ? [{ key: 'q', group: 'Búsqueda', label: `«${query.q}»`, onRemove: clearSearch }] : []),
     ...query.conditions.map((condition) => ({
       key: `c-${condition}`,
-      group: 'Condición',
+      group: 'Estado',
       label: conditionLabel[condition],
       onRemove: () => apply({ conditions: query.conditions.filter((entry) => entry !== condition) }),
     })),
@@ -104,8 +110,40 @@ export function EquipmentInventoryPage() {
       label: placeNames.get(id) ?? 'Ubicación',
       onRemove: () => apply({ locations: query.locations.filter((entry) => entry !== id) }),
     })),
+    ...query.responsibles.map((id) => ({
+      key: `r-${id}`,
+      group: 'Responsable',
+      label: id === NO_RESPONSIBLE ? noResponsibleLabel : (responsibleNames.get(id) ?? 'Responsable'),
+      onRemove: () => apply({ responsibles: query.responsibles.filter((entry) => entry !== id) }),
+    })),
+    ...query.conservations.map((value) => ({
+      key: `f-${value}`,
+      group: 'Estado físico',
+      label: value === 'none' ? 'Sin dato' : conservationLabel[value],
+      onRemove: () => apply({ conservations: query.conservations.filter((entry) => entry !== value) }),
+    })),
+    ...query.warranties.map((value) => ({
+      key: `g-${value}`,
+      group: 'Garantía',
+      label: warrantyStateLabel[value],
+      onRemove: () => apply({ warranties: query.warranties.filter((entry) => entry !== value) }),
+    })),
+    ...query.usefulLives.map((value) => ({
+      key: `v-${value}`,
+      group: 'Vida útil',
+      label: usefulLifeStateLabel[value],
+      onRemove: () => apply({ usefulLives: query.usefulLives.filter((entry) => entry !== value) }),
+    })),
   ];
-  const panelGroups = [query.conditions, query.types, query.locations].filter((values) => values.length > 0).length;
+  const panelGroups = [
+    query.conditions,
+    query.types,
+    query.locations,
+    query.responsibles,
+    query.conservations,
+    query.warranties,
+    query.usefulLives,
+  ].filter((values) => values.length > 0).length;
 
   const items = assets.data?.pages.flatMap((page) => page.items) ?? [];
   const hasMore = assets.hasNextPage;
@@ -117,6 +155,7 @@ export function EquipmentInventoryPage() {
     <AssetFilterPanel
       query={query}
       types={types}
+      responsibles={responsibles}
       places={places}
       placesFailed={locations.isError}
       onRetryPlaces={() => void locations.refetch()}
@@ -129,23 +168,13 @@ export function EquipmentInventoryPage() {
   return (
     <>
       <SectionHeader
-        title="Inventario"
+        title="Informe"
         updatedAt={updatedAt}
-        actions={
-          canManage ? (
-            <RegisterAsset>
-              {(open) => (
-                <Button variant="primary" className="h-12 sm:h-10" onClick={open}>
-                  <Plus aria-hidden />
-                  Registrar equipo
-                </Button>
-              )}
-            </RegisterAsset>
-          ) : undefined
-        }
+        actions={canExport ? <ReportExport query={query} assets={assets} filters={filters} /> : undefined}
       />
       <div className={cn('mt-6', showPanel && 'grid grid-cols-[minmax(0,1fr)_18rem] items-start gap-6')}>
         <div className="min-w-0">
+          <AssetIndicators totals={totals} query={query} onApply={apply} onClear={clearAll} />
           <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3">
             <div className="grid w-full gap-1 sm:w-80">
               <div className="relative">
@@ -161,14 +190,10 @@ export function EquipmentInventoryPage() {
               </div>
               {text.trim().length === 1 ? <p className="px-1 text-[13px] text-ink-muted">Escribe al menos 2 letras para buscar.</p> : null}
             </div>
-            {/* `div`, no `p`: el esqueleto es un bloque y un `p` no puede contenerlo. */}
-            <div className="min-w-0 text-sm text-ink-muted" aria-live="polite">
-              {count === undefined ? (
-                <Skeleton className="h-5 w-24" />
-              ) : (
-                <span className="text-base font-bold tabular-nums text-ink">{count}</span>
-              )}
-            </div>
+            {/* La cuenta se ve en el indicador «Equipos»; aquí solo se anuncia al lector de pantalla. */}
+            <p className="sr-only" aria-live="polite">
+              {count ?? ''}
+            </p>
             <Button
               size="sm"
               className="ml-auto h-[44px] sm:h-8"
@@ -197,7 +222,7 @@ export function EquipmentInventoryPage() {
                   <StatePanel
                     icon={SearchX}
                     title="Sin equipos con estos filtros"
-                    description="Cambia o quita algún filtro para ver más del inventario."
+                    description="Cambia o quita algún filtro para ver más equipos."
                     action={
                       <Button size="sm" onClick={clearAll}>
                         Quitar filtros
@@ -210,7 +235,7 @@ export function EquipmentInventoryPage() {
                     title="Aún no hay equipos"
                     description={
                       canManage
-                        ? 'Cuando registres equipos, aparecerán aquí con su condición y su ubicación.'
+                        ? 'Cuando registres equipos, aparecerán aquí con su estado y su ubicación.'
                         : 'Cuando el Administrador registre equipos, aparecerán aquí.'
                     }
                     action={

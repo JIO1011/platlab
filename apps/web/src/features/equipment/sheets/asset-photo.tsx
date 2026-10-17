@@ -1,4 +1,4 @@
-import { Button, cn } from '@platlab/ui';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, cn } from '@platlab/ui';
 import { Camera, ImagePlus, Trash2 } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import { fieldLabel } from '../../../app/filled';
@@ -53,13 +53,12 @@ export function useChosenPhoto() {
   return { chosen, error, busy, choose, clear };
 }
 
-const preview = 'size-24 shrink-0 rounded-2xl';
-
 /**
- * «Foto» (opcional), al inicio de Identificación: «Tomar foto» (en el móvil abre la cámara) y «Elegir foto» (con foto mostrada, «Tomar otra» y «Elegir otra»; siempre disponibles),
- * con una vista previa cuadrada. Al editar, la vista previa parte de la foto del servidor (`currentUrl`);
- * «Quitar» solo descarta la elegida antes de enviar y no borra la del servidor. Los dos campos de archivo
- * están ocultos y se abren desde sus botones, que llevan texto y foco visible.
+ * «Foto» (opcional), junto a Tipo y Nombre: un cuadro pequeño con la foto (o una cámara punteada) que abre un menú con
+ * «Tomar foto» (en el móvil abre la cámara), «Elegir foto» y, con una foto elegida, «Quitar». Con foto mostrada, los verbos
+ * pasan a «Tomar otra» y «Elegir otra». Al editar, el cuadro parte de la foto del servidor (`currentUrl`); «Quitar» solo
+ * descarta la elegida antes de enviar y no borra la del servidor. Los dos campos de archivo están ocultos y se abren desde
+ * el menú.
  */
 export function PhotoField({
   photo,
@@ -84,50 +83,58 @@ export function PhotoField({
   };
 
   return (
-    <div role="group" aria-labelledby={id} className="mb-4 grid gap-1.5">
+    <div role="group" aria-labelledby={id} className="grid min-w-0 content-start gap-1.5">
       <p id={id} className={cn(fieldLabel, 'text-ink')}>
         Foto
         <span className="ml-1 font-normal text-ink-subtle">(opcional)</span>
       </p>
-      <div className="flex items-center gap-4">
-        {shown ? (
-          <img
-            src={shown}
-            alt={chosen ? 'Vista previa de la foto elegida' : 'Foto actual del equipo'}
-            className={cn(preview, 'border border-line object-cover')}
-          />
-        ) : (
-          <span aria-hidden className={cn(preview, 'grid place-items-center border border-dashed border-line-strong bg-white/40 text-ink-subtle')}>
-            <Camera className="size-7" />
-          </span>
-        )}
-        <div className="flex min-w-0 flex-wrap gap-2">
-          <Button
-            className="h-11 rounded-xl"
-            aria-describedby={error ? errorId : undefined}
-            disabled={busy}
-            onClick={() => cameraRef.current?.click()}
-          >
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          disabled={busy}
+          aria-describedby={error ? errorId : undefined}
+          aria-label={shown ? 'Foto del equipo: cambiar' : 'Foto del equipo: agregar'}
+          className={cn(
+            'group relative size-24 overflow-hidden rounded-2xl border text-ink-subtle transition-colors sm:size-32',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-wait',
+            shown ? 'border-line' : 'border-dashed border-line-strong bg-white/40 hover:bg-white/70 hover:text-ink-muted',
+          )}
+        >
+          {shown ? (
+            <>
+              <img
+                src={shown}
+                alt={chosen ? 'Vista previa de la foto elegida' : 'Foto actual del equipo'}
+                className="size-full object-cover"
+              />
+              <span aria-hidden className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-ink/65 py-1 text-xs font-medium text-white">
+                <Camera className="size-3.5" />
+                Cambiar
+              </span>
+            </>
+          ) : (
+            <span aria-hidden className="grid size-full place-content-center justify-items-center gap-1 text-xs font-medium">
+              <Camera className="size-7" />
+              Agregar
+            </span>
+          )}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-52">
+          <DropdownMenuItem onSelect={() => cameraRef.current?.click()}>
             <Camera aria-hidden />
             {shown ? 'Tomar otra' : 'Tomar foto'}
-          </Button>
-          <Button
-            className="h-11 rounded-xl"
-            aria-describedby={error ? errorId : undefined}
-            disabled={busy}
-            onClick={() => pickRef.current?.click()}
-          >
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => pickRef.current?.click()}>
             <ImagePlus aria-hidden />
             {shown ? 'Elegir otra' : 'Elegir foto'}
-          </Button>
+          </DropdownMenuItem>
           {chosen ? (
-            <Button variant="ghost" className="h-11 rounded-xl" disabled={busy} onClick={photo.clear}>
+            <DropdownMenuItem onSelect={photo.clear}>
               <Trash2 aria-hidden />
               Quitar
-            </Button>
+            </DropdownMenuItem>
           ) : null}
-        </div>
-      </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden tabIndex={-1} onChange={onFile} />
       <input ref={pickRef} type="file" accept={pickAccept} hidden tabIndex={-1} onChange={onFile} />
       {busy ? (

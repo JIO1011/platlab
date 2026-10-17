@@ -1,8 +1,8 @@
 import type { AssetCondition, AssetConservation } from '@platlab/contracts';
 import { Button, Field, Select, Skeleton } from '@platlab/ui';
 import { Activity, MapPin, UserRound } from 'lucide-react';
-import { useMemo } from 'react';
-import { Controller } from 'react-hook-form';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import { Controller, useWatch } from 'react-hook-form';
 import { fieldLabel, filled } from '../../../app/filled';
 import { Section } from '../../../app/form-section';
 import { LocationPicker } from '../../../app/location-picker';
@@ -62,6 +62,7 @@ function LocationField({ form, workspaceId, open, canManage }: { form: AssetForm
       canCreate={canManage}
       onCreate={create}
       placeholders={placeholders}
+      initialId={form.getValues('locationId') || undefined}
       error={form.formState.errors.locationId?.message}
       onChange={(placeId) => {
         form.setValue('locationId', placeId);
@@ -72,7 +73,20 @@ function LocationField({ form, workspaceId, open, canManage }: { form: AssetForm
 }
 
 /** «Responsable»: un miembro activo del espacio o «Sin responsable». Quien ya lo era sigue en la lista aunque haya salido. */
-function ResponsibleField({ form, workspaceId, open, current }: { form: AssetFormApi; workspaceId: string; open: boolean; current: { id: string; name: string } | null }) {
+function ResponsibleField({
+  form,
+  workspaceId,
+  open,
+  current,
+  onTouched,
+}: {
+  form: AssetFormApi;
+  workspaceId: string;
+  open: boolean;
+  current: { id: string; name: string } | null;
+  /** La persona eligió el responsable: ya no se propone el encargado del área. */
+  onTouched?: () => void;
+}) {
   const responsibles = useResponsibles(workspaceId, open);
   const items = responsibles.data?.items ?? [];
   const options = [
@@ -92,7 +106,10 @@ function ResponsibleField({ form, workspaceId, open, current }: { form: AssetFor
         render={({ field }) => (
           <Select
             value={field.value}
-            onValueChange={field.onChange}
+            onValueChange={(value) => {
+              onTouched?.();
+              field.onChange(value);
+            }}
             options={options}
             placeholder={responsibles.isPending ? 'Cargando…' : 'Sin responsable'}
             triggerClassName={filled}
@@ -110,7 +127,7 @@ function ConservationField({ form }: { form: AssetFormApi }) {
       name="conservation"
       render={({ field }) => (
         <PillField
-          label="Conservación"
+          label="Estado físico"
           labelClassName={fieldLabel}
           size="sm"
           value={field.value}
@@ -120,6 +137,25 @@ function ConservationField({ form }: { form: AssetFormApi }) {
       )}
     />
   );
+}
+
+/**
+ * Propone como responsable al encargado del área de la ubicación elegida (E-01c) mientras la persona no haya
+ * tocado el campo; sin encargado, o sin ubicación, queda «Sin responsable». Una ubicación recién creada espera a
+ * que la lista de ubicaciones la traiga con su área, y un encargado que no puede ser responsable no se propone.
+ */
+function useAreaManagerPrefill(form: AssetFormApi, workspaceId: string, open: boolean, touched: RefObject<boolean>) {
+  const locations = useEquipmentLocations(workspaceId, open);
+  const responsibles = useResponsibles(workspaceId, open);
+  const locationId = useWatch({ control: form.control, name: 'locationId' });
+  useEffect(() => {
+    if (touched.current || !locations.data || !responsibles.data) return;
+    const items = locations.data.items;
+    const place = items.find((item) => item.id === locationId);
+    if (locationId && !place) return;
+    const managerId = place ? items.find((item) => item.id === place.areaId)?.managerId : undefined;
+    form.setValue('responsibleId', managerId && responsibles.data.items.some((person) => person.id === managerId) ? managerId : NONE);
+  }, [form, locationId, locations.data, responsibles.data, touched]);
 }
 
 /** Alta — «Dónde está y quién responde»: la ubicación por niveles (obligatoria) y el responsable. */
@@ -134,28 +170,39 @@ export function PlaceSection({
   open: boolean;
   canManage: boolean;
 }) {
+  const touched = useRef(false);
+  useAreaManagerPrefill(form, workspaceId, open, touched);
   return (
     <Section icon={MapPin} title="Dónde está y quién responde">
       <div className="grid gap-4">
         <LocationField form={form} workspaceId={workspaceId} open={open} canManage={canManage} />
-        <ResponsibleField form={form} workspaceId={workspaceId} open={open} current={null} />
+        <ResponsibleField
+          form={form}
+          workspaceId={workspaceId}
+          open={open}
+          current={null}
+          onTouched={() => {
+            touched.current = true;
+          }}
+        />
       </div>
     </Section>
   );
 }
 
-/** Alta — «Estado al registrar»: la condición con la que nace (nunca dado de baja) y la conservación. */
+/** Alta — «Estado al registrar»: el estado con el que nace (nunca dado de baja) y el estado físico, en pastillas cortas. */
 export function StatusSection({ form }: { form: AssetFormApi }) {
   return (
     <Section icon={Activity} title="Estado al registrar">
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         <Controller
           control={form.control}
           name="condition"
           render={({ field }) => (
             <PillField
-              label="Condición"
+              label="Estado"
               labelClassName={fieldLabel}
+              size="sm"
               value={field.value}
               options={conditions.map((entry) => ({ value: entry, label: conditionLabel[entry] }))}
               onChange={field.onChange}
@@ -169,8 +216,8 @@ export function StatusSection({ form }: { form: AssetFormApi }) {
 }
 
 /**
- * Edición — «Responsable y conservación». La ubicación y la condición no se cambian aquí: tienen su hoja
- * («Trasladar equipo», «Cambiar condición») y dejan huella en el historial.
+ * Edición — «Responsable y estado físico». La ubicación y el estado no se cambian aquí: tienen su hoja
+ * («Trasladar equipo», «Cambiar estado») y dejan huella en el historial.
  */
 export function OwnerSection({
   form,
@@ -184,7 +231,7 @@ export function OwnerSection({
   responsible: { id: string; name: string } | null;
 }) {
   return (
-    <Section icon={UserRound} title="Responsable y conservación">
+    <Section icon={UserRound} title="Responsable y estado físico">
       <div className="grid gap-4">
         <ResponsibleField form={form} workspaceId={workspaceId} open={open} current={responsible} />
         <ConservationField form={form} />

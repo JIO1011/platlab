@@ -4,14 +4,13 @@ import {
   ArrowLeft,
   Boxes,
   Check,
-  ChevronRight,
   ChevronsUpDown,
   House,
   LayoutDashboard,
   LogOut,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router';
 import type { WorkspaceSummary } from '@platlab/contracts';
 import { Wordmark } from './brand';
@@ -19,6 +18,7 @@ import { rememberWorkspace } from './last-workspace';
 import { webModule } from './modules';
 import { useMyWorkspaces, useWorkspaceMe } from './queries';
 import { useSession } from './session';
+import { ShellCrumbs, ShellTrailContext, type TrailStep } from './shell-trail';
 import { PageLoading, QueryErrorState } from './states';
 
 export interface ShellContext {
@@ -285,6 +285,8 @@ export function AppShell() {
   const workspaces = useMyWorkspaces();
   const { session, signOut } = useSession();
   const pills = useRef<HTMLElement>(null);
+  // Los pasos que la página abierta suma a las migas de la barra (`useShellTrail`).
+  const [trail, setTrail] = useState<TrailStep[]>([]);
   const base = `/e/${workspaceId}`;
   const segment = pathname.slice(base.length + 1).split('/')[0] ?? '';
   const moduleCode = me.data ? moduleApps(me.data).find((entry) => entry.path === segment)?.code : undefined;
@@ -430,16 +432,16 @@ export function AppShell() {
                 <Wordmark compact />
               </Link>
             )}
-            {/* En escritorio, la barra dice dónde se está: módulo › sección. */}
-            <p className="hidden min-w-0 items-center gap-1.5 text-sm md:flex">
-              <span className="font-semibold text-ink">{app ? app.name : 'Inicio'}</span>
-              {section ? (
-                <>
-                  <ChevronRight className="size-4 shrink-0 text-ink-subtle" aria-hidden />
-                  <span className="truncate text-ink-muted">{section.label}</span>
-                </>
-              ) : null}
-            </p>
+            {/* En escritorio, la barra dice dónde se está: módulo › sección › lo que la página sume. */}
+            <ShellCrumbs
+              module={app ? app.name : 'Inicio'}
+              section={
+                section && app
+                  ? { label: section.label, to: section.path ? `${base}/${app.path}/${section.path}` : `${base}/${app.path}` }
+                  : undefined
+              }
+              trail={trail}
+            />
             <div className="ml-auto flex shrink-0 items-center gap-2">
               {/* En escritorio, la persona, sus espacios y «Salir» viven en la barra lateral. */}
               <AccountMenu me={me.data} workspaces={workspaceList} initials={initials} onSignOut={() => void signOut()} />
@@ -462,7 +464,9 @@ export function AppShell() {
           ) : null}
         </header>
         <main className="px-4 pb-16 pt-6 md:px-8 md:pb-8 md:pt-8">
-          <Outlet context={{ workspaceId, me: me.data } satisfies ShellContext} />
+          <ShellTrailContext value={setTrail}>
+            <Outlet context={{ workspaceId, me: me.data } satisfies ShellContext} />
+          </ShellTrailContext>
         </main>
       </div>
     </div>

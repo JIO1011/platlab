@@ -1,4 +1,4 @@
-import { List, Microscope, TriangleAlert } from 'lucide-react';
+import { LayoutGrid, List, Microscope, TriangleAlert } from 'lucide-react';
 import type { WebModule } from '../../app/web-module';
 import { pendingFaultsText } from './fault-text';
 
@@ -27,7 +27,7 @@ export const equipmentWebModule: WebModule = {
   code: 'equipment',
   Icon: Microscope,
   Mark: MicroscopeMark,
-  sectionIcons: { inventario: List, reportes: TriangleAlert },
+  sectionIcons: { inventario: LayoutGrid, informe: List, incidentes: TriangleAlert },
   home: {
     counters: [
       { key: 'assets', label: (n) => (n === 1 ? 'equipo' : 'equipos') },

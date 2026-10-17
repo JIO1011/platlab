@@ -159,8 +159,10 @@ RETURNING id;
 -- Primero la página, del índice assets_code (espacio y código en minúsculas, que también es el
 -- cursor), y después, solo para sus filas, tipo, ubicación con sus niveles y responsable. Con
 -- :assetId, la ficha de un equipo (también dado de baja). Sin :conditions, los dados de baja no
--- aparecen. :locationIds incluye sus niveles inferiores. :q busca en search_text, plegado al
--- escribir; `\`, `%` y `_` se escapan con `\` (chr(92), porque PgTyped no admite `\` en un literal).
+-- aparecen. :locationIds incluye sus niveles inferiores. Responsable y estado físico admiten «sin dato»
+-- (:withoutResponsible, :withoutConservation); garantía y vida útil se miden a :today (E-01c). :q busca en
+-- search_text, plegado al escribir; `\`, `%` y `_` se escapan con `\` (chr(92), porque PgTyped no admite
+-- `\` en un literal). assetTotals repite estos filtros: un cambio aquí va también allí.
 WITH RECURSIVE search AS (
   SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),
            chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
@@ -186,6 +188,16 @@ WITH RECURSIVE search AS (
               ELSE a.condition = ANY (:conditions::text[]) END)
     AND (:typeIds::uuid[] IS NULL OR a.type_id = ANY (:typeIds::uuid[]))
     AND (:locationIds::uuid[] IS NULL OR a.location_id IN (SELECT id FROM scope))
+    AND (:responsibleIds::uuid[] IS NULL AND NOT coalesce(:withoutResponsible::boolean, false)
+         OR a.responsible_principal_id = ANY (:responsibleIds::uuid[])
+         OR (coalesce(:withoutResponsible::boolean, false) AND a.responsible_principal_id IS NULL))
+    AND (:conservations::text[] IS NULL AND NOT coalesce(:withoutConservation::boolean, false)
+         OR a.conservation = ANY (:conservations::text[])
+         OR (coalesce(:withoutConservation::boolean, false) AND a.conservation IS NULL))
+    AND (:warranties::text[] IS NULL
+         OR equipment.warranty_state(a.warranty_until, :today::date, :warrantyHorizon::date) = ANY (:warranties::text[]))
+    AND (:usefulLives::text[] IS NULL
+         OR equipment.useful_life_state(a.acquired_on, a.useful_life_years, :today::date) = ANY (:usefulLives::text[]))
     AND (search.pattern IS NULL OR a.search_text LIKE search.pattern)
     AND (:afterCode::text IS NULL OR lower(a.code) > :afterCode::text)
   ORDER BY lower(a.code)
@@ -221,6 +233,7 @@ SELECT
   loc.code AS location_code,
   loc.name AS location_name,
   paths.path AS "location_path!",
+  area.area_id AS "location_area_id!",
   p.responsible_principal_id,
   ident.display_name AS "responsible_name?",
   p.condition,
@@ -238,14 +251,65 @@ FROM page AS p
 JOIN equipment.asset_types AS t ON t.workspace_id = :workspaceId! AND t.id = p.type_id
 JOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = p.location_id
 JOIN paths ON paths.location_id = p.location_id
+JOIN core.location_areas AS area ON area.workspace_id = :workspaceId! AND area.location_id = p.location_id
 LEFT JOIN core.principals AS pr ON pr.workspace_id = :workspaceId! AND pr.id = p.responsible_principal_id
 LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
 LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
 LEFT JOIN equipment.asset_photos AS photo ON photo.workspace_id = :workspaceId! AND photo.id = p.photo_id
 ORDER BY lower(p.code);
 
+/* @name insertConservationChange */
+-- El estado físico cambiado desde la ficha queda en el historial (E-01c); nulo es «sin dato».
+INSERT INTO equipment.conservation_changes (workspace_id, asset_id, from_conservation, to_conservation, actor_principal_id)
+VALUES (:workspaceId!, :assetId!, :fromConservation, :toConservation, :actorId!);
+
+/* @name assetTotals */
+-- Indicadores del Informe (E-01c) con los mismos filtros que listAssets, sin paginar: cuántos equipos,
+-- su valor de reposición sumado (exacto), sin responsable, con la garantía por vencer y con la vida útil
+-- cumplida a :today.
+WITH RECURSIVE search AS (
+  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),
+           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
+), scope AS (
+  SELECT l.id
+  FROM core.locations AS l
+  WHERE l.workspace_id = :workspaceId! AND l.id = ANY (:locationIds::uuid[])
+  UNION
+  SELECT child.id
+  FROM core.locations AS child
+  JOIN scope ON child.parent_id = scope.id
+  WHERE child.workspace_id = :workspaceId!
+)
+SELECT count(*)::integer AS "count!",
+       trim_scale(coalesce(sum(a.replacement_value), 0))::text AS "replacement_value!",
+       count(*) FILTER (WHERE a.responsible_principal_id IS NULL)::integer AS "without_responsible!",
+       count(*) FILTER (
+         WHERE equipment.warranty_state(a.warranty_until, :today::date, :warrantyHorizon::date) = 'expiring'
+       )::integer AS "warranty_expiring!",
+       count(*) FILTER (
+         WHERE equipment.useful_life_state(a.acquired_on, a.useful_life_years, :today::date) = 'reached'
+       )::integer AS "useful_life_reached!"
+FROM equipment.assets AS a
+CROSS JOIN search
+WHERE a.workspace_id = :workspaceId!
+    AND (CASE WHEN :conditions::text[] IS NULL THEN a.condition <> 'retired'
+              ELSE a.condition = ANY (:conditions::text[]) END)
+    AND (:typeIds::uuid[] IS NULL OR a.type_id = ANY (:typeIds::uuid[]))
+    AND (:locationIds::uuid[] IS NULL OR a.location_id IN (SELECT id FROM scope))
+    AND (:responsibleIds::uuid[] IS NULL AND NOT coalesce(:withoutResponsible::boolean, false)
+         OR a.responsible_principal_id = ANY (:responsibleIds::uuid[])
+         OR (coalesce(:withoutResponsible::boolean, false) AND a.responsible_principal_id IS NULL))
+    AND (:conservations::text[] IS NULL AND NOT coalesce(:withoutConservation::boolean, false)
+         OR a.conservation = ANY (:conservations::text[])
+         OR (coalesce(:withoutConservation::boolean, false) AND a.conservation IS NULL))
+    AND (:warranties::text[] IS NULL
+         OR equipment.warranty_state(a.warranty_until, :today::date, :warrantyHorizon::date) = ANY (:warranties::text[]))
+    AND (:usefulLives::text[] IS NULL
+         OR equipment.useful_life_state(a.acquired_on, a.useful_life_years, :today::date) = ANY (:usefulLives::text[]))
+    AND (search.pattern IS NULL OR a.search_text LIKE search.pattern);
+
 /* @name listAssetHistory */
--- Alta, cambios de condición y traslados de un equipo, del más reciente al más antiguo: primero los
+-- Alta, cambios de estado y de estado físico, y traslados de un equipo, del más reciente al más antiguo: primero los
 -- últimos :limit hechos (índices por equipo y fecha) y después, solo para ellos, quién actuó.
 WITH events AS (
   SELECT 'created' AS kind, a.created_at AS occurred_at, a.created_by_principal_id AS actor_id,
@@ -260,6 +324,11 @@ WITH events AS (
          c.result, NULL, c.id, 0
   FROM equipment.condition_changes AS c
   WHERE c.workspace_id = :workspaceId! AND c.asset_id = :assetId!
+  UNION ALL
+  SELECT 'conservation', k.occurred_at, k.actor_principal_id, k.from_conservation, k.to_conservation, NULL, NULL,
+         NULL, k.id, 0
+  FROM equipment.conservation_changes AS k
+  WHERE k.workspace_id = :workspaceId! AND k.asset_id = :assetId!
   UNION ALL
   SELECT 'transfer', t.occurred_at, t.actor_principal_id, origin.name, target.name, NULL, NULL, t.note, t.id, 0
   FROM equipment.location_changes AS t

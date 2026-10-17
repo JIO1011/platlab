@@ -1,5 +1,5 @@
 import { newAsset, updateAssetRequest, type Asset } from '@platlab/contracts';
-import { toast } from '@platlab/ui';
+import { cn, toast } from '@platlab/ui';
 import { Microscope, Pencil } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -28,7 +28,7 @@ const hasPurchaseData = (asset: Asset) =>
 /**
  * «Registrar equipo» y «Editar ficha» (ADR 0019, E-01a): la misma hoja en dos modos. Al registrar pide la
  * identificación, dónde está y quién responde, el estado con el que nace y, opcional y plegada, la compra y
- * la garantía; al editar (con `asset`) parte de la ficha, no ofrece ubicación ni condición (tienen su hoja) y
+ * la garantía, en una sola vista a 1440×900 (Compra y garantía plegada); al editar (con `asset`) parte de la ficha, no ofrece ubicación ni estado (tienen su hoja) y
  * envía solo lo que cambió, con vacío como «borrar el dato». El servidor numera el código si se deja vacío
  * y decide los conflictos; la ventana no anticipa nada y avisa después de que él confirmó.
  */
@@ -39,12 +39,15 @@ export function AssetFormSheet({
   base,
   canManage,
   asset,
+  initialLocationId,
 }: SheetBaseProps & {
   /** `/e/:espacio/equipos`, para llevar a la ficha recién registrada. */
   base: string;
   canManage: boolean;
   /** Con ficha, edita; sin ella, registra. */
   asset?: Asset;
+  /** Al registrar desde un área: la ubicación con la que abre la hoja. */
+  initialLocationId?: string | undefined;
 }) {
   const navigate = useNavigate();
   const create = useCreateAsset(workspaceId);
@@ -55,7 +58,7 @@ export function AssetFormSheet({
   const types = useAssetTypes(workspaceId);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const [initial] = useState<AssetForm>(() => (asset ? formOfAsset(asset) : emptyForm));
+  const [initial] = useState<AssetForm>(() => (asset ? formOfAsset(asset) : { ...emptyForm, locationId: initialLocationId ?? '' }));
   const [saved] = useState(() => normalizeForm(initial).fields);
   const form = useForm<AssetForm>({ defaultValues: initial });
   const editing = asset !== undefined;
@@ -163,7 +166,7 @@ export function AssetFormSheet({
       wide="xl"
       icon={editing ? Pencil : Microscope}
       title={editing ? 'Editar ficha' : 'Registrar equipo'}
-      description={editing ? 'La ubicación y la condición se cambian con «Trasladar equipo» y «Cambiar condición».' : '* Campos obligatorios'}
+      description={editing ? 'La ubicación y el estado se cambian con «Trasladar equipo» y «Cambiar estado».' : '* Campos obligatorios'}
       open={open}
       onOpenChange={onOpenChange}
       submitLabel={editing ? 'Guardar cambios' : 'Registrar equipo'}
@@ -173,22 +176,22 @@ export function AssetFormSheet({
       generalError={generalError}
       onSubmit={() => void submit()}
     >
-      <div ref={bodyRef} className="grid gap-5 px-3 py-4 sm:px-5 sm:py-5 lg:grid-cols-2 lg:items-start">
+      <div ref={bodyRef} className={cn('grid gap-4 px-3 py-4 sm:px-5 sm:py-5 lg:grid-cols-2 lg:gap-5', editing && 'lg:items-start')}>
         <IdentitySection
           form={form}
           workspaceId={workspaceId}
           canManage={canManage}
           creating={!editing}
-          tall={!editing}
           photo={<PhotoField photo={photo} currentUrl={asset?.photoUrl ?? null} />}
         />
         {asset ? (
           <OwnerSection form={form} workspaceId={workspaceId} open={open} responsible={asset.responsible} />
         ) : (
-          <>
+          // La columna derecha del alta: la ubicación y el responsable, y debajo el estado, sin hueco entre ellos.
+          <div className="grid content-start gap-4 lg:gap-5">
             <PlaceSection form={form} workspaceId={workspaceId} open={open} canManage={canManage} />
             <StatusSection form={form} />
-          </>
+          </div>
         )}
         <PurchaseSection form={form} startOpen={asset ? hasPurchaseData(asset) : false} />
       </div>

@@ -3,7 +3,7 @@ import { MapPin, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Combobox, type ComboOption } from './combobox';
 import { fieldLabel } from './filled';
-import { childrenOf, levelOneParent, recentFirst, type Place } from './places';
+import { childrenOf, levelOneParent, pathTo, recentFirst, type Place } from './places';
 
 const LEVELS = 3;
 const defaultPlaceholders = ['Laboratorio o bodega', 'Estante o armario', 'Nivel o repisa (opcional)'];
@@ -27,6 +27,7 @@ export function LocationPicker({
   error,
   className,
   placeholders = defaultPlaceholders,
+  initialId,
 }: {
   places: Place[];
   recentIds: string[];
@@ -39,11 +40,16 @@ export function LocationPicker({
   className?: string;
   /** Texto guía de los tres niveles; por omisión, el de un almacén de reactivos. */
   placeholders?: readonly string[];
+  /** Ubicación con la que arranca, ya elegida con sus niveles (el alta desde un área). */
+  initialId?: string | undefined;
 }) {
   const id = useId();
   const errorId = `${id}-error`;
   const rootId = levelOneParent(places);
-  const [chosen, setChosen] = useState<Array<{ id: string; name: string }>>([]);
+  const [chosen, setChosen] = useState<Array<{ id: string; name: string }>>(() => {
+    const path = initialId ? pathTo(places, initialId) : [];
+    return path.length <= LEVELS ? path.map(({ id: placeId, name }) => ({ id: placeId, name })) : [];
+  });
   const [text, setText] = useState('');
   const [creating, setCreating] = useState(false);
   const [focusLevel, setFocusLevel] = useState<number | null>(null);

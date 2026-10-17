@@ -1,11 +1,15 @@
+import { PassThrough } from 'node:stream';
 import type { FastifyPluginAsync } from 'fastify';
 import type pg from 'pg';
 import {
+  areaParams,
   ASSET_PHOTO_MAX_BYTES,
+  assetFilterQuery,
   assetListQuery,
   assetParams,
   assetPhotoTypes,
   assetTypeParams,
+  assignAreaManagerRequest,
   conditionChangeRequest,
   createAssetTypeRequest,
   createLocationRequest,
@@ -18,8 +22,10 @@ import {
   transferAssetRequest,
   updateAssetRequest,
 } from '@platlab/contracts';
+import { XLSX_TYPE } from '../../../platform/export/xlsx.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
+import { listAreas, listTypesOfArea, setAreaManager } from '../application/areas.js';
 import {
   archiveAssetType,
   createAsset,
@@ -30,6 +36,7 @@ import {
 import {
   getAsset,
   getAssetHistory,
+  getAssetTotals,
   getSummary,
   listAssets,
   listLocations,
@@ -38,13 +45,13 @@ import {
 } from '../application/queries.js';
 import {
   attendFault,
-  closeFault,
   getFault,
   listFaults,
   listReportableAssets,
   reportFault,
   resolveFault,
 } from '../application/faults.js';
+import { exportAssets } from '../application/export.js';
 import { uploadAssetPhoto } from '../application/photo.js';
 import { changeCondition, transferAsset } from '../application/status.js';
 
@@ -73,6 +80,26 @@ export function equipmentRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFi
     );
 
     app.get('/assets', async (request) => listAssets(pool, queryRequest(request), assetListQuery.parse(request.query)));
+
+    // Indicadores del Informe (E-01c): con los mismos filtros.
+    app.get('/assets/totals', async (request) => getAssetTotals(pool, queryRequest(request), assetFilterQuery.parse(request.query)));
+
+    // Excel del Informe (ADR 0017): sale por partes mientras se lee. Un rechazo antes de empezar responde
+    // con su error; un fallo a mitad corta la descarga, que queda incompleta, y la transacción se revierte.
+    app.get('/assets/export', async (request, reply) => {
+      const filters = assetFilterQuery.parse(request.query);
+      const body = new PassThrough();
+      try {
+        await exportAssets(pool, queryRequest(request), filters, (fileName) => {
+          void reply.type(XLSX_TYPE).header('content-disposition', `attachment; filename="${fileName}"`).send(body);
+          return body;
+        });
+      } catch (error) {
+        if (!reply.sent) throw error;
+        body.destroy(error instanceof Error ? error : new Error(String(error)));
+      }
+      return reply;
+    });
 
     app.post('/assets', async (request, reply) => {
       const input = newAsset.parse(request.body);
@@ -109,7 +136,7 @@ export function equipmentRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFi
       return reply.status(201).send(await transferAsset(pool, commandRequest(request), assetId, input));
     });
 
-    // Reportes de fallas (ADR 0019): todos reportan; atender, resolver y cerrar resuelve un pendiente.
+    // Incidentes, que son las fallas (ADR 0019): todos reportan; empezar la reparación y solucionar resuelven un pendiente.
     app.get('/faults', async (request) => listFaults(pool, queryRequest(request), faultListQuery.parse(request.query)));
 
     app.get('/faults/assets', async (request) =>
@@ -131,11 +158,18 @@ export function equipmentRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFi
       resolveFault(pool, commandRequest(request), faultParams.parse(request.params).faultId, resolveFaultRequest.parse(request.body)),
     );
 
-    app.post('/faults/:faultId/close', async (request) =>
-      closeFault(pool, commandRequest(request), faultParams.parse(request.params).faultId),
+    app.get('/responsibles', async (request) => listResponsibles(pool, queryRequest(request)));
+
+    // Inventario por áreas (E-01c): el área es una ubicación de Core; su encargado lo asigna el Administrador.
+    app.get('/areas', async (request) => listAreas(pool, queryRequest(request)));
+
+    app.get('/areas/:areaId/types', async (request) =>
+      listTypesOfArea(pool, queryRequest(request), areaParams.parse(request.params).areaId),
     );
 
-    app.get('/responsibles', async (request) => listResponsibles(pool, queryRequest(request)));
+    app.put('/areas/:areaId/manager', async (request) =>
+      setAreaManager(pool, commandRequest(request), areaParams.parse(request.params).areaId, assignAreaManagerRequest.parse(request.body)),
+    );
 
     // Ubicaciones de Core (ADR 0015): las mismas de Reactivos; se crean con el permiso de catálogo.
     app.get('/locations', async (request) => listLocations(pool, queryRequest(request)));

@@ -188,7 +188,7 @@ export function hasPendingChanges(saved: AssetFields, next: { fields: AssetField
   return photoChosen || Object.keys(changedFields(saved, next.fields)).length > 0 || Object.keys(next.errors).length > 0;
 }
 
-/** El cuerpo del alta: sin lo que quedó vacío (el servidor propone el código) y con ubicación y condición. */
+/** El cuerpo del alta: sin lo que quedó vacío (el servidor propone el código) y con ubicación y estado. */
 export function createPayload(fields: AssetFields, placement: { locationId: string; condition: AssetForm['condition'] }) {
   const { code, ...rest } = fields;
   const filled = Object.fromEntries(Object.entries(rest).filter(([, value]) => value !== null));

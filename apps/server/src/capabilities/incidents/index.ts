@@ -4,7 +4,6 @@
  */
 export {
   attendFault,
-  closeFault,
   lockFault,
   reportCase,
   resolveFault,

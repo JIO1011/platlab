@@ -146,7 +146,7 @@ function AssetPicker({
 }
 
 /**
- * «Reportar falla» (ADR 0019): el equipo (buscado por código o nombre, o ya elegido desde su ficha), el
+ * «Reportar incidente» (ADR 0019): el equipo (buscado por código o nombre, o ya elegido desde su ficha), el
  * tipo, qué pasa y si el equipo se puede seguir usando; si no, pasa a Fuera de servicio. Elegir si se
  * puede usar es obligatorio: no hay respuesta por omisión sobre algo que decide la disponibilidad.
  */
@@ -167,7 +167,7 @@ export function ReportFaultSheet({
     setGeneralError(null);
     let invalid = false;
     if (!chosen) {
-      form.setError('assetId', { message: 'Elige el equipo con la falla.' });
+      form.setError('assetId', { message: 'Elige el equipo con el incidente.' });
       invalid = true;
     }
     if (!values.faultType) {
@@ -191,7 +191,7 @@ export function ReportFaultSheet({
     if (!payload) return;
     try {
       await command.mutateAsync(payload);
-      toast.success('Falla reportada', {
+      toast.success('Incidente reportado', {
         description: payload.usable ? `${chosen.name} sigue disponible.` : `${chosen.name} pasó a Fuera de servicio.`,
       });
       onOpenChange(false);
@@ -203,11 +203,11 @@ export function ReportFaultSheet({
   return (
     <FormSheet
       icon={TriangleAlert}
-      title="Reportar falla"
-      description="Quien atiende los equipos la verá enseguida. Puedes seguir su estado en tus reportes."
+      title="Reportar incidente"
+      description="Quien atiende los equipos lo verá enseguida. Puedes seguir su estado en tus incidentes."
       open={open}
       onOpenChange={onOpenChange}
-      submitLabel="Reportar falla"
+      submitLabel="Reportar incidente"
       pending={command.isPending}
       generalError={generalError}
       onSubmit={() => void submit()}

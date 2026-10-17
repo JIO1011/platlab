@@ -3,7 +3,6 @@ import type { z } from 'zod';
 import type { Fault, FaultList, faultListQuery, reportFaultRequest, ReportableAssetList, resolveFaultRequest } from '@platlab/contracts';
 import {
   attendFault as attendCase,
-  closeFault as closeCase,
   lockFault,
   reportCase,
   resolveFault as resolveCase,
@@ -62,8 +61,6 @@ const toFault = (row: IListFaultsResult): Fault => ({
   resolution: row.resolution,
   resolvedBy: row.resolved_by_name ? { name: row.resolved_by_name } : null,
   resolvedAt: row.resolved_at?.toISOString() ?? null,
-  closedBy: row.closed_by_name ? { name: row.closed_by_name } : null,
-  closedAt: row.closed_at?.toISOString() ?? null,
 });
 
 /** Una falla dentro del alcance de la persona; NOT_FOUND fuera de él. */
@@ -192,26 +189,7 @@ export function resolveFault(
   );
 }
 
-/** Resuelta → cerrada, definitiva. */
-export function closeFault(pool: pg.Pool, request: CommandRequest, faultId: string): Promise<Fault> {
-  return runCommand(
-    pool,
-    request,
-    'equipment.fault.close',
-    { faultId },
-    requires(FAULT_MANAGE),
-    async (access) => {
-      const ctx = incidents(access);
-      await lockFault(ctx, faultId);
-      await closeCase(ctx, faultId);
-      await recordAudit(access, { action: 'equipment.fault.close', entityType: 'incidents.case', entityId: faultId, changes: { status: 'closed' } });
-      return faultById(access, faultId);
-    },
-    'resolve_pending',
-  );
-}
-
-/** Reportes (ADR 0019): del más reciente al más antiguo, dentro del alcance de la persona. */
+/** Incidentes (ADR 0019): del más reciente al más antiguo, dentro del alcance de la persona. */
 export function listFaults(pool: pg.Pool, request: QueryRequest, query: z.infer<typeof faultListQuery>): Promise<FaultList> {
   return runReporterQuery(pool, request, async (access) => {
     const after = decodeCursor(query.cursor, 2);

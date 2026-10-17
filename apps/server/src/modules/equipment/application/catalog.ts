@@ -20,10 +20,11 @@ import {
   assetCodesLike,
   assetCodeTaken,
   assetReferences,
+  type IAssetReferencesParams,
   insertAsset,
   insertAssetType,
+  insertConservationChange,
   updateAssetFields,
-  type IAssetReferencesParams,
 } from '../infrastructure/assets.queries.js';
 import { CATALOG, lockActiveAsset, runCommand } from './command.js';
 import { assetById } from './queries.js';
@@ -187,6 +188,19 @@ export function updateAsset(
       if (taken) throw codeTaken(taken.code);
     }
     await updateAssetFields.run({ ...after, workspaceId: access.workspace.id, assetId }, access.client);
+    // El estado físico es una dimensión del estado (ADR 0019): su cambio se ve en el historial.
+    if (after.conservation !== before.conservation) {
+      await insertConservationChange.run(
+        {
+          workspaceId: access.workspace.id,
+          assetId,
+          fromConservation: before.conservation,
+          toConservation: after.conservation,
+          actorId: access.principalId,
+        },
+        access.client,
+      );
+    }
     const changes = Object.fromEntries(
       (Object.keys(before) as Array<keyof typeof before>)
         .filter((field) => before[field] !== after[field])

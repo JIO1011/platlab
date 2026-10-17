@@ -1,11 +1,11 @@
-import type { AssetEvent, AssetHistory as AssetHistoryData } from '@platlab/contracts';
+import type { AssetConservation, AssetEvent, AssetHistory as AssetHistoryData } from '@platlab/contracts';
 import { Skeleton, StatePanel } from '@platlab/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { Activity, ArrowLeftRight, ArrowRight, CirclePlus, History, type LucideIcon } from 'lucide-react';
+import { Activity, ArrowLeftRight, ArrowRight, CirclePlus, History, ShieldCheck, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { formatDateTime, formatShortDateTime } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
-import { conditionLabel } from './asset-text';
+import { conditionLabel, conservationLabel } from './asset-text';
 
 /** «Antes → después», con el icono dibujado y la palabra «a» para quien lee con lector de pantalla. */
 function FromTo({ from, to }: { from: string; to: string }) {
@@ -27,6 +27,9 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** El estado físico de un hecho del historial; sin dato, «Sin dato». */
+const conservationText = (value: AssetConservation | null) => (value ? conservationLabel[value] : 'Sin dato');
+
 /** Lo que dice cada hecho del historial: el título, su icono y las líneas que lo explican. */
 function describe(event: AssetEvent): { icon: LucideIcon; title: ReactNode; details: ReactNode } {
   if (event.kind === 'created') {
@@ -44,6 +47,17 @@ function describe(event: AssetEvent): { icon: LucideIcon; title: ReactNode; deta
       ),
     };
   }
+  if (event.kind === 'conservation') {
+    return {
+      icon: ShieldCheck,
+      title: (
+        <>
+          Estado físico: <FromTo from={conservationText(event.from)} to={conservationText(event.to)} />
+        </>
+      ),
+      details: null,
+    };
+  }
   return {
     icon: ArrowLeftRight,
     title: <FromTo from={event.from} to={event.to} />,
@@ -52,8 +66,8 @@ function describe(event: AssetEvent): { icon: LucideIcon; title: ReactNode; deta
 }
 
 /**
- * Pestaña «Historial»: una línea de tiempo con el alta, cada cambio de condición (con su motivo y su resultado)
- * y cada traslado (con su nota), del más reciente al más antiguo; quién y cuándo, en la zona del espacio.
+ * Pestaña «Historial»: una línea de tiempo con el alta, cada cambio de estado (con su motivo y su resultado),
+ * cada cambio de estado físico y cada traslado (con su nota), del más reciente al más antiguo; quién y cuándo, en la zona del espacio.
  */
 export function AssetHistory({ history, timeZone }: { history: UseQueryResult<AssetHistoryData>; timeZone: string }) {
   return (
@@ -65,7 +79,7 @@ export function AssetHistory({ history, timeZone }: { history: UseQueryResult<As
       ) : history.isError ? (
         <QueryErrorState error={history.error} onRetry={() => void history.refetch()} />
       ) : history.data.items.length === 0 ? (
-        <StatePanel icon={History} title="Sin historial" description="El alta, los cambios de condición y los traslados quedarán aquí." />
+        <StatePanel icon={History} title="Sin historial" description="El alta, los cambios de estado y los traslados quedarán aquí." />
       ) : (
         // Línea de tiempo, como en el Resumen: el hilo pasa por detrás de los círculos de icono.
         <ol className="relative space-y-6 before:absolute before:bottom-5 before:left-5 before:top-5 before:w-0.5 before:bg-line">

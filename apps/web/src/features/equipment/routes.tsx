@@ -15,11 +15,15 @@ export const equipmentRoutes: ModuleRoutes = {
       lazy: async () => ({ Component: (await pages()).EquipmentLayout }),
       children: [
         { index: true, lazy: async () => ({ Component: (await pages()).EquipmentSummaryPage }) },
-        { path: 'inventario', lazy: async () => ({ Component: (await pages()).EquipmentInventoryPage }) },
-        // Fallas reportadas; la hoja de una falla se abre con `?falla=`.
-        { path: 'reportes', lazy: async () => ({ Component: (await pages()).EquipmentFaultsPage }) },
-        // Ficha del equipo, segundo nivel del inventario.
+        // Inventario por áreas (E-01c): las tarjetas y, dentro de un área, sus equipos.
+        { path: 'inventario', lazy: async () => ({ Component: (await pages()).EquipmentAreasPage }) },
+        { path: 'inventario/area/:areaId', lazy: async () => ({ Component: (await pages()).EquipmentAreaPage }) },
+        // Ficha del equipo: se abre desde el Inventario, el Informe, el Resumen y los incidentes.
         { path: 'inventario/:assetId', lazy: async () => ({ Component: (await pages()).EquipmentAssetPage }) },
+        // La tabla con filtros que se imprime y se exporta.
+        { path: 'informe', lazy: async () => ({ Component: (await pages()).EquipmentReportPage }) },
+        // Incidentes, que son las fallas; la hoja de una se abre con `?falla=`.
+        { path: 'incidentes', lazy: async () => ({ Component: (await pages()).EquipmentFaultsPage }) },
       ],
     },
   ],

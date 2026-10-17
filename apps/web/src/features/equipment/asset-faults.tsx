@@ -1,15 +1,13 @@
-import type { Fault } from '@platlab/contracts';
 import { Badge, Button, Skeleton, StatePanel } from '@platlab/ui';
 import { ChevronRight, ClipboardCheck } from 'lucide-react';
 import { useState } from 'react';
 import { QueryErrorState } from '../../app/states';
 import { useNow } from '../../app/use-now';
 import { useEquipment } from './context';
-import { faultAgo, faultStatusLabel, faultStatusTone, faultTypeLabel, personText } from './fault-text';
+import { FaultSteps } from './fault-steps';
+import { faultAgo, faultStatusOrder, faultTypeLabel, personText } from './fault-text';
 import { useFaults } from './queries';
 import { FaultSheet } from './sheets/fault-sheet';
-
-const allStatuses: Fault['status'][] = ['open', 'in_progress', 'resolved', 'closed'];
 
 /** La hoja abierta; `n` la monta de nuevo en cada apertura. */
 interface OpenFault {
@@ -19,27 +17,27 @@ interface OpenFault {
 }
 
 /**
- * Pestaña «Fallas» de la ficha (ADR 0019): todas las fallas del equipo, la más reciente primero, en filas
+ * Pestaña «Incidentes» de la ficha (ADR 0019): todos los incidentes del equipo, la más reciente primero, en filas
  * compactas. Cada fila abre el detalle en una hoja sobre la ficha, sin salir de ella.
  */
 export function AssetFaults({ assetId }: { assetId: string }) {
   const { workspaceId, me, canOperate } = useEquipment();
-  const faults = useFaults(workspaceId, { statuses: allStatuses, assetId }, 20);
+  const faults = useFaults(workspaceId, { statuses: faultStatusOrder, assetId }, 20);
   const now = useNow(30_000);
   const [sheet, setSheet] = useState<OpenFault | null>(null);
   const items = faults.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <section aria-label="Fallas del equipo" className="rounded-card bg-surface shadow-raised">
+    <section aria-label="Incidentes del equipo" className="rounded-card bg-surface shadow-raised">
       {faults.isPending ? (
-        <div className="grid gap-3 p-5 md:p-6" role="status" aria-busy="true" aria-label="Cargando las fallas">
+        <div className="grid gap-3 p-5 md:p-6" role="status" aria-busy="true" aria-label="Cargando los incidentes">
           <Skeleton className="h-14" />
           <Skeleton className="h-14" />
         </div>
       ) : faults.isError ? (
         <QueryErrorState error={faults.error} onRetry={() => void faults.refetch()} />
       ) : items.length === 0 ? (
-        <StatePanel icon={ClipboardCheck} title="Sin fallas reportadas" description="Las fallas que se reporten de este equipo quedarán aquí, con su estado." />
+        <StatePanel icon={ClipboardCheck} title="Sin incidentes reportados" description="Los incidentes que se reporten de este equipo quedarán aquí, con su estado." />
       ) : (
         <ul className="divide-y divide-line">
           {items.map((fault) => (
@@ -52,12 +50,12 @@ export function AssetFaults({ assetId }: { assetId: string }) {
               >
                 <span className="grid min-w-0 flex-1 gap-1">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                    <Badge tone={faultStatusTone[fault.status]}>{faultStatusLabel[fault.status]}</Badge>
                     <span className="text-sm font-semibold text-ink">{faultTypeLabel[fault.faultType]}</span>
                     {fault.usable ? null : <Badge tone="danger">No se puede usar</Badge>}
                   </span>
+                  <FaultSteps status={fault.status} />
                   <span className="text-[13px] text-ink-muted">
-                    Reportada por {personText(fault.reportedBy)} · {faultAgo(fault.reportedAt, now)}
+                    Reportado por {personText(fault.reportedBy)} · {faultAgo(fault.reportedAt, now)}
                   </span>
                 </span>
                 <ChevronRight className="size-4 shrink-0 text-ink-muted transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />

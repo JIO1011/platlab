@@ -41,7 +41,7 @@ M1 es obligatorio. Cada módulo se contrata por espacio y funciona con sus depen
 |---|---|---|---|---|
 | M1 Núcleo | Espacio, personas y control | Miembros, invitaciones, roles, ubicaciones, suscripción, documentos, auditoría y avisos | — | F1a |
 | M2 Reactivos | Qué hay, dónde y en qué estado | Catálogo químico (CAS, concentración, peligros, SDS), lotes, ingresos, salidas, ajustes, traslados y bajas (ajuste a cero con motivo); custodia y retorno; caducidad y mínimos; fiscalizados y su reporte | M1 | R-00 en F1a; F2 |
-| M3 Equipos | Activos y su estado | Resumen, Inventario y Reportes (fallas) ([ADR 0019](05_decisiones.md#adr-0019)); tipos de equipo; ficha con foto (código, marca, modelo, serie, alimentación, ubicación, responsable); condición, conservación y disponibilidad calculada; traslado trazado, fallas, QR, documentos, hoja de vida e historial; con M6, «Prestado» | M1 | F2 |
+| M3 Equipos | Activos y su estado | Resumen, Inventario por áreas con encargado, Informe exportable e Incidentes (fallas) ([ADR 0019](05_decisiones.md#adr-0019)); tipos de equipo; ficha con foto (código, marca, modelo, serie, alimentación, ubicación, responsable); condición, conservación y disponibilidad calculada; traslado trazado, fallas, QR, documentos, hoja de vida e historial; con M6, «Prestado» | M1 | F2 |
 | M4 Laboratorios | Espacios físicos y agenda | Capacidad, responsable, horarios y cierres; reservas directas sin conflictos; tiempos de preparación y limpieza | M1 | F3 |
 | M5 Prácticas y Solicitudes | Operación central integrada | Plantillas, solicitudes de docencia e investigación, revisión, aprobación condicionada, preparación, ejecución, cierre e impresión | M1 + M4 | F3 |
 | M6 Materiales y Préstamos | Consumibles, reutilizables y préstamos | Existencias, préstamos de material y de equipos ([ADR 0019](05_decisiones.md#adr-0019)), devoluciones parciales, daños, pérdidas y transferencias | M1 | F4; un mínimo en F3 si P-04 lo exige |
@@ -175,12 +175,13 @@ Casos especiales:
 
 ### 6.3 Equipos (M3, M7)
 
-- El estado tiene cuatro dimensiones ([ADR 0019](05_decisiones.md#adr-0019)): condición (operativo, con restricción, fuera de servicio, dado de baja), conservación (bueno, regular, malo), tipo de falla, que vive en la falla, y disponibilidad, que se calcula.
+- El estado tiene cuatro dimensiones ([ADR 0019](05_decisiones.md#adr-0019)): estado (operativo, uso limitado, fuera de servicio, dado de baja), estado físico (bueno, regular, malo), tipo de falla, que vive en la falla, y disponibilidad, que se calcula.
 - Reportar una falla indica si el equipo se puede seguir usando; si no, bloquea nuevas asignaciones y marca las reservas afectadas, sin cancelar nada en silencio.
-- Una falla pasa por abierta → en atención → resuelta → cerrada, y resolverla exige un resultado. Si nace de una práctica, hereda fecha, laboratorio, personas y recurso.
+- Un incidente (falla) pasa por reportado → en reparación → solucionado, y solucionarlo exige qué se hizo; es el último paso. Si nace de una práctica, hereda fecha, laboratorio, personas y recurso.
 - Volver a operativo exige resultado y responsable. Un traslado cambia la ubicación y queda en el historial.
 - Una falla en garantía avisa que se reclame al proveedor. El uso del equipo se registra con Laboratorios y Prácticas, no en M3.
-- Con M7: planes y calibraciones con próxima fecha y semáforo, registros con informe y costo, órdenes correctivas desde una falla (cerrarlas devuelve el equipo a operativo) y el aviso «Evaluar reemplazo»; la ficha suma la pestaña Mantenimiento y el Inventario, «Próximo mantenimiento».
+- El Inventario se recorre por áreas (el primer nivel de ubicación bajo la sede), cada una con su encargado; el Informe es la tabla filtrada que se imprime y se exporta a Excel ([ADR 0019](05_decisiones.md#adr-0019)).
+- Con M7: planes y calibraciones con próxima fecha y semáforo, registros con informe y costo, órdenes correctivas desde una falla (cerrarlas devuelve el equipo a operativo) y el aviso «Evaluar reemplazo»; la ficha suma la pestaña Mantenimiento y el Informe, «Próximo mantenimiento».
 
 ### 6.4 Alta de un cliente y cambio de módulos
 

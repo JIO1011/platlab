@@ -18,10 +18,10 @@ export function EquipmentLayout() {
   const refreshing = useIsFetching({ queryKey: equipmentKey }) > 0;
   const { pathname } = useLocation();
 
-  // Quien no tiene el Resumen (el Docente solo reporta) entra por «Reportes».
+  // Quien no tiene el Resumen (el Docente solo reporta) entra por «Incidentes».
   const base = `/e/${workspaceId}/${app?.path ?? 'equipos'}`;
   if (app && !app.sections.some((section) => section.path === '') && pathname.replace(/\/+$/, '') === base) {
-    return <Navigate to={`${base}/reportes`} replace />;
+    return <Navigate to={`${base}/incidentes`} replace />;
   }
 
   return (
@@ -33,6 +33,8 @@ export function EquipmentLayout() {
             me,
             base,
             canManage: canOperate && me.permissions.includes('equipment.catalog.manage'),
+            // Exportar es consulta: vale también en modo consulta.
+            canExport: me.permissions.includes('equipment.report.read'),
             canOperate,
             // Todo lo de Equipos: las consultas activas se vuelven a pedir y las demás quedan viejas.
             freshness: { refreshing, refresh: () => void queryClient.invalidateQueries({ queryKey: equipmentKey }) },

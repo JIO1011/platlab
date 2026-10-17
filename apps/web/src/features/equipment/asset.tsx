@@ -3,13 +3,13 @@ import { Archive } from 'lucide-react';
 import { useState } from 'react';
 import { useParams } from 'react-router';
 import { formatDateTime } from '../../app/format';
+import { useShellTrail } from '../../app/shell-trail';
 import { QueryErrorState } from '../../app/states';
-import { AssetHeader, AssetSummary, type AssetSheet } from './asset-head';
+import { AssetHeader, type AssetSheet } from './asset-head';
 import { AssetFaults } from './asset-faults';
 import { AssetHistory } from './asset-history';
-import { AssetInfo } from './asset-info';
 import { useEquipment } from './context';
-import { useAsset, useAssetHistory } from './queries';
+import { useAreas, useAsset, useAssetHistory } from './queries';
 import { AssetFormSheet } from './sheets/asset-sheet';
 import { ConditionSheet } from './sheets/condition-sheet';
 import { ReportFaultSheet } from './sheets/report-fault-sheet';
@@ -23,25 +23,35 @@ interface OpenSheet {
 }
 
 /**
- * Ficha del equipo, segundo nivel del inventario (ADR 0019): cabecera de vidrio con sus acciones, el resumen
- * en tres cuadros y, en pestañas, Información e Historial. Un equipo dado de baja lo dice en una franja
- * neutra, con la fecha y el motivo del último cambio, y no ofrece ninguna acción.
+ * Ficha del equipo, segundo nivel del inventario (ADR 0019): el membrete de vidrio con sus acciones y todos sus
+ * datos y, en pestañas, Incidentes (a quien los ve) e Historial. Un equipo dado de baja lo dice en una franja
+ * neutra, con la fecha y el motivo del último cambio, y no ofrece ninguna acción. Las migas de la barra suman
+ * el área y el nombre del equipo.
  */
 export function EquipmentAssetPage() {
   const { workspaceId, me, base, canManage, canOperate, freshness } = useEquipment();
   const { assetId = '' } = useParams();
   const asset = useAsset(workspaceId, assetId);
   const history = useAssetHistory(workspaceId, assetId);
+  const areas = useAreas(workspaceId);
   const [sheet, setSheet] = useState<OpenSheet | null>(null);
   const timeZone = me.workspace.timeZone;
   const canReport = canOperate && me.permissions.includes('equipment.fault.report');
-  // Las fallas de un equipo las ve quien las reporta o las atiende.
+  // Los incidentes de un equipo los ve quien las reporta o las atiende.
   const seesFaults = me.permissions.includes('equipment.fault.report') || me.permissions.includes('equipment.fault.manage');
+  // El área sale de la lista de áreas; mientras no llega, la barra solo dice el equipo.
+  const areaId = asset.data?.location.areaId;
+  const areaName = areas.data ? (areas.data.items.find((entry) => entry.id === areaId)?.name ?? asset.data?.location.path[0]) : undefined;
+  useShellTrail(
+    asset.data
+      ? [...(areaName && areaId ? [{ label: areaName, to: `${base}/inventario/area/${areaId}` }] : []), { label: asset.data.name }]
+      : [],
+  );
 
   if (asset.isPending) {
     return (
       <div className="grid gap-4" role="status" aria-busy="true" aria-label="Cargando">
-        <Skeleton className="h-36 rounded-[28px]" />
+        <Skeleton className="h-64 rounded-[28px]" />
         <Skeleton className="h-24" />
       </div>
     );
@@ -72,6 +82,8 @@ export function EquipmentAssetPage() {
           canEdit={canManage}
           canReport={canReport}
           freshness={{ updatedAt, refreshing: freshness.refreshing, refresh: freshness.refresh }}
+          area={{ to: `${base}/inventario/area/${data.location.areaId}`, label: areaName ?? 'Volver al área' }}
+          timeZone={timeZone}
           onAction={openSheet}
         />
       </section>
@@ -86,30 +98,20 @@ export function EquipmentAssetPage() {
           </span>
         </p>
       ) : null}
-      {/* Desde `xl`, el resumen es una columna derecha fija; por debajo, una franja bajo la cabecera. */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_11rem]">
-        <aside aria-label="Resumen del equipo" className="xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:self-start">
-          <AssetSummary asset={data} />
-        </aside>
-        <Tabs defaultValue="informacion" className="min-w-0 xl:col-start-1 xl:row-start-1">
-          <TabsList aria-label="Secciones de la ficha">
-            <TabsTrigger value="informacion">Información</TabsTrigger>
-            {seesFaults ? <TabsTrigger value="fallas">Fallas</TabsTrigger> : null}
-            <TabsTrigger value="historial">Historial</TabsTrigger>
-          </TabsList>
-          <TabsContent value="informacion">
-            <AssetInfo asset={data} timeZone={timeZone} />
+      <Tabs defaultValue={seesFaults ? 'incidentes' : 'historial'} className="min-w-0">
+        <TabsList aria-label="Secciones de la ficha">
+          {seesFaults ? <TabsTrigger value="incidentes">Incidentes</TabsTrigger> : null}
+          <TabsTrigger value="historial">Historial</TabsTrigger>
+        </TabsList>
+        {seesFaults ? (
+          <TabsContent value="incidentes">
+            <AssetFaults assetId={data.id} />
           </TabsContent>
-          {seesFaults ? (
-            <TabsContent value="fallas">
-              <AssetFaults assetId={data.id} />
-            </TabsContent>
-          ) : null}
-          <TabsContent value="historial">
-            <AssetHistory history={history} timeZone={timeZone} />
-          </TabsContent>
-        </Tabs>
-      </div>
+        ) : null}
+        <TabsContent value="historial">
+          <AssetHistory history={history} timeZone={timeZone} />
+        </TabsContent>
+      </Tabs>
       {sheet?.kind === 'condition' ? (
         <ConditionSheet
           key={sheet.id}

@@ -8,9 +8,11 @@ const READ = 'equipment.catalog.read';
 export const CATALOG = 'equipment.catalog.manage';
 export const CONDITION = 'equipment.condition.change';
 export const TRANSFER = 'equipment.transfer.create';
-/** Reportes de fallas: todos reportan; el Operador y el Administrador atienden, resuelven y cierran. */
+/** Incidentes: todos reportan; el Operador y el Administrador empiezan la reparación y los solucionan. */
 export const FAULT_REPORT = 'equipment.fault.report';
 export const FAULT_MANAGE = 'equipment.fault.manage';
+/** Exportar el Informe es un reporte (01 §5): Administrador y Propietario. */
+export const REPORT = 'equipment.report.read';
 
 /** Comandos de Equipos: una transacción con su admisión, permiso, idempotencia y auditoría. */
 export const runCommand = moduleCommand('equipment');

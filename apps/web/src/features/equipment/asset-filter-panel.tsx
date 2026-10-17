@@ -1,18 +1,73 @@
-import type { AssetCondition, AssetTypeList } from '@platlab/contracts';
+import {
+  conservationLabel,
+  usefulLifeStateLabel,
+  warrantyStateLabel,
+  type AssetCondition,
+  type AssetTypeList,
+  type ResponsibleList,
+} from '@platlab/contracts';
 import { Button, OptionRow, Skeleton } from '@platlab/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { FilterGroup, type ChosenOption } from '../../app/filter-group';
 import { childrenOf, levelOneParent, type Place } from '../../app/places';
 import type { AssetQuery } from './asset-filters';
-import { conditionLabel } from './asset-text';
+import { NO_RESPONSIBLE, conditionLabel, noResponsibleLabel } from './asset-text';
 
-export type AssetGroupId = 'condition' | 'type' | 'location';
+export type AssetGroupId = 'condition' | 'type' | 'location' | 'responsible' | 'conservation' | 'warranty' | 'usefulLife';
 
-/** Las condiciones que se ven y, aparte, la que ya no cuenta como equipo en uso. */
+/** Los estados que se ven y, aparte, la que ya no cuenta como equipo en uso. */
 const activeConditions: AssetCondition[] = ['operational', 'restricted', 'faulted'];
 
 const toggle = <T,>(values: readonly T[], value: T): T[] =>
   values.includes(value) ? values.filter((entry) => entry !== value) : [...values, value];
+
+/** Las opciones de un grupo cerrado, en el orden en que su tabla de etiquetas las declara («Sin dato» al final). */
+const optionsOf = <T extends string>(labels: Record<T, string>) =>
+  (Object.keys(labels) as T[]).map((value) => ({ value, label: labels[value] }));
+
+const conservationOptions = optionsOf({ ...conservationLabel, none: 'Sin dato' });
+const warrantyOptions = optionsOf(warrantyStateLabel);
+const usefulLifeOptions = optionsOf(usefulLifeStateLabel);
+
+/** Un grupo de opciones fijas (Estado físico, Garantía, Vida útil): casillas con el mismo lenguaje que los demás. */
+function ChoiceGroup<T extends string>({
+  id,
+  title,
+  name,
+  options,
+  selected,
+  open,
+  onToggle,
+  onChange,
+}: {
+  id: AssetGroupId;
+  title: string;
+  name: string;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  selected: readonly T[];
+  open: boolean;
+  onToggle: () => void;
+  onChange: (next: T[]) => void;
+}) {
+  const chosen: ChosenOption[] = selected.map((key) => ({ key, label: options.find((option) => option.value === key)?.label ?? key }));
+  return (
+    <FilterGroup
+      id={id}
+      title={title}
+      marked={selected.length}
+      chosen={chosen}
+      open={open}
+      onToggle={onToggle}
+      onRemove={(key) => onChange(selected.filter((value) => value !== key))}
+    >
+      {options.map((option) => (
+        <OptionRow key={option.value} name={name} checked={selected.includes(option.value)} onChange={() => onChange(toggle(selected, option.value))}>
+          {option.label}
+        </OptionRow>
+      ))}
+    </FilterGroup>
+  );
+}
 
 function OptionsSkeleton({ rows }: { rows: number }) {
   return (
@@ -40,12 +95,14 @@ function OptionsError({ what, onRetry }: { what: string; onRetry: () => void }) 
 /**
  * Panel de filtros del Inventario (ADR 0019), con el mismo lenguaje que el de Movimientos: grupos
  * plegables de uno en uno, casillas como el filtro de Excel y aplicación inmediata (cada cambio escribe
- * la URL). Condición lleva «Dados de baja» aparte; Ubicación ofrece el primer nivel bajo la sede con sus hijas.
+ * la URL). Estado lleva «Dados de baja» aparte; Ubicación ofrece el primer nivel bajo la sede con sus hijas;
+ * Responsable suma «Sin responsable»; Estado físico, Garantía y Vida útil traen su «Sin dato» (E-01c).
  * Es el mismo contenido en el panel de escritorio y en el cajón.
  */
 export function AssetFilterPanel({
   query,
   types,
+  responsibles,
   places,
   placesFailed,
   onRetryPlaces,
@@ -55,6 +112,7 @@ export function AssetFilterPanel({
 }: {
   query: AssetQuery;
   types: UseQueryResult<AssetTypeList>;
+  responsibles: UseQueryResult<ResponsibleList>;
   /** Las ubicaciones del árbol de Core; `undefined` mientras llegan. */
   places: Place[] | undefined;
   placesFailed: boolean;
@@ -66,11 +124,17 @@ export function AssetFilterPanel({
 }) {
   const typeNames = new Map((types.data?.items ?? []).map((type) => [type.id, type.name]));
   const placeNames = new Map((places ?? []).map((place) => [place.id, place.name]));
+  const responsibleNames = new Map((responsibles.data?.items ?? []).map((member) => [member.id, member.name]));
   const levelOne = places ? childrenOf(places, levelOneParent(places)) : [];
 
   const conditionChosen: ChosenOption[] = query.conditions.map((key) => ({ key, label: conditionLabel[key] }));
   const typeChosen: ChosenOption[] = query.types.map((key) => ({ key, label: typeNames.get(key) ?? 'Tipo' }));
   const locationChosen: ChosenOption[] = query.locations.map((key) => ({ key, label: placeNames.get(key) ?? 'Ubicación' }));
+
+  const responsibleChosen: ChosenOption[] = query.responsibles.map((key) => ({
+    key,
+    label: key === NO_RESPONSIBLE ? noResponsibleLabel : (responsibleNames.get(key) ?? 'Responsable'),
+  }));
 
   const toggleCondition = (condition: AssetCondition) => onChange({ conditions: toggle(query.conditions, condition) });
   const toggleLocation = (id: string) => onChange({ locations: toggle(query.locations, id) });
@@ -79,7 +143,7 @@ export function AssetFilterPanel({
     <div>
       <FilterGroup
         id="condition"
-        title="Condición"
+        title="Estado"
         marked={query.conditions.length}
         chosen={conditionChosen}
         open={openGroup === 'condition'}
@@ -181,6 +245,75 @@ export function AssetFilterPanel({
           </>
         )}
       </FilterGroup>
+
+      <FilterGroup
+        id="responsible"
+        title="Responsable"
+        marked={query.responsibles.length}
+        chosen={responsibleChosen}
+        open={openGroup === 'responsible'}
+        onToggle={() => onToggleGroup('responsible')}
+        onRemove={(key) => onChange({ responsibles: query.responsibles.filter((id) => id !== key) })}
+      >
+        {responsibles.isPending ? (
+          <OptionsSkeleton rows={4} />
+        ) : responsibles.isError ? (
+          <OptionsError what="los responsables" onRetry={() => void responsibles.refetch()} />
+        ) : (
+          <>
+            <OptionRow
+              name="responsable"
+              checked={query.responsibles.includes(NO_RESPONSIBLE)}
+              onChange={() => onChange({ responsibles: toggle(query.responsibles, NO_RESPONSIBLE) })}
+            >
+              {noResponsibleLabel}
+            </OptionRow>
+            {responsibles.data.items.map((member) => (
+              <OptionRow
+                key={member.id}
+                name="responsable"
+                checked={query.responsibles.includes(member.id)}
+                onChange={() => onChange({ responsibles: toggle(query.responsibles, member.id) })}
+              >
+                {member.name}
+              </OptionRow>
+            ))}
+          </>
+        )}
+      </FilterGroup>
+
+      <ChoiceGroup
+        id="conservation"
+        title="Estado físico"
+        name="estado-fisico"
+        options={conservationOptions}
+        selected={query.conservations}
+        open={openGroup === 'conservation'}
+        onToggle={() => onToggleGroup('conservation')}
+        onChange={(conservations) => onChange({ conservations })}
+      />
+
+      <ChoiceGroup
+        id="warranty"
+        title="Garantía"
+        name="garantia"
+        options={warrantyOptions}
+        selected={query.warranties}
+        open={openGroup === 'warranty'}
+        onToggle={() => onToggleGroup('warranty')}
+        onChange={(warranties) => onChange({ warranties })}
+      />
+
+      <ChoiceGroup
+        id="usefulLife"
+        title="Vida útil"
+        name="vida-util"
+        options={usefulLifeOptions}
+        selected={query.usefulLives}
+        open={openGroup === 'usefulLife'}
+        onToggle={() => onToggleGroup('usefulLife')}
+        onChange={(usefulLives) => onChange({ usefulLives })}
+      />
     </div>
   );
 }

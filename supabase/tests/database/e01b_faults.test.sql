@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(15);
+select plan(14);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -100,14 +100,9 @@ select throws_ok(
   $$ update incidents.cases set description = 'Otra cosa' where id = (select id from incidents.cases where description = 'Vibra al girar') $$,
   '42501', null, 'lo reportado no se edita');
 
-select lives_ok(
-  $$ update incidents.cases set status = 'closed', closed_by_principal_id = 'a2000000-0000-4000-8000-000000000001', closed_at = now()
-      where id = (select id from incidents.cases where description = 'Vibra al girar') $$,
-  'la falla resuelta se cierra');
-
 select throws_ok(
   $$ update incidents.cases set version = version + 1 where id = (select id from incidents.cases where description = 'Vibra al girar') $$,
-  '23514', null, 'una falla cerrada no se modifica');
+  '23514', null, 'un incidente solucionado no se modifica (E-01c: tres pasos, sin cerrar)');
 
 select throws_ok(
   $$ delete from incidents.cases where id = (select id from incidents.cases where description = 'Vibra al girar') $$,

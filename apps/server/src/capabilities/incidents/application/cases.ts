@@ -1,6 +1,6 @@
 import type pg from 'pg';
 import { AppError } from '../../../platform/errors.js';
-import { attendCase, closeCase, insertCase, lockCase, resolveCase } from '../infrastructure/cases.queries.js';
+import { attendCase, insertCase, lockCase, resolveCase } from '../infrastructure/cases.queries.js';
 
 /** Módulo dueño del recurso (02 §4): autoriza con sus permisos; la capacidad no decide permisos. */
 type ModuleCode = 'equipment';
@@ -52,14 +52,9 @@ export async function attendFault(ctx: IncidentsContext, caseId: string): Promis
   if (!row) throw alreadyMoved();
 }
 
-/** Abierta o en atención → resuelta, con su resultado. Se llama con la falla bloqueada. */
+/** Reportado o en reparación → solucionado, con su resultado; es definitivo. Se llama con la falla bloqueada. */
 export async function resolveFault(ctx: IncidentsContext, caseId: string, resolution: string): Promise<void> {
   const [row] = await resolveCase.run({ workspaceId: ctx.workspaceId, caseId, actorId: ctx.principalId, resolution }, ctx.client);
   if (!row) throw alreadyMoved();
 }
 
-/** Resuelta → cerrada, definitiva. Se llama con la falla bloqueada. */
-export async function closeFault(ctx: IncidentsContext, caseId: string): Promise<void> {
-  const [row] = await closeCase.run({ workspaceId: ctx.workspaceId, caseId, actorId: ctx.principalId }, ctx.client);
-  if (!row) throw alreadyMoved();
-}
