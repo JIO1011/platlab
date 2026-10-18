@@ -1,6 +1,6 @@
 import type pg from 'pg';
 import type { z } from 'zod';
-import type { createExclusionRequest, createPlanRequest, Plan, PlanAssetList, PlanList, updatePlanRequest, WorkKind } from '@platlab/contracts';
+import type { createExclusionRequest, createPlanRequest, Plan, PlanAssetList, PlanKind, PlanList, updatePlanRequest } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
 import { recordAudit, requires, type CommandRequest, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import {
@@ -113,7 +113,7 @@ export function listPlanAssets(pool: pg.Pool, request: QueryRequest, planId: str
             : {
                 reason: row.reason,
                 replacedBy: row.replaced_by_id
-                  ? { id: row.replaced_by_id, title: row.replaced_by_title!, kind: row.replaced_by_kind as WorkKind }
+                  ? { id: row.replaced_by_id, title: row.replaced_by_title!, kind: row.replaced_by_kind as PlanKind }
                   : null,
               },
       })),

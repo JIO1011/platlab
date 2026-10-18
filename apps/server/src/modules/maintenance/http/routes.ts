@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type pg from 'pg';
 import {
   ASSET_DOCUMENT_MAX_BYTES,
+  correctRecordRequest,
   createExclusionRequest,
   createPlanRequest,
   createProviderRequest,
@@ -16,13 +17,14 @@ import {
   recordParams,
   updatePlanRequest,
   updateProviderRequest,
+  voidRecordRequest,
 } from '@platlab/contracts';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import { addExclusion, archiveExclusion, archivePlan, createPlan, listPlanAssets, listPlans, updatePlan } from '../application/plans.js';
 import { archiveProvider, createProvider, listProviders, updateProvider } from '../application/providers.js';
 import { getAssetMaintenance, getSummary, listDue, listNextDue, searchAssets } from '../application/queries.js';
-import { createRecord, listRecords, uploadRecordCertificate } from '../application/records.js';
+import { correctRecord, createRecord, listRecords, uploadRecordCertificate, voidRecord } from '../application/records.js';
 
 /**
  * Rutas de Mantenimiento bajo /v1/workspaces/:workspaceId/maintenance (ADR 0020), con permisos
@@ -84,7 +86,7 @@ export function maintenanceRoutes({ pool, publicFiles }: { pool: pg.Pool; public
       return archiveExclusion(pool, commandRequest(request), planId, assetId);
     });
 
-    // Registros: inmutables; el certificado se adjunta una vez.
+    // Registros: inmutables; el certificado se adjunta una vez. El Administrador los anula o los corrige.
     app.get('/records', async (request) => listRecords(pool, queryRequest(request), recordListQuery.parse(request.query)));
 
     app.post('/records', async (request, reply) => {
@@ -95,6 +97,17 @@ export function maintenanceRoutes({ pool, publicFiles }: { pool: pg.Pool; public
     app.post('/records/:recordId/certificate', async (request, reply) => {
       const { recordId } = recordParams.parse(request.params);
       return reply.status(201).send(await uploadRecordCertificate(pool, publicFiles, commandRequest(request), recordId, request.body));
+    });
+
+    app.post('/records/:recordId/void', async (request) => {
+      const { recordId } = recordParams.parse(request.params);
+      return voidRecord(pool, commandRequest(request), recordId, voidRecordRequest.parse(request.body));
+    });
+
+    app.post('/records/:recordId/correction', async (request, reply) => {
+      const { recordId } = recordParams.parse(request.params);
+      const input = correctRecordRequest.parse(request.body);
+      return reply.status(201).send(await correctRecord(pool, commandRequest(request), recordId, input));
     });
 
     // Equipos, por la vista de Equipos: búsqueda para registrar, la pestaña de la ficha y la columna del Inventario.

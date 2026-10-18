@@ -9,3 +9,10 @@ export function assetFichaPath(me: WorkspaceMeResponse, workspaceId: string, ass
   if (!equipment || !me.permissions.includes('equipment.catalog.read')) return null;
   return `/e/${workspaceId}/${equipment.nav[0]?.path ?? 'equipos'}/inventario/${assetId}?pestana=${tab}`;
 }
+
+/** El incidente de Equipos abierto en su lista (`?falla=`); null si la persona no puede ver incidentes. */
+export function faultPath(me: WorkspaceMeResponse, workspaceId: string, faultId: string): string | null {
+  const equipment = me.modules.find((entry) => entry.code === 'equipment');
+  if (!equipment || !me.permissions.includes('equipment.fault.report')) return null;
+  return `/e/${workspaceId}/${equipment.nav[0]?.path ?? 'equipos'}/incidentes?falla=${faultId}`;
+}

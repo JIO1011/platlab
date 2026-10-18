@@ -2,6 +2,8 @@ import {
   createRecordRequest,
   type AssetCondition,
   type AssetConservation,
+  type MaintenanceRecord,
+  type RecordCreated,
   type WorkKind,
   type WorkResult,
 } from '@platlab/contracts';
@@ -11,9 +13,9 @@ import { isApiError } from '../../app/api';
 import { validate } from '../../app/form-sheet';
 import { readLabelLink } from '../../app/label-link';
 import type { ScanReading } from '../../app/scan/scanner-view';
-import { maintenanceErrorMessage, useAttachCertificate, useChangeAssetCondition, useCreateRecord } from './commands';
+import { maintenanceErrorMessage, useAttachCertificate, useChangeAssetCondition, useCorrectRecord, useCreateRecord } from './commands';
 import { useAssetMaintenance, usePlans } from './queries';
-import { recordOutcome, saveStep } from './record-steps';
+import { recordOutcome, saveStep, type RepairDone } from './record-steps';
 
 /** El formulario de la hoja; los vacíos son `''` y se traducen al contrato al enviar. */
 export interface RecordForm {
@@ -35,6 +37,14 @@ export interface RecordForm {
   validUntil: string;
   /** `''` deja el estado físico como está. */
   conservation: AssetConservation | '';
+  /** El incidente abierto que atiende un correctivo; `''` ninguno. */
+  faultId: string;
+  /** Solucionar ese incidente con «qué se hizo»; solo con Conforme o Con observaciones. */
+  resolveFault: boolean;
+  /** Y devolver el equipo a operativo, si no lo está. */
+  returnToOperational: boolean;
+  /** Al corregir, por qué. */
+  reason: string;
 }
 
 /** Lo que va a la API: `''` es null y, sin plan, sin versión ni lista. */
@@ -53,6 +63,24 @@ function toRequest(values: RecordForm) {
     cost: blank(values.cost),
     validUntil: blank(values.validUntil),
     conservation: values.conservation || null,
+    faultId: blank(values.faultId),
+    resolveFault:
+      values.faultId && values.resolveFault && values.result !== 'fail' ? { returnToOperational: values.returnToOperational } : null,
+  };
+}
+
+/** Al corregir, la hoja empieza con los datos del registro (M-01b); el plan, su versión y su lista llegan con los planes. */
+function formFrom(record: MaintenanceRecord): Partial<RecordForm> {
+  return {
+    assetId: record.asset.id,
+    kind: record.kind,
+    performedOn: record.performedOn,
+    providerId: record.provider?.id ?? '',
+    result: record.result,
+    observations: record.observations ?? '',
+    cost: record.cost ?? '',
+    validUntil: record.validUntil ?? '',
+    faultId: record.faultId ?? '',
   };
 }
 
@@ -74,13 +102,18 @@ export function readAssetScan(workspaceId: string) {
  * Lógica de «Registrar mantenimiento» (ADR 0020), sin estilos: el formulario con la versión del plan, la
  * revisión de la lista si el plan cambió mientras se llenaba, el guardado en dos pasos (registro y
  * certificado, con reintento solo del adjunto), el mensaje final y, con «No conforme», el cambio de estado
- * del equipo, que confirma quien registra y aplica Equipos.
+ * del equipo, que confirma quien registra y aplica Equipos. Un correctivo puede atender un incidente abierto
+ * y solucionarlo (M-01b). Con `correcting`, la hoja corrige ese registro: empieza con sus datos, pide el
+ * motivo y, al guardar, el servidor lo anula y registra el nuevo; su certificado pasa al nuevo salvo que se
+ * adjunte otro.
  */
 export function useRecordWork({
   workspaceId,
   today,
   assetId: initialAssetId = '',
   planId: initialPlanId = '',
+  faultId: initialFaultId = '',
+  correcting,
   canChangeCondition,
 }: {
   workspaceId: string;
@@ -88,9 +121,13 @@ export function useRecordWork({
   today: string;
   assetId?: string;
   planId?: string;
+  /** El incidente que atiende (desde la hoja del incidente): la hoja abre en su reparación. */
+  faultId?: string;
+  correcting?: MaintenanceRecord;
   /** `equipment.condition.change` con Equipos admitiendo cambios. */
   canChangeCondition: boolean;
 }) {
+  const startPlanId = correcting ? (correcting.plan?.id ?? '') : initialPlanId;
   const form = useForm<RecordForm>({
     defaultValues: {
       assetId: initialAssetId,
@@ -105,6 +142,11 @@ export function useRecordWork({
       cost: '',
       validUntil: '',
       conservation: '',
+      faultId: '',
+      resolveFault: false,
+      returnToOperational: false,
+      reason: '',
+      ...(correcting ? formFrom(correcting) : {}),
     },
   });
   const assetId = form.watch('assetId');
@@ -112,6 +154,7 @@ export function useRecordWork({
   const assetMaintenance = useAssetMaintenance(workspaceId, assetId || null);
   const plans = usePlans(workspaceId);
   const create = useCreateRecord(workspaceId);
+  const correct = useCorrectRecord(workspaceId, correcting?.id ?? '');
   const attach = useAttachCertificate(workspaceId);
   const changeCondition = useChangeAssetCondition(workspaceId, assetId);
   const [state, dispatch] = useReducer(saveStep, { step: 'idle' });
@@ -120,9 +163,16 @@ export function useRecordWork({
   const [generalError, setGeneralError] = useState<string | null>(null);
   // La fecha del plan antes de guardar, para saber si el registro la movió.
   const [dueBefore, setDueBefore] = useState<string | null>(null);
+  // Lo que se pidió hacer en Equipos con el incidente: el registro lo aplica entero o nada.
+  const [repair, setRepair] = useState<RepairDone | undefined>(undefined);
 
   /** Los planes que cubren al equipo, con su fecha; el detalle (lista, criterio, versión) sale de `usePlans`. */
   const assetPlans = assetMaintenance.data?.plans ?? [];
+  /** Los incidentes abiertos del equipo, para quien los atiende: cada uno es una reparación posible. */
+  const openFaults = assetMaintenance.data?.openFaults ?? [];
+  const assetCondition = assetMaintenance.data?.asset.condition;
+  /** Devolver el equipo a operativo solo se ofrece si no lo está y la persona puede cambiar su estado. */
+  const canReturn = canChangeCondition && assetCondition !== undefined && assetCondition !== 'operational' && assetCondition !== 'retired';
   const planDetail = (id: string) => plans.data?.items.find((entry) => entry.id === id);
   const plan = planId ? planDetail(planId) : undefined;
 
@@ -134,19 +184,51 @@ export function useRecordWork({
     form.setValue('checklist', (detail?.checklist ?? []).map(() => false), { shouldDirty: dirty });
     form.setValue('kind', detail?.kind ?? '');
   };
+  /** Un plan, o ninguno con `''`: deja de atender un incidente. */
   const selectPlan = (id: string) => {
     applyPlan(id, true);
+    form.setValue('faultId', '', { shouldDirty: true });
+    form.setValue('resolveFault', false);
     setReviewChecklist(false);
   };
 
-  // El plan pedido al abrir (desde «Por hacer») se elige una vez, cuando llegan los planes; no cuenta como cambio.
-  const initialApplied = useRef(initialPlanId === '');
+  /**
+   * La reparación de un incidente abierto: un correctivo sin plan que lo atiende y, por omisión, lo soluciona y
+   * devuelve el equipo a operativo si no lo está.
+   */
+  const selectFault = (id: string, dirty = true) => {
+    applyPlan('', dirty);
+    form.setValue('kind', 'corrective', { shouldDirty: dirty });
+    form.setValue('faultId', id, { shouldDirty: dirty });
+    form.setValue('resolveFault', true);
+    form.setValue('returnToOperational', canReturn);
+    setReviewChecklist(false);
+  };
+
+  // El plan pedido al abrir (desde «Por hacer» o el del registro que se corrige) se elige una vez, cuando llegan
+  // los planes; no cuenta como cambio. Al corregir, la lista conserva sus marcas si el plan no la cambió.
+  const initialApplied = useRef(startPlanId === '');
   useEffect(() => {
     if (initialApplied.current || !plans.data) return;
     initialApplied.current = true;
-    if (plans.data.items.some((entry) => entry.id === initialPlanId)) applyPlan(initialPlanId, false);
+    if (!plans.data.items.some((entry) => entry.id === startPlanId)) return;
+    applyPlan(startPlanId, false);
+    const items = planDetail(startPlanId)?.checklist ?? [];
+    const marks = correcting?.checklist ?? [];
+    if (marks.length === items.length && marks.every((entry, index) => entry.item === items[index])) {
+      form.setValue('checklist', marks.map((entry) => entry.done));
+    }
     // `applyPlan` solo escribe en el formulario; basta con reaccionar a la llegada de los planes.
   }, [plans.data]);
+
+  // El incidente pedido al abrir (desde su hoja) se elige una vez, cuando llega el equipo, si sigue abierto.
+  const faultApplied = useRef(initialFaultId === '');
+  useEffect(() => {
+    if (faultApplied.current || !assetMaintenance.data) return;
+    faultApplied.current = true;
+    if (assetMaintenance.data.openFaults.some((entry) => entry.id === initialFaultId)) selectFault(initialFaultId, false);
+    // Solo reacciona a la llegada del equipo.
+  }, [assetMaintenance.data]);
 
   /**
    * El plan cambió mientras se llenaba: se recarga, se toma su versión y su lista nueva sin marcas y se pide
@@ -175,20 +257,32 @@ export function useRecordWork({
     const values = form.getValues();
     const input = validate(createRecordRequest, toRequest(values), form);
     if (!input) return;
+    const reason = values.reason.trim();
+    if (correcting && reason === '') {
+      form.setError('reason', { message: 'Escribe por qué se corrige el registro.' });
+      return;
+    }
     setDueBefore(assetPlans.find((entry) => entry.plan.id === values.planId)?.dueOn ?? null);
+    setRepair(input.resolveFault ? { resolved: true, returned: input.resolveFault.returnToOperational } : undefined);
     dispatch({ type: 'submit' });
-    create.mutate(input, {
-      onSuccess: (record) => {
+    const handlers = {
+      onSuccess: (record: RecordCreated) => {
         setReviewChecklist(false);
         dispatch({ type: 'recorded', record, withCertificate: file !== null });
         if (file) sendCertificate(record.id, file);
       },
-      onError: (error) => {
+      onError: (error: unknown) => {
         dispatch({ type: 'recordFailed' });
         if (isApiError(error, 'VERSION_CONFLICT')) void reloadPlan();
         setGeneralError(maintenanceErrorMessage(error));
       },
-    });
+    };
+    if (correcting) {
+      // Un PDF nuevo reemplaza al del anulado: entonces el nuevo no lo lleva.
+      correct.mutate({ reason, keepCertificate: correcting.certificate !== null && file === null, record: input }, handlers);
+    } else {
+      create.mutate(input, handlers);
+    }
   };
 
   const retryAttach = () => {
@@ -203,10 +297,11 @@ export function useRecordWork({
    * Con «No conforme», la propuesta de «Cambiar estado»: Fuera de servicio o Uso limitado, con el motivo ya
    * lleno; nada cambia hasta que quien registra lo confirma.
    */
+  const offered = (['faulted', 'restricted'] as const satisfies readonly AssetCondition[]).filter((option) => option !== assetCondition);
   const conditionOffer =
-    saved?.result === 'fail' && canChangeCondition && assetMaintenance.data?.asset.condition !== 'retired'
+    saved?.result === 'fail' && canChangeCondition && assetCondition !== 'retired' && offered.length > 0
       ? {
-          options: ['faulted', 'restricted'] as const satisfies readonly AssetCondition[],
+          options: offered,
           reason: `No conforme en ${saved.plan?.title ?? 'mantenimiento'}${saved.observations ? `: ${saved.observations}` : ''}`.slice(0, 500),
         }
       : null;
@@ -217,9 +312,13 @@ export function useRecordWork({
     dirty: form.formState.isDirty || file !== null,
     asset: assetMaintenance,
     assetPlans,
+    openFaults,
+    canReturn,
     plan,
     plans,
     selectPlan,
+    selectFault,
+    correcting: correcting ?? null,
     reviewChecklist,
     file,
     setFile,
@@ -229,7 +328,7 @@ export function useRecordWork({
     submit,
     retryAttach,
     attachError: state.step === 'attachFailed' ? maintenanceErrorMessage(state.error) : null,
-    outcome: saved ? recordOutcome(saved, dueBefore) : null,
+    outcome: saved ? recordOutcome(saved, dueBefore, { ...(repair ? { repair } : {}), corrected: correcting !== undefined }) : null,
     conditionOffer,
     changeCondition: {
       pending: changeCondition.isPending,

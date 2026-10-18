@@ -2,17 +2,17 @@ import { defineModule } from './define-module.js';
 
 /**
  * Manifiesto de Mantenimiento (ADR 0020). Sin inventario propio: trabaja sobre los equipos de Equipos,
- * del que depende. El Administrador crea planes y proveedores; el Operador consulta y registra. Docente
- * y Estudiante no entran: reportan en Equipos. Etapa `development` hasta su G0.
+ * del que depende. El Administrador crea planes y proveedores, y anula o corrige registros; el Operador
+ * consulta y registra. Docente y Estudiante no entran: reportan en Equipos. Etapa `development` hasta su G0.
  */
 export const maintenanceModule = defineModule({
   code: 'maintenance',
   name: 'Mantenimiento',
   requires: ['core', 'equipment'],
   integrates: [],
-  permissions: ['maintenance.work.read', 'maintenance.work.record', 'maintenance.plan.manage'],
+  permissions: ['maintenance.work.read', 'maintenance.work.record', 'maintenance.plan.manage', 'maintenance.record.void'],
   roleGrants: {
-    admin: ['maintenance.work.read', 'maintenance.work.record', 'maintenance.plan.manage'],
+    admin: ['maintenance.work.read', 'maintenance.work.record', 'maintenance.plan.manage', 'maintenance.record.void'],
     operator: ['maintenance.work.read', 'maintenance.work.record'],
   },
   nav: [

@@ -1,10 +1,11 @@
 import {
   assetTypeList,
   createPlanRequest,
+  planKind,
   updatePlanRequest,
   type IntervalUnit,
   type Plan,
-  type WorkKind,
+  type PlanKind,
 } from '@platlab/contracts';
 import { Field, Input, OptionRow, Select, Skeleton, Textarea, toast } from '@platlab/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -22,7 +23,7 @@ import { frequencyPresets, intervalUnitOptions, presetFor, scopeText } from './p
 import { useAssetMaintenance, useMaintenanceKey, usePlans } from './queries';
 import { kindLabels } from './work-text';
 
-const kindOptions = (Object.keys(kindLabels) as WorkKind[]).map((value) => ({ value, label: kindLabels[value] }));
+const kindOptions = planKind.options.map((value) => ({ value, label: kindLabels[value] }));
 const frequencyOptions = [...frequencyPresets.map((preset) => ({ value: preset.value, label: preset.label })), { value: 'custom', label: 'Otro' }];
 
 /** El equipo de un plan propio: lo que basta para mostrarlo y enviarlo. */
@@ -44,7 +45,7 @@ function useAssetTypes(workspaceId: string, enabled: boolean) {
 }
 
 interface PlanFormValues {
-  kind: WorkKind | '';
+  kind: PlanKind | '';
   scope: 'type' | 'asset';
   assetTypeId: string;
   title: string;

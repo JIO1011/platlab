@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { list, money, page, text } from '../common.js';
 import { assetCondition, assetConservation } from '../equipment/catalog.js';
+import { faultType } from '../equipment/faults.js';
 import { maintenanceAssetRef, planRef, workKind } from './plans.js';
 import { expectedVersion } from './providers.js';
 
@@ -15,6 +16,9 @@ const date = z.iso.date();
 const workResult = z.enum(['pass', 'pass_with_observations', 'fail']);
 
 const area = { area: z.string().nullable() };
+
+/** Un registro por su fecha de trabajo: la anulación y la corrección se señalan así. */
+const recordRef = z.object({ id: z.uuid(), performedOn: date });
 
 /**
  * El resultado del último registro del plan para el equipo; null si nunca se hizo. Mientras sea «fail»,
@@ -68,6 +72,17 @@ export const record = z.object({
   recordedBy: z.object({ name: z.string() }).nullable(),
   recordedAt: z.string(),
   certificate: z.object({ url: z.string(), byteSize: z.number().int().positive(), uploadedAt: z.string() }).nullable(),
+  /** El incidente de Equipos que atiende un correctivo (M-01b). */
+  faultId: z.uuid().nullable(),
+  /** El registro anulado que este corrige. */
+  corrects: recordRef.nullable(),
+  /**
+   * Anulado por el Administrador (M-01b): sigue a la vista, con motivo, quién y cuándo, y deja de contar para
+   * la próxima fecha. `correctedBy` es el registro que lo reemplazó, si lo hay.
+   */
+  voided: z
+    .object({ at: z.string(), by: z.object({ name: z.string() }).nullable(), reason: z.string(), correctedBy: recordRef.nullable() })
+    .nullable(),
 });
 
 /** POST /records responde el registro con la próxima fecha del plan para el equipo (null sin plan). */
@@ -78,7 +93,8 @@ export const recordCreated = record.extend({ nextDueOn: date.nullable() });
  * con su tipo de trabajo. `checklist` marca, en orden, cada ítem de la lista del plan; el servidor guarda la
  * lista con sus marcas y el criterio del plan. `conservation` es el estado físico actual que se fija: Equipos
  * lo aplica hoy con su permiso y su historial, aunque el trabajo sea de una fecha pasada, y el registro no
- * lo guarda.
+ * lo guarda. Un correctivo dice qué se hizo y puede ligar un incidente del equipo (`faultId`); con
+ * `resolveFault`, Equipos lo soluciona con ese texto y, si se pide, devuelve el equipo a operativo.
  */
 export const createRecordRequest = z
   .object({
@@ -94,6 +110,8 @@ export const createRecordRequest = z
     cost: money.nullable().default(null),
     validUntil: date.nullable().default(null),
     conservation: assetConservation.nullable().default(null),
+    faultId: z.uuid().nullable().default(null),
+    resolveFault: z.object({ returnToOperational: z.boolean() }).strict().nullable().default(null),
   })
   .strict()
   .refine((input) => input.planId !== null || input.kind !== undefined, { message: 'Sin plan, indica el tipo de trabajo' })
@@ -108,7 +126,30 @@ export const createRecordRequest = z
   .refine((input) => input.validUntil === null || input.validUntil >= input.performedOn, {
     message: 'La fecha «válida hasta» no puede ser anterior a la del trabajo',
     path: ['validUntil'],
+  })
+  .refine((input) => input.kind !== 'corrective' || (input.planId === null && input.observations !== null), {
+    message: 'En un correctivo, escribe qué se hizo',
+    path: ['observations'],
+  })
+  .refine((input) => input.faultId === null || (input.planId === null && input.kind === 'corrective'), {
+    message: 'Solo un correctivo atiende un incidente',
+    path: ['faultId'],
+  })
+  .refine((input) => input.resolveFault === null || (input.faultId !== null && input.result !== 'fail'), {
+    message: 'Solo un correctivo Conforme o Con observaciones soluciona su incidente',
+    path: ['resolveFault'],
   });
+
+const reason = text(500);
+
+/** POST /records/:recordId/void: el Administrador anula un registro con su motivo (M-01b). */
+export const voidRecordRequest = z.object({ reason }).strict();
+
+/**
+ * POST /records/:recordId/correction: el Administrador anula el registro y registra el correcto, del mismo
+ * equipo, en un solo paso (M-01b). Con `keepCertificate`, el nuevo lleva el certificado del anulado.
+ */
+export const correctRecordRequest = z.object({ reason, keepCertificate: z.boolean(), record: createRecordRequest }).strict();
 
 /** GET /records: los completados, del más reciente al más antiguo; con `assetId`, los de un equipo. */
 export const recordListQuery = z.object({ ...page, assetId: z.uuid().optional() }).strict();
@@ -130,9 +171,23 @@ export const maintenanceAssetList = z.object({ items: z.array(maintenanceAsset) 
 
 export const maintenanceAssetParams = z.object({ workspaceId: z.uuid(), assetId: z.uuid() });
 
-/** GET /assets/:assetId, la pestaña Mantenimiento de la ficha: sus planes, sus exclusiones y sus últimos 20 registros. */
+/** Un incidente abierto del equipo, que un correctivo puede atender (M-01b). */
+const openFault = z.object({
+  id: z.uuid(),
+  faultType,
+  description: z.string(),
+  usable: z.boolean(),
+  status: z.enum(['open', 'in_progress']),
+  reportedAt: z.string(),
+});
+
+/**
+ * GET /assets/:assetId, la pestaña Mantenimiento de la ficha y la hoja de registro: sus planes, sus exclusiones,
+ * sus últimos 20 registros y, para quien atiende incidentes, los abiertos.
+ */
 export const assetMaintenance = z.object({
   asset: maintenanceAsset,
+  openFaults: z.array(openFault),
   plans: z.array(z.object({ plan: planRef, dueOn: date, lastPerformedOn: date.nullable(), lastResult })),
   exclusions: z.array(z.object({ plan: planRef, reason: z.string(), createdAt: z.string() })),
   records: z.array(record),
@@ -180,4 +235,5 @@ export type RecordList = z.infer<typeof recordList>;
 export type MaintenanceAsset = z.infer<typeof maintenanceAsset>;
 export type MaintenanceAssetList = z.infer<typeof maintenanceAssetList>;
 export type AssetMaintenance = z.infer<typeof assetMaintenance>;
+export type OpenFault = z.infer<typeof openFault>;
 export type NextDueList = z.infer<typeof nextDueList>;

@@ -5,3 +5,4 @@
  */
 export { AssetMaintenanceTab } from './asset-tab';
 export { NextDueCell } from './next-due-cell';
+export { RepairAction } from './repair-action';

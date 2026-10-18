@@ -1,17 +1,20 @@
-import { resolveFaultRequest, type Fault } from '@platlab/contracts';
+import { resolveFaultRequest, type Fault, type WorkspaceMeResponse } from '@platlab/contracts';
 import { Badge, Button, Field, Sheet, Skeleton, Textarea, sectionLabel, toast } from '@platlab/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, CircleCheck, ShieldCheck, TriangleAlert } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router';
 import { isApiError } from '../../../app/api';
+import { useExtensions } from '../../../app/extensions';
 import { formatDateTime, formatShortDateTime } from '../../../app/format';
 import { type SheetBaseProps, validate } from '../../../app/form-sheet';
+import { useWorkspaceMe } from '../../../app/queries';
 import { QueryErrorState } from '../../../app/states';
 import { AssetThumb } from '../asset-list';
 import { placeLines } from '../asset-text';
 import { equipmentErrorMessage, useFaultStep } from '../commands';
+import { FAULT_ACTION } from '../extension-points';
 import { FaultSteps } from '../fault-steps';
 import { faultSteps, faultTypeLabel, personText, usableText, warrantyNotice } from '../fault-text';
 import { useEquipmentKey, useFault } from '../queries';
@@ -95,6 +98,25 @@ function FaultTimeline({ fault, timeZone }: { fault: Fault; timeZone: string }) 
 }
 
 /**
+ * Las acciones que otros módulos suman al incidente (ADR 0020), a todo el ancho del pie: Mantenimiento aporta
+ * «Registrar en Mantenimiento». Con `hidden` se ocultan sin desmontarlas, para que una hoja que abrieron siga en pantalla
+ * aunque el incidente ya no admita acciones (el registro de la reparación lo soluciona).
+ */
+function FaultExtensionActions({ me, faultId, assetId, hidden }: { me: WorkspaceMeResponse; faultId: string; assetId: string; hidden: boolean }) {
+  const actions = useExtensions(FAULT_ACTION, me);
+  if (actions.length === 0) return null;
+  return (
+    <div className={hidden ? 'hidden' : 'grid w-full gap-3'}>
+      {actions.map(({ code, Component }) => (
+        <Suspense key={code} fallback={null}>
+          <Component faultId={faultId} assetId={assetId} />
+        </Suspense>
+      ))}
+    </div>
+  );
+}
+
+/**
  * Detalle del incidente (ADR 0019), en una hoja sobre la lista: el equipo, qué se reportó y su línea de tiempo.
  * Quien atiende (y puede operar) ve el paso que sigue: «Empezar reparación» o «Marcar como solucionado» un
  * incidente reportado, «Marcar como solucionado» uno en reparación. Solucionado es definitivo y se pide en esta
@@ -128,6 +150,9 @@ export function FaultSheet({
   const errors = form.formState.errors;
   const resolutionField = form.register('resolution');
   const wasResolving = useRef(false);
+  const me = useWorkspaceMe(workspaceId);
+  // Una vez que el incidente admitió acciones, su pie se queda (ver `FaultExtensionActions`).
+  const [wasActionable, setWasActionable] = useState(false);
 
   // Al volver de «Marcar como solucionado», el foco regresa al botón que lo abrió (el que lo tenía se desmontó).
   useEffect(() => {
@@ -186,6 +211,10 @@ export function FaultSheet({
   });
 
   const data = fault.data;
+  const actionableNow = data !== undefined && canHandle && (data.status === 'open' || data.status === 'in_progress');
+  useEffect(() => {
+    if (actionableNow) setWasActionable(true);
+  }, [actionableNow]);
   const busy = attend.isPending;
   const sheetTitle = resolving ? 'Marcar como solucionado' : 'Incidente de equipo';
   const description = resolving
@@ -205,23 +234,33 @@ export function FaultSheet({
           </Button>
         </div>
       );
-    } else if (data.status === 'open' || data.status === 'in_progress') {
+    } else if (data.status === 'open' || data.status === 'in_progress' || wasActionable) {
+      const actionable = data.status === 'open' || data.status === 'in_progress';
       footer = (
         <div className="flex w-full flex-wrap items-center gap-3">
-          {data.status === 'open' ? (
-            <Button className="h-12 flex-1 rounded-2xl" loading={attend.isPending} disabled={busy} onClick={() => void startRepair()}>
-              Empezar reparación
+          {actionable ? (
+            <>
+              {data.status === 'open' ? (
+                <Button className="h-12 flex-1 rounded-2xl" loading={attend.isPending} disabled={busy} onClick={() => void startRepair()}>
+                  Empezar reparación
+                </Button>
+              ) : null}
+              <Button
+                id={resolveButtonId}
+                variant="primary"
+                className="h-12 flex-1 rounded-2xl text-base font-bold"
+                disabled={busy}
+                onClick={() => startResolving(data)}
+              >
+                Marcar como solucionado
+              </Button>
+            </>
+          ) : (
+            <Button variant="ghost" className="h-12 w-full rounded-2xl" onClick={() => onOpenChange(false)}>
+              Cerrar
             </Button>
-          ) : null}
-          <Button
-            id={resolveButtonId}
-            variant="primary"
-            className="h-12 flex-1 rounded-2xl text-base font-bold"
-            disabled={busy}
-            onClick={() => startResolving(data)}
-          >
-            Marcar como solucionado
-          </Button>
+          )}
+          {me.data ? <FaultExtensionActions me={me.data} faultId={faultId} assetId={data.asset.id} hidden={!actionable} /> : null}
         </div>
       );
     }

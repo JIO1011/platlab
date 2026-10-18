@@ -1,7 +1,7 @@
 import type { MaintenanceRecord } from '@platlab/contracts';
 import { Badge, Button, Skeleton, StatePanel, cn, formatDecimal } from '@platlab/ui';
 import { History, X } from 'lucide-react';
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { QueryErrorState } from '../../app/states';
 import { formatDate } from '../../app/format';
@@ -10,7 +10,11 @@ import { useMaintenance } from './context';
 import { RecordDetail, resultTone } from './record-detail';
 import { useRecords } from './queries';
 import { SectionHeader } from './section-header';
+import { VoidSheet } from './void-sheet';
 import { kindLabels, resultLabels } from './work-text';
+
+/** La hoja de registro se descarga al corregir: el historial no carga el formulario ni el escáner. */
+const RecordSheet = lazy(async () => ({ default: (await import('./record-sheet')).RecordSheet }));
 
 /** Una hoja abierta; `n` la monta de nuevo en cada apertura (formulario limpio). */
 interface OpenRecord {
@@ -24,12 +28,16 @@ interface OpenRecord {
  * certificado. Abrir uno muestra su detalle de solo lectura. Con `?equipo=` son los de un solo equipo.
  */
 export function MaintenanceHistoryPage() {
-  const { workspaceId, me, canRecord } = useMaintenance();
+  const { workspaceId, me, canRecord, canOperate } = useMaintenance();
+  // Corregir y anular son del Administrador (M-01b).
+  const canVoid = canOperate && me.permissions.includes('maintenance.record.void');
   const [params, setParams] = useSearchParams();
   const assetId = params.get('equipo');
   const records = useRecords(workspaceId, assetId ?? undefined);
   const [detail, setDetail] = useState<OpenRecord | null>(null);
   const [attach, setAttach] = useState<OpenRecord | null>(null);
+  const [correct, setCorrect] = useState<OpenRecord | null>(null);
+  const [annul, setAnnul] = useState<OpenRecord | null>(null);
   const items = records.data?.pages.flatMap((page) => page.items) ?? [];
   const filtered = items[0]?.asset;
   const clearAsset = () =>
@@ -44,6 +52,8 @@ export function MaintenanceHistoryPage() {
 
   const open = (record: MaintenanceRecord) => setDetail({ n: (detail?.n ?? 0) + 1, open: true, record });
   const attachTo = (record: MaintenanceRecord) => setAttach({ n: (attach?.n ?? 0) + 1, open: true, record });
+  const correctTo = (record: MaintenanceRecord) => setCorrect({ n: (correct?.n ?? 0) + 1, open: true, record });
+  const voidTo = (record: MaintenanceRecord) => setAnnul({ n: (annul?.n ?? 0) + 1, open: true, record });
 
   return (
     <>
@@ -115,11 +125,23 @@ export function MaintenanceHistoryPage() {
                     </button>
                   </p>
                   <p className="break-words text-[13px] text-ink-muted">
-                    {record.plan ? `${record.plan.title} · ${kindLabels[record.kind]}` : `${kindLabels[record.kind]} · sin plan`}
+                    {record.plan
+                      ? `${record.plan.title} · ${kindLabels[record.kind]}`
+                      : record.kind === 'corrective'
+                        ? kindLabels.corrective
+                        : `${kindLabels[record.kind]} · sin plan`}
                   </p>
+                  {record.corrects ? (
+                    <p className="text-[13px] text-ink-muted">Corrige al del {formatDate(record.corrects.performedOn)}</p>
+                  ) : record.voided?.correctedBy ? (
+                    <p className="text-[13px] text-ink-muted">Corregido por el del {formatDate(record.voided.correctedBy.performedOn)}</p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <Badge tone={resultTone[record.result]}>{resultLabels[record.result]}</Badge>
+                  {record.voided ? <Badge tone="neutral">Anulado</Badge> : null}
+                  <Badge tone={resultTone[record.result]}>
+                    {resultLabels[record.result]}
+                  </Badge>
                   <span className="text-[13px] text-ink-muted">{record.provider?.name ?? 'Interno'}</span>
                 </div>
                 <p className="text-sm tabular-nums text-ink md:text-right">
@@ -137,7 +159,7 @@ export function MaintenanceHistoryPage() {
                       Ver certificado
                       <span className="sr-only"> de {record.asset.code} (PDF, se abre en otra pestaña)</span>
                     </a>
-                  ) : canRecord ? (
+                  ) : canRecord && !record.voided ? (
                     <Button size="sm" className="max-sm:h-11" aria-haspopup="dialog" aria-label={`Adjuntar certificado de ${record.asset.code}`} onClick={() => attachTo(record)}>
                       Adjuntar certificado
                     </Button>
@@ -169,6 +191,20 @@ export function MaintenanceHistoryPage() {
               setDetail((current) => (current ? { ...current, open: false } : current));
               attachTo(detail.record);
             }}
+            {...(canVoid
+              ? {
+                  actions: {
+                    onCorrect: () => {
+                      setDetail((current) => (current ? { ...current, open: false } : current));
+                      correctTo(detail.record);
+                    },
+                    onVoid: () => {
+                      setDetail((current) => (current ? { ...current, open: false } : current));
+                      voidTo(detail.record);
+                    },
+                  },
+                }
+              : {})}
           />
         ) : null}
         {attach ? (
@@ -179,6 +215,27 @@ export function MaintenanceHistoryPage() {
             onOpenChange={(next) => setAttach((current) => (current ? { ...current, open: next } : current))}
             record={attach.record}
           />
+        ) : null}
+        {annul ? (
+          <VoidSheet
+            key={annul.n}
+            workspaceId={workspaceId}
+            open={annul.open}
+            onOpenChange={(next) => setAnnul((current) => (current ? { ...current, open: next } : current))}
+            record={annul.record}
+          />
+        ) : null}
+        {correct ? (
+          <Suspense fallback={null}>
+            <RecordSheet
+              key={correct.n}
+              workspaceId={workspaceId}
+              me={me}
+              open={correct.open}
+              onOpenChange={(next) => setCorrect((current) => (current ? { ...current, open: next } : current))}
+              correcting={correct.record}
+            />
+          </Suspense>
         ) : null}
       </div>
     </>

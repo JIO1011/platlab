@@ -52,6 +52,7 @@ export function FormSheet({
   announcement,
   dirty = false,
   fullscreenMobile = false,
+  destructive = false,
   children,
 }: {
   title: string;
@@ -90,6 +91,8 @@ export function FormSheet({
   dirty?: boolean;
   /** Pantalla completa por debajo de 640 px (formularios largos). */
   fullscreenMobile?: boolean;
+  /** El botón principal es de una acción que no se deshace (anular): rojo, sin degradado. */
+  destructive?: boolean;
   children: ReactNode;
 }) {
   const formId = `form-${title.replace(/\s+/g, '-').toLowerCase()}`;
@@ -154,7 +157,10 @@ export function FormSheet({
               loading={pending}
               disabled={submitDisabled}
               className={cn(
-                'w-full flex-1 rounded-2xl bg-linear-to-r from-action to-action-deep text-base font-bold shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep disabled:shadow-none',
+                'w-full flex-1 rounded-2xl text-base font-bold',
+                destructive
+                  ? 'border-transparent bg-danger text-white hover:bg-danger/90'
+                  : 'bg-linear-to-r from-action to-action-deep shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep disabled:shadow-none',
                 fullWidthSubmit ? 'h-14 [&_svg]:size-5' : 'h-12',
               )}
             >

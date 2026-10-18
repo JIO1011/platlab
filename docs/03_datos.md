@@ -165,8 +165,8 @@ Reglas:
 | `maintenance.providers` | Proveedor de servicio del espacio: nombre y contacto; se archiva ([ADR 0020](05_decisiones.md#adr-0020)) |
 | `maintenance.plans` | Tipo de trabajo (preventivo, calibración, verificación, limpieza), título, alcance (un tipo de equipo o un equipo), frecuencia (cada N días, semanas, meses o años), fecha de inicio, lista de verificación y criterio de aceptación; se archiva |
 | `maintenance.plan_exclusions` | Equipo excluido de un plan de su tipo, con motivo y, si lo reemplaza, el plan propio; se archiva |
-| `maintenance.records` | Mantenimiento hecho: equipo, plan o tipo de trabajo, fecha, interno o proveedor, resultado (conforme, con observaciones, no conforme), observaciones, lista marcada y criterio de aceptación con que se evaluó, costo exacto y «válida hasta»; inmutable. El estado físico actual lo cambia Equipos |
-| `maintenance.record_certificates` | Certificado PDF de un registro, uno por registro, con las reglas de los documentos de Equipos |
+| `maintenance.records` | Mantenimiento hecho: equipo, plan o tipo de trabajo, fecha, interno o proveedor, resultado (conforme, con observaciones, no conforme), observaciones, lista marcada y criterio de aceptación con que se evaluó, costo exacto y «válida hasta»; inmutable. El correctivo no tiene plan y puede ligar el incidente que atiende. Solo se anula, con motivo, quién y cuándo; una corrección es un registro nuevo que apunta al anulado. El estado físico actual lo cambia Equipos |
+| `maintenance.record_certificates` | Certificado PDF de un registro, uno por registro, con las reglas de los documentos de Equipos; la corrección lleva el del anulado, que apunta al mismo archivo |
 | `maintenance.orders` | Solo en F5: órdenes asignadas a técnicos, bloqueo de agenda y repuestos. El correctivo de M-01b es un registro enlazado al incidente de M3 ([ADR 0020](05_decisiones.md#adr-0020)) |
 
 Estados:
