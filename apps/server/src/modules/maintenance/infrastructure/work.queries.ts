@@ -142,6 +142,7 @@ export interface IFindAssetsResult {
   area_name: string | null;
   code: string;
   condition: string;
+  conservation: string | null;
   id: string;
   name: string;
 }
@@ -152,7 +153,7 @@ export interface IFindAssetsQuery {
   result: IFindAssetsResult;
 }
 
-const findAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"assetId":true,"code":true},"params":[{"name":"q","required":false,"transform":{"type":"scalar"},"locs":[{"a":349,"b":350}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":860,"b":872}]},{"name":"assetId","required":false,"transform":{"type":"scalar"},"locs":[{"a":890,"b":897},{"a":955,"b":962}]},{"name":"code","required":false,"transform":{"type":"scalar"},"locs":[{"a":981,"b":985},{"a":1026,"b":1030}]}],"statement":"-- «Registrar mantenimiento»: hasta 20 equipos no dados de baja cuyo código o nombre contiene :q, plegado\n-- como en el inventario (ADR 0015), o con el código :code sin mayúsculas. Con :assetId, ese equipo,\n-- también dado de baja (la ficha). Quien llama pasa uno de los tres.\nWITH search AS (\n  SELECT '%' || replace(replace(replace(core.fold_text(:q::text),\n           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern\n)\nSELECT a.id AS \"id!\", a.code AS \"code!\", a.name AS \"name!\", a.condition AS \"condition!\", area.name AS \"area_name?\"\nFROM equipment.asset_directory AS a\nCROSS JOIN search\nLEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id\nLEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id\nWHERE a.workspace_id = :workspaceId!\n  AND CASE WHEN :assetId::uuid IS NULL THEN a.condition <> 'retired' ELSE a.id = :assetId::uuid END\n  AND (:code::text IS NULL OR lower(a.code) = lower(:code::text))\n  AND (search.pattern IS NULL OR core.fold_text(a.code || ' ' || a.name) LIKE search.pattern)\nORDER BY lower(a.code), a.id\nLIMIT 20"};
+const findAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"assetId":true,"code":true},"params":[{"name":"q","required":false,"transform":{"type":"scalar"},"locs":[{"a":349,"b":350}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":876,"b":888}]},{"name":"assetId","required":false,"transform":{"type":"scalar"},"locs":[{"a":906,"b":913},{"a":971,"b":978}]},{"name":"code","required":false,"transform":{"type":"scalar"},"locs":[{"a":997,"b":1001},{"a":1042,"b":1046}]}],"statement":"-- «Registrar mantenimiento»: hasta 20 equipos no dados de baja cuyo código o nombre contiene :q, plegado\n-- como en el inventario (ADR 0015), o con el código :code sin mayúsculas. Con :assetId, ese equipo,\n-- también dado de baja (la ficha). Quien llama pasa uno de los tres.\nWITH search AS (\n  SELECT '%' || replace(replace(replace(core.fold_text(:q::text),\n           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern\n)\nSELECT a.id AS \"id!\", a.code AS \"code!\", a.name AS \"name!\", a.condition AS \"condition!\", a.conservation, area.name AS \"area_name?\"\nFROM equipment.asset_directory AS a\nCROSS JOIN search\nLEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id\nLEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id\nWHERE a.workspace_id = :workspaceId!\n  AND CASE WHEN :assetId::uuid IS NULL THEN a.condition <> 'retired' ELSE a.id = :assetId::uuid END\n  AND (:code::text IS NULL OR lower(a.code) = lower(:code::text))\n  AND (search.pattern IS NULL OR core.fold_text(a.code || ' ' || a.name) LIKE search.pattern)\nORDER BY lower(a.code), a.id\nLIMIT 20"};
 
 /**
  * Query generated from SQL:
@@ -164,7 +165,7 @@ const findAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"assetId"
  *   SELECT '%' || replace(replace(replace(core.fold_text(:q::text),
  *            chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
  * )
- * SELECT a.id AS "id!", a.code AS "code!", a.name AS "name!", a.condition AS "condition!", area.name AS "area_name?"
+ * SELECT a.id AS "id!", a.code AS "code!", a.name AS "name!", a.condition AS "condition!", a.conservation, area.name AS "area_name?"
  * FROM equipment.asset_directory AS a
  * CROSS JOIN search
  * LEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id

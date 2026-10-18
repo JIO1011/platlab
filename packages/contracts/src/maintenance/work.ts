@@ -122,7 +122,8 @@ export const maintenanceAssetQuery = z
   .strict()
   .refine((input) => (input.q === undefined) !== (input.code === undefined), { message: 'Busca por texto o por código' });
 
-const maintenanceAsset = maintenanceAssetRef.extend({ ...area, condition: assetCondition });
+// El estado físico actual: la hoja lo muestra y solo lo cambia si se elige otro (ADR 0020).
+const maintenanceAsset = maintenanceAssetRef.extend({ ...area, condition: assetCondition, conservation: assetConservation.nullable() });
 
 /** Hasta 20 equipos no dados de baja, por código. */
 export const maintenanceAssetList = z.object({ items: z.array(maintenanceAsset) });

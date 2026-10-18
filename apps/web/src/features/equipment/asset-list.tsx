@@ -1,14 +1,16 @@
 import type { Asset } from '@platlab/contracts';
-import { IconChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, cn } from '@platlab/ui';
-import { MapPin, Microscope, Tag, User } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { IconChip, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, cn } from '@platlab/ui';
+import { CalendarClock, MapPin, Microscope, Tag, User } from 'lucide-react';
+import { Suspense, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { useExtensions } from '../../app/extensions';
 import { flipCard, flipDelay, flipFront, LabelBack } from '../../app/labels/label-flip';
 import { EquipmentLabel } from './asset-labels';
 import { assetLabelUrl } from './asset-link';
 import { assetMeta, noResponsibleLabel, placeInArea, placeLines } from './asset-text';
 import { ConditionBadge } from './condition-badge';
 import { useEquipment } from './context';
+import { ASSET_NEXT } from './extension-points';
 import { PickBox } from './pick-box';
 
 /**
@@ -61,9 +63,12 @@ function Place({ location }: { location: Asset['location'] }) {
  * 1024 px la desborde: Código, Equipo (el nombre y, debajo, «tipo · marca · modelo»), Ubicación, Responsable y
  * Estado. La fila entera abre la ficha: el nombre es el enlace y se extiende sobre la fila. Responsable sale a
  * su columna cuando la tarjeta mide lo bastante (con el panel de filtros abierto no siempre cabe) y, si no,
- * baja bajo el nombre.
+ * baja bajo el nombre. Otros módulos suman sus columnas tras Estado (`equipment.asset-next`).
  */
 export function AssetTable({ assets, base, picks }: { assets: Asset[]; base: string; picks?: AssetPicks | undefined }) {
+  const { me } = useEquipment();
+  const columns = useExtensions(ASSET_NEXT, me);
+  const assetIds = assets.map((asset) => asset.id);
   return (
     <div className="@container overflow-hidden rounded-card bg-surface shadow-raised">
       <Table className="table-fixed">
@@ -79,6 +84,11 @@ export function AssetTable({ assets, base, picks }: { assets: Asset[]; base: str
             <TableHeader className="w-[22%] px-3">Ubicación</TableHeader>
             <TableHeader className="hidden w-[20%] px-3 @3xl:table-cell">Responsable</TableHeader>
             <TableHeader className="w-36 px-3 pr-4">Estado</TableHeader>
+            {columns.map((column) => (
+              <TableHeader key={column.code} className="w-40 px-3 pr-4">
+                {column.label}
+              </TableHeader>
+            ))}
           </tr>
         </TableHead>
         <TableBody>
@@ -123,6 +133,13 @@ export function AssetTable({ assets, base, picks }: { assets: Asset[]; base: str
                 <TableCell className="whitespace-nowrap px-3 pr-4 align-top">
                   <ConditionBadge condition={asset.condition} />
                 </TableCell>
+                {columns.map(({ code, Component }) => (
+                  <TableCell key={code} className="px-3 pr-4 align-top">
+                    <Suspense fallback={<Skeleton className="h-4 w-24" />}>
+                      <Component assetId={asset.id} assetIds={assetIds} />
+                    </Suspense>
+                  </TableCell>
+                ))}
               </TableRow>
             );
           })}
@@ -134,6 +151,9 @@ export function AssetTable({ assets, base, picks }: { assets: Asset[]; base: str
 
 /** En pantallas estrechas, cada equipo es una tarjeta apilada que abre su ficha. */
 export function AssetCards({ assets, base, picks }: { assets: Asset[]; base: string; picks?: AssetPicks | undefined }) {
+  const { me } = useEquipment();
+  const lines = useExtensions(ASSET_NEXT, me);
+  const assetIds = assets.map((asset) => asset.id);
   return (
     <ul className="grid gap-3">
       {assets.map((asset) => {
@@ -177,6 +197,16 @@ export function AssetCards({ assets, base, picks }: { assets: Asset[]; base: str
                   <User className="size-3.5 shrink-0" aria-hidden />
                   <span className="truncate">{asset.responsible?.name ?? noResponsibleLabel}</span>
                 </p>
+                {/* Lo que otros módulos aportan (`equipment.asset-next`), como una línea más, igual que la columna de la tabla. */}
+                {lines.map(({ code, label, Component }) => (
+                  <div key={code} className="flex min-w-0 items-center gap-2">
+                    <CalendarClock className="size-3.5 shrink-0" aria-hidden />
+                    <span className="sr-only">{label}: </span>
+                    <Suspense fallback={<Skeleton className="h-4 w-24" />}>
+                      <Component assetId={asset.id} assetIds={assetIds} />
+                    </Suspense>
+                  </div>
+                ))}
               </div>
             </Link>
           </li>

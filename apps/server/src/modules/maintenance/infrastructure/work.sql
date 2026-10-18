@@ -46,7 +46,7 @@ WITH search AS (
   SELECT '%' || replace(replace(replace(core.fold_text(:q::text),
            chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
 )
-SELECT a.id AS "id!", a.code AS "code!", a.name AS "name!", a.condition AS "condition!", area.name AS "area_name?"
+SELECT a.id AS "id!", a.code AS "code!", a.name AS "name!", a.condition AS "condition!", a.conservation, area.name AS "area_name?"
 FROM equipment.asset_directory AS a
 CROSS JOIN search
 LEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id

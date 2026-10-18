@@ -228,6 +228,19 @@
   --color-canvas-glow: #eaf2ff;
 }
 
+[data-module='maintenance'] {
+  /*
+   * Petróleo de Mantenimiento (ADR 0020): 5,4:1 con blanco; el texto #0E7490 sobre #ECFEFF, 5,1:1. El
+   * extremo claro del degradado (#0E7C9A, 4,8:1 con blanco) aún deja leer el texto blanco de los botones.
+   */
+  --color-action: #0e7490;
+  --color-action-hover: #155e75;
+  --color-action-pressed: #164e63;
+  --color-action-soft: #ecfeff;
+  --color-action-deep: #0e7c9a;
+  --color-canvas-glow: #e9f8fb;
+}
+
 /*
  * Impresión de etiquetas (ADR 0012, entrega 4): si la página tiene una zona `.print-area`, solo
  * ella se imprime, sin el menú, la barra ni las acciones.

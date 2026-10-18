@@ -79,6 +79,7 @@ async function findAssets(
     name: row.name,
     area: row.area_name,
     condition: row.condition as MaintenanceAsset['condition'],
+    conservation: row.conservation as MaintenanceAsset['conservation'],
   }));
 }
 

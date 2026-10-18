@@ -1,8 +1,10 @@
 import { Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from '@platlab/ui';
 import { Archive } from 'lucide-react';
-import { useState } from 'react';
-import { useParams } from 'react-router';
+import { Suspense, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router';
 import { WithBack } from '../../app/back-button';
+import { useExtensions } from '../../app/extensions';
+import { fold } from '../../app/fold';
 import { formatDateTime } from '../../app/format';
 import { useShellTrail } from '../../app/shell-trail';
 import { QueryErrorState } from '../../app/states';
@@ -11,6 +13,7 @@ import { AssetDocuments } from './asset-documents';
 import { AssetFaults } from './asset-faults';
 import { AssetHistory } from './asset-history';
 import { useEquipment } from './context';
+import { ASSET_TAB } from './extension-points';
 import { LifeRecordPrint } from './life-record-print';
 import { useAreas, useAsset, useAssetHistory } from './queries';
 import { AssetFormSheet } from './sheets/asset-sheet';
@@ -27,7 +30,7 @@ interface OpenSheet {
 
 /**
  * Ficha del equipo, segundo nivel del inventario (ADR 0019): el membrete de vidrio con sus acciones y todos sus
- * datos y, en pestañas, Incidentes (a quien los ve), Documentos e Historial. Un equipo dado de baja lo dice en una franja
+ * datos y, en pestañas, Incidentes (a quien los ve), Documentos, Historial y las de otros módulos (`?pestana=`). Un equipo dado de baja lo dice en una franja
  * neutra, con la fecha y el motivo del último cambio, y no ofrece ninguna acción (salvo la Hoja de vida imprimible). Las migas de la barra suman
  * el área y el nombre del equipo; ← vuelve un paso, o al área.
  */
@@ -39,6 +42,8 @@ export function EquipmentAssetPage() {
   const areas = useAreas(workspaceId);
   const [sheet, setSheet] = useState<OpenSheet | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [search, setSearch] = useSearchParams();
+  const extraTabs = useExtensions(ASSET_TAB, me).map((tab) => ({ ...tab, value: fold(tab.label).replace(/\s+/g, '-') }));
   const timeZone = me.workspace.timeZone;
   const canReport = canOperate && me.permissions.includes('equipment.fault.report');
   // Los incidentes de un equipo los ve quien las reporta o las atiende.
@@ -73,6 +78,19 @@ export function EquipmentAssetPage() {
   const updatedAt = stamps.every((stamp) => stamp > 0) ? Math.min(...stamps) : 0;
   const retirement =
     data.condition === 'retired' ? history.data?.items.find((event) => event.kind === 'condition' && event.to === 'retired') : undefined;
+  // La pestaña va en la URL para poder enlazarla («?pestana=mantenimiento»); una desconocida cae en la primera.
+  const tabs = [...(seesFaults ? ['incidentes'] : []), 'documentos', 'historial', ...extraTabs.map((tab) => tab.value)];
+  const requested = search.get('pestana');
+  const tab = requested && tabs.includes(requested) ? requested : (tabs[0] ?? 'historial');
+  const selectTab = (value: string) =>
+    setSearch(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.set('pestana', value);
+        return next;
+      },
+      { replace: true },
+    );
   const openSheet = (kind: AssetSheet) => setSheet({ kind, id: Date.now(), open: true });
   const closeSheet = (open: boolean) => setSheet((current) => (current ? { ...current, open } : current));
 
@@ -105,11 +123,16 @@ export function EquipmentAssetPage() {
           </span>
         </p>
       ) : null}
-      <Tabs defaultValue={seesFaults ? 'incidentes' : 'historial'} className="min-w-0">
+      <Tabs value={tab} onValueChange={selectTab} className="min-w-0">
         <TabsList aria-label="Secciones de la ficha">
           {seesFaults ? <TabsTrigger value="incidentes">Incidentes</TabsTrigger> : null}
           <TabsTrigger value="documentos">Documentos</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
+          {extraTabs.map((extra) => (
+            <TabsTrigger key={extra.code} value={extra.value}>
+              {extra.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
         {seesFaults ? (
           <TabsContent value="incidentes">
@@ -122,6 +145,13 @@ export function EquipmentAssetPage() {
         <TabsContent value="historial">
           <AssetHistory history={history} timeZone={timeZone} />
         </TabsContent>
+        {extraTabs.map(({ code, value, Component }) => (
+          <TabsContent key={code} value={value}>
+            <Suspense fallback={<Skeleton className="h-40" />}>
+              <Component assetId={data.id} />
+            </Suspense>
+          </TabsContent>
+        ))}
       </Tabs>
       {sheet?.kind === 'condition' ? (
         <ConditionSheet

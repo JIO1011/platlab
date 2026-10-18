@@ -1,0 +1,103 @@
+import { describe, expect, it } from 'vitest';
+import { daysUntil, dueGroup, dueText, dueTone, groupDue, todayInZone } from './due';
+
+const today = '2026-10-17';
+const pending = (dueOn: string) => ({ dueOn, lastResult: null });
+
+describe('todayInZone', () => {
+  it('toma el día civil de la zona del espacio, no el de UTC', () => {
+    // 03:00 UTC del 17 aún es el 16 en Guayaquil (UTC−5) y ya es el 17 en Madrid.
+    const now = Date.UTC(2026, 9, 17, 3, 0);
+    expect(todayInZone('America/Guayaquil', now)).toBe('2026-10-16');
+    expect(todayInZone('Europe/Madrid', now)).toBe('2026-10-17');
+  });
+
+  it('cambia de día justo a la medianoche local', () => {
+    expect(todayInZone('America/Guayaquil', Date.UTC(2026, 9, 17, 4, 59))).toBe('2026-10-16');
+    expect(todayInZone('America/Guayaquil', Date.UTC(2026, 9, 17, 5, 0))).toBe('2026-10-17');
+  });
+});
+
+describe('daysUntil', () => {
+  it('cuenta días civiles a través del fin de mes y de año', () => {
+    expect(daysUntil('2026-11-01', '2026-10-31')).toBe(1);
+    expect(daysUntil('2026-10-31', '2026-11-01')).toBe(-1);
+    expect(daysUntil('2027-01-01', '2026-12-31')).toBe(1);
+    expect(daysUntil('2027-03-01', '2027-02-28')).toBe(1);
+  });
+});
+
+describe('dueGroup', () => {
+  it('pone hoy en Próximos 7 días y ayer en Vencidos', () => {
+    expect(dueGroup(pending(today), today)).toBe('week');
+    expect(dueGroup(pending('2026-10-16'), today)).toBe('overdue');
+  });
+
+  it('separa 7 y 8 días', () => {
+    expect(dueGroup(pending('2026-10-24'), today)).toBe('week');
+    expect(dueGroup(pending('2026-10-25'), today)).toBe('month');
+  });
+
+  it('incluye el día 30 y deja fuera el 31', () => {
+    expect(dueGroup(pending('2026-11-16'), today)).toBe('month');
+    expect(dueGroup(pending('2026-11-17'), today)).toBeNull();
+  });
+
+  it('cuenta los días a través del fin de mes', () => {
+    expect(dueGroup(pending('2026-11-07'), '2026-10-31')).toBe('week');
+    expect(dueGroup(pending('2026-11-08'), '2026-10-31')).toBe('month');
+  });
+
+  it('un no conforme va a No conformes aunque su fecha esté lejos', () => {
+    expect(dueGroup({ dueOn: '2027-10-17', lastResult: 'fail' }, today)).toBe('nonconforming');
+    expect(dueGroup({ dueOn: '2026-10-01', lastResult: 'fail' }, today)).toBe('nonconforming');
+  });
+
+  it('con observaciones cuenta como hecho: sigue su fecha', () => {
+    expect(dueGroup({ dueOn: '2026-12-17', lastResult: 'pass_with_observations' }, today)).toBeNull();
+  });
+});
+
+describe('groupDue', () => {
+  it('ordena los grupos, omite los vacíos y conserva el orden de cada uno', () => {
+    const items = [
+      { id: 'a', ...pending('2026-10-10') },
+      { id: 'b', ...pending('2026-10-20') },
+      { id: 'c', dueOn: '2026-12-01', lastResult: 'fail' as const },
+      { id: 'd', ...pending('2026-10-12') },
+      { id: 'e', ...pending('2027-01-01') },
+    ];
+    expect(groupDue(items, today).map((entry) => [entry.label, entry.items.map((item) => item.id)])).toEqual([
+      ['No conformes', ['c']],
+      ['Vencidos', ['a', 'd']],
+      ['Próximos 7 días', ['b']],
+    ]);
+  });
+});
+
+describe('dueText', () => {
+  it('dice «Vence hoy», «hace N días» y «en N días», con singular', () => {
+    expect(dueText(today, today)).toBe('Vence hoy');
+    expect(dueText('2026-10-16', today)).toBe('hace 1 día');
+    expect(dueText('2026-10-10', today)).toBe('hace 7 días');
+    expect(dueText('2026-10-18', today)).toBe('en 1 día');
+    expect(dueText('2026-11-16', today)).toBe('en 30 días');
+  });
+});
+
+describe('dueTone', () => {
+  it('neutro sin plan', () => {
+    expect(dueTone(null, today)).toBe('neutral');
+  });
+
+  it('rojo vencido o no conforme', () => {
+    expect(dueTone(pending('2026-10-16'), today)).toBe('danger');
+    expect(dueTone({ dueOn: '2027-04-17', lastResult: 'fail' }, today)).toBe('danger');
+  });
+
+  it('ámbar de hoy a 30 días y verde después', () => {
+    expect(dueTone(pending(today), today)).toBe('warning');
+    expect(dueTone(pending('2026-11-16'), today)).toBe('warning');
+    expect(dueTone(pending('2026-11-17'), today)).toBe('success');
+  });
+});

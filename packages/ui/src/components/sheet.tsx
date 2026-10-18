@@ -19,6 +19,8 @@ export interface SheetProps {
   wide?: boolean | 'xl';
   /** Quién recibe el foco al abrir; por omisión, el primer control tabulable (Radix). */
   initialFocus?: RefObject<HTMLElement | null> | undefined;
+  /** En pantallas de menos de 640 px ocupa toda la pantalla (formularios largos); desde ahí, igual que las demás. */
+  fullscreenMobile?: boolean;
 }
 
 /**
@@ -29,7 +31,7 @@ export interface SheetProps {
  * Material (ADR 0010, 13-10-2026): vidrio esmerilado, blanco al 80 % con desenfoque y saturación
  * sobre un velo claro; sin `backdrop-filter`, superficie sólida.
  */
-export function Sheet({ open, onOpenChange, title, description, icon: Icon, children, footer, wide = false, initialFocus }: SheetProps) {
+export function Sheet({ open, onOpenChange, title, description, icon: Icon, children, footer, wide = false, initialFocus, fullscreenMobile = false }: SheetProps) {
   // Una sombra al pie del cuerpo avisa de que queda contenido abajo: un centinela al final del cuerpo
   // la apaga cuando se ve entero (IntersectionObserver; sin él, no hay sombra).
   const [body, setBody] = useState<HTMLDivElement | null>(null);
@@ -60,6 +62,7 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
             // Vidrio esmerilado: superficie blanca al 80 % sobre el fondo desenfocado; sin `backdrop-filter`, sólida.
             'fixed inset-0 z-50 m-auto flex h-fit max-h-[90dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-surface/80 shadow-overlay outline-none backdrop-blur-xl backdrop-saturate-150 not-supports-[backdrop-filter]:bg-surface data-[state=closed]:animate-modal-out data-[state=open]:animate-modal-in',
             wide === 'xl' ? 'max-w-[40rem] lg:max-w-[64rem]' : wide ? 'max-w-[40rem]' : 'max-w-lg',
+            fullscreenMobile && 'max-sm:m-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0',
           )}
         >
           <header className="flex items-start justify-between gap-4 px-6 pb-4 pt-5">
