@@ -8,7 +8,7 @@ import { QueryErrorState } from '../../app/states';
 import { dueTone, todayInZone, workStatus } from './due';
 import { DueDot, toneText } from './due-view';
 import { useAssetMaintenance } from './queries';
-import { kindLabels, maintenancePath, resultLabels } from './work-text';
+import { kindLabels, maintenancePath, noPlanText, resultLabels } from './work-text';
 
 /** La hoja de registro se descarga al abrirla: la ficha y la tabla de equipos no cargan el escáner ni el formulario. */
 const RecordSheet = lazy(async () => ({ default: (await import('./record-sheet')).RecordSheet }));
@@ -120,10 +120,18 @@ export function AssetMaintenanceTab({ assetId }: { assetId: string }) {
               <li key={entry.id} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3 md:px-6">
                 <span className="w-28 text-sm tabular-nums text-ink-muted">{formatDate(entry.performedOn)}</span>
                 <span className="min-w-0 flex-1 basis-40 break-words text-sm text-ink">
-                  {entry.plan?.title ?? `${kindLabels[entry.kind]} sin plan`}
+                  {entry.plan?.title ?? noPlanText(entry.kind)}
                   <span className="text-[13px] text-ink-muted"> · {entry.provider?.name ?? 'Interno'}</span>
+                  {entry.corrects ? (
+                    <span className="block text-[13px] text-ink-muted">Corrige al del {formatDate(entry.corrects.performedOn)}</span>
+                  ) : entry.voided?.correctedBy ? (
+                    <span className="block text-[13px] text-ink-muted">Corregido por el del {formatDate(entry.voided.correctedBy.performedOn)}</span>
+                  ) : null}
                 </span>
-                <Badge tone={resultTone[entry.result]}>{resultLabels[entry.result]}</Badge>
+                {entry.voided ? <Badge tone="neutral">Anulado</Badge> : null}
+                <Badge tone={resultTone[entry.result]}>
+                  {resultLabels[entry.result]}
+                </Badge>
                 {entry.certificate ? (
                   <a
                     href={entry.certificate.url}

@@ -16,7 +16,8 @@ export const maintenanceWebModule: WebModule = {
     ],
     trendNoun: { one: 'registro', many: 'registros' },
   },
-  // En Equipos, sin duplicar (ADR 0020): la pestaña de la ficha y la columna con semáforo.
+  // En Equipos, sin duplicar (ADR 0020): la pestaña de la ficha, la columna con semáforo y, en el incidente,
+  // «Registrar en Mantenimiento» (M-01b).
   extensions: [
     {
       point: 'equipment.asset-tab',
@@ -29,6 +30,12 @@ export const maintenanceWebModule: WebModule = {
       label: 'Próximo mantenimiento',
       permission: 'maintenance.work.read',
       load: async () => (await extensionPages()).NextDueCell,
+    },
+    {
+      point: 'equipment.fault-action',
+      label: 'Registrar en Mantenimiento',
+      permission: 'maintenance.work.record',
+      load: async () => (await extensionPages()).RepairAction,
     },
   ],
 };

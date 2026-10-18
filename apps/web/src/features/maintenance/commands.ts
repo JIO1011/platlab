@@ -60,6 +60,19 @@ export function useCreateRecord(workspaceId: string) {
 }
 
 /**
+ * «Corregir» (Administrador, M-01b): anula el registro y registra el correcto en un paso. Como registrar,
+ * puede escribir en Equipos: refresca toda la caché del espacio.
+ */
+export function useCorrectRecord(workspaceId: string, recordId: string) {
+  return useModuleCommand(workspaceId, `/maintenance/records/${recordId}/correction`, recordCreated, workspaceKey(useUserKey(), workspaceId));
+}
+
+/** «Anular» (Administrador, M-01b): el registro sigue a la vista y deja de contar para la próxima fecha. */
+export function useVoidRecord(workspaceId: string, recordId: string) {
+  return useModuleCommand(workspaceId, `/maintenance/records/${recordId}/void`, record, useMaintenanceKey(workspaceId));
+}
+
+/**
  * Adjunta el certificado PDF de un registro (uno por registro). La clave es la del registro: un reintento
  * tras un corte recibe la respuesta guardada y nunca sube un segundo archivo.
  */
@@ -99,7 +112,8 @@ export function maintenanceErrorMessage(error: unknown): string {
     return 'Mantenimiento no admite cambios en este momento. Puedes consultar.';
   }
   if (isApiError(error, 'TRANSIENT_CONFLICT')) return 'Otra persona está cambiando este equipo. Vuelve a intentarlo: no se duplicará.';
-  if (isApiError(error, 'NOT_FOUND')) return 'Ese equipo o ese plan ya no está disponible en este espacio.';
+  if (isApiError(error, 'REQUEST_RESOLVED')) return 'Otra persona ya solucionó ese incidente. Elige «Ninguno» o vuelve a abrir la hoja.';
+  if (isApiError(error, 'NOT_FOUND')) return 'Ese equipo, ese plan o ese incidente ya no está disponible en este espacio.';
   if (isApiError(error, 'NETWORK')) return 'Sin conexión. Vuelve a intentarlo: si ya se registró, no se duplicará.';
   if (isApiError(error, 'VALIDATION_FAILED')) return error.message;
   return 'PlatLab no pudo registrar el cambio. Vuelve a intentarlo.';

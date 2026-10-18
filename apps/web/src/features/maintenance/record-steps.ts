@@ -39,17 +39,33 @@ export function saveStep(state: SaveState, event: SaveEvent): SaveState {
   }
 }
 
+/** Lo que el registro aplicó en Equipos con un correctivo: el incidente solucionado y, si se pidió, el equipo operativo. */
+export interface RepairDone {
+  resolved: boolean;
+  returned: boolean;
+}
+
 /**
  * El mensaje final: la nueva fecha del plan; o, si un registro histórico no la movió, que quedó en el
- * historial; o, sin plan, que se registró sin plan. `dueBefore` es la fecha del plan antes de guardar.
+ * historial; o, sin plan, que se registró sin plan. Un correctivo dice si solucionó el incidente, y una
+ * corrección lo dice en vez de «registrado». `dueBefore` es la fecha del plan antes de guardar.
  */
 export function recordOutcome(
-  record: Pick<RecordCreated, 'plan' | 'nextDueOn'>,
+  record: Pick<RecordCreated, 'plan' | 'nextDueOn' | 'kind'>,
   dueBefore: string | null,
+  { repair, corrected = false }: { repair?: RepairDone; corrected?: boolean } = {},
 ): { kind: 'next' | 'history' | 'noPlan'; text: string } {
-  if (!record.plan || !record.nextDueOn) return { kind: 'noPlan', text: 'Mantenimiento registrado sin plan.' };
-  if (record.nextDueOn === dueBefore) {
-    return { kind: 'history', text: 'Registrado en el historial. La próxima fecha no cambia.' };
+  const lead = corrected ? 'Registro corregido' : record.kind === 'corrective' ? 'Reparación registrada' : 'Mantenimiento registrado';
+  if (!record.plan || !record.nextDueOn) {
+    const incident = repair?.resolved
+      ? repair.returned
+        ? ' El incidente quedó solucionado y el equipo volvió a Operativo.'
+        : ' El incidente quedó solucionado.'
+      : '';
+    return { kind: 'noPlan', text: `${lead}${record.kind === 'corrective' ? '.' : ' sin plan.'}${incident}` };
   }
-  return { kind: 'next', text: `Mantenimiento registrado. Próximo: ${formatDate(record.nextDueOn)}.` };
+  if (record.nextDueOn === dueBefore) {
+    return { kind: 'history', text: `${corrected ? 'Registro corregido' : 'Registrado en el historial'}. La próxima fecha no cambia.` };
+  }
+  return { kind: 'next', text: `${lead}. Próximo: ${formatDate(record.nextDueOn)}.` };
 }

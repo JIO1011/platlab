@@ -46,6 +46,8 @@ import { CONDITION, FAULT_MANAGE, FAULT_REPORT, lockActiveAsset, runCommand } fr
 const runReporterQuery = moduleQuery('equipment', FAULT_REPORT);
 /** Las cifras de todo el espacio son de quien atiende, que ve todas las fallas. */
 const runManagerQuery = moduleQuery('equipment', FAULT_MANAGE);
+/** Incidentes abiertos de un equipo que ve otro módulo: más no caben en una hoja. */
+const OPEN_FAULTS = 20;
 
 const incidents = (access: WorkspaceAccess): IncidentsContext => ({
   client: access.client,
@@ -180,40 +182,98 @@ export function resolveFault(
       if (input.returnToOperational) await requirePermission(access, CONDITION);
     },
     async (access) => {
-      const ctx = incidents(access);
-      const { assetId } = await lockFault(ctx, faultId);
-      await resolveCase(ctx, faultId, input.resolution);
-      let condition: { from: string; to: string } | null = null;
-      if (input.returnToOperational && assetId) {
-        const [asset] = await lockAsset.run({ workspaceId: access.workspace.id, assetId }, access.client);
-        if (asset?.condition === 'retired') throw new AppError('VALIDATION_FAILED', 'El equipo está dado de baja: no vuelve a operativo');
-        if (asset && asset.condition !== 'operational') {
-          await changeAssetCondition.run(
-            {
-              workspaceId: access.workspace.id,
-              assetId,
-              fromCondition: asset.condition,
-              toCondition: 'operational',
-              reason: 'Falla resuelta',
-              result: input.resolution,
-              actorId: access.principalId,
-              caseId: faultId,
-            },
-            access.client,
-          );
-          condition = { from: asset.condition, to: 'operational' };
-        }
-      }
-      await recordAudit(access, {
-        action: 'equipment.fault.resolve',
-        entityType: 'incidents.case',
-        entityId: faultId,
-        changes: { status: 'resolved', resolution: input.resolution, condition },
-      });
+      const { assetId } = await lockFault(incidents(access), faultId);
+      await resolveLocked(access, faultId, assetId, input);
       return faultById(access, faultId);
     },
     'resolve_pending',
   );
+}
+
+/**
+ * Soluciona la falla ya bloqueada y, con `returnToOperational`, devuelve el equipo a operativo con ese
+ * resultado, ligado a la falla; queda en la línea de tiempo y en la auditoría.
+ */
+async function resolveLocked(
+  access: WorkspaceAccess,
+  faultId: string,
+  assetId: string | null,
+  input: z.infer<typeof resolveFaultRequest>,
+): Promise<void> {
+  await resolveCase(incidents(access), faultId, input.resolution);
+  let condition: { from: string; to: string } | null = null;
+  if (input.returnToOperational && assetId) {
+    const [asset] = await lockAsset.run({ workspaceId: access.workspace.id, assetId }, access.client);
+    if (asset?.condition === 'retired') throw new AppError('VALIDATION_FAILED', 'El equipo está dado de baja: no vuelve a operativo');
+    if (asset && asset.condition !== 'operational') {
+      await changeAssetCondition.run(
+        {
+          workspaceId: access.workspace.id,
+          assetId,
+          fromCondition: asset.condition,
+          toCondition: 'operational',
+          reason: 'Falla resuelta',
+          result: input.resolution,
+          actorId: access.principalId,
+          caseId: faultId,
+        },
+        access.client,
+      );
+      condition = { from: asset.condition, to: 'operational' };
+    }
+  }
+  await recordAudit(access, {
+    action: 'equipment.fault.resolve',
+    entityType: 'incidents.case',
+    entityId: faultId,
+    changes: { status: 'resolved', resolution: input.resolution, condition },
+  });
+}
+
+/**
+ * Interfaz para otros módulos (M-01b): los incidentes abiertos del equipo, del más reciente al más antiguo,
+ * para quien los atiende; quien no, no ve ninguno.
+ */
+export async function openFaultsOf(access: WorkspaceAccess, assetId: string): Promise<Fault[]> {
+  if (!(await hasPermission(access, FAULT_MANAGE))) return [];
+  const rows = await listFaultsQuery.run(
+    {
+      workspaceId: access.workspace.id,
+      statuses: ['open', 'in_progress'],
+      assetId,
+      reportedBy: null,
+      limit: OPEN_FAULTS,
+      timeZone: access.workspace.timeZone,
+    },
+    access.client,
+  );
+  return rows.map(toFault);
+}
+
+/**
+ * Interfaz para otros módulos (M-01b): dentro de su comando, admitido también con Equipos, bloquea el
+ * incidente que atiende un trabajo, antes que su equipo (02 §6). Exige atender incidentes; NOT_FOUND si no
+ * existe o es de otro equipo.
+ */
+export async function lockAssetFault(access: WorkspaceAccess, faultId: string, assetId: string): Promise<void> {
+  await requirePermission(access, FAULT_MANAGE);
+  const locked = await lockFault(incidents(access), faultId);
+  if (locked.assetId !== assetId) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
+}
+
+/**
+ * Interfaz para otros módulos (M-01b): soluciona el incidente que bloqueó `lockAssetFault`, con los permisos
+ * de Equipos; si otra persona ya lo solucionó, REQUEST_RESOLVED.
+ */
+export async function resolveAssetFault(
+  access: WorkspaceAccess,
+  faultId: string,
+  assetId: string,
+  input: z.infer<typeof resolveFaultRequest>,
+): Promise<void> {
+  await requirePermission(access, FAULT_MANAGE);
+  if (input.returnToOperational) await requirePermission(access, CONDITION);
+  await resolveLocked(access, faultId, assetId, input);
 }
 
 /** Incidentes (ADR 0019): del más reciente al más antiguo, dentro del alcance de la persona. */

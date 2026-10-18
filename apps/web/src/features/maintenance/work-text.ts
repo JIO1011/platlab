@@ -7,11 +7,17 @@ export const kindLabels: Record<WorkKind, string> = {
   calibration: 'Calibración',
   verification: 'Verificación',
   cleaning: 'Limpieza',
+  corrective: 'Correctivo',
 };
 
 /** El título del plan con su tipo detrás, salvo que el título ya lo diga: «Calibración anual de balanzas», no «… · Calibración». */
 export function titleWithKind(title: string, kind: WorkKind): string {
   return fold(title).includes(fold(kindLabels[kind])) ? title : `${title} · ${kindLabels[kind]}`;
+}
+
+/** Un registro sin plan: un correctivo se dice «Correctivo» (nunca tiene plan); otro, con su tipo y «sin plan». */
+export function noPlanText(kind: WorkKind): string {
+  return kind === 'corrective' ? kindLabels.corrective : `${kindLabels[kind]} sin plan`;
 }
 
 export const resultLabels: Record<WorkResult, string> = {

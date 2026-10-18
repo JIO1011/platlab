@@ -50,6 +50,25 @@ describe('recordOutcome', () => {
   });
 
   it('sin plan no habla de fechas', () => {
-    expect(recordOutcome({ plan: null, nextDueOn: null }, null)).toEqual({ kind: 'noPlan', text: 'Mantenimiento registrado sin plan.' });
+    expect(recordOutcome({ plan: null, nextDueOn: null, kind: 'cleaning' }, null)).toEqual({
+      kind: 'noPlan',
+      text: 'Mantenimiento registrado sin plan.',
+    });
+  });
+
+  it('un correctivo dice si solucionó el incidente y si el equipo volvió a Operativo', () => {
+    const repair = { plan: null, nextDueOn: null, kind: 'corrective' } as const;
+    expect(recordOutcome(repair, null).text).toBe('Reparación registrada.');
+    expect(recordOutcome(repair, null, { repair: { resolved: true, returned: false } }).text).toBe(
+      'Reparación registrada. El incidente quedó solucionado.',
+    );
+    expect(recordOutcome(repair, null, { repair: { resolved: true, returned: true } }).text).toBe(
+      'Reparación registrada. El incidente quedó solucionado y el equipo volvió a Operativo.',
+    );
+  });
+
+  it('una corrección lo dice en vez de «registrado»', () => {
+    expect(recordOutcome(record, '2026-10-17', { corrected: true }).text).toMatch(/^Registro corregido\. Próximo/);
+    expect(recordOutcome(record, '2027-10-17', { corrected: true }).text).toBe('Registro corregido. La próxima fecha no cambia.');
   });
 });

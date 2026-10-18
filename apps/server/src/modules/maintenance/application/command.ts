@@ -6,13 +6,15 @@ const READ = 'maintenance.work.read';
 export const RECORD = 'maintenance.work.record';
 /** Planes y proveedores: el Administrador. */
 export const PLAN_MANAGE = 'maintenance.plan.manage';
+/** Anular y corregir registros: el Administrador (M-01b). */
+export const VOID = 'maintenance.record.void';
 
 /** Comandos de Mantenimiento: una transacción con su admisión, permiso, idempotencia y auditoría. */
 export const runCommand = moduleCommand('maintenance');
 
 /**
- * Registrar escribe también por la interfaz de Equipos (el estado físico, ADR 0020): se admite con los
- * dos módulos en la misma consulta.
+ * Registrar y corregir escriben también por la interfaz de Equipos (el estado físico y el incidente que
+ * soluciona un correctivo, ADR 0020): se admiten con los dos módulos en la misma consulta.
  */
 export const runRecordCommand = moduleCommand('maintenance', 'equipment');
 

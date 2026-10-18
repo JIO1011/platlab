@@ -629,6 +629,19 @@ Cambios: 15-10-2026 (Mantenimiento vuelve a M7, construido después de E-01; fot
   - *Web.* Equipos ofrece puntos de extensión (pestaña de la ficha y columna del Inventario) y Mantenimiento los llena; Equipos no importa nada de Mantenimiento. Semáforo: rojo vencido o no conforme, ámbar en los próximos 30 días, verde después y «Sin plan» neutro. Las cifras cuentan trabajos (equipo y plan).
   - *Permisos.* `maintenance.work.read` y `maintenance.work.record` para Administrador y Operador; `maintenance.plan.manage` para el Administrador.
   - *Revisión de UX del 17-10-2026:* lo aplazado (filtros del Historial, tareas «No aplica», ejecutor interno) queda en M-01d o en pendientes.
+- **Diseño de M-01b (18-10-2026).**
+  - *Correctivo.* Es un tipo de trabajo sin plan, y «Qué se hizo» es obligatorio: es el texto con que se soluciona el incidente.
+    - En «¿Qué trabajo se hizo?», cada incidente abierto del equipo es una opción («Reparación del incidente del …»); elegirlo lo liga al registro.
+    - Con Conforme o Con observaciones, la hoja ofrece «Solucionar el incidente» y, si el equipo no está operativo, «Vuelve a Operativo». Lo aplica Equipos con sus permisos (`equipment.fault.manage`, `equipment.condition.change`) y su historial.
+    - Con No conforme, el incidente sigue abierto.
+    - Quien no atiende incidentes no los ve en la hoja.
+  - *Desde el incidente* (decidido por el usuario). Con Mantenimiento, la hoja del incidente suma «Registrar en Mantenimiento», que abre la hoja de registro con el equipo y el incidente ya elegidos (punto de extensión de Equipos). «Marcar como solucionado» sigue en Equipos para lo que no lleva costo, proveedor ni certificado.
+  - *Anular y corregir* (decidido por el usuario: solo el Administrador, con `maintenance.record.void`).
+    - «Anular» pide un motivo, por ejemplo un equipo equivocado o un registro duplicado.
+    - «Corregir» abre la hoja con los datos del registro y pide el motivo. Al guardar, anula el anterior y crea el nuevo, del mismo equipo, en una sola transacción. El certificado pasa al nuevo, salvo que se adjunte otro.
+    - Los dos quedan en el Historial: el anulado, con su motivo, quién y cuándo; el nuevo, con «Corrige al del …». El anulado deja de contar para la próxima fecha.
+    - Lo que el registro aplicó en Equipos (estado físico, incidente solucionado) no se revierte: se corrige en Equipos.
+  - *Bloqueos:* plan → incidente → equipo → proveedor → registro corregido; el incidente va antes que su equipo, como al solucionarlo (02 §6).
 
 Motivo: el usuario quiere un módulo intermedio con la estructura de los demás, sin repetir la información de Equipos. Las decisiones de planes por tipo, el Operador con costos, el «No conforme» que propone y la lista de proveedores las tomó el 17-10-2026. Precisa M-01 del roadmap y el M7 del [ADR 0019](#adr-0019).
 
@@ -645,7 +658,7 @@ Motivo: el usuario quiere un módulo intermedio con la estructura de los demás,
 | Reglas de Prácticas | Anticipación, cancelaciones, salas exclusivas, devoluciones químicas y quién declara el consumo al cerrar | P-04, antes de F3 |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
-| Datos de Mantenimiento | ¿Qué datos del proveedor necesita el cliente (acreditación, identificación tributaria)? ¿Hace falta corregir un registro equivocado o reemplazar su certificado? ¿Las tareas de la lista necesitan «No aplica» o una explicación cuando no se hacen? ¿Se identifica al técnico interno que hizo el trabajo? ¿Su sistema de calidad exige que una segunda persona revise las calibraciones? M-01a guarda nombre y contacto del proveedor, casillas simples y quién registró, y el registro es inmutable ([ADR 0020](#adr-0020)) | F0, con el cliente |
+| Datos de Mantenimiento | ¿Qué datos del proveedor necesita el cliente (acreditación, identificación tributaria)? ¿Las tareas de la lista necesitan «No aplica» o una explicación cuando no se hacen? ¿Se identifica al técnico interno que hizo el trabajo? ¿Su sistema de calidad exige que una segunda persona revise las calibraciones? M-01a guarda nombre y contacto del proveedor, casillas simples y quién registró, y el registro es inmutable ([ADR 0020](#adr-0020)) | F0, con el cliente |
 | Escaneo con cámara | Resuelto el 14-10-2026: «Escanear» en Reactivos abre la cámara en la app y lleva al frasco listo para «Salida». Usa el lector nativo del navegador o, si no lo hay, una librería. ¿Hace falta registrar salidas en serie? | P-03 |
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
 | Libro sin filtros | La lista sin filtros (también la actividad del Resumen) entra por frascos y ordena todo el libro del espacio: unos 250 ms con 40 000 operaciones (medido en R-01C). ¿Índice o consulta distinta? | Antes de G1, con el escenario de carga (04 §4) |

@@ -6,11 +6,13 @@ import type {
   MaintenanceAssetList,
   MaintenanceSummary,
   NextDueList,
-  WorkKind,
+  OpenFault,
+  PlanKind,
   WorkResult,
 } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
 import type { QueryRequest, WorkspaceAccess } from '../../core/index.js';
+import { openFaultsOf } from '../../equipment/index.js';
 import {
   assetExclusions,
   assetPlans,
@@ -30,7 +32,7 @@ const DUE_LIMIT = 300;
 /** Registros que muestra la pestaña Mantenimiento de la ficha. */
 const ASSET_RECORDS = 20;
 
-const planRef = (row: { plan_id: string; title: string; kind: string }) => ({ id: row.plan_id, title: row.title, kind: row.kind as WorkKind });
+const planRef = (row: { plan_id: string; title: string; kind: string }) => ({ id: row.plan_id, title: row.title, kind: row.kind as PlanKind });
 const lastResult = (value: string | null) => value as WorkResult | null;
 
 /** «Por hacer»: primero los no conformes y después lo que vence hasta dentro de 30 días, por fecha. */
@@ -88,7 +90,10 @@ export function searchAssets(pool: pg.Pool, request: QueryRequest, query: { q?: 
   return runQuery(pool, request, async (access) => ({ items: await findAssets(access, query) }));
 }
 
-/** La pestaña Mantenimiento de la ficha: sus planes, sus exclusiones y sus últimos registros. */
+/**
+ * La pestaña Mantenimiento de la ficha y la hoja de registro: sus planes, sus exclusiones, sus últimos registros
+ * y, para quien atiende incidentes, los abiertos, que un correctivo puede atender (M-01b).
+ */
 export function getAssetMaintenance(pool: pg.Pool, request: QueryRequest, assetId: string): Promise<AssetMaintenance> {
   return runQuery(pool, request, async (access) => {
     const [asset] = await findAssets(access, { assetId });
@@ -96,8 +101,17 @@ export function getAssetMaintenance(pool: pg.Pool, request: QueryRequest, assetI
     const filter = { workspaceId: access.workspace.id, assetId };
     const plans = await assetPlans.run(filter, access.client);
     const exclusions = await assetExclusions.run(filter, access.client);
+    const openFaults = await openFaultsOf(access, assetId);
     return {
       asset,
+      openFaults: openFaults.map((fault) => ({
+        id: fault.id,
+        faultType: fault.faultType,
+        description: fault.description,
+        usable: fault.usable,
+        status: fault.status as OpenFault['status'],
+        reportedAt: fault.reportedAt,
+      })),
       plans: plans.map((row) => ({
         plan: planRef(row),
         dueOn: row.due_on,
