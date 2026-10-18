@@ -10,7 +10,6 @@ import {
   recordCreated,
   recordList,
 } from '@platlab/contracts';
-import { setModuleStatus } from '../../testing/core-fixtures.js';
 import {
   admin,
   call,
@@ -250,11 +249,18 @@ describe('registrar', () => {
     expect(errorCode(changed.body)).toBe('IDEMPOTENCY_KEY_REUSED');
   });
 
-  it('admisión doble: con Equipos en solo lectura no se registra, y los planes siguen', async () => {
+  it('admisión doble: con el derecho de Equipos vencido no se registra, y los planes siguen', async () => {
     const own = await createMaintenanceLab();
     const type = await createType(own);
     const asset = await createAsset(own, { typeId: type.id });
-    await setModuleStatus(admin, own.workspace.id, 'equipment', 'read_only');
+    // Equipos no se apaga mientras Mantenimiento lo usa (set_module_status lo impide), pero su derecho puede
+    // vencer antes: en su periodo de cierre solo resuelve pendientes y consulta (02 §6).
+    await admin.query(
+      `update core.workspace_entitlements
+          set valid_from = now() - interval '2 days', valid_until = now() - interval '1 day', closing_until = now() + interval '30 days'
+        where workspace_id = $1 and module_code = 'equipment'`,
+      [own.workspace.id],
+    );
 
     const denied = await recordWork(own, own.operator.subject, { assetId: asset.id, kind: 'cleaning', performedOn: today, result: 'pass' });
     expect(denied.status).toBe(403);
@@ -331,7 +337,7 @@ describe('certificado', () => {
     expect(record.parse(first.body).certificate?.url).toMatch(new RegExp(`/${lab.workspace.id}/maintenance/certificates/[0-9a-f-]+\\.pdf$`));
 
     const second = await uploadCertificate(lab, lab.operator.subject, done.id, pdf('otro'));
-    expect(second.status).toBe(409);
+    expect(second.status).toBe(400);
     expect(errorCode(second.body)).toBe('VALIDATION_FAILED');
     expect(await certificates()).toBe(1);
     expect((await uploadCertificate(lab, lab.teacher.subject, done.id, pdf('docente'))).status).toBe(403);

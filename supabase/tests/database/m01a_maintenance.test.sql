@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(55);
+select plan(56);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -257,7 +257,9 @@ select is(
 
 select is(
   (select count(*)::int from maintenance.plan_assets
-    where asset_id in ('a5000000-0000-4000-8000-000000000003', 'a5000000-0000-4000-8000-000000000004')),
+    -- El dado de baja sale de todos los planes; el excluido, solo del plan del que se excluyó.
+    where asset_id = 'a5000000-0000-4000-8000-000000000003'
+       or (asset_id = 'a5000000-0000-4000-8000-000000000004' and plan_id = 'a7000000-0000-4000-8000-000000000001')),
   0,
   'un equipo dado de baja o excluido queda fuera del plan');
 
