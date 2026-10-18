@@ -258,6 +258,13 @@ LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
 LEFT JOIN equipment.asset_photos AS photo ON photo.workspace_id = :workspaceId! AND photo.id = p.photo_id
 ORDER BY lower(p.code);
 
+/* @name setAssetConservation */
+-- Solo el estado físico, con el equipo ya bloqueado: lo usa la interfaz de Equipos (ADR 0020).
+UPDATE equipment.assets
+SET conservation = :conservation!, version = version + 1
+WHERE workspace_id = :workspaceId! AND id = :assetId!
+RETURNING id;
+
 /* @name insertConservationChange */
 -- El estado físico cambiado desde la ficha queda en el historial (E-01c); nulo es «sin dato».
 INSERT INTO equipment.conservation_changes (workspace_id, asset_id, from_conservation, to_conservation, actor_principal_id)

@@ -107,11 +107,12 @@ export function withWorkspaceAccess<T>(
 /**
  * Igual que withWorkspaceAccess, para una operación de un módulo: decide con los dos ejes y bloquea
  * también el derecho del módulo dueño del recurso (02 §6, ADR 0009). Sin derecho, un miembro recibe
- * «módulo no disponible» y quien no es miembro, la denegación de siempre.
+ * «módulo no disponible» y quien no es miembro, la denegación de siempre. Con `alsoModule`, una
+ * operación que escribe en dos módulos (ADR 0020) exige y bloquea también ese derecho.
  */
 export function withModuleAccess<T>(
   pool: pg.Pool,
-  request: AccessRequest & { moduleCode: string },
+  request: AccessRequest & { moduleCode: string; alsoModule?: string | undefined },
   work: (access: WorkspaceAccess) => Promise<T>,
 ): Promise<T> {
   return withTransaction(pool, async (client) => {
@@ -124,6 +125,7 @@ export function withModuleAccess<T>(
         workspaceId: request.workspaceId,
         subject: request.subject,
         moduleCode: request.moduleCode,
+        alsoModule: request.alsoModule ?? null,
         actionClass: request.actionClass,
       },
       client,

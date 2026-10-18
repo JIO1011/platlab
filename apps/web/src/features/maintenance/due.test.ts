@@ -1,0 +1,127 @@
+import { describe, expect, it } from 'vitest';
+import { daysUntil, dueGroup, dueText, dueTone, groupDue, todayInZone, workStatus } from './due';
+
+const today = '2026-10-17';
+const pending = (dueOn: string) => ({ dueOn, lastResult: null });
+
+describe('todayInZone', () => {
+  it('toma el día civil de la zona del espacio, no el de UTC', () => {
+    // 03:00 UTC del 17 aún es el 16 en Guayaquil (UTC−5) y ya es el 17 en Madrid.
+    const now = Date.UTC(2026, 9, 17, 3, 0);
+    expect(todayInZone('America/Guayaquil', now)).toBe('2026-10-16');
+    expect(todayInZone('Europe/Madrid', now)).toBe('2026-10-17');
+  });
+
+  it('cambia de día justo a la medianoche local', () => {
+    expect(todayInZone('America/Guayaquil', Date.UTC(2026, 9, 17, 4, 59))).toBe('2026-10-16');
+    expect(todayInZone('America/Guayaquil', Date.UTC(2026, 9, 17, 5, 0))).toBe('2026-10-17');
+  });
+});
+
+describe('daysUntil', () => {
+  it('cuenta días civiles a través del fin de mes y de año', () => {
+    expect(daysUntil('2026-11-01', '2026-10-31')).toBe(1);
+    expect(daysUntil('2026-10-31', '2026-11-01')).toBe(-1);
+    expect(daysUntil('2027-01-01', '2026-12-31')).toBe(1);
+    expect(daysUntil('2027-03-01', '2027-02-28')).toBe(1);
+  });
+});
+
+describe('dueGroup', () => {
+  it('pone hoy en Próximos 30 días y ayer en Atrasados', () => {
+    expect(dueGroup(pending(today), today)).toBe('upcoming');
+    expect(dueGroup(pending('2026-10-16'), today)).toBe('overdue');
+  });
+
+  it('incluye el día 30 y deja fuera el 31', () => {
+    expect(dueGroup(pending('2026-11-16'), today)).toBe('upcoming');
+    expect(dueGroup(pending('2026-11-17'), today)).toBeNull();
+  });
+
+  it('cuenta los días a través del fin de mes', () => {
+    expect(dueGroup(pending('2026-11-30'), '2026-10-31')).toBe('upcoming');
+    expect(dueGroup(pending('2026-12-01'), '2026-10-31')).toBeNull();
+  });
+
+  it('un no conforme va a Atrasados aunque su fecha esté lejos', () => {
+    expect(dueGroup({ dueOn: '2027-10-17', lastResult: 'fail' }, today)).toBe('overdue');
+    expect(dueGroup({ dueOn: '2026-10-01', lastResult: 'fail' }, today)).toBe('overdue');
+  });
+
+  it('con observaciones cuenta como hecho: sigue su fecha', () => {
+    expect(dueGroup({ dueOn: '2026-12-17', lastResult: 'pass_with_observations' }, today)).toBeNull();
+  });
+});
+
+describe('groupDue', () => {
+  it('ordena los grupos, omite los vacíos y conserva el orden de cada uno', () => {
+    const items = [
+      { id: 'a', ...pending('2026-10-10') },
+      { id: 'b', ...pending('2026-10-20') },
+      { id: 'c', dueOn: '2026-12-01', lastResult: 'fail' as const },
+      { id: 'd', ...pending('2026-10-12') },
+      { id: 'e', ...pending('2027-01-01') },
+    ];
+    expect(groupDue(items, today).map((entry) => [entry.label, entry.items.map((item) => item.id)])).toEqual([
+      ['Atrasados', ['a', 'c', 'd']],
+      ['Próximos 30 días', ['b']],
+    ]);
+  });
+
+  it('sin atrasados, solo muestra los próximos', () => {
+    expect(groupDue([{ id: 'a', ...pending('2026-10-20') }], today).map((entry) => entry.group)).toEqual(['upcoming']);
+  });
+});
+
+describe('dueText', () => {
+  it('dice «Vence hoy», «hace N días» y «en N días», con singular', () => {
+    expect(dueText(today, today)).toBe('Vence hoy');
+    expect(dueText('2026-10-16', today)).toBe('hace 1 día');
+    expect(dueText('2026-10-10', today)).toBe('hace 7 días');
+    expect(dueText('2026-10-18', today)).toBe('en 1 día');
+    expect(dueText('2026-11-16', today)).toBe('en 30 días');
+  });
+});
+
+describe('dueTone', () => {
+  it('neutro sin plan', () => {
+    expect(dueTone(null, today)).toBe('neutral');
+  });
+
+  it('rojo vencido o no conforme', () => {
+    expect(dueTone(pending('2026-10-16'), today)).toBe('danger');
+    expect(dueTone({ dueOn: '2027-04-17', lastResult: 'fail' }, today)).toBe('danger');
+  });
+
+  it('ámbar de hoy a 30 días y verde después', () => {
+    expect(dueTone(pending(today), today)).toBe('warning');
+    expect(dueTone(pending('2026-11-16'), today)).toBe('warning');
+    expect(dueTone(pending('2026-11-17'), today)).toBe('success');
+  });
+});
+
+describe('workStatus', () => {
+  const today = '2026-10-18';
+
+  it('un no conforme se cuenta desde su registro, no desde la próxima fecha que ya avanzó', () => {
+    expect(workStatus({ dueOn: '2027-04-15', lastResult: 'fail', lastPerformedOn: '2026-10-15' }, today)).toEqual({
+      date: '2026-10-15',
+      text: 'Repetir · no conforme hace 3 días',
+    });
+    expect(workStatus({ dueOn: '2027-04-18', lastResult: 'fail', lastPerformedOn: today }, today).text).toBe('Repetir · no conforme hoy');
+    expect(workStatus({ dueOn: '2027-04-17', lastResult: 'fail', lastPerformedOn: '2026-10-17' }, today).text).toBe('Repetir · no conforme hace 1 día');
+  });
+
+  it('sin la fecha del registro, el no conforme va sin plazo', () => {
+    expect(workStatus({ dueOn: '2027-04-15', lastResult: 'fail', lastPerformedOn: null }, today)).toEqual({ date: '2027-04-15', text: 'Repetir · no conforme' });
+  });
+
+  it('lo demás, por su próxima fecha: atrasado, hoy o por venir', () => {
+    expect(workStatus({ dueOn: '2026-10-08', lastResult: 'pass', lastPerformedOn: '2025-10-08' }, today)).toEqual({
+      date: '2026-10-08',
+      text: 'Atrasado · hace 10 días',
+    });
+    expect(workStatus({ dueOn: today, lastResult: null, lastPerformedOn: null }, today).text).toBe('Vence hoy');
+    expect(workStatus({ dueOn: '2026-10-30', lastResult: 'pass_with_observations', lastPerformedOn: '2026-07-30' }, today).text).toBe('en 12 días');
+  });
+});

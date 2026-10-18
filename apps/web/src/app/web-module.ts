@@ -3,8 +3,28 @@ import type { ComponentType } from 'react';
 import type { RouteObject } from 'react-router';
 
 /**
+ * Puntos de extensión de la web (ADR 0020): cada módulo anfitrión declara los suyos aquí con
+ * `declare module`, con las props que da a quien lo llena. El shell no nombra módulos.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- se completa con `declare module` en cada anfitrión
+export interface ExtensionPoints {}
+
+/**
+ * Lo que un módulo aporta a un punto de otro: el texto del anfitrión (pestaña o columna), el permiso que
+ * exige y su componente, que se descarga al mostrarse.
+ */
+export type ModuleExtension = {
+  [P in keyof ExtensionPoints]: {
+    point: P;
+    label: string;
+    permission: string;
+    load: () => Promise<ComponentType<ExtensionPoints[P]>>;
+  };
+}[keyof ExtensionPoints];
+
+/**
  * Descriptor de un módulo en la web (02 §4, paso 6): lo que el shell necesita saber de él sin
- * importar sus páginas. Es estático: no importa páginas ni carga nada diferido.
+ * importar sus páginas. Lo que muestra (páginas y extensiones) se carga diferido, al mostrarse.
  */
 export interface WebModule {
   /** Código del manifiesto del módulo. */
@@ -26,6 +46,8 @@ export interface WebModule {
     /** Qué cuenta el gráfico del módulo, para la frase que lo acompaña. */
     trendNoun: { one: string; many: string };
   };
+  /** Lo que aporta a los puntos de extensión de otros módulos. */
+  extensions?: ModuleExtension[];
 }
 
 /** Rutas de un módulo: hijas de `/e/:workspaceId` y de primer nivel (enlaces que sobreviven al acceso). */

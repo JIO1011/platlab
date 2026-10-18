@@ -1,6 +1,6 @@
 import { Button, Sheet, cn } from '@platlab/ui';
 import { type LucideIcon } from 'lucide-react';
-import { type ReactNode, type RefObject } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { type FieldValues, type Path, type UseFormReturn } from 'react-hook-form';
 import { type z } from 'zod';
 import { fieldErrors } from './commands';
@@ -11,7 +11,10 @@ export interface SheetBaseProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** Valida con el contrato de la API y, si falla, marca cada campo con su motivo. */
+/**
+ * Valida con el contrato de la API y, si falla, marca cada campo con su motivo: los refinamientos con `path`
+ * llegan a su campo y los que no lo tienen, a `root` (el error general del formulario).
+ */
 export function validate<S extends z.ZodType, F extends FieldValues>(
   schema: S,
   payload: unknown,
@@ -20,7 +23,7 @@ export function validate<S extends z.ZodType, F extends FieldValues>(
   const parsed = schema.safeParse(payload);
   if (parsed.success) return parsed.data;
   for (const [field, message] of Object.entries(fieldErrors(parsed.error))) {
-    form.setError(field as Path<F>, { message });
+    form.setError(field === 'form' ? 'root' : (field as Path<F>), { message });
   }
   return null;
 }
@@ -44,6 +47,11 @@ export function FormSheet({
   submitLead,
   status,
   initialFocus,
+  focusFirst = false,
+  pendingText = 'Guardando…',
+  announcement,
+  dirty = false,
+  fullscreenMobile = false,
   children,
 }: {
   title: string;
@@ -72,19 +80,60 @@ export function FormSheet({
   /** Lo que falta o «Listo», en una línea sobre el botón principal. */
   status?: ReactNode;
   initialFocus?: RefObject<HTMLElement | null>;
+  /** Sin `initialFocus`, el foco abre en el primer campo del formulario y no en «Cerrar». */
+  focusFirst?: boolean;
+  /** Lo que se anuncia a lectores de pantalla mientras `pending` (una sola vez, sin repetirse). */
+  pendingText?: string;
+  /** Lo que se anuncia al terminar (p. ej., «Mantenimiento guardado»); vacío, nada. */
+  announcement?: string | undefined;
+  /** Hay cambios sin guardar: cerrar pide confirmarlo dentro de la hoja. */
+  dirty?: boolean;
+  /** Pantalla completa por debajo de 640 px (formularios largos). */
+  fullscreenMobile?: boolean;
   children: ReactNode;
 }) {
   const formId = `form-${title.replace(/\s+/g, '-').toLowerCase()}`;
+  const formRef = useRef<HTMLFormElement>(null);
+  const [confirming, setConfirming] = useState(false);
+  // Con cambios, cerrar (Esc, el velo, la X o «Cancelar») pregunta antes en el pie; sin ellos, cierra.
+  const requestOpenChange = (next: boolean) => {
+    if (!next && dirty && !pending) {
+      setConfirming(true);
+      return;
+    }
+    setConfirming(false);
+    onOpenChange(next);
+  };
   return (
     <Sheet
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={requestOpenChange}
       title={title}
       description={description}
       icon={icon}
       wide={wide}
+      fullscreenMobile={fullscreenMobile}
       initialFocus={initialFocus}
+      focusFirst={focusFirst}
       footer={
+        confirming ? (
+          <div role="alertdialog" aria-labelledby={`${formId}-discard`} className="grid w-full gap-3">
+            <p id={`${formId}-discard`} className="text-center text-sm font-semibold text-ink">
+              ¿Descartar los cambios? Lo que llenaste se perderá.
+            </p>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" className="h-12 flex-1 rounded-2xl" onClick={() => setConfirming(false)}>
+                Seguir editando
+              </Button>
+              <Button variant="secondary" className="h-12 flex-1 rounded-2xl font-semibold text-danger" onClick={() => {
+                  setConfirming(false);
+                  onOpenChange(false);
+                }}>
+                Descartar
+              </Button>
+            </div>
+          </div>
+        ) : (
         <div className="grid w-full gap-3">
           {status ? (
             <p role="status" className="text-center text-[13px] font-medium text-ink-muted">
@@ -93,7 +142,7 @@ export function FormSheet({
           ) : null}
           <div className="flex items-center gap-3">
             {fullWidthSubmit ? null : (
-              <Button variant="ghost" className="h-12 shrink-0 rounded-2xl px-5" onClick={() => onOpenChange(false)}>
+              <Button variant="ghost" className="h-12 shrink-0 rounded-2xl px-5" onClick={() => requestOpenChange(false)}>
                 Cancelar
               </Button>
             )}
@@ -114,9 +163,11 @@ export function FormSheet({
             </Button>
           </div>
         </div>
+        )
       }
     >
       <form
+        ref={formRef}
         id={formId}
         noValidate
         className={cn(
@@ -130,8 +181,13 @@ export function FormSheet({
         onSubmit={(event) => {
           event.preventDefault();
           onSubmit();
+          // Si la validación marcó campos, el foco va al primero, tras pintarse las marcas.
+          requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
         }}
       >
+        <p role="status" className="sr-only">
+          {pending ? pendingText : (announcement ?? '')}
+        </p>
         {generalError ? (
           <div className={cn(flush && 'px-6 pt-5')}>
             <p role="alert" className="rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger">

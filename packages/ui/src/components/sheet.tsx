@@ -1,7 +1,7 @@
 import { X, type LucideIcon } from 'lucide-react';
 import { IconTile } from './icon-tile';
 import { Dialog } from 'radix-ui';
-import { useEffect, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { cn } from '../lib/cn';
 import { Toaster, sheetToasterId } from './toaster';
 
@@ -19,7 +19,14 @@ export interface SheetProps {
   wide?: boolean | 'xl';
   /** Quién recibe el foco al abrir; por omisión, el primer control tabulable (Radix). */
   initialFocus?: RefObject<HTMLElement | null> | undefined;
+  /** En pantallas de menos de 640 px ocupa toda la pantalla (formularios largos); desde ahí, igual que las demás. */
+  fullscreenMobile?: boolean;
+  /** Sin `initialFocus`, abre en el primer campo del cuerpo (o su primer botón) y no en «Cerrar». */
+  focusFirst?: boolean;
 }
+
+const firstField = 'input:not([type="hidden"]):not(:disabled):not([tabindex="-1"]), select:not(:disabled), textarea:not(:disabled), [role="combobox"]:not(:disabled)';
+const firstControl = 'button:not(:disabled), a[href]';
 
 /**
  * Ventana emergente para registrar movimientos (ADR 0010, 04-10-2026, con el aspecto del modal de
@@ -29,7 +36,11 @@ export interface SheetProps {
  * Material (ADR 0010, 13-10-2026): vidrio esmerilado, blanco al 80 % con desenfoque y saturación
  * sobre un velo claro; sin `backdrop-filter`, superficie sólida.
  */
-export function Sheet({ open, onOpenChange, title, description, icon: Icon, children, footer, wide = false, initialFocus }: SheetProps) {
+export function Sheet({ open, onOpenChange, title, description, icon: Icon, children, footer, wide = false, initialFocus, fullscreenMobile = false, focusFirst = false }: SheetProps) {
+  // Quien abrió la hoja recibe el foco al cerrarla; si ya no está (la fila desapareció), el encabezado de la página.
+  const content = useRef<HTMLDivElement | null>(null);
+  const bodyNode = useRef<HTMLDivElement | null>(null);
+  const opener = useRef<HTMLElement | null>(null);
   // Una sombra al pie del cuerpo avisa de que queda contenido abajo: un centinela al final del cuerpo
   // la apaga cuando se ve entero (IntersectionObserver; sin él, no hay sombra).
   const [body, setBody] = useState<HTMLDivElement | null>(null);
@@ -46,10 +57,25 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-ink/15 backdrop-blur-sm data-[state=closed]:animate-fade-out data-[state=open]:animate-fade-in" />
         <Dialog.Content
+          ref={content}
           onOpenAutoFocus={(event) => {
-            if (!initialFocus?.current) return;
+            const active = document.activeElement;
+            if (active instanceof HTMLElement && active !== document.body && !content.current?.contains(active)) opener.current = active;
+            if (initialFocus?.current) {
+              event.preventDefault();
+              initialFocus.current.focus();
+              return;
+            }
+            if (!focusFirst) return;
+            const target = bodyNode.current?.querySelector<HTMLElement>(firstField) ?? bodyNode.current?.querySelector<HTMLElement>(firstControl);
+            if (!target) return;
             event.preventDefault();
-            initialFocus.current.focus();
+            target.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const target = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>('[data-focus-fallback]');
+            target?.focus();
           }}
           onEscapeKeyDown={(event) => {
             // Con un menú de sugerencias abierto, Esc cierra solo el menú.
@@ -60,6 +86,7 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
             // Vidrio esmerilado: superficie blanca al 80 % sobre el fondo desenfocado; sin `backdrop-filter`, sólida.
             'fixed inset-0 z-50 m-auto flex h-fit max-h-[90dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[28px] border border-white/70 bg-surface/80 shadow-overlay outline-none backdrop-blur-xl backdrop-saturate-150 not-supports-[backdrop-filter]:bg-surface data-[state=closed]:animate-modal-out data-[state=open]:animate-modal-in',
             wide === 'xl' ? 'max-w-[40rem] lg:max-w-[64rem]' : wide ? 'max-w-[40rem]' : 'max-w-lg',
+            fullscreenMobile && 'max-sm:m-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0',
           )}
         >
           <header className="flex items-start justify-between gap-4 px-6 pb-4 pt-5">
@@ -83,7 +110,10 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
           </header>
           <div className="relative flex min-h-0 flex-1 flex-col">
             <div
-              ref={setBody}
+              ref={(node) => {
+                bodyNode.current = node;
+                setBody(node);
+              }}
               className="relative min-h-0 flex-1 overflow-y-auto border-t border-line px-6 py-4"
             >
               {children}

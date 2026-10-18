@@ -145,6 +145,7 @@ export const admitWorkspace = new PreparedQuery<IAdmitWorkspaceParams,IAdmitWork
 /** 'AdmitModule' parameters type */
 export interface IAdmitModuleParams {
   actionClass: string;
+  alsoModule?: string | null | void;
   moduleCode: string;
   subject: string;
   workspaceId: string;
@@ -172,7 +173,7 @@ export interface IAdmitModuleQuery {
   result: IAdmitModuleResult;
 }
 
-const admitModuleIR: any = {"usedParamSet":{"actionClass":true,"moduleCode":true,"workspaceId":true,"subject":true},"params":[{"name":"actionClass","required":true,"transform":{"type":"scalar"},"locs":[{"a":702,"b":714}]},{"name":"moduleCode","required":true,"transform":{"type":"scalar"},"locs":[{"a":1063,"b":1074}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1380,"b":1392}]},{"name":"subject","required":true,"transform":{"type":"scalar"},"locs":[{"a":1477,"b":1485}]}],"statement":"-- Operaciones de un módulo: lee espacio, derecho y membresía con FOR SHARE en la misma consulta\n-- que decide, en el orden fijo espacio → derecho → membresía (02 §6). Si un cambio de estado\n-- confirma mientras espera, PostgreSQL relee las filas y la decisión se recalcula con ellas.\n-- Sin derecho no devuelve filas: findMembershipClasses elige entonces el error.\nSELECT\n  w.id AS workspace_id,\n  w.code,\n  w.name,\n  w.status,\n  w.time_zone,\n  i.id AS identity_id,\n  i.display_name,\n  m.id AS membership_id,\n  p.id AS principal_id,\n  (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS \"is_owner!\",\n  core.workspace_axis(w.status, w.suspension_reason) AS \"workspace_classes!\",\n  core.admission(\n    :actionClass!,\n    core.workspace_axis(w.status, w.suspension_reason),\n    core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,\n                     md.stage, e.contract_kind, env.data_class, now())\n  ) AS \"decision!\"\nFROM core.workspaces AS w\nJOIN core.workspace_entitlements AS e ON e.workspace_id = w.id AND e.module_code = :moduleCode!\nJOIN core.module_definitions AS md ON md.code = e.module_code\nJOIN core.memberships AS m ON m.workspace_id = w.id\nJOIN core.identities AS i ON i.id = m.identity_id\nJOIN core.principals AS p ON p.workspace_id = m.workspace_id AND p.membership_id = m.id\nCROSS JOIN platform.environment AS env\nWHERE w.id = :workspaceId!\n  AND m.status = 'active'\n  AND i.provider = 'supabase'\n  AND i.provider_subject = :subject!\nFOR SHARE OF w, e, m"};
+const admitModuleIR: any = {"usedParamSet":{"moduleCode":true,"alsoModule":true,"actionClass":true,"workspaceId":true,"subject":true},"params":[{"name":"moduleCode","required":true,"transform":{"type":"scalar"},"locs":[{"a":1085,"b":1096},{"a":1268,"b":1279}]},{"name":"alsoModule","required":false,"transform":{"type":"scalar"},"locs":[{"a":1255,"b":1265}]},{"name":"actionClass","required":true,"transform":{"type":"scalar"},"locs":[{"a":1632,"b":1644},{"a":1922,"b":1934}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2211,"b":2223}]},{"name":"subject","required":true,"transform":{"type":"scalar"},"locs":[{"a":2308,"b":2316}]}],"statement":"-- Operaciones de un módulo: lee espacio, derecho y membresía con FOR SHARE en la misma consulta\n-- que decide, en el orden fijo espacio → derecho → membresía (02 §6). Si un cambio de estado\n-- confirma mientras espera, PostgreSQL relee las filas y la decisión se recalcula con ellas.\n-- Sin derecho no devuelve filas: findMembershipClasses elige entonces el error. Con :alsoModule, una\n-- operación que toca dos módulos (ADR 0020) bloquea también ese derecho y decide con el primero que no\n-- admita; sin él, e2 es el mismo derecho y la decisión no cambia.\nSELECT\n  w.id AS workspace_id,\n  w.code,\n  w.name,\n  w.status,\n  w.time_zone,\n  i.id AS identity_id,\n  i.display_name,\n  m.id AS membership_id,\n  p.id AS principal_id,\n  (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS \"is_owner!\",\n  core.workspace_axis(w.status, w.suspension_reason) AS \"workspace_classes!\",\n  CASE WHEN d.owner_decision = 'admitted' THEN d.also_decision ELSE d.owner_decision END AS \"decision!\"\nFROM core.workspaces AS w\nJOIN core.workspace_entitlements AS e ON e.workspace_id = w.id AND e.module_code = :moduleCode!\nJOIN core.module_definitions AS md ON md.code = e.module_code\nJOIN core.workspace_entitlements AS e2 ON e2.workspace_id = w.id AND e2.module_code = coalesce(:alsoModule, :moduleCode!)\nJOIN core.module_definitions AS md2 ON md2.code = e2.module_code\nJOIN core.memberships AS m ON m.workspace_id = w.id\nJOIN core.identities AS i ON i.id = m.identity_id\nJOIN core.principals AS p ON p.workspace_id = m.workspace_id AND p.membership_id = m.id\nCROSS JOIN platform.environment AS env\nCROSS JOIN LATERAL (\n  SELECT\n    core.admission(\n      :actionClass!,\n      core.workspace_axis(w.status, w.suspension_reason),\n      core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,\n                       md.stage, e.contract_kind, env.data_class, now())\n    ) AS owner_decision,\n    core.admission(\n      :actionClass!,\n      core.workspace_axis(w.status, w.suspension_reason),\n      core.module_axis(e2.status, e2.valid_from, e2.valid_until, e2.closing_until, e2.read_until,\n                       md2.stage, e2.contract_kind, env.data_class, now())\n    ) AS also_decision\n) AS d\nWHERE w.id = :workspaceId!\n  AND m.status = 'active'\n  AND i.provider = 'supabase'\n  AND i.provider_subject = :subject!\nFOR SHARE OF w, e, e2, m"};
 
 /**
  * Query generated from SQL:
@@ -180,7 +181,9 @@ const admitModuleIR: any = {"usedParamSet":{"actionClass":true,"moduleCode":true
  * -- Operaciones de un módulo: lee espacio, derecho y membresía con FOR SHARE en la misma consulta
  * -- que decide, en el orden fijo espacio → derecho → membresía (02 §6). Si un cambio de estado
  * -- confirma mientras espera, PostgreSQL relee las filas y la decisión se recalcula con ellas.
- * -- Sin derecho no devuelve filas: findMembershipClasses elige entonces el error.
+ * -- Sin derecho no devuelve filas: findMembershipClasses elige entonces el error. Con :alsoModule, una
+ * -- operación que toca dos módulos (ADR 0020) bloquea también ese derecho y decide con el primero que no
+ * -- admita; sin él, e2 es el mismo derecho y la decisión no cambia.
  * SELECT
  *   w.id AS workspace_id,
  *   w.code,
@@ -193,24 +196,36 @@ const admitModuleIR: any = {"usedParamSet":{"actionClass":true,"moduleCode":true
  *   p.id AS principal_id,
  *   (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS "is_owner!",
  *   core.workspace_axis(w.status, w.suspension_reason) AS "workspace_classes!",
- *   core.admission(
- *     :actionClass!,
- *     core.workspace_axis(w.status, w.suspension_reason),
- *     core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,
- *                      md.stage, e.contract_kind, env.data_class, now())
- *   ) AS "decision!"
+ *   CASE WHEN d.owner_decision = 'admitted' THEN d.also_decision ELSE d.owner_decision END AS "decision!"
  * FROM core.workspaces AS w
  * JOIN core.workspace_entitlements AS e ON e.workspace_id = w.id AND e.module_code = :moduleCode!
  * JOIN core.module_definitions AS md ON md.code = e.module_code
+ * JOIN core.workspace_entitlements AS e2 ON e2.workspace_id = w.id AND e2.module_code = coalesce(:alsoModule, :moduleCode!)
+ * JOIN core.module_definitions AS md2 ON md2.code = e2.module_code
  * JOIN core.memberships AS m ON m.workspace_id = w.id
  * JOIN core.identities AS i ON i.id = m.identity_id
  * JOIN core.principals AS p ON p.workspace_id = m.workspace_id AND p.membership_id = m.id
  * CROSS JOIN platform.environment AS env
+ * CROSS JOIN LATERAL (
+ *   SELECT
+ *     core.admission(
+ *       :actionClass!,
+ *       core.workspace_axis(w.status, w.suspension_reason),
+ *       core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,
+ *                        md.stage, e.contract_kind, env.data_class, now())
+ *     ) AS owner_decision,
+ *     core.admission(
+ *       :actionClass!,
+ *       core.workspace_axis(w.status, w.suspension_reason),
+ *       core.module_axis(e2.status, e2.valid_from, e2.valid_until, e2.closing_until, e2.read_until,
+ *                        md2.stage, e2.contract_kind, env.data_class, now())
+ *     ) AS also_decision
+ * ) AS d
  * WHERE w.id = :workspaceId!
  *   AND m.status = 'active'
  *   AND i.provider = 'supabase'
  *   AND i.provider_subject = :subject!
- * FOR SHARE OF w, e, m
+ * FOR SHARE OF w, e, e2, m
  * ```
  */
 export const admitModule = new PreparedQuery<IAdmitModuleParams,IAdmitModuleResult>(admitModuleIR);

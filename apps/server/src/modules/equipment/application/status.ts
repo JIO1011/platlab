@@ -1,9 +1,9 @@
 import type pg from 'pg';
 import type { z } from 'zod';
-import type { Asset, conditionChangeRequest, transferAssetRequest } from '@platlab/contracts';
+import type { Asset, assetConservation, conditionChangeRequest, transferAssetRequest } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
-import { recordAudit, requirePermission, requires, type CommandRequest } from '../../core/index.js';
-import { changeAssetCondition, moveAsset } from '../infrastructure/assets.queries.js';
+import { recordAudit, requirePermission, requires, type CommandRequest, type WorkspaceAccess } from '../../core/index.js';
+import { changeAssetCondition, insertConservationChange, moveAsset, setAssetConservation } from '../infrastructure/assets.queries.js';
 import { CATALOG, CONDITION, lockActiveAsset, runCommand, TRANSFER } from './command.js';
 import { assetById } from './queries.js';
 
@@ -84,5 +84,44 @@ export function transferAsset(
       changes: { location: { from: asset.location_id, to: input.locationId }, note: input.note ?? null },
     });
     return assetById(access, assetId);
+  });
+}
+
+/**
+ * Interfaz para otros módulos (ADR 0020): dentro de su comando, admitido también con Equipos, exige
+ * que el equipo exista y no esté dado de baja, y lo deja bloqueado hasta el final de la transacción.
+ */
+export async function requireActiveAsset(access: WorkspaceAccess, assetId: string): Promise<void> {
+  await lockActiveAsset(access, assetId);
+}
+
+/**
+ * Interfaz para otros módulos (ADR 0020): aplica el estado físico observado con el permiso de Equipos,
+ * su historial y la auditoría de la ficha. Si no cambia, no hace nada.
+ */
+export async function recordConservation(
+  access: WorkspaceAccess,
+  assetId: string,
+  conservation: z.infer<typeof assetConservation>,
+): Promise<void> {
+  await requirePermission(access, CONDITION);
+  const asset = await lockActiveAsset(access, assetId);
+  if (asset.conservation === conservation) return;
+  await setAssetConservation.run({ workspaceId: access.workspace.id, assetId, conservation }, access.client);
+  await insertConservationChange.run(
+    {
+      workspaceId: access.workspace.id,
+      assetId,
+      fromConservation: asset.conservation,
+      toConservation: conservation,
+      actorId: access.principalId,
+    },
+    access.client,
+  );
+  await recordAudit(access, {
+    action: 'equipment.asset.update',
+    entityType: 'equipment.asset',
+    entityId: assetId,
+    changes: { conservation: { from: asset.conservation, to: conservation } },
   });
 }

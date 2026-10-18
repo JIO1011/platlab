@@ -11,7 +11,7 @@ export const pillStyles = (selected: boolean, size: 'md' | 'sm' | 'auto' = 'md',
   cn(
     'inline-flex items-center justify-center rounded-full border text-sm font-medium transition-colors',
     'has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-action',
-    size === 'md' ? 'h-10 min-w-[7rem] px-4' : size === 'sm' ? 'h-9 min-w-[3.5rem] px-4' : 'min-h-10 px-3',
+    size === 'md' ? 'h-10 min-w-[7rem] px-4 max-sm:h-11' : size === 'sm' ? 'h-9 min-w-[3.5rem] px-4 max-sm:h-11 max-sm:min-w-11' : 'min-h-10 px-3 max-sm:min-h-11',
     selected ? 'border-action bg-action-soft text-action' : 'border-line bg-white/60 text-ink-muted',
     disabled ? 'cursor-not-allowed opacity-60' : cn('cursor-pointer', !selected && 'hover:bg-white hover:text-ink'),
   );

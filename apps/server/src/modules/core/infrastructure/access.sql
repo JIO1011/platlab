@@ -57,7 +57,9 @@ FOR SHARE OF w, m;
 -- Operaciones de un módulo: lee espacio, derecho y membresía con FOR SHARE en la misma consulta
 -- que decide, en el orden fijo espacio → derecho → membresía (02 §6). Si un cambio de estado
 -- confirma mientras espera, PostgreSQL relee las filas y la decisión se recalcula con ellas.
--- Sin derecho no devuelve filas: findMembershipClasses elige entonces el error.
+-- Sin derecho no devuelve filas: findMembershipClasses elige entonces el error. Con :alsoModule, una
+-- operación que toca dos módulos (ADR 0020) bloquea también ese derecho y decide con el primero que no
+-- admita; sin él, e2 es el mismo derecho y la decisión no cambia.
 SELECT
   w.id AS workspace_id,
   w.code,
@@ -70,24 +72,36 @@ SELECT
   p.id AS principal_id,
   (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS "is_owner!",
   core.workspace_axis(w.status, w.suspension_reason) AS "workspace_classes!",
-  core.admission(
-    :actionClass!,
-    core.workspace_axis(w.status, w.suspension_reason),
-    core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,
-                     md.stage, e.contract_kind, env.data_class, now())
-  ) AS "decision!"
+  CASE WHEN d.owner_decision = 'admitted' THEN d.also_decision ELSE d.owner_decision END AS "decision!"
 FROM core.workspaces AS w
 JOIN core.workspace_entitlements AS e ON e.workspace_id = w.id AND e.module_code = :moduleCode!
 JOIN core.module_definitions AS md ON md.code = e.module_code
+JOIN core.workspace_entitlements AS e2 ON e2.workspace_id = w.id AND e2.module_code = coalesce(:alsoModule, :moduleCode!)
+JOIN core.module_definitions AS md2 ON md2.code = e2.module_code
 JOIN core.memberships AS m ON m.workspace_id = w.id
 JOIN core.identities AS i ON i.id = m.identity_id
 JOIN core.principals AS p ON p.workspace_id = m.workspace_id AND p.membership_id = m.id
 CROSS JOIN platform.environment AS env
+CROSS JOIN LATERAL (
+  SELECT
+    core.admission(
+      :actionClass!,
+      core.workspace_axis(w.status, w.suspension_reason),
+      core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,
+                       md.stage, e.contract_kind, env.data_class, now())
+    ) AS owner_decision,
+    core.admission(
+      :actionClass!,
+      core.workspace_axis(w.status, w.suspension_reason),
+      core.module_axis(e2.status, e2.valid_from, e2.valid_until, e2.closing_until, e2.read_until,
+                       md2.stage, e2.contract_kind, env.data_class, now())
+    ) AS also_decision
+) AS d
 WHERE w.id = :workspaceId!
   AND m.status = 'active'
   AND i.provider = 'supabase'
   AND i.provider_subject = :subject!
-FOR SHARE OF w, e, m;
+FOR SHARE OF w, e, e2, m;
 
 /* @name findMembershipClasses */
 -- Sin bloqueo: solo distingue «sin acceso» de «módulo no disponible» tras una denegación.

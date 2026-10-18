@@ -3,6 +3,7 @@ import type pg from 'pg';
 import type { z } from 'zod';
 import { ASSET_DOCUMENT_MAX_BYTES, type AssetDocument, type AssetDocumentList, type uploadAssetDocumentQuery } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
+import { pdfBody } from '../../../platform/storage/pdf.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import { recordAudit, requires, withModuleAccess, type CommandRequest, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import {
@@ -15,16 +16,6 @@ import { CATALOG, lockActiveAsset, runCommand, runQuery } from './command.js';
 import { assetById } from './queries.js';
 
 /** Documentos del equipo (ADR 0019, E-01e): los sube y los quita el Administrador; el Operador los ve. */
-
-/** El PDF tal como llegó: se reconoce por su contenido (`%PDF-`), nunca por el tipo que declara el cliente. */
-function assetDocumentPdf(body: unknown): Buffer {
-  const valid =
-    Buffer.isBuffer(body) &&
-    body.byteLength <= ASSET_DOCUMENT_MAX_BYTES &&
-    body.subarray(0, 5).toString('latin1') === '%PDF-';
-  if (!valid) throw new AppError('VALIDATION_FAILED', 'El documento debe ser un PDF de hasta 20 MiB');
-  return body;
-}
 
 const toDocument = (row: IListAssetDocumentsResult): AssetDocument => ({
   id: row.id,
@@ -56,7 +47,7 @@ export async function uploadAssetDocument(
   input: z.infer<typeof uploadAssetDocumentQuery>,
   body: unknown,
 ): Promise<AssetDocument> {
-  const pdf = assetDocumentPdf(body);
+  const pdf = pdfBody(body, ASSET_DOCUMENT_MAX_BYTES, 'El documento debe ser un PDF de hasta 20 MiB');
   const authorize = requires(CATALOG);
   // Sin el permiso de catálogo, sin el equipo o con el equipo dado de baja, nada llega al bucket.
   await withModuleAccess(

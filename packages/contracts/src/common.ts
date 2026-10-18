@@ -6,6 +6,8 @@ import { z } from 'zod';
  */
 export const code = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/, 'Código inválido');
 export const text = (max: number) => z.string().trim().min(1).max(max);
+/** Importe exacto con dos decimales (numeric(14,2)); nunca se opera como number. */
+export const money = z.string().regex(/^\d{1,12}(?:\.\d{1,2})?$/, 'Debe ser un importe con hasta dos decimales');
 
 // ---------------------------------------------------------------------------
 // Consultas paginadas
