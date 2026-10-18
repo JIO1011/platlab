@@ -595,8 +595,11 @@ test('ficha con varios frascos: sin existencias, FEFO preseleccionado, aviso de 
   await expect(admin.getByRole('dialog', { name: 'Escanear etiqueta' })).toHaveCount(0);
   await expectAccessible(admin, 'ficha con varios frascos');
   await capture(admin, 'desktop-product-multi');
-  // Al devolver el foco a «Escanear» su tooltip puede reabrirse: se suelta el foco y se espera a que quede solo el de «Etiquetas QR».
+  // Al cerrar, la hoja devuelve el foco a «Escanear» (patrón de diálogo) y su tooltip se abre: el foco vuelve un
+  // instante después del cierre, así que se espera a tenerlo antes de soltarlo, y luego a que no quede ningún tooltip.
+  await expect(admin.getByRole('button', { name: 'Escanear', exact: true })).toBeFocused();
   await admin.getByRole('heading', { name: 'Ácido sulfúrico 98 %', level: 1 }).click();
+  await expect(admin.getByRole('tooltip')).toHaveCount(0);
   await admin.getByRole('button', { name: 'Etiquetas QR', exact: true }).hover();
   await expect(admin.getByRole('tooltip')).toHaveCount(1);
   await expect(admin.getByRole('tooltip')).toContainText('Etiquetas QR');
