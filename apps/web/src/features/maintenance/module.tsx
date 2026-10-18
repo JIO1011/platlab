@@ -1,4 +1,4 @@
-import { CalendarClock, ClipboardList, Wrench } from 'lucide-react';
+import { CalendarClock, History, Wrench } from 'lucide-react';
 import type { WebModule } from '../../app/web-module';
 
 /** Las extensiones se descargan aparte, al mostrarse en Equipos (ver `extension-pages.ts`). */
@@ -8,7 +8,7 @@ const extensionPages = () => import('./extension-pages');
 export const maintenanceWebModule: WebModule = {
   code: 'maintenance',
   Icon: Wrench,
-  sectionIcons: { trabajos: ClipboardList, planes: CalendarClock },
+  sectionIcons: { historial: History, planes: CalendarClock },
   home: {
     counters: [
       { key: 'overdue', label: (n) => (n === 1 ? 'vencido' : 'vencidos') },

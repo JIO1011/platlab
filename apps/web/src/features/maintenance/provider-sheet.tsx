@@ -10,7 +10,17 @@ import { maintenanceErrorMessage, useCreateProvider, useUpdateProvider } from '.
  * «Nuevo proveedor» y «Editar proveedor» (Administrador): el nombre y un contacto en texto libre. No hay borrado: un
  * proveedor se archiva y sus registros lo conservan.
  */
-export function ProviderSheet({ workspaceId, open, onOpenChange, provider }: SheetBaseProps & { provider?: Provider | undefined }) {
+export function ProviderSheet({
+  workspaceId,
+  open,
+  onOpenChange,
+  provider,
+  onCreated,
+}: SheetBaseProps & {
+  provider?: Provider | undefined;
+  /** Se llama con el proveedor recién creado (no al editar): la hoja de registro lo deja elegido. */
+  onCreated?: ((created: Provider) => void) | undefined;
+}) {
   const create = useCreateProvider(workspaceId);
   const update = useUpdateProvider(workspaceId, provider?.id ?? '');
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -40,8 +50,9 @@ export function ProviderSheet({ workspaceId, open, onOpenChange, provider }: She
       } else {
         const payload = validate(createProviderRequest, { name, contact: contact === '' ? null : contact }, form);
         if (!payload) return;
-        await create.mutateAsync(payload);
+        const created = await create.mutateAsync(payload);
         toast.success('Proveedor creado', { description: name });
+        onCreated?.(created);
       }
       onOpenChange(false);
     } catch (error) {

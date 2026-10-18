@@ -38,7 +38,7 @@ export function RecordSaved({ work }: { work: RecordWork }) {
         <div role="alert" className="grid justify-items-start gap-2 rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger">
           <p>
             El mantenimiento sí quedó guardado, pero el certificado no se adjuntó. {work.attachError} Puedes reintentarlo ahora o adjuntarlo después
-            desde Completados.
+            desde el Historial.
           </p>
           <Button size="sm" className="max-sm:h-11" onClick={work.retryAttach}>
             Reintentar adjunto

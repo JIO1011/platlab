@@ -1,5 +1,5 @@
-import { VALIDITY_KINDS, conservationLabel, type WorkKind, type WorkResult, type WorkspaceMeResponse } from '@platlab/contracts';
-import { Button, Field, Input, OptionRow, Select, Skeleton, Textarea, normalizeDecimalInput, sectionLabel } from '@platlab/ui';
+import { VALIDITY_KINDS, conservationLabel, type WorkKind, type WorkspaceMeResponse } from '@platlab/contracts';
+import { Button, Field, Input, OptionRow, Select, Skeleton, Textarea, normalizeDecimalInput } from '@platlab/ui';
 import { ChevronDown, ClipboardCheck, ScanLine, TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FormSheet, type SheetBaseProps } from '../../app/form-sheet';
@@ -11,14 +11,16 @@ import { CertificateField } from './certificate-field';
 import { certificateFileError } from './certificate-file';
 import { dueText, dueTone, todayInZone } from './due';
 import { toneText } from './due-view';
+import { ProviderSheet } from './provider-sheet';
 import { RecordSaved } from './record-saved';
+import { ResultChoice } from './result-choice';
 import { readAssetScan, useRecordWork } from './use-record-work';
 import { useProviders } from './queries';
-import { kindLabels, resultLabels } from './work-text';
+import { kindLabels } from './work-text';
 
 const INTERNAL = 'internal';
+const NEW_PROVIDER = '__new-provider';
 const kindOptions = (Object.keys(kindLabels) as WorkKind[]).map((value) => ({ value, label: kindLabels[value] }));
-const resultOptions = (Object.keys(resultLabels) as WorkResult[]).map((value) => ({ value, label: resultLabels[value] }));
 const conservationOptions = (['good', 'fair', 'poor'] as const).map((value) => ({ value, label: conservationLabel[value] }));
 
 /** El equipo: buscarlo por código o nombre, o escanear su etiqueta sin salir de la hoja. */
@@ -74,9 +76,9 @@ function AssetPicker({
 }
 
 /**
- * «Registrar mantenimiento» (ADR 0020): tres bloques: el equipo y el trabajo, la ejecución y el resultado, y los datos
- * adicionales (costo, vigencia, estado físico y certificado), plegados. Guarda en dos pasos —el registro y su
- * certificado— y, ya guardado, muestra qué pasó con el plan. Un registro guardado no se edita.
+ * «Registrar mantenimiento» (ADR 0020), una hoja corta: el equipo y el trabajo (elegidos o por buscar), la fecha, el
+ * resultado en tres botones, quién lo hizo y, plegado, «Más datos» (costo, estado físico y certificado). Guarda en dos
+ * pasos —el registro y su certificado— y, ya guardado, dice qué pasó. Un registro guardado no se edita.
  */
 export function RecordSheet({
   workspaceId,
@@ -100,6 +102,10 @@ export function RecordSheet({
   });
   const { form } = work;
   const providers = useProviders(workspaceId);
+  const canCreateProvider =
+    me.permissions.includes('maintenance.plan.manage') && (me.modules.find((entry) => entry.code === 'maintenance')?.access.includes('new_operation') ?? false);
+  // La hoja de «Nuevo proveedor» va aparte, fuera del formulario: un envío suyo no debe llegar al de esta hoja.
+  const [newProvider, setNewProvider] = useState<number | null>(null);
   const errors = form.formState.errors;
   const chosenId = form.watch('assetId');
   const selectedPlanId = form.watch('planId');
@@ -116,6 +122,9 @@ export function RecordSheet({
   const [fileError, setFileError] = useState<string | null>(null);
   const [costText, setCostText] = useState('');
   const [extraOpen, setExtraOpen] = useState(false);
+  // Con el plan que se pidió al abrir (desde «Por hacer») no hay nada que elegir: se muestra como resumen.
+  const [pickedAnother, setPickedAnother] = useState(false);
+  const preselected = planId !== undefined && !pickedAnother && (selectedPlanId === planId || work.plans.isPending);
   const saved = work.state.step !== 'idle' && work.state.step !== 'saving';
 
   // Con un solo plan, se elige solo: es lo más común y ahorra un toque; con varios, se elige a propósito.
@@ -136,8 +145,8 @@ export function RecordSheet({
   }, [showValidity]);
   // Un error en un dato plegado abre el bloque, para que se vea.
   useEffect(() => {
-    if (errors.cost || errors.validUntil) setExtraOpen(true);
-  }, [errors.cost, errors.validUntil]);
+    if (errors.cost) setExtraOpen(true);
+  }, [errors.cost]);
 
   const resetAsset = (id: string) => {
     form.setValue('assetId', id, { shouldDirty: true });
@@ -147,6 +156,7 @@ export function RecordSheet({
     setNoPlan(false);
     setPlanError(null);
     autoFor.current = '';
+    setPickedAnother(true);
   };
 
   const planChosen = selectedPlanId !== '' || noPlan || (work.asset.data !== undefined && work.assetPlans.length === 0);
@@ -188,188 +198,158 @@ export function RecordSheet({
     work.submit();
   };
 
-  const planTitle = work.plan?.title ?? (selectedPlanId === '' && planChosen ? 'Sin plan' : null);
-  const status = (() => {
-    if (work.state.step === 'saving') return 'Guardando el mantenimiento…';
-    if (work.state.step === 'attaching') return 'Adjuntando el certificado…';
-    if (work.state.step === 'attachFailed') return 'Guardado; falta adjuntar el certificado';
-    if (work.state.step === 'done') return 'Listo';
-    if (!assetInfo) return 'Elige el equipo para empezar';
-    return [assetInfo.code, planTitle ?? 'Falta el plan', result ? resultLabels[result] : 'Falta el resultado'].join(' · ');
-  })();
-
   const planDetail = work.plan;
   const generalError = work.generalError ?? errors.root?.message ?? null;
   const asset = work.asset;
 
   return (
-    <FormSheet
-      icon={ClipboardCheck}
-      title="Registrar mantenimiento"
-      description="Queda en el historial del equipo y no se puede editar después."
-      open={open}
-      onOpenChange={onOpenChange}
-      submitLabel={saved ? 'Listo' : 'Guardar mantenimiento'}
-      pending={work.pending}
-      generalError={saved ? null : generalError}
-      onSubmit={submit}
-      submitDisabled={!saved && chosenId !== '' && asset.isPending}
-      status={status}
-      dirty={work.dirty && !saved}
-      fullWidthSubmit={saved}
-      fullscreenMobile
-      wide
-      sections
-    >
-      {saved ? (
-        <RecordSaved work={work} />
-      ) : (
-        <>
-          <section aria-labelledby="registro-equipo" className="grid gap-4">
-            <h3 id="registro-equipo" className={sectionLabel}>
-              Equipo y trabajo
-            </h3>
-            {chosenId === '' ? (
-              <AssetPicker
-                workspaceId={workspaceId}
-                open={open}
-                startScanning={scan}
-                error={errors.assetId?.message}
-                onChoose={resetAsset}
-              />
-            ) : asset.isPending ? (
-              <Skeleton className="h-14" />
-            ) : asset.isError || !assetInfo ? (
-              <div role="alert" className="grid justify-items-start gap-2 rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger">
-                <p>No se pudo cargar el equipo.</p>
-                <div className="flex gap-2">
-                  <Button size="sm" className="max-sm:h-11" onClick={() => void asset.refetch()}>
-                    Reintentar
-                  </Button>
-                  <Button size="sm" className="max-sm:h-11" onClick={() => resetAsset('')}>
-                    Elegir otro
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <ChosenAsset
-                asset={assetInfo}
-                onClear={() => resetAsset('')}
-                extra={
-                  retired ? (
-                    <p role="alert" className="text-[13px] font-medium text-danger">
-                      Este equipo está dado de baja y ya no admite mantenimientos. Elige otro.
-                    </p>
-                  ) : null
-                }
-              />
-            )}
-
-            {assetInfo && !retired ? (
-              work.assetPlans.length === 0 ? (
-                <div className="grid gap-3">
-                  <p className="rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted">
-                    Este equipo no tiene plan de mantenimiento: <span className="font-medium text-ink">Sin plan</span>. Indica el tipo de trabajo.
-                  </p>
+    <>
+      <FormSheet
+        icon={ClipboardCheck}
+        title="Registrar mantenimiento"
+        description="Queda en el historial del equipo y no se puede editar después."
+        open={open}
+        onOpenChange={onOpenChange}
+        submitLabel={saved ? 'Listo' : 'Guardar'}
+        pending={work.pending}
+        generalError={saved ? null : generalError}
+        onSubmit={submit}
+        submitDisabled={!saved && chosenId !== '' && asset.isPending}
+        dirty={work.dirty && !saved}
+        fullWidthSubmit
+        fullscreenMobile
+      >
+        {saved ? (
+          <RecordSaved work={work} />
+        ) : (
+          <>
+            <section aria-label="Equipo y trabajo" className="grid gap-4">
+              {chosenId === '' ? (
+                <AssetPicker workspaceId={workspaceId} open={open} startScanning={scan} error={errors.assetId?.message} onChoose={resetAsset} />
+              ) : asset.isPending ? (
+                <Skeleton className="h-14" />
+              ) : asset.isError || !assetInfo ? (
+                <div role="alert" className="grid justify-items-start gap-2 rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger">
+                  <p>No se pudo cargar el equipo.</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="max-sm:h-11" onClick={() => void asset.refetch()}>
+                      Reintentar
+                    </Button>
+                    <Button size="sm" className="max-sm:h-11" onClick={() => resetAsset('')}>
+                      Elegir otro
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <fieldset className="grid min-w-0 gap-1.5">
-                  <legend className="mb-1.5 text-sm font-medium text-ink">
-                    Plan de trabajo
-                    <span aria-hidden className="ml-0.5">
-                      *
-                    </span>
-                  </legend>
-                  <div className="grid gap-0.5 rounded-xl border border-line bg-white/60 p-1">
-                    {work.assetPlans.map((entry) => {
-                      const tone = dueTone(entry, today);
-                      return (
-                        <OptionRow
-                          key={entry.plan.id}
-                          type="radio"
-                          name="plan"
-                          checked={selectedPlanId === entry.plan.id}
-                          aria-invalid={planError ? true : undefined}
-                          onChange={() => {
-                            work.selectPlan(entry.plan.id);
-                            setNoPlan(false);
-                            setPlanError(null);
-                          }}
-                        >
-                          <span className="block font-medium">
-                            {entry.plan.title} <span className="font-normal text-ink-muted">· {kindLabels[entry.plan.kind]}</span>
-                          </span>
-                          <span className={`block text-[13px] font-medium ${toneText[tone]}`}>
-                            {entry.lastResult === 'fail' ? 'No conforme, pendiente' : `${formatDate(entry.dueOn)} · ${dueText(entry.dueOn, today)}`}
-                          </span>
-                        </OptionRow>
-                      );
-                    })}
-                    <OptionRow
-                      type="radio"
-                      name="plan"
-                      checked={noPlan && selectedPlanId === ''}
-                      aria-invalid={planError ? true : undefined}
-                      onChange={() => {
-                        work.selectPlan('');
-                        setNoPlan(true);
-                        setPlanError(null);
-                      }}
-                    >
-                      <span className="block font-medium">Sin plan</span>
-                      <span className="block text-[13px] font-normal text-ink-muted">Un trabajo que no corresponde a ninguno de los planes</span>
-                    </OptionRow>
-                  </div>
-                  {planError ? (
-                    <p role="alert" className="text-[13px] font-medium text-danger">
-                      {planError}
-                    </p>
-                  ) : null}
-                </fieldset>
-              )
-            ) : null}
-
-            {assetInfo && !retired && selectedPlanId === '' && planChosen ? (
-              <>
-                <PillField
-                  label="Tipo de trabajo"
-                  required
-                  value={kind}
-                  options={kindOptions}
-                  onChange={(value) => {
-                    form.setValue('kind', value, { shouldDirty: true });
-                    form.clearErrors('kind');
-                  }}
-                  error={errors.kind?.message}
+                <ChosenAsset
+                  asset={assetInfo}
+                  onClear={() => resetAsset('')}
+                  extra={
+                    retired ? (
+                      <p role="alert" className="text-[13px] font-medium text-danger">
+                        Este equipo está dado de baja y ya no admite mantenimientos. Elige otro.
+                      </p>
+                    ) : preselected && work.plan ? (
+                      <p className="break-words text-sm text-ink">
+                        <span className="font-semibold">{work.plan.title}</span> <span className="text-ink-muted">· {kindLabels[work.plan.kind]}</span>
+                      </p>
+                    ) : null
+                  }
                 />
-                <p role="status" className="flex items-start gap-2 rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted">
-                  <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-                  Este registro no actualizará ningún plan.
-                </p>
-              </>
-            ) : null}
-          </section>
+              )}
 
-          <section aria-labelledby="registro-ejecucion" className="grid gap-4">
-            <h3 id="registro-ejecucion" className={sectionLabel}>
-              Ejecución y resultado
-            </h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Fecha del trabajo" required hint="Hoy por defecto. Puedes poner una fecha pasada." error={errors.performedOn?.message}>
+              {assetInfo && !retired && !preselected ? (
+                work.assetPlans.length === 0 ? (
+                  <p className="rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted">
+                    Este equipo no tiene plan: <span className="font-medium text-ink">Sin plan</span>. Indica el tipo de trabajo.
+                  </p>
+                ) : (
+                  <fieldset className="grid min-w-0 gap-1.5">
+                    <legend className="mb-1.5 text-sm font-medium text-ink">
+                      ¿Qué trabajo se hizo?
+                      <span aria-hidden className="ml-0.5">
+                        *
+                      </span>
+                    </legend>
+                    <div className="grid gap-0.5 rounded-xl border border-line bg-white/60 p-1">
+                      {work.assetPlans.map((entry) => {
+                        const tone = dueTone(entry, today);
+                        return (
+                          <OptionRow
+                            key={entry.plan.id}
+                            type="radio"
+                            name="plan"
+                            checked={selectedPlanId === entry.plan.id}
+                            aria-invalid={planError ? true : undefined}
+                            onChange={() => {
+                              work.selectPlan(entry.plan.id);
+                              setNoPlan(false);
+                              setPlanError(null);
+                            }}
+                          >
+                            <span className="block font-medium">
+                              {entry.plan.title} <span className="font-normal text-ink-muted">· {kindLabels[entry.plan.kind]}</span>
+                            </span>
+                            <span className={`block text-[13px] font-medium ${toneText[tone]}`}>
+                              {entry.lastResult === 'fail' ? 'No conforme, pendiente' : `${formatDate(entry.dueOn)} · ${dueText(entry.dueOn, today)}`}
+                            </span>
+                          </OptionRow>
+                        );
+                      })}
+                      <OptionRow
+                        type="radio"
+                        name="plan"
+                        checked={noPlan && selectedPlanId === ''}
+                        aria-invalid={planError ? true : undefined}
+                        onChange={() => {
+                          work.selectPlan('');
+                          setNoPlan(true);
+                          setPlanError(null);
+                        }}
+                      >
+                        <span className="block font-medium">Sin plan</span>
+                        <span className="block text-[13px] font-normal text-ink-muted">Un trabajo que no es de ninguno de estos planes</span>
+                      </OptionRow>
+                    </div>
+                    {planError ? (
+                      <p role="alert" className="text-[13px] font-medium text-danger">
+                        {planError}
+                      </p>
+                    ) : null}
+                  </fieldset>
+                )
+              ) : null}
+
+              {assetInfo && !retired && selectedPlanId === '' && planChosen ? (
+                <>
+                  <PillField
+                    label="Tipo de trabajo"
+                    required
+                    value={kind}
+                    options={kindOptions}
+                    onChange={(value) => {
+                      form.setValue('kind', value, { shouldDirty: true });
+                      form.clearErrors('kind');
+                    }}
+                    error={errors.kind?.message}
+                  />
+                  <p role="status" className="flex items-start gap-2 rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted">
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                    Este registro no actualizará ningún plan.
+                  </p>
+                </>
+              ) : null}
+            </section>
+
+            <div className={showValidity ? 'grid gap-4 min-[420px]:grid-cols-2' : 'grid gap-4'}>
+              <Field label="Fecha" required error={errors.performedOn?.message}>
                 <Input type="date" max={today} className="h-11 sm:h-10" {...form.register('performedOn')} />
               </Field>
-              <Field label="Realizado por" hint="Interno, o la empresa que lo hizo." error={errors.providerId?.message}>
-                <Select
-                  value={providerId === '' ? INTERNAL : providerId}
-                  onValueChange={(value) => form.setValue('providerId', value === INTERNAL ? '' : value, { shouldDirty: true })}
-                  placeholder="Interno"
-                  triggerClassName="h-11 sm:h-10"
-                  options={[
-                    { value: INTERNAL, label: 'Interno' },
-                    ...(providers.data?.items ?? []).map((provider) => ({ value: provider.id, label: provider.name })),
-                  ]}
-                />
-              </Field>
+              {showValidity ? (
+                <Field label="Válida hasta" optional error={errors.validUntil?.message}>
+                  <Input type="date" min={performedOn} className="h-11 sm:h-10" {...form.register('validUntil')} />
+                </Field>
+              ) : null}
             </div>
 
             {planDetail && (planDetail.checklist.length > 0 || planDetail.acceptanceCriteria) ? (
@@ -409,17 +389,14 @@ export function RecordSheet({
               </fieldset>
             ) : null}
 
-            <PillField
-              label="Resultado"
-              required
+            <ResultChoice
               value={result}
-              options={resultOptions}
               onChange={(value) => {
                 form.setValue('result', value, { shouldDirty: true });
                 form.clearErrors(['result', 'observations']);
               }}
               error={errors.result?.message}
-              hint={result === 'fail' ? 'El trabajo seguirá por hacer hasta que se registre uno Conforme.' : undefined}
+              hint={result === 'fail' ? 'Seguirá por hacer hasta que se registre uno Conforme.' : undefined}
             />
             {result !== '' && result !== 'pass' ? (
               <Field
@@ -431,63 +408,89 @@ export function RecordSheet({
                 <Textarea rows={3} maxLength={2000} {...form.register('observations')} />
               </Field>
             ) : null}
-          </section>
 
-          <details
-            open={extraOpen}
-            onToggle={(event) => setExtraOpen(event.currentTarget.open)}
-            className="group"
-          >
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-control focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action [&::-webkit-details-marker]:hidden">
-              <span className="min-w-0">
-                <span className={sectionLabel}>Datos adicionales</span>
-                <span className="block text-[13px] text-ink-muted">Costo, vigencia, estado físico y certificado. Todo es opcional.</span>
-              </span>
-              <ChevronDown className="size-5 shrink-0 text-ink-muted transition-transform group-open:rotate-180" aria-hidden />
-            </summary>
-            <div className="mt-4 grid gap-4">
-              <Field label="Costo" optional hint="Déjalo vacío si no tienes el dato." error={errors.cost?.message}>
-                <div className="relative">
-                  <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">
-                    $
-                  </span>
-                  <Input
-                    inputMode="decimal"
-                    autoComplete="off"
-                    placeholder="0,00"
-                    className="h-11 pl-7 tabular-nums sm:h-10"
-                    value={costText}
-                    onChange={(event) => {
-                      setCostText(event.target.value);
-                      form.setValue('cost', normalizeDecimalInput(event.target.value), { shouldDirty: true });
-                    }}
-                  />
-                </div>
-              </Field>
-              {showValidity ? (
-                <Field label="Válida hasta" optional hint="Hasta cuándo vale el certificado de este trabajo." error={errors.validUntil?.message}>
-                  <Input type="date" min={performedOn} className="h-11 sm:h-10" {...form.register('validUntil')} />
+            <Field label="Lo hizo" error={errors.providerId?.message}>
+              <Select
+                value={providerId === '' ? INTERNAL : providerId}
+                onValueChange={(value) => {
+                  if (value === NEW_PROVIDER) setNewProvider((newProvider ?? 0) + 1);
+                  else form.setValue('providerId', value === INTERNAL ? '' : value, { shouldDirty: true });
+                }}
+                placeholder="Interno"
+                triggerClassName="h-11 sm:h-10"
+                options={[
+                  { value: INTERNAL, label: 'Interno' },
+                  ...(providers.data?.items ?? []).map((provider) => ({ value: provider.id, label: provider.name })),
+                  ...(canCreateProvider ? [{ value: NEW_PROVIDER, label: '+ Nuevo proveedor' }] : []),
+                ]}
+              />
+            </Field>
+
+            <details open={extraOpen} onToggle={(event) => setExtraOpen(event.currentTarget.open)} className="group">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-control focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-ink">Más datos</span>
+                  <span className="block text-[13px] text-ink-muted">Costo, estado físico y certificado. Todo es opcional.</span>
+                </span>
+                <ChevronDown className="size-5 shrink-0 text-ink-muted transition-transform group-open:rotate-180" aria-hidden />
+              </summary>
+              <div className="mt-4 grid gap-4">
+                <Field label="Costo" optional error={errors.cost?.message}>
+                  <div className="relative">
+                    <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-muted">
+                      $
+                    </span>
+                    <Input
+                      inputMode="decimal"
+                      autoComplete="off"
+                      placeholder="0,00"
+                      className="h-11 pl-7 tabular-nums sm:h-10"
+                      value={costText}
+                      onChange={(event) => {
+                        setCostText(event.target.value);
+                        form.setValue('cost', normalizeDecimalInput(event.target.value), { shouldDirty: true });
+                      }}
+                    />
+                  </div>
                 </Field>
-              ) : null}
-              {assetInfo ? (
-                <PillField
-                  label="Estado físico actual"
-                  size="sm"
-                  value={conservation || assetInfo.conservation || ''}
-                  options={conservationOptions}
-                  onChange={(value) => form.setValue('conservation', value === assetInfo.conservation ? '' : value, { shouldDirty: true })}
-                  hint={
-                    assetInfo.conservation
-                      ? `Ahora: ${conservationLabel[assetInfo.conservation]}. Cambia solo si lo encontraste distinto.`
-                      : 'El equipo no tiene este dato. Elige uno si lo evaluaste.'
-                  }
+                {assetInfo ? (
+                  <PillField
+                    label="Estado físico actual"
+                    size="sm"
+                    value={conservation || assetInfo.conservation || ''}
+                    options={conservationOptions}
+                    onChange={(value) => form.setValue('conservation', value === assetInfo.conservation ? '' : value, { shouldDirty: true })}
+                    hint={
+                      assetInfo.conservation
+                        ? `Ahora: ${conservationLabel[assetInfo.conservation]}. Cambia solo si lo encontraste distinto.`
+                        : 'El equipo no tiene este dato. Elige uno si lo evaluaste.'
+                    }
+                  />
+                ) : null}
+                <CertificateField
+                  file={work.file}
+                  onChange={(file) => {
+                    work.setFile(file);
+                    setFileError(null);
+                  }}
+                  error={fileError}
                 />
-              ) : null}
-              <CertificateField file={work.file} onChange={(file) => { work.setFile(file); setFileError(null); }} error={fileError} />
-            </div>
-          </details>
-        </>
-      )}
-    </FormSheet>
+              </div>
+            </details>
+          </>
+        )}
+      </FormSheet>
+      {newProvider !== null ? (
+        <ProviderSheet
+          key={newProvider}
+          workspaceId={workspaceId}
+          open
+          onOpenChange={(next) => {
+            if (!next) setNewProvider(null);
+          }}
+          onCreated={(created) => form.setValue('providerId', created.id, { shouldDirty: true })}
+        />
+      ) : null}
+    </>
   );
 }

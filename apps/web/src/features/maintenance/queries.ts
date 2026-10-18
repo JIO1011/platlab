@@ -4,6 +4,7 @@ import {
   maintenanceAssetList,
   maintenanceSummary,
   nextDueList,
+  planAssetList,
   planList,
   providerList,
   recordList,
@@ -64,7 +65,17 @@ export function usePlans(workspaceId: string, enabled = true) {
   });
 }
 
-/** Completados, del más reciente al más antiguo, por páginas; con `assetId`, los de un equipo (`?equipo=`). */
+/** Los equipos de un plan con «Incluido», su fecha o su motivo; solo mientras el plan está abierto. */
+export function usePlanAssets(workspaceId: string, planId: string | null) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...maintenanceKey(user, workspaceId), 'plans', planId, 'assets'],
+    queryFn: () => api(`${base(workspaceId)}/plans/${planId}/assets`, { schema: planAssetList }),
+    enabled: planId !== null,
+  });
+}
+
+/** Historial: los trabajos registrados, del más reciente al más antiguo, por páginas; con `assetId`, los de un equipo (`?equipo=`). */
 export function useRecords(workspaceId: string, assetId?: string) {
   const user = useUserKey();
   return useInfiniteQuery({

@@ -33,7 +33,7 @@ export function SectionHeader({ title, updatedAt, actions }: { title: string; up
       {canOperate ? null : (
         <p role="status" className="mt-5 flex items-center gap-2 rounded-control bg-warning-soft px-3 py-2.5 text-sm text-warning">
           <Eye className="size-4 shrink-0" aria-hidden />
-          Mantenimiento está en modo consulta: puedes ver los trabajos y los planes, pero no registrar cambios.
+          Mantenimiento está en modo consulta: puedes ver lo que hay por hacer, el historial y los planes, pero no registrar cambios.
         </p>
       )}
     </>

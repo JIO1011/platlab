@@ -28,29 +28,24 @@ describe('daysUntil', () => {
 });
 
 describe('dueGroup', () => {
-  it('pone hoy en Próximos 7 días y ayer en Vencidos', () => {
-    expect(dueGroup(pending(today), today)).toBe('week');
+  it('pone hoy en Próximos 30 días y ayer en Atrasados', () => {
+    expect(dueGroup(pending(today), today)).toBe('upcoming');
     expect(dueGroup(pending('2026-10-16'), today)).toBe('overdue');
   });
 
-  it('separa 7 y 8 días', () => {
-    expect(dueGroup(pending('2026-10-24'), today)).toBe('week');
-    expect(dueGroup(pending('2026-10-25'), today)).toBe('month');
-  });
-
   it('incluye el día 30 y deja fuera el 31', () => {
-    expect(dueGroup(pending('2026-11-16'), today)).toBe('month');
+    expect(dueGroup(pending('2026-11-16'), today)).toBe('upcoming');
     expect(dueGroup(pending('2026-11-17'), today)).toBeNull();
   });
 
   it('cuenta los días a través del fin de mes', () => {
-    expect(dueGroup(pending('2026-11-07'), '2026-10-31')).toBe('week');
-    expect(dueGroup(pending('2026-11-08'), '2026-10-31')).toBe('month');
+    expect(dueGroup(pending('2026-11-30'), '2026-10-31')).toBe('upcoming');
+    expect(dueGroup(pending('2026-12-01'), '2026-10-31')).toBeNull();
   });
 
-  it('un no conforme va a No conformes aunque su fecha esté lejos', () => {
-    expect(dueGroup({ dueOn: '2027-10-17', lastResult: 'fail' }, today)).toBe('nonconforming');
-    expect(dueGroup({ dueOn: '2026-10-01', lastResult: 'fail' }, today)).toBe('nonconforming');
+  it('un no conforme va a Atrasados aunque su fecha esté lejos', () => {
+    expect(dueGroup({ dueOn: '2027-10-17', lastResult: 'fail' }, today)).toBe('overdue');
+    expect(dueGroup({ dueOn: '2026-10-01', lastResult: 'fail' }, today)).toBe('overdue');
   });
 
   it('con observaciones cuenta como hecho: sigue su fecha', () => {
@@ -68,10 +63,13 @@ describe('groupDue', () => {
       { id: 'e', ...pending('2027-01-01') },
     ];
     expect(groupDue(items, today).map((entry) => [entry.label, entry.items.map((item) => item.id)])).toEqual([
-      ['No conformes', ['c']],
-      ['Vencidos', ['a', 'd']],
-      ['Próximos 7 días', ['b']],
+      ['Atrasados', ['a', 'c', 'd']],
+      ['Próximos 30 días', ['b']],
     ]);
+  });
+
+  it('sin atrasados, solo muestra los próximos', () => {
+    expect(groupDue([{ id: 'a', ...pending('2026-10-20') }], today).map((entry) => entry.group)).toEqual(['upcoming']);
   });
 });
 

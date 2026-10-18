@@ -26,22 +26,22 @@ export function daysUntil(dueOn: string, today: string): number {
   return Math.round((utc(dueOn) - utc(today)) / 86_400_000);
 }
 
-export type DueGroup = 'nonconforming' | 'overdue' | 'week' | 'month';
+export type DueGroup = 'overdue' | 'upcoming';
 
 const groupLabels: Record<DueGroup, string> = {
-  nonconforming: 'No conformes',
-  overdue: 'Vencidos',
-  week: 'Próximos 7 días',
-  month: 'De 8 a 30 días',
+  overdue: 'Atrasados',
+  upcoming: 'Próximos 30 días',
 };
 
-/** El grupo de «Por hacer»; null si toca después de 30 días. Un no conforme va primero, sea cual sea su fecha. */
+/**
+ * El grupo de «Por hacer»; null si toca después de 30 días. Atrasados reúne lo vencido y lo No conforme, sea cual sea
+ * su fecha; Próximos 30 días, de hoy a dentro de 30 días.
+ */
 export function dueGroup(entry: DueEntry, today: string): DueGroup | null {
-  if (entry.lastResult === 'fail') return 'nonconforming';
+  if (entry.lastResult === 'fail') return 'overdue';
   const days = daysUntil(entry.dueOn, today);
   if (days < 0) return 'overdue';
-  if (days <= 7) return 'week';
-  return days <= 30 ? 'month' : null;
+  return days <= 30 ? 'upcoming' : null;
 }
 
 /** «Por hacer» agrupado en su orden, sin grupos vacíos; dentro de cada uno se conserva el orden recibido. */

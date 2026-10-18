@@ -14,10 +14,11 @@ export const maintenanceRoutes: ModuleRoutes = {
       path: 'mantenimiento',
       lazy: async () => ({ Component: (await pages()).MaintenanceLayout }),
       children: [
-        { index: true, lazy: async () => ({ Component: (await pages()).MaintenanceSummaryPage }) },
-        // Por hacer y, con `?vista=completados` (y `&equipo=`), los completados; `?registrar=` abre la hoja con ese equipo.
-        { path: 'trabajos', lazy: async () => ({ Component: (await pages()).MaintenanceWorkPage }) },
-        // Planes de trabajo y, con `?vista=proveedores`, los proveedores del espacio.
+        // Por hacer, la portada; `?registrar=<equipo>` abre la hoja de registro con ese equipo.
+        { index: true, lazy: async () => ({ Component: (await pages()).MaintenanceTodoPage }) },
+        // Historial de lo registrado; `?equipo=` deja solo los de ese equipo.
+        { path: 'historial', lazy: async () => ({ Component: (await pages()).MaintenanceHistoryPage }) },
+        // Planes de trabajo (y, desde su menú, los proveedores).
         { path: 'planes', lazy: async () => ({ Component: (await pages()).MaintenancePlansPage }) },
       ],
     },
