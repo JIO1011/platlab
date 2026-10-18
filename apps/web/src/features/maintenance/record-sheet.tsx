@@ -185,6 +185,12 @@ export function RecordSheet({
     if (!values.result) {
       form.setError('result', { message: 'Elige el resultado del mantenimiento.' });
       invalid = true;
+    } else if (values.result !== 'pass' && values.observations.trim() === '') {
+      // Con observaciones o No conforme, decir qué pasó es obligatorio: se avisa aquí, sin esperar al servidor.
+      form.setError('observations', {
+        message: values.result === 'fail' ? 'Escribe qué falló y qué hace falta para corregirlo.' : 'Escribe qué encontraste o qué conviene vigilar.',
+      });
+      invalid = true;
     }
     if (work.file) {
       const problem = certificateFileError(work.file);
@@ -218,6 +224,9 @@ export function RecordSheet({
         dirty={work.dirty && !saved}
         fullWidthSubmit
         fullscreenMobile
+        focusFirst
+        pendingText={work.state.step === 'attaching' ? 'Adjuntando el certificado…' : 'Guardando el mantenimiento…'}
+        announcement={work.state.step === 'done' ? `Mantenimiento guardado. ${work.outcome?.text ?? ''}` : undefined}
       >
         {saved ? (
           <RecordSaved work={work} />
@@ -432,7 +441,7 @@ export function RecordSheet({
                   <span className="block text-sm font-medium text-ink">Más datos</span>
                   <span className="block text-[13px] text-ink-muted">Costo, estado físico y certificado. Todo es opcional.</span>
                 </span>
-                <ChevronDown className="size-5 shrink-0 text-ink-muted transition-transform group-open:rotate-180" aria-hidden />
+                <ChevronDown className="size-5 shrink-0 text-ink-muted transition-transform motion-reduce:transition-none group-open:rotate-180" aria-hidden />
               </summary>
               <div className="mt-4 grid gap-4">
                 <Field label="Costo" optional error={errors.cost?.message}>

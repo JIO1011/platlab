@@ -253,6 +253,8 @@ export function PlanSheet({
       dirty={form.formState.isDirty || (asset !== null && !ownFor)}
       fullscreenMobile
       sections
+      focusFirst
+      pendingText={editing ? 'Guardando el plan…' : 'Creando el plan…'}
     >
       {editing && plan ? (
         <section aria-label="Plan" className="grid gap-4">
@@ -441,7 +443,7 @@ export function PlanSheet({
             <span className="block text-sm font-medium text-ink">Lista de verificación y criterio</span>
             <span className="block text-[13px] text-ink-muted">Opcional. Quien registre el trabajo los verá.</span>
           </span>
-          <ChevronDown className="size-5 shrink-0 text-ink-muted transition-transform group-open:rotate-180" aria-hidden />
+          <ChevronDown className="size-5 shrink-0 text-ink-muted transition-transform motion-reduce:transition-none group-open:rotate-180" aria-hidden />
         </summary>
         <div className="mt-4 grid gap-4">
           <Field label="Lista de verificación" optional hint="Un paso por línea (hasta 30)." error={errors.checklist?.message}>

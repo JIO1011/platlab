@@ -5,8 +5,8 @@ import { Link, useParams } from 'react-router';
 import { formatDate } from '../../app/format';
 import { useWorkspaceMe } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
-import { dueText, dueTone, todayInZone } from './due';
-import { DueDot, shortDue, toneText } from './due-view';
+import { dueTone, todayInZone } from './due';
+import { DueDot, dueStatus, toneText } from './due-view';
 import { useAssetMaintenance } from './queries';
 import { kindLabels, maintenancePath, resultLabels } from './work-text';
 
@@ -42,7 +42,7 @@ export function AssetMaintenanceTab({ assetId }: { assetId: string }) {
             Planes de mantenimiento
           </h2>
           {canRecord && plans.length === 0 ? (
-            <Button variant="primary" aria-haspopup="dialog" className="h-11 w-full sm:h-10 sm:w-auto" onClick={() => setSheet({ n: (sheet?.n ?? 0) + 1, open: true })}>
+            <Button variant="primary" aria-haspopup="dialog" className="h-11 w-full sm:w-auto" onClick={() => setSheet({ n: (sheet?.n ?? 0) + 1, open: true })}>
               <ClipboardCheck aria-hidden />
               Registrar
             </Button>
@@ -64,18 +64,18 @@ export function AssetMaintenanceTab({ assetId }: { assetId: string }) {
                     <p className="flex items-start gap-2 break-words font-semibold text-ink">
                       <DueDot tone={tone} className="mt-[7px]" />
                       <span>
-                        {kindLabels[entry.plan.kind]} · <span className="tabular-nums">{shortDue(entry.dueOn, today)}</span>
+                        {kindLabels[entry.plan.kind]} · <span className="tabular-nums">{formatDate(entry.dueOn)}</span>
                       </span>
                     </p>
                     <p className={`mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 pl-4 text-[13px] font-medium ${toneText[tone]}`}>
                       {failed ? <Badge tone="danger">No conforme</Badge> : null}
-                      {dueText(entry.dueOn, today)}
+                      {dueStatus(entry.dueOn, today)}
                       <span className="font-normal text-ink-muted">· {entry.plan.title}</span>
                     </p>
                   </div>
                   {canRecord ? (
                     <Button
-                      className="h-11 w-full sm:h-9 sm:w-auto"
+                      className="h-11 w-full sm:w-auto"
                       aria-haspopup="dialog"
                       aria-label={`Registrar: ${entry.plan.title}`}
                       onClick={() => setSheet({ n: (sheet?.n ?? 0) + 1, open: true, planId: entry.plan.id })}

@@ -1,8 +1,9 @@
 import { Skeleton } from '@platlab/ui';
 import { useParams } from 'react-router';
+import { formatDate } from '../../app/format';
 import { useWorkspaceMe } from '../../app/queries';
 import { dueTone, todayInZone } from './due';
-import { DueDot, shortDue, toneText } from './due-view';
+import { DueDot, dueStatus, toneText } from './due-view';
 import { useNextDue } from './queries';
 import { kindLabels } from './work-text';
 
@@ -19,8 +20,7 @@ export function NextDueCell({ assetId, assetIds }: { assetId: string; assetIds: 
   if (next.isError) {
     return (
       <span title="No se pudo cargar el próximo mantenimiento" className="text-ink-muted">
-        —
-        <span className="sr-only">No se pudo cargar el próximo mantenimiento</span>
+        —<span className="sr-only"> No se pudo cargar el próximo mantenimiento</span>
       </span>
     );
   }
@@ -39,8 +39,11 @@ export function NextDueCell({ assetId, assetIds }: { assetId: string; assetIds: 
   return (
     <span title={entry.plan.title} className="inline-flex items-start gap-1.5 text-sm">
       <DueDot tone={tone} className="mt-[7px]" />
-      <span className={failed ? `font-medium ${toneText.danger}` : 'text-ink'}>
-        {kindLabels[entry.plan.kind]} · {failed ? 'No conforme' : <span className="tabular-nums">{shortDue(entry.dueOn, today)}</span>}
+      <span className="grid">
+        <span className={failed ? `font-medium ${toneText.danger}` : 'text-ink'}>
+          {kindLabels[entry.plan.kind]} · {failed ? 'No conforme' : <span className="tabular-nums">{formatDate(entry.dueOn)}</span>}
+        </span>
+        {failed ? null : <span className={`text-[13px] font-medium ${toneText[tone]}`}>{dueStatus(entry.dueOn, today)}</span>}
       </span>
     </span>
   );

@@ -27,7 +27,7 @@ export function RecordSaved({ work }: { work: RecordWork }) {
         </span>
         <div className="min-w-0">
           <h3 className="text-base font-semibold text-ink">Mantenimiento guardado</h3>
-          <p role="status" className="mt-0.5 text-sm text-ink-muted">
+          <p className="mt-0.5 text-sm text-ink-muted">
             <span className="font-mono tabular-nums">{record.asset.code}</span> {record.asset.name}.{' '}
             {outcome ? outcome.text : 'Adjuntando el certificado…'}
           </p>

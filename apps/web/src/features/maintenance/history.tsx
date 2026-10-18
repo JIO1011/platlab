@@ -70,7 +70,7 @@ export function MaintenanceHistoryPage() {
           </p>
         ) : null}
         {records.isPending ? (
-          <div role="status" aria-busy="true" aria-label="Cargando">
+          <div aria-busy="true">
             <Skeleton className="h-64 rounded-card" />
           </div>
         ) : records.isError ? (
@@ -89,7 +89,7 @@ export function MaintenanceHistoryPage() {
           <ul
             className={cn('divide-y divide-line overflow-hidden rounded-card bg-surface shadow-raised', records.isPlaceholderData && 'opacity-60 transition-opacity')}
           >
-            <li aria-hidden className="hidden gap-x-4 px-5 py-2.5 text-[13px] font-medium text-ink-muted md:grid md:grid-cols-[6.5rem_minmax(0,1.6fr)_minmax(0,1fr)_5.5rem_9rem]">
+            <li aria-hidden className="hidden gap-x-4 px-5 py-2.5 text-[13px] font-medium text-ink-muted md:grid md:grid-cols-[6.5rem_minmax(0,1.6fr)_minmax(0,1fr)_5.5rem_11rem]">
               <span>Fecha</span>
               <span>Equipo y plan</span>
               <span>Resultado</span>
@@ -99,7 +99,7 @@ export function MaintenanceHistoryPage() {
             {items.map((record) => (
               <li
                 key={record.id}
-                className="relative grid gap-x-4 gap-y-1.5 px-4 py-3.5 transition-colors hover:bg-surface-sunken/40 has-[button:focus-visible]:outline-2 has-[button:focus-visible]:-outline-offset-2 has-[button:focus-visible]:outline-action sm:px-5 md:grid-cols-[6.5rem_minmax(0,1.6fr)_minmax(0,1fr)_5.5rem_9rem] md:items-center"
+                className="relative grid gap-x-4 gap-y-1.5 px-4 py-3.5 transition-colors hover:bg-surface-sunken/40 has-[button:focus-visible]:outline-2 has-[button:focus-visible]:-outline-offset-2 has-[button:focus-visible]:outline-action sm:px-5 md:grid-cols-[6.5rem_minmax(0,1.6fr)_minmax(0,1fr)_5.5rem_11rem] md:items-center"
               >
                 <p className="text-sm tabular-nums text-ink-muted">{formatDate(record.performedOn)}</p>
                 <div className="min-w-0">
@@ -139,7 +139,7 @@ export function MaintenanceHistoryPage() {
                     </a>
                   ) : canRecord ? (
                     <Button size="sm" className="max-sm:h-11" aria-haspopup="dialog" aria-label={`Adjuntar certificado de ${record.asset.code}`} onClick={() => attachTo(record)}>
-                      Adjuntar
+                      Adjuntar certificado
                     </Button>
                   ) : (
                     <span className="text-[13px] text-ink-muted">Sin certificado</span>

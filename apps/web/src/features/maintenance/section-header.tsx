@@ -15,7 +15,9 @@ export function SectionHeader({ title, updatedAt, actions }: { title: string; up
     <>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-display text-ink">{title}</h1>
+          <h1 tabIndex={-1} data-focus-fallback className="text-display text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action">
+            {title}
+          </h1>
           <p className="mt-1 flex items-center gap-2 text-[13px] text-ink-muted">
             {updatedAt > 0 ? <span>Actualizado {formatAgo(updatedAt, now)}</span> : <span>Cargando…</span>}
             <button

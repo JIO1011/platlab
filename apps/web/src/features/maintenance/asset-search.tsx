@@ -91,7 +91,7 @@ export function AssetSearch({
             placeholder="Código o nombre del equipo"
             className="h-11 pl-9"
             aria-invalid={error ? true : undefined}
-            aria-describedby={`${id}-hint`}
+            aria-describedby={error ? `${id}-error` : `${id}-hint`}
             value={text}
             onChange={(event) => setText(event.target.value.slice(0, 100))}
             // Enter en el buscador no envía el formulario: el equipo se elige de la lista.
@@ -111,7 +111,7 @@ export function AssetSearch({
             </Button>
           </div>
         ) : search.isPending || !ready ? (
-          <div role="status" aria-busy="true" aria-label="Buscando equipos" className="grid gap-2">
+          <div aria-busy="true" className="grid gap-2">
             <Skeleton className="h-12" />
             <Skeleton className="h-12" />
           </div>
@@ -141,7 +141,7 @@ export function AssetSearch({
         )
       ) : null}
       {error ? (
-        <p role="alert" className="text-[13px] font-medium text-danger">
+        <p id={`${id}-error`} role="alert" className="text-[13px] font-medium text-danger">
           {error}
         </p>
       ) : (

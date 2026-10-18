@@ -54,6 +54,8 @@ export function AttachSheet({
       generalError={generalError}
       onSubmit={() => void submit()}
       dirty={file !== null}
+      focusFirst
+      pendingText="Adjuntando el certificado…"
     >
       <CertificateField
         file={file}

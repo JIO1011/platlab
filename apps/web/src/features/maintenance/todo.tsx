@@ -8,8 +8,8 @@ import { formatDate } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
 import { assetFichaPath } from './asset-path';
 import { useMaintenance } from './context';
-import { dueText, dueTone, groupDue, type DueGroup } from './due';
-import { DueDot, toneText } from './due-view';
+import { dueTone, groupDue, type DueGroup } from './due';
+import { DueDot, dueStatus, toneText } from './due-view';
 import { useDue, useMaintenanceSummary } from './queries';
 import { RecordSheet } from './record-sheet';
 import { SectionHeader } from './section-header';
@@ -66,7 +66,7 @@ function Tile({
       <span className={cn('text-[1.75rem] font-bold leading-none tracking-tight tabular-nums', tone === 'neutral' ? 'text-ink' : toneText[tone])}>{value}</span>
       <span className="text-sm font-medium text-ink">{label}</span>
       {hint ? (
-        <span className={cn('text-xs font-medium', hintTone === 'danger' ? 'text-danger' : hintTone === 'action' ? 'text-action' : 'text-ink-muted')}>{hint}</span>
+        <span className={cn('text-[13px] font-medium', hintTone === 'danger' ? 'text-danger' : hintTone === 'action' ? 'text-action' : 'text-ink-muted')}>{hint}</span>
       ) : null}
     </>
   );
@@ -91,7 +91,6 @@ function Tile({
 function DueRow({ item, today, ficha, onRecord }: { item: DueItem; today: string; ficha: string | null; onRecord: (() => void) | null }) {
   const tone = dueTone(item, today);
   const failed = item.lastResult === 'fail';
-  const late = !failed && item.dueOn < today;
   return (
     <li className="grid gap-x-4 gap-y-2 px-4 py-3.5 transition-colors hover:bg-surface-sunken/40 sm:px-5 md:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_auto] md:items-center">
       <div className="min-w-0">
@@ -109,18 +108,18 @@ function DueRow({ item, today, ficha, onRecord }: { item: DueItem; today: string
           <span className="break-words">
             {item.plan.title} · {kindLabels[item.plan.kind]}
           </span>
-          {failed ? <Badge tone="danger">No conforme</Badge> : late ? <Badge tone="danger">Vencido</Badge> : null}
+          {failed ? <Badge tone="danger">No conforme</Badge> : null}
         </p>
       </div>
       <div className="min-w-0">
         <p className="text-sm tabular-nums text-ink">{formatDate(item.dueOn)}</p>
         <p className={`flex items-center gap-1.5 text-[13px] font-medium ${toneText[tone]}`}>
           <DueDot tone={tone} />
-          {dueText(item.dueOn, today)}
+          {dueStatus(item.dueOn, today)}
         </p>
       </div>
       {onRecord ? (
-        <Button className="h-11 w-full md:h-9 md:w-auto" onClick={onRecord} aria-haspopup="dialog" aria-label={`Registrar: ${item.asset.code}, ${item.plan.title}`}>
+        <Button className="h-11 w-full md:w-auto" onClick={onRecord} aria-haspopup="dialog" aria-label={`Registrar: ${item.asset.code}, ${item.plan.title}`}>
           Registrar
         </Button>
       ) : null}
@@ -194,7 +193,7 @@ export function MaintenanceTodoPage() {
       <SectionHeader title="Por hacer" updatedAt={due.dataUpdatedAt} actions={actions} />
       <div className="mt-6 grid gap-5">
         {summary.isPending ? (
-          <div className="grid grid-cols-3 gap-2 sm:gap-4" role="status" aria-busy="true" aria-label="Cargando las cifras">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4" aria-busy="true">
             <Skeleton className="h-24 rounded-card" />
             <Skeleton className="h-24 rounded-card" />
             <Skeleton className="h-24 rounded-card" />
@@ -231,7 +230,7 @@ export function MaintenanceTodoPage() {
         )}
 
         {due.isPending ? (
-          <div role="status" aria-busy="true" aria-label="Cargando" className="grid gap-3">
+          <div aria-busy="true" className="grid gap-3">
             <Skeleton className="h-11 rounded-control" />
             <Skeleton className="h-64 rounded-card" />
           </div>
@@ -262,7 +261,7 @@ export function MaintenanceTodoPage() {
               />
             </div>
             {due.data.truncated ? (
-              <p role="status" className="rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted">
+              <p className="rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted">
                 Se muestran {due.data.items.length} de {due.data.total} trabajos. Primero van los atrasados y después los de fecha más cercana.
               </p>
             ) : null}

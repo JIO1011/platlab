@@ -15,7 +15,7 @@ const chosen: Record<WorkResult, string> = {
 
 /**
  * El resultado del trabajo con tres botones grandes (Conforme, Con observaciones, No conforme), sin valor por defecto:
- * quien registra decide. Radios para teclado y lectores de pantalla; el foco se dibuja en el botón.
+ * quien registra decide. Son radios nativos agrupados (`radiogroup`): Tab entra al grupo, las flechas mueven y eligen, y lo elegido se anuncia como marcado. El foco se dibuja en el botón.
  */
 export function ResultChoice({
   value,
@@ -38,14 +38,14 @@ export function ResultChoice({
           *
         </span>
       </span>
-      <div role="radiogroup" aria-labelledby={id} aria-describedby={describedBy} aria-required className="grid grid-cols-3 gap-2">
+      <div role="radiogroup" aria-labelledby={id} aria-describedby={describedBy} aria-required className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
         {results.map((result) => {
           const selected = value === result;
           return (
             <label
               key={result}
               className={cn(
-                'relative flex min-h-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-control border-2 px-1.5 py-2 text-center text-sm font-semibold leading-tight transition-colors',
+                'relative flex min-h-14 min-w-0 cursor-pointer flex-row items-center justify-center gap-2 rounded-control border-2 px-1.5 py-2 text-center text-sm font-semibold leading-tight transition-colors min-[360px]:min-h-16 min-[360px]:flex-col min-[360px]:gap-1',
                 'has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-action',
                 selected ? chosen[result] : 'border-line bg-white/60 text-ink hover:bg-white',
               )}

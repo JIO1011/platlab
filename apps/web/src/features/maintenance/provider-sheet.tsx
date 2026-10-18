@@ -72,6 +72,7 @@ export function ProviderSheet({
       generalError={generalError}
       onSubmit={() => void submit()}
       dirty={form.formState.isDirty}
+      focusFirst
     >
       <Field label="Nombre" required error={errors.name?.message}>
         <Input maxLength={120} autoComplete="off" className="h-11 sm:h-10" {...form.register('name')} />

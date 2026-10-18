@@ -51,7 +51,7 @@ function Uncovered({ uncovered }: { uncovered: PlanList['uncovered'] }) {
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-control px-4 py-3 text-sm font-semibold text-warning focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action [&::-webkit-details-marker]:hidden">
         <TriangleAlert className="size-4 shrink-0" aria-hidden />
         <span className="min-w-0 flex-1">{uncovered.total === 1 ? '1 equipo sin plan' : `${uncovered.total} equipos sin plan`}</span>
-        <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden />
+        <ChevronDown className="size-4 shrink-0 transition-transform motion-reduce:transition-none group-open:rotate-180" aria-hidden />
       </summary>
       <div className="grid gap-3 px-4 pb-4 text-sm text-ink">
         <p className="text-ink-muted">
@@ -116,7 +116,7 @@ export function MaintenancePlansPage() {
       <SectionHeader title="Planes" updatedAt={plans.dataUpdatedAt} actions={actions} />
       <div className="mt-6">
         {plans.isPending ? (
-          <div role="status" aria-busy="true" aria-label="Cargando">
+          <div aria-busy="true">
             <Skeleton className="h-64 rounded-card" />
           </div>
         ) : plans.isError ? (

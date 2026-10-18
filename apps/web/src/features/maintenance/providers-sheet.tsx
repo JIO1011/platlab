@@ -83,9 +83,10 @@ export function ProvidersSheet({
         title="Proveedores"
         description="Las empresas que hacen mantenimiento fuera del laboratorio. Se eligen al registrar un trabajo."
         icon={Building2}
+        focusFirst
       >
         {providers.isPending ? (
-          <div role="status" aria-busy="true" aria-label="Cargando">
+          <div aria-busy="true">
             <Skeleton className="h-32 rounded-card" />
           </div>
         ) : providers.isError ? (

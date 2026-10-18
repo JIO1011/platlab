@@ -65,7 +65,7 @@ export function CertificateField({
         <Button
           className="h-11 justify-self-start sm:h-10"
           disabled={disabled}
-          aria-labelledby={`${id}-label`}
+          aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           onClick={() => input.current?.click()}
         >

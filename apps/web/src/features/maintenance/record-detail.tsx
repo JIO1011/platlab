@@ -135,7 +135,7 @@ export function RecordDetail({
               <span className="flex flex-wrap items-center gap-3">
                 <span className="text-ink-muted">Sin certificado</span>
                 <Button size="sm" className="max-sm:h-11" onClick={onAttach}>
-                  Adjuntar
+                  Adjuntar certificado
                 </Button>
               </span>
             ) : (

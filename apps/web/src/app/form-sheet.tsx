@@ -47,6 +47,9 @@ export function FormSheet({
   submitLead,
   status,
   initialFocus,
+  focusFirst = false,
+  pendingText = 'Guardando…',
+  announcement,
   dirty = false,
   fullscreenMobile = false,
   children,
@@ -77,6 +80,12 @@ export function FormSheet({
   /** Lo que falta o «Listo», en una línea sobre el botón principal. */
   status?: ReactNode;
   initialFocus?: RefObject<HTMLElement | null>;
+  /** Sin `initialFocus`, el foco abre en el primer campo del formulario y no en «Cerrar». */
+  focusFirst?: boolean;
+  /** Lo que se anuncia a lectores de pantalla mientras `pending` (una sola vez, sin repetirse). */
+  pendingText?: string;
+  /** Lo que se anuncia al terminar (p. ej., «Mantenimiento guardado»); vacío, nada. */
+  announcement?: string | undefined;
   /** Hay cambios sin guardar: cerrar pide confirmarlo dentro de la hoja. */
   dirty?: boolean;
   /** Pantalla completa por debajo de 640 px (formularios largos). */
@@ -105,6 +114,7 @@ export function FormSheet({
       wide={wide}
       fullscreenMobile={fullscreenMobile}
       initialFocus={initialFocus}
+      focusFirst={focusFirst}
       footer={
         confirming ? (
           <div role="alertdialog" aria-labelledby={`${formId}-discard`} className="grid w-full gap-3">
@@ -175,6 +185,9 @@ export function FormSheet({
           requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
         }}
       >
+        <p role="status" className="sr-only">
+          {pending ? pendingText : (announcement ?? '')}
+        </p>
         {generalError ? (
           <div className={cn(flush && 'px-6 pt-5')}>
             <p role="alert" className="rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger">

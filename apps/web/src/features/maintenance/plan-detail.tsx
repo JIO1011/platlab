@@ -1,7 +1,7 @@
 import { createExclusionRequest, type Plan, type PlanAssetList } from '@platlab/contracts';
 import { Badge, Button, Sheet, Skeleton, StatePanel, Textarea, cn, toast } from '@platlab/ui';
 import { Archive, CalendarClock, Pencil, Repeat } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Ref } from 'react';
 import { fieldErrors } from '../../app/commands';
 import { formatDate } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
@@ -14,9 +14,24 @@ import { kindLabels } from './work-text';
 type PlanAsset = PlanAssetList['items'][number];
 
 /** Interruptor «Incluido»: refleja lo que confirmó el servidor, nunca lo que se espera. */
-function IncludedSwitch({ on, label, disabled, busy, onToggle }: { on: boolean; label: string; disabled: boolean; busy: boolean; onToggle: () => void }) {
+function IncludedSwitch({
+  on,
+  label,
+  disabled,
+  busy,
+  onToggle,
+  buttonRef,
+}: {
+  on: boolean;
+  label: string;
+  disabled: boolean;
+  busy: boolean;
+  onToggle: () => void;
+  buttonRef: Ref<HTMLButtonElement>;
+}) {
   return (
     <button
+      ref={buttonRef}
       type="button"
       role="switch"
       aria-checked={on}
@@ -24,10 +39,10 @@ function IncludedSwitch({ on, label, disabled, busy, onToggle }: { on: boolean; 
       aria-busy={busy || undefined}
       disabled={disabled || busy}
       onClick={onToggle}
-      className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-control px-1 text-sm font-medium text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-9"
+      className="inline-flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-control px-1 text-sm font-medium text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-not-allowed disabled:opacity-60"
     >
-      <span aria-hidden className={cn('relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150', on ? 'bg-action' : 'bg-ink-subtle')}>
-        <span className={cn('absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform duration-150 ease-out-expo', on && 'translate-x-4')} />
+      <span aria-hidden className={cn('relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150 motion-reduce:transition-none', on ? 'bg-action' : 'bg-ink-subtle')}>
+        <span className={cn('absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform duration-150 ease-out-expo motion-reduce:transition-none', on && 'translate-x-4')} />
       </span>
       Incluido
     </button>
@@ -57,6 +72,14 @@ function PlanAssetRow({
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
+  const switchRef = useRef<HTMLButtonElement>(null);
+  // Al cerrar el motivo (cancelar o sacar del plan) el foco vuelve al interruptor, que se habilita al dejar de preguntar.
+  const returnToSwitch = useRef(false);
+  useEffect(() => {
+    if (asking || !returnToSwitch.current) return;
+    returnToSwitch.current = false;
+    requestAnimationFrame(() => switchRef.current?.focus());
+  }, [asking]);
   const included = entry.exclusion === null;
   const typed = plan.assetType !== null;
   const replacedBy = entry.exclusion?.replacedBy ?? null;
@@ -71,6 +94,7 @@ function PlanAssetRow({
     }
     add.mutate(parsed.data, {
       onSuccess: () => {
+        returnToSwitch.current = true;
         setAsking(false);
         setReason('');
         toast.success('Equipo fuera del plan', { description: `${entry.asset.code} · ${plan.title}` });
@@ -113,7 +137,9 @@ function PlanAssetRow({
         {canManage && typed ? (
           <IncludedSwitch
             on={included}
-            label={`Incluido: ${entry.asset.code}`}
+            // Empieza por el texto visible (WCAG 2.5.3): un control por voz lo encuentra diciendo «Incluido».
+            label={`Incluido: ${entry.asset.code} en el plan`}
+            buttonRef={switchRef}
             disabled={replacedBy !== null || asking}
             busy={add.isPending || restore.isPending}
             onToggle={() => (included ? setAsking(true) : bringBack())}
@@ -133,6 +159,9 @@ function PlanAssetRow({
         <div role="group" aria-label={`Sacar a ${entry.asset.code} del plan`} className="grid gap-2 rounded-control bg-surface-sunken p-3">
           <label htmlFor={`motivo-${entry.asset.id}`} className="text-sm font-medium text-ink">
             ¿Por qué sale del plan?
+            <span aria-hidden className="ml-0.5">
+              *
+            </span>
           </label>
           <Textarea
             id={`motivo-${entry.asset.id}`}
@@ -141,11 +170,13 @@ function PlanAssetRow({
             maxLength={500}
             autoFocus
             value={reason}
+            aria-required
             aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `motivo-${entry.asset.id}-error` : undefined}
             onChange={(event) => setReason(event.target.value)}
           />
           {error ? (
-            <p role="alert" className="text-[13px] font-medium text-danger">
+            <p id={`motivo-${entry.asset.id}-error`} role="alert" className="text-[13px] font-medium text-danger">
               {error}
             </p>
           ) : null}
@@ -158,6 +189,7 @@ function PlanAssetRow({
               className="h-11 sm:h-10"
               disabled={add.isPending}
               onClick={() => {
+                returnToSwitch.current = true;
                 setAsking(false);
                 setReason('');
                 setError(null);
@@ -211,6 +243,7 @@ export function PlanDetailSheet({
       icon={CalendarClock}
       wide
       fullscreenMobile
+      focusFirst
     >
       <div className="grid gap-5">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -259,7 +292,7 @@ export function PlanDetailSheet({
             Equipos
           </h3>
           {assets.isPending ? (
-            <div role="status" aria-busy="true" aria-label="Cargando los equipos" className="mt-2 grid gap-2">
+            <div aria-busy="true" className="mt-2 grid gap-2">
               <Skeleton className="h-14" />
               <Skeleton className="h-14" />
             </div>
