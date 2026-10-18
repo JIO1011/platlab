@@ -1,6 +1,6 @@
 import type pg from 'pg';
 import type { z } from 'zod';
-import type { createExclusionRequest, createPlanRequest, Plan, PlanList, updatePlanRequest } from '@platlab/contracts';
+import type { createExclusionRequest, createPlanRequest, Plan, PlanAssetList, PlanList, updatePlanRequest, WorkKind } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
 import { recordAudit, requires, type CommandRequest, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import {
@@ -13,6 +13,7 @@ import {
   insertPlan,
   listPlans as listPlansQuery,
   lockPlan,
+  planAssets,
   uncoveredAssets,
   updatePlan as updatePlanQuery,
   type IDirectoryAssetResult,
@@ -92,6 +93,30 @@ export function listPlans(pool: pg.Pool, request: QueryRequest): Promise<PlanLis
     return {
       items: rows.map(toPlan),
       uncovered: { total: uncovered[0]?.total ?? 0, items: uncovered.map(({ id, code, name }) => ({ id, code, name })) },
+    };
+  });
+}
+
+/** GET /plans/:planId/assets: los equipos del plan con «Incluido», su fecha o su motivo (ADR 0020). */
+export function listPlanAssets(pool: pg.Pool, request: QueryRequest, planId: string): Promise<PlanAssetList> {
+  return runQuery(pool, request, async (access) => {
+    await planById(access, planId);
+    const rows = await planAssets.run({ workspaceId: access.workspace.id, planId }, access.client);
+    return {
+      items: rows.map((row) => ({
+        asset: { id: row.id, code: row.code, name: row.name, area: row.area_name },
+        dueOn: row.due_on,
+        lastResult: row.last_result as PlanAssetList['items'][number]['lastResult'],
+        exclusion:
+          row.reason === null
+            ? null
+            : {
+                reason: row.reason,
+                replacedBy: row.replaced_by_id
+                  ? { id: row.replaced_by_id, title: row.replaced_by_title!, kind: row.replaced_by_kind as WorkKind }
+                  : null,
+              },
+      })),
     };
   });
 }

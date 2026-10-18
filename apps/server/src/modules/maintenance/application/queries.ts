@@ -59,9 +59,9 @@ export function listDue(pool: pg.Pool, request: QueryRequest): Promise<DueList> 
 export function getSummary(pool: pg.Pool, request: QueryRequest): Promise<MaintenanceSummary> {
   return runQuery(pool, request, async (access) => {
     const [row] = (await dueCounts.run({ workspaceId: access.workspace.id, timeZone: access.workspace.timeZone }, access.client)) as [
-      { today: string; overdue: number; nonconforming: number; next30: number },
+      { today: string; overdue: number; nonconforming: number; next30: number; uncovered: number },
     ];
-    return { today: row.today, overdue: row.overdue, nonconforming: row.nonconforming, next30: row.next30 };
+    return { today: row.today, overdue: row.overdue, nonconforming: row.nonconforming, next30: row.next30, uncovered: row.uncovered };
   });
 }
 

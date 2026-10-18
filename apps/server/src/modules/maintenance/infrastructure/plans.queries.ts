@@ -445,3 +445,55 @@ const archiveReplacedExclusionsIR: any = {"usedParamSet":{"workspaceId":true,"pl
 export const archiveReplacedExclusions = new PreparedQuery<IArchiveReplacedExclusionsParams,IArchiveReplacedExclusionsResult>(archiveReplacedExclusionsIR);
 
 
+/** 'PlanAssets' parameters type */
+export interface IPlanAssetsParams {
+  planId: string;
+  workspaceId: string;
+}
+
+/** 'PlanAssets' return type */
+export interface IPlanAssetsResult {
+  area_name: string | null;
+  code: string;
+  due_on: string | null;
+  id: string;
+  last_result: string | null;
+  name: string;
+  reason: string | null;
+  replaced_by_id: string | null;
+  replaced_by_kind: string | null;
+  replaced_by_title: string | null;
+}
+
+/** 'PlanAssets' query type */
+export interface IPlanAssetsQuery {
+  params: IPlanAssetsParams;
+  result: IPlanAssetsResult;
+}
+
+const planAssetsIR: any = {"usedParamSet":{"workspaceId":true,"planId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1231,"b":1243}]},{"name":"planId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1256,"b":1263}]}],"statement":"-- Los equipos que alcanza un plan, por código: los no dados de baja de su tipo, o su equipo. Incluidos, con\n-- su próxima fecha (plan_assets); excluidos, con el motivo y el plan propio que los reemplaza.\nSELECT a.id AS \"id!\", a.code AS \"code!\", a.name AS \"name!\", area.name AS \"area_name?\",\n       pa.due_on AS \"due_on?\", pa.last_result AS \"last_result?\",\n       x.reason AS \"reason?\", r.id AS \"replaced_by_id?\", r.title AS \"replaced_by_title?\", r.kind AS \"replaced_by_kind?\"\nFROM maintenance.plans AS p\nJOIN equipment.asset_directory AS a\n  ON a.workspace_id = p.workspace_id AND (a.id = p.asset_id OR a.type_id = p.asset_type_id)\nLEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id\nLEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id\nLEFT JOIN maintenance.plan_assets AS pa ON pa.workspace_id = p.workspace_id AND pa.plan_id = p.id AND pa.asset_id = a.id\nLEFT JOIN maintenance.plan_exclusions AS x\n  ON x.workspace_id = p.workspace_id AND x.plan_id = p.id AND x.asset_id = a.id AND x.archived_at IS NULL\nLEFT JOIN maintenance.plans AS r ON r.workspace_id = x.workspace_id AND r.id = x.replaced_by_plan_id\nWHERE p.workspace_id = :workspaceId! AND p.id = :planId! AND a.condition <> 'retired'\nORDER BY lower(a.code), a.id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Los equipos que alcanza un plan, por código: los no dados de baja de su tipo, o su equipo. Incluidos, con
+ * -- su próxima fecha (plan_assets); excluidos, con el motivo y el plan propio que los reemplaza.
+ * SELECT a.id AS "id!", a.code AS "code!", a.name AS "name!", area.name AS "area_name?",
+ *        pa.due_on AS "due_on?", pa.last_result AS "last_result?",
+ *        x.reason AS "reason?", r.id AS "replaced_by_id?", r.title AS "replaced_by_title?", r.kind AS "replaced_by_kind?"
+ * FROM maintenance.plans AS p
+ * JOIN equipment.asset_directory AS a
+ *   ON a.workspace_id = p.workspace_id AND (a.id = p.asset_id OR a.type_id = p.asset_type_id)
+ * LEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
+ * LEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
+ * LEFT JOIN maintenance.plan_assets AS pa ON pa.workspace_id = p.workspace_id AND pa.plan_id = p.id AND pa.asset_id = a.id
+ * LEFT JOIN maintenance.plan_exclusions AS x
+ *   ON x.workspace_id = p.workspace_id AND x.plan_id = p.id AND x.asset_id = a.id AND x.archived_at IS NULL
+ * LEFT JOIN maintenance.plans AS r ON r.workspace_id = x.workspace_id AND r.id = x.replaced_by_plan_id
+ * WHERE p.workspace_id = :workspaceId! AND p.id = :planId! AND a.condition <> 'retired'
+ * ORDER BY lower(a.code), a.id
+ * ```
+ */
+export const planAssets = new PreparedQuery<IPlanAssetsParams,IPlanAssetsResult>(planAssetsIR);
+
+

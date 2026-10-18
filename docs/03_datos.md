@@ -167,7 +167,7 @@ Reglas:
 | `maintenance.plan_exclusions` | Equipo excluido de un plan de su tipo, con motivo y, si lo reemplaza, el plan propio; se archiva |
 | `maintenance.records` | Mantenimiento hecho: equipo, plan o tipo de trabajo, fecha, interno o proveedor, resultado (conforme, con observaciones, no conforme), observaciones, lista marcada y criterio de aceptación con que se evaluó, costo exacto y «válida hasta»; inmutable. El estado físico actual lo cambia Equipos |
 | `maintenance.record_certificates` | Certificado PDF de un registro, uno por registro, con las reglas de los documentos de Equipos |
-| `maintenance.orders` | Orden programada, en ejecución o completada, y correctiva desde una falla de M3 (M-01b); en F5, técnico, bloqueo de agenda y repuestos |
+| `maintenance.orders` | Solo en F5: órdenes asignadas a técnicos, bloqueo de agenda y repuestos. El correctivo de M-01b es un registro enlazado al incidente de M3 ([ADR 0020](05_decisiones.md#adr-0020)) |
 
 Estados:
 

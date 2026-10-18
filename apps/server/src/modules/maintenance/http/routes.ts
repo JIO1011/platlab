@@ -19,7 +19,7 @@ import {
 } from '@platlab/contracts';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
-import { addExclusion, archiveExclusion, archivePlan, createPlan, listPlans, updatePlan } from '../application/plans.js';
+import { addExclusion, archiveExclusion, archivePlan, createPlan, listPlanAssets, listPlans, updatePlan } from '../application/plans.js';
 import { archiveProvider, createProvider, listProviders, updateProvider } from '../application/providers.js';
 import { getAssetMaintenance, getSummary, listDue, listNextDue, searchAssets } from '../application/queries.js';
 import { createRecord, listRecords, uploadRecordCertificate } from '../application/records.js';
@@ -69,6 +69,9 @@ export function maintenanceRoutes({ pool, publicFiles }: { pool: pg.Pool; public
     );
 
     app.post('/plans/:planId/archive', async (request) => archivePlan(pool, commandRequest(request), planParams.parse(request.params).planId));
+
+    // Los equipos del plan con «Incluido» (ADR 0020): los consulta quien ve los planes.
+    app.get('/plans/:planId/assets', async (request) => listPlanAssets(pool, queryRequest(request), planParams.parse(request.params).planId));
 
     app.post('/plans/:planId/exclusions', async (request, reply) => {
       const input = createExclusionRequest.parse(request.body);

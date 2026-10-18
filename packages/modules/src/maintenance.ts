@@ -21,8 +21,9 @@ export const maintenanceModule = defineModule({
       label: 'Mantenimiento',
       permission: 'maintenance.work.read',
       sections: [
-        { path: '', label: 'Resumen', permission: 'maintenance.work.read' },
-        { path: 'trabajos', label: 'Trabajos', permission: 'maintenance.work.read' },
+        // Por hacer es la portada (simplificación del 17-10-2026, ADR 0020).
+        { path: '', label: 'Por hacer', permission: 'maintenance.work.read' },
+        { path: 'historial', label: 'Historial', permission: 'maintenance.work.read' },
         { path: 'planes', label: 'Planes', permission: 'maintenance.work.read' },
       ],
     },

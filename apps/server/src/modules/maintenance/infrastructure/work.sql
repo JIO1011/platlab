@@ -26,13 +26,18 @@ ORDER BY (pa.last_result = 'fail') IS TRUE DESC, pa.due_on, lower(a.code), p.id
 LIMIT :limit!;
 
 /* @name dueCounts */
--- Las cifras del Resumen: vencidos (antes de hoy) o no conformes, cuántos de ellos son no conformes, y
--- los demás que tocan desde hoy hasta dentro de 30 días.
+-- Las cifras de Por hacer: vencidos (antes de hoy) o no conformes, cuántos de ellos son no conformes, los
+-- demás que tocan desde hoy hasta dentro de 30 días y los equipos no dados de baja sin ningún plan.
 WITH today AS (SELECT (now() AT TIME ZONE :timeZone!)::date AS d)
 SELECT today.d AS "today!",
        count(*) FILTER (WHERE pa.due_on < today.d OR pa.last_result = 'fail')::integer AS "overdue!",
        count(*) FILTER (WHERE pa.last_result = 'fail')::integer AS "nonconforming!",
-       count(*) FILTER (WHERE pa.due_on >= today.d AND pa.last_result IS DISTINCT FROM 'fail')::integer AS "next30!"
+       count(*) FILTER (WHERE pa.due_on >= today.d AND pa.last_result IS DISTINCT FROM 'fail')::integer AS "next30!",
+       (SELECT count(*) FROM equipment.asset_directory AS a
+         WHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired'
+           AND NOT EXISTS (
+             SELECT 1 FROM maintenance.plan_assets AS x WHERE x.workspace_id = a.workspace_id AND x.asset_id = a.id
+           ))::integer AS "uncovered!"
 FROM today
 LEFT JOIN maintenance.plan_assets AS pa
   ON pa.workspace_id = :workspaceId! AND (pa.due_on <= today.d + 30 OR pa.last_result = 'fail')

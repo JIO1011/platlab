@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { plan as planContract, planList, provider as providerContract, providerList } from '@platlab/contracts';
+import { maintenanceSummary, plan as planContract, planAssetList, planList, provider as providerContract, providerList } from '@platlab/contracts';
 import {
   call,
   count,
@@ -135,6 +135,9 @@ describe('planes', () => {
     const { uncovered } = await plans();
     expect(uncovered.items.map((item) => item.id)).toContain(loose.id);
     expect(uncovered.total).toBeGreaterThanOrEqual(1);
+    // La cifra «Sin plan» de Por hacer cuenta lo mismo que la cobertura de Planes.
+    const counts = maintenanceSummary.parse((await call(lab.operator.subject, `${lab.maintenance}/summary`)).body);
+    expect(counts.uncovered).toBe(uncovered.total);
   });
 
   it('el plan propio excluye al equipo del plan de su tipo con motivo «Plan propio»; el reemplazado debe ser de su tipo', async () => {
@@ -156,6 +159,14 @@ describe('planes', () => {
     const replaced = await planIn(typePlan.id);
     expect(replaced?.assetCount).toBe(1);
     expect(replaced?.exclusions).toMatchObject([{ asset: { id: asset.id }, reason: 'Plan propio' }]);
+
+    // «Incluido» por equipo: el hermano con su fecha; el excluido con su motivo y el plan propio que lo reemplaza.
+    const scope = planAssetList.parse((await call(lab.operator.subject, `${lab.maintenance}/plans/${typePlan.id}/assets`)).body);
+    expect(scope.items.find((item) => item.asset.id === sibling.id)).toMatchObject({ exclusion: null, dueOn: expect.any(String) });
+    expect(scope.items.find((item) => item.asset.id === asset.id)).toMatchObject({
+      dueOn: null,
+      exclusion: { reason: 'Plan propio', replacedBy: { id: own.id } },
+    });
 
     // Un registro con el plan del tipo ya no vale para el equipo excluido; con el hermano, sí.
     const excluded = await recordWork(lab, lab.operator.subject, { assetId: asset.id, planId: typePlan.id, performedOn: '2026-02-01', result: 'pass' });

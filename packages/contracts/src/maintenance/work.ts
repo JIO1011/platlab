@@ -46,7 +46,7 @@ export const dueList = z.object({
  * GET /summary: trabajos vencidos (antes de hoy) o no conformes, cuántos de ellos son no conformes, y los
  * demás que tocan desde hoy hasta dentro de 30 días.
  */
-export const maintenanceSummary = z.object({ today: date, overdue: tally, nonconforming: tally, next30: tally });
+export const maintenanceSummary = z.object({ today: date, overdue: tally, nonconforming: tally, next30: tally, uncovered: tally });
 
 export const record = z.object({
   id: z.uuid(),
@@ -154,7 +154,24 @@ export const nextDueQuery = z
  */
 export const nextDueList = z.object({ items: z.array(z.object({ assetId: z.uuid(), dueOn: date, plan: planRef, lastResult })) });
 
+/**
+ * GET /plans/:planId/assets: los equipos que alcanza el plan (los no dados de baja de su tipo, o su equipo),
+ * por código. Incluido, con su próxima fecha y su último resultado; excluido, con el motivo y el plan propio
+ * que lo reemplaza, si lo hay. Así se muestra «Incluido» por equipo (ADR 0020).
+ */
+export const planAssetList = z.object({
+  items: z.array(
+    z.object({
+      asset: maintenanceAssetRef.extend(area),
+      dueOn: date.nullable(),
+      lastResult,
+      exclusion: z.object({ reason: z.string(), replacedBy: planRef.nullable() }).nullable(),
+    }),
+  ),
+});
+
 export type WorkResult = z.infer<typeof workResult>;
+export type PlanAssetList = z.infer<typeof planAssetList>;
 export type DueList = z.infer<typeof dueList>;
 export type MaintenanceSummary = z.infer<typeof maintenanceSummary>;
 export type MaintenanceRecord = z.infer<typeof record>;

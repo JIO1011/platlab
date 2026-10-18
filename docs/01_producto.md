@@ -45,7 +45,7 @@ M1 es obligatorio. Cada módulo se contrata por espacio y funciona con sus depen
 | M4 Laboratorios | Espacios físicos y agenda | Capacidad, responsable, horarios y cierres; reservas directas sin conflictos; tiempos de preparación y limpieza | M1 | F3 |
 | M5 Prácticas y Solicitudes | Operación central integrada | Plantillas, solicitudes de docencia e investigación, revisión, aprobación condicionada, preparación, ejecución, cierre e impresión | M1 + M4 | F3 |
 | M6 Materiales y Préstamos | Consumibles, reutilizables y préstamos | Existencias, préstamos de material y de equipos ([ADR 0019](05_decisiones.md#adr-0019)), devoluciones parciales, daños, pérdidas y transferencias | M1 | F4; un mínimo en F3 si P-04 lo exige |
-| M7 Mantenimiento | Continuidad de equipos | Planes preventivos y calibraciones con próxima fecha, registro con informe y costo, órdenes correctivas desde una falla y aviso de reemplazo (M-01, tras E-01); después, órdenes asignadas, bloqueo de agenda y repuestos | M1 + M3 | F2 (M-01); F5 |
+| M7 Mantenimiento | Continuidad de equipos | Planes preventivos y calibraciones con próxima fecha, registro con informe y costo, correctivo enlazado al incidente y aviso de reemplazo (M-01, tras E-01); después, órdenes asignadas, bloqueo de agenda y repuestos | M1 + M3 | F2 (M-01); F5 |
 | M8 Analítica y Alertas | Prevención y decisiones | Indicadores con periodo y fórmula, alertas configurables, resúmenes, escalamiento y reportes | M1 + un módulo operativo | F5 |
 
 Construir un módulo no lo pone a la venta. Cada módulo avanza por etapas: desarrollo → piloto → general. Solo en etapa general entra en los paquetes publicados ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
@@ -181,7 +181,7 @@ Casos especiales:
 - Volver a operativo exige resultado y responsable. Un traslado cambia la ubicación y queda en el historial.
 - Una falla en garantía avisa que se reclame al proveedor. El uso del equipo se registra con Laboratorios y Prácticas, no en M3.
 - El Inventario se recorre por áreas (el primer nivel de ubicación bajo la sede), cada una con su encargado; el Informe es la tabla filtrada que se imprime y se exporta a Excel ([ADR 0019](05_decisiones.md#adr-0019)).
-- Con M7: planes y calibraciones con próxima fecha y semáforo, registros con informe y costo, órdenes correctivas desde una falla (cerrarlas devuelve el equipo a operativo) y el aviso «Evaluar reemplazo»; la ficha suma la pestaña Mantenimiento y el Informe, «Próximo mantenimiento».
+- Con M7: planes y calibraciones con próxima fecha y semáforo, registros con informe y costo, el correctivo registrado desde un incidente (puede solucionarlo y devolver el equipo a operativo) y el aviso «Evaluar reemplazo»; la ficha suma la pestaña Mantenimiento y el Informe, «Próximo mantenimiento».
 
 ### 6.4 Alta de un cliente y cambio de módulos
 

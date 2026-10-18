@@ -90,7 +90,7 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
   - Preparaciones, si REG-01 confirma que el laboratorio almacena soluciones.
 - Fiscalizados: REG-02, con custodia y retornos si el laboratorio entrega a docentes.
 - Equipos ([ADR 0019](05_decisiones.md#adr-0019)): Resumen, Inventario y Reportes (fallas); tipos de equipo, activos con foto, condición y conservación, traslado, QR, documentos, hoja de vida e importación. El préstamo de equipos va en Materiales y Préstamos (F4).
-- Mantenimiento (M-01, después de E-01): planes preventivos y calibraciones, registros con informe y costo, órdenes correctivas desde una falla y aviso de reemplazo.
+- Mantenimiento (M-01, después de E-01): planes preventivos y calibraciones, registros con informe y costo, correctivo enlazado al incidente y aviso de reemplazo.
 - Común: Inicio por paquete, búsqueda, marca, exportación y desactivación con pendientes.
 
 **F3.**
@@ -169,7 +169,7 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | R-01B | Reactivos para el piloto | Ficha de seguridad con enlace o PDF público, avisos comunes en Core solo en la app (aprobaciones, bajo mínimo, por vencer) y «Exportar a Excel» por streaming de Movimientos e Inventario ([ADR 0014](05_decisiones.md#adr-0014), [ADR 0017](05_decisiones.md#adr-0017)); ajustes que exija el alcance pactado | R-01A, R-01C, R-01D, P-02 |
 | REG-02 | Trazabilidad y reporte fiscalizado | Perfil implementado, custodia y retorno si aplica, periodo conciliado y exportación revisada | REG-01, R-01A, R-01B |
 | E-01 | Equipos e incidencias ([ADR 0019](05_decisiones.md#adr-0019)) | Resumen, Inventario por áreas con encargado, Informe exportable e Incidentes (fallas); tipos de equipo, activos con foto, condición y conservación, disponibilidad calculada, traslados, QR, documentos públicos, hoja de vida e historial; `incidents` separado de Core | T-04, T-05, P-02 |
-| M-01 | Mantenimiento ([ADR 0019](05_decisiones.md#adr-0019), [ADR 0020](05_decisiones.md#adr-0020); M-01a a M-01d) | Módulo propio: planes preventivos y calibraciones con próxima fecha y semáforo, registros con informe y costo, órdenes correctivas desde una falla y aviso de reemplazo; integración con la ficha y el Informe de Equipos | E-01 |
+| M-01 | Mantenimiento ([ADR 0019](05_decisiones.md#adr-0019), [ADR 0020](05_decisiones.md#adr-0020); M-01a a M-01d) | Módulo propio: planes preventivos y calibraciones con próxima fecha y semáforo, registros con informe y costo, correctivo enlazado al incidente y aviso de reemplazo; integración con la ficha y el Informe de Equipos | E-01 |
 | U-01 | Mejoras de UX de Reactivos y Equipos (revisión del 17-10-2026) | «Ver todos los movimientos» filtrado por el reactivo; búsqueda y filtros conservados al volver de una ficha; cabecera de la ficha de Equipos más corta con «Reportar incidente» visible | M-01a |
 | I-01 | Importación conciliada | Lotes reiniciables e idempotentes por módulo | Q-01 y R-01A o E-01 |
 | X-00 | Salida del primer módulo | Exportación, documentos, supresión y otros espacios intactos, incluidos los datos regulatorios | DP-01, T-07, R-01A o E-01; REG-02 para este cliente |
