@@ -5,8 +5,8 @@ import { Link, useParams } from 'react-router';
 import { formatDate } from '../../app/format';
 import { useWorkspaceMe } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
-import { dueTone, todayInZone } from './due';
-import { DueDot, dueStatus, toneText } from './due-view';
+import { dueTone, todayInZone, workStatus } from './due';
+import { DueDot, toneText } from './due-view';
 import { useAssetMaintenance } from './queries';
 import { kindLabels, maintenancePath, resultLabels } from './work-text';
 
@@ -57,19 +57,18 @@ export function AssetMaintenanceTab({ assetId }: { assetId: string }) {
           <ul className="divide-y divide-line">
             {plans.map((entry) => {
               const tone = dueTone(entry, today);
-              const failed = entry.lastResult === 'fail';
+              const status = workStatus(entry, today);
               return (
                 <li key={entry.plan.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3.5 md:px-6">
                   <div className="min-w-0 flex-1 basis-56">
                     <p className="flex items-start gap-2 break-words font-semibold text-ink">
                       <DueDot tone={tone} className="mt-[7px]" />
                       <span>
-                        {kindLabels[entry.plan.kind]} · <span className="tabular-nums">{formatDate(entry.dueOn)}</span>
+                        {kindLabels[entry.plan.kind]} · <span className="tabular-nums">{formatDate(status.date)}</span>
                       </span>
                     </p>
                     <p className={`mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 pl-4 text-[13px] font-medium ${toneText[tone]}`}>
-                      {failed ? <Badge tone="danger">No conforme</Badge> : null}
-                      {dueStatus(entry.dueOn, today)}
+                      {status.text}
                       <span className="font-normal text-ink-muted">· {entry.plan.title}</span>
                     </p>
                   </div>

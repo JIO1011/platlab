@@ -8,6 +8,9 @@ import { QueryErrorState } from '../../app/states';
 import { maintenanceErrorMessage, useAddExclusion, useArchiveExclusion, useArchivePlan } from './commands';
 import { ConfirmArchive } from './confirm-archive';
 import { frequencyText, scopeText } from './plan-text';
+import { useMaintenance } from './context';
+import { dueTone, todayInZone, workStatus } from './due';
+import { toneText } from './due-view';
 import { usePlanAssets } from './queries';
 import { kindLabels } from './work-text';
 
@@ -66,6 +69,8 @@ function PlanAssetRow({
   canManage: boolean;
   onOwnPlan: (asset: PlanAsset['asset']) => void;
 }) {
+  const { me } = useMaintenance();
+  const today = todayInZone(me.workspace.timeZone, Date.now());
   const add = useAddExclusion(workspaceId, plan.id);
   const restore = useArchiveExclusion(workspaceId, plan.id, entry.asset.id);
   const [asking, setAsking] = useState(false);
@@ -118,8 +123,16 @@ function PlanAssetRow({
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-muted">
             {included ? (
               <>
-                <span>{entry.dueOn ? `Próxima: ${formatDate(entry.dueOn)}` : 'Sin fecha todavía'}</span>
-                {entry.lastResult === 'fail' ? <Badge tone="danger">No conforme</Badge> : null}
+                {entry.dueOn ? (
+                  <span>
+                    Próxima: <span className="tabular-nums">{formatDate(entry.dueOn)}</span> ·{' '}
+                    <span className={`font-medium ${toneText[dueTone({ dueOn: entry.dueOn, lastResult: entry.lastResult }, today)]}`}>
+                      {workStatus({ dueOn: entry.dueOn, lastResult: entry.lastResult, lastPerformedOn: null }, today).text}
+                    </span>
+                  </span>
+                ) : (
+                  <span>Sin fecha todavía</span>
+                )}
               </>
             ) : (
               <span className="break-words">

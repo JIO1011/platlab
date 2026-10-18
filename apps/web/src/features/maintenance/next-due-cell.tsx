@@ -2,8 +2,8 @@ import { Skeleton } from '@platlab/ui';
 import { useParams } from 'react-router';
 import { formatDate } from '../../app/format';
 import { useWorkspaceMe } from '../../app/queries';
-import { dueTone, todayInZone } from './due';
-import { DueDot, dueStatus, toneText } from './due-view';
+import { dueTone, todayInZone, workStatus } from './due';
+import { DueDot, toneText } from './due-view';
 import { useNextDue } from './queries';
 import { kindLabels } from './work-text';
 
@@ -43,7 +43,7 @@ export function NextDueCell({ assetId, assetIds }: { assetId: string; assetIds: 
         <span className={failed ? `font-medium ${toneText.danger}` : 'text-ink'}>
           {kindLabels[entry.plan.kind]} · {failed ? 'No conforme' : <span className="tabular-nums">{formatDate(entry.dueOn)}</span>}
         </span>
-        {failed ? null : <span className={`text-[13px] font-medium ${toneText[tone]}`}>{dueStatus(entry.dueOn, today)}</span>}
+        {failed ? null : <span className={`text-[13px] font-medium ${toneText[tone]}`}>{workStatus({ ...entry, lastPerformedOn: null }, today).text}</span>}
       </span>
     </span>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { daysUntil, dueGroup, dueText, dueTone, groupDue, todayInZone } from './due';
+import { daysUntil, dueGroup, dueText, dueTone, groupDue, todayInZone, workStatus } from './due';
 
 const today = '2026-10-17';
 const pending = (dueOn: string) => ({ dueOn, lastResult: null });
@@ -97,5 +97,31 @@ describe('dueTone', () => {
     expect(dueTone(pending(today), today)).toBe('warning');
     expect(dueTone(pending('2026-11-16'), today)).toBe('warning');
     expect(dueTone(pending('2026-11-17'), today)).toBe('success');
+  });
+});
+
+describe('workStatus', () => {
+  const today = '2026-10-18';
+
+  it('un no conforme se cuenta desde su registro, no desde la próxima fecha que ya avanzó', () => {
+    expect(workStatus({ dueOn: '2027-04-15', lastResult: 'fail', lastPerformedOn: '2026-10-15' }, today)).toEqual({
+      date: '2026-10-15',
+      text: 'No conforme · hace 3 días',
+    });
+    expect(workStatus({ dueOn: '2027-04-18', lastResult: 'fail', lastPerformedOn: today }, today).text).toBe('No conforme · hoy');
+    expect(workStatus({ dueOn: '2027-04-17', lastResult: 'fail', lastPerformedOn: '2026-10-17' }, today).text).toBe('No conforme · hace 1 día');
+  });
+
+  it('sin la fecha del registro, el no conforme va sin plazo', () => {
+    expect(workStatus({ dueOn: '2027-04-15', lastResult: 'fail', lastPerformedOn: null }, today)).toEqual({ date: '2027-04-15', text: 'No conforme' });
+  });
+
+  it('lo demás, por su próxima fecha: atrasado, hoy o por venir', () => {
+    expect(workStatus({ dueOn: '2026-10-08', lastResult: 'pass', lastPerformedOn: '2025-10-08' }, today)).toEqual({
+      date: '2026-10-08',
+      text: 'Atrasado · hace 10 días',
+    });
+    expect(workStatus({ dueOn: today, lastResult: null, lastPerformedOn: null }, today).text).toBe('Vence hoy');
+    expect(workStatus({ dueOn: '2026-10-30', lastResult: 'pass_with_observations', lastPerformedOn: '2026-07-30' }, today).text).toBe('en 12 días');
   });
 });

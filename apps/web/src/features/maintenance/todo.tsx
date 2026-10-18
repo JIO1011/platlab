@@ -1,5 +1,5 @@
 import type { DueList } from '@platlab/contracts';
-import { Badge, Button, Input, Skeleton, StatePanel, cn } from '@platlab/ui';
+import { Button, Input, Skeleton, StatePanel, cn } from '@platlab/ui';
 import { ClipboardCheck, ClipboardList, Search, ScanLine } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -8,8 +8,8 @@ import { formatDate } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
 import { assetFichaPath } from './asset-path';
 import { useMaintenance } from './context';
-import { dueTone, groupDue, type DueGroup } from './due';
-import { DueDot, dueStatus, toneText } from './due-view';
+import { dueTone, groupDue, workStatus, type DueGroup } from './due';
+import { DueDot, toneText } from './due-view';
 import { useDue, useMaintenanceSummary } from './queries';
 import { RecordSheet } from './record-sheet';
 import { SectionHeader } from './section-header';
@@ -90,7 +90,7 @@ function Tile({
 /** Una fila de «Por hacer»: el equipo (enlace a su ficha), el trabajo, la fecha con su plazo y «Registrar». */
 function DueRow({ item, today, ficha, onRecord }: { item: DueItem; today: string; ficha: string | null; onRecord: (() => void) | null }) {
   const tone = dueTone(item, today);
-  const failed = item.lastResult === 'fail';
+  const status = workStatus({ ...item, lastPerformedOn: item.lastRecord?.performedOn ?? null }, today);
   return (
     <li className="grid gap-x-4 gap-y-2 px-4 py-3.5 transition-colors hover:bg-surface-sunken/40 sm:px-5 md:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_auto] md:items-center">
       <div className="min-w-0">
@@ -108,14 +108,13 @@ function DueRow({ item, today, ficha, onRecord }: { item: DueItem; today: string
           <span className="break-words">
             {item.plan.title} · {kindLabels[item.plan.kind]}
           </span>
-          {failed ? <Badge tone="danger">No conforme</Badge> : null}
         </p>
       </div>
       <div className="min-w-0">
-        <p className="text-sm tabular-nums text-ink">{formatDate(item.dueOn)}</p>
+        <p className="text-sm tabular-nums text-ink">{formatDate(status.date)}</p>
         <p className={`flex items-center gap-1.5 text-[13px] font-medium ${toneText[tone]}`}>
           <DueDot tone={tone} />
-          {dueStatus(item.dueOn, today)}
+          {status.text}
         </p>
       </div>
       {onRecord ? (
