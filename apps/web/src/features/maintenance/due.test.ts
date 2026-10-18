@@ -106,14 +106,14 @@ describe('workStatus', () => {
   it('un no conforme se cuenta desde su registro, no desde la próxima fecha que ya avanzó', () => {
     expect(workStatus({ dueOn: '2027-04-15', lastResult: 'fail', lastPerformedOn: '2026-10-15' }, today)).toEqual({
       date: '2026-10-15',
-      text: 'No conforme · hace 3 días',
+      text: 'Repetir · no conforme hace 3 días',
     });
-    expect(workStatus({ dueOn: '2027-04-18', lastResult: 'fail', lastPerformedOn: today }, today).text).toBe('No conforme · hoy');
-    expect(workStatus({ dueOn: '2027-04-17', lastResult: 'fail', lastPerformedOn: '2026-10-17' }, today).text).toBe('No conforme · hace 1 día');
+    expect(workStatus({ dueOn: '2027-04-18', lastResult: 'fail', lastPerformedOn: today }, today).text).toBe('Repetir · no conforme hoy');
+    expect(workStatus({ dueOn: '2027-04-17', lastResult: 'fail', lastPerformedOn: '2026-10-17' }, today).text).toBe('Repetir · no conforme hace 1 día');
   });
 
   it('sin la fecha del registro, el no conforme va sin plazo', () => {
-    expect(workStatus({ dueOn: '2027-04-15', lastResult: 'fail', lastPerformedOn: null }, today)).toEqual({ date: '2027-04-15', text: 'No conforme' });
+    expect(workStatus({ dueOn: '2027-04-15', lastResult: 'fail', lastPerformedOn: null }, today)).toEqual({ date: '2027-04-15', text: 'Repetir · no conforme' });
   });
 
   it('lo demás, por su próxima fecha: atrasado, hoy o por venir', () => {

@@ -61,7 +61,7 @@ export function dueText(dueOn: string, today: string): string {
 
 /**
  * La fecha y el estado de un trabajo, en palabras (ADR 0020). Un no conforme se cuenta desde su registro, no
- * desde la próxima fecha, que ya avanzó: «No conforme · hace 3 días». Lo demás, por su próxima fecha:
+ * desde la próxima fecha, que ya avanzó, y pide repetirse: «Repetir · no conforme hace 3 días». Lo demás, por su próxima fecha:
  * «Atrasado · hace 3 días», «Vence hoy», «en 12 días».
  */
 export function workStatus(
@@ -69,9 +69,9 @@ export function workStatus(
   today: string,
 ): { date: string; text: string } {
   if (entry.lastResult === 'fail') {
-    if (!entry.lastPerformedOn) return { date: entry.dueOn, text: 'No conforme' };
+    if (!entry.lastPerformedOn) return { date: entry.dueOn, text: 'Repetir · no conforme' };
     const ago = -daysUntil(entry.lastPerformedOn, today);
-    return { date: entry.lastPerformedOn, text: `No conforme · ${ago === 0 ? 'hoy' : `hace ${ago} ${ago === 1 ? 'día' : 'días'}`}` };
+    return { date: entry.lastPerformedOn, text: `Repetir · no conforme ${ago === 0 ? 'hoy' : `hace ${ago} ${ago === 1 ? 'día' : 'días'}`}` };
   }
   const days = daysUntil(entry.dueOn, today);
   return { date: entry.dueOn, text: days < 0 ? `Atrasado · ${dueText(entry.dueOn, today)}` : dueText(entry.dueOn, today) };

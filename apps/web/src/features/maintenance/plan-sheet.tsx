@@ -76,9 +76,9 @@ function Question({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /**
- * «Nuevo plan», «Editar plan» y «Frecuencia distinta» (Administrador). Crear es contestar cuatro preguntas en orden: qué se
+ * «Nuevo plan», «Editar plan» y «Cambiar frecuencia» (Administrador). Crear es contestar cuatro preguntas en orden: qué se
  * hace (con un título sugerido), a qué equipos (un tipo o un equipo), cada cuánto y desde cuándo; la lista y el criterio
- * son opcionales. «Frecuencia distinta» parte de un plan de tipo para un solo equipo, que sale de aquel plan en el mismo
+ * son opcionales. «Cambiar frecuencia» parte de un plan de tipo para un solo equipo, que sale de aquel plan en el mismo
  * paso. Al editar no cambian el tipo de trabajo ni el alcance; si cambia la frecuencia o el inicio, las fechas se recalculan.
  */
 export function PlanSheet({
@@ -90,7 +90,7 @@ export function PlanSheet({
 }: SheetBaseProps & {
   /** El plan que se edita; sin él, se crea uno. */
   plan?: Plan | undefined;
-  /** «Frecuencia distinta»: el plan del tipo y el equipo que tendrá el suyo. */
+  /** «Cambiar frecuencia»: el plan del tipo y el equipo que tendrá el suyo. */
   ownFor?: { plan: Plan; asset: PlanAsset } | undefined;
 }) {
   const { me } = useMaintenance();
@@ -236,7 +236,7 @@ export function PlanSheet({
   return (
     <FormSheet
       icon={CalendarClock}
-      title={editing ? 'Editar plan' : ownFor ? 'Frecuencia distinta' : 'Nuevo plan'}
+      title={editing ? 'Editar plan' : ownFor ? 'Cambiar frecuencia' : 'Nuevo plan'}
       description={
         ownFor
           ? `Un plan solo para ${ownFor.asset.code}, en lugar de «${ownFor.plan.title}».`

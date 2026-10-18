@@ -1,6 +1,6 @@
 import { Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from '@platlab/ui';
 import { Archive } from 'lucide-react';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { WithBack } from '../../app/back-button';
 import { useExtensions } from '../../app/extensions';
@@ -26,6 +26,51 @@ interface OpenSheet {
   kind: AssetSheet;
   id: number;
   open: boolean;
+}
+
+/**
+ * La tira de pestañas: si no caben, se desplaza a un lado (sin barra) y un degradado en el borde avisa de que hay más.
+ * Al montar y al cambiar de pestaña, la activa se acerca a la vista sin animación si se pidió menos movimiento.
+ */
+function TabStrip({ label, active, children }: { label: string; active: string; children: ReactNode }) {
+  const list = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ start: false, end: false });
+  useEffect(() => {
+    const node = list.current;
+    if (!node) return;
+    const measure = () => setEdges({ start: node.scrollLeft > 1, end: node.scrollLeft + node.clientWidth < node.scrollWidth - 1 });
+    const current = node.querySelector<HTMLElement>('[role="tab"][data-state="active"]');
+    if (current) {
+      // Horizontal y «lo más cerca»: scrollIntoView movería también la página hasta las pestañas.
+      const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const before = current.offsetLeft - 8;
+      const after = current.offsetLeft + current.offsetWidth + 8 - node.clientWidth;
+      const left = before < node.scrollLeft ? before : after > node.scrollLeft ? after : node.scrollLeft;
+      if (left !== node.scrollLeft) node.scrollTo({ left: Math.max(0, left), behavior: calm ? 'auto' : 'smooth' });
+    }
+    measure();
+    node.addEventListener('scroll', measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => {
+      node.removeEventListener('scroll', measure);
+      observer.disconnect();
+    };
+  }, [active]);
+  const fade = 'pointer-events-none absolute inset-y-0 w-10 from-surface-sunken via-surface-sunken/80 to-transparent transition-opacity duration-150 motion-reduce:transition-none';
+  return (
+    <div className="relative w-fit max-w-full">
+      <TabsList
+        ref={list}
+        aria-label={label}
+        className="flex max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>button]:shrink-0 [&>button]:whitespace-nowrap"
+      >
+        {children}
+      </TabsList>
+      <span aria-hidden className={`${fade} left-0 rounded-l-full bg-linear-to-r ${edges.start ? 'opacity-100' : 'opacity-0'}`} />
+      <span aria-hidden className={`${fade} right-0 rounded-r-full bg-linear-to-l ${edges.end ? 'opacity-100' : 'opacity-0'}`} />
+    </div>
+  );
 }
 
 /**
@@ -124,7 +169,7 @@ export function EquipmentAssetPage() {
         </p>
       ) : null}
       <Tabs value={tab} onValueChange={selectTab} className="min-w-0">
-        <TabsList aria-label="Secciones de la ficha">
+        <TabStrip label="Secciones de la ficha" active={tab}>
           {seesFaults ? <TabsTrigger value="incidentes">Incidentes</TabsTrigger> : null}
           <TabsTrigger value="documentos">Documentos</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
@@ -133,7 +178,7 @@ export function EquipmentAssetPage() {
               {extra.label}
             </TabsTrigger>
           ))}
-        </TabsList>
+        </TabStrip>
         {seesFaults ? (
           <TabsContent value="incidentes">
             <AssetFaults assetId={data.id} />

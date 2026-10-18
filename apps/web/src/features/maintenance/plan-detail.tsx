@@ -11,7 +11,7 @@ import { frequencyText, scopeText } from './plan-text';
 import { useMaintenance } from './context';
 import { dueTone, todayInZone, workStatus } from './due';
 import { toneText } from './due-view';
-import { usePlanAssets } from './queries';
+import { usePlanAssets, usePlans } from './queries';
 import { kindLabels } from './work-text';
 
 type PlanAsset = PlanAssetList['items'][number];
@@ -53,8 +53,8 @@ function IncludedSwitch({
 }
 
 /**
- * Un equipo del plan. Con «Incluido» el Administrador lo saca (pide el motivo aquí mismo) o lo devuelve; «Frecuencia
- * distinta» abre un plan propio para ese equipo. Si lo reemplaza un plan propio, se dice cuál.
+ * Un equipo del plan. Con «Incluido» el Administrador lo saca (pide el motivo aquí mismo) o lo devuelve; «Cambiar
+ * frecuencia» abre un plan propio para ese equipo. Si lo reemplaza un plan propio, se dice cuál.
  */
 function PlanAssetRow({
   workspaceId,
@@ -88,6 +88,8 @@ function PlanAssetRow({
   const included = entry.exclusion === null;
   const typed = plan.assetType !== null;
   const replacedBy = entry.exclusion?.replacedBy ?? null;
+  // La frecuencia vigente del plan propio sale de la lista de planes, que la pantalla ya tiene.
+  const ownPlan = usePlans(workspaceId, replacedBy !== null).data?.items.find((candidate) => candidate.id === replacedBy?.id);
 
   const exclude = () => {
     setError(null);
@@ -140,7 +142,8 @@ function PlanAssetRow({
                 {replacedBy ? (
                   <>
                     {' '}
-                    Tiene su propio plan: <span className="font-medium text-ink">{replacedBy.title}</span>.
+                    Tiene su propio plan: <span className="font-medium text-ink">{replacedBy.title}</span>
+                    {ownPlan ? <span className="font-medium text-ink"> · {frequencyText(ownPlan.intervalCount, ownPlan.intervalUnit).toLowerCase()}</span> : null}.
                   </>
                 ) : null}
               </span>
@@ -161,9 +164,9 @@ function PlanAssetRow({
       </div>
       {canManage && typed && included && !asking ? (
         <div>
-          <Button size="sm" className="max-sm:h-11" aria-haspopup="dialog" aria-label={`Frecuencia distinta para ${entry.asset.code}`} onClick={() => onOwnPlan(entry.asset)}>
+          <Button size="sm" className="max-sm:h-11" aria-haspopup="dialog" aria-label={`Cambiar frecuencia de ${entry.asset.code}`} onClick={() => onOwnPlan(entry.asset)}>
             <Repeat aria-hidden />
-            Frecuencia distinta
+            Cambiar frecuencia
           </Button>
         </div>
       ) : null}
@@ -223,7 +226,7 @@ function PlanAssetRow({
 
 /**
  * El detalle de un plan, al tocarlo en la lista: de qué se trata, «Editar» y «Archivar» (Administrador) y los equipos
- * que alcanza, cada uno con su «Incluido» y su «Frecuencia distinta».
+ * que alcanza, cada uno con su «Incluido» y su «Cambiar frecuencia».
  */
 export function PlanDetailSheet({
   workspaceId,

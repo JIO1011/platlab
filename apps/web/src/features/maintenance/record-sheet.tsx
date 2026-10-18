@@ -3,6 +3,7 @@ import { Button, Field, Input, OptionRow, Select, Skeleton, Textarea, normalizeD
 import { ChevronDown, ClipboardCheck, ScanLine, TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FormSheet, type SheetBaseProps } from '../../app/form-sheet';
+import { useMediaQuery } from '../../app/use-media-query';
 import { formatDate } from '../../app/format';
 import { PillField } from '../../app/pills';
 import { ScannerView } from '../../app/scan/scanner-view';
@@ -16,7 +17,7 @@ import { RecordSaved } from './record-saved';
 import { ResultChoice } from './result-choice';
 import { readAssetScan, useRecordWork } from './use-record-work';
 import { useProviders } from './queries';
-import { kindLabels } from './work-text';
+import { kindLabels, titleWithKind } from './work-text';
 
 const INTERNAL = 'internal';
 const NEW_PROVIDER = '__new-provider';
@@ -90,6 +91,8 @@ export function RecordSheet({
   scan = false,
 }: SheetBaseProps & { me: WorkspaceMeResponse; assetId?: string; planId?: string; scan?: boolean }) {
   const [today] = useState(() => todayInZone(me.workspace.timeZone, Date.now()));
+  // En pantalla ancha la hoja abre en su primer campo; en el móvil no, para no abrir el teclado ni el selector de fecha.
+  const wideScreen = useMediaQuery('(min-width: 640px)');
   const canChangeCondition =
     me.permissions.includes('equipment.condition.change') &&
     (me.modules.find((entry) => entry.code === 'equipment')?.access.includes('new_operation') ?? false);
@@ -224,7 +227,7 @@ export function RecordSheet({
         dirty={work.dirty && !saved}
         fullWidthSubmit
         fullscreenMobile
-        focusFirst
+        focusFirst={wideScreen}
         pendingText={work.state.step === 'attaching' ? 'Adjuntando el certificado…' : 'Guardando el mantenimiento…'}
         announcement={work.state.step === 'done' ? `Mantenimiento guardado. ${work.outcome?.text ?? ''}` : undefined}
       >
@@ -232,6 +235,9 @@ export function RecordSheet({
           <RecordSaved work={work} />
         ) : (
           <>
+            <p aria-hidden className="-mb-2 text-[13px] text-ink-muted">
+              * obligatorio
+            </p>
             <section aria-label="Equipo y trabajo" className="grid gap-4">
               {chosenId === '' ? (
                 <AssetPicker workspaceId={workspaceId} open={open} startScanning={scan} error={errors.assetId?.message} onChoose={resetAsset} />
@@ -260,7 +266,7 @@ export function RecordSheet({
                       </p>
                     ) : preselected && work.plan ? (
                       <p className="break-words text-sm text-ink">
-                        <span className="font-semibold">{work.plan.title}</span> <span className="text-ink-muted">· {kindLabels[work.plan.kind]}</span>
+                        <span className="font-semibold">{titleWithKind(work.plan.title, work.plan.kind)}</span>
                       </p>
                     ) : null
                   }
@@ -297,7 +303,7 @@ export function RecordSheet({
                             }}
                           >
                             <span className="block font-medium">
-                              {entry.plan.title} <span className="font-normal text-ink-muted">· {kindLabels[entry.plan.kind]}</span>
+                              {titleWithKind(entry.plan.title, entry.plan.kind)}
                             </span>
                             <span className={`block text-[13px] font-medium ${toneText[tone]}`}>
                               {entry.lastResult === 'fail' ? 'No conforme, pendiente' : `${formatDate(entry.dueOn)} · ${dueText(entry.dueOn, today)}`}
@@ -363,7 +369,11 @@ export function RecordSheet({
 
             {planDetail && (planDetail.checklist.length > 0 || planDetail.acceptanceCriteria) ? (
               <fieldset className="grid min-w-0 gap-2">
-                <legend className="mb-1 text-sm font-medium text-ink">Lista de verificación</legend>
+                <legend className="text-sm font-medium text-ink">
+                  Lista de verificación
+                  <span className="ml-1 font-normal text-ink-subtle">(opcional)</span>
+                </legend>
+                <p className="text-[13px] text-ink-muted">Marca lo que hiciste.</p>
                 {work.reviewChecklist ? (
                   <p role="alert" className="flex items-start gap-2 rounded-control bg-warning-soft px-3 py-2.5 text-sm font-medium text-warning">
                     <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />

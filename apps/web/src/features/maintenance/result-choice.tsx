@@ -45,7 +45,7 @@ export function ResultChoice({
             <label
               key={result}
               className={cn(
-                'relative flex min-h-14 min-w-0 cursor-pointer flex-row items-center justify-center gap-2 rounded-control border-2 px-1.5 py-2 text-center text-sm font-semibold leading-tight transition-colors min-[360px]:min-h-16 min-[360px]:flex-col min-[360px]:gap-1',
+                'relative flex min-h-14 min-w-0 cursor-pointer items-center justify-center rounded-control border-2 px-3 py-2 text-center text-sm font-semibold leading-tight transition-colors min-[360px]:min-h-16 min-[360px]:px-2',
                 'has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-action',
                 selected ? chosen[result] : 'border-line bg-white/60 text-ink hover:bg-white',
               )}
@@ -58,7 +58,7 @@ export function ResultChoice({
                 aria-invalid={error ? true : undefined}
                 onChange={() => onChange(result)}
               />
-              <Check className={cn('size-4', selected ? 'opacity-100' : 'opacity-0')} strokeWidth={3} aria-hidden />
+              {selected ? <Check className="absolute right-1.5 top-1.5 size-3.5" strokeWidth={3} aria-hidden /> : null}
               {resultLabels[result]}
             </label>
           );

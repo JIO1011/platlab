@@ -1,4 +1,5 @@
 import type { WorkKind, WorkResult } from '@platlab/contracts';
+import { fold } from '../../app/fold';
 
 /** Textos de Mantenimiento (ADR 0020). */
 export const kindLabels: Record<WorkKind, string> = {
@@ -7,6 +8,11 @@ export const kindLabels: Record<WorkKind, string> = {
   verification: 'Verificación',
   cleaning: 'Limpieza',
 };
+
+/** El título del plan con su tipo detrás, salvo que el título ya lo diga: «Calibración anual de balanzas», no «… · Calibración». */
+export function titleWithKind(title: string, kind: WorkKind): string {
+  return fold(title).includes(fold(kindLabels[kind])) ? title : `${title} · ${kindLabels[kind]}`;
+}
 
 export const resultLabels: Record<WorkResult, string> = {
   pass: 'Conforme',

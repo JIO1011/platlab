@@ -1,6 +1,6 @@
 import type { DueList } from '@platlab/contracts';
 import { Button, Input, Skeleton, StatePanel, cn } from '@platlab/ui';
-import { ClipboardCheck, ClipboardList, Search, ScanLine } from 'lucide-react';
+import { ChevronRight, ClipboardCheck, ClipboardList, Search, ScanLine } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { fold } from '../../app/fold';
@@ -13,7 +13,7 @@ import { DueDot, toneText } from './due-view';
 import { useDue, useMaintenanceSummary } from './queries';
 import { RecordSheet } from './record-sheet';
 import { SectionHeader } from './section-header';
-import { kindLabels } from './work-text';
+import { titleWithKind } from './work-text';
 
 type DueItem = DueList['items'][number];
 
@@ -39,9 +39,9 @@ function goToGroup(group: DueGroup) {
 }
 
 const tileStyles =
-  'grid content-start gap-0.5 rounded-card bg-surface p-3 text-left shadow-raised sm:p-4 transition-[transform,box-shadow] duration-200 ease-out-expo';
+  'group grid content-start gap-0.5 rounded-card bg-surface p-3 text-left shadow-raised sm:p-4 transition-[transform,box-shadow] duration-200 ease-out-expo';
 const tileInteractive =
-  'hover:shadow-float motion-safe:hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action';
+  'cursor-pointer hover:shadow-float motion-safe:hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action';
 
 /** Una cifra de la portada: número, nombre y, si hay algo que decir, una línea de estado. Toca para ir a lo que cuenta. */
 function Tile({
@@ -50,6 +50,7 @@ function Tile({
   tone,
   hint,
   hintTone = 'neutral',
+  cta,
   onClick,
   to,
 }: {
@@ -57,7 +58,9 @@ function Tile({
   value: number;
   tone: 'danger' | 'warning' | 'neutral';
   hint?: string | undefined;
-  hintTone?: 'danger' | 'action' | 'neutral';
+  hintTone?: 'danger' | 'neutral';
+  /** La acción que ofrece la cifra («Ver lista»): con chevron, para que se lea como botón. */
+  cta?: string | undefined;
   onClick?: () => void;
   to?: string;
 }) {
@@ -66,7 +69,13 @@ function Tile({
       <span className={cn('text-[1.75rem] font-bold leading-none tracking-tight tabular-nums', tone === 'neutral' ? 'text-ink' : toneText[tone])}>{value}</span>
       <span className="text-sm font-medium text-ink">{label}</span>
       {hint ? (
-        <span className={cn('text-[13px] font-medium', hintTone === 'danger' ? 'text-danger' : hintTone === 'action' ? 'text-action' : 'text-ink-muted')}>{hint}</span>
+        <span className={cn('text-[13px] font-medium', hintTone === 'danger' ? 'text-danger' : 'text-ink-muted')}>{hint}</span>
+      ) : null}
+      {cta ? (
+        <span className="mt-0.5 inline-flex items-center gap-0.5 text-[13px] font-medium text-action group-hover:underline group-hover:underline-offset-2">
+          {cta}
+          <ChevronRight className="size-3.5 transition-transform duration-200 ease-out-expo motion-safe:group-hover:translate-x-0.5" aria-hidden />
+        </span>
       ) : null}
     </>
   );
@@ -105,9 +114,7 @@ function DueRow({ item, today, ficha, onRecord }: { item: DueItem; today: string
           )}
         </p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-muted">
-          <span className="break-words">
-            {item.plan.title} · {kindLabels[item.plan.kind]}
-          </span>
+          <span className="break-words">{titleWithKind(item.plan.title, item.plan.kind)}</span>
         </p>
       </div>
       <div className="min-w-0">
@@ -209,20 +216,21 @@ export function MaintenanceTodoPage() {
               tone={summary.data.overdue > 0 ? 'danger' : 'neutral'}
               hint={summary.data.nonconforming > 0 ? `${summary.data.nonconforming} ${summary.data.nonconforming === 1 ? 'no conforme' : 'no conformes'}` : undefined}
               hintTone="danger"
+              cta={summary.data.overdue > 0 ? 'Ver lista' : undefined}
               onClick={() => goToGroup('overdue')}
             />
             <Tile
               label="Próximos 30 días"
               value={summary.data.next30}
               tone={summary.data.next30 > 0 ? 'warning' : 'neutral'}
+              cta={summary.data.next30 > 0 ? 'Ver lista' : undefined}
               onClick={() => goToGroup('upcoming')}
             />
             <Tile
               label="Sin plan"
               value={summary.data.uncovered}
               tone="neutral"
-              hint={summary.data.uncovered > 0 ? 'Ver planes' : undefined}
-              hintTone="action"
+              cta={summary.data.uncovered > 0 ? 'Ver planes' : undefined}
               to={`${base}/planes`}
             />
           </section>
@@ -282,10 +290,9 @@ export function MaintenanceTodoPage() {
                   <h2
                     id={groupId(group.group)}
                     tabIndex={-1}
-                    className="mb-2 flex items-baseline gap-2 text-base font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                    className="mb-2 text-base font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                   >
                     {group.label}
-                    <span className="text-sm font-normal tabular-nums text-ink-muted">{group.items.length}</span>
                   </h2>
                   <ul className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-raised">
                     {group.items.map((item) => (

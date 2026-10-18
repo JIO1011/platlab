@@ -155,6 +155,11 @@
   textarea {
     caret-color: var(--color-action);
   }
+  /* El selector nativo de fecha toma el acento del módulo y se queda en claro, como la página. */
+  input[type='date'] {
+    accent-color: var(--color-action);
+    color-scheme: light;
+  }
   :focus-visible {
     outline: 2px solid var(--color-action);
     outline-offset: 2px;
