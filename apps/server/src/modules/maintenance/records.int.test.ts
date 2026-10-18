@@ -1,6 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { asset as assetContract, assetMaintenance, dueList, nextDueList, record, recordCreated, recordList } from '@platlab/contracts';
+import {
+  asset as assetContract,
+  assetMaintenance,
+  dueList,
+  maintenanceSummary,
+  nextDueList,
+  record,
+  recordCreated,
+  recordList,
+} from '@platlab/contracts';
 import { setModuleStatus } from '../../testing/core-fixtures.js';
 import {
   admin,
@@ -34,8 +43,9 @@ beforeAll(async () => {
 });
 
 const recordsOf = (assetId: string) => count('select count(*) as n from maintenance.records where asset_id = $1', [assetId]);
-const dueOf = async (assetId: string) =>
-  dueList.parse((await call(lab.operator.subject, `${lab.maintenance}/due`)).body).items.filter((item) => item.asset.id === assetId);
+const due = async () => dueList.parse((await call(lab.operator.subject, `${lab.maintenance}/due`)).body);
+const dueOf = async (assetId: string) => (await due()).items.filter((item) => item.asset.id === assetId);
+const summary = async () => maintenanceSummary.parse((await call(lab.operator.subject, `${lab.maintenance}/summary`)).body);
 
 describe('Por hacer', () => {
   it('sin registros toca en el inicio del plan o, si el equipo se registró después, en su alta', async () => {
@@ -82,12 +92,49 @@ describe('Por hacer', () => {
   });
 
   it('el Resumen cuenta vencidos y próximos 30 días', async () => {
-    const before = await call(lab.operator.subject, `${lab.maintenance}/summary`);
+    const before = await summary();
     const type = await createType(lab);
     await createAsset(lab, { typeId: type.id });
     await createPlan(lab, { assetTypeId: type.id, startsOn: shiftDate(today, 3) });
-    const after = await call(lab.operator.subject, `${lab.maintenance}/summary`);
-    expect(after.body).toMatchObject({ today, next30: (before.body as { next30: number }).next30 + 1 });
+    expect(await summary()).toMatchObject({ today, next30: before.next30 + 1 });
+  });
+
+  it('un no conforme avanza la fecha pero sigue en Por hacer y cuenta como vencido hasta un registro conforme', async () => {
+    const type = await createType(lab);
+    const asset = await createAsset(lab, { typeId: type.id });
+    const semiannual = await createPlan(lab, { assetTypeId: type.id });
+    const before = await summary();
+
+    const failed = await recordWork(lab, lab.operator.subject, {
+      assetId: asset.id,
+      planId: semiannual.id,
+      performedOn: today,
+      result: 'fail',
+      observations: 'El rotor vibra',
+    });
+    expect(failed.status).toBe(201);
+    const { nextDueOn } = recordCreated.parse(failed.body);
+    expect(nextDueOn! > shiftDate(today, 30)).toBe(true);
+    // Primero los no conformes, aunque su fecha pase de los 30 días.
+    const list = await due();
+    expect(list.items[0]?.lastResult).toBe('fail');
+    expect(list.items.find((item) => item.asset.id === asset.id)).toMatchObject({ plan: { id: semiannual.id }, dueOn: nextDueOn, lastResult: 'fail' });
+    expect(await summary()).toMatchObject({
+      overdue: before.overdue + 1,
+      nonconforming: before.nonconforming + 1,
+      next30: before.next30 - 1,
+    });
+
+    const passed = await recordWork(lab, lab.operator.subject, { assetId: asset.id, planId: semiannual.id, performedOn: today, result: 'pass' });
+    expect(passed.status).toBe(201);
+    expect(await dueOf(asset.id)).toEqual([]);
+    expect(await summary()).toMatchObject({ overdue: before.overdue, nonconforming: before.nonconforming, next30: before.next30 - 1 });
+  });
+
+  it('Por hacer da el total de lo pendiente', async () => {
+    const list = await due();
+    expect(list.total).toBe(list.items.length);
+    expect(list.truncated).toBe(false);
   });
 });
 
@@ -129,6 +176,29 @@ describe('registrar', () => {
     });
   });
 
+  it('con la versión del plan que cambió, VERSION_CONFLICT y nada se registra; el registro copia el criterio del plan', async () => {
+    const type = await createType(lab);
+    const asset = await createAsset(lab, { typeId: type.id });
+    const created = await createPlan(lab, { assetTypeId: type.id, checklist: ['Limpiar'], acceptanceCriteria: 'Sin ruido al girar' });
+    const edited = await call(lab.adminMember.subject, `${lab.maintenance}/plans/${created.id}`, {
+      method: 'PATCH',
+      body: { acceptanceCriteria: 'Sin ruido ni vibración', expectedVersion: 1 },
+    });
+    expect(edited.status).toBe(200);
+    const body = { assetId: asset.id, planId: created.id, performedOn: today, result: 'pass', checklist: [true] };
+
+    const stale = await recordWork(lab, lab.operator.subject, { ...body, planVersion: 1 });
+    expect(stale.status).toBe(409);
+    expect(errorCode(stale.body)).toBe('VERSION_CONFLICT');
+    expect(await recordsOf(asset.id)).toBe(0);
+
+    const done = await recordWork(lab, lab.operator.subject, { ...body, planVersion: 2 });
+    expect(done.status).toBe(201);
+    expect(record.parse(done.body).acceptanceCriteria).toBe('Sin ruido ni vibración');
+    const withoutPlan = await recordWork(lab, lab.operator.subject, { assetId: asset.id, kind: 'cleaning', performedOn: today, result: 'pass' });
+    expect(record.parse(withoutPlan.body).acceptanceCriteria).toBeNull();
+  });
+
   it('un equipo dado de baja no recibe registros', async () => {
     const asset = await createAsset(lab);
     await call(lab.adminMember.subject, `${lab.base}/assets/${asset.id}/condition`, { method: 'POST', body: { condition: 'retired', reason: 'Obsoleto' } });
@@ -137,20 +207,22 @@ describe('registrar', () => {
     expect(await recordsOf(asset.id)).toBe(0);
   });
 
-  it('el estado físico lo aplica Equipos con su historial; un proveedor archivado no se elige', async () => {
+  it('el estado físico actual lo aplica Equipos con su historial, aunque el trabajo sea pasado; un proveedor archivado no se elige', async () => {
     const asset = await createAsset(lab);
     const provider = await createProvider(lab);
     const done = await recordWork(lab, lab.operator.subject, {
       assetId: asset.id,
       kind: 'verification',
-      performedOn: today,
+      performedOn: shiftDate(today, -20),
       result: 'pass_with_observations',
       observations: 'Golpe en la carcasa',
       providerId: provider.id,
       conservation: 'poor',
     });
     expect(done.status).toBe(201);
-    expect(record.parse(done.body)).toMatchObject({ conservation: 'poor', provider: { id: provider.id, name: provider.name }, plan: null });
+    expect(record.parse(done.body)).toMatchObject({ provider: { id: provider.id, name: provider.name }, plan: null });
+    // El registro no guarda el estado físico: lo lleva Equipos.
+    expect(done.body).not.toHaveProperty('conservation');
     const card = assetContract.parse((await call(lab.adminMember.subject, `${lab.base}/assets/${asset.id}`)).body);
     expect(card.conservation).toBe('poor');
     expect(
@@ -236,7 +308,7 @@ describe('Completados y la ficha', () => {
 
     const response = await call(lab.operator.subject, `${lab.maintenance}/next-due?assetIds=${asset.id},${loose.id},${foreign.id}`);
     expect(nextDueList.parse(response.body).items).toEqual([
-      { assetId: asset.id, dueOn: shiftDate(today, 2), plan: { id: near.id, title: near.title, kind: 'preventive' } },
+      { assetId: asset.id, dueOn: shiftDate(today, 2), plan: { id: near.id, title: near.title, kind: 'preventive' }, lastResult: null },
     ]);
     const tooMany = Array.from({ length: 101 }, () => randomUUID()).join(',');
     expect((await call(lab.operator.subject, `${lab.maintenance}/next-due?assetIds=${tooMany}`)).status).toBe(400);

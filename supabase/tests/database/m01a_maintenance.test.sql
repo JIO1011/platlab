@@ -1,10 +1,10 @@
 -- M-01a (ADR 0020): Mantenimiento bajo el rol de runtime. Aislamiento por espacio, grants por columna,
 -- reglas de planes, exclusiones y registros, lo archivado no cambia, registro y certificado inmutables,
--- RLS de las vistas y la próxima fecha de cada equipo.
+-- RLS de las vistas, la próxima fecha de cada equipo y su último resultado.
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(48);
+select plan(55);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -76,9 +76,9 @@ insert into maintenance.plan_exclusions (id, workspace_id, plan_id, asset_type_i
    'a4000000-0000-4000-8000-000000000001', 'a5000000-0000-4000-8000-000000000004', 'Se calibra con su propio plan', 'a2000000-0000-4000-8000-000000000001');
 insert into maintenance.providers (id, workspace_id, name) values
   ('b6000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', 'Proveedor de B');
-insert into maintenance.records (id, workspace_id, asset_id, plan_id, kind, performed_on, result, recorded_by_principal_id) values
+insert into maintenance.records (id, workspace_id, asset_id, plan_id, plan_version, kind, performed_on, result, recorded_by_principal_id) values
   ('b9000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', 'b5000000-0000-4000-8000-000000000001',
-   'b7000000-0000-4000-8000-000000000001', 'calibration', '2026-02-01', 'pass', 'b2000000-0000-4000-8000-000000000001');
+   'b7000000-0000-4000-8000-000000000001', 1, 'calibration', '2026-02-01', 'pass', 'b2000000-0000-4000-8000-000000000001');
 
 set local role platlab_api;
 select set_config('platlab.workspace_id', 'a0000000-0000-4000-8000-00000000000a', true);
@@ -191,6 +191,20 @@ select lives_ok(
              'a5000000-0000-4000-8000-000000000004', 'Se calibra fuera del laboratorio', 'a2000000-0000-4000-8000-000000000001') $$,
   'archivada la anterior, el equipo se excluye de nuevo');
 
+select throws_ok(
+  $$ insert into maintenance.plan_exclusions (workspace_id, plan_id, asset_type_id, asset_id, reason, replaced_by_plan_id, created_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a7000000-0000-4000-8000-000000000001', 'a4000000-0000-4000-8000-000000000001',
+             'a5000000-0000-4000-8000-000000000005', 'Plan propio', 'b7000000-0000-4000-8000-000000000001',
+             'a2000000-0000-4000-8000-000000000001') $$,
+  '23503', null, 'el plan que reemplaza al del tipo es del espacio');
+
+select throws_ok(
+  $$ insert into maintenance.plan_exclusions (workspace_id, plan_id, asset_type_id, asset_id, reason, replaced_by_plan_id, created_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a7000000-0000-4000-8000-000000000001', 'a4000000-0000-4000-8000-000000000001',
+             'a5000000-0000-4000-8000-000000000005', 'Plan propio', 'a7000000-0000-4000-8000-000000000001',
+             'a2000000-0000-4000-8000-000000000001') $$,
+  '23503', null, 'solo lo reemplaza un plan propio del mismo equipo');
+
 -- ---------------------------------------------------------------------------
 -- Un plan archivado no se modifica; tipo de trabajo y alcance no se cambian
 -- ---------------------------------------------------------------------------
@@ -257,16 +271,17 @@ select results_eq(
 -- ---------------------------------------------------------------------------
 
 select lives_ok(
-  $$ insert into maintenance.records (id, workspace_id, asset_id, plan_id, kind, performed_on, result, checklist, cost, recorded_by_principal_id)
+  $$ insert into maintenance.records (id, workspace_id, asset_id, plan_id, plan_version, acceptance_criteria, kind, performed_on, result,
+                                      checklist, cost, recorded_by_principal_id)
      values ('a9000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-00000000000a', 'a5000000-0000-4000-8000-000000000005',
-             'a7000000-0000-4000-8000-000000000001', 'calibration', '2026-01-31', 'pass',
+             'a7000000-0000-4000-8000-000000000001', 1, 'Error de ±1 mg', 'calibration', '2026-01-31', 'pass',
              '[{"item": "Nivelar", "done": true}, {"item": "Pesar", "done": false}]', 120.50, 'a2000000-0000-4000-8000-000000000001') $$,
   'el runtime registra un mantenimiento con plan');
 
 select lives_ok(
-  $$ insert into maintenance.records (workspace_id, asset_id, plan_id, kind, performed_on, result, recorded_by_principal_id)
+  $$ insert into maintenance.records (workspace_id, asset_id, plan_id, plan_version, kind, performed_on, result, recorded_by_principal_id)
      values ('a0000000-0000-4000-8000-00000000000a', 'a5000000-0000-4000-8000-000000000005',
-             'a7000000-0000-4000-8000-000000000001', 'calibration', '2026-01-15', 'pass', 'a2000000-0000-4000-8000-000000000001') $$,
+             'a7000000-0000-4000-8000-000000000001', 1, 'calibration', '2026-01-15', 'pass', 'a2000000-0000-4000-8000-000000000001') $$,
   'un registro con fecha anterior se carga después');
 
 select is(
@@ -276,9 +291,22 @@ select is(
   'el último registro por fecha manda, y un mes desde el 31-01 cae el 28-02');
 
 select lives_ok(
-  $$ insert into maintenance.records (workspace_id, asset_id, plan_id, kind, performed_on, result, valid_until, recorded_by_principal_id)
+  $$ insert into maintenance.records (workspace_id, asset_id, plan_id, plan_version, kind, performed_on, result, observations, recorded_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a5000000-0000-4000-8000-000000000005',
+             'a7000000-0000-4000-8000-000000000001', 1, 'calibration', '2026-02-20', 'fail', 'Fuera de tolerancia',
+             'a2000000-0000-4000-8000-000000000001') $$,
+  'el runtime registra un no conforme');
+
+select results_eq(
+  $$ select due_on, last_result from maintenance.plan_assets
+      where plan_id = 'a7000000-0000-4000-8000-000000000001' and asset_id = 'a5000000-0000-4000-8000-000000000005' $$,
+  $$ values ('2026-03-20'::date, 'fail'::text) $$,
+  'un no conforme cuenta como hecho: la fecha avanza y el último resultado lo muestra');
+
+select lives_ok(
+  $$ insert into maintenance.records (workspace_id, asset_id, plan_id, plan_version, kind, performed_on, result, valid_until, recorded_by_principal_id)
      values ('a0000000-0000-4000-8000-00000000000a', 'a5000000-0000-4000-8000-000000000001',
-             'a7000000-0000-4000-8000-000000000001', 'calibration', '2026-02-10', 'pass', '2026-12-31', 'a2000000-0000-4000-8000-000000000001') $$,
+             'a7000000-0000-4000-8000-000000000001', 1, 'calibration', '2026-02-10', 'pass', '2026-12-31', 'a2000000-0000-4000-8000-000000000001') $$,
   'el runtime registra una calibración con «válida hasta»');
 
 select is(
@@ -312,10 +340,24 @@ select throws_ok(
   '23514', null, 'cada ítem de la lista marcada dice si se hizo');
 
 select throws_ok(
+  $$ insert into maintenance.records (workspace_id, asset_id, plan_id, plan_version, kind, performed_on, result, recorded_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a5000000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000001',
+             1, 'preventive', '2026-02-10', 'pass', 'a2000000-0000-4000-8000-000000000001') $$,
+  '23503', null, 'con plan, el tipo de trabajo es el del plan');
+
+select throws_ok(
   $$ insert into maintenance.records (workspace_id, asset_id, plan_id, kind, performed_on, result, recorded_by_principal_id)
      values ('a0000000-0000-4000-8000-00000000000a', 'a5000000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000001',
-             'preventive', '2026-02-10', 'pass', 'a2000000-0000-4000-8000-000000000001') $$,
-  '23503', null, 'con plan, el tipo de trabajo es el del plan');
+             'calibration', '2026-02-10', 'pass', 'a2000000-0000-4000-8000-000000000001') $$,
+  '23514', null, 'con plan, el registro guarda la versión del plan con que se llenó');
+
+select throws_ok(
+  $$ insert into maintenance.records (workspace_id, asset_id, kind, performed_on, result, acceptance_criteria, recorded_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a5000000-0000-4000-8000-000000000001', 'preventive', '2026-02-10', 'pass',
+             'Sin ruido', 'a2000000-0000-4000-8000-000000000001') $$,
+  '23514', null, 'sin plan, el registro no copia criterio ni versión');
+
+select hasnt_column('maintenance', 'records', 'conservation', 'el registro no guarda el estado físico: lo lleva Equipos');
 
 select throws_ok(
   $$ insert into maintenance.records (workspace_id, asset_id, kind, performed_on, result, provider_id, recorded_by_principal_id)

@@ -3,7 +3,7 @@
 /* @name sharePlan */
 -- El plan elegido al registrar, compartido para que nadie lo archive ni lo cambie mientras tanto. Va antes
 -- que el equipo, como en los comandos de planes, que bloquean el plan y después referencian al equipo.
-SELECT kind, checklist, archived_at
+SELECT kind, checklist, acceptance_criteria, archived_at, version
 FROM maintenance.plans
 WHERE workspace_id = :workspaceId! AND id = :planId!
 FOR SHARE;
@@ -16,14 +16,15 @@ WHERE workspace_id = :workspaceId! AND id = :providerId!
 FOR SHARE;
 
 /* @name insertRecord */
--- La lista marcada llega como texto JSON (pg enviaría un arreglo como arreglo de PostgreSQL).
+-- La lista marcada llega como texto JSON (pg enviaría un arreglo como arreglo de PostgreSQL). Con plan,
+-- la versión con que se llenó y la copia de su criterio de aceptación.
 INSERT INTO maintenance.records (
-  workspace_id, asset_id, plan_id, kind, performed_on, provider_id, result, observations, checklist, cost,
-  valid_until, conservation, recorded_by_principal_id
+  workspace_id, asset_id, plan_id, plan_version, acceptance_criteria, kind, performed_on, provider_id, result,
+  observations, checklist, cost, valid_until, recorded_by_principal_id
 )
 VALUES (
-  :workspaceId!, :assetId!, :planId, :kind!, :performedOn!::date, :providerId, :result!, :observations,
-  :checklist!::jsonb, :cost::numeric, :validUntil::date, :conservation, :recordedBy!
+  :workspaceId!, :assetId!, :planId, :planVersion, :acceptanceCriteria, :kind!, :performedOn!::date, :providerId,
+  :result!, :observations, :checklist!::jsonb, :cost::numeric, :validUntil::date, :recordedBy!
 )
 RETURNING id;
 
@@ -40,7 +41,7 @@ WHERE workspace_id = :workspaceId! AND plan_id = :planId! AND asset_id = :assetI
 SELECT
   r.id, r.asset_id, a.code AS "asset_code!", a.name AS "asset_name!", r.plan_id, p.title AS "plan_title?",
   r.kind, r.performed_on, r.provider_id, pv.name AS "provider_name?", r.result, r.observations, r.checklist,
-  trim_scale(r.cost) AS cost, r.valid_until, r.conservation, ident.display_name AS "recorded_by_name?",
+  trim_scale(r.cost) AS cost, r.valid_until, r.acceptance_criteria, ident.display_name AS "recorded_by_name?",
   r.recorded_at, r.recorded_at::text AS "recorded_key!",
   c.url AS "certificate_url?", c.byte_size AS "certificate_byte_size?", c.uploaded_at AS "certificate_uploaded_at?"
 FROM maintenance.records AS r

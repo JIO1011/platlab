@@ -33,7 +33,7 @@ const planFields = {
 
 /**
  * POST /plans: de un tipo de equipo o de un equipo. Con `replacesPlanId`, el plan propio del equipo lo
- * excluye en el mismo paso del plan de su tipo, con motivo «Plan propio».
+ * excluye en el mismo paso del plan de su tipo, con motivo «Plan propio»; archivarlo lo devuelve a él.
  */
 export const createPlanRequest = z
   .object({
@@ -76,6 +76,10 @@ export const plan = z.object({
   acceptanceCriteria: z.string().nullable(),
   /** Cuántos equipos cubre hoy: los no dados de baja ni excluidos. */
   assetCount: tally,
+  /** La próxima fecha más cercana de sus equipos; null si no cubre ninguno. */
+  nextDueOn: z.iso.date().nullable(),
+  /** Sus trabajos vencidos o no conformes. */
+  overdueCount: tally,
   /** Las exclusiones activas, con su motivo. */
   exclusions: z.array(z.object({ asset: maintenanceAssetRef, reason: z.string(), createdAt: z.string() })),
   archivedAt: z.string().nullable(),

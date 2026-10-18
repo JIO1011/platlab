@@ -48,7 +48,7 @@ const toRecord = (row: IListRecordsResult): MaintenanceRecord => ({
   checklist: row.checklist as MaintenanceRecord['checklist'],
   cost: row.cost,
   validUntil: row.valid_until,
-  conservation: row.conservation as MaintenanceRecord['conservation'],
+  acceptanceCriteria: row.acceptance_criteria,
   recordedBy: row.recorded_by_name ? { name: row.recorded_by_name } : null,
   recordedAt: row.recorded_at.toISOString(),
   certificate:
@@ -90,20 +90,31 @@ async function recordById(access: WorkspaceAccess, recordId: string): Promise<Ma
   return toRecord(row);
 }
 
-/** El tipo de trabajo y la lista del plan elegido, bloqueado; sin plan, el tipo que llega y ninguna lista. */
-async function chosenWork(
-  access: WorkspaceAccess,
-  input: z.infer<typeof createRecordRequest>,
-): Promise<{ kind: WorkKind; checklist: string[] }> {
+interface ChosenWork {
+  kind: WorkKind;
+  checklist: string[];
+  /** La versión del plan y su criterio, que el registro copia; null sin plan. */
+  planVersion: number | null;
+  acceptanceCriteria: string | null;
+}
+
+/**
+ * El plan elegido, bloqueado, en la versión que la persona vio: si cambió mientras llenaba la hoja,
+ * VERSION_CONFLICT para que revise la lista. Sin plan, el tipo que llega y ninguna lista.
+ */
+async function chosenWork(access: WorkspaceAccess, input: z.infer<typeof createRecordRequest>): Promise<ChosenWork> {
   if (input.planId === null) {
     if (!input.kind) throw new AppError('VALIDATION_FAILED', 'Sin plan, indica el tipo de trabajo');
-    return { kind: input.kind, checklist: [] };
+    return { kind: input.kind, checklist: [], planVersion: null, acceptanceCriteria: null };
   }
   const [plan] = await sharePlan.run({ workspaceId: access.workspace.id, planId: input.planId }, access.client);
   if (!plan) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
   if (plan.archived_at) throw new AppError('VALIDATION_FAILED', 'El plan está archivado');
   if (input.kind && input.kind !== plan.kind) throw new AppError('VALIDATION_FAILED', 'El tipo de trabajo es el del plan');
-  return { kind: plan.kind as WorkKind, checklist: plan.checklist };
+  if (input.planVersion !== plan.version) {
+    throw new AppError('VERSION_CONFLICT', 'El plan cambió mientras registrabas: revisa la lista y vuelve a registrar');
+  }
+  return { kind: plan.kind as WorkKind, checklist: plan.checklist, planVersion: plan.version, acceptanceCriteria: plan.acceptance_criteria };
 }
 
 /** La lista del plan con sus marcas, en orden: cada ítem se marca, y nada más. */
@@ -115,8 +126,9 @@ function markedChecklist(items: string[], marks: boolean[]): { item: string; don
 /**
  * «Registrar mantenimiento» (ADR 0020). Se admite con Mantenimiento y Equipos. Bloquea el plan, después el
  * equipo (no dado de baja) y el proveedor; el plan debe cubrir al equipo. La fecha no puede ser posterior a
- * hoy en la zona del espacio, y «válida hasta» es solo de calibraciones y verificaciones. Con el estado
- * físico, Equipos lo aplica con su permiso y su historial. Responde con la nueva próxima fecha del plan.
+ * hoy en la zona del espacio, y «válida hasta» es solo de calibraciones y verificaciones. El estado físico
+ * actual lo aplica Equipos con su permiso y su historial, con la fecha de hoy; el registro no lo guarda.
+ * Responde con la nueva próxima fecha del plan.
  */
 export function createRecord(pool: pg.Pool, request: CommandRequest, input: z.infer<typeof createRecordRequest>): Promise<RecordCreated> {
   return runRecordCommand(pool, request, 'maintenance.record.create', input, requires(RECORD), async (access) => {
@@ -144,6 +156,8 @@ export function createRecord(pool: pg.Pool, request: CommandRequest, input: z.in
         workspaceId,
         assetId: input.assetId,
         planId: input.planId,
+        planVersion: work.planVersion,
+        acceptanceCriteria: work.acceptanceCriteria,
         kind: work.kind,
         performedOn: input.performedOn,
         providerId: input.providerId,
@@ -152,7 +166,6 @@ export function createRecord(pool: pg.Pool, request: CommandRequest, input: z.in
         checklist: JSON.stringify(checklist),
         cost: input.cost,
         validUntil: input.validUntil,
-        conservation: input.conservation,
         recordedBy: access.principalId,
       },
       access.client,

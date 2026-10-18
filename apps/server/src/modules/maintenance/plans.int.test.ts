@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { plan as planContract, planList, provider as providerContract, providerList } from '@platlab/contracts';
 import {
   call,
+  count,
   createAsset,
   createMaintenanceLab,
   createPlan,
@@ -10,6 +11,7 @@ import {
   errorCode,
   key,
   recordWork,
+  todayIn,
   type MaintenanceLab,
 } from './maintenance.fixtures.js';
 
@@ -168,6 +170,47 @@ describe('planes', () => {
     expect(restored.status).toBe(200);
     expect(planContract.parse(restored.body)).toMatchObject({ assetCount: 2, exclusions: [] });
     expect((await call(lab.adminMember.subject, restore, { method: 'POST', key: key() })).status).toBe(404);
+  });
+
+  it('archivar el plan propio devuelve el equipo al plan de su tipo; sin replacesPlanId no lo excluye', async () => {
+    const type = await createType(lab);
+    const asset = await createAsset(lab, { typeId: type.id });
+    const sibling = await createAsset(lab, { typeId: type.id });
+    const typePlan = await createPlan(lab, { assetTypeId: type.id });
+
+    // Un plan propio que no reemplaza: el equipo sigue también en el del tipo.
+    await createPlan(lab, { kind: 'cleaning', assetId: sibling.id });
+    expect(await planIn(typePlan.id)).toMatchObject({ assetCount: 2, exclusions: [] });
+
+    const own = await createPlan(lab, { kind: 'calibration', assetId: asset.id, replacesPlanId: typePlan.id, intervalUnit: 'year', intervalCount: 1 });
+    expect(await planIn(typePlan.id)).toMatchObject({ assetCount: 1, exclusions: [{ asset: { id: asset.id }, reason: 'Plan propio' }] });
+
+    const archived = await call(lab.adminMember.subject, `${lab.maintenance}/plans/${own.id}/archive`, { method: 'POST', key: key() });
+    expect(archived.status).toBe(200);
+    expect(await planIn(typePlan.id)).toMatchObject({ assetCount: 2, exclusions: [] });
+    expect(
+      await count(`select count(*) as n from maintenance.plan_exclusions where replaced_by_plan_id = $1 and archived_at is not null`, [own.id]),
+    ).toBe(1);
+  });
+
+  it('cada plan da su próxima fecha más cercana y cuántos trabajos están vencidos o no conformes', async () => {
+    const type = await createType(lab);
+    const late = await createAsset(lab, { typeId: type.id });
+    const failed = await createAsset(lab, { typeId: type.id });
+    await createAsset(lab, { typeId: type.id });
+    const monthly = await createPlan(lab, { assetTypeId: type.id, intervalCount: 1, intervalUnit: 'month' });
+    const today = await todayIn(lab);
+
+    expect(await planIn(monthly.id)).toMatchObject({ nextDueOn: today, overdueCount: 0 });
+    await recordWork(lab, lab.operator.subject, { assetId: late.id, planId: monthly.id, performedOn: '2026-01-05', result: 'pass' });
+    await recordWork(lab, lab.operator.subject, {
+      assetId: failed.id,
+      planId: monthly.id,
+      performedOn: today,
+      result: 'fail',
+      observations: 'No enciende',
+    });
+    expect(await planIn(monthly.id)).toMatchObject({ assetCount: 3, nextDueOn: '2026-02-05', overdueCount: 2 });
   });
 
   it('excluir pide un equipo del tipo del plan y no repite la exclusión vigente', async () => {

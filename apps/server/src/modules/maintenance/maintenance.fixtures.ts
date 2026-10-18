@@ -56,9 +56,16 @@ export async function createProvider(lab: MaintenanceLab, name = `Servicio técn
   return providerContract.parse(created.body);
 }
 
-/** «Registrar mantenimiento» con una clave nueva, salvo que se pase una. */
+/**
+ * «Registrar mantenimiento» con una clave nueva, salvo que se pase una. Con plan y sin `planVersion`, la
+ * versión 1, la de un plan recién creado.
+ */
 export const recordWork = (lab: MaintenanceLab, subject: string, body: Record<string, unknown>, idempotencyKey = key()) =>
-  call(subject, `${lab.maintenance}/records`, { method: 'POST', body, key: idempotencyKey });
+  call(subject, `${lab.maintenance}/records`, {
+    method: 'POST',
+    body: body.planId && !('planVersion' in body) ? { ...body, planVersion: 1 } : body,
+    key: idempotencyKey,
+  });
 
 /** Adjunta el certificado como lo hace la web: el PDF en el cuerpo. */
 export async function uploadCertificate(lab: MaintenanceLab, subject: string, recordId: string, file: Buffer) {

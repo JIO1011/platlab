@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { list, money, page, text } from '../common.js';
 import { assetCondition, assetConservation } from '../equipment/catalog.js';
 import { maintenanceAssetRef, planRef, workKind } from './plans.js';
+import { expectedVersion } from './providers.js';
 
 /**
  * Trabajo de Mantenimiento (ADR 0020): «Por hacer» se calcula desde los planes al consultar; el registro
@@ -15,7 +16,16 @@ const workResult = z.enum(['pass', 'pass_with_observations', 'fail']);
 
 const area = { area: z.string().nullable() };
 
-/** GET /due: lo que vence hasta dentro de 30 días, de la fecha más antigua a la más nueva (hasta 300). */
+/**
+ * El resultado del último registro del plan para el equipo; null si nunca se hizo. Mientras sea «fail»,
+ * el trabajo sigue pendiente aunque su fecha haya avanzado (No conforme, ADR 0020).
+ */
+const lastResult = workResult.nullable();
+
+/**
+ * GET /due: los no conformes, sea cual sea su fecha, y después lo que vence hasta dentro de 30 días, de la
+ * fecha más antigua a la más nueva (hasta 300; `total` cuenta todos).
+ */
 export const dueList = z.object({
   today: date,
   items: z.array(
@@ -25,13 +35,18 @@ export const dueList = z.object({
       dueOn: date,
       /** El último registro del plan para el equipo; null si nunca se hizo. */
       lastRecord: z.object({ id: z.uuid(), performedOn: date }).nullable(),
+      lastResult,
     }),
   ),
+  total: tally,
   truncated: z.boolean(),
 });
 
-/** GET /summary: vencidos (antes de hoy) y los que tocan desde hoy hasta dentro de 30 días. */
-export const maintenanceSummary = z.object({ today: date, overdue: tally, next30: tally });
+/**
+ * GET /summary: trabajos vencidos (antes de hoy) o no conformes, cuántos de ellos son no conformes, y los
+ * demás que tocan desde hoy hasta dentro de 30 días.
+ */
+export const maintenanceSummary = z.object({ today: date, overdue: tally, nonconforming: tally, next30: tally });
 
 export const record = z.object({
   id: z.uuid(),
@@ -47,8 +62,8 @@ export const record = z.object({
   checklist: z.array(z.object({ item: z.string(), done: z.boolean() })),
   cost: money.nullable(),
   validUntil: date.nullable(),
-  /** Estado físico observado; null es «no se observó». */
-  conservation: assetConservation.nullable(),
+  /** El criterio de aceptación del plan con que se evaluó, copiado al registrar; null sin plan o sin criterio. */
+  acceptanceCriteria: z.string().nullable(),
   /** Quién lo registró; null si ya no es miembro. */
   recordedBy: z.object({ name: z.string() }).nullable(),
   recordedAt: z.string(),
@@ -59,14 +74,17 @@ export const record = z.object({
 export const recordCreated = record.extend({ nextDueOn: date.nullable() });
 
 /**
- * POST /records, «Registrar mantenimiento»: con el plan que se elige o, sin plan, con su tipo de trabajo.
- * `checklist` marca, en orden, cada ítem de la lista del plan; el servidor guarda la lista con sus marcas.
- * Con `conservation`, Equipos aplica el estado físico con su permiso y su historial.
+ * POST /records, «Registrar mantenimiento»: con el plan que se elige y la versión que se vio o, sin plan,
+ * con su tipo de trabajo. `checklist` marca, en orden, cada ítem de la lista del plan; el servidor guarda la
+ * lista con sus marcas y el criterio del plan. `conservation` es el estado físico actual que se fija: Equipos
+ * lo aplica hoy con su permiso y su historial, aunque el trabajo sea de una fecha pasada, y el registro no
+ * lo guarda.
  */
 export const createRecordRequest = z
   .object({
     assetId: z.uuid(),
     planId: z.uuid().nullable().default(null),
+    planVersion: expectedVersion.optional(),
     kind: workKind.optional(),
     performedOn: date,
     providerId: z.uuid().nullable().default(null),
@@ -79,11 +97,17 @@ export const createRecordRequest = z
   })
   .strict()
   .refine((input) => input.planId !== null || input.kind !== undefined, { message: 'Sin plan, indica el tipo de trabajo' })
+  .refine((input) => (input.planId === null) === (input.planVersion === undefined), {
+    message: 'La versión es la del plan elegido',
+    path: ['planVersion'],
+  })
   .refine((input) => input.result === 'pass' || input.observations !== null, {
     message: 'Con observaciones o no conforme, las observaciones son obligatorias',
+    path: ['observations'],
   })
   .refine((input) => input.validUntil === null || input.validUntil >= input.performedOn, {
     message: 'La fecha «válida hasta» no puede ser anterior a la del trabajo',
+    path: ['validUntil'],
   });
 
 /** GET /records: los completados, del más reciente al más antiguo; con `assetId`, los de un equipo. */
@@ -108,7 +132,7 @@ export const maintenanceAssetParams = z.object({ workspaceId: z.uuid(), assetId:
 /** GET /assets/:assetId, la pestaña Mantenimiento de la ficha: sus planes, sus exclusiones y sus últimos 20 registros. */
 export const assetMaintenance = z.object({
   asset: maintenanceAsset,
-  plans: z.array(z.object({ plan: planRef, dueOn: date, lastPerformedOn: date.nullable() })),
+  plans: z.array(z.object({ plan: planRef, dueOn: date, lastPerformedOn: date.nullable(), lastResult })),
   exclusions: z.array(z.object({ plan: planRef, reason: z.string(), createdAt: z.string() })),
   records: z.array(record),
 });
@@ -123,8 +147,11 @@ export const nextDueQuery = z
   })
   .strict();
 
-/** La fecha más cercana de cada equipo con algún plan, para la columna «Próximo mantenimiento». */
-export const nextDueList = z.object({ items: z.array(z.object({ assetId: z.uuid(), dueOn: date, plan: planRef })) });
+/**
+ * Para la columna «Próximo mantenimiento», de cada equipo con algún plan: su plan no conforme o, si no hay,
+ * la fecha más cercana.
+ */
+export const nextDueList = z.object({ items: z.array(z.object({ assetId: z.uuid(), dueOn: date, plan: planRef, lastResult })) });
 
 export type WorkResult = z.infer<typeof workResult>;
 export type DueList = z.infer<typeof dueList>;

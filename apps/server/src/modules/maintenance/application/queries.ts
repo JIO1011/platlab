@@ -1,5 +1,14 @@
 import type pg from 'pg';
-import type { AssetMaintenance, DueList, MaintenanceAsset, MaintenanceAssetList, MaintenanceSummary, NextDueList, WorkKind } from '@platlab/contracts';
+import type {
+  AssetMaintenance,
+  DueList,
+  MaintenanceAsset,
+  MaintenanceAssetList,
+  MaintenanceSummary,
+  NextDueList,
+  WorkKind,
+  WorkResult,
+} from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
 import type { QueryRequest, WorkspaceAccess } from '../../core/index.js';
 import {
@@ -16,39 +25,43 @@ import { recordsOf } from './records.js';
 
 /** Lo que toca hacer (ADR 0020): se calcula al consultar desde los planes, en la zona del espacio. */
 
-/** Tope de «Por hacer»: más filas se cortan y la respuesta lo dice. */
+/** Tope de «Por hacer»: más filas se cortan y la respuesta da el total. */
 const DUE_LIMIT = 300;
 /** Registros que muestra la pestaña Mantenimiento de la ficha. */
 const ASSET_RECORDS = 20;
 
 const planRef = (row: { plan_id: string; title: string; kind: string }) => ({ id: row.plan_id, title: row.title, kind: row.kind as WorkKind });
+const lastResult = (value: string | null) => value as WorkResult | null;
 
-/** «Por hacer»: lo que vence hasta dentro de 30 días, de la fecha más antigua a la más nueva. */
+/** «Por hacer»: primero los no conformes y después lo que vence hasta dentro de 30 días, por fecha. */
 export function listDue(pool: pg.Pool, request: QueryRequest): Promise<DueList> {
   return runQuery(pool, request, async (access) => {
     const timeZone = access.workspace.timeZone;
     const [{ today }] = (await workspaceToday.run({ timeZone }, access.client)) as [{ today: string }];
-    const rows = await listDueQuery.run({ workspaceId: access.workspace.id, timeZone, limit: DUE_LIMIT + 1 }, access.client);
+    const rows = await listDueQuery.run({ workspaceId: access.workspace.id, timeZone, limit: DUE_LIMIT }, access.client);
+    const total = rows[0]?.total ?? 0;
     return {
       today,
-      items: rows.slice(0, DUE_LIMIT).map((row) => ({
+      items: rows.map((row) => ({
         plan: planRef({ plan_id: row.plan_id, title: row.plan_title, kind: row.plan_kind }),
         asset: { id: row.asset_id, code: row.asset_code, name: row.asset_name, area: row.area_name },
         dueOn: row.due_on,
         lastRecord: row.last_record_id && row.last_performed_on ? { id: row.last_record_id, performedOn: row.last_performed_on } : null,
+        lastResult: lastResult(row.last_result),
       })),
-      truncated: rows.length > DUE_LIMIT,
+      total,
+      truncated: total > rows.length,
     };
   });
 }
 
-/** Las cifras del Resumen: vencidos y próximos 30 días. */
+/** Las cifras del Resumen: vencidos o no conformes, cuántos de ellos son no conformes, y próximos 30 días. */
 export function getSummary(pool: pg.Pool, request: QueryRequest): Promise<MaintenanceSummary> {
   return runQuery(pool, request, async (access) => {
     const [row] = (await dueCounts.run({ workspaceId: access.workspace.id, timeZone: access.workspace.timeZone }, access.client)) as [
-      { today: string; overdue: number; next30: number },
+      { today: string; overdue: number; nonconforming: number; next30: number },
     ];
-    return { today: row.today, overdue: row.overdue, next30: row.next30 };
+    return { today: row.today, overdue: row.overdue, nonconforming: row.nonconforming, next30: row.next30 };
   });
 }
 
@@ -84,7 +97,12 @@ export function getAssetMaintenance(pool: pg.Pool, request: QueryRequest, assetI
     const exclusions = await assetExclusions.run(filter, access.client);
     return {
       asset,
-      plans: plans.map((row) => ({ plan: planRef(row), dueOn: row.due_on, lastPerformedOn: row.last_performed_on })),
+      plans: plans.map((row) => ({
+        plan: planRef(row),
+        dueOn: row.due_on,
+        lastPerformedOn: row.last_performed_on,
+        lastResult: lastResult(row.last_result),
+      })),
       exclusions: exclusions.map((row) => ({
         plan: planRef({ plan_id: row.id, title: row.title, kind: row.kind }),
         reason: row.reason,
@@ -95,10 +113,15 @@ export function getAssetMaintenance(pool: pg.Pool, request: QueryRequest, assetI
   });
 }
 
-/** La columna «Próximo mantenimiento» del Inventario: la fecha más cercana de cada equipo con algún plan. */
+/**
+ * La columna «Próximo mantenimiento» del Inventario: de cada equipo con algún plan, su plan no conforme o,
+ * si no hay, la fecha más cercana.
+ */
 export function listNextDue(pool: pg.Pool, request: QueryRequest, assetIds: string[]): Promise<NextDueList> {
   return runQuery(pool, request, async (access) => {
     const rows = await nextDueByAsset.run({ workspaceId: access.workspace.id, assetIds }, access.client);
-    return { items: rows.map((row) => ({ assetId: row.asset_id, dueOn: row.due_on, plan: planRef(row) })) };
+    return {
+      items: rows.map((row) => ({ assetId: row.asset_id, dueOn: row.due_on, plan: planRef(row), lastResult: lastResult(row.last_result) })),
+    };
   });
 }

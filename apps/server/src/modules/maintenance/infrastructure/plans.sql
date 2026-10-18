@@ -1,15 +1,15 @@
 /* Planes de Mantenimiento (ADR 0020): por tipo de equipo o por equipo, con sus exclusiones. */
 
 /* @name listPlans */
--- Los activos por título, con su alcance, cuántos equipos cubren hoy (plan_assets) y sus exclusiones
--- activas por código del equipo; con :planId, ese plan aunque esté archivado (la respuesta de un comando).
--- El tipo y el equipo se leen por las vistas de Equipos (ADR 0020).
+-- Los activos por título, con su alcance, los equipos que cubren hoy (plan_assets: cuántos, la fecha más
+-- cercana y cuántos están vencidos o no conformes, en la zona del espacio) y sus exclusiones activas por
+-- código del equipo; con :planId, ese plan aunque esté archivado (la respuesta de un comando). El tipo y
+-- el equipo se leen por las vistas de Equipos (ADR 0020).
 SELECT
   p.id, p.kind, p.title, p.asset_type_id, t.name AS "type_name?", p.asset_id, a.code AS "asset_code?",
   a.name AS "asset_name?", p.interval_count, p.interval_unit, p.starts_on, p.checklist, p.acceptance_criteria,
-  p.archived_at, p.version,
-  (SELECT count(*) FROM maintenance.plan_assets AS pa
-    WHERE pa.workspace_id = p.workspace_id AND pa.plan_id = p.id)::integer AS "asset_count!",
+  p.archived_at, p.version, cover.asset_count AS "asset_count!", cover.next_due_on AS "next_due_on?",
+  cover.overdue_count AS "overdue_count!",
   coalesce((
     SELECT jsonb_agg(
              jsonb_build_object(
@@ -24,6 +24,14 @@ SELECT
 FROM maintenance.plans AS p
 LEFT JOIN equipment.asset_type_directory AS t ON t.workspace_id = p.workspace_id AND t.id = p.asset_type_id
 LEFT JOIN equipment.asset_directory AS a ON a.workspace_id = p.workspace_id AND a.id = p.asset_id
+CROSS JOIN LATERAL (
+  SELECT count(*)::integer AS asset_count, min(pa.due_on) AS next_due_on,
+         count(*) FILTER (
+           WHERE pa.due_on < (now() AT TIME ZONE :timeZone!)::date OR pa.last_result = 'fail'
+         )::integer AS overdue_count
+  FROM maintenance.plan_assets AS pa
+  WHERE pa.workspace_id = p.workspace_id AND pa.plan_id = p.id
+) AS cover
 WHERE p.workspace_id = :workspaceId!
   AND CASE WHEN :planId::uuid IS NULL THEN p.archived_at IS NULL ELSE p.id = :planId::uuid END
 ORDER BY core.fold_text(p.title), p.id;
@@ -84,8 +92,11 @@ WHERE workspace_id = :workspaceId! AND id = :planId!;
 
 /* @name insertExclusion */
 -- Una exclusión activa del mismo equipo (plan_exclusions_active) no inserta nada: el comando responde.
-INSERT INTO maintenance.plan_exclusions (workspace_id, plan_id, asset_type_id, asset_id, reason, created_by_principal_id)
-VALUES (:workspaceId!, :planId!, :assetTypeId!, :assetId!, :reason!, :createdBy!)
+-- Con :replacedBy, el plan propio que la crea.
+INSERT INTO maintenance.plan_exclusions (
+  workspace_id, plan_id, asset_type_id, asset_id, reason, replaced_by_plan_id, created_by_principal_id
+)
+VALUES (:workspaceId!, :planId!, :assetTypeId!, :assetId!, :reason!, :replacedBy, :createdBy!)
 ON CONFLICT (workspace_id, plan_id, asset_id) WHERE archived_at IS NULL DO NOTHING
 RETURNING id;
 
@@ -95,3 +106,10 @@ UPDATE maintenance.plan_exclusions
 SET archived_at = now()
 WHERE workspace_id = :workspaceId! AND plan_id = :planId! AND asset_id = :assetId! AND archived_at IS NULL
 RETURNING id;
+
+/* @name archiveReplacedExclusions */
+-- Al archivar un plan propio, sus equipos vuelven al plan de su tipo (índice plan_exclusions_replaced_by).
+UPDATE maintenance.plan_exclusions
+SET archived_at = now()
+WHERE workspace_id = :workspaceId! AND replaced_by_plan_id = :planId! AND archived_at IS NULL
+RETURNING plan_id, asset_id;

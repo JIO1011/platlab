@@ -7,31 +7,35 @@
 SELECT (now() AT TIME ZONE :timeZone!)::date AS "today!";
 
 /* @name listDue */
--- «Por hacer»: lo que vence hasta dentro de 30 días, de la fecha más antigua a la más nueva, con el
--- equipo, su área, el plan y el último registro. Quien llama pide una fila más para saber si se cortó.
+-- «Por hacer»: los no conformes, sea cual sea su fecha, y después lo que vence hasta dentro de 30 días,
+-- de la fecha más antigua a la más nueva, con el equipo, su área, el plan y el último registro. Cada fila
+-- lleva el total antes del tope.
 WITH today AS (SELECT (now() AT TIME ZONE :timeZone!)::date AS d)
 SELECT
   pa.plan_id AS "plan_id!", p.title AS plan_title, p.kind AS plan_kind, pa.asset_id AS "asset_id!",
   a.code AS "asset_code!", a.name AS "asset_name!", area.name AS "area_name?", pa.due_on AS "due_on!",
-  pa.last_record_id, pa.last_performed_on
+  pa.last_record_id, pa.last_performed_on, pa.last_result, count(*) OVER ()::integer AS "total!"
 FROM maintenance.plan_assets AS pa
 CROSS JOIN today
 JOIN maintenance.plans AS p ON p.workspace_id = pa.workspace_id AND p.id = pa.plan_id
 JOIN equipment.asset_directory AS a ON a.workspace_id = pa.workspace_id AND a.id = pa.asset_id
 LEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
 LEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
-WHERE pa.workspace_id = :workspaceId! AND pa.due_on <= today.d + 30
-ORDER BY pa.due_on, lower(a.code), p.id
+WHERE pa.workspace_id = :workspaceId! AND (pa.due_on <= today.d + 30 OR pa.last_result = 'fail')
+ORDER BY (pa.last_result = 'fail') IS TRUE DESC, pa.due_on, lower(a.code), p.id
 LIMIT :limit!;
 
 /* @name dueCounts */
--- Las cifras del Resumen: vencidos (antes de hoy) y los que tocan desde hoy hasta dentro de 30 días.
+-- Las cifras del Resumen: vencidos (antes de hoy) o no conformes, cuántos de ellos son no conformes, y
+-- los demás que tocan desde hoy hasta dentro de 30 días.
 WITH today AS (SELECT (now() AT TIME ZONE :timeZone!)::date AS d)
 SELECT today.d AS "today!",
-       count(*) FILTER (WHERE pa.due_on < today.d)::integer AS "overdue!",
-       count(*) FILTER (WHERE pa.due_on >= today.d)::integer AS "next30!"
+       count(*) FILTER (WHERE pa.due_on < today.d OR pa.last_result = 'fail')::integer AS "overdue!",
+       count(*) FILTER (WHERE pa.last_result = 'fail')::integer AS "nonconforming!",
+       count(*) FILTER (WHERE pa.due_on >= today.d AND pa.last_result IS DISTINCT FROM 'fail')::integer AS "next30!"
 FROM today
-LEFT JOIN maintenance.plan_assets AS pa ON pa.workspace_id = :workspaceId! AND pa.due_on <= today.d + 30
+LEFT JOIN maintenance.plan_assets AS pa
+  ON pa.workspace_id = :workspaceId! AND (pa.due_on <= today.d + 30 OR pa.last_result = 'fail')
 GROUP BY today.d;
 
 /* @name findAssets */
@@ -55,8 +59,8 @@ ORDER BY lower(a.code), a.id
 LIMIT 20;
 
 /* @name assetPlans */
--- Los planes que cubren al equipo, de la próxima fecha más cercana a la más lejana.
-SELECT pa.plan_id AS "plan_id!", p.title, p.kind, pa.due_on AS "due_on!", pa.last_performed_on
+-- Los planes que cubren al equipo, de la próxima fecha más cercana a la más lejana, con el último resultado.
+SELECT pa.plan_id AS "plan_id!", p.title, p.kind, pa.due_on AS "due_on!", pa.last_performed_on, pa.last_result
 FROM maintenance.plan_assets AS pa
 JOIN maintenance.plans AS p ON p.workspace_id = pa.workspace_id AND p.id = pa.plan_id
 WHERE pa.workspace_id = :workspaceId! AND pa.asset_id = :assetId!
@@ -73,10 +77,11 @@ WHERE x.workspace_id = :workspaceId! AND x.asset_id = :assetId! AND x.archived_a
 ORDER BY x.created_at DESC, p.id;
 
 /* @name nextDueByAsset */
--- La columna «Próximo mantenimiento» del Inventario: la fecha más cercana de cada equipo de :assetIds.
+-- La columna «Próximo mantenimiento» del Inventario: de cada equipo de :assetIds, su plan no conforme o,
+-- si no hay, la fecha más cercana; el semáforo está en rojo con cualquiera de los dos.
 SELECT DISTINCT ON (pa.asset_id)
-  pa.asset_id AS "asset_id!", pa.due_on AS "due_on!", p.id AS plan_id, p.title, p.kind
+  pa.asset_id AS "asset_id!", pa.due_on AS "due_on!", p.id AS plan_id, p.title, p.kind, pa.last_result
 FROM maintenance.plan_assets AS pa
 JOIN maintenance.plans AS p ON p.workspace_id = pa.workspace_id AND p.id = pa.plan_id
 WHERE pa.workspace_id = :workspaceId! AND pa.asset_id = ANY (:assetIds!::uuid[])
-ORDER BY pa.asset_id, pa.due_on, p.id;
+ORDER BY pa.asset_id, (pa.last_result = 'fail') IS TRUE DESC, pa.due_on, p.id;

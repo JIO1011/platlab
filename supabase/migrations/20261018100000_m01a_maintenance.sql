@@ -86,6 +86,8 @@ create table maintenance.plans (
   unique (workspace_id, id, kind),
   -- Solo un plan por tipo de equipo admite exclusiones.
   unique (workspace_id, id, asset_type_id),
+  -- Un plan propio reemplaza al del tipo solo para su equipo.
+  unique (workspace_id, id, asset_id),
   foreign key (workspace_id, asset_type_id) references equipment.asset_types (workspace_id, id),
   foreign key (workspace_id, asset_id) references equipment.assets (workspace_id, id),
   foreign key (workspace_id, created_by_principal_id) references core.principals (workspace_id, id),
@@ -121,17 +123,23 @@ create table maintenance.plan_exclusions (
   asset_type_id uuid not null,
   asset_id uuid not null,
   reason text not null check (length(btrim(reason)) between 1 and 500),
+  -- El plan propio del mismo equipo que lo reemplaza; archivarlo archiva la exclusión.
+  replaced_by_plan_id uuid,
   created_by_principal_id uuid not null,
   created_at timestamptz not null default now(),
   archived_at timestamptz,
   unique (workspace_id, id),
   foreign key (workspace_id, plan_id, asset_type_id) references maintenance.plans (workspace_id, id, asset_type_id),
+  foreign key (workspace_id, replaced_by_plan_id, asset_id) references maintenance.plans (workspace_id, id, asset_id),
   foreign key (workspace_id, asset_id) references equipment.assets (workspace_id, id),
   foreign key (workspace_id, created_by_principal_id) references core.principals (workspace_id, id)
 );
 
 create unique index plan_exclusions_active on maintenance.plan_exclusions (workspace_id, plan_id, asset_id)
   where archived_at is null;
+-- Archivar un plan propio busca las exclusiones vigentes que creó.
+create index plan_exclusions_replaced_by on maintenance.plan_exclusions (workspace_id, replaced_by_plan_id)
+  where replaced_by_plan_id is not null and archived_at is null;
 
 create trigger plan_exclusions_protect_archived before update on maintenance.plan_exclusions
   for each row execute function maintenance.protect_archived();
@@ -166,6 +174,9 @@ create table maintenance.records (
   asset_id uuid not null,
   -- Sin plan, el registro lleva solo su tipo de trabajo.
   plan_id uuid,
+  -- La versión del plan con que se llenó y su criterio de aceptación, copiado; nulos sin plan.
+  plan_version integer check (plan_version > 0),
+  acceptance_criteria text check (length(btrim(acceptance_criteria)) between 1 and 1000),
   kind text not null check (kind in ('preventive', 'calibration', 'verification', 'cleaning')),
   -- Puede ser pasada: carga la última vez que se hizo.
   performed_on date not null,
@@ -178,8 +189,6 @@ create table maintenance.records (
   cost numeric(14, 2) check (cost >= 0),
   -- La calibración o el certificado vencen en esta fecha; manda sobre la frecuencia del plan.
   valid_until date,
-  -- Estado físico observado; nulo es «no se observó». Equipos lo aplica con su comando.
-  conservation text check (conservation in ('good', 'fair', 'poor')),
   recorded_by_principal_id uuid not null,
   recorded_at timestamptz not null default now(),
   unique (workspace_id, id),
@@ -189,7 +198,10 @@ create table maintenance.records (
   foreign key (workspace_id, recorded_by_principal_id) references core.principals (workspace_id, id),
   -- Con observaciones o no conforme, las observaciones son obligatorias.
   constraint records_observations check (result = 'pass' or observations is not null),
-  constraint records_valid_until check (valid_until is null or valid_until >= performed_on)
+  constraint records_valid_until check (valid_until is null or valid_until >= performed_on),
+  constraint records_plan_copy check (
+    (plan_id is null) = (plan_version is null) and (plan_id is not null or acceptance_criteria is null)
+  )
 );
 
 -- El último registro de un plan para un equipo sale del índice (próxima fecha).
@@ -226,7 +238,8 @@ create table maintenance.record_certificates (
 -- del Inventario. Un plan activo cubre su equipo o los de su tipo que no estén dados de baja ni
 -- excluidos. Sin registros, toca en el inicio del plan o, si el equipo se registró después, en su
 -- alta (en la zona horaria del espacio); luego, en la «válida hasta» del último registro del plan
--- o en su fecha más la frecuencia.
+-- o en su fecha más la frecuencia. Un «No conforme» cuenta como hecho: la fecha avanza, y `last_result`
+-- lo deja a la vista hasta un registro Conforme o Con observaciones.
 -- ---------------------------------------------------------------------------
 
 create view maintenance.plan_assets with (security_invoker = true) as
@@ -235,6 +248,7 @@ create view maintenance.plan_assets with (security_invoker = true) as
          a.id as asset_id,
          last.id as last_record_id,
          last.performed_on as last_performed_on,
+         last.result as last_result,
          coalesce(
            last.valid_until,
            (last.performed_on + case p.interval_unit
@@ -250,7 +264,7 @@ create view maintenance.plan_assets with (security_invoker = true) as
     join equipment.asset_directory as a
       on a.workspace_id = p.workspace_id and (a.id = p.asset_id or a.type_id = p.asset_type_id)
     left join lateral (
-      select r.id, r.performed_on, r.valid_until
+      select r.id, r.performed_on, r.valid_until, r.result
         from maintenance.records as r
        where r.workspace_id = p.workspace_id and r.plan_id = p.id and r.asset_id = a.id
        order by r.performed_on desc, r.recorded_at desc
@@ -345,7 +359,7 @@ grant update (
 ) on maintenance.plans to platlab_api;
 
 grant select on maintenance.plan_exclusions to platlab_api;
-grant insert (workspace_id, plan_id, asset_type_id, asset_id, reason, created_by_principal_id)
+grant insert (workspace_id, plan_id, asset_type_id, asset_id, reason, replaced_by_plan_id, created_by_principal_id)
   on maintenance.plan_exclusions to platlab_api;
 -- Archivar es lo único que se cambia de una exclusión.
 grant update (archived_at) on maintenance.plan_exclusions to platlab_api;
@@ -353,8 +367,8 @@ grant update (archived_at) on maintenance.plan_exclusions to platlab_api;
 -- El registro y su certificado no se editan ni se borran.
 grant select on maintenance.records to platlab_api;
 grant insert (
-  id, workspace_id, asset_id, plan_id, kind, performed_on, provider_id, result, observations, checklist, cost,
-  valid_until, conservation, recorded_by_principal_id
+  id, workspace_id, asset_id, plan_id, plan_version, acceptance_criteria, kind, performed_on, provider_id, result,
+  observations, checklist, cost, valid_until, recorded_by_principal_id
 ) on maintenance.records to platlab_api;
 
 grant select on maintenance.record_certificates to platlab_api;

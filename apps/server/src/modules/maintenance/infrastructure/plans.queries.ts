@@ -8,6 +8,7 @@ export type stringArray = (string)[];
 /** 'ListPlans' parameters type */
 export interface IListPlansParams {
   planId?: string | null | void;
+  timeZone: string;
   workspaceId: string;
 }
 
@@ -26,6 +27,8 @@ export interface IListPlansResult {
   interval_count: number;
   interval_unit: string;
   kind: string;
+  next_due_on: string | null;
+  overdue_count: number;
   starts_on: string;
   title: string;
   type_name: string | null;
@@ -38,20 +41,20 @@ export interface IListPlansQuery {
   result: IListPlansResult;
 }
 
-const listPlansIR: any = {"usedParamSet":{"workspaceId":true,"planId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1480,"b":1492}]},{"name":"planId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1510,"b":1516},{"a":1571,"b":1577}]}],"statement":"-- Los activos por título, con su alcance, cuántos equipos cubren hoy (plan_assets) y sus exclusiones\n-- activas por código del equipo; con :planId, ese plan aunque esté archivado (la respuesta de un comando).\n-- El tipo y el equipo se leen por las vistas de Equipos (ADR 0020).\nSELECT\n  p.id, p.kind, p.title, p.asset_type_id, t.name AS \"type_name?\", p.asset_id, a.code AS \"asset_code?\",\n  a.name AS \"asset_name?\", p.interval_count, p.interval_unit, p.starts_on, p.checklist, p.acceptance_criteria,\n  p.archived_at, p.version,\n  (SELECT count(*) FROM maintenance.plan_assets AS pa\n    WHERE pa.workspace_id = p.workspace_id AND pa.plan_id = p.id)::integer AS \"asset_count!\",\n  coalesce((\n    SELECT jsonb_agg(\n             jsonb_build_object(\n               'asset', jsonb_build_object('id', xa.id, 'code', xa.code, 'name', xa.name),\n               'reason', x.reason,\n               'createdAt', x.created_at)\n             ORDER BY lower(xa.code), xa.id)\n    FROM maintenance.plan_exclusions AS x\n    JOIN equipment.asset_directory AS xa ON xa.workspace_id = x.workspace_id AND xa.id = x.asset_id\n    WHERE x.workspace_id = p.workspace_id AND x.plan_id = p.id AND x.archived_at IS NULL\n  ), '[]'::jsonb) AS \"exclusions!\"\nFROM maintenance.plans AS p\nLEFT JOIN equipment.asset_type_directory AS t ON t.workspace_id = p.workspace_id AND t.id = p.asset_type_id\nLEFT JOIN equipment.asset_directory AS a ON a.workspace_id = p.workspace_id AND a.id = p.asset_id\nWHERE p.workspace_id = :workspaceId!\n  AND CASE WHEN :planId::uuid IS NULL THEN p.archived_at IS NULL ELSE p.id = :planId::uuid END\nORDER BY core.fold_text(p.title), p.id"};
+const listPlansIR: any = {"usedParamSet":{"timeZone":true,"workspaceId":true,"planId":true},"params":[{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":1695,"b":1704}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1911,"b":1923}]},{"name":"planId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1941,"b":1947},{"a":2002,"b":2008}]}],"statement":"-- Los activos por título, con su alcance, los equipos que cubren hoy (plan_assets: cuántos, la fecha más\n-- cercana y cuántos están vencidos o no conformes, en la zona del espacio) y sus exclusiones activas por\n-- código del equipo; con :planId, ese plan aunque esté archivado (la respuesta de un comando). El tipo y\n-- el equipo se leen por las vistas de Equipos (ADR 0020).\nSELECT\n  p.id, p.kind, p.title, p.asset_type_id, t.name AS \"type_name?\", p.asset_id, a.code AS \"asset_code?\",\n  a.name AS \"asset_name?\", p.interval_count, p.interval_unit, p.starts_on, p.checklist, p.acceptance_criteria,\n  p.archived_at, p.version, cover.asset_count AS \"asset_count!\", cover.next_due_on AS \"next_due_on?\",\n  cover.overdue_count AS \"overdue_count!\",\n  coalesce((\n    SELECT jsonb_agg(\n             jsonb_build_object(\n               'asset', jsonb_build_object('id', xa.id, 'code', xa.code, 'name', xa.name),\n               'reason', x.reason,\n               'createdAt', x.created_at)\n             ORDER BY lower(xa.code), xa.id)\n    FROM maintenance.plan_exclusions AS x\n    JOIN equipment.asset_directory AS xa ON xa.workspace_id = x.workspace_id AND xa.id = x.asset_id\n    WHERE x.workspace_id = p.workspace_id AND x.plan_id = p.id AND x.archived_at IS NULL\n  ), '[]'::jsonb) AS \"exclusions!\"\nFROM maintenance.plans AS p\nLEFT JOIN equipment.asset_type_directory AS t ON t.workspace_id = p.workspace_id AND t.id = p.asset_type_id\nLEFT JOIN equipment.asset_directory AS a ON a.workspace_id = p.workspace_id AND a.id = p.asset_id\nCROSS JOIN LATERAL (\n  SELECT count(*)::integer AS asset_count, min(pa.due_on) AS next_due_on,\n         count(*) FILTER (\n           WHERE pa.due_on < (now() AT TIME ZONE :timeZone!)::date OR pa.last_result = 'fail'\n         )::integer AS overdue_count\n  FROM maintenance.plan_assets AS pa\n  WHERE pa.workspace_id = p.workspace_id AND pa.plan_id = p.id\n) AS cover\nWHERE p.workspace_id = :workspaceId!\n  AND CASE WHEN :planId::uuid IS NULL THEN p.archived_at IS NULL ELSE p.id = :planId::uuid END\nORDER BY core.fold_text(p.title), p.id"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Los activos por título, con su alcance, cuántos equipos cubren hoy (plan_assets) y sus exclusiones
- * -- activas por código del equipo; con :planId, ese plan aunque esté archivado (la respuesta de un comando).
- * -- El tipo y el equipo se leen por las vistas de Equipos (ADR 0020).
+ * -- Los activos por título, con su alcance, los equipos que cubren hoy (plan_assets: cuántos, la fecha más
+ * -- cercana y cuántos están vencidos o no conformes, en la zona del espacio) y sus exclusiones activas por
+ * -- código del equipo; con :planId, ese plan aunque esté archivado (la respuesta de un comando). El tipo y
+ * -- el equipo se leen por las vistas de Equipos (ADR 0020).
  * SELECT
  *   p.id, p.kind, p.title, p.asset_type_id, t.name AS "type_name?", p.asset_id, a.code AS "asset_code?",
  *   a.name AS "asset_name?", p.interval_count, p.interval_unit, p.starts_on, p.checklist, p.acceptance_criteria,
- *   p.archived_at, p.version,
- *   (SELECT count(*) FROM maintenance.plan_assets AS pa
- *     WHERE pa.workspace_id = p.workspace_id AND pa.plan_id = p.id)::integer AS "asset_count!",
+ *   p.archived_at, p.version, cover.asset_count AS "asset_count!", cover.next_due_on AS "next_due_on?",
+ *   cover.overdue_count AS "overdue_count!",
  *   coalesce((
  *     SELECT jsonb_agg(
  *              jsonb_build_object(
@@ -66,6 +69,14 @@ const listPlansIR: any = {"usedParamSet":{"workspaceId":true,"planId":true},"par
  * FROM maintenance.plans AS p
  * LEFT JOIN equipment.asset_type_directory AS t ON t.workspace_id = p.workspace_id AND t.id = p.asset_type_id
  * LEFT JOIN equipment.asset_directory AS a ON a.workspace_id = p.workspace_id AND a.id = p.asset_id
+ * CROSS JOIN LATERAL (
+ *   SELECT count(*)::integer AS asset_count, min(pa.due_on) AS next_due_on,
+ *          count(*) FILTER (
+ *            WHERE pa.due_on < (now() AT TIME ZONE :timeZone!)::date OR pa.last_result = 'fail'
+ *          )::integer AS overdue_count
+ *   FROM maintenance.plan_assets AS pa
+ *   WHERE pa.workspace_id = p.workspace_id AND pa.plan_id = p.id
+ * ) AS cover
  * WHERE p.workspace_id = :workspaceId!
  *   AND CASE WHEN :planId::uuid IS NULL THEN p.archived_at IS NULL ELSE p.id = :planId::uuid END
  * ORDER BY core.fold_text(p.title), p.id
@@ -335,6 +346,7 @@ export interface IInsertExclusionParams {
   createdBy: string;
   planId: string;
   reason: string;
+  replacedBy?: string | null | void;
   workspaceId: string;
 }
 
@@ -349,14 +361,17 @@ export interface IInsertExclusionQuery {
   result: IInsertExclusionResult;
 }
 
-const insertExclusionIR: any = {"usedParamSet":{"workspaceId":true,"planId":true,"assetTypeId":true,"assetId":true,"reason":true,"createdBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":234,"b":246}]},{"name":"planId","required":true,"transform":{"type":"scalar"},"locs":[{"a":249,"b":256}]},{"name":"assetTypeId","required":true,"transform":{"type":"scalar"},"locs":[{"a":259,"b":271}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":274,"b":282}]},{"name":"reason","required":true,"transform":{"type":"scalar"},"locs":[{"a":285,"b":292}]},{"name":"createdBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":295,"b":305}]}],"statement":"-- Una exclusión activa del mismo equipo (plan_exclusions_active) no inserta nada: el comando responde.\nINSERT INTO maintenance.plan_exclusions (workspace_id, plan_id, asset_type_id, asset_id, reason, created_by_principal_id)\nVALUES (:workspaceId!, :planId!, :assetTypeId!, :assetId!, :reason!, :createdBy!)\nON CONFLICT (workspace_id, plan_id, asset_id) WHERE archived_at IS NULL DO NOTHING\nRETURNING id"};
+const insertExclusionIR: any = {"usedParamSet":{"workspaceId":true,"planId":true,"assetTypeId":true,"assetId":true,"reason":true,"replacedBy":true,"createdBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":307,"b":319}]},{"name":"planId","required":true,"transform":{"type":"scalar"},"locs":[{"a":322,"b":329}]},{"name":"assetTypeId","required":true,"transform":{"type":"scalar"},"locs":[{"a":332,"b":344}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":347,"b":355}]},{"name":"reason","required":true,"transform":{"type":"scalar"},"locs":[{"a":358,"b":365}]},{"name":"replacedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":368,"b":378}]},{"name":"createdBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":381,"b":391}]}],"statement":"-- Una exclusión activa del mismo equipo (plan_exclusions_active) no inserta nada: el comando responde.\n-- Con :replacedBy, el plan propio que la crea.\nINSERT INTO maintenance.plan_exclusions (\n  workspace_id, plan_id, asset_type_id, asset_id, reason, replaced_by_plan_id, created_by_principal_id\n)\nVALUES (:workspaceId!, :planId!, :assetTypeId!, :assetId!, :reason!, :replacedBy, :createdBy!)\nON CONFLICT (workspace_id, plan_id, asset_id) WHERE archived_at IS NULL DO NOTHING\nRETURNING id"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Una exclusión activa del mismo equipo (plan_exclusions_active) no inserta nada: el comando responde.
- * INSERT INTO maintenance.plan_exclusions (workspace_id, plan_id, asset_type_id, asset_id, reason, created_by_principal_id)
- * VALUES (:workspaceId!, :planId!, :assetTypeId!, :assetId!, :reason!, :createdBy!)
+ * -- Con :replacedBy, el plan propio que la crea.
+ * INSERT INTO maintenance.plan_exclusions (
+ *   workspace_id, plan_id, asset_type_id, asset_id, reason, replaced_by_plan_id, created_by_principal_id
+ * )
+ * VALUES (:workspaceId!, :planId!, :assetTypeId!, :assetId!, :reason!, :replacedBy, :createdBy!)
  * ON CONFLICT (workspace_id, plan_id, asset_id) WHERE archived_at IS NULL DO NOTHING
  * RETURNING id
  * ```
@@ -395,5 +410,38 @@ const archiveExclusionIR: any = {"usedParamSet":{"workspaceId":true,"planId":tru
  * ```
  */
 export const archiveExclusion = new PreparedQuery<IArchiveExclusionParams,IArchiveExclusionResult>(archiveExclusionIR);
+
+
+/** 'ArchiveReplacedExclusions' parameters type */
+export interface IArchiveReplacedExclusionsParams {
+  planId: string;
+  workspaceId: string;
+}
+
+/** 'ArchiveReplacedExclusions' return type */
+export interface IArchiveReplacedExclusionsResult {
+  asset_id: string;
+  plan_id: string;
+}
+
+/** 'ArchiveReplacedExclusions' query type */
+export interface IArchiveReplacedExclusionsQuery {
+  params: IArchiveReplacedExclusionsParams;
+  result: IArchiveReplacedExclusionsResult;
+}
+
+const archiveReplacedExclusionsIR: any = {"usedParamSet":{"workspaceId":true,"planId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":188,"b":200}]},{"name":"planId","required":true,"transform":{"type":"scalar"},"locs":[{"a":228,"b":235}]}],"statement":"-- Al archivar un plan propio, sus equipos vuelven al plan de su tipo (índice plan_exclusions_replaced_by).\nUPDATE maintenance.plan_exclusions\nSET archived_at = now()\nWHERE workspace_id = :workspaceId! AND replaced_by_plan_id = :planId! AND archived_at IS NULL\nRETURNING plan_id, asset_id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Al archivar un plan propio, sus equipos vuelven al plan de su tipo (índice plan_exclusions_replaced_by).
+ * UPDATE maintenance.plan_exclusions
+ * SET archived_at = now()
+ * WHERE workspace_id = :workspaceId! AND replaced_by_plan_id = :planId! AND archived_at IS NULL
+ * RETURNING plan_id, asset_id
+ * ```
+ */
+export const archiveReplacedExclusions = new PreparedQuery<IArchiveReplacedExclusionsParams,IArchiveReplacedExclusionsResult>(archiveReplacedExclusionsIR);
 
 
