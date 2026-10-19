@@ -5,10 +5,9 @@ import { niceScale, stepIndex } from '../../app/chart-scale';
 import { scheduleText, schedulePoints, scheduleTotals } from './indicator-text';
 
 /**
- * «Programado frente a realizado» (Indicadores, M-01c): una barra por mes cuya altura es lo programado y cuya parte
- * llena, en el acento, es lo hecho. Es una sola serie: el título y la frase de abajo la nombran, sin leyenda. El mes
- * actual se rotula «en curso». Puntero y teclado (flechas, Inicio, Fin) muestran el mes; la lectura en texto y la tabla
- * lo dejan leer sin interactuar.
+ * «Programado frente a realizado» (M-01c; Resumen, ADR 0021): una barra de tope redondeado por mes. Su riel gris es lo
+ * programado y, encima, en el acento, lo hecho; una leyenda dice cuál es cuál. El mes actual se rotula «en curso».
+ * Puntero y teclado (flechas, Inicio, Fin) muestran el mes; la lectura en texto y la tabla lo dejan leer sin interactuar.
  */
 export function ScheduleChart({ months }: { months: MaintenanceIndicators['months'] }) {
   const [active, setActive] = useState<number | null>(null);
@@ -27,7 +26,17 @@ export function ScheduleChart({ months }: { months: MaintenanceIndicators['month
 
   return (
     <figure className="@container m-0">
-      <figcaption className="text-[13px] text-ink-muted">Cada barra es lo programado en el mes; la parte llena, lo que ya se hizo.</figcaption>
+      <figcaption className="sr-only">Cada barra es lo programado en el mes; la parte llena, lo que ya se hizo.</figcaption>
+      <ul className="flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-ink-muted" aria-label="Leyenda">
+        <li className="inline-flex items-center gap-2">
+          <span aria-hidden className="size-3 rounded-[4px] bg-line-strong" />
+          Programado
+        </li>
+        <li className="inline-flex items-center gap-2">
+          <span aria-hidden className="size-3 rounded-[4px] bg-action" />
+          Hecho
+        </li>
+      </ul>
       <div className="mt-5 flex gap-3">
         <div className="relative w-6 shrink-0 text-right text-[12px] tabular-nums text-ink-muted" aria-hidden>
           {ticks.map((tick) => (
@@ -54,7 +63,7 @@ export function ScheduleChart({ months }: { months: MaintenanceIndicators['month
               <div key={point.month} className="flex h-full flex-1 items-end justify-center" onPointerEnter={() => setActive(index)}>
                 <span
                   className={cn(
-                    'relative w-full max-w-5 overflow-hidden rounded-t-[4px] border border-ink-subtle bg-line-strong transition-opacity duration-150',
+                    'relative w-full max-w-6 overflow-hidden rounded-t-[8px] bg-line-strong transition-opacity duration-150',
                     active !== null && active !== index && 'opacity-45',
                   )}
                   style={{ height: point.due === 0 ? 0 : `${Math.max(3, (point.due / max) * 100)}%` }}

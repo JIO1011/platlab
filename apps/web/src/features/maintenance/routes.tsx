@@ -14,13 +14,15 @@ export const maintenanceRoutes: ModuleRoutes = {
       path: 'mantenimiento',
       lazy: async () => ({ Component: (await pages()).MaintenanceLayout }),
       children: [
-        // Por hacer, la portada; `?registrar=<equipo>` abre la hoja de registro con ese equipo.
-        { index: true, lazy: async () => ({ Component: (await pages()).MaintenanceTodoPage }) },
+        // El Resumen es la portada (ADR 0021): las cifras, los próximos trabajos, los indicadores y los avisos.
+        { index: true, lazy: async () => ({ Component: (await pages()).MaintenanceSummaryPage }) },
+        // La lista de trabajo; `?registrar=<equipo>` abre la hoja de registro con ese equipo.
+        { path: 'por-hacer', lazy: async () => ({ Component: (await pages()).MaintenanceTodoPage }) },
         // Historial de lo registrado; `?equipo=` deja solo los de ese equipo.
         { path: 'historial', lazy: async () => ({ Component: (await pages()).MaintenanceHistoryPage }) },
-        // Indicadores de los últimos 12 meses y «Evaluar reemplazo» (`#reemplazo`).
-        { path: 'indicadores', lazy: async () => ({ Component: (await pages()).MaintenanceIndicatorsPage }) },
         // Planes de trabajo (y, desde su menú, los proveedores).
+        // La sección Indicadores se fundió en el Resumen: el enlace viejo lleva allí, con su `#reemplazo`.
+        { path: 'indicadores', lazy: async () => ({ Component: (await pages()).IndicatorsRedirect }) },
         { path: 'planes', lazy: async () => ({ Component: (await pages()).MaintenancePlansPage }) },
       ],
     },

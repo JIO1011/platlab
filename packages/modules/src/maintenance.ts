@@ -36,11 +36,10 @@ export const maintenanceModule = defineModule({
       label: 'Mantenimiento',
       permission: 'maintenance.work.read',
       sections: [
-        // Por hacer es la portada (simplificación del 17-10-2026, ADR 0020).
-        { path: '', label: 'Por hacer', permission: 'maintenance.work.read' },
+        // El Resumen es la portada y reúne los indicadores, como en Equipos y Reactivos (ADR 0021).
+        { path: '', label: 'Resumen', permission: 'maintenance.work.read' },
+        { path: 'por-hacer', label: 'Por hacer', permission: 'maintenance.work.read' },
         { path: 'historial', label: 'Historial', permission: 'maintenance.work.read' },
-        // Para quien mide, sin mezclarlo con Por hacer (M-01c).
-        { path: 'indicadores', label: 'Indicadores', permission: 'maintenance.work.read' },
         { path: 'planes', label: 'Planes', permission: 'maintenance.work.read' },
       ],
     },

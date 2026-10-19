@@ -9,6 +9,7 @@ export { IconChip } from './components/icon-chip';
 export { IconTile } from './components/icon-tile';
 export { Input, Textarea } from './components/input';
 export { OptionRow } from './components/option-row';
+export { Popover, PopoverContent, PopoverTrigger } from './components/popover';
 export { Quantity } from './components/quantity';
 export { Segmented } from './components/segmented';
 export { Select, type SelectOption } from './components/select';

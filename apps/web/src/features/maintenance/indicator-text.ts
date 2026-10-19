@@ -8,8 +8,6 @@ import { formatDate } from '../../app/format';
 type Compliance = MaintenanceIndicators['compliance'];
 type Month = MaintenanceIndicators['months'][number];
 
-const plural = (n: number, one: string, many: string) => `${n}\u00A0${n === 1 ? one : many}`;
-
 /** «Últimos 12 meses: nov 2025 a oct 2026». */
 export const periodText = ({ from, to }: MaintenanceIndicators['period']) =>
   `Últimos 12 meses: ${monthName(from.slice(0, 7), 'short-year')} a ${monthName(to.slice(0, 7), 'short-year')}`;
@@ -27,12 +25,6 @@ export function compliancePercent(compliance: Compliance): number | null {
 export function onTimeText(compliance: Compliance): string {
   const total = scheduledCount(compliance);
   return total === 0 ? 'Sin trabajos programados todavía' : `${compliance.onTime} de ${total} a tiempo`;
-}
-
-/** «8 de 10 a tiempo · 1 tarde · 1 atrasado»; sin nada programado, «Sin trabajos programados todavía». */
-export function complianceDetail(compliance: Compliance): string {
-  if (scheduledCount(compliance) === 0) return onTimeText(compliance);
-  return `${onTimeText(compliance)} · ${compliance.late}\u00A0tarde · ${plural(compliance.pending, 'atrasado', 'atrasados')}`;
 }
 
 /**

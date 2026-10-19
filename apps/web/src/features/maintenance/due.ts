@@ -51,6 +51,16 @@ export function groupDue<T extends DueEntry>(items: T[], today: string): Array<{
     .filter((entry) => entry.items.length > 0);
 }
 
+/**
+ * Los primeros `limit` trabajos de «Por hacer» (el Resumen muestra cinco): los atrasados primero y, dentro de cada
+ * grupo, el orden recibido, que el servidor da por fecha.
+ */
+export function firstDue<T extends DueEntry>(items: T[], today: string, limit: number): T[] {
+  return groupDue(items, today)
+    .flatMap((entry) => entry.items)
+    .slice(0, limit);
+}
+
 /** El plazo en palabras: «Vence hoy», «hace 3 días», «en 1 día». */
 export function dueText(dueOn: string, today: string): string {
   const days = daysUntil(dueOn, today);

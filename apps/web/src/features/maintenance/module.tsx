@@ -1,4 +1,4 @@
-import { CalendarClock, ChartColumn, History, Wrench } from 'lucide-react';
+import { CalendarClock, History, ListChecks, Wrench } from 'lucide-react';
 import type { WebModule } from '../../app/web-module';
 
 const overdueText = (n: number) => (n === 1 ? '1 trabajo atrasado' : `${n} trabajos atrasados`);
@@ -10,7 +10,7 @@ const extensionPages = () => import('./extension-pages');
 export const maintenanceWebModule: WebModule = {
   code: 'maintenance',
   Icon: Wrench,
-  sectionIcons: { historial: History, indicadores: ChartColumn, planes: CalendarClock },
+  sectionIcons: { 'por-hacer': ListChecks, historial: History, planes: CalendarClock },
   // La tarjeta del Inicio (M-01c): los atrasados son el aviso, en la píldora; los mismos para quien registra y quien planifica.
   home: {
     counters: [
