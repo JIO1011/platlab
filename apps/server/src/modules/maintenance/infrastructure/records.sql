@@ -41,11 +41,14 @@ WHERE workspace_id = :workspaceId! AND plan_id = :planId! AND asset_id = :assetI
 
 /* @name listRecords */
 -- Del más reciente al más antiguo: por la fecha del trabajo y después por cuándo se registró. Con
--- :recordId, uno; con :assetId, los de un equipo (índice records_asset). Con el equipo, el plan, el
+-- :recordId, uno; con :assetId, los de un equipo (índice records_asset). Con el equipo y su área, el plan, el
 -- proveedor, quién registró, el certificado y, si se anuló o corrige a otro, quién, cuándo y cuál. Los
--- anulados siguen a la vista. `recorded_key` lleva la hora exacta para el cursor.
+-- anulados siguen a la vista. `recorded_key` lleva la hora exacta para el cursor. Filtros del Historial
+-- (M-01d): periodo por la fecha del trabajo, tipos, resultados, áreas del equipo hoy y proveedores, con
+-- :internal para el trabajo sin proveedor.
 SELECT
-  r.id, r.asset_id, a.code AS "asset_code!", a.name AS "asset_name!", r.plan_id, p.title AS "plan_title?",
+  r.id, r.asset_id, a.code AS "asset_code!", a.name AS "asset_name!", area.name AS "area_name?",
+  r.plan_id, p.title AS "plan_title?", p.requirement AS "plan_requirement?",
   r.kind, r.performed_on, r.due_on, r.provider_id, pv.name AS "provider_name?", r.result, r.observations, r.checklist,
   trim_scale(r.cost) AS cost, r.valid_until, r.acceptance_criteria, ident.display_name AS "recorded_by_name?",
   r.recorded_at, r.recorded_at::text AS "recorded_key!",
@@ -55,6 +58,8 @@ SELECT
   correction.id AS "corrected_by_id?", correction.performed_on AS "corrected_by_performed_on?"
 FROM maintenance.records AS r
 JOIN equipment.asset_directory AS a ON a.workspace_id = r.workspace_id AND a.id = r.asset_id
+LEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
+LEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
 LEFT JOIN maintenance.plans AS p ON p.workspace_id = r.workspace_id AND p.id = r.plan_id
 LEFT JOIN maintenance.providers AS pv ON pv.workspace_id = r.workspace_id AND pv.id = r.provider_id
 LEFT JOIN maintenance.record_certificates AS c ON c.workspace_id = r.workspace_id AND c.record_id = r.id
@@ -69,6 +74,14 @@ LEFT JOIN core.identities AS voider ON voider.id = vm.identity_id
 WHERE r.workspace_id = :workspaceId!
   AND (:recordId::uuid IS NULL OR r.id = :recordId::uuid)
   AND (:assetId::uuid IS NULL OR r.asset_id = :assetId::uuid)
+  AND (:from::date IS NULL OR r.performed_on >= :from::date)
+  AND (:to::date IS NULL OR r.performed_on <= :to::date)
+  AND (:kinds::text[] IS NULL OR r.kind = ANY (:kinds::text[]))
+  AND (:results::text[] IS NULL OR r.result = ANY (:results::text[]))
+  AND (:areaIds::uuid[] IS NULL OR la.area_id = ANY (:areaIds::uuid[]))
+  AND (:providerIds::uuid[] IS NULL AND NOT coalesce(:internal::boolean, false)
+       OR r.provider_id = ANY (:providerIds::uuid[])
+       OR coalesce(:internal::boolean, false) AND r.provider_id IS NULL)
   AND (:afterOn::date IS NULL
        OR (r.performed_on, r.recorded_at, r.id) < (:afterOn::date, :afterAt::timestamptz, :afterId::uuid))
 ORDER BY r.performed_on DESC, r.recorded_at DESC, r.id DESC

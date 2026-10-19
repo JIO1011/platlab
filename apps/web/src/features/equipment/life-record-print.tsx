@@ -1,18 +1,19 @@
-import type { Asset, AssetDocument, AssetEvent, Fault } from '@platlab/contracts';
+import type { Asset, AssetDocument, Fault } from '@platlab/contracts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, cn } from '@platlab/ui';
 import { useState, type ReactNode } from 'react';
 import { formatDate, formatDateTime, formatDayInZone } from '../../app/format';
 import { PrintDialog, printCell, printHead } from '../../app/print-dialog';
 import { PRINT_LIMIT, usePrintRows } from '../../app/print-rows';
 import { QueryErrorState } from '../../app/states';
-import { describeEvent } from './asset-history';
+import type { TimelineEntry } from '../../app/timeline';
+import { useAssetTimeline } from './asset-history';
 import { formatMoney, todayIn, usefulLifeText, warrantyText } from './asset-facts';
 import { availabilityLabel, conditionLabel, conservationLabel, placeLines } from './asset-text';
 import { useEquipment } from './context';
 import { documentKindLabel } from './document-text';
 import { faultStatusOrder, faultTypeLabel, personText } from './fault-text';
 import { faultOutcome, limitNote, oldestFirst, usableThenText } from './life-record';
-import { useAsset, useAssetDocuments, useAssetHistory, useFaults } from './queries';
+import { useAsset, useAssetDocuments, useFaults } from './queries';
 
 const NO_DATA = 'Sin dato';
 const NONE = '—';
@@ -192,10 +193,11 @@ function FaultsSection({ faults, timeZone }: { faults: FaultRows; timeZone: stri
 // El hecho trae sus párrafos de la ficha (13 px, gris): en la hoja heredan el tamaño de la celda y la tinta.
 const eventCell = cn(printCell, '[&_p]:text-[length:inherit] [&_p]:text-ink');
 
-function HistorySection({ events, timeZone }: { events: AssetEvent[]; timeZone: string }) {
+/** Los hechos del equipo y, con Mantenimiento, sus trabajos (M-01d), del más antiguo al más reciente; los incidentes van en su tabla. */
+function HistorySection({ entries, hasMore }: { entries: TimelineEntry[]; hasMore: boolean }) {
   return (
-    <Section title={`Historial (${events.length})`}>
-      {events.length === 0 ? (
+    <Section title={`Historial (${entries.length})`}>
+      {entries.length === 0 ? (
         <Empty>Sin hechos</Empty>
       ) : (
         <Table className="text-[12px]">
@@ -210,25 +212,25 @@ function HistorySection({ events, timeZone }: { events: AssetEvent[]; timeZone: 
             </TableRow>
           </TableHead>
           <TableBody>
-            {oldestFirst(events).map((event, index, all) => {
-              const { title, details } = describeEvent(event);
-              return (
-                <TableRow
-                  key={`${event.kind}-${event.occurredAt}-${index}`}
-                  // Las últimas filas no se separan de las firmas, que no viajan solas a otra página.
-                  className={cn('break-inside-avoid hover:bg-transparent', index >= all.length - 2 && 'break-after-avoid')}
-                >
-                  <TableCell className={cn(printCell, 'whitespace-nowrap')}>{formatDayInZone(event.occurredAt, timeZone)}</TableCell>
-                  <TableCell className={eventCell}>{title}</TableCell>
-                  <TableCell className={eventCell}>{details}</TableCell>
-                  <TableCell className={cn(printCell, 'whitespace-nowrap')}>{event.actor ?? NONE}</TableCell>
-                </TableRow>
-              );
-            })}
+            {oldestFirst(entries).map((entry, index, all) => (
+              <TableRow
+                key={entry.key}
+                // Las últimas filas no se separan de las firmas, que no viajan solas a otra página.
+                className={cn('break-inside-avoid hover:bg-transparent', index >= all.length - 2 && 'break-after-avoid')}
+              >
+                <TableCell className={cn(printCell, 'whitespace-nowrap')}>{formatDate(entry.day)}</TableCell>
+                <TableCell className={eventCell}>
+                  {entry.title}
+                  {entry.voided ? ' (anulado)' : null}
+                </TableCell>
+                <TableCell className={eventCell}>{entry.details}</TableCell>
+                <TableCell className={cn(printCell, 'whitespace-nowrap')}>{entry.actor ?? NONE}</TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       )}
-      <Note count={events.length} hasMore={false} />
+      <Note count={entries.length} hasMore={hasMore} />
     </Section>
   );
 }
@@ -263,14 +265,14 @@ function Signatures() {
 
 /** El diálogo y la hoja con lo que ya se cargó; `faults` es nulo cuando quien imprime no ve los incidentes. */
 function LifeRecordSheet({
+  assetId,
   asset,
-  history,
   documents,
   faults,
   onClose,
 }: {
+  assetId: string;
   asset: ReturnType<typeof useAsset>;
-  history: ReturnType<typeof useAssetHistory>;
   documents: ReturnType<typeof useAssetDocuments>;
   faults: FaultRows | null;
   onClose: () => void;
@@ -278,10 +280,17 @@ function LifeRecordSheet({
   const { me } = useEquipment();
   const timeZone = me.workspace.timeZone;
   const [printedAt] = useState(() => new Date().toISOString());
+  // El historial con los trabajos de otros módulos (M-01d); los incidentes van en su propia tabla.
+  const { sources, timeline } = useAssetTimeline(assetId, { seesFaults: false, historyLimit: PRINT_LIMIT });
 
   const faultsReady = !faults || (faults.query.isSuccess && !faults.query.isPlaceholderData && !faults.loadingMore);
-  const ready = asset.isSuccess && history.isSuccess && documents.isSuccess && faultsReady;
-  const failed = [asset, history, documents, faults?.query].find((query) => query?.isError);
+  const ready = asset.isSuccess && timeline.status === 'success' && documents.isSuccess && faultsReady;
+  const failedQuery = [asset, documents, faults?.query].find((query) => query?.isError);
+  const failed = failedQuery
+    ? { error: failedQuery.error, retry: () => void failedQuery.refetch() }
+    : timeline.status === 'error'
+      ? timeline
+      : null;
 
   return (
     <PrintDialog
@@ -307,15 +316,16 @@ function LifeRecordSheet({
       hasContent={asset.isSuccess}
       onClose={onClose}
     >
+      {sources}
       {failed ? (
-        <QueryErrorState error={failed.error} onRetry={() => void failed.refetch()} />
-      ) : ready ? (
+        <QueryErrorState error={failed.error} onRetry={failed.retry} />
+      ) : ready && timeline.status === 'success' ? (
         <>
           <IdentitySection asset={asset.data} timeZone={timeZone} />
           <DocumentsSection documents={documents.data.items} timeZone={timeZone} />
           <ConditionSection asset={asset.data} />
           {faults ? <FaultsSection faults={faults} timeZone={timeZone} /> : null}
-          <HistorySection events={history.data.items} timeZone={timeZone} />
+          <HistorySection entries={timeline.entries} hasMore={timeline.hasMore} />
           <Signatures />
         </>
       ) : (
@@ -334,13 +344,12 @@ function WithFaults({
   workspaceId: string;
   assetId: string;
   asset: ReturnType<typeof useAsset>;
-  history: ReturnType<typeof useAssetHistory>;
   documents: ReturnType<typeof useAssetDocuments>;
   onClose: () => void;
 }) {
   const query = useFaults(workspaceId, { statuses: faultStatusOrder, assetId }, 100);
   const { rows, hasMore, loadingMore } = usePrintRows(query);
-  return <LifeRecordSheet {...sheet} faults={{ query, rows, hasMore, loadingMore }} />;
+  return <LifeRecordSheet {...sheet} assetId={assetId} faults={{ query, rows, hasMore, loadingMore }} />;
 }
 
 /**
@@ -352,11 +361,10 @@ function WithFaults({
 export function LifeRecordPrint({ assetId, seesFaults, onClose }: { assetId: string; seesFaults: boolean; onClose: () => void }) {
   const { workspaceId } = useEquipment();
   const asset = useAsset(workspaceId, assetId);
-  const history = useAssetHistory(workspaceId, assetId, true, PRINT_LIMIT);
   const documents = useAssetDocuments(workspaceId, assetId);
   return seesFaults ? (
-    <WithFaults workspaceId={workspaceId} assetId={assetId} asset={asset} history={history} documents={documents} onClose={onClose} />
+    <WithFaults workspaceId={workspaceId} assetId={assetId} asset={asset} documents={documents} onClose={onClose} />
   ) : (
-    <LifeRecordSheet asset={asset} history={history} documents={documents} faults={null} onClose={onClose} />
+    <LifeRecordSheet assetId={assetId} asset={asset} documents={documents} faults={null} onClose={onClose} />
   );
 }

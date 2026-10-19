@@ -662,6 +662,32 @@ Cambios: 15-10-2026 (Mantenimiento vuelve a M7, construido después de E-01; fot
     - Dar de baja se hace en la ficha de Equipos.
     - El aviso de Por hacer lo ve solo el Administrador; la lista de Indicadores, quien entra a Mantenimiento.
   - *Píldora del Inicio:* la tarjeta de Mantenimiento con los atrasados en ámbar, los próximos 30 días y los equipos sin plan, y los registros por día de los últimos 30 días.
+- **Diseño de M-01d (19-10-2026).**
+  - *Historial para el auditor.*
+    - Filtros en la dirección, como en Movimientos y el Informe de Equipos: periodo (desde y hasta, por la fecha del trabajo), tipo de trabajo, resultado, área del equipo y proveedor, con «Interno». El filtro por equipo sigue llegando desde la ficha.
+    - Los anulados siguen a la vista con su marca.
+    - «Excel» descarga lo filtrado por partes ([ADR 0017](#adr-0017)), con el espacio, la fecha, quién lo generó y los filtros en el encabezado, y queda en la auditoría como reporte. Lleva todos los datos del registro: fecha que tocaba, plan y requisito, costo, «válida hasta», certificado, quién registró y la anulación con su motivo.
+    - «Imprimir» saca la misma lista, hasta 1.000 registros, como Movimientos.
+    - Filtros e «Imprimir» son de quien ve el Historial (Administrador y Operador). «Excel» es un reporte (01 §5): del Administrador, con `maintenance.report.export`, como el Informe de Equipos.
+  - *Línea de tiempo.*
+    - La pestaña Historial de la ficha reúne, del más reciente al más antiguo:
+      - el alta, los cambios de estado y de estado físico, y los traslados;
+      - los incidentes (reportado y solucionado), para quien los atiende;
+      - con Mantenimiento, los trabajos registrados en su fecha de trabajo, con los anulados marcados.
+    - En la hoja de vida, la tabla Historial suma los trabajos de mantenimiento; los incidentes siguen en su propia tabla.
+    - Mantenimiento entrega sus hechos por un punto de extensión de Equipos que recibe datos, no pantalla, y Equipos los ordena con los suyos. Equipos no importa Mantenimiento.
+  - *Estado de calibración* (6.4.8).
+    - Va en la cabecera de la ficha, por un punto de extensión de Equipos. Al escanear el QR, Administrador y Operador llegan a ella.
+    - Lo ven quienes entran a Mantenimiento: Propietario, Administrador y Operador (decidido por el usuario). Docente y Estudiante no.
+    - Solo en pantalla: la etiqueta impresa no lleva la fecha y no caduca (decidido por el usuario).
+    - Se calcula al consultar, con los planes de calibración que incluyen al equipo:
+      - «Calibrada hasta…» si el último registro no es «No conforme» y la fecha no venció, con el color del semáforo;
+      - «Calibración vencida: no usar» si la fecha pasó;
+      - «Calibración no conforme: no usar» si el último registro es «No conforme»;
+      - «Sin calibración registrada: no usar» si el plan aún no tiene registros (decidido por el usuario). Se corrige registrando la última calibración con su fecha pasada.
+    - Con varios planes de calibración manda el peor; si todos están vigentes, la fecha más cercana. Sin plan de calibración no se muestra nada.
+    - Es la misma regla que «Calibraciones vigentes» de Indicadores.
+    - No cambia el estado del equipo: para sacarlo de uso se usa «Cambiar estado» de Equipos.
 
 Motivo: el usuario quiere un módulo intermedio con la estructura de los demás, sin repetir la información de Equipos. Las decisiones de planes por tipo, el Operador con costos, el «No conforme» que propone y la lista de proveedores las tomó el 17-10-2026. Precisa M-01 del roadmap y el M7 del [ADR 0019](#adr-0019).
 

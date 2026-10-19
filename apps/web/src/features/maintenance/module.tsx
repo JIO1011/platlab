@@ -45,5 +45,18 @@ export const maintenanceWebModule: WebModule = {
       permission: 'maintenance.work.record',
       load: async () => (await extensionPages()).RepairAction,
     },
+    // M-01d: el estado de calibración en la cabecera de la ficha y los trabajos en su línea de tiempo.
+    {
+      point: 'equipment.asset-status',
+      label: 'Calibración',
+      permission: 'maintenance.work.read',
+      load: async () => (await extensionPages()).CalibrationStatus,
+    },
+    {
+      point: 'equipment.asset-events',
+      label: 'Mantenimiento',
+      permission: 'maintenance.work.read',
+      load: async () => (await extensionPages()).AssetMaintenanceEvents,
+    },
   ],
 };

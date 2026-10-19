@@ -1,7 +1,7 @@
 import type { Asset } from '@platlab/contracts';
 import { Button, IconTile, Sheet, Tooltip, cn } from '@platlab/ui';
 import { Activity, ArrowLeftRight, FileText, Microscope, Pencil, QrCode, TriangleAlert } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { glassCard, iconAction, primaryAction } from '../../app/glass';
 import { InfoPill } from '../../app/pills';
@@ -31,6 +31,7 @@ export function AssetHeader({
   timeZone,
   onAction,
   onLifeRecord,
+  statusLines,
 }: {
   asset: Asset;
   canChangeCondition: boolean;
@@ -47,6 +48,8 @@ export function AssetHeader({
   onAction: (sheet: AssetSheet) => void;
   /** Abre la Hoja de vida imprimible. */
   onLifeRecord: () => void;
+  /** Lo que otros módulos dicen del estado del equipo, junto a sus datos (M-01d: la calibración). */
+  statusLines?: ReactNode;
 }) {
   const retired = asset.condition === 'retired';
   const showCondition = canChangeCondition && !retired;
@@ -92,6 +95,8 @@ export function AssetHeader({
               {meta ? <InfoPill>{meta}</InfoPill> : null}
               {asset.powerSupply ? <InfoPill>{asset.powerSupply}</InfoPill> : null}
             </div>
+            {/* Su propia línea: el estado de otro módulo no se mezcla con los datos fijos; vacía, no deja hueco. */}
+            {statusLines ? <div className="flex flex-wrap items-center gap-2 empty:hidden">{statusLines}</div> : null}
           </div>
         </div>
         <div className="grid shrink-0 gap-3 lg:w-64">

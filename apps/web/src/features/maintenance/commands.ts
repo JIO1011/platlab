@@ -1,9 +1,11 @@
 import { asset, plan, provider, record, recordCreated, replacementDismissed } from '@platlab/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
-import { api, isApiError } from '../../app/api';
+import { api, apiDownload, isApiError } from '../../app/api';
 import { useModuleCommand } from '../../app/commands';
 import { useUserKey, workspaceKey } from '../../app/queries';
+import { saveFile } from '../../app/save-file';
+import { historyApiSearch, type HistoryFilters } from './history-filters';
 import { useMaintenanceKey } from './queries';
 
 /**
@@ -127,4 +129,17 @@ export function maintenanceErrorMessage(error: unknown): string {
   if (isApiError(error, 'NETWORK')) return 'Sin conexión. Vuelve a intentarlo: si ya se registró, no se duplicará.';
   if (isApiError(error, 'VALIDATION_FAILED')) return error.message;
   return 'PlatLab no pudo registrar el cambio. Vuelve a intentarlo.';
+}
+
+/**
+ * «Excel» del Historial (M-01d), del Administrador: lo filtrado, con el nombre de archivo del servidor. Es una
+ * consulta: no cambia nada, así que no lleva clave idempotente ni refresca la caché.
+ */
+export function useExportRecords(workspaceId: string) {
+  return useMutation({
+    mutationFn: async (filters: HistoryFilters) => {
+      const { blob, fileName } = await apiDownload(`/workspaces/${workspaceId}/maintenance/records/export?${historyApiSearch(filters)}`);
+      saveFile(blob, fileName);
+    },
+  });
 }

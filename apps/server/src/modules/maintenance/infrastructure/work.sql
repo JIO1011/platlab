@@ -90,3 +90,12 @@ FROM maintenance.plan_assets AS pa
 JOIN maintenance.plans AS p ON p.workspace_id = pa.workspace_id AND p.id = pa.plan_id
 WHERE pa.workspace_id = :workspaceId! AND pa.asset_id = ANY (:assetIds!::uuid[])
 ORDER BY pa.asset_id, (pa.last_result = 'fail') IS TRUE DESC, pa.due_on, p.id;
+
+/* @name listAreas */
+-- Las áreas con algún equipo no dado de baja, para el filtro del Historial (M-01d), sin tildes ni mayúsculas.
+SELECT DISTINCT area.id AS "id!", area.name AS "name!", core.fold_text(area.name) AS "sort_name!"
+FROM equipment.asset_directory AS a
+JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
+JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
+WHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired'
+ORDER BY core.fold_text(area.name), area.id;

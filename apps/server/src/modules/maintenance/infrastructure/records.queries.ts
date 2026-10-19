@@ -172,15 +172,23 @@ export interface IListRecordsParams {
   afterAt?: DateOrString | null | void;
   afterId?: string | null | void;
   afterOn?: string | null | void;
+  areaIds?: stringArray | null | void;
   assetId?: string | null | void;
+  from?: string | null | void;
+  internal?: boolean | null | void;
+  kinds?: stringArray | null | void;
   limit: NumberOrString;
+  providerIds?: stringArray | null | void;
   recordId?: string | null | void;
+  results?: stringArray | null | void;
+  to?: string | null | void;
   workspaceId: string;
 }
 
 /** 'ListRecords' return type */
 export interface IListRecordsResult {
   acceptance_criteria: string | null;
+  area_name: string | null;
   asset_code: string;
   asset_id: string;
   asset_name: string;
@@ -200,6 +208,7 @@ export interface IListRecordsResult {
   observations: string | null;
   performed_on: string;
   plan_id: string | null;
+  plan_requirement: string | null;
   plan_title: string | null;
   provider_id: string | null;
   provider_name: string | null;
@@ -219,17 +228,20 @@ export interface IListRecordsQuery {
   result: IListRecordsResult;
 }
 
-const listRecordsIR: any = {"usedParamSet":{"workspaceId":true,"recordId":true,"assetId":true,"afterOn":true,"afterAt":true,"afterId":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2396,"b":2408}]},{"name":"recordId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2417,"b":2425},{"a":2451,"b":2459}]},{"name":"assetId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2475,"b":2482},{"a":2514,"b":2521}]},{"name":"afterOn","required":false,"transform":{"type":"scalar"},"locs":[{"a":2537,"b":2544},{"a":2611,"b":2618}]},{"name":"afterAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":2627,"b":2634}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2650,"b":2657}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":2733,"b":2739}]}],"statement":"-- Del más reciente al más antiguo: por la fecha del trabajo y después por cuándo se registró. Con\n-- :recordId, uno; con :assetId, los de un equipo (índice records_asset). Con el equipo, el plan, el\n-- proveedor, quién registró, el certificado y, si se anuló o corrige a otro, quién, cuándo y cuál. Los\n-- anulados siguen a la vista. `recorded_key` lleva la hora exacta para el cursor.\nSELECT\n  r.id, r.asset_id, a.code AS \"asset_code!\", a.name AS \"asset_name!\", r.plan_id, p.title AS \"plan_title?\",\n  r.kind, r.performed_on, r.due_on, r.provider_id, pv.name AS \"provider_name?\", r.result, r.observations, r.checklist,\n  trim_scale(r.cost) AS cost, r.valid_until, r.acceptance_criteria, ident.display_name AS \"recorded_by_name?\",\n  r.recorded_at, r.recorded_at::text AS \"recorded_key!\",\n  c.url AS \"certificate_url?\", c.byte_size AS \"certificate_byte_size?\", c.uploaded_at AS \"certificate_uploaded_at?\",\n  r.fault_id, r.corrects_record_id, corrected.performed_on AS \"corrects_performed_on?\",\n  r.voided_at, r.void_reason, voider.display_name AS \"voided_by_name?\",\n  correction.id AS \"corrected_by_id?\", correction.performed_on AS \"corrected_by_performed_on?\"\nFROM maintenance.records AS r\nJOIN equipment.asset_directory AS a ON a.workspace_id = r.workspace_id AND a.id = r.asset_id\nLEFT JOIN maintenance.plans AS p ON p.workspace_id = r.workspace_id AND p.id = r.plan_id\nLEFT JOIN maintenance.providers AS pv ON pv.workspace_id = r.workspace_id AND pv.id = r.provider_id\nLEFT JOIN maintenance.record_certificates AS c ON c.workspace_id = r.workspace_id AND c.record_id = r.id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = r.workspace_id AND pr.id = r.recorded_by_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nLEFT JOIN maintenance.records AS corrected ON corrected.workspace_id = r.workspace_id AND corrected.id = r.corrects_record_id\nLEFT JOIN maintenance.records AS correction ON correction.workspace_id = r.workspace_id AND correction.corrects_record_id = r.id\nLEFT JOIN core.principals AS vpr ON vpr.workspace_id = r.workspace_id AND vpr.id = r.voided_by_principal_id\nLEFT JOIN core.memberships AS vm ON vm.workspace_id = vpr.workspace_id AND vm.id = vpr.membership_id\nLEFT JOIN core.identities AS voider ON voider.id = vm.identity_id\nWHERE r.workspace_id = :workspaceId!\n  AND (:recordId::uuid IS NULL OR r.id = :recordId::uuid)\n  AND (:assetId::uuid IS NULL OR r.asset_id = :assetId::uuid)\n  AND (:afterOn::date IS NULL\n       OR (r.performed_on, r.recorded_at, r.id) < (:afterOn::date, :afterAt::timestamptz, :afterId::uuid))\nORDER BY r.performed_on DESC, r.recorded_at DESC, r.id DESC\nLIMIT :limit!"};
+const listRecordsIR: any = {"usedParamSet":{"workspaceId":true,"recordId":true,"assetId":true,"from":true,"to":true,"kinds":true,"results":true,"areaIds":true,"providerIds":true,"internal":true,"afterOn":true,"afterAt":true,"afterId":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2848,"b":2860}]},{"name":"recordId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2869,"b":2877},{"a":2903,"b":2911}]},{"name":"assetId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2927,"b":2934},{"a":2966,"b":2973}]},{"name":"from","required":false,"transform":{"type":"scalar"},"locs":[{"a":2989,"b":2993},{"a":3030,"b":3034}]},{"name":"to","required":false,"transform":{"type":"scalar"},"locs":[{"a":3050,"b":3052},{"a":3089,"b":3091}]},{"name":"kinds","required":false,"transform":{"type":"scalar"},"locs":[{"a":3107,"b":3112},{"a":3147,"b":3152}]},{"name":"results","required":false,"transform":{"type":"scalar"},"locs":[{"a":3171,"b":3178},{"a":3215,"b":3222}]},{"name":"areaIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":3241,"b":3248},{"a":3287,"b":3294}]},{"name":"providerIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":3313,"b":3324},{"a":3417,"b":3428}]},{"name":"internal","required":false,"transform":{"type":"scalar"},"locs":[{"a":3359,"b":3367},{"a":3458,"b":3466}]},{"name":"afterOn","required":false,"transform":{"type":"scalar"},"locs":[{"a":3519,"b":3526},{"a":3593,"b":3600}]},{"name":"afterAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":3609,"b":3616}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":3632,"b":3639}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":3715,"b":3721}]}],"statement":"-- Del más reciente al más antiguo: por la fecha del trabajo y después por cuándo se registró. Con\n-- :recordId, uno; con :assetId, los de un equipo (índice records_asset). Con el equipo y su área, el plan, el\n-- proveedor, quién registró, el certificado y, si se anuló o corrige a otro, quién, cuándo y cuál. Los\n-- anulados siguen a la vista. `recorded_key` lleva la hora exacta para el cursor. Filtros del Historial\n-- (M-01d): periodo por la fecha del trabajo, tipos, resultados, áreas del equipo hoy y proveedores, con\n-- :internal para el trabajo sin proveedor.\nSELECT\n  r.id, r.asset_id, a.code AS \"asset_code!\", a.name AS \"asset_name!\", area.name AS \"area_name?\",\n  r.plan_id, p.title AS \"plan_title?\", p.requirement AS \"plan_requirement?\",\n  r.kind, r.performed_on, r.due_on, r.provider_id, pv.name AS \"provider_name?\", r.result, r.observations, r.checklist,\n  trim_scale(r.cost) AS cost, r.valid_until, r.acceptance_criteria, ident.display_name AS \"recorded_by_name?\",\n  r.recorded_at, r.recorded_at::text AS \"recorded_key!\",\n  c.url AS \"certificate_url?\", c.byte_size AS \"certificate_byte_size?\", c.uploaded_at AS \"certificate_uploaded_at?\",\n  r.fault_id, r.corrects_record_id, corrected.performed_on AS \"corrects_performed_on?\",\n  r.voided_at, r.void_reason, voider.display_name AS \"voided_by_name?\",\n  correction.id AS \"corrected_by_id?\", correction.performed_on AS \"corrected_by_performed_on?\"\nFROM maintenance.records AS r\nJOIN equipment.asset_directory AS a ON a.workspace_id = r.workspace_id AND a.id = r.asset_id\nLEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id\nLEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id\nLEFT JOIN maintenance.plans AS p ON p.workspace_id = r.workspace_id AND p.id = r.plan_id\nLEFT JOIN maintenance.providers AS pv ON pv.workspace_id = r.workspace_id AND pv.id = r.provider_id\nLEFT JOIN maintenance.record_certificates AS c ON c.workspace_id = r.workspace_id AND c.record_id = r.id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = r.workspace_id AND pr.id = r.recorded_by_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nLEFT JOIN maintenance.records AS corrected ON corrected.workspace_id = r.workspace_id AND corrected.id = r.corrects_record_id\nLEFT JOIN maintenance.records AS correction ON correction.workspace_id = r.workspace_id AND correction.corrects_record_id = r.id\nLEFT JOIN core.principals AS vpr ON vpr.workspace_id = r.workspace_id AND vpr.id = r.voided_by_principal_id\nLEFT JOIN core.memberships AS vm ON vm.workspace_id = vpr.workspace_id AND vm.id = vpr.membership_id\nLEFT JOIN core.identities AS voider ON voider.id = vm.identity_id\nWHERE r.workspace_id = :workspaceId!\n  AND (:recordId::uuid IS NULL OR r.id = :recordId::uuid)\n  AND (:assetId::uuid IS NULL OR r.asset_id = :assetId::uuid)\n  AND (:from::date IS NULL OR r.performed_on >= :from::date)\n  AND (:to::date IS NULL OR r.performed_on <= :to::date)\n  AND (:kinds::text[] IS NULL OR r.kind = ANY (:kinds::text[]))\n  AND (:results::text[] IS NULL OR r.result = ANY (:results::text[]))\n  AND (:areaIds::uuid[] IS NULL OR la.area_id = ANY (:areaIds::uuid[]))\n  AND (:providerIds::uuid[] IS NULL AND NOT coalesce(:internal::boolean, false)\n       OR r.provider_id = ANY (:providerIds::uuid[])\n       OR coalesce(:internal::boolean, false) AND r.provider_id IS NULL)\n  AND (:afterOn::date IS NULL\n       OR (r.performed_on, r.recorded_at, r.id) < (:afterOn::date, :afterAt::timestamptz, :afterId::uuid))\nORDER BY r.performed_on DESC, r.recorded_at DESC, r.id DESC\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Del más reciente al más antiguo: por la fecha del trabajo y después por cuándo se registró. Con
- * -- :recordId, uno; con :assetId, los de un equipo (índice records_asset). Con el equipo, el plan, el
+ * -- :recordId, uno; con :assetId, los de un equipo (índice records_asset). Con el equipo y su área, el plan, el
  * -- proveedor, quién registró, el certificado y, si se anuló o corrige a otro, quién, cuándo y cuál. Los
- * -- anulados siguen a la vista. `recorded_key` lleva la hora exacta para el cursor.
+ * -- anulados siguen a la vista. `recorded_key` lleva la hora exacta para el cursor. Filtros del Historial
+ * -- (M-01d): periodo por la fecha del trabajo, tipos, resultados, áreas del equipo hoy y proveedores, con
+ * -- :internal para el trabajo sin proveedor.
  * SELECT
- *   r.id, r.asset_id, a.code AS "asset_code!", a.name AS "asset_name!", r.plan_id, p.title AS "plan_title?",
+ *   r.id, r.asset_id, a.code AS "asset_code!", a.name AS "asset_name!", area.name AS "area_name?",
+ *   r.plan_id, p.title AS "plan_title?", p.requirement AS "plan_requirement?",
  *   r.kind, r.performed_on, r.due_on, r.provider_id, pv.name AS "provider_name?", r.result, r.observations, r.checklist,
  *   trim_scale(r.cost) AS cost, r.valid_until, r.acceptance_criteria, ident.display_name AS "recorded_by_name?",
  *   r.recorded_at, r.recorded_at::text AS "recorded_key!",
@@ -239,6 +251,8 @@ const listRecordsIR: any = {"usedParamSet":{"workspaceId":true,"recordId":true,"
  *   correction.id AS "corrected_by_id?", correction.performed_on AS "corrected_by_performed_on?"
  * FROM maintenance.records AS r
  * JOIN equipment.asset_directory AS a ON a.workspace_id = r.workspace_id AND a.id = r.asset_id
+ * LEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
+ * LEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
  * LEFT JOIN maintenance.plans AS p ON p.workspace_id = r.workspace_id AND p.id = r.plan_id
  * LEFT JOIN maintenance.providers AS pv ON pv.workspace_id = r.workspace_id AND pv.id = r.provider_id
  * LEFT JOIN maintenance.record_certificates AS c ON c.workspace_id = r.workspace_id AND c.record_id = r.id
@@ -253,6 +267,14 @@ const listRecordsIR: any = {"usedParamSet":{"workspaceId":true,"recordId":true,"
  * WHERE r.workspace_id = :workspaceId!
  *   AND (:recordId::uuid IS NULL OR r.id = :recordId::uuid)
  *   AND (:assetId::uuid IS NULL OR r.asset_id = :assetId::uuid)
+ *   AND (:from::date IS NULL OR r.performed_on >= :from::date)
+ *   AND (:to::date IS NULL OR r.performed_on <= :to::date)
+ *   AND (:kinds::text[] IS NULL OR r.kind = ANY (:kinds::text[]))
+ *   AND (:results::text[] IS NULL OR r.result = ANY (:results::text[]))
+ *   AND (:areaIds::uuid[] IS NULL OR la.area_id = ANY (:areaIds::uuid[]))
+ *   AND (:providerIds::uuid[] IS NULL AND NOT coalesce(:internal::boolean, false)
+ *        OR r.provider_id = ANY (:providerIds::uuid[])
+ *        OR coalesce(:internal::boolean, false) AND r.provider_id IS NULL)
  *   AND (:afterOn::date IS NULL
  *        OR (r.performed_on, r.recorded_at, r.id) < (:afterOn::date, :afterAt::timestamptz, :afterId::uuid))
  * ORDER BY r.performed_on DESC, r.recorded_at DESC, r.id DESC

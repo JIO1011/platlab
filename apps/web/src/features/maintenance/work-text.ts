@@ -1,14 +1,8 @@
-import type { WorkKind, WorkResult } from '@platlab/contracts';
+import { workKindLabel as kindLabels, type WorkKind } from '@platlab/contracts';
 import { fold } from '../../app/fold';
 
-/** Textos de Mantenimiento (ADR 0020). */
-export const kindLabels: Record<WorkKind, string> = {
-  preventive: 'Preventivo',
-  calibration: 'Calibración',
-  verification: 'Verificación',
-  cleaning: 'Limpieza',
-  corrective: 'Correctivo',
-};
+/** Textos de Mantenimiento (ADR 0020). Tipo y resultado vienen del contrato: la pantalla y el Excel dicen lo mismo (M-01d). */
+export { workKindLabel as kindLabels, workResultLabel as resultLabels } from '@platlab/contracts';
 
 /** El título del plan con su tipo detrás, salvo que el título ya lo diga: «Calibración anual de balanzas», no «… · Calibración». */
 export function titleWithKind(title: string, kind: WorkKind): string {
@@ -19,12 +13,6 @@ export function titleWithKind(title: string, kind: WorkKind): string {
 export function noPlanText(kind: WorkKind): string {
   return kind === 'corrective' ? kindLabels.corrective : `${kindLabels[kind]} sin plan`;
 }
-
-export const resultLabels: Record<WorkResult, string> = {
-  pass: 'Conforme',
-  pass_with_observations: 'Con observaciones',
-  fail: 'No conforme',
-};
 
 /** La ruta de la app de Mantenimiento en el espacio, la del manifiesto. */
 export function maintenancePath(modules: Array<{ code: string; nav: Array<{ path: string }> }>, workspaceId: string): string {

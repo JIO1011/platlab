@@ -170,7 +170,7 @@ export function useEquipmentLocations(workspaceId: string, enabled = true) {
  * Incidentes, que son las fallas (ADR 0019): del más reciente al más antiguo. Quien atiende ve todos; quien solo
  * reporta, los suyos (lo decide el servidor). Sin estados, todos; con `assetId`, los de un equipo.
  */
-export function useFaults(workspaceId: string, filter: { statuses: FaultStatus[]; assetId?: string }, limit = 30) {
+export function useFaults(workspaceId: string, filter: { statuses: FaultStatus[]; assetId?: string }, limit = 30, enabled = true) {
   const user = useUserKey();
   return useInfiniteQuery({
     queryKey: [...equipmentKey(user, workspaceId), 'faults', filter, limit],
@@ -185,6 +185,7 @@ export function useFaults(workspaceId: string, filter: { statuses: FaultStatus[]
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     placeholderData: keepWithinWorkspace<InfiniteData<FaultList, string | undefined>>(user, workspaceId),
     refetchInterval: jitteredPoll,
+    enabled,
   });
 }
 

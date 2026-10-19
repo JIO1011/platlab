@@ -2,6 +2,7 @@ import type pg from 'pg';
 import type {
   AssetMaintenance,
   DueList,
+  MaintenanceAreaList,
   MaintenanceAsset,
   MaintenanceAssetList,
   MaintenanceSummary,
@@ -18,6 +19,7 @@ import {
   assetPlans,
   dueCounts,
   findAssets as findAssetsQuery,
+  listAreas as listAreasQuery,
   listDue as listDueQuery,
   nextDueByAsset,
   workspaceToday,
@@ -150,4 +152,11 @@ export function listNextDue(pool: pg.Pool, request: QueryRequest, assetIds: stri
       items: rows.map((row) => ({ assetId: row.asset_id, dueOn: row.due_on, plan: planRef(row), lastResult: lastResult(row.last_result) })),
     };
   });
+}
+
+/** El filtro de área del Historial (M-01d): las áreas con algún equipo no dado de baja. */
+export function listAreas(pool: pg.Pool, request: QueryRequest): Promise<MaintenanceAreaList> {
+  return runQuery(pool, request, async (access) => ({
+    items: (await listAreasQuery.run({ workspaceId: access.workspace.id }, access.client)).map(({ id, name }) => ({ id, name })),
+  }));
 }
