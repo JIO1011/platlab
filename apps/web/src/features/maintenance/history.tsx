@@ -1,20 +1,19 @@
 import type { MaintenanceRecord } from '@platlab/contracts';
-import { Badge, Button, Drawer, Skeleton, StatePanel, cn, formatDecimal } from '@platlab/ui';
-import { History, SearchX, SlidersHorizontal, X } from 'lucide-react';
+import { Badge, Button, Skeleton, StatePanel, cn, formatDecimal } from '@platlab/ui';
+import { History, SearchX, X } from 'lucide-react';
 import { Suspense, lazy, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { FilterPanelClear } from '../../app/filter-group';
 import { QueryErrorState } from '../../app/states';
 import { formatDate } from '../../app/format';
-import { useMediaQuery, useStoredFlag } from '../../app/use-media-query';
 import { AttachSheet } from './attach-sheet';
 import { useMaintenance } from './context';
+import { CodeTag } from './code-tag';
+import { DuePill } from './due-view';
 import { RecordDetail, resultTone } from './record-detail';
-import { HistoryChips } from './history-chips';
 import { HistoryExport } from './history-export';
 import { emptyHistoryFilters, historySearch, INTERNAL, isHistoryFiltered, parseHistoryFilters, type HistoryFilters } from './history-filters';
-import { HistoryFilterPanel, type HistoryGroupId } from './history-panel';
-import { activeHistoryFilters, recordsText, type HistoryNames } from './history-text';
+import { HistoryFilterBar } from './history-filter-bar';
+import { recordsText, type HistoryNames } from './history-text';
 import { useMaintenanceAreas, useProviders, useRecords } from './queries';
 import { SectionHeader } from './section-header';
 import { VoidSheet } from './void-sheet';
@@ -30,16 +29,21 @@ interface OpenRecord {
   record: MaintenanceRecord;
 }
 
-const panelId = 'filtros-historial';
-/** Las columnas de la lista desde 768 px; con el panel de filtros a la vista la lista es más angosta y las cede. */
-const wideColumns = 'md:grid-cols-[6.5rem_minmax(0,1.6fr)_minmax(0,1fr)_5.5rem_11rem]';
-const panelColumns = 'md:grid-cols-[6.25rem_minmax(0,1.6fr)_minmax(0,1fr)_4.5rem_7rem]';
+/**
+ * Las columnas de la lista cuando la propia lista mide 48 rem o más (consulta de contenedor: el ancho de la ventana
+ * no dice cuánto cabe junto al menú lateral). Más angosta, cada registro se apila.
+ */
+const columns = '@3xl:grid-cols-[6.5rem_minmax(0,1fr)_9.5rem_5.5rem_7.5rem]';
+
+/** El trabajo de un registro: el plan con su tipo; sin plan, el tipo (un correctivo nunca tiene plan). */
+const planText = (record: MaintenanceRecord): string =>
+  record.plan ? `${record.plan.title} · ${kindLabels[record.kind]}` : record.kind === 'corrective' ? kindLabels.corrective : `${kindLabels[record.kind]} · sin plan`;
 
 /**
  * Historial (ADR 0020): lo registrado, del más reciente al más antiguo, con el resultado, quién lo hizo, el costo y el
  * certificado. Abrir uno muestra su detalle de solo lectura. Con `?equipo=` son los de un solo equipo. Para el
- * auditor (M-01d): filtros en la dirección (periodo, tipo, resultado, área y quién lo hizo), en un panel a la
- * derecha desde 1280 px y en un cajón por debajo, y «Exportar» (imprimir o Excel) de lo mismo que se filtra.
+ * auditor (M-01d): filtros en la dirección (periodo, tipo, resultado, área y quién lo hizo), en una barra sobre la
+ * lista (ADR 0021), y «Exportar» (imprimir o Excel) de lo mismo que se filtra.
  */
 export function MaintenanceHistoryPage() {
   const { workspaceId, me, canRecord, canOperate } = useMaintenance();
@@ -57,12 +61,6 @@ export function MaintenanceHistoryPage() {
   const items = records.data?.pages.flatMap((page) => page.items) ?? [];
   const filtered = items[0]?.asset;
 
-  const wide = useMediaQuery('(min-width: 80rem)');
-  const [panelOpen, setPanelOpen] = useStoredFlag('platlab.mantenimiento.historial.filtros', true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  // Solo un grupo plegable abierto a la vez, como en Movimientos.
-  const [openGroup, setOpenGroup] = useState<HistoryGroupId | null>(null);
-  const showPanel = wide && panelOpen;
   // Cada cambio escribe la URL, sin sumar entradas al historial del navegador; el equipo de la ficha se conserva.
   const apply = (change: Partial<HistoryFilters>) => setParams(historySearch({ ...filters, ...change }), { replace: true });
   const clearFilters = () => setParams(historySearch({ ...emptyHistoryFilters, assetId: filters.assetId }), { replace: true });
@@ -74,23 +72,8 @@ export function MaintenanceHistoryPage() {
     }),
     [filtered, areas.data, providers.data],
   );
-  const chips = activeHistoryFilters(filters, names);
   const namesPending = (filters.areas.length > 0 && areas.isPending) || (filters.providers.some((id) => id !== INTERNAL) && providers.isPending);
-  const groupsApplied = [filters.kinds, filters.results, filters.areas, filters.providers].filter((values) => values.length > 0).length + (filters.from || filters.to ? 1 : 0);
   const count = records.isPending ? undefined : recordsText(items.length, records.hasNextPage);
-  const columns = showPanel ? panelColumns : wideColumns;
-  const filtersLabel = showPanel ? 'Ocultar filtros' : groupsApplied > 0 ? `Filtros (${groupsApplied})` : 'Filtros';
-
-  const panel = (
-    <HistoryFilterPanel
-      filters={filters}
-      areas={areas}
-      providers={providers}
-      openGroup={openGroup}
-      onToggleGroup={(group) => setOpenGroup((previous) => (previous === group ? null : group))}
-      onChange={apply}
-    />
-  );
 
   const clearAsset = () =>
     setParams(
@@ -114,7 +97,7 @@ export function MaintenanceHistoryPage() {
         updatedAt={records.dataUpdatedAt}
         actions={<HistoryExport records={records} filters={filters} names={names} namesPending={namesPending} />}
       />
-      <div className={cn('mt-6', showPanel && 'grid grid-cols-[minmax(0,1fr)_18rem] items-start gap-6')}>
+      <div className="mt-6">
         <div className="grid min-w-0 gap-4">
           {filters.assetId ? (
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
@@ -136,25 +119,15 @@ export function MaintenanceHistoryPage() {
               </Button>
             </p>
           ) : null}
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+              <HistoryFilterBar filters={filters} areas={areas} providers={providers} onChange={apply} onClear={clearFilters} />
+            </div>
             {/* La cuenta se dice en voz baja: las filas ya están a la vista. */}
-            <p className="text-sm text-ink-muted" aria-live="polite">
+            <p className="text-sm tabular-nums text-ink-muted" aria-live="polite">
               {count ?? ''}
             </p>
-            <Button
-              size="sm"
-              className="ml-auto h-[44px] sm:h-8"
-              aria-expanded={wide ? panelOpen : undefined}
-              aria-controls={wide ? panelId : undefined}
-              aria-haspopup={wide ? undefined : 'dialog'}
-              onClick={() => (wide ? setPanelOpen(!panelOpen) : setDrawerOpen(true))}
-            >
-              <SlidersHorizontal aria-hidden />
-              {filtersLabel}
-            </Button>
           </div>
-          {/* Con el panel a la vista, sus filtros ya se ven ahí. */}
-          {showPanel ? null : <HistoryChips filters={chips} onRemove={apply} onClear={clearFilters} />}
           {records.isPending ? (
             <div aria-busy="true">
               <Skeleton className="h-64 rounded-card" />
@@ -185,83 +158,93 @@ export function MaintenanceHistoryPage() {
               )}
             </div>
           ) : (
-            <ul
-              className={cn('divide-y divide-line overflow-hidden rounded-card bg-surface shadow-raised', records.isPlaceholderData && 'opacity-60 transition-opacity')}
-            >
-              <li aria-hidden className={cn('hidden gap-x-4 px-5 py-2.5 text-[13px] font-medium text-ink-muted md:grid', columns)}>
-                <span>Fecha</span>
-                <span>Equipo y plan</span>
-                <span>Resultado</span>
-                <span className="text-right">Costo</span>
-                <span>Certificado</span>
-              </li>
-              {items.map((record) => (
-                <li
-                  key={record.id}
-                  className={cn(
-                    'relative grid gap-x-4 gap-y-1.5 px-4 py-3.5 transition-colors hover:bg-surface-sunken/40 has-[button:focus-visible]:outline-2 has-[button:focus-visible]:-outline-offset-2 has-[button:focus-visible]:outline-action sm:px-5 md:items-center',
-                    columns,
-                  )}
-                >
-                  <p className="text-sm tabular-nums text-ink-muted">{formatDate(record.performedOn)}</p>
-                  <div className="min-w-0">
-                    <p className="break-words font-semibold text-ink">
-                      <span className="mr-1.5 font-mono text-[13px] font-normal tabular-nums text-ink-muted">{record.asset.code}</span>
-                      <button
-                        type="button"
-                        aria-haspopup="dialog"
-                        onClick={() => open(record)}
-                        className="text-left font-semibold after:absolute after:inset-0 focus-visible:outline-none"
-                      >
-                        {record.asset.name}
-                      </button>
-                    </p>
-                    <p className="break-words text-[13px] text-ink-muted">
-                      {record.plan
-                        ? `${record.plan.title} · ${kindLabels[record.kind]}`
-                        : record.kind === 'corrective'
-                          ? kindLabels.corrective
-                          : `${kindLabels[record.kind]} · sin plan`}
-                    </p>
-                    {record.corrects ? (
-                      <p className="text-[13px] text-ink-muted">Corrige al del {formatDate(record.corrects.performedOn)}</p>
-                    ) : record.voided?.correctedBy ? (
-                      <p className="text-[13px] text-ink-muted">Corregido por el del {formatDate(record.voided.correctedBy.performedOn)}</p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    {record.voided ? <Badge tone="neutral">Anulado</Badge> : null}
-                    <Badge tone={resultTone[record.result]}>
-                      {resultLabels[record.result]}
-                    </Badge>
-                    <span className="text-[13px] text-ink-muted">{record.provider?.name ?? 'Interno'}</span>
-                  </div>
-                  <p className="text-sm tabular-nums text-ink md:text-right">
-                    <span className="text-[13px] text-ink-muted md:hidden">Costo: </span>
-                    {record.cost ? `$ ${formatDecimal(record.cost)}` : <span className="text-ink-muted">Sin dato</span>}
-                  </p>
-                  <div className="relative z-10">
-                    {record.certificate ? (
-                      <a
-                        href={record.certificate.url}
-                        target="_blank"
-                        rel="noopener"
-                        className="inline-flex min-h-11 items-center text-sm font-semibold text-action underline-offset-2 hover:underline md:min-h-8"
-                      >
-                        Ver certificado
-                        <span className="sr-only"> de {record.asset.code} (PDF, se abre en otra pestaña)</span>
-                      </a>
-                    ) : canRecord && !record.voided ? (
-                      <Button variant="ghost" size="sm" className="max-sm:h-11" aria-haspopup="dialog" aria-label={`Adjuntar certificado de ${record.asset.code}`} onClick={() => attachTo(record)}>
-                        Adjuntar
-                      </Button>
-                    ) : (
-                      <span className="text-[13px] text-ink-muted">Sin certificado</span>
-                    )}
-                  </div>
+            <div className="@container">
+              <ul className={cn('divide-y divide-line overflow-hidden rounded-card bg-surface shadow-raised', records.isPlaceholderData && 'opacity-60 transition-opacity')}>
+                {/* Encabezado solo visual: cada celda dice su rótulo al lector de pantalla. */}
+                <li aria-hidden className={cn('hidden gap-x-4 px-5 py-2.5 text-[13px] font-medium text-ink-muted @3xl:grid', columns)}>
+                  <span>Fecha</span>
+                  <span>Equipo y plan</span>
+                  <span>Resultado</span>
+                  <span className="text-right">Costo</span>
+                  <span>Certificado</span>
                 </li>
-              ))}
-            </ul>
+                {items.map((record) => (
+                  <li
+                    key={record.id}
+                    className={cn(
+                      'relative grid gap-x-4 gap-y-2 px-4 py-3 transition-colors hover:bg-surface-sunken/60 has-[button:focus-visible]:outline-2 has-[button:focus-visible]:-outline-offset-2 has-[button:focus-visible]:outline-action sm:px-5 @3xl:min-h-[4.5rem] @3xl:items-center',
+                      columns,
+                    )}
+                  >
+                    <div className="min-w-0 @3xl:col-start-2 @3xl:row-start-1">
+                      <p className="flex min-w-0 items-start gap-2 font-semibold text-ink @3xl:items-center">
+                        <CodeTag>{record.asset.code}</CodeTag>
+                        <button
+                          type="button"
+                          aria-haspopup="dialog"
+                          onClick={() => open(record)}
+                          className="min-w-0 break-words text-left font-semibold after:absolute after:inset-0 focus-visible:outline-none @3xl:truncate"
+                        >
+                          {record.asset.name}
+                        </button>
+                      </p>
+                      <p className="mt-0.5 break-words text-[13px] text-ink-muted @3xl:truncate" title={planText(record)}>
+                        {planText(record)}
+                      </p>
+                      {record.corrects ? (
+                        <p className="text-[13px] text-ink-muted">Corrige al del {formatDate(record.corrects.performedOn)}</p>
+                      ) : record.voided?.correctedBy ? (
+                        <p className="text-[13px] text-ink-muted">Corregido por el del {formatDate(record.voided.correctedBy.performedOn)}</p>
+                      ) : null}
+                    </div>
+                    {/* Apilado, la fecha, el resultado, el costo y el certificado van en una fila que se parte; en columnas, cada uno a la suya. */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 @3xl:contents">
+                      <p className="text-sm tabular-nums text-ink-muted @3xl:col-start-1 @3xl:row-start-1">
+                        <span className="sr-only">Fecha: </span>
+                        {formatDate(record.performedOn)}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 @3xl:col-start-3 @3xl:row-start-1 @3xl:flex-col @3xl:items-start @3xl:gap-y-0.5">
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <span className="sr-only">Resultado: </span>
+                          {record.voided ? <Badge tone="neutral">Anulado</Badge> : null}
+                          <DuePill tone={resultTone[record.result]}>{resultLabels[record.result]}</DuePill>
+                        </span>
+                        <span className="text-[13px] text-ink-muted">{record.provider?.name ?? 'Interno'}</span>
+                      </div>
+                      <p className="ml-auto text-sm tabular-nums text-ink @3xl:col-start-4 @3xl:row-start-1 @3xl:ml-0 @3xl:text-right">
+                        <span className="sr-only">Costo: </span>
+                        {record.cost ? `$\u00A0${formatDecimal(record.cost)}` : <span className="text-ink-muted">Sin dato</span>}
+                      </p>
+                      <div className="relative z-10 @3xl:col-start-5 @3xl:row-start-1">
+                        {record.certificate ? (
+                          <a
+                            href={record.certificate.url}
+                            target="_blank"
+                            rel="noopener"
+                            className="inline-flex min-h-11 items-center text-sm font-semibold text-action underline-offset-2 hover:underline @3xl:min-h-8"
+                          >
+                            Ver certificado
+                            <span className="sr-only"> de {record.asset.code} (PDF, se abre en otra pestaña)</span>
+                          </a>
+                        ) : canRecord && !record.voided ? (
+                          <Button
+                            size="sm"
+                            className="h-11 border-line text-ink-muted hover:text-ink @3xl:h-8"
+                            aria-haspopup="dialog"
+                            aria-label={`Adjuntar certificado de ${record.asset.code}`}
+                            onClick={() => attachTo(record)}
+                          >
+                            Adjuntar
+                          </Button>
+                        ) : (
+                          <span className="text-[13px] text-ink-muted">Sin certificado</span>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           {records.hasNextPage ? (
             <div className="text-center">
@@ -271,31 +254,7 @@ export function MaintenanceHistoryPage() {
             </div>
           ) : null}
         </div>
-
-        {showPanel ? (
-          <aside
-            id={panelId}
-            aria-label="Filtros"
-            className="sticky top-20 max-h-[calc(100dvh-6.5rem)] overflow-y-auto rounded-panel bg-surface p-2 shadow-raised"
-          >
-            {chips.length > 0 ? <FilterPanelClear onClear={clearFilters} /> : null}
-            {panel}
-          </aside>
-        ) : null}
       </div>
-      <Drawer
-        open={drawerOpen && !wide}
-        onOpenChange={setDrawerOpen}
-        title="Filtros"
-        footer={
-          <Button variant="primary" className="h-[44px] w-full" onClick={() => setDrawerOpen(false)}>
-            {count === undefined ? 'Ver registros' : `Ver ${count}`}
-          </Button>
-        }
-      >
-        {chips.length > 0 ? <FilterPanelClear onClear={clearFilters} /> : null}
-        {panel}
-      </Drawer>
       {detail ? (
         <RecordDetail
           key={detail.n}

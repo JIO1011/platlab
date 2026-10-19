@@ -24,6 +24,7 @@ Revisión: 12 de octubre de 2026. Registro resumido de decisiones de arquitectur
 | [0018](#adr-0018) | Reactivos concluido para el piloto; sigue Equipos | Aceptado el 15-10-2026 |
 | [0019](#adr-0019) | Equipos con la forma de Reactivos: estado separado y Mantenimiento como módulo propio | Aceptado el 15-10-2026 |
 | [0020](#adr-0020) | Mantenimiento intermedio sin inventario propio | Aceptado el 17-10-2026 |
+| [0021](#adr-0021) | Rediseño de la UI por módulos, empezando por Mantenimiento | Aceptado el 19-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -596,7 +597,7 @@ Cambios: 15-10-2026 (Mantenimiento vuelve a M7, construido después de E-01; fot
 - **Nivel intermedio.**
   - Entra: planes por tiempo de preventivo, calibración, verificación intermedia (ISO/IEC 17025 6.4.10) y limpieza, con lista de verificación y criterio de aceptación; correctivo registrado con la misma hoja, enlazado al incidente; costos exactos (`numeric`); proveedores de servicio; certificado en PDF, con las reglas de los documentos de Equipos; «Evaluar reemplazo».
   - Queda fuera: técnicos con carga de trabajo, bloqueo de agenda y repuestos (F5); frecuencia por uso, que no tiene contador; MTBF y predictivo; correo (T-07).
-- **Cuatro secciones; una acción y una lista** (simplificación del 17-10-2026, decidida por el usuario tras revisar la primera versión: «el objetivo es simplificar el uso»; Indicadores, el 18-10-2026):
+- **Cuatro secciones; una acción y una lista** (simplificación del 17-10-2026, decidida por el usuario tras revisar la primera versión: «el objetivo es simplificar el uso»; Indicadores, el 18-10-2026; la portada y las secciones las reemplaza el [ADR 0021](#adr-0021)):
   - *Por hacer* (la portada): cifras Atrasados, Próximos 30 días y Sin plan; «Registrar mantenimiento» y «Escanear»; dos grupos, Atrasados (vencidos y no conformes, con su etiqueta) y Próximos 30 días, con buscador y «Registrar» en cada fila. En M-01c suma el aviso «Evaluar reemplazo».
   - *Historial*: los trabajos registrados con su detalle; en M-01d, filtros, Excel e «Imprimir» para el auditor.
   - *Indicadores* (M-01c), para quien mide, sin mezclarlo con Por hacer: cumplimiento del plan (% a tiempo), atrasados, calibraciones vigentes, costo preventivo frente a correctivo, programado frente a realizado por mes, cumplimiento por requisito y «Evaluar reemplazo». Pocas cifras, cada una lleva a su lista; gráficos de una serie con su lectura en texto.
@@ -690,6 +691,50 @@ Cambios: 15-10-2026 (Mantenimiento vuelve a M7, construido después de E-01; fot
     - No cambia el estado del equipo: para sacarlo de uso se usa «Cambiar estado» de Equipos.
 
 Motivo: el usuario quiere un módulo intermedio con la estructura de los demás, sin repetir la información de Equipos. Las decisiones de planes por tipo, el Operador con costos, el «No conforme» que propone y la lista de proveedores las tomó el 17-10-2026. Precisa M-01 del roadmap y el M7 del [ADR 0019](#adr-0019).
+
+
+<a id="adr-0021"></a>
+
+## ADR 0021 — Rediseño de la UI por módulos, empezando por Mantenimiento
+
+- **Qué es** (pedido del usuario, 19-10-2026): un rediseño de la interfaz para mejorar la experiencia, sin funciones nuevas. Busca consistencia, jerarquía visual, feedback, accesibilidad y rendimiento, con tarjetas que eviten la fatiga visual y flujos de trabajo claros.
+- **Por fases** (decidido por el usuario). Primero Mantenimiento; según el resultado siguen Equipos, Reactivos y el Inicio, con U-01 y el fondo neutro de toda la app. Las piezas comunes se hacen en `app/` para reutilizarlas.
+- **Mantenimiento: el Resumen es la portada** (decidido por el usuario). Reemplaza «Por hacer es la portada» y la sección Indicadores del [ADR 0020](#adr-0020).
+  - El Resumen sigue el patrón de los de Equipos y Reactivos:
+    - cuatro cifras: Atrasados, Próximos 30 días, Cumplimiento del plan y Calibraciones vigentes;
+    - «Gestión rápida» con «Registrar mantenimiento» y «Escanear»;
+    - próximos trabajos, con acceso a Por hacer;
+    - programado frente a realizado;
+    - costo preventivo frente a correctivo;
+    - cumplimiento por requisito;
+    - los avisos de equipos sin plan y «Evaluar reemplazo».
+  - Indicadores se funde en el Resumen. Quedan cuatro secciones: Resumen, Por hacer, Historial y Planes. El enlace viejo `/indicadores` lleva al Resumen.
+  - Por hacer queda como la lista de trabajo: buscador, los grupos con su cuenta y «Registrar» en cada fila; sus cifras pasan al Resumen.
+- **Patrones** (evaluados con las ideas del usuario):
+  - Las cifras se tiñen solo cuando piden atención y la cuenta es mayor que cero; un tinte permanente deja de avisar.
+  - Un solo botón sólido por pantalla; las acciones de fila van en contorno o como enlace.
+  - Los códigos de equipo van en etiqueta monoespaciada, como en la ficha.
+  - El resultado y el plazo, en pastillas con texto y un icono en lo crítico.
+  - Los filtros, en una barra horizontal encima de la tabla con menús desplegables (decidido por el usuario). Empieza en el Historial; el Informe de Equipos y Movimientos la adoptan en su fase.
+  - Las listas van con filas de altura uniforme y realce al pasar el ratón, sin cebra (la cebra queda para lo impreso).
+  - Los planes van en tarjetas, con etiquetas de tipo y frecuencia y el atraso en pastilla con icono.
+  - Los avisos van en una tarjeta con icono y su acción, sin borde lateral grueso.
+  - Los requisitos se muestran en barras de progreso, siempre con el % en texto.
+- **Equipos** (segunda fase, 19-10-2026; el usuario aprobó Mantenimiento y dio ideas, no requisitos):
+  - Fondo neutro y plano en toda la app; las tarjetas, en blanco con sombra suave.
+  - Las cifras del Resumen se tiñen cuando piden atención, también en Reactivos, porque comparten el componente. Las cifras de incidentes van dentro de la tarjeta de su gráfico.
+  - En las áreas, los tipos de equipo llevan el estado en pastillas. Sin foto, la tarjeta no reserva el hueco de la imagen.
+  - Incidentes en tarjetas compactas, en dos columnas en pantallas anchas, con todo lo del incidente junto. Sin calendario ni otras funciones nuevas.
+  - En el Informe, la barra de filtros horizontal libera el ancho que el panel lateral le quitaba a la tabla, que partía los nombres.
+    - Cebra solo en tablas anchas de datos como esta y en lo impreso.
+    - «Próximo mantenimiento» con el tipo y la fecha en texto y el plazo en pastilla con icono.
+  - Ficha:
+    - pestañas con la activa subrayada en el color del módulo, en el componente común;
+    - los incidentes, como línea de tiempo;
+    - y U-01: la cabecera más corta con «Reportar incidente» a la vista, y la búsqueda y los filtros conservados al volver de una ficha.
+- **Se mantiene:** DESIGN.md y el [ADR 0010](#adr-0010) (tokens, el color siempre con texto, movimiento) y las reglas del dominio. Las funciones, los datos y los permisos no cambian.
+
+Motivo: Mantenimiento se apartaba del patrón de Resumen que ya comparten Equipos y Reactivos, y sus listas planas cansaban la vista. El usuario prefiere validar el rediseño en un módulo antes de extenderlo.
 
 ## Pendientes
 

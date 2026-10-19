@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatDate } from '../../app/format';
-import { daysUntil, doneText, dueGroup, dueText, dueTone, groupDue, todayInZone, workStatus } from './due';
+import { daysUntil, doneText, dueGroup, dueText, dueTone, firstDue, groupDue, todayInZone, workStatus } from './due';
 
 const today = '2026-10-17';
 const pending = (dueOn: string) => ({ dueOn, lastResult: null });
@@ -139,5 +139,24 @@ describe('doneText', () => {
   it('después, cuenta los días de retraso', () => {
     expect(doneText(due, '2026-11-13')).toBe(said('hecho 1 día después'));
     expect(doneText(due, '2026-12-01')).toBe(said('hecho 19 días después'));
+  });
+});
+
+describe('firstDue', () => {
+  const entry = (id: string, dueOn: string, lastResult: 'fail' | null = null) => ({ id, dueOn, lastResult });
+
+  it('pone los atrasados antes que los próximos, aunque lleguen después', () => {
+    const items = [entry('a', '2026-10-20'), entry('b', '2026-10-10'), entry('c', '2026-11-01', 'fail')];
+    expect(firstDue(items, today, 5).map((item) => item.id)).toEqual(['b', 'c', 'a']);
+  });
+
+  it('se queda con los primeros N y conserva el orden recibido dentro de cada grupo', () => {
+    const items = [entry('a', '2026-10-18'), entry('b', '2026-10-19'), entry('c', '2026-10-01'), entry('d', '2026-10-02')];
+    expect(firstDue(items, today, 3).map((item) => item.id)).toEqual(['c', 'd', 'a']);
+  });
+
+  it('deja fuera lo que toca después de 30 días y no falla sin trabajos', () => {
+    expect(firstDue([entry('a', '2027-01-01')], today, 5)).toEqual([]);
+    expect(firstDue([], today, 5)).toEqual([]);
   });
 });

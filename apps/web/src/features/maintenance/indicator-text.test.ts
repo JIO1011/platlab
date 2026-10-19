@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatDate } from '../../app/format';
 import {
-  complianceDetail,
   compliancePercent,
   onTimeText,
   periodText,
@@ -32,17 +31,15 @@ describe('compliancePercent', () => {
   });
 });
 
-describe('onTimeText y complianceDetail', () => {
-  it('dicen lo hecho a tiempo, tarde y atrasado', () => {
+describe('onTimeText', () => {
+  it('dice lo hecho a tiempo de lo programado', () => {
     expect(onTimeText({ onTime: 8, late: 1, pending: 1 })).toBe('8 de 10 a tiempo');
-    expect(complianceDetail({ onTime: 8, late: 1, pending: 1 })).toBe('8 de 10 a tiempo · 1\u00A0tarde · 1\u00A0atrasado');
-    expect(complianceDetail({ onTime: 0, late: 0, pending: 2 })).toBe('0 de 2 a tiempo · 0\u00A0tarde · 2\u00A0atrasados');
+    expect(onTimeText({ onTime: 0, late: 0, pending: 2 })).toBe('0 de 2 a tiempo');
   });
 
   it('sin nada programado lo dicen en palabras', () => {
     const none = { onTime: 0, late: 0, pending: 0 };
     expect(onTimeText(none)).toBe('Sin trabajos programados todavía');
-    expect(complianceDetail(none)).toBe('Sin trabajos programados todavía');
   });
 });
 
