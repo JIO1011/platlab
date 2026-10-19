@@ -85,6 +85,7 @@ export interface IInsertRecordParams {
   checklist: Json;
   correctsRecordId?: string | null | void;
   cost?: string | null | void;
+  dueOn?: string | null | void;
   faultId?: string | null | void;
   kind: string;
   observations?: string | null | void;
@@ -109,22 +110,22 @@ export interface IInsertRecordQuery {
   result: IInsertRecordResult;
 }
 
-const insertRecordIR: any = {"usedParamSet":{"workspaceId":true,"assetId":true,"planId":true,"planVersion":true,"acceptanceCriteria":true,"kind":true,"performedOn":true,"providerId":true,"result":true,"observations":true,"checklist":true,"cost":true,"validUntil":true,"recordedBy":true,"faultId":true,"correctsRecordId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":517,"b":529}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":532,"b":540}]},{"name":"planId","required":false,"transform":{"type":"scalar"},"locs":[{"a":543,"b":549}]},{"name":"planVersion","required":false,"transform":{"type":"scalar"},"locs":[{"a":552,"b":563}]},{"name":"acceptanceCriteria","required":false,"transform":{"type":"scalar"},"locs":[{"a":566,"b":584}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":587,"b":592}]},{"name":"performedOn","required":true,"transform":{"type":"scalar"},"locs":[{"a":595,"b":607}]},{"name":"providerId","required":false,"transform":{"type":"scalar"},"locs":[{"a":616,"b":626}]},{"name":"result","required":true,"transform":{"type":"scalar"},"locs":[{"a":631,"b":638}]},{"name":"observations","required":false,"transform":{"type":"scalar"},"locs":[{"a":641,"b":653}]},{"name":"checklist","required":true,"transform":{"type":"scalar"},"locs":[{"a":656,"b":666}]},{"name":"cost","required":false,"transform":{"type":"scalar"},"locs":[{"a":676,"b":680}]},{"name":"validUntil","required":false,"transform":{"type":"scalar"},"locs":[{"a":692,"b":702}]},{"name":"recordedBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":711,"b":722}]},{"name":"faultId","required":false,"transform":{"type":"scalar"},"locs":[{"a":725,"b":732}]},{"name":"correctsRecordId","required":false,"transform":{"type":"scalar"},"locs":[{"a":737,"b":753}]}],"statement":"-- La lista marcada llega como texto JSON (pg enviaría un arreglo como arreglo de PostgreSQL). Con plan,\n-- la versión con que se llenó y la copia de su criterio de aceptación; un correctivo, el incidente que\n-- atiende; una corrección, el registro anulado.\nINSERT INTO maintenance.records (\n  workspace_id, asset_id, plan_id, plan_version, acceptance_criteria, kind, performed_on, provider_id, result,\n  observations, checklist, cost, valid_until, recorded_by_principal_id, fault_id, corrects_record_id\n)\nVALUES (\n  :workspaceId!, :assetId!, :planId, :planVersion, :acceptanceCriteria, :kind!, :performedOn!::date, :providerId,\n  :result!, :observations, :checklist!::jsonb, :cost::numeric, :validUntil::date, :recordedBy!, :faultId,\n  :correctsRecordId\n)\nRETURNING id"};
+const insertRecordIR: any = {"usedParamSet":{"workspaceId":true,"assetId":true,"planId":true,"planVersion":true,"acceptanceCriteria":true,"kind":true,"performedOn":true,"dueOn":true,"providerId":true,"result":true,"observations":true,"checklist":true,"cost":true,"validUntil":true,"recordedBy":true,"faultId":true,"correctsRecordId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":546,"b":558}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":561,"b":569}]},{"name":"planId","required":false,"transform":{"type":"scalar"},"locs":[{"a":572,"b":578}]},{"name":"planVersion","required":false,"transform":{"type":"scalar"},"locs":[{"a":581,"b":592}]},{"name":"acceptanceCriteria","required":false,"transform":{"type":"scalar"},"locs":[{"a":595,"b":613}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":616,"b":621}]},{"name":"performedOn","required":true,"transform":{"type":"scalar"},"locs":[{"a":624,"b":636}]},{"name":"dueOn","required":false,"transform":{"type":"scalar"},"locs":[{"a":645,"b":650}]},{"name":"providerId","required":false,"transform":{"type":"scalar"},"locs":[{"a":661,"b":671}]},{"name":"result","required":true,"transform":{"type":"scalar"},"locs":[{"a":674,"b":681}]},{"name":"observations","required":false,"transform":{"type":"scalar"},"locs":[{"a":684,"b":696}]},{"name":"checklist","required":true,"transform":{"type":"scalar"},"locs":[{"a":699,"b":709}]},{"name":"cost","required":false,"transform":{"type":"scalar"},"locs":[{"a":719,"b":723}]},{"name":"validUntil","required":false,"transform":{"type":"scalar"},"locs":[{"a":735,"b":745}]},{"name":"recordedBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":754,"b":765}]},{"name":"faultId","required":false,"transform":{"type":"scalar"},"locs":[{"a":770,"b":777}]},{"name":"correctsRecordId","required":false,"transform":{"type":"scalar"},"locs":[{"a":780,"b":796}]}],"statement":"-- La lista marcada llega como texto JSON (pg enviaría un arreglo como arreglo de PostgreSQL). Con plan,\n-- la versión con que se llenó, la copia de su criterio de aceptación y la fecha que tocaba; un correctivo,\n-- el incidente que atiende; una corrección, el registro anulado.\nINSERT INTO maintenance.records (\n  workspace_id, asset_id, plan_id, plan_version, acceptance_criteria, kind, performed_on, due_on, provider_id,\n  result, observations, checklist, cost, valid_until, recorded_by_principal_id, fault_id, corrects_record_id\n)\nVALUES (\n  :workspaceId!, :assetId!, :planId, :planVersion, :acceptanceCriteria, :kind!, :performedOn!::date, :dueOn::date,\n  :providerId, :result!, :observations, :checklist!::jsonb, :cost::numeric, :validUntil::date, :recordedBy!,\n  :faultId, :correctsRecordId\n)\nRETURNING id"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- La lista marcada llega como texto JSON (pg enviaría un arreglo como arreglo de PostgreSQL). Con plan,
- * -- la versión con que se llenó y la copia de su criterio de aceptación; un correctivo, el incidente que
- * -- atiende; una corrección, el registro anulado.
+ * -- la versión con que se llenó, la copia de su criterio de aceptación y la fecha que tocaba; un correctivo,
+ * -- el incidente que atiende; una corrección, el registro anulado.
  * INSERT INTO maintenance.records (
- *   workspace_id, asset_id, plan_id, plan_version, acceptance_criteria, kind, performed_on, provider_id, result,
- *   observations, checklist, cost, valid_until, recorded_by_principal_id, fault_id, corrects_record_id
+ *   workspace_id, asset_id, plan_id, plan_version, acceptance_criteria, kind, performed_on, due_on, provider_id,
+ *   result, observations, checklist, cost, valid_until, recorded_by_principal_id, fault_id, corrects_record_id
  * )
  * VALUES (
- *   :workspaceId!, :assetId!, :planId, :planVersion, :acceptanceCriteria, :kind!, :performedOn!::date, :providerId,
- *   :result!, :observations, :checklist!::jsonb, :cost::numeric, :validUntil::date, :recordedBy!, :faultId,
- *   :correctsRecordId
+ *   :workspaceId!, :assetId!, :planId, :planVersion, :acceptanceCriteria, :kind!, :performedOn!::date, :dueOn::date,
+ *   :providerId, :result!, :observations, :checklist!::jsonb, :cost::numeric, :validUntil::date, :recordedBy!,
+ *   :faultId, :correctsRecordId
  * )
  * RETURNING id
  * ```
@@ -142,6 +143,8 @@ export interface INextDueOnParams {
 /** 'NextDueOn' return type */
 export interface INextDueOnResult {
   due_on: string;
+  last_performed_on: string | null;
+  last_result: string | null;
 }
 
 /** 'NextDueOn' query type */
@@ -150,13 +153,13 @@ export interface INextDueOnQuery {
   result: INextDueOnResult;
 }
 
-const nextDueOnIR: any = {"usedParamSet":{"workspaceId":true,"planId":true,"assetId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":167,"b":179}]},{"name":"planId","required":true,"transform":{"type":"scalar"},"locs":[{"a":195,"b":202}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":219,"b":227}]}],"statement":"-- La próxima fecha del plan para el equipo (plan_assets); sin fila, el plan no lo cubre.\nSELECT due_on AS \"due_on!\"\nFROM maintenance.plan_assets\nWHERE workspace_id = :workspaceId! AND plan_id = :planId! AND asset_id = :assetId!"};
+const nextDueOnIR: any = {"usedParamSet":{"workspaceId":true,"planId":true,"assetId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":223,"b":235}]},{"name":"planId","required":true,"transform":{"type":"scalar"},"locs":[{"a":251,"b":258}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":275,"b":283}]}],"statement":"-- La próxima fecha del plan para el equipo (plan_assets), con su último registro; sin fila, el plan no lo cubre.\nSELECT due_on AS \"due_on!\", last_performed_on, last_result\nFROM maintenance.plan_assets\nWHERE workspace_id = :workspaceId! AND plan_id = :planId! AND asset_id = :assetId!"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- La próxima fecha del plan para el equipo (plan_assets); sin fila, el plan no lo cubre.
- * SELECT due_on AS "due_on!"
+ * -- La próxima fecha del plan para el equipo (plan_assets), con su último registro; sin fila, el plan no lo cubre.
+ * SELECT due_on AS "due_on!", last_performed_on, last_result
  * FROM maintenance.plan_assets
  * WHERE workspace_id = :workspaceId! AND plan_id = :planId! AND asset_id = :assetId!
  * ```
@@ -190,6 +193,7 @@ export interface IListRecordsResult {
   corrects_performed_on: string | null;
   corrects_record_id: string | null;
   cost: string | null;
+  due_on: string | null;
   fault_id: string | null;
   id: string;
   kind: string;
@@ -215,7 +219,7 @@ export interface IListRecordsQuery {
   result: IListRecordsResult;
 }
 
-const listRecordsIR: any = {"usedParamSet":{"workspaceId":true,"recordId":true,"assetId":true,"afterOn":true,"afterAt":true,"afterId":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2386,"b":2398}]},{"name":"recordId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2407,"b":2415},{"a":2441,"b":2449}]},{"name":"assetId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2465,"b":2472},{"a":2504,"b":2511}]},{"name":"afterOn","required":false,"transform":{"type":"scalar"},"locs":[{"a":2527,"b":2534},{"a":2601,"b":2608}]},{"name":"afterAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":2617,"b":2624}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2640,"b":2647}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":2723,"b":2729}]}],"statement":"-- Del más reciente al más antiguo: por la fecha del trabajo y después por cuándo se registró. Con\n-- :recordId, uno; con :assetId, los de un equipo (índice records_asset). Con el equipo, el plan, el\n-- proveedor, quién registró, el certificado y, si se anuló o corrige a otro, quién, cuándo y cuál. Los\n-- anulados siguen a la vista. `recorded_key` lleva la hora exacta para el cursor.\nSELECT\n  r.id, r.asset_id, a.code AS \"asset_code!\", a.name AS \"asset_name!\", r.plan_id, p.title AS \"plan_title?\",\n  r.kind, r.performed_on, r.provider_id, pv.name AS \"provider_name?\", r.result, r.observations, r.checklist,\n  trim_scale(r.cost) AS cost, r.valid_until, r.acceptance_criteria, ident.display_name AS \"recorded_by_name?\",\n  r.recorded_at, r.recorded_at::text AS \"recorded_key!\",\n  c.url AS \"certificate_url?\", c.byte_size AS \"certificate_byte_size?\", c.uploaded_at AS \"certificate_uploaded_at?\",\n  r.fault_id, r.corrects_record_id, corrected.performed_on AS \"corrects_performed_on?\",\n  r.voided_at, r.void_reason, voider.display_name AS \"voided_by_name?\",\n  correction.id AS \"corrected_by_id?\", correction.performed_on AS \"corrected_by_performed_on?\"\nFROM maintenance.records AS r\nJOIN equipment.asset_directory AS a ON a.workspace_id = r.workspace_id AND a.id = r.asset_id\nLEFT JOIN maintenance.plans AS p ON p.workspace_id = r.workspace_id AND p.id = r.plan_id\nLEFT JOIN maintenance.providers AS pv ON pv.workspace_id = r.workspace_id AND pv.id = r.provider_id\nLEFT JOIN maintenance.record_certificates AS c ON c.workspace_id = r.workspace_id AND c.record_id = r.id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = r.workspace_id AND pr.id = r.recorded_by_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nLEFT JOIN maintenance.records AS corrected ON corrected.workspace_id = r.workspace_id AND corrected.id = r.corrects_record_id\nLEFT JOIN maintenance.records AS correction ON correction.workspace_id = r.workspace_id AND correction.corrects_record_id = r.id\nLEFT JOIN core.principals AS vpr ON vpr.workspace_id = r.workspace_id AND vpr.id = r.voided_by_principal_id\nLEFT JOIN core.memberships AS vm ON vm.workspace_id = vpr.workspace_id AND vm.id = vpr.membership_id\nLEFT JOIN core.identities AS voider ON voider.id = vm.identity_id\nWHERE r.workspace_id = :workspaceId!\n  AND (:recordId::uuid IS NULL OR r.id = :recordId::uuid)\n  AND (:assetId::uuid IS NULL OR r.asset_id = :assetId::uuid)\n  AND (:afterOn::date IS NULL\n       OR (r.performed_on, r.recorded_at, r.id) < (:afterOn::date, :afterAt::timestamptz, :afterId::uuid))\nORDER BY r.performed_on DESC, r.recorded_at DESC, r.id DESC\nLIMIT :limit!"};
+const listRecordsIR: any = {"usedParamSet":{"workspaceId":true,"recordId":true,"assetId":true,"afterOn":true,"afterAt":true,"afterId":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2396,"b":2408}]},{"name":"recordId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2417,"b":2425},{"a":2451,"b":2459}]},{"name":"assetId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2475,"b":2482},{"a":2514,"b":2521}]},{"name":"afterOn","required":false,"transform":{"type":"scalar"},"locs":[{"a":2537,"b":2544},{"a":2611,"b":2618}]},{"name":"afterAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":2627,"b":2634}]},{"name":"afterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2650,"b":2657}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":2733,"b":2739}]}],"statement":"-- Del más reciente al más antiguo: por la fecha del trabajo y después por cuándo se registró. Con\n-- :recordId, uno; con :assetId, los de un equipo (índice records_asset). Con el equipo, el plan, el\n-- proveedor, quién registró, el certificado y, si se anuló o corrige a otro, quién, cuándo y cuál. Los\n-- anulados siguen a la vista. `recorded_key` lleva la hora exacta para el cursor.\nSELECT\n  r.id, r.asset_id, a.code AS \"asset_code!\", a.name AS \"asset_name!\", r.plan_id, p.title AS \"plan_title?\",\n  r.kind, r.performed_on, r.due_on, r.provider_id, pv.name AS \"provider_name?\", r.result, r.observations, r.checklist,\n  trim_scale(r.cost) AS cost, r.valid_until, r.acceptance_criteria, ident.display_name AS \"recorded_by_name?\",\n  r.recorded_at, r.recorded_at::text AS \"recorded_key!\",\n  c.url AS \"certificate_url?\", c.byte_size AS \"certificate_byte_size?\", c.uploaded_at AS \"certificate_uploaded_at?\",\n  r.fault_id, r.corrects_record_id, corrected.performed_on AS \"corrects_performed_on?\",\n  r.voided_at, r.void_reason, voider.display_name AS \"voided_by_name?\",\n  correction.id AS \"corrected_by_id?\", correction.performed_on AS \"corrected_by_performed_on?\"\nFROM maintenance.records AS r\nJOIN equipment.asset_directory AS a ON a.workspace_id = r.workspace_id AND a.id = r.asset_id\nLEFT JOIN maintenance.plans AS p ON p.workspace_id = r.workspace_id AND p.id = r.plan_id\nLEFT JOIN maintenance.providers AS pv ON pv.workspace_id = r.workspace_id AND pv.id = r.provider_id\nLEFT JOIN maintenance.record_certificates AS c ON c.workspace_id = r.workspace_id AND c.record_id = r.id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = r.workspace_id AND pr.id = r.recorded_by_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nLEFT JOIN maintenance.records AS corrected ON corrected.workspace_id = r.workspace_id AND corrected.id = r.corrects_record_id\nLEFT JOIN maintenance.records AS correction ON correction.workspace_id = r.workspace_id AND correction.corrects_record_id = r.id\nLEFT JOIN core.principals AS vpr ON vpr.workspace_id = r.workspace_id AND vpr.id = r.voided_by_principal_id\nLEFT JOIN core.memberships AS vm ON vm.workspace_id = vpr.workspace_id AND vm.id = vpr.membership_id\nLEFT JOIN core.identities AS voider ON voider.id = vm.identity_id\nWHERE r.workspace_id = :workspaceId!\n  AND (:recordId::uuid IS NULL OR r.id = :recordId::uuid)\n  AND (:assetId::uuid IS NULL OR r.asset_id = :assetId::uuid)\n  AND (:afterOn::date IS NULL\n       OR (r.performed_on, r.recorded_at, r.id) < (:afterOn::date, :afterAt::timestamptz, :afterId::uuid))\nORDER BY r.performed_on DESC, r.recorded_at DESC, r.id DESC\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
@@ -226,7 +230,7 @@ const listRecordsIR: any = {"usedParamSet":{"workspaceId":true,"recordId":true,"
  * -- anulados siguen a la vista. `recorded_key` lleva la hora exacta para el cursor.
  * SELECT
  *   r.id, r.asset_id, a.code AS "asset_code!", a.name AS "asset_name!", r.plan_id, p.title AS "plan_title?",
- *   r.kind, r.performed_on, r.provider_id, pv.name AS "provider_name?", r.result, r.observations, r.checklist,
+ *   r.kind, r.performed_on, r.due_on, r.provider_id, pv.name AS "provider_name?", r.result, r.observations, r.checklist,
  *   trim_scale(r.cost) AS cost, r.valid_until, r.acceptance_criteria, ident.display_name AS "recorded_by_name?",
  *   r.recorded_at, r.recorded_at::text AS "recorded_key!",
  *   c.url AS "certificate_url?", c.byte_size AS "certificate_byte_size?", c.uploaded_at AS "certificate_uploaded_at?",

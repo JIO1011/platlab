@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { daysUntil, dueGroup, dueText, dueTone, groupDue, todayInZone, workStatus } from './due';
+import { formatDate } from '../../app/format';
+import { daysUntil, doneText, dueGroup, dueText, dueTone, groupDue, todayInZone, workStatus } from './due';
 
 const today = '2026-10-17';
 const pending = (dueOn: string) => ({ dueOn, lastResult: null });
@@ -123,5 +124,20 @@ describe('workStatus', () => {
     });
     expect(workStatus({ dueOn: today, lastResult: null, lastPerformedOn: null }, today).text).toBe('Vence hoy');
     expect(workStatus({ dueOn: '2026-10-30', lastResult: 'pass_with_observations', lastPerformedOn: '2026-07-30' }, today).text).toBe('en 12 días');
+  });
+});
+
+describe('doneText', () => {
+  const due = '2026-11-12';
+  const said = (text: string) => `Tocaba el ${formatDate(due)} · ${text}`;
+
+  it('en su fecha o antes es a tiempo', () => {
+    expect(doneText(due, due)).toBe(said('hecho a tiempo'));
+    expect(doneText(due, '2026-11-02')).toBe(said('hecho a tiempo'));
+  });
+
+  it('después, cuenta los días de retraso', () => {
+    expect(doneText(due, '2026-11-13')).toBe(said('hecho 1 día después'));
+    expect(doneText(due, '2026-12-01')).toBe(said('hecho 19 días después'));
   });
 });

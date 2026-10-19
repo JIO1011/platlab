@@ -41,6 +41,7 @@ const toPlan = (row: IListPlansResult): Plan => ({
   startsOn: row.starts_on,
   checklist: row.checklist,
   acceptanceCriteria: row.acceptance_criteria,
+  requirement: row.requirement,
   assetCount: row.asset_count,
   nextDueOn: row.next_due_on,
   overdueCount: row.overdue_count,
@@ -147,6 +148,7 @@ export function createPlan(pool: pg.Pool, request: CommandRequest, input: z.infe
         startsOn: input.startsOn,
         checklist: input.checklist,
         acceptanceCriteria: input.acceptanceCriteria,
+        requirement: input.requirement,
         createdBy: access.principalId,
       },
       access.client,
@@ -185,6 +187,7 @@ export function updatePlan(
         startsOn: changes.startsOn ?? current.starts_on,
         checklist: changes.checklist ?? current.checklist,
         acceptanceCriteria: changes.acceptanceCriteria === undefined ? current.acceptance_criteria : changes.acceptanceCriteria,
+        requirement: changes.requirement === undefined ? current.requirement : changes.requirement,
       },
       access.client,
     );

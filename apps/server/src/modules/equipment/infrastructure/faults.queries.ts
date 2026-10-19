@@ -321,3 +321,41 @@ const faultStatsIR: any = {"usedParamSet":{"timeZone":true,"workspaceId":true},"
 export const faultStats = new PreparedQuery<IFaultStatsParams,IFaultStatsResult>(faultStatsIR);
 
 
+/** 'FrequentFaults' parameters type */
+export interface IFrequentFaultsParams {
+  minimum: number;
+  since: string;
+  timeZone: string;
+  workspaceId: string;
+}
+
+/** 'FrequentFaults' return type */
+export interface IFrequentFaultsResult {
+  asset_id: string;
+  faults: number;
+}
+
+/** 'FrequentFaults' query type */
+export interface IFrequentFaultsQuery {
+  params: IFrequentFaultsParams;
+  result: IFrequentFaultsResult;
+}
+
+const frequentFaultsIR: any = {"usedParamSet":{"workspaceId":true,"since":true,"timeZone":true,"minimum":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":287,"b":299}]},{"name":"since","required":true,"transform":{"type":"scalar"},"locs":[{"a":353,"b":359}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":391,"b":400}]},{"name":"minimum","required":true,"transform":{"type":"scalar"},"locs":[{"a":440,"b":448}]}],"statement":"-- Interfaz para «Evaluar reemplazo» de Mantenimiento (M-01c): los equipos con :minimum incidentes o más\n-- reportados desde el día :since en la zona :timeZone (índice cases_asset).\nSELECT asset_id AS \"asset_id!\", count(*)::integer AS \"faults!\"\nFROM incidents.cases\nWHERE workspace_id = :workspaceId! AND module_code = 'equipment'\n  AND reported_at >= (:since!::date::timestamp AT TIME ZONE :timeZone!)\nGROUP BY asset_id\nHAVING count(*) >= :minimum!::integer"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Interfaz para «Evaluar reemplazo» de Mantenimiento (M-01c): los equipos con :minimum incidentes o más
+ * -- reportados desde el día :since en la zona :timeZone (índice cases_asset).
+ * SELECT asset_id AS "asset_id!", count(*)::integer AS "faults!"
+ * FROM incidents.cases
+ * WHERE workspace_id = :workspaceId! AND module_code = 'equipment'
+ *   AND reported_at >= (:since!::date::timestamp AT TIME ZONE :timeZone!)
+ * GROUP BY asset_id
+ * HAVING count(*) >= :minimum!::integer
+ * ```
+ */
+export const frequentFaults = new PreparedQuery<IFrequentFaultsParams,IFrequentFaultsResult>(frequentFaultsIR);
+
+

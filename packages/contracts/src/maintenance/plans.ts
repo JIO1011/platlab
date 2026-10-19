@@ -31,6 +31,8 @@ const planFields = {
   startsOn: z.iso.date(),
   checklist,
   acceptanceCriteria: text(1000).nullable(),
+  /** El requisito que el plan cumple (M-01c), p. ej. «ISO/IEC 17025 6.4.10»: agrupa el cumplimiento en Indicadores. */
+  requirement: text(120).nullable(),
 };
 
 /**
@@ -46,6 +48,7 @@ export const createPlanRequest = z
     ...planFields,
     checklist: checklist.default([]),
     acceptanceCriteria: planFields.acceptanceCriteria.default(null),
+    requirement: planFields.requirement.default(null),
   })
   .strict()
   .refine((input) => (input.assetTypeId === undefined) !== (input.assetId === undefined), {
@@ -76,6 +79,7 @@ export const plan = z.object({
   startsOn: z.iso.date(),
   checklist: z.array(z.string()),
   acceptanceCriteria: z.string().nullable(),
+  requirement: z.string().nullable(),
   /** Cuántos equipos cubre hoy: los no dados de baja ni excluidos. */
   assetCount: tally,
   /** La próxima fecha más cercana de sus equipos; null si no cubre ninguno. */

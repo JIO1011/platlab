@@ -2,4 +2,5 @@
 export { MaintenanceLayout } from './layout';
 export { MaintenanceTodoPage } from './todo';
 export { MaintenanceHistoryPage } from './history';
+export { MaintenanceIndicatorsPage } from './indicators';
 export { MaintenancePlansPage } from './plans';

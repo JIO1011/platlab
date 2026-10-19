@@ -47,10 +47,18 @@ export const dueList = z.object({
 });
 
 /**
- * GET /summary: trabajos vencidos (antes de hoy) o no conformes, cuántos de ellos son no conformes, y los
- * demás que tocan desde hoy hasta dentro de 30 días.
+ * GET /summary: trabajos vencidos (antes de hoy) o no conformes, cuántos de ellos son no conformes, los
+ * demás que tocan desde hoy hasta dentro de 30 días y, para quien lo descarta, cuántos equipos piden
+ * «Evaluar reemplazo» (M-01c); null para los demás.
  */
-export const maintenanceSummary = z.object({ today: date, overdue: tally, nonconforming: tally, next30: tally, uncovered: tally });
+export const maintenanceSummary = z.object({
+  today: date,
+  overdue: tally,
+  nonconforming: tally,
+  next30: tally,
+  uncovered: tally,
+  replacement: tally.nullable(),
+});
 
 export const record = z.object({
   id: z.uuid(),
@@ -59,6 +67,11 @@ export const record = z.object({
   plan: planRef.nullable(),
   kind: workKind,
   performedOn: date,
+  /**
+   * La fecha que tocaba según el plan al registrarlo (M-01c): mide si se hizo a tiempo. null sin plan, en la
+   * historia cargada y al repetir un «No conforme».
+   */
+  dueOn: date.nullable(),
   /** null es un trabajo interno. */
   provider: z.object({ id: z.uuid(), name: z.string() }).nullable(),
   result: workResult,

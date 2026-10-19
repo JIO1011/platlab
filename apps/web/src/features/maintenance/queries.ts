@@ -2,6 +2,7 @@ import {
   assetMaintenance,
   dueList,
   maintenanceAssetList,
+  maintenanceIndicators,
   maintenanceSummary,
   nextDueList,
   planAssetList,
@@ -25,13 +26,22 @@ const base = (workspaceId: string) => `/workspaces/${workspaceId}/maintenance`;
 /** NEXT_DUE acepta hasta 100 equipos por consulta (`nextDueQuery`). */
 const NEXT_DUE_BATCH = 100;
 
-/** Resumen (ADR 0020): vencidos (con los no conformes) y los próximos 30 días. */
+/** Cifras de Por hacer (ADR 0020): vencidos (con los no conformes), próximos 30 días, sin plan y, para el Administrador, «Evaluar reemplazo». */
 export function useMaintenanceSummary(workspaceId: string) {
   const user = useUserKey();
   return useQuery({
     queryKey: [...maintenanceKey(user, workspaceId), 'summary'],
     queryFn: () => api(`${base(workspaceId)}/summary`, { schema: maintenanceSummary }),
     refetchInterval: jitteredPoll,
+  });
+}
+
+/** Indicadores (M-01c): los 12 meses de calendario hasta el actual, calculados al consultar. */
+export function useIndicators(workspaceId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...maintenanceKey(user, workspaceId), 'indicators'],
+    queryFn: () => api(`${base(workspaceId)}/indicators`, { schema: maintenanceIndicators }),
   });
 }
 

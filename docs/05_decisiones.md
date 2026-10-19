@@ -642,6 +642,26 @@ Cambios: 15-10-2026 (Mantenimiento vuelve a M7, construido después de E-01; fot
     - Los dos quedan en el Historial: el anulado, con su motivo, quién y cuándo; el nuevo, con «Corrige al del …». El anulado deja de contar para la próxima fecha.
     - Lo que el registro aplicó en Equipos (estado físico, incidente solucionado) no se revierte: se corrige en Equipos.
   - *Bloqueos:* plan → incidente → equipo → proveedor → registro corregido; el incidente va antes que su equipo, como al solucionarlo (02 §6).
+- **Diseño de M-01c (18-10-2026).**
+  - *Periodo* (decidido por el usuario): los 12 meses de calendario hasta el actual, en la zona del espacio, como «Incidentes en 12 meses» de Equipos; sin selector.
+  - *Fecha que tocaba.* El registro con plan guarda la próxima fecha que tenía el plan al registrarlo. No la guarda un registro anterior al último del plan, porque es historia cargada, ni el que repite un «No conforme» antes de su próxima fecha. Al corregir, se calcula sin el registro anulado.
+  - *A tiempo* (decidido por el usuario): hecho en la fecha que tocaba o antes. Cada fecha que tocaba en el periodo es un trabajo programado: hecho a tiempo, hecho tarde o, si ya pasó y sigue pendiente, atrasado. Un trabajo atrasado cuenta una vez, porque la fecha avanza solo con un registro. El «No conforme» cuenta como hecho, como en Por hacer.
+  - *Indicadores.*
+    - Cumplimiento del plan: % a tiempo de lo programado hasta hoy.
+    - Atrasados: la misma cifra de Por hacer.
+    - Calibraciones vigentes: el último registro no es «No conforme» y la fecha no venció.
+    - Costo preventivo, que incluye calibración, verificación y limpieza, frente a correctivo: lo registrado en el periodo, con cuántos registros no tienen costo.
+    - Programado frente a realizado: por mes de la fecha que tocaba.
+    - Cumplimiento por requisito: el mismo cálculo, agrupado por el «Requisito» actual del plan.
+    - Los registros anulados no cuentan en ninguno.
+  - *Requisito:* texto opcional del plan (hasta 120 caracteres), que la hoja sugiere de los ya usados.
+  - *Evaluar reemplazo* (decidido por el usuario).
+    - Se avisa si se cumple cualquiera de tres condiciones, y el aviso dice cuál: cumplió su vida útil, lo reparado en el periodo llega a la mitad de su valor de reposición, o tuvo 3 o más incidentes en el periodo (02 §12).
+    - Los incidentes los cuenta Equipos por su interfaz, para quien los atiende.
+    - El Administrador lo descarta por 6 meses con motivo (`maintenance.replacement.review`). El descarte se guarda y no se edita.
+    - Dar de baja se hace en la ficha de Equipos.
+    - El aviso de Por hacer lo ve solo el Administrador; la lista de Indicadores, quien entra a Mantenimiento.
+  - *Píldora del Inicio:* la tarjeta de Mantenimiento con los atrasados en ámbar, los próximos 30 días y los equipos sin plan, y los registros por día de los últimos 30 días.
 
 Motivo: el usuario quiere un módulo intermedio con la estructura de los demás, sin repetir la información de Equipos. Las decisiones de planes por tipo, el Operador con costos, el «No conforme» que propone y la lista de proveedores las tomó el 17-10-2026. Precisa M-01 del roadmap y el M7 del [ADR 0019](#adr-0019).
 

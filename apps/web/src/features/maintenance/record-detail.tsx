@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import { formatDate, formatDayInZone } from '../../app/format';
 import { assetFichaPath, faultPath } from './asset-path';
 import { formatFileSize } from './certificate-file';
+import { doneText } from './due';
 import { kindLabels, noPlanText, resultLabels } from './work-text';
 
 export const resultTone = { pass: 'success', pass_with_observations: 'warning', fail: 'danger' } as const;
@@ -127,7 +128,10 @@ export function RecordDetail({
             )}
           </Item>
         ) : null}
-        <Item label="Fecha del trabajo">{formatDate(record.performedOn)}</Item>
+        <Item label="Fecha del trabajo">
+          {formatDate(record.performedOn)}
+          {record.dueOn ? <span className="block text-ink-muted">{doneText(record.dueOn, record.performedOn)}</span> : null}
+        </Item>
         <Item label="Realizado por">{record.provider?.name ?? 'Interno'}</Item>
         <Item label="Resultado">
           <Badge tone={resultTone[record.result]}>

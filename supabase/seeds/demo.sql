@@ -501,21 +501,26 @@ insert into maintenance.providers (id, workspace_id, name, contact) values
 
 insert into maintenance.plans
   (id, workspace_id, kind, title, asset_type_id, asset_id, interval_count, interval_unit, starts_on, checklist,
-   acceptance_criteria, created_by_principal_id, created_at)
+   acceptance_criteria, requirement, created_by_principal_id, created_at)
 values
   ('da950000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'calibration', 'Calibración anual de balanzas',
    'da910000-0000-4000-8000-000000000002', null, 1, 'year', current_date - 400,
    '{"Limpiar el plato y la cámara","Nivelar la balanza","Pesar las pesas patrón de 1 g, 100 g y 200 g"}',
-   'Error máximo de ±0,5 mg con la pesa de 200 g', 'da200000-0000-4000-8000-000000000001', now() - interval '400 days'),
+   'Error máximo de ±0,5 mg con la pesa de 200 g', 'ISO/IEC 17025 6.4.7', 'da200000-0000-4000-8000-000000000001',
+   now() - interval '400 days'),
   ('da950000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'preventive', 'Preventivo semestral de microscopios',
    'da910000-0000-4000-8000-000000000005', null, 6, 'month', current_date - 200,
    '{"Limpiar las ópticas","Lubricar el enfoque","Revisar la lámpara"}',
-   null, 'da200000-0000-4000-8000-000000000001', now() - interval '200 days'),
+   null, null, 'da200000-0000-4000-8000-000000000001', now() - interval '200 days'),
   -- MIC-02 se usa más en prácticas: su plan propio es trimestral y reemplaza al del tipo.
   ('da950000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'preventive', 'Preventivo trimestral del MIC-02',
    null, 'da920000-0000-4000-8000-000000000007', 3, 'month', current_date - 200,
    '{"Limpiar las ópticas","Lubricar el enfoque","Revisar la lámpara","Centrar el condensador"}',
-   null, 'da200000-0000-4000-8000-000000000001', now() - interval '200 days');
+   null, null, 'da200000-0000-4000-8000-000000000001', now() - interval '200 days'),
+  -- La campana se limpia cada mes según un procedimiento interno: llena los Indicadores (M-01c).
+  ('da950000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'cleaning', 'Limpieza mensual de la campana',
+   null, 'da920000-0000-4000-8000-000000000009', 1, 'month', current_date - 330, '{}',
+   null, 'Procedimiento PEO-LIM-02', 'da200000-0000-4000-8000-000000000001', now() - interval '330 days');
 
 insert into maintenance.plan_exclusions
   (id, workspace_id, plan_id, asset_type_id, asset_id, reason, replaced_by_plan_id, created_by_principal_id, created_at)
@@ -528,35 +533,62 @@ values ('da960000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-0000000
 -- y ya venció; MIC-01 salió no conforme hace 3 días; el agitador recibió una limpieza sin plan. Con plan,
 -- el registro copia la versión y el criterio del plan.
 insert into maintenance.records
-  (id, workspace_id, asset_id, plan_id, plan_version, acceptance_criteria, kind, performed_on, provider_id, result,
+  (id, workspace_id, asset_id, plan_id, plan_version, acceptance_criteria, kind, performed_on, due_on, provider_id, result,
    observations, checklist, cost, valid_until, recorded_by_principal_id, recorded_at)
 values
   ('da970000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'da920000-0000-4000-8000-000000000002',
    'da950000-0000-4000-8000-000000000001', 1, 'Error máximo de ±0,5 mg con la pesa de 200 g', 'calibration', current_date - 340,
-   'da940000-0000-4000-8000-000000000002', 'pass', null,
+   current_date - 400, 'da940000-0000-4000-8000-000000000002', 'pass', null,
    '[{"item": "Limpiar el plato y la cámara", "done": true}, {"item": "Nivelar la balanza", "done": true}, {"item": "Pesar las pesas patrón de 1 g, 100 g y 200 g", "done": true}]',
    180.00, current_date + 25, 'da200000-0000-4000-8000-000000000002', now() - interval '340 days'),
   ('da970000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'da920000-0000-4000-8000-000000000003',
    'da950000-0000-4000-8000-000000000001', 1, 'Error máximo de ±0,5 mg con la pesa de 200 g', 'calibration', current_date - 375,
-   'da940000-0000-4000-8000-000000000002',
+   current_date - 400, 'da940000-0000-4000-8000-000000000002',
    'pass_with_observations', 'Desviación de 0,3 mg con la pesa de 200 g; dentro de tolerancia',
    '[{"item": "Limpiar el plato y la cámara", "done": true}, {"item": "Nivelar la balanza", "done": true}, {"item": "Pesar las pesas patrón de 1 g, 100 g y 200 g", "done": true}]',
    180.00, current_date - 10, 'da200000-0000-4000-8000-000000000002', now() - interval '375 days'),
   ('da970000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'da920000-0000-4000-8000-000000000006',
-   'da950000-0000-4000-8000-000000000002', 1, null, 'preventive', current_date - 30, null, 'pass', null,
+   'da950000-0000-4000-8000-000000000002', 1, null, 'preventive', current_date - 30, current_date - 200, null, 'pass', null,
    '[{"item": "Limpiar las ópticas", "done": true}, {"item": "Lubricar el enfoque", "done": true}, {"item": "Revisar la lámpara", "done": true}]',
    null, null, 'da200000-0000-4000-8000-000000000002', now() - interval '30 days'),
   ('da970000-0000-4000-8000-000000000006', 'da000000-0000-4000-8000-00000000000a', 'da920000-0000-4000-8000-000000000006',
-   'da950000-0000-4000-8000-000000000002', 1, null, 'preventive', current_date - 3, null, 'fail',
+   'da950000-0000-4000-8000-000000000002', 1, null, 'preventive', current_date - 3,
+   (current_date - 30 + interval '6 months')::date, null, 'fail',
    'La lámpara no enciende tras el cambio de bombilla; se pidió el repuesto del portalámparas',
    '[{"item": "Limpiar las ópticas", "done": true}, {"item": "Lubricar el enfoque", "done": true}, {"item": "Revisar la lámpara", "done": false}]',
    null, null, 'da200000-0000-4000-8000-000000000002', now() - interval '3 days'),
   ('da970000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'da920000-0000-4000-8000-000000000007',
-   'da950000-0000-4000-8000-000000000003', 1, null, 'preventive', current_date - 80, 'da940000-0000-4000-8000-000000000001', 'pass', null,
+   'da950000-0000-4000-8000-000000000003', 1, null, 'preventive', current_date - 80, current_date - 200, 'da940000-0000-4000-8000-000000000001', 'pass', null,
    '[{"item": "Limpiar las ópticas", "done": true}, {"item": "Lubricar el enfoque", "done": true}, {"item": "Revisar la lámpara", "done": true}, {"item": "Centrar el condensador", "done": true}]',
    45.50, null, 'da200000-0000-4000-8000-000000000002', now() - interval '80 days'),
   ('da970000-0000-4000-8000-000000000005', 'da000000-0000-4000-8000-00000000000a', 'da920000-0000-4000-8000-000000000011',
-   null, null, null, 'cleaning', current_date - 15, null, 'pass', null, '[]', null, null,
+   null, null, null, 'cleaning', current_date - 15, null, null, 'pass', null, '[]', null, null,
    'da200000-0000-4000-8000-000000000002', now() - interval '15 days');
+
+-- Diez limpiezas de la campana, como las guardaría la API: cada una cumple la fecha que dejó la anterior (un
+-- mes después de hecha); la quinta se hizo 6 días tarde y la próxima ya está atrasada (M-01c).
+with recursive cleanings (n, due_on, performed_on) as (
+  select 0, current_date - 330, current_date - 331
+  union all
+  select n + 1, (performed_on + interval '1 month')::date,
+         (performed_on + interval '1 month')::date + case when n + 1 = 4 then 6 else -1 end
+    from cleanings
+   where n < 9
+)
+insert into maintenance.records
+  (workspace_id, asset_id, plan_id, plan_version, kind, performed_on, due_on, result, checklist, cost,
+   recorded_by_principal_id, recorded_at)
+select 'da000000-0000-4000-8000-00000000000a', 'da920000-0000-4000-8000-000000000009', 'da950000-0000-4000-8000-000000000004', 1,
+       'cleaning', performed_on, due_on, 'pass', '[]', 35.00, 'da200000-0000-4000-8000-000000000002',
+       performed_on + interval '10 hours'
+  from cleanings;
+
+-- Una reparación del espectrofotómetro: el costo correctivo de Indicadores.
+insert into maintenance.records
+  (workspace_id, asset_id, kind, performed_on, provider_id, result, observations, checklist, cost, recorded_by_principal_id,
+   recorded_at)
+values ('da000000-0000-4000-8000-00000000000a', 'da920000-0000-4000-8000-000000000004', 'corrective', current_date - 60,
+        'da940000-0000-4000-8000-000000000001', 'pass', 'Cambio de la lámpara de deuterio', '[]', 420.00,
+        'da200000-0000-4000-8000-000000000002', now() - interval '60 days');
 
 commit;

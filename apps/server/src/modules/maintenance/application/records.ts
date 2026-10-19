@@ -61,6 +61,7 @@ const toRecord = (row: IListRecordsResult): MaintenanceRecord => ({
   plan: row.plan_id && row.plan_title ? { id: row.plan_id, title: row.plan_title, kind: row.kind as PlanKind } : null,
   kind: row.kind as WorkKind,
   performedOn: row.performed_on,
+  dueOn: row.due_on,
   provider: row.provider_id && row.provider_name ? { id: row.provider_id, name: row.provider_name } : null,
   result: row.result as MaintenanceRecord['result'],
   observations: row.observations,
@@ -181,22 +182,32 @@ interface Correction {
 }
 
 /**
+ * La fecha que tocaba y que el trabajo cumple (M-01c): la próxima del plan. No la cumple un trabajo anterior o
+ * del mismo día que el último registro (historia cargada) ni el que repite un «No conforme» antes de su
+ * próxima fecha. Fechas ISO: el orden del texto es el del calendario.
+ */
+function fulfilledDue(
+  slot: { due_on: string; last_performed_on: string | null; last_result: string | null },
+  performedOn: string,
+): string | null {
+  if (slot.last_performed_on && performedOn <= slot.last_performed_on) return null;
+  if (slot.last_result === 'fail' && performedOn < slot.due_on) return null;
+  return slot.due_on;
+}
+
+/**
  * Lo común de registrar y de corregir (ADR 0020, M-01b). Bloquea el plan, el incidente, el equipo (no dado de
  * baja), el proveedor y, al corregir, el registro anulado (02 §6); el plan debe cubrir al equipo. La fecha no
  * puede ser posterior a hoy en la zona del espacio, y «válida hasta» es solo de calibraciones y verificaciones.
- * Equipos soluciona el incidente de un correctivo con «qué se hizo» y aplica el estado físico actual con la
- * fecha de hoy, con sus permisos y su historial; el registro no los guarda. Responde con la nueva próxima
- * fecha del plan.
+ * Guarda la fecha que tocaba (M-01c). Equipos soluciona el incidente de un correctivo con «qué se hizo» y
+ * aplica el estado físico actual con la fecha de hoy, con sus permisos y su historial; el registro no los
+ * guarda. Responde con la nueva próxima fecha del plan.
  */
 async function registerWork(access: WorkspaceAccess, input: WorkInput, correction?: Correction): Promise<RecordCreated> {
   const workspaceId = access.workspace.id;
   const work = await chosenWork(access, input);
   if (input.faultId) await lockAssetFault(access, input.faultId, input.assetId);
   await requireActiveAsset(access, input.assetId);
-  if (input.planId) {
-    const [covered] = await nextDueOn.run({ workspaceId, planId: input.planId, assetId: input.assetId }, access.client);
-    if (!covered) throw new AppError('VALIDATION_FAILED', 'El plan no cubre a este equipo');
-  }
   if (input.providerId) {
     const [provider] = await shareProvider.run({ workspaceId, providerId: input.providerId }, access.client);
     if (!provider) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
@@ -210,6 +221,9 @@ async function registerWork(access: WorkspaceAccess, input: WorkInput, correctio
   }
   const checklist = markedChecklist(work.checklist, input.checklist);
   if (correction) await voidLocked(access, correction.recordId, correction.reason, input.assetId);
+  // Después de anular: al corregir, la fecha que tocaba es la de antes del registro anulado.
+  const [slot] = input.planId ? await nextDueOn.run({ workspaceId, planId: input.planId, assetId: input.assetId }, access.client) : [];
+  if (input.planId && !slot) throw new AppError('VALIDATION_FAILED', 'El plan no cubre a este equipo');
   const [created] = await insertRecord.run(
     {
       workspaceId,
@@ -219,6 +233,7 @@ async function registerWork(access: WorkspaceAccess, input: WorkInput, correctio
       acceptanceCriteria: work.acceptanceCriteria,
       kind: work.kind,
       performedOn: input.performedOn,
+      dueOn: slot ? fulfilledDue(slot, input.performedOn) : null,
       providerId: input.providerId,
       result: input.result,
       observations: input.observations,

@@ -1,5 +1,6 @@
 import type { FaultStats } from '@platlab/contracts';
 import { niceScale } from '../../app/chart-scale';
+import { monthName } from '../../app/month-name';
 
 type Month = FaultStats['months'][number];
 
@@ -18,16 +19,6 @@ export interface FaultPlotPoint {
   /** Alturas en % del eje, desde abajo. */
   reportedY: number;
   resolvedY: number;
-}
-
-/** «2026-11» → «nov» o «noviembre de 2026». Los meses son del calendario del espacio: sin hora ni zona que convertir. */
-function monthName(month: string, style: 'short' | 'long'): string {
-  const [year, number] = month.split('-').map(Number);
-  return new Intl.DateTimeFormat('es-EC', {
-    timeZone: 'UTC',
-    month: style,
-    ...(style === 'long' ? { year: 'numeric' } : {}),
-  }).format(new Date(Date.UTC(year ?? 1970, (number ?? 1) - 1, 1)));
 }
 
 /**

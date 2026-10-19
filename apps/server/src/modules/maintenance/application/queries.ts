@@ -23,6 +23,7 @@ import {
   workspaceToday,
 } from '../infrastructure/work.queries.js';
 import { runQuery } from './command.js';
+import { replacementCount } from './indicators.js';
 import { recordsOf } from './records.js';
 
 /** Lo que toca hacer (ADR 0020): se calcula al consultar desde los planes, en la zona del espacio. */
@@ -57,13 +58,23 @@ export function listDue(pool: pg.Pool, request: QueryRequest): Promise<DueList> 
   });
 }
 
-/** Las cifras del Resumen: vencidos o no conformes, cuántos de ellos son no conformes, y próximos 30 días. */
+/**
+ * Las cifras de Por hacer: vencidos o no conformes, cuántos de ellos son no conformes, próximos 30 días, sin
+ * plan y, para el Administrador, el aviso «Evaluar reemplazo» (M-01c).
+ */
 export function getSummary(pool: pg.Pool, request: QueryRequest): Promise<MaintenanceSummary> {
   return runQuery(pool, request, async (access) => {
     const [row] = (await dueCounts.run({ workspaceId: access.workspace.id, timeZone: access.workspace.timeZone }, access.client)) as [
       { today: string; overdue: number; nonconforming: number; next30: number; uncovered: number },
     ];
-    return { today: row.today, overdue: row.overdue, nonconforming: row.nonconforming, next30: row.next30, uncovered: row.uncovered };
+    return {
+      today: row.today,
+      overdue: row.overdue,
+      nonconforming: row.nonconforming,
+      next30: row.next30,
+      uncovered: row.uncovered,
+      replacement: await replacementCount(access),
+    };
   });
 }
 
