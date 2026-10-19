@@ -1,3 +1,4 @@
+import { PassThrough } from 'node:stream';
 import type { FastifyPluginAsync } from 'fastify';
 import type pg from 'pg';
 import {
@@ -14,18 +15,21 @@ import {
   nextDueQuery,
   planParams,
   providerParams,
+  recordFilterQuery,
   recordListQuery,
   recordParams,
   updatePlanRequest,
   updateProviderRequest,
   voidRecordRequest,
 } from '@platlab/contracts';
+import { XLSX_TYPE } from '../../../platform/export/xlsx.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
+import { exportRecords } from '../application/export.js';
 import { dismissReplacement, getIndicators } from '../application/indicators.js';
 import { addExclusion, archiveExclusion, archivePlan, createPlan, listPlanAssets, listPlans, updatePlan } from '../application/plans.js';
 import { archiveProvider, createProvider, listProviders, updateProvider } from '../application/providers.js';
-import { getAssetMaintenance, getSummary, listDue, listNextDue, searchAssets } from '../application/queries.js';
+import { getAssetMaintenance, getSummary, listAreas, listDue, listNextDue, searchAssets } from '../application/queries.js';
 import { correctRecord, createRecord, listRecords, uploadRecordCertificate, voidRecord } from '../application/records.js';
 
 /**
@@ -93,6 +97,25 @@ export function maintenanceRoutes({ pool, publicFiles }: { pool: pg.Pool; public
 
     // Registros: inmutables; el certificado se adjunta una vez. El Administrador los anula o los corrige.
     app.get('/records', async (request) => listRecords(pool, queryRequest(request), recordListQuery.parse(request.query)));
+
+    app.get('/areas', async (request) => listAreas(pool, queryRequest(request)));
+
+    // Excel del Historial (M-01d), como el del Informe de Equipos: sale por partes mientras se lee. Un rechazo
+    // antes de empezar responde con su error; un fallo a mitad corta la descarga y la transacción se revierte.
+    app.get('/records/export', async (request, reply) => {
+      const filters = recordFilterQuery.parse(request.query);
+      const body = new PassThrough();
+      try {
+        await exportRecords(pool, queryRequest(request), filters, (fileName) => {
+          void reply.type(XLSX_TYPE).header('content-disposition', `attachment; filename="${fileName}"`).send(body);
+          return body;
+        });
+      } catch (error) {
+        if (!reply.sent) throw error;
+        body.destroy(error instanceof Error ? error : new Error(String(error)));
+      }
+      return reply;
+    });
 
     app.post('/records', async (request, reply) => {
       const input = createRecordRequest.parse(request.body);

@@ -29,6 +29,8 @@ export function MaintenanceLayout() {
             canRecord: canOperate && me.permissions.includes('maintenance.work.record'),
             canManagePlans: canOperate && me.permissions.includes('maintenance.plan.manage'),
             canReviewReplacement: canOperate && me.permissions.includes('maintenance.replacement.review'),
+            // Exportar es una consulta: sigue disponible en modo consulta (ADR 0009).
+            canExport: me.permissions.includes('maintenance.report.export'),
             // Todo lo de Mantenimiento: las consultas activas se vuelven a pedir y las demás quedan viejas.
             freshness: { refreshing, refresh: () => void queryClient.invalidateQueries({ queryKey: maintenanceKey }) },
           } satisfies MaintenanceContext

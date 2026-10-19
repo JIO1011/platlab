@@ -13,7 +13,7 @@ import { AssetDocuments } from './asset-documents';
 import { AssetFaults } from './asset-faults';
 import { AssetHistory } from './asset-history';
 import { useEquipment } from './context';
-import { ASSET_TAB } from './extension-points';
+import { ASSET_STATUS, ASSET_TAB } from './extension-points';
 import { LifeRecordPrint } from './life-record-print';
 import { useAreas, useAsset, useAssetHistory } from './queries';
 import { AssetFormSheet } from './sheets/asset-sheet';
@@ -89,6 +89,7 @@ export function EquipmentAssetPage() {
   const [printing, setPrinting] = useState(false);
   const [search, setSearch] = useSearchParams();
   const extraTabs = useExtensions(ASSET_TAB, me).map((tab) => ({ ...tab, value: fold(tab.label).replace(/\s+/g, '-') }));
+  const statusLines = useExtensions(ASSET_STATUS, me);
   const timeZone = me.workspace.timeZone;
   const canReport = canOperate && me.permissions.includes('equipment.fault.report');
   // Los incidentes de un equipo los ve quien las reporta o las atiende.
@@ -154,6 +155,11 @@ export function EquipmentAssetPage() {
             timeZone={timeZone}
             onAction={openSheet}
             onLifeRecord={() => setPrinting(true)}
+            statusLines={statusLines.map(({ code, Component }) => (
+              <Suspense key={code} fallback={null}>
+                <Component assetId={data.id} />
+              </Suspense>
+            ))}
           />
         </section>
       </WithBack>
@@ -188,7 +194,7 @@ export function EquipmentAssetPage() {
           <AssetDocuments assetId={data.id} retired={data.condition === 'retired'} />
         </TabsContent>
         <TabsContent value="historial">
-          <AssetHistory history={history} timeZone={timeZone} />
+          <AssetHistory assetId={data.id} seesFaults={seesFaults} timeZone={timeZone} />
         </TabsContent>
         {extraTabs.map(({ code, value, Component }) => (
           <TabsContent key={code} value={value}>

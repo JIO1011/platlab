@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { list, money, page, text } from '../common.js';
+import { list, many, money, page, text } from '../common.js';
 import { assetCondition, assetConservation } from '../equipment/catalog.js';
 import { faultType } from '../equipment/faults.js';
 import { maintenanceAssetRef, planRef, workKind } from './plans.js';
@@ -62,9 +62,10 @@ export const maintenanceSummary = z.object({
 
 export const record = z.object({
   id: z.uuid(),
-  asset: maintenanceAssetRef,
-  /** Sin plan, el registro lleva solo su tipo de trabajo. */
-  plan: planRef.nullable(),
+  /** Con el área en que está hoy el equipo (M-01d). */
+  asset: maintenanceAssetRef.extend(area),
+  /** Sin plan, el registro lleva solo su tipo de trabajo. El requisito es el que el plan dice hoy (M-01c). */
+  plan: planRef.extend({ requirement: z.string().nullable() }).nullable(),
   kind: workKind,
   performedOn: date,
   /**
@@ -164,11 +165,38 @@ export const voidRecordRequest = z.object({ reason }).strict();
  */
 export const correctRecordRequest = z.object({ reason, keepCertificate: z.boolean(), record: createRecordRequest }).strict();
 
-/** GET /records: los completados, del más reciente al más antiguo; con `assetId`, los de un equipo. */
-export const recordListQuery = z.object({ ...page, assetId: z.uuid().optional() }).strict();
+/**
+ * Filtros del Historial (M-01d): con `assetId`, los de un equipo; el periodo va por la fecha del trabajo, ambos
+ * extremos incluidos; el área es la del equipo hoy; `internal` es el trabajo sin proveedor.
+ */
+const recordFilters = {
+  assetId: z.uuid().optional(),
+  from: date.optional(),
+  to: date.optional(),
+  kind: many(workKind),
+  result: many(workResult),
+  area: many(z.uuid()),
+  provider: many(z.union([z.uuid(), z.literal('internal')])),
+};
+
+const periodInOrder = (input: { from?: string | undefined; to?: string | undefined }) =>
+  input.from === undefined || input.to === undefined || input.from <= input.to;
+const periodMessage = { message: '«Desde» no puede ser posterior a «Hasta»', path: ['to'] };
+
+/** GET /records: los completados, del más reciente al más antiguo, con los filtros del Historial. */
+export const recordListQuery = z
+  .object({ ...page, ...recordFilters })
+  .strict()
+  .refine(periodInOrder, periodMessage);
+
+/** GET /records/export: el Excel del Historial, con los mismos filtros y sin paginar (M-01d). */
+export const recordFilterQuery = z.object(recordFilters).strict().refine(periodInOrder, periodMessage);
 export const recordList = list(record);
 
 export const recordParams = z.object({ workspaceId: z.uuid(), recordId: z.uuid() });
+
+/** GET /areas: las áreas con algún equipo no dado de baja, para el filtro del Historial (M-01d). */
+export const maintenanceAreaList = z.object({ items: z.array(z.object({ id: z.uuid(), name: z.string() })) });
 
 /** GET /assets: para registrar por búsqueda (`q`, en el código o el nombre) o por el código exacto. */
 export const maintenanceAssetQuery = z
@@ -245,6 +273,8 @@ export type MaintenanceSummary = z.infer<typeof maintenanceSummary>;
 export type MaintenanceRecord = z.infer<typeof record>;
 export type RecordCreated = z.infer<typeof recordCreated>;
 export type RecordList = z.infer<typeof recordList>;
+export type RecordFilters = z.infer<typeof recordFilterQuery>;
+export type MaintenanceAreaList = z.infer<typeof maintenanceAreaList>;
 export type MaintenanceAsset = z.infer<typeof maintenanceAsset>;
 export type MaintenanceAssetList = z.infer<typeof maintenanceAssetList>;
 export type AssetMaintenance = z.infer<typeof assetMaintenance>;

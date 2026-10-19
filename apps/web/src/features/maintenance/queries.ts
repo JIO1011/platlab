@@ -1,6 +1,7 @@
 import {
   assetMaintenance,
   dueList,
+  maintenanceAreaList,
   maintenanceAssetList,
   maintenanceIndicators,
   maintenanceSummary,
@@ -13,6 +14,7 @@ import {
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
+import { historyApiSearch, type HistoryFilters } from './history-filters';
 
 const maintenanceKey = (user: string, workspaceId: string) => [...workspaceKey(user, workspaceId), 'maintenance'] as const;
 
@@ -85,20 +87,30 @@ export function usePlanAssets(workspaceId: string, planId: string | null) {
   });
 }
 
-/** Historial: los trabajos registrados, del más reciente al más antiguo, por páginas; con `assetId`, los de un equipo (`?equipo=`). */
-export function useRecords(workspaceId: string, assetId?: string) {
+/** Historial (ADR 0020): por páginas, del más reciente al más antiguo, con sus filtros (M-01d). */
+export function useRecords(workspaceId: string, filters: HistoryFilters) {
   const user = useUserKey();
+  const search = historyApiSearch(filters).toString();
   return useInfiniteQuery({
-    queryKey: [...maintenanceKey(user, workspaceId), 'records', assetId ?? null],
+    queryKey: [...maintenanceKey(user, workspaceId), 'records', search],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => {
-      const search = new URLSearchParams();
-      if (assetId) search.set('assetId', assetId);
-      if (pageParam) search.set('cursor', pageParam);
-      return api(`${base(workspaceId)}/records?${search}`, { schema: recordList });
+      const params = new URLSearchParams(search);
+      if (pageParam) params.set('cursor', pageParam);
+      return api(`${base(workspaceId)}/records?${params}`, { schema: recordList });
     },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     placeholderData: (previous) => previous,
+  });
+}
+
+/** Las áreas del filtro del Historial (M-01d): las que tienen algún equipo. */
+export function useMaintenanceAreas(workspaceId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...maintenanceKey(user, workspaceId), 'areas'],
+    queryFn: () => api(`${base(workspaceId)}/areas`, { schema: maintenanceAreaList }),
+    staleTime: 60_000,
   });
 }
 

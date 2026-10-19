@@ -10,6 +10,8 @@ export const PLAN_MANAGE = 'maintenance.plan.manage';
 export const VOID = 'maintenance.record.void';
 /** Descartar «Evaluar reemplazo»: el Administrador (M-01c). */
 export const REVIEW = 'maintenance.replacement.review';
+/** El Excel del Historial: un reporte del Administrador (01 §5, M-01d). */
+export const REPORT = 'maintenance.report.export';
 
 /** Comandos de Mantenimiento: una transacción con su admisión, permiso, idempotencia y auditoría. */
 export const runCommand = moduleCommand('maintenance');

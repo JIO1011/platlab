@@ -8,15 +8,23 @@ export function formatDayInZone(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat('es-EC', { timeZone, dateStyle: 'medium' }).format(new Date(iso));
 }
 
-/** Versión corta para listas estrechas: «1 oct, 8:23 p. m.»; el año solo si no es el actual. */
-export function formatShortDateTime(iso: string, timeZone: string): string {
+/** El día civil de un instante en la zona del espacio, AAAA-MM-DD (en-CA lo escribe así): ordena por día. */
+export function dayInZone(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+}
+
+/**
+ * Versión corta para listas estrechas: «1 oct, 8:23 p. m.»; el año solo si no es el actual. Con `alwaysYear`, siempre
+ * lo lleva («1 oct 2026, 8:23 p. m.»): una línea de tiempo que mezcla años no puede dejarlo a la suposición.
+ */
+export function formatShortDateTime(iso: string, timeZone: string, alwaysYear = false): string {
   const date = new Date(iso);
   const year = (value: Date) => new Intl.DateTimeFormat('en', { timeZone, year: 'numeric' }).format(value);
   return new Intl.DateTimeFormat('es-EC', {
     timeZone,
     day: 'numeric',
     month: 'short',
-    year: year(date) === year(new Date()) ? undefined : 'numeric',
+    year: alwaysYear || year(date) !== year(new Date()) ? 'numeric' : undefined,
     hour: 'numeric',
     minute: '2-digit',
   }).format(date);

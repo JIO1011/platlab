@@ -1,6 +1,7 @@
-import { Input, cn, sectionLabel } from '@platlab/ui';
+import { cn, sectionLabel } from '@platlab/ui';
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
+import { DateField } from '../../app/filter-group';
 import { Pill } from './filter-pill';
 import type { MovementFilters } from './movement-filters';
 
@@ -16,26 +17,6 @@ interface DateRange {
   to: string;
 }
 
-/** Un campo de fecha de «Elegir fechas»; con `errorId`, queda marcado y apunta a su aviso. */
-function DateField({ label, value, onChange, errorId }: { label: string; value: string; onChange: (value: string) => void; errorId?: string | undefined }) {
-  const id = useId();
-  return (
-    <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2">
-      <label htmlFor={id} className="text-[13px] text-ink-muted">
-        {label}
-      </label>
-      <Input
-        id={id}
-        type="date"
-        value={value}
-        aria-invalid={errorId ? true : undefined}
-        aria-describedby={errorId}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-[44px] min-w-0 px-2 text-[13px] sm:h-9"
-      />
-    </div>
-  );
-}
 
 /** Desde–hasta; el aviso del rango al revés cuelga del campo «Desde». */
 function RangeFields({ draft, reversed, onEdit }: { draft: DateRange; reversed: boolean; onEdit: (next: DateRange) => void }) {

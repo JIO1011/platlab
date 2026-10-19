@@ -17,6 +17,7 @@ export const maintenanceModule = defineModule({
     'maintenance.plan.manage',
     'maintenance.record.void',
     'maintenance.replacement.review',
+    'maintenance.report.export',
   ],
   roleGrants: {
     admin: [
@@ -25,6 +26,7 @@ export const maintenanceModule = defineModule({
       'maintenance.plan.manage',
       'maintenance.record.void',
       'maintenance.replacement.review',
+      'maintenance.report.export',
     ],
     operator: ['maintenance.work.read', 'maintenance.work.record'],
   },

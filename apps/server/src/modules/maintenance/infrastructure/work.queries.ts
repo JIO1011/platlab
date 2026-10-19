@@ -304,3 +304,38 @@ const nextDueByAssetIR: any = {"usedParamSet":{"workspaceId":true,"assetIds":tru
 export const nextDueByAsset = new PreparedQuery<INextDueByAssetParams,INextDueByAssetResult>(nextDueByAssetIR);
 
 
+/** 'ListAreas' parameters type */
+export interface IListAreasParams {
+  workspaceId: string;
+}
+
+/** 'ListAreas' return type */
+export interface IListAreasResult {
+  id: string;
+  name: string;
+  sort_name: string;
+}
+
+/** 'ListAreas' query type */
+export interface IListAreasQuery {
+  params: IListAreasParams;
+  result: IListAreasResult;
+}
+
+const listAreasIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":462,"b":474}]}],"statement":"-- Las áreas con algún equipo no dado de baja, para el filtro del Historial (M-01d), sin tildes ni mayúsculas.\nSELECT DISTINCT area.id AS \"id!\", area.name AS \"name!\", core.fold_text(area.name) AS \"sort_name!\"\nFROM equipment.asset_directory AS a\nJOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id\nJOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id\nWHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired'\nORDER BY core.fold_text(area.name), area.id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Las áreas con algún equipo no dado de baja, para el filtro del Historial (M-01d), sin tildes ni mayúsculas.
+ * SELECT DISTINCT area.id AS "id!", area.name AS "name!", core.fold_text(area.name) AS "sort_name!"
+ * FROM equipment.asset_directory AS a
+ * JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
+ * JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
+ * WHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired'
+ * ORDER BY core.fold_text(area.name), area.id
+ * ```
+ */
+export const listAreas = new PreparedQuery<IListAreasParams,IListAreasResult>(listAreasIR);
+
+

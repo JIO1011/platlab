@@ -8,6 +8,7 @@ import {
   type createRecordRequest,
   type MaintenanceRecord,
   type RecordCreated,
+  type RecordFilters,
   type RecordList,
   type recordListQuery,
   type voidRecordRequest,
@@ -56,9 +57,12 @@ const recordRef = (id: string | null, performedOn: string | null | undefined) =>
 
 const toRecord = (row: IListRecordsResult): MaintenanceRecord => ({
   id: row.id,
-  asset: { id: row.asset_id, code: row.asset_code, name: row.asset_name },
+  asset: { id: row.asset_id, code: row.asset_code, name: row.asset_name, area: row.area_name },
   // El registro repite el tipo de trabajo de su plan (FK de records).
-  plan: row.plan_id && row.plan_title ? { id: row.plan_id, title: row.plan_title, kind: row.kind as PlanKind } : null,
+  plan:
+    row.plan_id && row.plan_title
+      ? { id: row.plan_id, title: row.plan_title, kind: row.kind as PlanKind, requirement: row.plan_requirement }
+      : null,
   kind: row.kind as WorkKind,
   performedOn: row.performed_on,
   dueOn: row.due_on,
@@ -90,19 +94,31 @@ const toRecord = (row: IListRecordsResult): MaintenanceRecord => ({
 
 interface RecordFilter {
   recordId?: string;
-  assetId?: string;
+  /** Los filtros del Historial (M-01d); con `assetId`, los de un equipo. */
+  filters?: RecordFilters;
   /** Fecha del trabajo, hora exacta del registro e id del último de la página anterior. */
   after?: string[] | null;
   limit: number;
 }
 
-/** Una página de registros, del más reciente al más antiguo; también la usa la ficha del equipo. */
+/** Una página de registros, del más reciente al más antiguo; también la usan la ficha del equipo y el Excel. */
 async function recordRows(access: WorkspaceAccess, filter: RecordFilter): Promise<IListRecordsResult[]> {
+  const filters = filter.filters ?? {};
+  // «Interno» es el trabajo sin proveedor: va aparte de los proveedores elegidos.
+  const providers = filters.provider ?? [];
+  const providerIds = providers.filter((value) => value !== 'internal');
   return listRecordsQuery.run(
     {
       workspaceId: access.workspace.id,
       recordId: filter.recordId ?? null,
-      assetId: filter.assetId ?? null,
+      assetId: filters.assetId ?? null,
+      from: filters.from ?? null,
+      to: filters.to ?? null,
+      kinds: filters.kind ?? null,
+      results: filters.result ?? null,
+      areaIds: filters.area ?? null,
+      providerIds: providerIds.length > 0 ? providerIds : null,
+      internal: providers.includes('internal'),
       afterOn: filter.after?.[0] ?? null,
       afterAt: filter.after?.[1] ?? null,
       afterId: filter.after?.[2] ?? null,
@@ -113,7 +129,19 @@ async function recordRows(access: WorkspaceAccess, filter: RecordFilter): Promis
 }
 
 export const recordsOf = async (access: WorkspaceAccess, assetId: string, limit: number): Promise<MaintenanceRecord[]> =>
-  (await recordRows(access, { assetId, limit })).map(toRecord);
+  (await recordRows(access, { filters: { assetId }, limit })).map(toRecord);
+
+/** Los registros filtrados por lotes, del más reciente al más antiguo: el Excel los recorre sin cargarlos todos (M-01d). */
+export async function* recordBatches(access: WorkspaceAccess, filters: RecordFilters, size: number): AsyncGenerator<MaintenanceRecord[]> {
+  let after: string[] | null = null;
+  for (;;) {
+    const rows = await recordRows(access, { filters, after, limit: size });
+    if (rows.length > 0) yield rows.map(toRecord);
+    const last = rows.at(-1);
+    if (rows.length < size || !last) return;
+    after = [last.performed_on, last.recorded_key, last.id];
+  }
+}
 
 async function recordById(access: WorkspaceAccess, recordId: string): Promise<MaintenanceRecord> {
   const [row] = await recordRows(access, { recordId, limit: 1 });
@@ -368,19 +396,16 @@ export async function uploadRecordCertificate(
   });
 }
 
-/** Completados (ADR 0020): del más reciente al más antiguo; con `assetId`, los de un equipo. */
+/** Completados (ADR 0020): del más reciente al más antiguo, con los filtros del Historial (M-01d). */
 export function listRecords(pool: pg.Pool, request: QueryRequest, query: z.infer<typeof recordListQuery>): Promise<RecordList> {
   return runQuery(pool, request, async (access) => {
-    const rows = await recordRows(access, {
-      ...(query.assetId ? { assetId: query.assetId } : {}),
-      after: decodeCursor(query.cursor, 3),
-      limit: query.limit + 1,
-    });
-    const visible = rows.slice(0, query.limit);
+    const { cursor, limit, ...filters } = query;
+    const rows = await recordRows(access, { filters, after: decodeCursor(cursor, 3), limit: limit + 1 });
+    const visible = rows.slice(0, limit);
     const last = visible.at(-1);
     return {
       items: visible.map(toRecord),
-      nextCursor: rows.length > query.limit && last ? encodeCursor([last.performed_on, last.recorded_key, last.id]) : null,
+      nextCursor: rows.length > limit && last ? encodeCursor([last.performed_on, last.recorded_key, last.id]) : null,
     };
   });
 }

@@ -1,5 +1,5 @@
 import type { WorkResult } from '@platlab/contracts';
-import { formatDate } from '../../app/format';
+import { dayInZone, formatDate } from '../../app/format';
 
 /**
  * Plazos de Mantenimiento (ADR 0020), calculados al consultar: todas las fechas son días civiles AAAA-MM-DD
@@ -14,8 +14,7 @@ interface DueEntry {
 
 /** Hoy en la zona del espacio, AAAA-MM-DD; `now` en milisegundos. */
 export function todayInZone(timeZone: string, now: number): string {
-  // en-CA escribe AAAA-MM-DD.
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now));
+  return dayInZone(new Date(now).toISOString(), timeZone);
 }
 
 /** Días civiles de `today` a `dueOn`: negativo si ya pasó. */

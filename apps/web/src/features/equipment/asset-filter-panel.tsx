@@ -6,9 +6,9 @@ import {
   type AssetTypeList,
   type ResponsibleList,
 } from '@platlab/contracts';
-import { Button, OptionRow, Skeleton } from '@platlab/ui';
+import { OptionRow } from '@platlab/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { FilterGroup, type ChosenOption } from '../../app/filter-group';
+import { FilterGroup, OptionsError, OptionsSkeleton, type ChosenOption } from '../../app/filter-group';
 import { childrenOf, levelOneParent, type Place } from '../../app/places';
 import type { AssetQuery } from './asset-filters';
 import { NO_RESPONSIBLE, conditionLabel, noResponsibleLabel } from './asset-text';
@@ -69,28 +69,7 @@ function ChoiceGroup<T extends string>({
   );
 }
 
-function OptionsSkeleton({ rows }: { rows: number }) {
-  return (
-    <div className="grid gap-2 px-2 py-1.5" aria-hidden>
-      {Array.from({ length: rows }, (_, index) => (
-        <Skeleton key={index} className="h-4 w-full" />
-      ))}
-    </div>
-  );
-}
 
-function OptionsError({ what, onRetry }: { what: string; onRetry: () => void }) {
-  return (
-    <div className="grid justify-items-start gap-1 px-2 py-1.5">
-      <p role="alert" className="text-[13px] text-ink-muted">
-        No se pudieron cargar {what}.
-      </p>
-      <Button variant="ghost" size="sm" className="h-[44px] sm:h-8" onClick={onRetry}>
-        Reintentar
-      </Button>
-    </div>
-  );
-}
 
 /**
  * Panel de filtros del Inventario (ADR 0019), con el mismo lenguaje que el de Movimientos: grupos
