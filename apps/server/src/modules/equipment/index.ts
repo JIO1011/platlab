@@ -5,4 +5,4 @@
 export { equipmentHomeSummary } from './application/queries.js';
 export { equipmentRoutes } from './http/routes.js';
 export { recordConservation, requireActiveAsset } from './application/status.js';
-export { lockAssetFault, openFaultsOf, resolveAssetFault } from './application/faults.js';
+export { frequentFaultAssets, lockAssetFault, openFaultsOf, resolveAssetFault } from './application/faults.js';

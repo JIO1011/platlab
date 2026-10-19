@@ -1,7 +1,7 @@
 import type { DueList } from '@platlab/contracts';
-import { Button, Input, Skeleton, StatePanel, cn } from '@platlab/ui';
-import { ChevronRight, ClipboardCheck, ClipboardList, Search, ScanLine } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { Button, Input, Skeleton, StatePanel } from '@platlab/ui';
+import { ClipboardCheck, ClipboardList, Search, ScanLine } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { fold } from '../../app/fold';
 import { formatDate } from '../../app/format';
@@ -13,6 +13,7 @@ import { DueDot, toneText } from './due-view';
 import { useDue, useMaintenanceSummary } from './queries';
 import { RecordSheet } from './record-sheet';
 import { SectionHeader } from './section-header';
+import { Tile } from './tile';
 import { titleWithKind } from './work-text';
 
 type DueItem = DueList['items'][number];
@@ -36,64 +37,6 @@ function goToGroup(group: DueGroup) {
   const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   heading.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
   heading.focus({ preventScroll: true });
-}
-
-const tileStyles =
-  'group grid content-start gap-0.5 rounded-card bg-surface p-3 text-left shadow-raised sm:p-4 transition-[transform,box-shadow] duration-200 ease-out-expo';
-const tileInteractive =
-  'cursor-pointer hover:shadow-float motion-safe:hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action';
-
-/** Una cifra de la portada: número, nombre y, si hay algo que decir, una línea de estado. Toca para ir a lo que cuenta. */
-function Tile({
-  label,
-  value,
-  tone,
-  hint,
-  hintTone = 'neutral',
-  cta,
-  onClick,
-  to,
-}: {
-  label: string;
-  value: number;
-  tone: 'danger' | 'warning' | 'neutral';
-  hint?: string | undefined;
-  hintTone?: 'danger' | 'neutral';
-  /** La acción que ofrece la cifra («Ver lista»): con chevron, para que se lea como botón. */
-  cta?: string | undefined;
-  onClick?: () => void;
-  to?: string;
-}) {
-  const content: ReactNode = (
-    <>
-      <span className={cn('text-[1.75rem] font-bold leading-none tracking-tight tabular-nums', tone === 'neutral' ? 'text-ink' : toneText[tone])}>{value}</span>
-      <span className="text-sm font-medium text-ink">{label}</span>
-      {hint ? (
-        <span className={cn('text-[13px] font-medium', hintTone === 'danger' ? 'text-danger' : 'text-ink-muted')}>{hint}</span>
-      ) : null}
-      {cta ? (
-        <span className="mt-0.5 inline-flex items-center gap-0.5 text-[13px] font-medium text-action group-hover:underline group-hover:underline-offset-2">
-          {cta}
-          <ChevronRight className="size-3.5 transition-transform duration-200 ease-out-expo motion-safe:group-hover:translate-x-0.5" aria-hidden />
-        </span>
-      ) : null}
-    </>
-  );
-  if (to) {
-    return (
-      <Link to={to} className={cn(tileStyles, tileInteractive)}>
-        {content}
-      </Link>
-    );
-  }
-  if (onClick && value > 0) {
-    return (
-      <button type="button" onClick={onClick} className={cn(tileStyles, tileInteractive)}>
-        {content}
-      </button>
-    );
-  }
-  return <div className={tileStyles}>{content}</div>;
 }
 
 /** Una fila de «Por hacer»: el equipo (enlace a su ficha), el trabajo, la fecha con su plazo y «Registrar». */
@@ -209,31 +152,43 @@ export function MaintenanceTodoPage() {
             <QueryErrorState error={summary.error} onRetry={() => void summary.refetch()} />
           </div>
         ) : (
-          <section aria-label="Cifras" className="grid grid-cols-3 gap-2 sm:gap-4">
-            <Tile
-              label="Atrasados"
-              value={summary.data.overdue}
-              tone={summary.data.overdue > 0 ? 'danger' : 'neutral'}
-              hint={summary.data.nonconforming > 0 ? `${summary.data.nonconforming} ${summary.data.nonconforming === 1 ? 'no conforme' : 'no conformes'}` : undefined}
-              hintTone="danger"
-              cta={summary.data.overdue > 0 ? 'Ver lista' : undefined}
-              onClick={() => goToGroup('overdue')}
-            />
-            <Tile
-              label="Próximos 30 días"
-              value={summary.data.next30}
-              tone={summary.data.next30 > 0 ? 'warning' : 'neutral'}
-              cta={summary.data.next30 > 0 ? 'Ver lista' : undefined}
-              onClick={() => goToGroup('upcoming')}
-            />
-            <Tile
-              label="Sin plan"
-              value={summary.data.uncovered}
-              tone="neutral"
-              cta={summary.data.uncovered > 0 ? 'Ver planes' : undefined}
-              to={`${base}/planes`}
-            />
-          </section>
+          <>
+            <section aria-label="Cifras" className="grid grid-cols-3 gap-2 sm:gap-4">
+              <Tile
+                label="Atrasados"
+                value={summary.data.overdue}
+                tone={summary.data.overdue > 0 ? 'danger' : 'neutral'}
+                hint={summary.data.nonconforming > 0 ? `${summary.data.nonconforming} ${summary.data.nonconforming === 1 ? 'no conforme' : 'no conformes'}` : undefined}
+                hintTone="danger"
+                cta={summary.data.overdue > 0 ? 'Ver lista' : undefined}
+                onClick={summary.data.overdue > 0 ? () => goToGroup('overdue') : undefined}
+              />
+              <Tile
+                label="Próximos 30 días"
+                value={summary.data.next30}
+                tone={summary.data.next30 > 0 ? 'warning' : 'neutral'}
+                cta={summary.data.next30 > 0 ? 'Ver lista' : undefined}
+                onClick={summary.data.next30 > 0 ? () => goToGroup('upcoming') : undefined}
+              />
+              <Tile
+                label="Sin plan"
+                value={summary.data.uncovered}
+                tone="neutral"
+                cta={summary.data.uncovered > 0 ? 'Ver planes' : undefined}
+                to={`${base}/planes`}
+              />
+            </section>
+            {summary.data.replacement ? (
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
+                <span>
+                  {summary.data.replacement} {summary.data.replacement === 1 ? 'equipo' : 'equipos'} para evaluar reemplazo
+                </span>
+                <Link to={`${base}/indicadores#reemplazo`} className="inline-flex min-h-11 items-center font-medium text-action underline-offset-2 hover:underline sm:min-h-0">
+                  Revisar
+                </Link>
+              </p>
+            ) : null}
+          </>
         )}
 
         {due.isPending ? (

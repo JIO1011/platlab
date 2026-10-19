@@ -1,4 +1,5 @@
 import type { WorkResult } from '@platlab/contracts';
+import { formatDate } from '../../app/format';
 
 /**
  * Plazos de Mantenimiento (ADR 0020), calculados al consultar: todas las fechas son días civiles AAAA-MM-DD
@@ -57,6 +58,12 @@ export function dueText(dueOn: string, today: string): string {
   const span = (n: number) => `${n} ${n === 1 ? 'día' : 'días'}`;
   if (days === 0) return 'Vence hoy';
   return days < 0 ? `hace ${span(-days)}` : `en ${span(days)}`;
+}
+
+/** Qué tan a tiempo se hizo un trabajo (M-01c): «Tocaba el 12 nov 2026 · hecho a tiempo» o «… · hecho 3 días después». */
+export function doneText(dueOn: string, performedOn: string): string {
+  const late = daysUntil(performedOn, dueOn);
+  return `Tocaba el ${formatDate(dueOn)} · ${late <= 0 ? 'hecho a tiempo' : `hecho ${late} ${late === 1 ? 'día' : 'días'} después`}`;
 }
 
 /**

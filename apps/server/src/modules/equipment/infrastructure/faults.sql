@@ -176,3 +176,13 @@ CROSS JOIN out_of_service
 LEFT JOIN reported ON reported.month = m.month
 LEFT JOIN resolved ON resolved.month = m.month
 ORDER BY m.month;
+
+/* @name frequentFaults */
+-- Interfaz para «Evaluar reemplazo» de Mantenimiento (M-01c): los equipos con :minimum incidentes o más
+-- reportados desde el día :since en la zona :timeZone (índice cases_asset).
+SELECT asset_id AS "asset_id!", count(*)::integer AS "faults!"
+FROM incidents.cases
+WHERE workspace_id = :workspaceId! AND module_code = 'equipment'
+  AND reported_at >= (:since!::date::timestamp AT TIME ZONE :timeZone!)
+GROUP BY asset_id
+HAVING count(*) >= :minimum!::integer;

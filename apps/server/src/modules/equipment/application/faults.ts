@@ -34,6 +34,7 @@ import { changeAssetCondition, lockAsset } from '../infrastructure/assets.querie
 import {
   faultCounts,
   faultStats,
+  frequentFaults,
   listFaults as listFaultsQuery,
   reportableAssets,
   type IListFaultsResult,
@@ -248,6 +249,23 @@ export async function openFaultsOf(access: WorkspaceAccess, assetId: string): Pr
     access.client,
   );
   return rows.map(toFault);
+}
+
+/**
+ * Interfaz para otros módulos (M-01c, «Evaluar reemplazo»): los equipos con `minimum` incidentes o más
+ * reportados desde el día `since`, para quien los atiende; quien no, no ve ninguno.
+ */
+export async function frequentFaultAssets(
+  access: WorkspaceAccess,
+  since: string,
+  minimum: number,
+): Promise<{ assetId: string; faults: number }[]> {
+  if (!(await hasPermission(access, FAULT_MANAGE))) return [];
+  const rows = await frequentFaults.run(
+    { workspaceId: access.workspace.id, since, minimum, timeZone: access.workspace.timeZone },
+    access.client,
+  );
+  return rows.map((row) => ({ assetId: row.asset_id, faults: row.faults }));
 }
 
 /**

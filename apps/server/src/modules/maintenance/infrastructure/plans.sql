@@ -8,7 +8,7 @@
 SELECT
   p.id, p.kind, p.title, p.asset_type_id, t.name AS "type_name?", p.asset_id, a.code AS "asset_code?",
   a.name AS "asset_name?", p.interval_count, p.interval_unit, p.starts_on, p.checklist, p.acceptance_criteria,
-  p.archived_at, p.version, cover.asset_count AS "asset_count!", cover.next_due_on AS "next_due_on?",
+  p.requirement, p.archived_at, p.version, cover.asset_count AS "asset_count!", cover.next_due_on AS "next_due_on?",
   cover.overdue_count AS "overdue_count!",
   coalesce((
     SELECT jsonb_agg(
@@ -61,18 +61,18 @@ WHERE workspace_id = :workspaceId! AND id = :assetId!;
 /* @name insertPlan */
 INSERT INTO maintenance.plans (
   workspace_id, kind, title, asset_type_id, asset_id, interval_count, interval_unit, starts_on, checklist,
-  acceptance_criteria, created_by_principal_id
+  acceptance_criteria, requirement, created_by_principal_id
 )
 VALUES (
   :workspaceId!, :kind!, :title!, :assetTypeId, :assetId, :intervalCount!, :intervalUnit!, :startsOn!::date,
-  :checklist!::text[], :acceptanceCriteria, :createdBy!
+  :checklist!::text[], :acceptanceCriteria, :requirement, :createdBy!
 )
 RETURNING id;
 
 /* @name lockPlan */
 -- Lo último del orden de bloqueo (02 §6): el plan que se edita, se archiva o cambia sus exclusiones.
 SELECT kind, title, asset_type_id, asset_id, interval_count, interval_unit, starts_on, checklist,
-       acceptance_criteria, archived_at, version
+       acceptance_criteria, requirement, archived_at, version
 FROM maintenance.plans
 WHERE workspace_id = :workspaceId! AND id = :planId!
 FOR UPDATE;
@@ -81,7 +81,8 @@ FOR UPDATE;
 -- Escribe el plan ya combinado y sube la versión; el comando lo edita con el plan bloqueado.
 UPDATE maintenance.plans
 SET title = :title!, interval_count = :intervalCount!, interval_unit = :intervalUnit!, starts_on = :startsOn!::date,
-    checklist = :checklist!::text[], acceptance_criteria = :acceptanceCriteria, version = version + 1
+    checklist = :checklist!::text[], acceptance_criteria = :acceptanceCriteria, requirement = :requirement,
+    version = version + 1
 WHERE workspace_id = :workspaceId! AND id = :planId!;
 
 /* @name archivePlan */

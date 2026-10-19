@@ -8,6 +8,8 @@ export const RECORD = 'maintenance.work.record';
 export const PLAN_MANAGE = 'maintenance.plan.manage';
 /** Anular y corregir registros: el Administrador (M-01b). */
 export const VOID = 'maintenance.record.void';
+/** Descartar «Evaluar reemplazo»: el Administrador (M-01c). */
+export const REVIEW = 'maintenance.replacement.review';
 
 /** Comandos de Mantenimiento: una transacción con su admisión, permiso, idempotencia y auditoría. */
 export const runCommand = moduleCommand('maintenance');

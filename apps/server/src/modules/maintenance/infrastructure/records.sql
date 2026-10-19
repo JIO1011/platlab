@@ -20,22 +20,22 @@ FOR SHARE;
 
 /* @name insertRecord */
 -- La lista marcada llega como texto JSON (pg enviaría un arreglo como arreglo de PostgreSQL). Con plan,
--- la versión con que se llenó y la copia de su criterio de aceptación; un correctivo, el incidente que
--- atiende; una corrección, el registro anulado.
+-- la versión con que se llenó, la copia de su criterio de aceptación y la fecha que tocaba; un correctivo,
+-- el incidente que atiende; una corrección, el registro anulado.
 INSERT INTO maintenance.records (
-  workspace_id, asset_id, plan_id, plan_version, acceptance_criteria, kind, performed_on, provider_id, result,
-  observations, checklist, cost, valid_until, recorded_by_principal_id, fault_id, corrects_record_id
+  workspace_id, asset_id, plan_id, plan_version, acceptance_criteria, kind, performed_on, due_on, provider_id,
+  result, observations, checklist, cost, valid_until, recorded_by_principal_id, fault_id, corrects_record_id
 )
 VALUES (
-  :workspaceId!, :assetId!, :planId, :planVersion, :acceptanceCriteria, :kind!, :performedOn!::date, :providerId,
-  :result!, :observations, :checklist!::jsonb, :cost::numeric, :validUntil::date, :recordedBy!, :faultId,
-  :correctsRecordId
+  :workspaceId!, :assetId!, :planId, :planVersion, :acceptanceCriteria, :kind!, :performedOn!::date, :dueOn::date,
+  :providerId, :result!, :observations, :checklist!::jsonb, :cost::numeric, :validUntil::date, :recordedBy!,
+  :faultId, :correctsRecordId
 )
 RETURNING id;
 
 /* @name nextDueOn */
--- La próxima fecha del plan para el equipo (plan_assets); sin fila, el plan no lo cubre.
-SELECT due_on AS "due_on!"
+-- La próxima fecha del plan para el equipo (plan_assets), con su último registro; sin fila, el plan no lo cubre.
+SELECT due_on AS "due_on!", last_performed_on, last_result
 FROM maintenance.plan_assets
 WHERE workspace_id = :workspaceId! AND plan_id = :planId! AND asset_id = :assetId!;
 
@@ -46,7 +46,7 @@ WHERE workspace_id = :workspaceId! AND plan_id = :planId! AND asset_id = :assetI
 -- anulados siguen a la vista. `recorded_key` lleva la hora exacta para el cursor.
 SELECT
   r.id, r.asset_id, a.code AS "asset_code!", a.name AS "asset_name!", r.plan_id, p.title AS "plan_title?",
-  r.kind, r.performed_on, r.provider_id, pv.name AS "provider_name?", r.result, r.observations, r.checklist,
+  r.kind, r.performed_on, r.due_on, r.provider_id, pv.name AS "provider_name?", r.result, r.observations, r.checklist,
   trim_scale(r.cost) AS cost, r.valid_until, r.acceptance_criteria, ident.display_name AS "recorded_by_name?",
   r.recorded_at, r.recorded_at::text AS "recorded_key!",
   c.url AS "certificate_url?", c.byte_size AS "certificate_byte_size?", c.uploaded_at AS "certificate_uploaded_at?",

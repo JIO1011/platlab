@@ -10,7 +10,7 @@ import {
 import { Field, Input, OptionRow, Select, Skeleton, Textarea, toast } from '@platlab/ui';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarClock, ChevronDown, TriangleAlert } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { api } from '../../app/api';
 import { FormSheet, validate, type SheetBaseProps } from '../../app/form-sheet';
@@ -56,6 +56,7 @@ interface PlanFormValues {
   /** Un ítem por línea. */
   checklist: string;
   acceptanceCriteria: string;
+  requirement: string;
   /** El plan del tipo que este reemplaza, `none` si se suma, `''` sin elegir. */
   replaces: string;
 }
@@ -78,8 +79,8 @@ function Question({ title, children }: { title: string; children: ReactNode }) {
 
 /**
  * «Nuevo plan», «Editar plan» y «Cambiar frecuencia» (Administrador). Crear es contestar cuatro preguntas en orden: qué se
- * hace (con un título sugerido), a qué equipos (un tipo o un equipo), cada cuánto y desde cuándo; la lista y el criterio
- * son opcionales. «Cambiar frecuencia» parte de un plan de tipo para un solo equipo, que sale de aquel plan en el mismo
+ * hace (con un título sugerido), a qué equipos (un tipo o un equipo), cada cuánto y desde cuándo; la lista, el criterio
+ * y el requisito son opcionales. «Cambiar frecuencia» parte de un plan de tipo para un solo equipo, que sale de aquel plan en el mismo
  * paso. Al editar no cambian el tipo de trabajo ni el alcance; si cambia la frecuencia o el inicio, las fechas se recalculan.
  */
 export function PlanSheet({
@@ -115,6 +116,7 @@ export function PlanSheet({
       startsOn: plan?.startsOn ?? today,
       checklist: (base?.checklist ?? []).join('\n'),
       acceptanceCriteria: base?.acceptanceCriteria ?? '',
+      requirement: base?.requirement ?? '',
       replaces: ownFor ? ownFor.plan.id : '',
     },
   });
@@ -129,7 +131,12 @@ export function PlanSheet({
     'assetTypeId',
   ]);
   const types = useAssetTypes(workspaceId, !editing && scope === 'type');
-  const plans = usePlans(workspaceId, !editing && scope === 'asset' && !ownFor);
+  // También sugiere los requisitos ya usados: así el cumplimiento por requisito no se parte por una errata.
+  const plans = usePlans(workspaceId);
+  const requirementsId = useId();
+  const requirements = [...new Set((plans.data?.items ?? []).flatMap((entry) => (entry.requirement ? [entry.requirement] : [])))].sort(
+    (a, b) => a.localeCompare(b, 'es'),
+  );
   const assetMaintenance = useAssetMaintenance(workspaceId, !editing && !ownFor && scope === 'asset' ? (asset?.id ?? null) : null);
 
   // Los planes de su tipo que ya cubren al equipo y que este podría reemplazar (del mismo tipo de trabajo).
@@ -157,6 +164,7 @@ export function PlanSheet({
     const count = Number(values.intervalCount);
     const items = lines(values.checklist);
     const criteria = values.acceptanceCriteria.trim();
+    const requirement = values.requirement.trim();
     if (values.intervalCount.trim() === '') {
       form.setError('intervalCount', { message: custom ? 'Escribe cada cuánto se repite.' : 'Elige cada cuánto se repite.' });
       if (editing) return;
@@ -170,6 +178,7 @@ export function PlanSheet({
           ...(values.startsOn !== plan.startsOn ? { startsOn: values.startsOn } : {}),
           ...(items.join('\n') !== plan.checklist.join('\n') ? { checklist: items } : {}),
           ...(criteria !== (plan.acceptanceCriteria ?? '') ? { acceptanceCriteria: criteria === '' ? null : criteria } : {}),
+          ...(requirement !== (plan.requirement ?? '') ? { requirement: requirement === '' ? null : requirement } : {}),
         };
         if (Object.keys(changes).length === 0) {
           setGeneralError('No cambiaste nada.');
@@ -210,6 +219,7 @@ export function PlanSheet({
             startsOn: values.startsOn,
             checklist: items,
             acceptanceCriteria: criteria === '' ? null : criteria,
+            requirement: requirement === '' ? null : requirement,
           },
           form,
         );
@@ -438,10 +448,10 @@ export function PlanSheet({
         ) : null}
       </Question>
 
-      <details className="group" open={Boolean(base && (base.checklist.length > 0 || base.acceptanceCriteria))}>
+      <details className="group" open={Boolean(base && (base.checklist.length > 0 || base.acceptanceCriteria || base.requirement))}>
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-control focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action [&::-webkit-details-marker]:hidden">
           <span className="min-w-0">
-            <span className="block text-sm font-medium text-ink">Lista de verificación y criterio</span>
+            <span className="block text-sm font-medium text-ink">Lista de verificación, criterio y requisito</span>
             <span className="block text-[13px] text-ink-muted">Opcional. Quien registre el trabajo los verá.</span>
           </span>
           <ChevronDown className="size-5 shrink-0 text-ink-muted transition-transform motion-reduce:transition-none group-open:rotate-180" aria-hidden />
@@ -453,6 +463,19 @@ export function PlanSheet({
           <Field label="Criterio de aceptación" optional hint="Cuándo se considera Conforme. Se copia a cada registro." error={errors.acceptanceCriteria?.message}>
             <Textarea rows={3} maxLength={1000} {...form.register('acceptanceCriteria')} />
           </Field>
+          <Field
+            label="Requisito"
+            optional
+            hint="La norma o cláusula que cumple, por ejemplo ISO/IEC 17025 6.4.10. Indicadores mide el cumplimiento por requisito."
+            error={errors.requirement?.message}
+          >
+            <Input list={requirementsId} maxLength={120} className="h-11 sm:h-10" {...form.register('requirement')} />
+          </Field>
+          <datalist id={requirementsId}>
+            {requirements.map((entry) => (
+              <option key={entry} value={entry} />
+            ))}
+          </datalist>
         </div>
       </details>
     </FormSheet>

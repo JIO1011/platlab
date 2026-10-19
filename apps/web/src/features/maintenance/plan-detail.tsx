@@ -280,6 +280,12 @@ export function PlanDetailSheet({
             </div>
           ) : null}
         </div>
+        {plan.requirement ? (
+          <p className="break-words text-sm text-ink">
+            <span className="text-ink-muted">Requisito: </span>
+            {plan.requirement}
+          </p>
+        ) : null}
         {confirming ? (
           <ConfirmArchive
             label={`Archivar el plan ${plan.title}`}

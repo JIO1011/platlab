@@ -1,4 +1,4 @@
-import { asset, plan, provider, record, recordCreated } from '@platlab/contracts';
+import { asset, plan, provider, record, recordCreated, replacementDismissed } from '@platlab/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { api, isApiError } from '../../app/api';
@@ -70,6 +70,16 @@ export function useCorrectRecord(workspaceId: string, recordId: string) {
 /** «Anular» (Administrador, M-01b): el registro sigue a la vista y deja de contar para la próxima fecha. */
 export function useVoidRecord(workspaceId: string, recordId: string) {
   return useModuleCommand(workspaceId, `/maintenance/records/${recordId}/void`, record, useMaintenanceKey(workspaceId));
+}
+
+/** «Descartar» de «Evaluar reemplazo» (Administrador, M-01c): oculta el aviso del equipo 6 meses, con motivo. */
+export function useDismissReplacement(workspaceId: string, assetId: string) {
+  return useModuleCommand(
+    workspaceId,
+    `/maintenance/assets/${assetId}/replacement-review`,
+    replacementDismissed,
+    useMaintenanceKey(workspaceId),
+  );
 }
 
 /**

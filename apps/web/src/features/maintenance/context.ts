@@ -13,6 +13,8 @@ export interface MaintenanceContext {
   canRecord: boolean;
   /** Crea y edita planes y proveedores (`maintenance.plan.manage`, Administrador). */
   canManagePlans: boolean;
+  /** Descarta «Evaluar reemplazo» (`maintenance.replacement.review`, Administrador, M-01c). */
+  canReviewReplacement: boolean;
   freshness: { refreshing: boolean; refresh: () => void };
 }
 

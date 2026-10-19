@@ -29,6 +29,7 @@ export interface IListPlansResult {
   kind: string;
   next_due_on: string | null;
   overdue_count: number;
+  requirement: string | null;
   starts_on: string;
   title: string;
   type_name: string | null;
@@ -41,7 +42,7 @@ export interface IListPlansQuery {
   result: IListPlansResult;
 }
 
-const listPlansIR: any = {"usedParamSet":{"timeZone":true,"workspaceId":true,"planId":true},"params":[{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":1695,"b":1704}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1911,"b":1923}]},{"name":"planId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1941,"b":1947},{"a":2002,"b":2008}]}],"statement":"-- Los activos por título, con su alcance, los equipos que cubren hoy (plan_assets: cuántos, la fecha más\n-- cercana y cuántos están vencidos o no conformes, en la zona del espacio) y sus exclusiones activas por\n-- código del equipo; con :planId, ese plan aunque esté archivado (la respuesta de un comando). El tipo y\n-- el equipo se leen por las vistas de Equipos (ADR 0020).\nSELECT\n  p.id, p.kind, p.title, p.asset_type_id, t.name AS \"type_name?\", p.asset_id, a.code AS \"asset_code?\",\n  a.name AS \"asset_name?\", p.interval_count, p.interval_unit, p.starts_on, p.checklist, p.acceptance_criteria,\n  p.archived_at, p.version, cover.asset_count AS \"asset_count!\", cover.next_due_on AS \"next_due_on?\",\n  cover.overdue_count AS \"overdue_count!\",\n  coalesce((\n    SELECT jsonb_agg(\n             jsonb_build_object(\n               'asset', jsonb_build_object('id', xa.id, 'code', xa.code, 'name', xa.name),\n               'reason', x.reason,\n               'createdAt', x.created_at)\n             ORDER BY lower(xa.code), xa.id)\n    FROM maintenance.plan_exclusions AS x\n    JOIN equipment.asset_directory AS xa ON xa.workspace_id = x.workspace_id AND xa.id = x.asset_id\n    WHERE x.workspace_id = p.workspace_id AND x.plan_id = p.id AND x.archived_at IS NULL\n  ), '[]'::jsonb) AS \"exclusions!\"\nFROM maintenance.plans AS p\nLEFT JOIN equipment.asset_type_directory AS t ON t.workspace_id = p.workspace_id AND t.id = p.asset_type_id\nLEFT JOIN equipment.asset_directory AS a ON a.workspace_id = p.workspace_id AND a.id = p.asset_id\nCROSS JOIN LATERAL (\n  SELECT count(*)::integer AS asset_count, min(pa.due_on) AS next_due_on,\n         count(*) FILTER (\n           WHERE pa.due_on < (now() AT TIME ZONE :timeZone!)::date OR pa.last_result = 'fail'\n         )::integer AS overdue_count\n  FROM maintenance.plan_assets AS pa\n  WHERE pa.workspace_id = p.workspace_id AND pa.plan_id = p.id\n) AS cover\nWHERE p.workspace_id = :workspaceId!\n  AND CASE WHEN :planId::uuid IS NULL THEN p.archived_at IS NULL ELSE p.id = :planId::uuid END\nORDER BY core.fold_text(p.title), p.id"};
+const listPlansIR: any = {"usedParamSet":{"timeZone":true,"workspaceId":true,"planId":true},"params":[{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":1710,"b":1719}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1926,"b":1938}]},{"name":"planId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1956,"b":1962},{"a":2017,"b":2023}]}],"statement":"-- Los activos por título, con su alcance, los equipos que cubren hoy (plan_assets: cuántos, la fecha más\n-- cercana y cuántos están vencidos o no conformes, en la zona del espacio) y sus exclusiones activas por\n-- código del equipo; con :planId, ese plan aunque esté archivado (la respuesta de un comando). El tipo y\n-- el equipo se leen por las vistas de Equipos (ADR 0020).\nSELECT\n  p.id, p.kind, p.title, p.asset_type_id, t.name AS \"type_name?\", p.asset_id, a.code AS \"asset_code?\",\n  a.name AS \"asset_name?\", p.interval_count, p.interval_unit, p.starts_on, p.checklist, p.acceptance_criteria,\n  p.requirement, p.archived_at, p.version, cover.asset_count AS \"asset_count!\", cover.next_due_on AS \"next_due_on?\",\n  cover.overdue_count AS \"overdue_count!\",\n  coalesce((\n    SELECT jsonb_agg(\n             jsonb_build_object(\n               'asset', jsonb_build_object('id', xa.id, 'code', xa.code, 'name', xa.name),\n               'reason', x.reason,\n               'createdAt', x.created_at)\n             ORDER BY lower(xa.code), xa.id)\n    FROM maintenance.plan_exclusions AS x\n    JOIN equipment.asset_directory AS xa ON xa.workspace_id = x.workspace_id AND xa.id = x.asset_id\n    WHERE x.workspace_id = p.workspace_id AND x.plan_id = p.id AND x.archived_at IS NULL\n  ), '[]'::jsonb) AS \"exclusions!\"\nFROM maintenance.plans AS p\nLEFT JOIN equipment.asset_type_directory AS t ON t.workspace_id = p.workspace_id AND t.id = p.asset_type_id\nLEFT JOIN equipment.asset_directory AS a ON a.workspace_id = p.workspace_id AND a.id = p.asset_id\nCROSS JOIN LATERAL (\n  SELECT count(*)::integer AS asset_count, min(pa.due_on) AS next_due_on,\n         count(*) FILTER (\n           WHERE pa.due_on < (now() AT TIME ZONE :timeZone!)::date OR pa.last_result = 'fail'\n         )::integer AS overdue_count\n  FROM maintenance.plan_assets AS pa\n  WHERE pa.workspace_id = p.workspace_id AND pa.plan_id = p.id\n) AS cover\nWHERE p.workspace_id = :workspaceId!\n  AND CASE WHEN :planId::uuid IS NULL THEN p.archived_at IS NULL ELSE p.id = :planId::uuid END\nORDER BY core.fold_text(p.title), p.id"};
 
 /**
  * Query generated from SQL:
@@ -53,7 +54,7 @@ const listPlansIR: any = {"usedParamSet":{"timeZone":true,"workspaceId":true,"pl
  * SELECT
  *   p.id, p.kind, p.title, p.asset_type_id, t.name AS "type_name?", p.asset_id, a.code AS "asset_code?",
  *   a.name AS "asset_name?", p.interval_count, p.interval_unit, p.starts_on, p.checklist, p.acceptance_criteria,
- *   p.archived_at, p.version, cover.asset_count AS "asset_count!", cover.next_due_on AS "next_due_on?",
+ *   p.requirement, p.archived_at, p.version, cover.asset_count AS "asset_count!", cover.next_due_on AS "next_due_on?",
  *   cover.overdue_count AS "overdue_count!",
  *   coalesce((
  *     SELECT jsonb_agg(
@@ -196,6 +197,7 @@ export interface IInsertPlanParams {
   intervalCount: number;
   intervalUnit: string;
   kind: string;
+  requirement?: string | null | void;
   startsOn: string;
   title: string;
   workspaceId: string;
@@ -212,18 +214,18 @@ export interface IInsertPlanQuery {
   result: IInsertPlanResult;
 }
 
-const insertPlanIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"title":true,"assetTypeId":true,"assetId":true,"intervalCount":true,"intervalUnit":true,"startsOn":true,"checklist":true,"acceptanceCriteria":true,"createdBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":199,"b":211}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":214,"b":219}]},{"name":"title","required":true,"transform":{"type":"scalar"},"locs":[{"a":222,"b":228}]},{"name":"assetTypeId","required":false,"transform":{"type":"scalar"},"locs":[{"a":231,"b":242}]},{"name":"assetId","required":false,"transform":{"type":"scalar"},"locs":[{"a":245,"b":252}]},{"name":"intervalCount","required":true,"transform":{"type":"scalar"},"locs":[{"a":255,"b":269}]},{"name":"intervalUnit","required":true,"transform":{"type":"scalar"},"locs":[{"a":272,"b":285}]},{"name":"startsOn","required":true,"transform":{"type":"scalar"},"locs":[{"a":288,"b":297}]},{"name":"checklist","required":true,"transform":{"type":"scalar"},"locs":[{"a":308,"b":318}]},{"name":"acceptanceCriteria","required":false,"transform":{"type":"scalar"},"locs":[{"a":329,"b":347}]},{"name":"createdBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":350,"b":360}]}],"statement":"INSERT INTO maintenance.plans (\n  workspace_id, kind, title, asset_type_id, asset_id, interval_count, interval_unit, starts_on, checklist,\n  acceptance_criteria, created_by_principal_id\n)\nVALUES (\n  :workspaceId!, :kind!, :title!, :assetTypeId, :assetId, :intervalCount!, :intervalUnit!, :startsOn!::date,\n  :checklist!::text[], :acceptanceCriteria, :createdBy!\n)\nRETURNING id"};
+const insertPlanIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"title":true,"assetTypeId":true,"assetId":true,"intervalCount":true,"intervalUnit":true,"startsOn":true,"checklist":true,"acceptanceCriteria":true,"requirement":true,"createdBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":212,"b":224}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":227,"b":232}]},{"name":"title","required":true,"transform":{"type":"scalar"},"locs":[{"a":235,"b":241}]},{"name":"assetTypeId","required":false,"transform":{"type":"scalar"},"locs":[{"a":244,"b":255}]},{"name":"assetId","required":false,"transform":{"type":"scalar"},"locs":[{"a":258,"b":265}]},{"name":"intervalCount","required":true,"transform":{"type":"scalar"},"locs":[{"a":268,"b":282}]},{"name":"intervalUnit","required":true,"transform":{"type":"scalar"},"locs":[{"a":285,"b":298}]},{"name":"startsOn","required":true,"transform":{"type":"scalar"},"locs":[{"a":301,"b":310}]},{"name":"checklist","required":true,"transform":{"type":"scalar"},"locs":[{"a":321,"b":331}]},{"name":"acceptanceCriteria","required":false,"transform":{"type":"scalar"},"locs":[{"a":342,"b":360}]},{"name":"requirement","required":false,"transform":{"type":"scalar"},"locs":[{"a":363,"b":374}]},{"name":"createdBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":377,"b":387}]}],"statement":"INSERT INTO maintenance.plans (\n  workspace_id, kind, title, asset_type_id, asset_id, interval_count, interval_unit, starts_on, checklist,\n  acceptance_criteria, requirement, created_by_principal_id\n)\nVALUES (\n  :workspaceId!, :kind!, :title!, :assetTypeId, :assetId, :intervalCount!, :intervalUnit!, :startsOn!::date,\n  :checklist!::text[], :acceptanceCriteria, :requirement, :createdBy!\n)\nRETURNING id"};
 
 /**
  * Query generated from SQL:
  * ```
  * INSERT INTO maintenance.plans (
  *   workspace_id, kind, title, asset_type_id, asset_id, interval_count, interval_unit, starts_on, checklist,
- *   acceptance_criteria, created_by_principal_id
+ *   acceptance_criteria, requirement, created_by_principal_id
  * )
  * VALUES (
  *   :workspaceId!, :kind!, :title!, :assetTypeId, :assetId, :intervalCount!, :intervalUnit!, :startsOn!::date,
- *   :checklist!::text[], :acceptanceCriteria, :createdBy!
+ *   :checklist!::text[], :acceptanceCriteria, :requirement, :createdBy!
  * )
  * RETURNING id
  * ```
@@ -247,6 +249,7 @@ export interface ILockPlanResult {
   interval_count: number;
   interval_unit: string;
   kind: string;
+  requirement: string | null;
   starts_on: string;
   title: string;
   version: number;
@@ -258,14 +261,14 @@ export interface ILockPlanQuery {
   result: ILockPlanResult;
 }
 
-const lockPlanIR: any = {"usedParamSet":{"workspaceId":true,"planId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":293,"b":305}]},{"name":"planId","required":true,"transform":{"type":"scalar"},"locs":[{"a":316,"b":323}]}],"statement":"-- Lo último del orden de bloqueo (02 §6): el plan que se edita, se archiva o cambia sus exclusiones.\nSELECT kind, title, asset_type_id, asset_id, interval_count, interval_unit, starts_on, checklist,\n       acceptance_criteria, archived_at, version\nFROM maintenance.plans\nWHERE workspace_id = :workspaceId! AND id = :planId!\nFOR UPDATE"};
+const lockPlanIR: any = {"usedParamSet":{"workspaceId":true,"planId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":306,"b":318}]},{"name":"planId","required":true,"transform":{"type":"scalar"},"locs":[{"a":329,"b":336}]}],"statement":"-- Lo último del orden de bloqueo (02 §6): el plan que se edita, se archiva o cambia sus exclusiones.\nSELECT kind, title, asset_type_id, asset_id, interval_count, interval_unit, starts_on, checklist,\n       acceptance_criteria, requirement, archived_at, version\nFROM maintenance.plans\nWHERE workspace_id = :workspaceId! AND id = :planId!\nFOR UPDATE"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Lo último del orden de bloqueo (02 §6): el plan que se edita, se archiva o cambia sus exclusiones.
  * SELECT kind, title, asset_type_id, asset_id, interval_count, interval_unit, starts_on, checklist,
- *        acceptance_criteria, archived_at, version
+ *        acceptance_criteria, requirement, archived_at, version
  * FROM maintenance.plans
  * WHERE workspace_id = :workspaceId! AND id = :planId!
  * FOR UPDATE
@@ -281,6 +284,7 @@ export interface IUpdatePlanParams {
   intervalCount: number;
   intervalUnit: string;
   planId: string;
+  requirement?: string | null | void;
   startsOn: string;
   title: string;
   workspaceId: string;
@@ -295,7 +299,7 @@ export interface IUpdatePlanQuery {
   result: IUpdatePlanResult;
 }
 
-const updatePlanIR: any = {"usedParamSet":{"title":true,"intervalCount":true,"intervalUnit":true,"startsOn":true,"checklist":true,"acceptanceCriteria":true,"workspaceId":true,"planId":true},"params":[{"name":"title","required":true,"transform":{"type":"scalar"},"locs":[{"a":131,"b":137}]},{"name":"intervalCount","required":true,"transform":{"type":"scalar"},"locs":[{"a":157,"b":171}]},{"name":"intervalUnit","required":true,"transform":{"type":"scalar"},"locs":[{"a":190,"b":203}]},{"name":"startsOn","required":true,"transform":{"type":"scalar"},"locs":[{"a":218,"b":227}]},{"name":"checklist","required":true,"transform":{"type":"scalar"},"locs":[{"a":252,"b":262}]},{"name":"acceptanceCriteria","required":false,"transform":{"type":"scalar"},"locs":[{"a":295,"b":313}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":359,"b":371}]},{"name":"planId","required":true,"transform":{"type":"scalar"},"locs":[{"a":382,"b":389}]}],"statement":"-- Escribe el plan ya combinado y sube la versión; el comando lo edita con el plan bloqueado.\nUPDATE maintenance.plans\nSET title = :title!, interval_count = :intervalCount!, interval_unit = :intervalUnit!, starts_on = :startsOn!::date,\n    checklist = :checklist!::text[], acceptance_criteria = :acceptanceCriteria, version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :planId!"};
+const updatePlanIR: any = {"usedParamSet":{"title":true,"intervalCount":true,"intervalUnit":true,"startsOn":true,"checklist":true,"acceptanceCriteria":true,"requirement":true,"workspaceId":true,"planId":true},"params":[{"name":"title","required":true,"transform":{"type":"scalar"},"locs":[{"a":131,"b":137}]},{"name":"intervalCount","required":true,"transform":{"type":"scalar"},"locs":[{"a":157,"b":171}]},{"name":"intervalUnit","required":true,"transform":{"type":"scalar"},"locs":[{"a":190,"b":203}]},{"name":"startsOn","required":true,"transform":{"type":"scalar"},"locs":[{"a":218,"b":227}]},{"name":"checklist","required":true,"transform":{"type":"scalar"},"locs":[{"a":252,"b":262}]},{"name":"acceptanceCriteria","required":false,"transform":{"type":"scalar"},"locs":[{"a":295,"b":313}]},{"name":"requirement","required":false,"transform":{"type":"scalar"},"locs":[{"a":330,"b":341}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":391,"b":403}]},{"name":"planId","required":true,"transform":{"type":"scalar"},"locs":[{"a":414,"b":421}]}],"statement":"-- Escribe el plan ya combinado y sube la versión; el comando lo edita con el plan bloqueado.\nUPDATE maintenance.plans\nSET title = :title!, interval_count = :intervalCount!, interval_unit = :intervalUnit!, starts_on = :startsOn!::date,\n    checklist = :checklist!::text[], acceptance_criteria = :acceptanceCriteria, requirement = :requirement,\n    version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :planId!"};
 
 /**
  * Query generated from SQL:
@@ -303,7 +307,8 @@ const updatePlanIR: any = {"usedParamSet":{"title":true,"intervalCount":true,"in
  * -- Escribe el plan ya combinado y sube la versión; el comando lo edita con el plan bloqueado.
  * UPDATE maintenance.plans
  * SET title = :title!, interval_count = :intervalCount!, interval_unit = :intervalUnit!, starts_on = :startsOn!::date,
- *     checklist = :checklist!::text[], acceptance_criteria = :acceptanceCriteria, version = version + 1
+ *     checklist = :checklist!::text[], acceptance_criteria = :acceptanceCriteria, requirement = :requirement,
+ *     version = version + 1
  * WHERE workspace_id = :workspaceId! AND id = :planId!
  * ```
  */

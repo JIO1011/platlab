@@ -7,6 +7,7 @@ import {
   createPlanRequest,
   createProviderRequest,
   createRecordRequest,
+  dismissReplacementRequest,
   exclusionParams,
   maintenanceAssetParams,
   maintenanceAssetQuery,
@@ -21,6 +22,7 @@ import {
 } from '@platlab/contracts';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
+import { dismissReplacement, getIndicators } from '../application/indicators.js';
 import { addExclusion, archiveExclusion, archivePlan, createPlan, listPlanAssets, listPlans, updatePlan } from '../application/plans.js';
 import { archiveProvider, createProvider, listProviders, updateProvider } from '../application/providers.js';
 import { getAssetMaintenance, getSummary, listDue, listNextDue, searchAssets } from '../application/queries.js';
@@ -41,6 +43,9 @@ export function maintenanceRoutes({ pool, publicFiles }: { pool: pg.Pool; public
 
     // «Por hacer»: se calcula desde los planes al consultar.
     app.get('/due', async (request) => listDue(pool, queryRequest(request)));
+
+    // Indicadores (M-01c): se calculan al consultar.
+    app.get('/indicators', async (request) => getIndicators(pool, queryRequest(request)));
 
     // Proveedores: los consulta quien registra; los administra el Administrador.
     app.get('/providers', async (request) => listProviders(pool, queryRequest(request)));
@@ -118,5 +123,12 @@ export function maintenanceRoutes({ pool, publicFiles }: { pool: pg.Pool; public
     );
 
     app.get('/next-due', async (request) => listNextDue(pool, queryRequest(request), nextDueQuery.parse(request.query).assetIds));
+
+    // «Evaluar reemplazo» (M-01c): el Administrador descarta el aviso por 6 meses; dar de baja es de Equipos.
+    app.post('/assets/:assetId/replacement-review', async (request, reply) => {
+      const { assetId } = maintenanceAssetParams.parse(request.params);
+      const input = dismissReplacementRequest.parse(request.body);
+      return reply.status(201).send(await dismissReplacement(pool, commandRequest(request), assetId, input));
+    });
   };
 }
