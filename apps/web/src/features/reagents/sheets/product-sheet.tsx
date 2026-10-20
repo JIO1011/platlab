@@ -69,11 +69,11 @@ export function ProductSheet({ workspaceId, open, onOpenChange, product }: Sheet
     <FormSheet
       sections
       wide
-      fullWidthSubmit
       submitIcon={Save}
       icon={PencilLine}
       title="Editar reactivo"
-      description="* Campos obligatorios"
+      description="Actualiza los datos del reactivo en el catálogo."
+      required
       open={open}
       onOpenChange={onOpenChange}
       submitLabel="Guardar cambios"

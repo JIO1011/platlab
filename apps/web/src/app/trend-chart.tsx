@@ -50,13 +50,10 @@ export function TrendChart({
   title,
   points,
   unit,
-  fill = false,
 }: {
   title: string;
   points: Point[];
   unit: { one: string; many: string };
-  /** Llena el alto de su contenedor (el Resumen en una ventana); si no, un alto fijo. */
-  fill?: boolean;
 }) {
   const [active, setActive] = useState<number | null>(null);
   const { max, ticks } = scale(points);
@@ -74,8 +71,8 @@ export function TrendChart({
   }
 
   return (
-    <figure className={cn('m-0', fill && 'flex h-full min-h-0 flex-col')}>
-      <div className={cn('flex gap-3', fill && 'min-h-14 flex-1')}>
+    <figure className="m-0">
+      <div className="flex gap-3">
         {/* Eje Y: pocas marcas enteras; las líneas guía son finas y quedan detrás de las barras. */}
         <div className="relative w-6 shrink-0 text-right text-[12px] tabular-nums text-ink-muted" aria-hidden>
           {ticks.map((tick) => (
@@ -84,7 +81,7 @@ export function TrendChart({
             </span>
           ))}
         </div>
-        <div className={cn('relative flex-1', fill ? 'h-full' : 'h-40 lg:h-56')}>
+        <div className="relative h-40 flex-1 lg:h-56">
           {ticks.map((tick) => (
             <span
               key={tick}
@@ -137,32 +134,31 @@ export function TrendChart({
           </p>
         </div>
       </div>
-      {/* Eje X: primer día y hoy; con ancho suficiente (consulta de contenedor), también cada semana. */}
+      {/* Eje X: una etiqueta por semana contando desde hoy hacia atrás; en angosto (consulta de contenedor), una cada dos semanas para que no se solapen. */}
       <div className="@container mt-2 pl-9" aria-hidden>
         <div className="relative h-4 text-[12px] text-ink-muted">
-          {points.map((point, index) =>
-            index === 0 || index === points.length - 1 || (index >= 4 && (points.length - 1 - index) % 7 === 0) ? (
+          {points.map((point, index) => {
+            const daysBack = points.length - 1 - index;
+            if (daysBack % 7 !== 0) return null;
+            const today = daysBack === 0;
+            return (
               <span
                 key={point.date}
                 className={cn(
                   'absolute top-0 whitespace-nowrap',
-                  index === 0 ? 'left-0' : index === points.length - 1 ? 'right-0' : 'hidden -translate-x-1/2 @lg:block',
+                  today ? 'right-0' : cn('-translate-x-1/2', daysBack % 14 !== 0 && 'hidden @lg:block'),
                 )}
-                style={index === 0 || index === points.length - 1 ? undefined : { left: `${((index + 0.5) / points.length) * 100}%` }}
+                style={today ? undefined : { left: `${((index + 0.5) / points.length) * 100}%` }}
               >
-                {index === points.length - 1 ? 'Hoy' : formatDay(point.date)}
+                {today ? 'Hoy' : formatDay(point.date)}
               </span>
-            ) : null,
-          )}
+            );
+          })}
         </div>
       </div>
-      <details className={cn('text-sm', fill ? 'mt-3' : 'mt-4')}>
+      <details className="mt-4 text-sm">
         <summary className="cursor-pointer select-none font-medium text-action">Ver los datos en tabla</summary>
-        {/* Con alto fijo, la tabla se desplaza por dentro; se puede enfocar para recorrerla con teclado. */}
-        <div
-          className={cn('mt-3', fill && 'max-h-40 overflow-y-auto')}
-          {...(fill ? { tabIndex: 0, role: 'region', 'aria-label': `${title}, tabla` } : {})}
-        >
+        <div className="mt-3">
           <table className="w-full text-left text-[13px]">
             <caption className="sr-only">{title}</caption>
             <thead>

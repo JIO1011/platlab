@@ -2,10 +2,10 @@ import type { OperationFacets, OperationGroupBy } from '@platlab/contracts';
 import { addDays } from '../../app/format';
 import type { MovementFilters } from './movement-filters';
 
-/** Grupos del panel de filtros de Movimientos, en el orden en que se muestran (R-01C). */
-export type FilterGroupId = 'period' | 'type' | 'product' | 'responsible' | 'destination' | 'reason' | 'location';
+/** Grupos de filtros de Movimientos, en el orden de la barra (R-01C, ADR 0021). */
+type FilterGroupId = 'period' | 'type' | 'product' | 'responsible' | 'destination' | 'reason' | 'location';
 
-export const filterGroups: ReadonlyArray<{ id: FilterGroupId; title: string }> = [
+const filterGroups: ReadonlyArray<{ id: FilterGroupId; title: string }> = [
   { id: 'period', title: 'Periodo' },
   { id: 'type', title: 'Tipo' },
   { id: 'product', title: 'Reactivo' },
@@ -14,9 +14,6 @@ export const filterGroups: ReadonlyArray<{ id: FilterGroupId; title: string }> =
   { id: 'reason', title: 'Motivo' },
   { id: 'location', title: 'Ubicación' },
 ];
-
-/** Período y Tipo van siempre a la vista, en pastillas; los demás grupos se pliegan, de uno en uno (ADR 0014). */
-export const foldingGroups: readonly FilterGroupId[] = ['product', 'responsible', 'destination', 'reason', 'location'];
 
 type OperationType = MovementFilters['types'][number];
 
@@ -58,7 +55,7 @@ function isoToDate(iso: string): Date {
   return new Date(Date.UTC(year, month - 1, day, 12));
 }
 
-/** El periodo en palabras, para la ficha y la cabecera: «Este mes», «Últimos 7 días», «1–15 mar». */
+/** El periodo en palabras, para su botón y la cabecera: «Este mes», «Últimos 7 días», «1–15 mar». */
 export function periodText(period: MovementFilters['period'], currentYear: number): string {
   switch (period.kind) {
     case 'all':
@@ -117,7 +114,7 @@ export function monthBounds(key: string): { from: string; to: string } {
 
 /**
  * Los filtros activos en palabras, uno por grupo, para el encabezado del informe impreso: a diferencia de
- * las fichas, nombra todos los valores. Un valor que ya no sale en las opciones se cuenta («2 reactivos»).
+ * los botones de la barra, nombra todos los valores. Un valor que ya no sale en las opciones se cuenta («2 reactivos»).
  */
 export function filterLines(
   filters: MovementFilters,
@@ -181,8 +178,11 @@ export function dayKey(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
 
-/** Cuántos grupos del panel tienen algo marcado. */
-export function selectedCount(filters: MovementFilters, group: FilterGroupId): number {
+/** El año en curso en la zona del espacio: el periodo lo omite cuando es este. */
+export const currentYearIn = (timeZone: string): number => Number(dayKey(new Date(), timeZone).slice(0, 4));
+
+/** Cuántos valores tiene marcados un grupo. */
+function selectedCount(filters: MovementFilters, group: FilterGroupId): number {
   switch (group) {
     case 'period':
       return filters.period.kind === 'all' ? 0 : 1;
@@ -201,53 +201,6 @@ export function selectedCount(filters: MovementFilters, group: FilterGroupId): n
   }
 }
 
+/** Los grupos con algo marcado: sirven para saber si la lista está filtrada y para el encabezado impreso. */
 export const activeGroups = (filters: MovementFilters): FilterGroupId[] =>
   filterGroups.map((group) => group.id).filter((id) => selectedCount(filters, id) > 0);
-
-/** Lo que cada grupo vuelve a «sin filtro» al quitar su ficha. */
-export function clearedGroup(group: FilterGroupId): Partial<MovementFilters> {
-  switch (group) {
-    case 'period':
-      return { period: { kind: 'all' } };
-    case 'type':
-      return { types: [] };
-    case 'product':
-      return { productIds: [] };
-    case 'responsible':
-      return { responsibleIds: [] };
-    case 'destination':
-      return { destinations: [] };
-    case 'reason':
-      return { reasons: [] };
-    case 'location':
-      return { locationIds: [] };
-  }
-}
-
-/** Texto de la ficha de un grupo activo: el valor si es uno solo y «n elegidos» si son varios. */
-export function chipText(filters: MovementFilters, group: FilterGroupId, facets: OperationFacets | undefined, currentYear: number): string {
-  const title = filterGroups.find((entry) => entry.id === group)?.title ?? '';
-  const one = (name: string | undefined, count: number) => (count === 1 && name ? `${title}: ${name}` : `${title}: ${count} elegidos`);
-  switch (group) {
-    case 'period':
-      return periodText(filters.period, currentYear);
-    case 'type':
-      return `${title}: ${joinList(typeOrder.filter((type) => filters.types.includes(type)).map((type) => typePlural[type]))}`;
-    case 'product': {
-      const found = facets?.products.options.find((option) => option.id === filters.productIds[0]);
-      return one(found?.name, filters.productIds.length);
-    }
-    case 'responsible': {
-      const found = facets?.responsibles.find((option) => option.principalId === filters.responsibleIds[0]);
-      return one(found ? (found.displayName ?? noName) : undefined, filters.responsibleIds.length);
-    }
-    case 'destination':
-      return one(filters.destinations[0], filters.destinations.length);
-    case 'reason':
-      return one(filters.reasons[0], filters.reasons.length);
-    case 'location': {
-      const found = facets?.locations.find((option) => option.id === filters.locationIds[0]);
-      return one(found?.code, filters.locationIds.length);
-    }
-  }
-}

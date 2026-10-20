@@ -1,9 +1,9 @@
 import type { FaultStats } from '@platlab/contracts';
 import { describe, expect, it } from 'vitest';
 import {
-  endLabelSides,
   faultCountsText,
   faultPlot,
+  faultSummaryText,
   faultTotals,
   hasFaultActivity,
   monthReading,
@@ -21,7 +21,7 @@ const year = (values: Record<number, [number, number]> = {}): Months =>
   });
 
 describe('faultPlot', () => {
-  it('con todo en cero deja la escala mínima y las dos líneas sobre la base', () => {
+  it('con todo en cero deja la escala mínima y las dos barras en cero', () => {
     const { max, ticks, points } = faultPlot(year());
     expect(max).toBe(1);
     expect(ticks).toEqual([0, 1]);
@@ -68,6 +68,13 @@ describe('año del eje', () => {
   });
 });
 
+describe('mes en curso', () => {
+  it('es solo el último', () => {
+    const { points } = faultPlot(year());
+    expect(points.map((point) => point.current)).toEqual([...Array(11).fill(false), true]);
+  });
+});
+
 describe('hasFaultActivity', () => {
   it('es falso solo si todos los meses están en cero', () => {
     expect(hasFaultActivity(year())).toBe(false);
@@ -85,22 +92,22 @@ describe('textos', () => {
 
   it('la lectura de un mes lleva el mes completo', () => {
     const point = faultPlot(year({ 3: [4, 3] })).points[3];
-    expect(point && monthReading(point)).toBe('febrero de 2026: 4 reportados · 3 solucionados');
+    expect(point && monthReading(point)).toBe('febrero de 2026: 4 reportados, 3 solucionados');
+  });
+
+  it('la lectura del mes actual dice que está en curso', () => {
+    const point = faultPlot(year({ 11: [3, 1] })).points[11];
+    expect(point && monthReading(point)).toBe('octubre de 2026 (en curso): 3 reportados, 1 solucionado');
+  });
+
+  it('la frase del gráfico suma el período y dice cuántos siguen abiertos', () => {
+    expect(faultSummaryText({ reported: 14, resolved: 11 }, 2)).toBe('14 reportados · 11 solucionados en 12 meses · 2 abiertos hoy');
+    expect(faultSummaryText({ reported: 1, resolved: 1 }, 1)).toBe('1 reportado · 1 solucionado en 12 meses · 1 abierto hoy');
+    expect(faultSummaryText({ reported: 3, resolved: 3 }, 0)).toBe('3 reportados · 3 solucionados en 12 meses · ninguno abierto hoy');
   });
 
   it('suma los doce meses', () => {
     expect(faultTotals(year({ 0: [2, 1], 5: [3, 3], 11: [1, 0] }))).toEqual({ reported: 6, resolved: 4 });
     expect(faultTotals(year())).toEqual({ reported: 0, resolved: 0 });
-  });
-});
-
-describe('endLabelSides', () => {
-  it('la línea más alta lleva su nombre arriba y la otra abajo', () => {
-    expect(endLabelSides({ reported: 5, resolved: 2 })).toEqual({ reported: 'above', resolved: 'below' });
-    expect(endLabelSides({ reported: 1, resolved: 4 })).toEqual({ reported: 'below', resolved: 'above' });
-  });
-
-  it('con el mismo valor, Reportados va arriba', () => {
-    expect(endLabelSides({ reported: 0, resolved: 0 })).toEqual({ reported: 'above', resolved: 'below' });
   });
 });

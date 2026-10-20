@@ -1,6 +1,5 @@
 import { cn } from '@platlab/ui';
 import { type LucideIcon } from 'lucide-react';
-import { type ReactNode } from 'react';
 
 /** Color del icono del rótulo: el de su estado, o el tenue cuando no cuenta ninguno. */
 const labelIconTone = { soft: 'text-ink-subtle', success: 'text-success', warning: 'text-warning', danger: 'text-danger' } as const;
@@ -17,12 +16,4 @@ export function RowLabel({ children, icon: Icon, tone = 'soft' }: { children: st
       <span className="min-w-0">{children}</span>
     </dt>
   );
-}
-
-/**
- * Una tarjeta pequeña del resumen: separada de las otras (`gap-2` del `dl`), con borde suave y radio de 16 px. El
- * `div` que agrupa `dt` y `dd` es válido dentro de un `dl`.
- */
-export function SummaryCard({ children }: { children: ReactNode }) {
-  return <div className="grid min-w-0 content-start gap-1.5 rounded-2xl border border-line/70 bg-surface p-3 shadow-raised">{children}</div>;
 }

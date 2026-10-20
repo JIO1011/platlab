@@ -28,7 +28,7 @@ export function AssetData({ asset, timeZone }: { asset: Asset; timeZone: string 
   const today = todayIn(timeZone);
   const place = placeLines(asset.location);
   return (
-    <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-line pt-5 sm:grid-cols-3 lg:grid-cols-4">
+    <dl className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3 border-t border-line pt-4 sm:grid-cols-3 lg:grid-cols-4">
       <Fact label="Estado">
         <ConditionBadge condition={asset.condition} />
       </Fact>

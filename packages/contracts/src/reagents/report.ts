@@ -49,6 +49,9 @@ export const operationGroupBy = z.enum(['product', 'responsible', 'destination',
 /** GET /operations/totals: los mismos filtros, agrupados por reactivo, responsable, destino o mes. */
 export const operationTotalsQuery = periodRules(z.object({ ...operationFilterFields, groupBy: operationGroupBy }).strict());
 
+/** GET /operations/export: el Excel del libro con los mismos filtros, sin paginar (ADR 0017, 0021). */
+export const operationExportQuery = periodRules(z.object(operationFilterFields).strict());
+
 /** Un asiento del historial: un ingreso de varios frascos son varios asientos de una operación. */
 export const operation = z.object({
   id: z.uuid(),

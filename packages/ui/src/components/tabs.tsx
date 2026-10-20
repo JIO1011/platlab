@@ -4,22 +4,22 @@ import { cn } from '../lib/cn';
 
 export const Tabs = TabsPrimitive.Root;
 
-/** Pestañas en píldora (ADR 0010, precisión suave): la activa se eleva sobre una pista hundida. */
+/**
+ * Pestañas subrayadas (ADR 0021): una línea fina como base y, bajo la activa, un indicador grueso en el color del
+ * módulo; las demás van solo en texto. La línea es una sombra interior, no un borde, para no desbordar la tira
+ * cuando se desplaza en horizontal.
+ */
 export function TabsList({ className, ...props }: ComponentProps<typeof TabsPrimitive.List>) {
-  return (
-    <TabsPrimitive.List
-      className={cn('inline-flex gap-1 rounded-full bg-surface-sunken p-1', className)}
-      {...props}
-    />
-  );
+  return <TabsPrimitive.List className={cn('flex gap-1 shadow-[inset_0_-1px_0_0_var(--color-line)]', className)} {...props} />;
 }
 
 export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsPrimitive.Trigger>) {
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        'h-9 rounded-full px-4 text-sm font-medium text-ink-muted transition-[background-color,color,box-shadow] duration-150 ease-out-expo',
-        'hover:text-ink data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-raised',
+        'inline-flex h-[44px] items-center justify-center border-b-[3px] border-transparent px-3.5 text-sm font-medium text-ink-muted',
+        'transition-[color,border-color] duration-150 ease-out-expo focus-visible:-outline-offset-2',
+        'hover:text-ink data-[state=active]:border-action data-[state=active]:text-ink',
         className,
       )}
       {...props}

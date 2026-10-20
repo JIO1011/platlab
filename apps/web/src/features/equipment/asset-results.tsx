@@ -61,7 +61,8 @@ export function AssetResults({
   picks?: AssetPicks | undefined;
   empty: ReactNode;
 }) {
-  const table = useMediaQuery('(min-width: 64rem)');
+  // La tabla necesita unos 940 px de contenido: con el menú lateral, desde 1280 px de pantalla; antes, tarjetas.
+  const table = useMediaQuery('(min-width: 80rem)');
   const items = assets.data?.pages.flatMap((page) => page.items) ?? [];
   if (assets.isPending) return <ResultsSkeleton shape={tilesIn ? 'tiles' : table ? 'table' : 'cards'} />;
   if (assets.isError) {

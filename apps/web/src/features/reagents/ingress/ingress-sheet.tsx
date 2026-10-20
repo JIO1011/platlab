@@ -74,15 +74,14 @@ export function IngressSheet({
     <FormSheet
       flush
       wide="xl"
-      fullWidthSubmit
       icon={PackagePlus}
       submitIcon={PackagePlus}
       title={productId ? 'Ingresar frascos' : 'Nuevo reactivo'}
-      description="* Campos obligatorios"
+      description={productId ? 'Registra frascos nuevos de este reactivo y dónde se guardan.' : 'Registra un reactivo nuevo con sus frascos y dónde se guardan.'}
+      required
       open={open}
       onOpenChange={onOpenChange}
       submitLabel={`Ingresar ${bottlesLabel}`}
-      submitDisabled={review.missingFields.length > 0}
       submitLead={<BottlesStepper value={form.count} onChange={(next) => patch({ count: next })} error={errors.count} inputRef={countRef} />}
       pending={submit.pending}
       generalError={submit.generalError}

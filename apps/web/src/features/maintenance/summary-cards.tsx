@@ -1,7 +1,8 @@
 import type { MaintenanceIndicators } from '@platlab/contracts';
-import { IconChip, cn, formatDecimal } from '@platlab/ui';
+import { cn, formatDecimal } from '@platlab/ui';
 import { ArrowRight, CalendarX } from 'lucide-react';
 import { Link } from 'react-router';
+import { NoticeCard } from '../../app/notice-card';
 import { useMaintenance } from './context';
 import { toneText } from './due-view';
 import { compliancePercent, onTimeText, withoutRequirementText } from './indicator-text';
@@ -108,20 +109,12 @@ export function RequirementsCard({ items, compliance }: { items: MaintenanceIndi
 export function NoPlanNotice({ count }: { count: number }) {
   const { base, canManagePlans } = useMaintenance();
   return (
-    <section aria-label="Equipos sin plan" className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-card bg-surface p-4 shadow-raised sm:px-6">
-      <IconChip icon={CalendarX} tone="warning" />
-      <div className="min-w-0 flex-1 basis-56">
-        <p className="font-semibold text-ink">
-          {count} {count === 1 ? 'equipo sin plan' : 'equipos sin plan'}
-        </p>
-        <p className="text-sm text-ink-muted">Ningún plan de mantenimiento los cubre, así que no aparecen en Por hacer.</p>
-      </div>
-      <Link
-        to={`${base}/planes`}
-        className="inline-flex h-11 w-full items-center justify-center rounded-control border border-line-strong bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-surface-sunken sm:h-10 sm:w-auto"
-      >
-        {canManagePlans ? 'Asignar plan' : 'Ver planes'}
-      </Link>
-    </section>
+    <NoticeCard
+      icon={CalendarX}
+      title={`${count} ${count === 1 ? 'equipo sin plan' : 'equipos sin plan'}`}
+      text="Ningún plan de mantenimiento los cubre, así que no aparecen en Por hacer."
+      action={canManagePlans ? 'Asignar plan' : 'Ver planes'}
+      to={`${base}/planes`}
+    />
   );
 }

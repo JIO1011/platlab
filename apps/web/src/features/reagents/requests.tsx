@@ -5,11 +5,16 @@ import { Check, Inbox, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { isApiError } from '../../app/api';
+import { CodeTag } from '../../app/code-tag';
 import { formatDateTime } from '../../app/format';
 import { useReagentsKey } from './queries';
 import { QueryErrorState } from '../../app/states';
 import { commandErrorMessage, useCommand } from './commands';
 import { useReagents } from './context';
+
+/** Las acciones de una solicitud: a todo el ancho y de 44 px en el móvil; desde md, a la derecha. */
+const actionsClass = 'col-span-2 flex gap-2 border-t border-line pt-3 md:justify-end md:border-0 md:pt-0';
+const actionClass = 'max-lg:h-11 max-md:flex-1';
 
 const statusBadge: Record<IssueRequestItem['status'], { tone: 'warning' | 'success' | 'danger' | 'neutral'; text: string }> = {
   // Pendiente es un estado como los demás: en «Todas» se dice con texto, no solo con un botón.
@@ -115,6 +120,12 @@ function StatusFilter({ all, pending }: { all: boolean; pending: number }) {
   );
 }
 
+/**
+ * Tarjeta de una solicitud (ADR 0021). Desde md, dos zonas: a la izquierda la solicitud; a la derecha la
+ * cantidad y, debajo, las acciones alineadas a la derecha, con «Aprobar salida» al final. En el móvil las
+ * zonas se disuelven en la rejilla: la cantidad arriba a la derecha del nombre y las acciones abajo, a todo
+ * el ancho. El formulario de rechazo se abre debajo, a todo el ancho de la tarjeta.
+ */
 function RequestCard({
   item,
   showPending,
@@ -133,66 +144,71 @@ function RequestCard({
   const badge = pending && !showPending ? null : statusBadge[item.status];
   const [rejecting, setRejecting] = useState(false);
   const titleId = `solicitud-${item.id}`;
+  const resolving = pending && canApprove;
+  const cancelling = pending && !canApprove && canCancel;
 
   return (
-    <article aria-labelledby={titleId} className="rounded-card bg-surface p-5 shadow-raised">
-      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <div className="min-w-0">
+    <article aria-labelledby={titleId} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 rounded-card bg-surface p-5 shadow-raised md:gap-x-8">
+      <div className="contents md:block md:min-w-0">
+        <header className="col-start-1 row-start-1 min-w-0">
           <h3 id={titleId} className="font-semibold text-ink">
             {item.product.name}
           </h3>
-          <p className="mt-0.5 text-[13px] text-ink-muted">
-            <span className="whitespace-nowrap tabular-nums">{item.container.code}</span> · {item.location.name}
+          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-ink-muted">
+            <CodeTag>{item.container.code}</CodeTag>
+            <span aria-hidden>·</span>
+            <span>{item.location.name}</span>
           </p>
+        </header>
+        <div className="col-span-2 md:mt-3">
+          <dl className="grid gap-1 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-4">
+            <dt className="text-ink-muted">Motivo</dt>
+            <dd className="text-ink">
+              {item.reason} <span className="whitespace-nowrap text-ink-muted">→ {item.destination}</span>
+            </dd>
+            <dt className="text-ink-muted">Pedida por</dt>
+            <dd className="text-ink">
+              {item.requester.displayName ?? 'Miembro anterior'}
+              <span className="text-ink-muted"> · {formatDateTime(item.requestedAt, timeZone)}</span>
+            </dd>
+          </dl>
+          {badge ? (
+            <p className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-ink-muted">
+              <Badge tone={badge.tone}>{badge.text}</Badge>
+              <span>
+                {[
+                  // Cancelada: la retiró quien la pidió, que ya figura arriba.
+                  item.status !== 'cancelled' && item.decider ? `por ${item.decider.displayName ?? 'un miembro anterior'}` : null,
+                  item.decidedAt ? formatDateTime(item.decidedAt, timeZone) : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            </p>
+          ) : null}
+          {item.status === 'rejected' && item.decisionReason ? (
+            <p className="mt-2 rounded-control bg-surface-sunken px-3 py-2 text-sm text-ink">{item.decisionReason}</p>
+          ) : null}
         </div>
-        <Quantity value={`-${item.quantity}`} unit={item.unit} signed className="text-lg font-semibold text-ink" />
-      </header>
-      <dl className="mt-3 grid gap-1 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-4">
-        <dt className="text-ink-muted">Motivo</dt>
-        <dd className="text-ink">
-          {item.reason} <span className="whitespace-nowrap text-ink-muted">→ {item.destination}</span>
-        </dd>
-        <dt className="text-ink-muted">Pedida por</dt>
-        <dd className="text-ink">
-          {item.requester.displayName ?? 'Miembro anterior'}
-          <span className="text-ink-muted"> · {formatDateTime(item.requestedAt, timeZone)}</span>
-        </dd>
-      </dl>
-      {badge ? (
-        <p className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-ink-muted">
-          <Badge tone={badge.tone}>{badge.text}</Badge>
-          <span>
-            {[
-              // Cancelada: la retiró quien la pidió, que ya figura arriba.
-              item.status !== 'cancelled' && item.decider ? `por ${item.decider.displayName ?? 'un miembro anterior'}` : null,
-              item.decidedAt ? formatDateTime(item.decidedAt, timeZone) : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </span>
-        </p>
-      ) : null}
-      {item.status === 'rejected' && item.decisionReason ? (
-        <p className="mt-2 rounded-control bg-surface-sunken px-3 py-2 text-sm text-ink">{item.decisionReason}</p>
-      ) : null}
-      {pending && canApprove ? (
-        rejecting ? (
-          <RejectForm item={item} onDone={() => setRejecting(false)} />
-        ) : (
-          <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-3">
-            <ApproveButton item={item} />
-            <Button size="sm" variant="ghost" className="max-lg:h-11" onClick={() => setRejecting(true)}>
+      </div>
+      <div className="contents md:flex md:flex-col md:items-end md:gap-4">
+        <Quantity value={`-${item.quantity}`} unit={item.unit} signed className="col-start-2 row-start-1 self-start text-lg font-semibold text-ink md:self-end md:text-2xl" />
+        {resolving && !rejecting ? (
+          <div className={actionsClass}>
+            <Button variant="secondary" size="sm" className={actionClass} onClick={() => setRejecting(true)}>
               <X aria-hidden />
               Rechazar
             </Button>
+            <ApproveButton item={item} />
           </div>
-        )
-      ) : null}
-      {pending && !canApprove && canCancel ? (
-        <div className="mt-4 border-t border-line pt-3">
-          <CancelButton item={item} />
-        </div>
-      ) : null}
+        ) : null}
+        {cancelling ? (
+          <div className={actionsClass}>
+            <CancelButton item={item} />
+          </div>
+        ) : null}
+      </div>
+      {resolving && rejecting ? <RejectForm item={item} onDone={() => setRejecting(false)} /> : null}
     </article>
   );
 }
@@ -216,7 +232,7 @@ function ApproveButton({ item }: { item: IssueRequestItem }) {
     <Button
       variant="primary"
       size="sm"
-      className="max-lg:h-11"
+      className={actionClass}
       loading={command.isPending}
       aria-describedby={`solicitud-${item.id}`}
       onClick={async () => {
@@ -264,7 +280,7 @@ function RejectForm({ item, onDone }: { item: IssueRequestItem; onDone: () => vo
 
   return (
     <form
-      className="mt-4 grid gap-3 border-t border-line pt-3"
+      className="col-span-2 grid gap-3 border-t border-line pt-3"
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
@@ -301,7 +317,7 @@ function CancelButton({ item }: { item: IssueRequestItem }) {
     <Button
       size="sm"
       variant="ghost"
-      className="max-lg:h-11"
+      className={actionClass}
       loading={command.isPending}
       aria-describedby={`solicitud-${item.id}`}
       onClick={async () => {

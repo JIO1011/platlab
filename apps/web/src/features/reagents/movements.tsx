@@ -1,66 +1,39 @@
 import type { Operation, OperationGroupBy } from '@platlab/contracts';
-import { Button, Drawer, Field, Quantity, Segmented, Select, Skeleton, StatePanel, cn } from '@platlab/ui';
-import {
-  ArrowDownToLine,
-  ArrowLeftRight,
-  ArrowUpFromLine,
-  ChevronRight,
-  History,
-  Printer,
-  Scale,
-  SlidersHorizontal,
-} from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { Button, Field, Quantity, Segmented, Select, Skeleton, StatePanel, cn } from '@platlab/ui';
+import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, History, Scale } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
-import { FilterPanelClear } from '../../app/filter-group';
-import { addDays } from '../../app/format';
+import { CodeTag } from '../../app/code-tag';
+import { formatDate } from '../../app/format';
+import { MovementAmount } from '../../app/movement-amount';
 import { QueryErrorState } from '../../app/states';
 import { useReagents } from './context';
-import { MovementChips } from './movement-chips';
 import { serializeMovementFilters, type MovementFilters } from './movement-filters';
-import { MovementFilterPanel, type FocusRequest } from './movement-panel';
-import { MovementPrint } from './movement-print';
-import {
-  activeGroups,
-  clearedGroup,
-  dayKey,
-  foldingGroups,
-  groupNames,
-  hourOf,
-  movementsText,
-  periodText,
-  tight,
-  typeSingular,
-  type FilterGroupId,
-} from './movement-text';
+import { MovementFilterBar } from './movement-filter-bar';
+import { activeGroups, currentYearIn, dayKey, groupNames, hourOf, movementsText, periodText, tight, typeSingular } from './movement-text';
 import { MovementTotals } from './movement-totals';
 import { placeOf, purposeOf } from './operation-text';
 import { canReadReports } from './queries';
-import { useMediaQuery, useStoredFlag } from '../../app/use-media-query';
-import { useNow } from '../../app/use-now';
 
 const groupOptions: ReadonlyArray<{ value: OperationGroupBy; label: string }> = (['product', 'responsible', 'destination', 'month'] as const).map(
   (value) => ({ value, label: groupNames[value] }),
 );
 const isGroupBy = (value: string): value is OperationGroupBy => groupOptions.some((option) => option.value === value);
 
-const panelId = 'filtros-movimientos';
+/**
+ * Las columnas del Detalle cuando la lista mide 48 rem o más (consulta de contenedor: el ancho de la ventana no dice
+ * cuánto cabe junto al menú lateral): hora, reactivo y frasco, tipo, motivo y destino, responsable, cantidad y saldo.
+ * Más angosta, cada movimiento se apila.
+ */
+const columns = '@3xl:grid-cols-[6.5rem_minmax(0,1.6fr)_5.5rem_minmax(0,1.6fr)_minmax(0,1.3fr)_5rem_5rem]';
 
 /**
- * Movimientos como informe (R-01C, ADR 0014): el libro por días (Detalle) o sus totales, con el panel
- * de filtros a la derecha (cajón desde la derecha por debajo de 1280 px). Los filtros viven en la URL:
- * la cifra del Resumen abre exactamente su lista y un informe es un enlace. Se aplican al marcarlos.
+ * Movimientos como informe (R-01C, ADR 0014 y 0021): el libro por días (Detalle) o sus totales, con la barra de
+ * filtros sobre la lista. Los filtros viven en la URL: la cifra del Resumen abre exactamente su lista y un informe
+ * es un enlace. Se aplican al marcarlos.
  */
 export function ReagentsMovementsPage() {
   const { workspaceId, me, base, operations, movementFilters: filters, operationQuery, operationFacets, operationTotals } = useReagents();
   const [, setParams] = useSearchParams();
-  const wide = useMediaQuery('(min-width: 80rem)');
-  const [panelOpen, setPanelOpen] = useStoredFlag('platlab.movimientos.filtros', true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  // Solo un grupo plegable abierto a la vez (ADR 0014).
-  const [openFolding, setOpenFolding] = useState<FilterGroupId | null>(null);
-  const [printing, setPrinting] = useState(false);
-  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const timeZone = me.workspace.timeZone;
   const canReport = canReadReports(me);
   const view = canReport ? filters.view : 'detail';
@@ -68,56 +41,36 @@ export function ReagentsMovementsPage() {
     setParams(serializeMovementFilters({ ...filters, ...change }), { replace: true });
   const active = activeGroups(filters);
   const total = operationFacets.data?.total;
-  const currentYear = Number(dayKey(new Date(), timeZone).slice(0, 4));
-  const showPanel = wide && panelOpen;
+  const currentYear = currentYearIn(timeZone);
   // La lista anterior queda atenuada, sin saltos, mientras llega la respuesta de un filtro nuevo.
   const stale = view === 'totals' ? operationTotals.isPlaceholderData : operations.isPlaceholderData;
   const settled = operationFacets.data !== undefined && !operationFacets.isPlaceholderData;
-  const onFocusHandled = useCallback(() => setFocusRequest(null), []);
 
-  const openGroup = (group: FilterGroupId) => {
-    if (foldingGroups.includes(group)) setOpenFolding(group);
-    setFocusRequest((previous) => ({ group, nonce: (previous?.nonce ?? 0) + 1 }));
-    if (wide) setPanelOpen(true);
-    else setDrawerOpen(true);
-  };
-  const toggleGroup = (group: FilterGroupId) => setOpenFolding((previous) => (previous === group ? null : group));
   const clearAll = () =>
     setParams(serializeMovementFilters({ ...filters, types: [], productIds: [], responsibleIds: [], destinations: [], reasons: [], locationIds: [], period: { kind: 'all' } }), {
       replace: true,
     });
 
-  const panel = (
-    <MovementFilterPanel
-      workspaceId={workspaceId}
-      filters={filters}
-      query={operationQuery}
-      facets={operationFacets}
-      openGroup={openFolding}
-      onToggleGroup={toggleGroup}
-      focusRequest={focusRequest}
-      onFocusHandled={onFocusHandled}
-      onChange={apply}
-    />
-  );
-  const filtersLabel = wide && panelOpen ? 'Ocultar filtros' : active.length > 0 ? `Filtros (${active.length})` : 'Filtros';
-
   return (
-    <div className={cn(showPanel && 'grid grid-cols-[minmax(0,1fr)_18rem] items-start gap-6')}>
-      <div className="min-w-0">
-        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3">
-          {/* `div`, no `p`: el esqueleto es un bloque y un `p` no puede contenerlo. */}
-          <div className="min-w-0 basis-full text-sm text-ink-muted sm:flex-1 sm:basis-0">
-            {total === undefined ? (
-              <Skeleton className="h-5 w-52" />
-            ) : (
-              <>
-                <span className="text-base font-bold tabular-nums text-ink">{movementsText(total)}</span>
-                <span> · {periodText(filters.period, currentYear)}</span>
-              </>
-            )}
-          </div>
-          {canReport ? (
+    <div className="grid min-w-0 gap-4">
+      {/* La barra de filtros, a todo el ancho; debajo, la vista y la cuenta. */}
+      <MovementFilterBar
+        workspaceId={workspaceId}
+        filters={filters}
+        query={operationQuery}
+        facets={operationFacets}
+        currentYear={currentYear}
+        onChange={apply}
+        onClear={clearAll}
+      />
+      {/* Anuncia el total al cambiar los filtros, sin mover el foco. */}
+      <p role="status" className="sr-only">
+        {settled && total !== undefined ? `${movementsText(total)}. ${periodText(filters.period, currentYear)}.` : ''}
+      </p>
+
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+        {canReport ? (
+          <>
             <Segmented
               label="Vista"
               value={view}
@@ -127,154 +80,91 @@ export function ReagentsMovementsPage() {
               ]}
               onValueChange={(next) => apply({ view: next })}
             />
-          ) : null}
-          <div className="ml-auto flex items-center gap-2 sm:ml-0">
-            <Button
-              size="sm"
-              className="h-[44px] sm:h-8"
-              aria-expanded={wide ? panelOpen : undefined}
-              aria-controls={wide ? panelId : undefined}
-              aria-haspopup={wide ? undefined : 'dialog'}
-              onClick={() => (wide ? setPanelOpen(!panelOpen) : setDrawerOpen(true))}
-            >
-              <SlidersHorizontal aria-hidden />
-              {filtersLabel}
-            </Button>
-            <Button
-              size="sm"
-              className="h-[44px] sm:h-8"
-              aria-haspopup="dialog"
-              disabled={view === 'detail' ? operations.isPending : operationTotals.isPending}
-              onClick={() => setPrinting(true)}
-            >
-              <Printer aria-hidden />
-              Imprimir
-            </Button>
-          </div>
-        </div>
-        {/* Anuncia el total al cambiar los filtros, sin mover el foco. */}
-        <p role="status" className="sr-only">
-          {settled && total !== undefined ? `${movementsText(total)}. ${periodText(filters.period, currentYear)}.` : ''}
-        </p>
-
-        {view === 'totals' ? (
-          <div className="mb-4 w-full max-w-[14rem]">
-            <Field label="Agrupar por">
-              <Select
-                value={filters.groupBy}
-                onValueChange={(next) => {
-                  if (isGroupBy(next)) apply({ groupBy: next });
-                }}
-                options={groupOptions.map((option) => ({ value: option.value, label: option.label }))}
-                placeholder="Reactivo"
-                triggerClassName="h-[44px] sm:h-10"
-              />
-            </Field>
-          </div>
+            {view === 'totals' ? (
+              <div className="w-full max-w-[14rem]">
+                <Field label="Agrupar por">
+                  <Select
+                    value={filters.groupBy}
+                    onValueChange={(next) => {
+                      if (isGroupBy(next)) apply({ groupBy: next });
+                    }}
+                    options={groupOptions.map((option) => ({ value: option.value, label: option.label }))}
+                    placeholder="Reactivo"
+                    triggerClassName="h-[44px] sm:h-10"
+                  />
+                </Field>
+              </div>
+            ) : null}
+          </>
         ) : null}
-
-        {/* Con el panel a la vista, sus filtros ya se ven ahí. */}
-        {showPanel ? null : (
-          <MovementChips
-            filters={filters}
-            facets={operationFacets.data}
-            currentYear={currentYear}
-            onOpen={openGroup}
-            onRemove={(group) => apply(clearedGroup(group))}
-            onClear={clearAll}
-          />
-        )}
-
-        <div aria-busy={stale} className={cn('transition-opacity duration-150', stale && 'opacity-60')}>
-          {view === 'totals' ? (
-            <MovementTotals totals={operationTotals} filters={filters} base={base} />
-          ) : operations.isPending ? (
-            <MovementsSkeleton />
-          ) : operations.isError ? (
-            <div className="rounded-card bg-surface shadow-raised">
-              <QueryErrorState error={operations.error} onRetry={() => void operations.refetch()} />
-            </div>
+        {/* La cuenta se dice en voz baja: las filas ya están a la vista. `div`, no `p`: el esqueleto es un bloque. */}
+        <div className="ml-auto self-center text-sm tabular-nums text-ink-muted">
+          {total === undefined ? (
+            <Skeleton className="h-5 w-44" />
           ) : (
-            <MovementsView
-              operations={operations.data.pages.flatMap((page) => page.items)}
-              base={base}
-              timeZone={timeZone}
-              filtered={active.length > 0}
-              hasMore={operations.hasNextPage}
-              onClearFilters={clearAll}
-            />
+            <>
+              <span>{movementsText(total)}</span>
+              <span> · {periodText(filters.period, currentYear)}</span>
+            </>
           )}
         </div>
-        {view === 'detail' && operations.hasNextPage ? (
-          <div className="mt-5 text-center">
-            <Button variant="ghost" size="sm" loading={operations.isFetchingNextPage} onClick={() => void operations.fetchNextPage()}>
-              Cargar movimientos anteriores
-            </Button>
-          </div>
-        ) : null}
       </div>
 
-      {showPanel ? (
-        <aside
-          id={panelId}
-          aria-label="Filtros"
-          className="sticky top-20 rounded-panel bg-surface p-2 shadow-raised"
-        >
-          {active.length > 0 ? <FilterPanelClear onClear={clearAll} /> : null}
-          {panel}
-        </aside>
-      ) : null}
-      {printing ? (
-        <MovementPrint view={view} total={total} currentYear={currentYear} onClose={() => setPrinting(false)} />
-      ) : null}
-      <Drawer
-        open={drawerOpen && !wide}
-        onOpenChange={setDrawerOpen}
-        title="Filtros"
-        footer={
-          <Button variant="primary" className="h-[44px] w-full" onClick={() => setDrawerOpen(false)}>
-            {total === undefined ? 'Ver movimientos' : `Ver ${movementsText(total)}`}
+      <div aria-busy={stale} className={cn('transition-opacity duration-150', stale && 'opacity-60')}>
+        {view === 'totals' ? (
+          <MovementTotals totals={operationTotals} filters={filters} base={base} />
+        ) : operations.isPending ? (
+          <MovementsSkeleton />
+        ) : operations.isError ? (
+          <div className="rounded-card bg-surface shadow-raised">
+            <QueryErrorState error={operations.error} onRetry={() => void operations.refetch()} />
+          </div>
+        ) : (
+          <MovementsView
+            operations={operations.data.pages.flatMap((page) => page.items)}
+            base={base}
+            timeZone={timeZone}
+            filtered={active.length > 0}
+            onClearFilters={clearAll}
+          />
+        )}
+      </div>
+      {view === 'detail' && operations.hasNextPage ? (
+        <div className="text-center">
+          <Button variant="ghost" size="sm" loading={operations.isFetchingNextPage} onClick={() => void operations.fetchNextPage()}>
+            Cargar movimientos anteriores
           </Button>
-        }
-      >
-        {panel}
-      </Drawer>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-/** Esqueleto con la forma real: encabezado de día y una tarjeta de filas con círculo, dos líneas y cantidad. */
+/** Esqueleto con la forma real: filas con las mismas columnas que el Detalle (nombre, tipo, cantidad…). */
 function MovementsSkeleton() {
   return (
-    <div className="grid gap-3" role="status" aria-busy="true" aria-label="Cargando">
-      <Skeleton className="h-4 w-48" />
-      <div className="rounded-card bg-surface shadow-raised">
+    <div className="@container" role="status" aria-busy="true" aria-label="Cargando">
+      <div className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-raised">
         {[0, 1, 2, 3].map((row) => (
-          <div key={row} className="flex items-center gap-3.5 px-4 py-3.5">
-            <Skeleton className="size-10 shrink-0 rounded-full" />
-            <div className="grid flex-1 gap-2">
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-3.5 w-1/2" />
+          <div
+            key={row}
+            className={cn('grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-3 sm:px-5 @3xl:min-h-[4.5rem]', columns)}
+          >
+            <Skeleton className="hidden h-4 w-20 @3xl:block" />
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-3.5 w-1/3" />
             </div>
-            <Skeleton className="h-6 w-20" />
+            <Skeleton className="hidden h-4 w-16 @3xl:block" />
+            <Skeleton className="hidden h-4 w-3/4 @3xl:block" />
+            <Skeleton className="hidden h-4 w-2/3 @3xl:block" />
+            <Skeleton className="h-4 w-20 justify-self-end" />
+            <Skeleton className="hidden h-4 w-16 justify-self-end @3xl:block" />
           </div>
         ))}
       </div>
     </div>
   );
-}
-
-/** «Hoy», «Ayer» o el día completo; la fecha larga va siempre, para no depender de recordar qué es hoy. */
-function dayHeading(key: string, timeZone: string, now: Date): { relative: string | null; long: string } {
-  const [year = 1970, month = 1, day = 1] = key.split('-').map(Number);
-  // Mediodía UTC del día civil: formateado en UTC conserva el día sin cruzar de zona.
-  const noon = new Date(Date.UTC(year, month - 1, day, 12));
-  const text = new Intl.DateTimeFormat('es-EC', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' }).format(noon);
-  const today = dayKey(now, timeZone);
-  return {
-    relative: key === today ? 'Hoy' : key === addDays(today, -1) ? 'Ayer' : null,
-    long: text.charAt(0).toUpperCase() + text.slice(1),
-  };
 }
 
 const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }> = {
@@ -284,34 +174,20 @@ const typeLabel: Record<Operation['type'], { label: string; icon: typeof Scale }
   transfer: { label: typeSingular.transfer, icon: ArrowLeftRight },
 };
 
-/** Historial por días: cada día una tarjeta, cada fila un movimiento que abre la ficha del reactivo. */
+/** El libro en una sola tarjeta, como el Historial de Mantenimiento: cada fila es un movimiento que abre la ficha del reactivo. El periodo se acota con su filtro. */
 function MovementsView({
   operations,
   base,
   timeZone,
   filtered,
-  hasMore,
   onClearFilters,
 }: {
   operations: Operation[];
   base: string;
   timeZone: string;
   filtered: boolean;
-  hasMore: boolean;
   onClearFilters: () => void;
 }) {
-  const now = useNow(60_000);
-  const days = useMemo(() => {
-    const groups: Array<{ key: string; items: Operation[] }> = [];
-    for (const operation of operations) {
-      const key = dayKey(new Date(operation.effectiveAt), timeZone);
-      const last = groups.at(-1);
-      if (last?.key === key) last.items.push(operation);
-      else groups.push({ key, items: [operation] });
-    }
-    return groups;
-  }, [operations, timeZone]);
-
   if (operations.length === 0) {
     return (
       <div className="rounded-card bg-surface shadow-raised">
@@ -337,96 +213,108 @@ function MovementsView({
     );
   }
   return (
-    <div className="grid gap-6">
-      {days.map((day, index) => {
-        const heading = dayHeading(day.key, timeZone, new Date(now));
-        return (
-          <section key={day.key} aria-labelledby={`dia-${day.key}`}>
-            {/* Fijo bajo la cabecera (en el móvil, la barra y la fila de secciones) mientras se recorre el día. */}
-            <h2
-              id={`dia-${day.key}`}
-              className="sticky top-[7.25rem] z-20 md:top-16 -mx-1 mb-2 flex items-baseline gap-2 bg-canvas/90 px-1 py-2 text-sm backdrop-blur-sm"
-            >
-              {heading.relative ? <span className="font-bold text-ink">{heading.relative}</span> : null}
-              <span className={heading.relative ? 'text-ink-muted' : 'font-bold text-ink'}>{heading.long}</span>
-              {/* La lista llega por páginas: el último día puede seguir en la siguiente, y su cuenta sería parcial. */}
-              {hasMore && index === days.length - 1 ? null : (
-                <span className="ml-auto text-[13px] font-normal tabular-nums text-ink-muted">
-                  {movementsText(day.items.length)}
-                </span>
-              )}
-            </h2>
-            <ul className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-raised">
-              {day.items.map((operation) => (
-                <li key={operation.entryId}>
-                  <MovementRow operation={operation} to={`${base}/inventario/${operation.product.id}`} timeZone={timeZone} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+    <div className="@container">
+      <div className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-raised">
+        {/* Encabezado solo visual: cada celda dice su rótulo al lector de pantalla. */}
+        <div aria-hidden className={cn('hidden gap-x-3 px-5 py-2.5 text-[13px] font-medium text-ink-muted @3xl:grid', columns)}>
+          <span>Fecha</span>
+          <span>Reactivo y frasco</span>
+          <span>Tipo</span>
+          <span>Motivo y destino</span>
+          <span>Responsable</span>
+          <span className="text-right">Cantidad</span>
+          <span className="text-right">Saldo</span>
+        </div>
+        <ul className="divide-y divide-line">
+          {operations.map((operation) => (
+            <li key={operation.entryId}>
+              <MovementRow operation={operation} to={`${base}/inventario/${operation.product.id}`} timeZone={timeZone} />
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
 
 /**
- * Un asiento del libro: hora, tipo (icono y texto), reactivo con frasco y ubicación, motivo y
- * responsable a la izquierda; cantidad con signo y saldo a la derecha. Nada se edita aquí.
+ * Un asiento del libro: fecha y hora, reactivo con el código de su frasco, tipo, motivo y destino con el lugar, responsable y
+ * quién lo pidió; cantidad con signo y saldo a la derecha. Desde 48 rem de lista son columnas de hasta dos líneas (el lugar y el
+ * responsable, una) que se cortan con su texto completo en el `title`; más angosta se apila y nada se corta. Nada se edita aquí.
  */
 function MovementRow({ operation, to, timeZone }: { operation: Operation; to: string; timeZone: string }) {
   const kind = typeLabel[operation.type];
   const Icon = kind.icon;
-  const tone = operation.type === 'adjustment' || operation.type === 'transfer' ? 'accent' : operation.quantity.startsWith('-') ? 'out' : 'in';
   const purpose = purposeOf(operation);
+  const place = [placeOf(operation), operation.reference].filter(Boolean).join(' · ');
   const actor = operation.actor.displayName ?? 'Miembro anterior';
+  const requestedBy = operation.requestedBy ? `Pidió ${operation.requestedBy.displayName ?? 'un miembro anterior'}` : null;
   const hour = hourOf(operation.effectiveAt, timeZone);
+  const day = formatDate(dayKey(new Date(operation.effectiveAt), timeZone));
   return (
     <Link
       to={to}
-      className="@container group flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-surface-sunken/60 focus-visible:-outline-offset-2"
+      className={cn(
+        'grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-surface-sunken/60 focus-visible:-outline-offset-2 sm:px-5 @3xl:min-h-[4.5rem] @3xl:items-center',
+        columns,
+      )}
     >
-      <time dateTime={operation.effectiveAt} className="hidden w-12 shrink-0 text-[13px] tabular-nums text-ink-muted @lg:block">
-        {hour}
-      </time>
-      {/* Siempre en el acento: el icono dice el tipo y el color de la cifra, el sentido. */}
-      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-action-soft text-action">
-        <Icon className="size-[18px]" aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 break-words font-bold text-ink">{tight(operation.product.name)}</p>
-        <p className="line-clamp-2 text-[13px] text-ink-muted">
-          {operation.container?.code ?? operation.lot.code} · {placeOf(operation)}
-          {purpose ? ` · ${purpose}` : ''}
-          {operation.reference ? ` · ${operation.reference}` : ''}
+      <div className="min-w-0 @3xl:col-start-2 @3xl:row-start-1">
+        <p className="break-words font-semibold text-ink @3xl:line-clamp-2" title={tight(operation.product.name)}>
+          {tight(operation.product.name)}
         </p>
-        <p className="truncate text-[13px] text-ink-muted">
+        <p className="mt-1 @3xl:mt-0.5">
+          <CodeTag>{operation.container?.code ?? operation.lot.code}</CodeTag>
+        </p>
+      </div>
+      {/* Apilados, la cantidad y el saldo van a la derecha del nombre; en columnas, cada uno a la suya. */}
+      <div className="text-right @3xl:contents">
+        <p className="text-sm @3xl:col-start-6 @3xl:row-start-1">
+          <span className="sr-only">Cantidad: </span>
+          <MovementAmount type={operation.type} quantity={operation.quantity} unit={operation.unit} />
+        </p>
+        <p className="text-[13px] text-ink-muted @3xl:col-start-7 @3xl:row-start-1 @3xl:text-sm">
+          <span className="@3xl:sr-only">Saldo </span>
+          <Quantity value={operation.balanceAfter} unit={operation.unit} className="text-ink-muted" />
+        </p>
+      </div>
+      {/* Apilado, lo demás va debajo: el motivo y el lugar en su línea; el tipo, la hora y el responsable, en la siguiente. */}
+      <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-muted @3xl:contents">
+        <div className="min-w-0 basis-full @3xl:col-start-4 @3xl:row-start-1 @3xl:basis-auto">
+          <p className="break-words @3xl:line-clamp-2 @3xl:text-sm @3xl:text-ink" title={purpose ?? undefined}>
+            <span className="sr-only">Motivo: </span>
+            {purpose ?? <span aria-hidden>—</span>}
+          </p>
+          {place ? (
+            <p className="break-words @3xl:truncate" title={place}>
+              {place}
+            </p>
+          ) : null}
+        </div>
+        <time dateTime={operation.effectiveAt} className="tabular-nums @3xl:col-start-1 @3xl:row-start-1 @3xl:text-sm @3xl:text-ink">
+          {day}
+          <span className="@3xl:hidden"> · </span>
+          <span className="@3xl:block @3xl:text-[13px] @3xl:text-ink-muted">{hour}</span>
+        </time>
+        {/* Tipo en tinta neutra: el color solo cuenta el sentido de la cifra, y esa ya lo dice con su signo. */}
+        <span className="inline-flex items-center gap-1.5 @3xl:col-start-3 @3xl:row-start-1 @3xl:text-sm @3xl:text-ink">
+          <Icon className="size-4 shrink-0" aria-hidden />
+          <span className="sr-only">Tipo: </span>
           {kind.label}
-          <span className="@lg:hidden"> · {hour}</span> · {actor}
-          {/* Una salida aprobada (ADR 0012) lleva a quien la aprobó y a quien la pidió. */}
-          {operation.requestedBy ? ` · Pidió ${operation.requestedBy.displayName ?? 'un miembro anterior'}` : ''}
-        </p>
+        </span>
+        <div className="min-w-0 @3xl:col-start-5 @3xl:row-start-1">
+          <p className="break-words @3xl:truncate @3xl:text-sm @3xl:text-ink" title={actor}>
+            <span className="sr-only">Responsable: </span>
+            {actor}
+          </p>
+          {/* Una salida aprobada (ADR 0012) lleva a quien la aprobó y, en la segunda línea, a quien la pidió. */}
+          {requestedBy ? (
+            <p className="break-words @3xl:line-clamp-2" title={requestedBy}>
+              {requestedBy}
+            </p>
+          ) : null}
+        </div>
       </div>
-      <div className="shrink-0 text-right">
-        <Quantity
-          value={operation.quantity}
-          unit={operation.unit}
-          signed
-          className={cn(
-            'inline-block rounded-md px-2 py-0.5 text-[13px] font-bold [&>span]:font-semibold [&>span]:text-current',
-            tone === 'in' && 'bg-success-soft text-success',
-            tone === 'out' && 'bg-danger-soft text-danger',
-            tone === 'accent' && 'bg-action-soft text-action',
-          )}
-        />
-        <p className="mt-1 text-[13px] text-ink-muted">
-          Saldo <Quantity value={operation.balanceAfter} unit={operation.unit} className="text-ink-muted" />
-        </p>
-      </div>
-      <ChevronRight
-        className="size-4 shrink-0 text-ink-muted transition-transform duration-150 group-hover:translate-x-0.5"
-        aria-hidden
-      />
     </Link>
   );
 }

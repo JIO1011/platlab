@@ -4,7 +4,7 @@ import { Repeat } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { assetFichaPath } from './asset-path';
-import { CodeTag } from './code-tag';
+import { CodeTag } from '../../app/code-tag';
 import { useMaintenance } from './context';
 import { replacementReasons } from './indicator-text';
 import { Panel } from './panel';

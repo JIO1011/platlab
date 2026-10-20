@@ -61,7 +61,6 @@ export function DocumentSheet({
         render={({ field }) => (
           <PillField
             label="Tipo"
-            required
             labelClassName={fieldLabel}
             size="sm"
             value={field.value}
@@ -74,14 +73,14 @@ export function DocumentSheet({
           />
         )}
       />
-      <Field label="Nombre" required labelClassName={fieldLabel} hint="Cómo se verá en la lista, por ejemplo «Manual de usuario»." error={errors.title?.message}>
+      <Field label="Nombre" labelClassName={fieldLabel} hint="Cómo se verá en la lista, por ejemplo «Manual de usuario»." error={errors.title?.message}>
         <FilledInput autoComplete="off" maxLength={DOCUMENT_TITLE_MAX} {...form.register('title', { onChange: () => form.clearErrors('title') })} />
       </Field>
       <Controller
         control={form.control}
         name="file"
         render={({ field }) => (
-          <Field label="Archivo" required labelClassName={fieldLabel} hint={`Solo PDF, hasta ${documentLimitText}.`} error={errors.file?.message}>
+          <Field label="Archivo" labelClassName={fieldLabel} hint={`Solo PDF, hasta ${documentLimitText}.`} error={errors.file?.message}>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <Button className="h-11 shrink-0" onClick={() => fileRef.current?.click()}>
                 <Upload aria-hidden />

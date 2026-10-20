@@ -58,7 +58,7 @@ export function VoidSheet({
         Queda a la vista como anulado y deja de contar para la próxima fecha. Lo que aplicó en Equipos (estado físico, incidente) no cambia:
         corrígelo en Equipos.
       </p>
-      <Field label="Motivo de la anulación" required error={reasonError}>
+      <Field label="Motivo de la anulación" error={reasonError}>
         <Textarea
           rows={3}
           maxLength={500}

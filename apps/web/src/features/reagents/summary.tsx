@@ -6,16 +6,20 @@ import {
   CalendarX,
   CircleCheck,
   Clock,
+  FileWarning,
   FlaskConical,
+  Gauge,
   ScanLine,
   TrendingDown,
 } from 'lucide-react';
 import { Link } from 'react-router';
 import { ActivityRow } from '../../app/activity-row';
+import { NoticeCard } from '../../app/notice-card';
 import { QuickActions, quickActionPrimary, quickActionSecondary } from '../../app/quick-actions';
 import { StatLink } from '../../app/stat-link';
 import { QueryErrorState } from '../../app/states';
 import { TrendChart } from '../../app/trend-chart';
+import { AttentionCard } from './attention-card';
 import { useReagents, type Allowed, type SheetRequest } from './context';
 
 /**
@@ -33,7 +37,7 @@ function ReagentsQuickActions({ allowed, openSheet }: { allowed: Allowed; openSh
           ? 'Las salidas que piden los Operadores te esperan en Solicitudes.'
           : 'La salida que pidas queda apartada hasta que la aprueben.'
       }
-      className="xl:py-[60px] fit:py-[26px] fit-tall:py-[60px]"
+      className="order-1 xl:order-none xl:py-9"
     >
       <button type="button" onClick={() => openSheet({ kind: 'scan' })} className={quickActionPrimary}>
         <ScanLine className="size-[18px]" aria-hidden />
@@ -49,29 +53,73 @@ function ReagentsQuickActions({ allowed, openSheet }: { allowed: Allowed; openSh
   );
 }
 
+const reactivos = (n: number) => (n === 1 ? '1 reactivo' : `${n} reactivos`);
+
 /**
- * Resumen (ADR 0012, 05-10-2026): primero los indicadores, por urgencia (lo que espera una decisión,
- * lo vencido, lo que vence pronto y el tamaño del inventario); después la acción rápida, y abajo
- * el gráfico de salidas con su total y la actividad reciente.
+ * Los avisos del pie, en tarjeta y con su acción (ADR 0021): reactivos sin ficha de seguridad y sin mínimo. Cada uno
+ * aparece solo si su cuenta es mayor que cero y abre el Inventario ya filtrado. Salen de los reactivos que ya llegan al
+ * Inventario; si no cargan, ya lo dice «Por atender».
+ */
+function Notices() {
+  const { base, products, productList } = useReagents();
+  if (products.isPending) return <Skeleton aria-busy="true" className="h-20 rounded-card" />;
+  const withoutSheet = productList.filter((product) => product.sdsKind === null).length;
+  const withoutMinimum = productList.filter((product) => product.minimum === null).length;
+  const action = 'Ver en el Inventario';
+  // Avisos cortos: en una fila de dos desde 1280 px, apilados antes.
+  return (
+    <div className="grid gap-4 xl:grid-cols-2">
+      {withoutSheet > 0 ? (
+        <NoticeCard
+          icon={FileWarning}
+          title={`${reactivos(withoutSheet)} sin ficha de seguridad`}
+          text="Aún no se indica si tienen ficha."
+          action={action}
+          to={`${base}/inventario?ficha=sin`}
+        />
+      ) : null}
+      {withoutMinimum > 0 ? (
+        <NoticeCard
+          icon={Gauge}
+          tone="neutral"
+          title={`${reactivos(withoutMinimum)} sin mínimo`}
+          text="No se avisa cuando se acaban."
+          action={action}
+          to={`${base}/inventario?minimo=sin`}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Resumen (ADR 0012, 05-10-2026; ADR 0021) con la estructura de los de Equipos y Mantenimiento: primero los
+ * indicadores, por urgencia (lo que espera una decisión, lo vencido, lo que vence pronto y el tamaño del
+ * inventario); debajo, a la izquierda, la acción rápida y el gráfico de salidas con su total y, a la derecha,
+ * «Por atender» y la actividad reciente; al pie, los avisos, solo si los hay. En el móvil, una columna: cifras,
+ * acción rápida, por atender, gráfico, actividad y avisos.
  */
 export function ReagentsSummaryPage() {
   const { me, base, summary, allowed, openSheet } = useReagents();
 
   if (summary.isPending) {
     return (
-      // Replica la estructura real (indicadores, banda y dos paneles) para que no haya salto al cargar.
+      // Esqueleto quieto con la forma real: cuatro cifras y las tarjetas de las dos columnas.
       <div className="grid gap-5 sm:gap-6" role="status" aria-busy="true" aria-label="Cargando">
         <div className="grid grid-cols-2 gap-4 sm:gap-6 xl:grid-cols-4">
           {[0, 1, 2, 3].map((key) => (
             <Skeleton key={key} className="h-28 rounded-card" />
           ))}
         </div>
-        <div className="grid gap-5 sm:gap-6 lg:grid-cols-2 xl:grid-cols-12">
-          <div className="grid gap-5 sm:gap-6 xl:col-span-7">
+        <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12">
+          <div className="flex min-w-0 flex-col gap-5 sm:gap-6 xl:col-span-7">
             <Skeleton className="h-40 rounded-card" />
-            <Skeleton className="h-64 rounded-card" />
+            <Skeleton className="h-96 rounded-card" />
           </div>
-          <Skeleton className="h-96 rounded-card xl:col-span-5" />
+          <div className="flex min-w-0 flex-col gap-5 sm:gap-6 xl:col-span-5">
+            <Skeleton className="h-96 rounded-card" />
+            <Skeleton className="h-96 rounded-card" />
+          </div>
         </div>
       </div>
     );
@@ -97,14 +145,10 @@ export function ReagentsSummaryPage() {
           : `Tienes ${pending} solicitudes de salida pendientes`;
   const belowMinimum = counters.belowMinimum;
   const frascos = (n: number) => (n === 1 ? '1 frasco' : `${n} frascos`);
-  const reactivos = (n: number) => (n === 1 ? '1 reactivo' : `${n} reactivos`);
 
   return (
-    // En una ventana: indicadores arriba y, debajo, dos columnas que llenan el resto. A la izquierda,
-    // la acción rápida y el gráfico, que crece; a la derecha, la actividad, a la altura de la acción
-    // rápida y con desplazamiento propio. En pantallas menores, todo fluye en una columna.
-    <div className="grid grid-cols-1 gap-5 sm:gap-6 fit:h-full fit:grid-rows-[auto_minmax(0,1fr)] fit:gap-4 fit-tall:gap-6">
-      <section aria-label="Indicadores" className="grid grid-cols-2 gap-4 sm:gap-6 xl:grid-cols-4 fit:gap-4 fit-tall:gap-6">
+    <div className="grid gap-5 sm:gap-6">
+      <section aria-label="Indicadores" className="grid grid-cols-2 gap-4 sm:gap-6 xl:grid-cols-4">
         <StatLink
           to={`${base}/solicitudes`}
           label={approves ? 'Por aprobar' : 'Mis solicitudes'}
@@ -146,7 +190,7 @@ export function ReagentsSummaryPage() {
           hint={
             counters.productsWithMinimum === 0
               ? 'Sin mínimos fijados'
-              : `Inventario: ${reactivos(counters.productsWithStock)} · ${frascos(counters.containersWithStock)}`
+              : `${frascos(counters.containersWithStock)} en ${reactivos(counters.productsWithStock)}`
           }
           hintTone="neutral"
           icon={TrendingDown}
@@ -154,11 +198,11 @@ export function ReagentsSummaryPage() {
           compact
         />
       </section>
-      <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2 xl:grid-cols-12 fit:min-h-0 fit:gap-4 fit-tall:gap-6">
-        <div className="flex min-w-0 flex-col gap-5 sm:gap-6 xl:col-span-7 fit:min-h-0 fit:gap-4 fit-tall:gap-6">
+      {/* En el móvil las columnas se disuelven y `order` fija la lectura; desde xl, cada columna es la suya. */}
+      <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12">
+        <div className="contents min-w-0 xl:col-span-7 xl:flex xl:flex-col xl:gap-6">
           <ReagentsQuickActions allowed={allowed} openSheet={openSheet} />
-          {/* Crece hasta llenar la columna, pero nunca por debajo de su contenido. */}
-          <article className="flex min-w-0 flex-col rounded-card bg-surface p-6 shadow-raised fit:flex-1 fit:p-5">
+          <article className="order-3 flex min-w-0 flex-col rounded-card bg-surface p-6 shadow-raised xl:order-none">
             {/* El total va con su gráfico (ADR 0012, 05-10-2026), junto al título y a la izquierda, para
                 que la etiqueta del día, arriba a la derecha, no lo tape. Sin salidas, lo dice el aviso. */}
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -177,9 +221,9 @@ export function ReagentsSummaryPage() {
             </div>
             <p className="mt-0.5 text-sm text-ink-muted">En las ubicaciones que puedes consultar.</p>
             {/* Aire para la marca superior del eje, que asoma por encima del área del gráfico. */}
-            <div className="mt-6 fit:min-h-0 fit:flex-1">
+            <div className="mt-6">
               {trend ? (
-                <TrendChart title="Salidas por día, últimos 30 días" points={trend.points} unit={{ one: 'salida', many: 'salidas' }} fill />
+                <TrendChart title="Salidas por día, últimos 30 días" points={trend.points} unit={{ one: 'salida', many: 'salidas' }} />
               ) : (
                 // Sin salidas no hay gráfico: uno vacío no informa (ADR 0011).
                 <p className="rounded-panel bg-surface-sunken px-4 py-6 text-center text-sm text-ink-muted">
@@ -189,43 +233,40 @@ export function ReagentsSummaryPage() {
             </div>
           </article>
         </div>
-        <article
-          aria-labelledby="actividad-reciente"
-          className="flex min-w-0 flex-col rounded-card bg-surface p-6 shadow-raised xl:col-span-5 fit:min-h-0 fit:p-5"
-        >
-          <div className="flex items-center justify-between gap-4 border-b border-line pb-4">
-            <h2 id="actividad-reciente" className="text-lg font-bold text-ink">
-              Actividad reciente
-            </h2>
-            <Link to={`${base}/movimientos`} className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-action transition-colors hover:text-action-hover">
-              Ver movimientos
-              <ArrowRight className="size-4" aria-hidden />
-            </Link>
+        <div className="contents min-w-0 xl:col-span-5 xl:flex xl:flex-col xl:gap-6">
+          <div className="order-2 min-w-0 xl:order-none">
+            <AttentionCard />
           </div>
-          {activity.length ? (
-            // En una ventana, la lista se desplaza dentro de la tarjeta; se puede enfocar para hacerlo
-            // con el teclado. El hilo de la línea de tiempo vive en la lista, y se desplaza con ella.
-            <div
-              tabIndex={0}
-              role="region"
-              aria-label="Movimientos recientes"
-              // Un desvanecido al pie, sobre el relleno, avisa de que hay más movimientos por debajo.
-              className="-mx-2 mt-1 rounded-control px-2 pt-4 fit:min-h-0 fit:flex-1 fit:overflow-y-auto fit:pb-4 fit:pt-3 fit:[mask-image:linear-gradient(to_bottom,black_calc(100%-1rem),transparent)]"
-            >
-              {/* En una ventana, los movimientos se reparten el alto de la tarjeta: sin huecos al pie. */}
-              <ul className="relative flex flex-col gap-6 pb-1 before:absolute before:bottom-5 before:left-5 before:top-5 before:w-0.5 before:bg-line fit:min-h-full fit:justify-between fit:gap-3.5 fit:pb-0">
-                {activity.map((entry) => (
+          <article
+            aria-labelledby="actividad-reciente"
+            className="order-4 flex min-w-0 flex-col rounded-card bg-surface p-6 shadow-raised xl:order-none"
+          >
+            <div className="flex items-center justify-between gap-4 border-b border-line pb-4">
+              <h2 id="actividad-reciente" className="text-lg font-bold text-ink">
+                Actividad reciente
+              </h2>
+              <Link to={`${base}/movimientos`} className="flex items-center gap-1 whitespace-nowrap text-sm font-medium text-action transition-colors hover:text-action-hover">
+                Ver movimientos
+                <ArrowRight className="size-4" aria-hidden />
+              </Link>
+            </div>
+            {activity.length ? (
+              // El hilo de la línea de tiempo vive en la lista.
+              <ul className="relative mt-5 flex flex-col gap-6 pb-1 before:absolute before:bottom-5 before:left-5 before:top-5 before:w-0.5 before:bg-line">
+                {/* Cuatro bastan: así las dos columnas terminan parejas. */}
+                {activity.slice(0, 4).map((entry) => (
                   <li key={entry.id}>
                     <ActivityRow {...entry} timeZone={me.workspace.timeZone} />
                   </li>
                 ))}
               </ul>
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-ink-muted">Todavía no hay movimientos en tus ubicaciones.</p>
-          )}
-        </article>
+            ) : (
+              <p className="mt-4 text-sm text-ink-muted">Todavía no hay movimientos en tus ubicaciones.</p>
+            )}
+          </article>
+        </div>
       </div>
+      <Notices />
     </div>
   );
 }

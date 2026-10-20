@@ -31,6 +31,7 @@ export function ConditionSheet({
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [retiring, setRetiring] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [confirmError, setConfirmError] = useState(false);
   const confirmRef = useRef<HTMLInputElement>(null);
   const form = useForm({ defaultValues: { condition: '' as AssetCondition | '', reason: '', result: '' } });
   const errors = form.formState.errors;
@@ -48,7 +49,10 @@ export function ConditionSheet({
       form.setError('condition', { message: 'Elige el nuevo estado.' });
       return;
     }
-    if (retiring && !confirmed) return;
+    if (retiring && !confirmed) {
+      setConfirmError(true);
+      return;
+    }
     const payload = validate(
       conditionChangeRequest,
       { condition: next, reason: values.reason, result: next === 'operational' ? values.result : undefined },
@@ -80,6 +84,7 @@ export function ConditionSheet({
   const cancelRetiring = () => {
     setRetiring(false);
     setConfirmed(false);
+    setConfirmError(false);
   };
 
   return (
@@ -93,8 +98,6 @@ export function ConditionSheet({
       pending={command.isPending}
       generalError={generalError}
       onSubmit={() => void submit()}
-      submitDisabled={retiring && !confirmed}
-      status={retiring && !confirmed ? 'Confirma que es definitivo para continuar' : undefined}
       sections
     >
       <div className="grid gap-5">
@@ -110,12 +113,7 @@ export function ConditionSheet({
           name="condition"
           render={({ field }) => (
             <fieldset disabled={retiring} className="grid min-w-0 gap-1.5">
-              <legend className="mb-1.5 text-sm font-medium text-ink">
-                Nuevo estado
-                <span aria-hidden className="ml-0.5">
-                  *
-                </span>
-              </legend>
+              <legend className="mb-1.5 text-sm font-medium text-ink">Nuevo estado</legend>
               <div className="grid gap-0.5 rounded-xl border border-line bg-white/60 p-1">
                 {choices
                   .filter((entry) => entry.value !== asset.condition)
@@ -146,14 +144,13 @@ export function ConditionSheet({
         />
         <Field
           label="Motivo"
-          required
           hint={retiring ? 'Por qué sale de servicio para siempre.' : 'Qué pasó o por qué cambia.'}
           error={errors.reason?.message}
         >
           <Textarea rows={3} {...form.register('reason')} />
         </Field>
         {!retiring && condition === 'operational' ? (
-          <Field label="Resultado" required hint="Qué se hizo o se comprobó para volver a usarlo." error={errors.result?.message}>
+          <Field label="Resultado" hint="Qué se hizo o se comprobó para volver a usarlo." error={errors.result?.message}>
             <Textarea rows={3} {...form.register('result')} />
           </Field>
         ) : null}
@@ -172,10 +169,19 @@ export function ConditionSheet({
                   type="checkbox"
                   className="mt-0.5 size-5 shrink-0 cursor-pointer accent-danger"
                   checked={confirmed}
-                  onChange={(event) => setConfirmed(event.target.checked)}
+                  aria-invalid={confirmError ? true : undefined}
+                  onChange={(event) => {
+                    setConfirmed(event.target.checked);
+                    setConfirmError(false);
+                  }}
                 />
                 Entiendo que es definitivo y quiero dar de baja este equipo
               </label>
+              {confirmError ? (
+                <p role="alert" className="text-[13px] font-medium text-danger">
+                  Marca la casilla para confirmar que es definitivo.
+                </p>
+              ) : null}
               <Button variant="ghost" className="justify-self-start text-danger hover:text-danger" onClick={cancelRetiring}>
                 No dar de baja
               </Button>

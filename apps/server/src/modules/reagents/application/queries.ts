@@ -4,6 +4,7 @@ import { EXPIRING_DAYS } from '@platlab/contracts';
 import type {
   containerCodeSuggestionQuery,
   LocationList,
+  operationExportQuery,
   OperationFacets,
   operationFacetsQuery,
   OperationList,
@@ -60,12 +61,12 @@ import { inventoryContext } from './command.js';
 const READ = 'reagents.catalog.read';
 const RECEIPT = 'reagents.receipt.create';
 /** Totales y exportación de Movimientos: reportes del Administrador (ADR 0014, 01 §5). */
-const REPORT = 'reagents.report.read';
+export const REPORT = 'reagents.report.read';
 /** Ventana del gráfico de salidas del resumen (ADR 0011). */
 const TREND_DAYS = 30;
 
 /** Consultas de Reactivos: admisión de consulta y lectura del catálogo. */
-const runQuery = moduleQuery('reagents', READ);
+export const runQuery = moduleQuery('reagents', READ);
 
 const toStockedProduct = (row: IListProductsResult): StockedProduct => ({
   id: row.id,
@@ -241,9 +242,9 @@ export function listPositions(
 }
 
 /** Filtros de Movimientos (ADR 0014) del espacio. */
-const operationFilter = (
+export const operationFilter = (
   access: WorkspaceAccess,
-  query: z.infer<typeof operationFacetsQuery | typeof operationListQuery | typeof operationTotalsQuery>,
+  query: z.infer<typeof operationExportQuery | typeof operationFacetsQuery | typeof operationListQuery | typeof operationTotalsQuery>,
 ): OperationFilter => ({
   types: query.type,
   itemIds: query.productId,

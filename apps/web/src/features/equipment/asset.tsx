@@ -57,18 +57,18 @@ function TabStrip({ label, active, children }: { label: string; active: string; 
       observer.disconnect();
     };
   }, [active]);
-  const fade = 'pointer-events-none absolute inset-y-0 w-10 from-surface-sunken via-surface-sunken/80 to-transparent transition-opacity duration-150 motion-reduce:transition-none';
+  const fade = 'pointer-events-none absolute inset-y-0 w-10 from-canvas via-canvas/80 to-transparent transition-opacity duration-150 motion-reduce:transition-none';
   return (
-    <div className="relative w-fit max-w-full">
+    <div className="relative max-w-full">
       <TabsList
         ref={list}
         aria-label={label}
-        className="flex max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>button]:shrink-0 [&>button]:whitespace-nowrap"
+        className="max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>button]:shrink-0 [&>button]:whitespace-nowrap"
       >
         {children}
       </TabsList>
-      <span aria-hidden className={`${fade} left-0 rounded-l-full bg-linear-to-r ${edges.start ? 'opacity-100' : 'opacity-0'}`} />
-      <span aria-hidden className={`${fade} right-0 rounded-r-full bg-linear-to-l ${edges.end ? 'opacity-100' : 'opacity-0'}`} />
+      <span aria-hidden className={`${fade} left-0 bg-linear-to-r ${edges.start ? 'opacity-100' : 'opacity-0'}`} />
+      <span aria-hidden className={`${fade} right-0 bg-linear-to-l ${edges.end ? 'opacity-100' : 'opacity-0'}`} />
     </div>
   );
 }

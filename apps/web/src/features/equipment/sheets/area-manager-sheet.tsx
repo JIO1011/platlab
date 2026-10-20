@@ -20,6 +20,7 @@ function AreaManagerSheet({ workspaceId, open, onOpenChange, area }: SheetBasePr
   const [text, setText] = useState('');
   const [chosen, setChosen] = useState<{ id: string; name: string } | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [pickError, setPickError] = useState<string | undefined>(undefined);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const options = useMemo<ComboOption[]>(
     () =>
@@ -50,10 +51,12 @@ function AreaManagerSheet({ workspaceId, open, onOpenChange, area }: SheetBasePr
       open={open}
       onOpenChange={onOpenChange}
       submitLabel="Asignar encargado"
-      submitDisabled={!chosen}
       pending={command.isPending && !removing}
       generalError={generalError}
-      onSubmit={() => void save(chosen)}
+      onSubmit={() => {
+        if (chosen) void save(chosen);
+        else setPickError('Elige a la persona de la lista.');
+      }}
     >
       <div className="grid gap-1 rounded-control bg-surface-sunken px-3 py-2.5 text-sm">
         <p className="break-words font-semibold text-ink">{area.name}</p>
@@ -65,17 +68,19 @@ function AreaManagerSheet({ workspaceId, open, onOpenChange, area }: SheetBasePr
         label={area.manager ? 'Nuevo encargado' : 'Encargado'}
         labelClassName={fieldLabel}
         hint="Escribe un nombre y elígelo de la lista."
-        error={responsibles.isError ? 'No se pudo cargar la lista de personas. Vuelve a abrir la hoja.' : undefined}
+        error={responsibles.isError ? 'No se pudo cargar la lista de personas. Vuelve a abrir la hoja.' : pickError}
       >
         <Combobox
           value={text}
           onChange={(next) => {
             setText(next);
             setChosen(null);
+            setPickError(undefined);
           }}
           options={options}
           onPick={(option) => {
             setChosen({ id: option.id, name: option.label });
+            setPickError(undefined);
             setText(option.label);
           }}
           openOnFocus

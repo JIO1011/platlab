@@ -1,4 +1,4 @@
-import { cn, sectionLabel } from '@platlab/ui';
+import { cn } from '@platlab/ui';
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { DateField } from '../../app/filter-group';
@@ -17,7 +17,6 @@ interface DateRange {
   to: string;
 }
 
-
 /** Desde–hasta; el aviso del rango al revés cuelga del campo «Desde». */
 function RangeFields({ draft, reversed, onEdit }: { draft: DateRange; reversed: boolean; onEdit: (next: DateRange) => void }) {
   const errorId = useId();
@@ -34,13 +33,13 @@ function RangeFields({ draft, reversed, onEdit }: { draft: DateRange; reversed: 
   );
 }
 
-/** Período: pastillas y, tras «Elegir fechas», desde–hasta. */
-export function PeriodSection({ period, onChange }: { period: MovementFilters['period']; onChange: (period: MovementFilters['period']) => void }) {
+/** Menú del Periodo: atajos en pastillas y, tras «Elegir fechas», desde–hasta. Se aplica al marcarlo, sin botón. */
+export function PeriodMenu({ period, onChange }: { period: MovementFilters['period']; onChange: (period: MovementFilters['period']) => void }) {
   const name = useId();
   const [custom, setCustom] = useState(period.kind === 'range');
   const [draft, setDraft] = useState<DateRange>({ from: period.kind === 'range' ? (period.from ?? '') : '', to: period.kind === 'range' ? (period.to ?? '') : '' });
   const previous = useRef(period.kind);
-  // Si otra cosa cambia el periodo (la ficha, un enlace), los campos de fechas lo siguen.
+  // Si otra cosa cambia el periodo (un enlace, «Limpiar»), los campos de fechas lo siguen.
   useEffect(() => {
     if (period.kind === 'range') {
       setCustom(true);
@@ -65,18 +64,15 @@ export function PeriodSection({ period, onChange }: { period: MovementFilters['p
     id === 'all' ? { kind: 'all' } : id === 'month' ? { kind: 'month' } : { kind: 'days', days: Number(id) };
   // Un enlace puede traer otro número de días (hasta 90) o «mes anterior»: se muestra marcado y se puede cambiar.
   const odd = period.kind === 'days' && period.days !== 7 && period.days !== 30 ? `${period.days} días` : period.kind === 'previous-month' ? 'Mes anterior' : null;
-  const firstFocus = current === 'range' ? null : (periodPresets.find((option) => option.id === current)?.id ?? periodPresets[0].id);
   return (
-    <fieldset className="min-w-0 px-2 pb-2.5 pt-1">
-      <legend className={cn(sectionLabel, 'flex min-h-8 items-center px-0')}>Periodo</legend>
+    <fieldset className="min-w-0 p-1.5">
+      <legend className="sr-only">Periodo</legend>
       <div className="flex flex-wrap gap-1">
         {periodPresets.map((option) => (
           <Pill
             key={option.id}
-            type="radio"
             name={name}
             checked={current === option.id}
-            toggleGroup={firstFocus === option.id ? 'period' : undefined}
             onChange={() => {
               setCustom(false);
               onChange(preset(option.id));
@@ -86,14 +82,13 @@ export function PeriodSection({ period, onChange }: { period: MovementFilters['p
           </Pill>
         ))}
         {odd !== null ? (
-          <Pill type="radio" name={name} checked onChange={() => undefined}>
+          <Pill name={name} checked onChange={() => undefined}>
             {odd}
           </Pill>
         ) : null}
       </div>
       <button
         type="button"
-        data-group-toggle={current === 'range' ? 'period' : undefined}
         aria-expanded={custom}
         onClick={() => setCustom(!custom)}
         className="mt-1 inline-flex min-h-[44px] items-center gap-1 rounded-control text-[13px] font-medium text-action transition-colors hover:text-action-hover sm:min-h-8"

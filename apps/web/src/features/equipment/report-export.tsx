@@ -1,7 +1,7 @@
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, toast } from '@platlab/ui';
 import { ChevronDown, Download, FileSpreadsheet, Printer } from 'lucide-react';
 import { useRef, useState } from 'react';
-import type { ActiveFilter } from './asset-chips';
+import type { ActiveFilter } from './active-filters';
 import type { AssetQuery } from './asset-filters';
 import { equipmentErrorMessage, useExportAssets } from './commands';
 import { useEquipment } from './context';
@@ -29,7 +29,8 @@ export function ReportExport({
 
   const closePrint = () => {
     setPrinting(false);
-    trigger.current?.focus();
+    // Un cuadro después: la vista imprimible retiene el foco hasta desmontarse.
+    requestAnimationFrame(() => trigger.current?.focus());
   };
 
   return (

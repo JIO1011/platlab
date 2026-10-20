@@ -3,7 +3,7 @@ import { Button, IconTile, Sheet, Tooltip, cn } from '@platlab/ui';
 import { Activity, ArrowLeftRight, FileText, Microscope, Pencil, QrCode, TriangleAlert } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { glassCard, iconAction, primaryAction } from '../../app/glass';
+import { glassCard, iconAction } from '../../app/glass';
 import { InfoPill } from '../../app/pills';
 import { RefreshButton } from '../../app/refresh-button';
 import { AssetData } from './asset-data';
@@ -13,10 +13,10 @@ import { assetMeta } from './asset-text';
 export type AssetSheet = 'condition' | 'transfer' | 'edit' | 'fault';
 
 /**
- * Membrete de la ficha del equipo, como el del reactivo: la foto del equipo (cuadrada, de
- * 112 a 160 px, entera sobre blanco; al tocarla se abre ampliada en un diálogo) o, sin foto, el cuadro del módulo, y el nombre, con ⟳ «Actualizar»; las pastillas (código en
- * mono, tipo, marca · modelo · serie, alimentación) y, a la derecha, «Cambiar estado» como primaria y los botones
- * redondos «Trasladar equipo», «Reportar incidente», «Etiqueta QR», «Hoja de vida» (el documento) y «Editar ficha» (el lápiz), cada uno solo con
+ * Membrete de la ficha del equipo, más corto (U-01): la foto del equipo (cuadrada, de
+ * 80 a 96 px, entera sobre blanco; al tocarla se abre ampliada en un diálogo) o, sin foto, el cuadro del módulo, y el nombre, con ⟳ «Actualizar»; las pastillas (código en
+ * mono, tipo, marca · modelo · serie, alimentación) y, a la derecha, «Cambiar estado» como única acción sólida, «Reportar incidente» en contorno y con su texto (sin
+ * el permiso de cambiar el estado, es la primaria) y los botones redondos «Trasladar equipo», «Etiqueta QR», «Hoja de vida» (el documento) y «Editar ficha» (el lápiz), cada uno solo con
  * su permiso; la etiqueta y la hoja de vida, en cambio, las ve quien ve la ficha, también en modo consulta (imprimirlas es consultar); la hoja
  * de vida también con el equipo dado de baja. Debajo, la franja con todos los datos del equipo. Un equipo dado de baja no ofrece ninguna otra acción.
  */
@@ -61,8 +61,8 @@ export function AssetHeader({
   const meta = assetMeta(asset);
   const [zoomed, setZoomed] = useState(false);
   return (
-    <div className={cn(glassCard, 'p-5 md:p-6')}>
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+    <div className={cn(glassCard, 'p-4 md:p-5')}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
         <div className="flex min-w-0 items-start gap-4">
           {asset.photoUrl ? (
             <>
@@ -70,18 +70,18 @@ export function AssetHeader({
                 type="button"
                 aria-label={`Ampliar la foto de ${asset.name}`}
                 onClick={() => setZoomed(true)}
-                className="size-28 shrink-0 cursor-zoom-in overflow-hidden rounded-[18px] border border-line bg-surface transition-colors hover:border-line-strong md:size-40"
+                className="size-20 shrink-0 cursor-zoom-in overflow-hidden rounded-[16px] border border-line bg-surface transition-colors hover:border-line-strong md:size-24"
               >
-                <img src={asset.photoUrl} alt="" loading="lazy" decoding="async" className="size-full object-contain p-2" />
+                <img src={asset.photoUrl} alt="" loading="lazy" decoding="async" className="size-full object-contain p-1.5" />
               </button>
               <Sheet open={zoomed} onOpenChange={setZoomed} title={asset.name} wide>
                 <img src={asset.photoUrl} alt={asset.name} decoding="async" className="mx-auto max-h-[70dvh] w-full rounded-control bg-surface object-contain" />
               </Sheet>
             </>
           ) : (
-            <IconTile icon={Microscope} size="lg" />
+            <IconTile icon={Microscope} size="md" />
           )}
-          <div className="grid min-w-0 gap-3">
+          <div className="grid min-w-0 gap-2">
             <div className="flex min-w-0 items-start gap-1">
               <h1 className="min-w-0 text-display text-balance break-words leading-tight text-ink">{asset.name}</h1>
               <RefreshButton freshness={freshness} />
@@ -99,25 +99,29 @@ export function AssetHeader({
             {statusLines ? <div className="flex flex-wrap items-center gap-2 empty:hidden">{statusLines}</div> : null}
           </div>
         </div>
-        <div className="grid shrink-0 gap-3 lg:w-64">
+        {/* Una sola acción sólida: «Cambiar estado»; «Reportar incidente» va en contorno, con su texto. Sin permiso de cambiar el estado, la primaria es «Reportar incidente». */}
+        <div className="flex flex-wrap items-center gap-2 lg:max-w-[23rem] lg:shrink-0 lg:justify-end">
           {showCondition ? (
-            <Button variant="primary" className={primaryAction} onClick={() => onAction('condition')}>
+            <Button variant="primary" className="h-11 flex-1 px-5 text-sm font-semibold sm:flex-none" onClick={() => onAction('condition')}>
               <Activity aria-hidden />
               Cambiar estado
             </Button>
           ) : null}
-          <div className="flex flex-wrap gap-2">
+          {showFault ? (
+            <Button
+              variant={showCondition ? 'secondary' : 'primary'}
+              className="h-11 flex-1 px-4 text-sm font-semibold sm:flex-none"
+              onClick={() => onAction('fault')}
+            >
+              <TriangleAlert aria-hidden />
+              Reportar incidente
+            </Button>
+          ) : null}
+          <div className="flex items-center gap-2">
             {showTransfer ? (
               <Tooltip label="Trasladar equipo">
                 <Button size="icon" className={iconAction} aria-label="Trasladar equipo" onClick={() => onAction('transfer')}>
                   <ArrowLeftRight aria-hidden />
-                </Button>
-              </Tooltip>
-            ) : null}
-            {showFault ? (
-              <Tooltip label="Reportar incidente">
-                <Button size="icon" className={iconAction} aria-label="Reportar incidente" onClick={() => onAction('fault')}>
-                  <TriangleAlert aria-hidden />
                 </Button>
               </Tooltip>
             ) : null}

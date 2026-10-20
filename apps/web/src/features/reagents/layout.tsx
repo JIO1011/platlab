@@ -20,6 +20,7 @@ import {
 import { QueryErrorState } from '../../app/states';
 import { type Allowed, type ReagentsContext, type SheetRequest } from './context';
 import { IngressSheet } from './ingress/ingress-sheet';
+import { MovementExport } from './movement-export';
 import { ScanSheet } from '../../app/scan/scan-sheet';
 import { AdjustmentSheet, IssueSheet, MinimumSheet, ProductSheet, TransferSheet } from './sheets';
 import { useNow } from '../../app/use-now';
@@ -112,8 +113,8 @@ export function ReagentsLayout() {
   const visibleSecondary = secondaryActions.filter((action) => action.shown);
   // En Solicitudes la tarea es decidir: ahí la cabecera lleva solo «Escanear», que sirve en el resto de secciones.
   const showRegisterActions = sectionPath !== 'solicitudes' && !inLabels;
-  // Sin acciones en la cabecera: el Resumen tiene su tarjeta «Escanear» (ADR 0010, 04-10-2026) y Movimientos es
-  // un libro para leer, filtrar e imprimir (14-10-2026).
+  // Sin acciones de registro en la cabecera: el Resumen tiene su tarjeta «Escanear» (ADR 0010, 04-10-2026) y
+  // Movimientos es un libro para leer, filtrar y exportar (ADR 0021): su cabecera lleva solo «Exportar».
   const showHeaderActions = sectionPath !== '' && sectionPath !== 'movimientos';
   // «Actualizado hace…» informa lo más antiguo de lo que la sección muestra, nunca lo más fresco.
   const shown: Array<{ dataUpdatedAt: number }> =
@@ -154,18 +155,36 @@ export function ReagentsLayout() {
 
   const scanProps = { open: current?.open === true, onOpenChange: sheetProps('scan').onOpenChange };
 
-  // El Resumen cabe en una ventana en escritorio (ADR 0012, 05-10-2026): ocupa el alto que deja el
-  // shell (barra superior y rellenos del main) y reparte el resto entre sus tarjetas.
-  const fitsWindow = sectionPath === '' && detailId === undefined;
+  // Lo que las secciones comparten; «Exportar» de Movimientos, que vive en la cabecera, lo recibe por props.
+  const reagents = {
+    workspaceId,
+    me,
+    base,
+    allowed,
+    products,
+    productList,
+    positions,
+    positionList,
+    operations,
+    movementFilters,
+    operationQuery,
+    operationFacets,
+    operationTotals,
+    summary,
+    requests,
+    canResolve,
+    openSheet: sheets.open,
+    freshness: { updatedAt, refreshing, refresh: () => void queryClient.invalidateQueries({ queryKey: reagentsKey }) },
+  } satisfies ReagentsContext;
 
   return (
-    <div className={cn('mx-auto max-w-6xl', fitsWindow && 'fit:flex fit:h-[calc(100dvh-8rem-1px)] fit:flex-col')}>
+    <div className="mx-auto max-w-6xl">
       {/* La ficha dibuja su propia cabecera (identidad, acciones y «Actualizar»). */}
       {inProduct ? null : (
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className={cn('min-w-0', fitsWindow && 'fit:flex fit:flex-wrap fit:items-baseline fit:gap-x-4')}>
+        <div className="min-w-0">
           <h1 className="text-display text-ink">{title}</h1>
-          <p className={cn('mt-1 flex items-center gap-2 text-[13px] text-ink-muted', fitsWindow && 'fit:mt-0')}>
+          <p className="mt-1 flex items-center gap-2 text-[13px] text-ink-muted">
             {updatedAt > 0 ? <span>Actualizado {formatAgo(updatedAt, now)}</span> : <span>Cargando…</span>}
             <button
               type="button"
@@ -178,7 +197,7 @@ export function ReagentsLayout() {
             </button>
           </p>
         </div>
-        {/* En el Resumen, la tarjeta de acción rápida hace de acciones (ADR 0010, 04-10-2026); en Movimientos no hay ninguna; en Solicitudes, la tarea es decidir. */}
+        {/* En el Resumen, la tarjeta de acción rápida hace de acciones (ADR 0010, 04-10-2026); en Movimientos, «Exportar»; en Solicitudes, la tarea es decidir. */}
         {showHeaderActions ? (
         <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
           {/* «Escanear» lee la etiqueta QR de un frasco con la cámara (14-10-2026): lo puede usar quien lee Reactivos. En el móvil abre la cabecera, ancho y con el tinte del acento; desde 1024 px es una pastilla secundaria. */}
@@ -214,6 +233,11 @@ export function ReagentsLayout() {
             </>
           ) : null}
         </div>
+        ) : sectionPath === 'movimientos' ? (
+          // En el móvil es solo el icono, a la derecha de la fila del título; desde sm, el botón completo.
+          <div className="ml-auto">
+            <MovementExport reagents={reagents} />
+          </div>
         ) : null}
       </header>
       )}
@@ -225,31 +249,8 @@ export function ReagentsLayout() {
         </p>
       ) : null}
 
-      <div className={cn(inProduct ? 'mt-0' : 'mt-6', fitsWindow && 'fit:mt-3 fit:min-h-0 fit:flex-1 fit-tall:mt-6')}>
-        <Outlet
-          context={
-            {
-              workspaceId,
-              me,
-              base,
-              allowed,
-              products,
-              productList,
-              positions,
-              positionList,
-              operations,
-              movementFilters,
-              operationQuery,
-              operationFacets,
-              operationTotals,
-              summary,
-              requests,
-              canResolve,
-              openSheet: sheets.open,
-              freshness: { updatedAt, refreshing, refresh: () => void queryClient.invalidateQueries({ queryKey: reagentsKey }) },
-            } satisfies ReagentsContext
-          }
-        />
+      <div className={inProduct ? 'mt-0' : 'mt-6'}>
+        <Outlet context={reagents} />
       </div>
 
       {current?.request.kind === 'scan' ? <ScanSheet {...scanProps} description="Apunta la cámara al código QR del frasco." /> : null}

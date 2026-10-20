@@ -31,7 +31,8 @@ export function HistoryExport({
 
   const closePrint = () => {
     setPrinting(false);
-    trigger.current?.focus();
+    // Un cuadro después: la vista imprimible retiene el foco hasta desmontarse.
+    requestAnimationFrame(() => trigger.current?.focus());
   };
 
   return (

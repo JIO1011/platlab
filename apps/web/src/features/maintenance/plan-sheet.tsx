@@ -262,6 +262,7 @@ export function PlanSheet({
       generalError={generalError ?? errors.root?.message ?? null}
       onSubmit={() => void submit()}
       dirty={form.formState.isDirty || (asset !== null && !ownFor)}
+      required
       fullscreenMobile
       sections
       focusFirst

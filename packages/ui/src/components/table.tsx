@@ -30,7 +30,7 @@ export function TableHeader({ className, numeric = false, ...props }: ThHTMLAttr
     <th
       scope="col"
       className={cn(
-        'h-10 whitespace-nowrap px-4 text-left text-[12px] font-semibold uppercase tracking-[0.04em] text-ink-muted',
+        'h-10 whitespace-nowrap px-4 text-left text-[13px] font-medium text-ink-muted',
         numeric && 'text-right',
         className,
       )}

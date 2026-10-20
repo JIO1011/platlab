@@ -1,5 +1,5 @@
 import { adjustmentRequest, movementResponse, weightAdjustmentRequest, type Position, type StockedProduct } from '@platlab/contracts';
-import { Field, Input, Quantity, Select, formatDecimal, sectionLabel, normalizeDecimalInput, toast } from '@platlab/ui';
+import { Field, Input, Quantity, Select, formatDecimal, normalizeDecimalInput, toast } from '@platlab/ui';
 import { Scale } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -12,6 +12,10 @@ import { fieldLabel } from '../../../app/filled';
 import { FormSheet, validate, type SheetBaseProps } from '../../../app/form-sheet';
 import { QuantityPreview, positionOption, byProductThenExpiry } from './shared';
 import { TareFields, useTareForm } from './tare-form';
+
+/** El campo grande de una cifra (peso o diferencia): con su borde de campo, la cifra centrada y la unidad a la derecha. */
+const bigInput = 'h-14 px-14 text-center text-4xl font-bold tabular-nums';
+const bigInputUnit = 'pointer-events-none absolute inset-y-0 right-4 flex items-center text-xl text-ink-muted';
 
 /** Enlace de texto bajo el campo: cambia de método sin salir de la ventana. */
 function MethodLink({ onClick, children }: { onClick: () => void; children: string }) {
@@ -181,7 +185,6 @@ export function AdjustmentSheet({
         <div className="grid grid-cols-1 gap-4">
           <Field
             label="¿Qué marca la balanza? (g)"
-            className="text-center"
             labelClassName={fieldLabel}
             error={scaleError}
             hint={
@@ -207,18 +210,19 @@ export function AdjustmentSheet({
               </>
             }
           >
-            <div className="relative mx-auto w-full max-w-xs">
+            <div className="relative w-full">
               <Input
                 inputMode="decimal"
                 autoComplete="off"
-                className="h-14 rounded-none border-0 border-b-2 border-line-strong bg-transparent px-14 text-center text-4xl font-bold tabular-nums focus-visible:ring-0 aria-[invalid=true]:ring-0"
+                placeholder="0"
+                className={bigInput}
                 value={scaleText}
                 onChange={(event) => {
                   setScaleText(event.target.value);
                   setScaleError(undefined);
                 }}
               />
-              <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xl text-ink-muted">g</span>
+              <span className={bigInputUnit}>g</span>
             </div>
           </Field>
           <div className="grid justify-items-center gap-2">
@@ -250,19 +254,13 @@ export function AdjustmentSheet({
           </fieldset>
           <Field
             label="Diferencia"
-            className="text-center"
-            labelClassName={sectionLabel}
+            labelClassName={fieldLabel}
             error={errors.quantity?.message}
             hint={<QuantityPreview raw={form.watch('quantity')} unit={position?.unit} sign={direction === 'decrease' ? '-' : ''} />}
           >
-            <div className="relative mx-auto w-full max-w-xs">
-              <Input
-                inputMode="decimal"
-                autoComplete="off"
-                className="h-14 rounded-none border-0 border-b-2 border-line-strong bg-transparent px-14 text-center text-4xl font-bold tabular-nums focus-visible:ring-0 aria-[invalid=true]:ring-0"
-                {...form.register('quantity')}
-              />
-              <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xl text-ink-muted">{position?.unit ?? ''}</span>
+            <div className="relative w-full">
+              <Input inputMode="decimal" autoComplete="off" placeholder="0" className={bigInput} {...form.register('quantity')} />
+              <span className={bigInputUnit}>{position?.unit ?? ''}</span>
             </div>
           </Field>
         </div>
@@ -275,7 +273,7 @@ export function AdjustmentSheet({
             <ChoiceField
               workspaceId={workspaceId}
               label="Motivo"
-              hint="Obligatorio: el historial guarda por qué cambió el saldo."
+              hint="El historial guarda por qué cambió el saldo."
               error={errors.reason?.message}
               options={reasons.data?.items ?? []}
               loading={reasons.isPending}

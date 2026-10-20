@@ -4,28 +4,27 @@ import { Link } from 'react-router';
 import { QueryErrorState } from '../../app/states';
 import { useEquipment } from './context';
 import { FaultChart } from './fault-chart';
-import { faultCountsText, faultTotals, hasFaultActivity } from './fault-series';
+import { faultSummaryText, faultTotals, hasFaultActivity } from './fault-series';
 import { durationText, outOfServiceText } from './fault-text';
 import { useFaultStats } from './queries';
 
 /**
- * «Incidentes en 12 meses» del Resumen de Equipos (ADR 0019), solo para quien atiende fallas: el total del período,
- * el gráfico mes a mes y dos cifras (reparación promedio y días fuera de servicio). Sin un solo incidente en el período,
- * lo dice en lugar de dibujar un gráfico vacío.
+ * «Incidentes en 12 meses» del Resumen de Equipos (ADR 0019, 0021), solo para quien atiende fallas: una frase con el
+ * total del período y cuántos siguen abiertos hoy, el gráfico mes a mes y dos cifras (reparación promedio y días fuera
+ * de servicio). Sin un solo incidente en el período, lo dice en lugar de dibujar un gráfico vacío.
  */
-export function IncidentsCard() {
+export function IncidentsCard({ openFaults }: { openFaults: number }) {
   const { workspaceId, base } = useEquipment();
   const stats = useFaultStats(workspaceId);
-  const totals = stats.data ? faultTotals(stats.data.months) : null;
 
   return (
     <article aria-labelledby="incidentes-12-meses" className="flex min-w-0 flex-col rounded-card bg-surface p-6 shadow-raised">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 id="incidentes-12-meses" className="text-lg font-bold text-ink">
-          Incidentes en 12 meses
-        </h2>
-        {totals ? <p className="text-sm font-medium tabular-nums text-ink-muted">{faultCountsText(totals.reported, totals.resolved)}</p> : null}
-      </div>
+      <h2 id="incidentes-12-meses" className="text-lg font-bold text-ink">
+        Incidentes en 12 meses
+      </h2>
+      {stats.data && hasFaultActivity(stats.data.months) ? (
+        <p className="mt-1 text-sm font-medium tabular-nums text-ink">{faultSummaryText(faultTotals(stats.data.months), openFaults)}</p>
+      ) : null}
       {stats.isPending ? (
         <div role="status" aria-busy="true" aria-label="Cargando" className="mt-5">
           <Skeleton className="h-64 rounded-panel" />
@@ -46,16 +45,19 @@ export function IncidentsCard() {
               />
             )}
           </div>
-          <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-line pt-4">
-            <div>
+          {/* Las dos cifras cierran el gráfico: misma tarjeta, una raya arriba y otra entre ellas. */}
+          <dl className="mt-5 grid grid-cols-2 divide-x divide-line border-t border-line pt-4">
+            <div className="min-w-0 pr-4">
               <dt className="text-[13px] text-ink-muted">Reparación promedio</dt>
-              <dd className="mt-0.5 break-words text-lg font-bold text-ink">
+              <dd className="mt-1 break-words text-xl font-bold leading-tight tracking-tight text-ink tabular-nums">
                 {stats.data.meanRepairSeconds === null ? 'Sin solucionados' : durationText(stats.data.meanRepairSeconds)}
               </dd>
             </div>
-            <div>
+            <div className="min-w-0 pl-4 sm:pl-6">
               <dt className="text-[13px] text-ink-muted">Días fuera de servicio</dt>
-              <dd className="mt-0.5 break-words text-lg font-bold text-ink">{outOfServiceText(stats.data.outOfService)}</dd>
+              <dd className="mt-1 break-words text-xl font-bold leading-tight tracking-tight text-ink tabular-nums">
+                {outOfServiceText(stats.data.outOfService)}
+              </dd>
             </div>
           </dl>
           <Link

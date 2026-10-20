@@ -3,6 +3,7 @@ import { Badge, Button, cn, Skeleton, StatePanel, Tabs, TabsContent, TabsList, T
 import { Inbox, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { CodeTag } from '../../app/code-tag';
 import { QueryErrorState } from '../../app/states';
 import { useNow } from '../../app/use-now';
 import { AssetThumb } from './asset-list';
@@ -138,8 +139,10 @@ export function EquipmentFaultsPage() {
           aria-busy={faults.isPlaceholderData}
         >
           {faults.isPending ? (
-            <div role="status" aria-busy="true" aria-label="Cargando">
-              <Skeleton className="h-64 rounded-card" />
+            <div role="status" aria-busy="true" aria-label="Cargando" className="grid gap-4 xl:grid-cols-2">
+              {[0, 1, 2, 3].map((key) => (
+                <Skeleton key={key} className="h-32 rounded-card" />
+              ))}
             </div>
           ) : faults.isError ? (
             <div className="rounded-card bg-surface shadow-raised">
@@ -159,13 +162,8 @@ export function EquipmentFaultsPage() {
               />
             </div>
           ) : (
-            // Una sola tarjeta: las filas se separan con una línea y se recortan a su borde redondeado al pasar el puntero.
-            <ul
-              className={cn(
-                'divide-y divide-line overflow-hidden rounded-card bg-surface shadow-raised',
-                faults.isPlaceholderData && 'opacity-60 transition-opacity',
-              )}
-            >
+            // Una tarjeta compacta por incidente: una columna hasta 1280 px y dos desde ahí.
+            <ul className={cn('grid gap-4 xl:grid-cols-2', faults.isPlaceholderData && 'opacity-60 transition-opacity')}>
               {items.map((item) => (
                 <FaultRow key={item.id} fault={item} now={now} to={detailTo(item.id)} />
               ))}
@@ -206,35 +204,39 @@ export function EquipmentFaultsPage() {
 }
 
 /**
- * Una fila por incidente: miniatura, código y nombre del equipo (el nombre es el enlace y se extiende sobre toda la fila;
- * el foco se dibuja en ella), lugar y tipo, «No se puede usar» si hace falta y, a la derecha (debajo del texto en el
- * móvil), el paso en que está en dos líneas: cuándo y quién.
+ * Una tarjeta compacta por incidente, con todo junto para que el ojo no cruce la pantalla: arriba, el código del
+ * equipo en etiqueta y «No se puede usar» si hace falta; debajo, el nombre (el enlace, que se extiende sobre toda la
+ * tarjeta y dibuja el foco en ella) y «área › lugar · tipo»; al pie, tras una línea, el paso en que está: cuándo y quién.
  */
 function FaultRow({ fault, now, to }: { fault: Fault; now: number; to: { search: string } }) {
   const place = placeLines(fault.asset.location);
   const step = faultStepParts(fault, now);
   return (
-    <li className="relative grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2 px-4 py-3.5 transition-colors hover:bg-surface-sunken/40 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-action sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:gap-x-4 sm:px-5">
-      <AssetThumb asset={fault.asset} />
-      <div className="min-w-0">
-        <p className="break-words font-semibold text-ink">
-          <span className="mr-1.5 font-mono text-[13px] font-normal tabular-nums text-ink-muted">{fault.asset.code}</span>
-          <Link to={to} className="after:absolute after:inset-0 focus-visible:outline-none">
-            {fault.asset.name}
-          </Link>
-        </p>
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-muted">
-          <span className="break-words">
+    <li className="relative flex flex-col gap-3 rounded-card bg-surface p-4 shadow-raised transition-[box-shadow] duration-200 ease-out-expo hover:shadow-float has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-action">
+      <div className="flex min-w-0 items-start gap-3">
+        <AssetThumb asset={fault.asset} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <CodeTag>{fault.asset.code}</CodeTag>
+            {fault.usable ? null : <Badge tone="danger">No se puede usar</Badge>}
+          </div>
+          <p className="mt-1.5 break-words font-semibold leading-snug text-ink">
+            <Link to={to} className="after:absolute after:inset-0 after:rounded-card focus-visible:outline-none">
+              {fault.asset.name}
+            </Link>
+          </p>
+          <p className="mt-0.5 break-words text-[13px] text-ink-muted">
             {place.full} · {faultTypeLabel[fault.faultType]}
-          </span>
-          {fault.usable ? null : <Badge tone="danger">No se puede usar</Badge>}
-        </p>
+          </p>
+        </div>
       </div>
-      {/* En el móvil queda bajo el texto de la fila (segunda columna); desde sm, a la derecha, alineada a su borde. */}
-      <div className="col-start-2 min-w-0 text-[13px] sm:col-start-auto sm:text-right">
-        <p className="truncate text-ink-muted">{step.when}</p>
-        <p className="truncate text-ink-subtle">{step.who}</p>
-      </div>
+      <p className="flex flex-wrap items-baseline gap-x-2 border-t border-line pt-3 text-[13px]">
+        <span className="text-ink-muted">{step.when}</span>
+        <span aria-hidden className="text-ink-subtle">
+          ·
+        </span>
+        <span className="font-medium text-ink">{step.who}</span>
+      </p>
     </li>
   );
 }

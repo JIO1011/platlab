@@ -14,8 +14,9 @@ const matches = (product: StockedProduct, query: string) => {
 };
 
 /**
- * Filtros de avisos (ADR 0012, 05-10-2026) y «Controlados» (ADR 0015), en la URL: los indicadores del
- * Resumen abren aquí. Uno a la vez; cada uno con su parámetro, para que el enlace diga qué lista abre.
+ * Filtros de avisos (ADR 0012, 05-10-2026), «Controlados» (ADR 0015) y «Sin mínimo» y «Sin ficha de seguridad»
+ * (ADR 0021), en la URL: los indicadores y los avisos del Resumen abren aquí. Uno a la vez; cada uno con su valor,
+ * para que el enlace diga qué lista abre.
  */
 const alertFilters = {
   controlados: {
@@ -41,6 +42,19 @@ const alertFilters = {
     label: 'Bajo mínimo',
     empty: 'Ningún reactivo está por debajo de su mínimo.',
     has: (product: StockedProduct) => product.belowMinimum,
+  },
+  // «Sin mínimo» comparte parámetro con «Bajo mínimo»: elegir uno deja el otro sin activar.
+  'sin-minimo': {
+    param: ['minimo', 'sin'],
+    label: 'Sin mínimo',
+    empty: 'Todos los reactivos tienen un mínimo fijado.',
+    has: (product: StockedProduct) => product.minimum === null,
+  },
+  'sin-ficha': {
+    param: ['ficha', 'sin'],
+    label: 'Sin ficha de seguridad',
+    empty: 'Todos los reactivos tienen su ficha de seguridad.',
+    has: (product: StockedProduct) => product.sdsKind === null,
   },
 } as const;
 type AlertFilter = keyof typeof alertFilters;
@@ -128,14 +142,15 @@ export function ReagentsInventoryPage() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative w-full sm:w-80">
+      {/* El buscador arriba y los filtros debajo, en todos los anchos (ADR 0021), como el Informe de Equipos. */}
+      <div className="flex flex-col gap-3">
+        <div className="relative w-full md:max-w-md">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" aria-hidden />
           <Input
             type="search"
             aria-label="Buscar reactivo por nombre, código o CAS"
             placeholder="Buscar por nombre, código o CAS"
-            className="pl-9"
+            className="h-[44px] pl-9 sm:h-9"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -153,11 +168,11 @@ export function ReagentsInventoryPage() {
           {active ? null : (
             <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="sin existencias" />
           )}
+          {/* Cuántos se ven, para leer el efecto de la búsqueda y los filtros de un vistazo. */}
+          <p className="text-sm text-ink-muted sm:ml-auto" aria-live="polite">
+            {visible.length === 1 ? '1 reactivo' : `${visible.length} reactivos`}
+          </p>
         </div>
-        {/* Cuántos se ven, para leer el efecto de la búsqueda y los filtros de un vistazo. */}
-        <p className="text-sm text-ink-muted sm:ml-auto" aria-live="polite">
-          {visible.length === 1 ? '1 reactivo' : `${visible.length} reactivos`}
-        </p>
       </div>
       {visible.length === 0 ? (
         <p className="rounded-panel bg-surface px-4 py-8 text-center text-sm text-ink-muted shadow-raised">
@@ -177,12 +192,10 @@ export function ReagentsInventoryPage() {
 }
 
 /**
- * Tarjeta de catálogo (ADR 0010, 04-10-2026; réplica de la de ReactiLab el 05-10-2026, a escala de
- * cuatro por fila el 14-10-2026, con el contenido centrado en vertical y sin fila reservada de avisos): el nombre a todo el ancho; debajo, el icono del estado físico con el
- * estado en mayúsculas pequeñas y el CAS en monoespaciado; y, tras una línea, «Total» con la cantidad a la
- * izquierda y, a su altura y en columna a la derecha, las insignias de frascos («Sin existencias» si no
- * hay), «N vencidos» y «Controlado»; al pie, los avisos de bajo mínimo y por vencer. Todo con texto, y el
- * matraz del módulo de marca de agua.
+ * Tarjeta de catálogo (ADR 0010, 04-10-2026; rediseño del 20-10-2026, ADR 0021): se lee de arriba abajo,
+ * alineada a la izquierda y con el contenido arriba, sin marca de agua. El nombre con su código; el CAS y el
+ * estado físico en una línea, con el icono pequeño; la existencia en grande; y una fila de pastillas que se
+ * parte: frascos («Sin existencias» si no hay), vencidos, controlado, bajo mínimo y por vencer. Todo con texto.
  */
 function ProductCard({ product, to }: { product: StockedProduct; to: string }) {
   const empty = product.balance === '0';

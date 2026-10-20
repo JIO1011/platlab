@@ -8,10 +8,13 @@ import {
   positionList,
   reagentsSummary,
 } from '@platlab/contracts';
+import { download } from '../../testing/api.js';
 import { addMember, setModuleStatus, uniqueSuffix } from '../../testing/core-fixtures.js';
+import { readZipEntry } from '../../testing/zip.js';
 import {
   admin,
   call,
+  count,
   errorCode,
   type Lab,
   createLab,
@@ -336,5 +339,69 @@ describe('R-01C · Movimientos como informe (ADR 0014)', () => {
     const summary = reagentsSummary.parse((await call(lab.operator.subject, `${lab.base}/summary`)).body);
     expect(summary.activity.map((item) => item.id)).toEqual(list.items.slice(0, 6).map((item) => item.entryId));
     expect(summary.trend?.points.reduce((sum, point) => sum + point.value, 0)).toBe(2);
+  });
+
+  describe('Excel de Movimientos (ADR 0021)', () => {
+    const sheetOf = (bytes: Buffer) => readZipEntry(bytes, 'xl/worksheets/sheet1.xml');
+
+    it('el Administrador descarga lo filtrado, con el encabezado, «Controlado» y en la auditoría', async () => {
+      const { lab, a } = await reportLab();
+      await admin.query('update reagents.products set controlled = true where workspace_id = $1 and item_id = $2', [lab.workspace.id, a.id]);
+      const file = await download(lab.adminMember.subject, `${lab.base}/operations/export?type=issue`);
+      expect(file.status).toBe(200);
+      expect(file.headers['content-type']).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      expect(file.headers['content-disposition']).toMatch(/^attachment; filename="movimientos-reactivos-\d{4}-\d{2}-\d{2}\.xlsx"$/);
+
+      const sheet = sheetOf(file.bytes);
+      expect(sheet).toContain('Filtros: Tipo: Salida');
+      expect(sheet).toContain('Generado el');
+      expect(sheet).toContain('Cloruro de sodio');
+      expect(sheet).not.toContain('Etanol');
+      // Cantidades con signo, como número exacto; la aprobada lleva a quien la pidió.
+      expect(sheet).toContain('<v>-0.1</v>');
+      expect(sheet).toContain('<v>-0.2</v>');
+      expect(sheet).toContain('Docencia');
+      expect(sheet).toContain('Operador');
+      expect(sheet).toContain('>Sí<');
+      // Seis filas de encabezado y dos salidas.
+      expect(sheet).toContain('<row r="8">');
+      expect(sheet).not.toContain('<row r="9">');
+
+      expect(
+        await count(
+          `select count(*) as n from core.audit_events
+            where workspace_id = $1 and action = 'reagents.movements.export' and (changes ->> 'rows')::int = 2`,
+          [lab.workspace.id],
+        ),
+      ).toBe(1);
+    });
+
+    it('sin filtros sale todo el libro, también los traslados, y los nombres elegidos van en el encabezado', async () => {
+      const { lab, b } = await reportLab();
+      const all = sheetOf((await download(lab.adminMember.subject, `${lab.base}/operations/export`)).bytes);
+      expect(all).toContain('Filtros: ninguno');
+      expect(all).toContain('<row r="13">');
+      expect(all).not.toContain('<row r="14">');
+      const one = sheetOf((await download(lab.adminMember.subject, `${lab.base}/operations/export?productId=${b.id}&days=30`)).bytes);
+      expect(one).toContain('Periodo: últimos 30 días · Reactivo: Etanol');
+      expect(one).toContain('Traslado');
+    });
+
+    it('el Operador consulta e imprime, pero el Excel es un reporte del Administrador', async () => {
+      const { lab } = await reportLab();
+      const file = await download(lab.operator.subject, `${lab.base}/operations/export`);
+      expect(file.status).toBe(403);
+      expect(errorCode(JSON.parse(file.bytes.toString('utf8')))).toBe('ACCESS_DENIED');
+    });
+
+    it('un filtro inválido se rechaza antes de empezar; en solo lectura se exporta y deshabilitado no', async () => {
+      const { lab } = await reportLab();
+      expect((await download(lab.adminMember.subject, `${lab.base}/operations/export?type=baja`)).status).toBe(400);
+      expect((await download(lab.adminMember.subject, `${lab.base}/operations/export?days=7&from=2026-01-01`)).status).toBe(400);
+      await setModuleStatus(admin, lab.workspace.id, 'reagents', 'read_only');
+      expect((await download(lab.adminMember.subject, `${lab.base}/operations/export`)).status).toBe(200);
+      await setModuleStatus(admin, lab.workspace.id, 'reagents', 'disabled');
+      expect((await download(lab.adminMember.subject, `${lab.base}/operations/export`)).status).toBe(403);
+    });
   });
 });

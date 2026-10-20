@@ -1,8 +1,10 @@
 import { Button, OptionRow, Popover, PopoverContent, PopoverTrigger, cn } from '@platlab/ui';
 import { ChevronDown } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { rangeText, triggerText } from './filter-bar-text';
 import { DateField, OptionsError, OptionsSkeleton } from './filter-group';
+
+const countFormat = new Intl.NumberFormat('es-EC');
 
 /** Un filtro de varias opciones: casillas en un menú. */
 interface OptionsFilter {
@@ -10,7 +12,10 @@ interface OptionsFilter {
   id: string;
   /** Su nombre, el que dice el botón («Tipo»). */
   label: string;
-  options: ReadonlyArray<{ value: string; label: string }>;
+  /** Con `count`, la opción dice cuántos elementos tiene a la derecha. */
+  options: ReadonlyArray<{ value: string; label: string; count?: number | undefined }>;
+  /** Qué se cuenta («movimientos»): se dice tras cada cuenta, solo a los lectores de pantalla. */
+  countLabel?: string;
   selected: readonly string[];
   onChange: (next: string[]) => void;
   /** Si las opciones ya llegaron. */
@@ -19,6 +24,8 @@ interface OptionsFilter {
   what?: string;
   /** Lo que se dice si no hay opciones. */
   empty?: string;
+  /** Una aclaración sobre las opciones, sobre la lista («Elegir una sala incluye lo que hay dentro.»). */
+  note?: string;
   onRetry?: () => void;
 }
 
@@ -32,11 +39,34 @@ interface PeriodFilter {
   onChange: (change: { from: string | null; to: string | null }) => void;
 }
 
-export type BarFilter = OptionsFilter | PeriodFilter;
+/**
+ * Un filtro con menú propio (buscador, atajos): el cuerpo lo trae quien lo usa y la barra solo pone el botón. Quien tiene
+ * un buscador lo recibe con el foco al abrir el menú.
+ */
+interface CustomFilter {
+  kind: 'custom';
+  id: string;
+  label: string;
+  /** Lo elegido, ya con su nombre, para el botón; vacío si el filtro está sin usar. */
+  chosen: readonly string[];
+  body: ReactNode;
+}
+
+export type BarFilter = OptionsFilter | PeriodFilter | CustomFilter;
 
 const toggle = (values: readonly string[], value: string): string[] => (values.includes(value) ? values.filter((entry) => entry !== value) : [...values, value]);
 
-const isActive = (filter: BarFilter): boolean => (filter.kind === 'options' ? filter.selected.length > 0 : filter.from !== null || filter.to !== null);
+/** Lo elegido en un filtro, con su nombre: lo que dice su botón. */
+function chosenOf(filter: BarFilter): readonly string[] {
+  switch (filter.kind) {
+    case 'options':
+      return filter.selected.map((key) => filter.options.find((option) => option.value === key)?.label ?? key);
+    case 'period':
+      return [rangeText(filter.from, filter.to)].filter((text): text is string => text !== null);
+    case 'custom':
+      return filter.chosen;
+  }
+}
 
 /** Las casillas de un filtro de opciones, con su estado de carga, error o vacío. */
 function OptionsBody({ filter }: { filter: OptionsFilter }) {
@@ -44,6 +74,7 @@ function OptionsBody({ filter }: { filter: OptionsFilter }) {
   return (
     <fieldset className="min-w-0">
       <legend className="sr-only">{filter.label}</legend>
+      {filter.note && state === 'ready' && options.length > 0 ? <p className="px-2 pb-1 text-[13px] text-ink-subtle">{filter.note}</p> : null}
       <div className="max-h-72 overflow-y-auto">
         {state === 'loading' ? (
           <OptionsSkeleton rows={4} />
@@ -53,7 +84,20 @@ function OptionsBody({ filter }: { filter: OptionsFilter }) {
           <p className="px-2 py-1.5 text-[13px] text-ink-subtle">{filter.empty ?? 'No hay opciones.'}</p>
         ) : (
           options.map((option) => (
-            <OptionRow key={option.value} name={filter.id} checked={selected.includes(option.value)} onChange={() => filter.onChange(toggle(selected, option.value))}>
+            <OptionRow
+              key={option.value}
+              name={filter.id}
+              checked={selected.includes(option.value)}
+              onChange={() => filter.onChange(toggle(selected, option.value))}
+              count={
+                option.count === undefined ? undefined : (
+                  <>
+                    {countFormat.format(option.count)}
+                    {filter.countLabel ? <span className="sr-only"> {filter.countLabel}</span> : null}
+                  </>
+                )
+              }
+            >
               {option.label}
             </OptionRow>
           ))
@@ -96,21 +140,18 @@ function PeriodBody({ filter }: { filter: PeriodFilter }) {
 
 /** El botón de un filtro: su nombre y, si hay algo elegido, lo elegido, con el acento de selección. */
 function FilterTrigger({ filter }: { filter: BarFilter }) {
-  const chosen =
-    filter.kind === 'options'
-      ? filter.selected.map((key) => filter.options.find((option) => option.value === key)?.label ?? key)
-      : [rangeText(filter.from, filter.to)].filter((text): text is string => text !== null);
-  const active = isActive(filter);
+  const chosen = chosenOf(filter);
+  const active = chosen.length > 0;
   return (
     <PopoverTrigger asChild>
       <Button
         className={cn(
-          'h-11 gap-1.5 px-3.5 text-sm sm:h-9 sm:text-[13px]',
+          'h-[44px] gap-1.5 px-3.5 text-sm sm:h-9 sm:text-[13px]',
           active && 'border-action bg-action-soft text-action hover:bg-action-soft',
           '[&[data-state=open]_svg:last-child]:rotate-180',
         )}
       >
-        <span className="max-w-[16rem] truncate">{triggerText(filter.label, chosen)}</span>
+        <span className="max-w-[11rem] truncate">{triggerText(filter.label, chosen)}</span>
         <ChevronDown aria-hidden className="transition-transform duration-150 motion-reduce:transition-none" />
       </Button>
     </PopoverTrigger>
@@ -123,17 +164,19 @@ function FilterTrigger({ filter }: { filter: BarFilter }) {
  * En pantallas angostas la barra se desliza en horizontal, con botones de 44 px, en lugar de partirse en filas.
  */
 export function FilterBar({ label = 'Filtros', filters, onClear }: { label?: string; filters: readonly BarFilter[]; onClear: () => void }) {
-  const anyActive = filters.some(isActive);
+  const anyActive = filters.some((filter) => chosenOf(filter).length > 0);
   return (
     <div role="group" aria-label={label} className="-mx-1 -my-1 flex items-center gap-2 overflow-x-auto px-1 py-1 sm:flex-wrap sm:overflow-visible">
       {filters.map((filter) => (
         <Popover key={filter.id}>
           <FilterTrigger filter={filter} />
-          <PopoverContent>{filter.kind === 'options' ? <OptionsBody filter={filter} /> : <PeriodBody filter={filter} />}</PopoverContent>
+          <PopoverContent>
+            {filter.kind === 'options' ? <OptionsBody filter={filter} /> : filter.kind === 'period' ? <PeriodBody filter={filter} /> : filter.body}
+          </PopoverContent>
         </Popover>
       ))}
       {anyActive ? (
-        <Button variant="ghost" className="h-11 text-sm sm:h-9 sm:text-[13px]" onClick={onClear}>
+        <Button variant="ghost" className="h-[44px] text-sm sm:h-9 sm:text-[13px]" onClick={onClear}>
           Limpiar
         </Button>
       ) : null}
