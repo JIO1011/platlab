@@ -1,6 +1,6 @@
 import type { OperationGroupBy } from '@platlab/contracts';
 import { z } from 'zod';
-import { addDays } from '../../app/format';
+import { addDays, todayInZone } from '../../app/format';
 
 /**
  * Filtros de Movimientos en la URL (ADR 0014): lo que se filtra es lo que se exporta y un informe es
@@ -140,11 +140,6 @@ export function serializeMovementFilters(filters: MovementFilters): URLSearchPar
   return params;
 }
 
-/** Día civil «AAAA-MM-DD» de un instante en la zona del espacio. */
-function dayIn(timeZone: string, now: Date): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-}
-
 /** Primer y último día del mes de `day`, desplazado `offset` meses. */
 function monthRange(day: string, offset: number): { from: string; to: string } {
   const [year = 1970, month = 1] = day.split('-').map(Number);
@@ -169,7 +164,7 @@ export function toOperationQuery(filters: MovementFilters, timeZone: string, now
   const { period } = filters;
   if (period.kind === 'days') query.days = period.days;
   else if (period.kind === 'month' || period.kind === 'previous-month') {
-    Object.assign(query, monthRange(dayIn(timeZone, now), period.kind === 'month' ? 0 : -1));
+    Object.assign(query, monthRange(todayInZone(timeZone, now.getTime()), period.kind === 'month' ? 0 : -1));
   } else if (period.kind === 'range') {
     if (period.from) query.from = period.from;
     if (period.to) query.to = period.to;

@@ -11,8 +11,6 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { isApiError } from '../../app/api';
 import { validate } from '../../app/form-sheet';
-import { readLabelLink } from '../../app/label-link';
-import type { ScanReading } from '../../app/scan/scanner-view';
 import { maintenanceErrorMessage, useAttachCertificate, useChangeAssetCondition, useCorrectRecord, useCreateRecord } from './commands';
 import { useAssetMaintenance, usePlans } from './queries';
 import { recordOutcome, saveStep, type RepairDone } from './record-steps';
@@ -81,20 +79,6 @@ function formFrom(record: MaintenanceRecord): Partial<RecordForm> {
     cost: record.cost ?? '',
     validUntil: record.validUntil ?? '',
     faultId: record.faultId ?? '',
-  };
-}
-
-/**
- * El QR de una etiqueta de equipo de este espacio, leído dentro de la hoja: da el equipo sin navegar. Una
- * etiqueta de frasco o de otro espacio dice por qué no sirve y la cámara sigue.
- */
-export function readAssetScan(workspaceId: string) {
-  return (text: string): ScanReading<string> => {
-    const link = readLabelLink(text);
-    if (!link) return { notice: 'Ese código no es una etiqueta de PlatLab.' };
-    if (link.kind !== 'equipo') return { notice: 'Es la etiqueta de un frasco: escanea la de un equipo.' };
-    if (link.workspaceId !== workspaceId) return { notice: 'Ese equipo es de otro espacio de trabajo.' };
-    return { value: link.id, found: 'Equipo leído' };
   };
 }
 

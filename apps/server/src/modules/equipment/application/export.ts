@@ -7,18 +7,18 @@ import {
   warrantyStateLabel,
   type Asset,
 } from '@platlab/contracts';
-import { writeXlsx, type XlsxCell } from '../../../platform/export/xlsx.js';
+import { startReport, type ReportColumn } from '../../../platform/export/report.js';
 import { activeLocations, recordAudit, requirePermission, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import { listAssets as listAssetsQuery, listAssetTypes, listResponsibles } from '../infrastructure/assets.queries.js';
 import { REPORT, runQuery } from './command.js';
-import { assetFilterParams, todayIn, type AssetFilters } from './filters.js';
+import { assetFilterParams, type AssetFilters } from './filters.js';
 import { toAsset } from './queries.js';
 
 /** Equipos por lote: el Excel sale por partes, sin cargar el inventario entero (ADR 0017). */
 const EXPORT_BATCH = 500;
 
 /** Columnas del Excel: todos los datos de la ficha (ADR 0019, E-01c), con su ancho en caracteres. */
-const COLUMNS: Array<[title: string, width: number, value: (asset: Asset) => XlsxCell]> = [
+const COLUMNS: ReportColumn<Asset>[] = [
   ['Código', 12, (asset) => asset.code],
   ['Nombre', 32, (asset) => asset.name],
   ['Tipo', 18, (asset) => asset.type.name],
@@ -66,9 +66,6 @@ async function filtersText(access: WorkspaceAccess, filters: AssetFilters): Prom
   return parts.length > 0 ? parts.join(' · ') : 'ninguno (sin los dados de baja)';
 }
 
-const stamp = (timeZone: string) =>
-  new Intl.DateTimeFormat('es-EC', { timeZone, dateStyle: 'short', timeStyle: 'short' }).format(new Date());
-
 /**
  * Excel del Informe (ADR 0017, 0019): lo filtrado, con el espacio, la fecha, quién lo generó y los
  * filtros en el encabezado. Es un reporte (01 §5) y queda en la auditoría. Abre el destino solo
@@ -83,23 +80,17 @@ export async function exportAssets(
 ): Promise<void> {
   const sheet = await runQuery(pool, request, async (access) => {
     await requirePermission(access, REPORT);
-    const { timeZone } = access.workspace;
-    const filterLine = await filtersText(access, filters);
-    const book = writeXlsx(open(`informe-equipos-${todayIn(timeZone)}.xlsx`), {
+    const book = await startReport(open, {
+      fileName: 'informe-equipos',
       sheetName: 'Equipos',
-      widths: COLUMNS.map(([, width]) => width),
+      title: 'Informe de equipos',
+      workspace: access.workspace,
+      author: access.displayName,
+      filters: await filtersText(access, filters),
+      columns: COLUMNS,
     });
-    await book.row(['Informe de equipos'], { bold: true });
-    await book.row([`Espacio: ${access.workspace.name}`]);
-    await book.row([`Generado el ${stamp(timeZone)} por ${access.displayName}`]);
-    await book.row([`Filtros: ${filterLine}`]);
-    await book.row([]);
-    await book.row(
-      COLUMNS.map(([title]) => title),
-      { bold: true },
-    );
 
-    const params = assetFilterParams(timeZone, filters);
+    const params = assetFilterParams(access.workspace.timeZone, filters);
     let afterCode: string | null = null;
     let rows = 0;
     for (;;) {
@@ -112,10 +103,7 @@ export async function exportAssets(
         },
         access.client,
       );
-      for (const row of batch) {
-        const asset = toAsset(row);
-        await book.row(COLUMNS.map(([, , value]) => value(asset)));
-      }
+      for (const row of batch) await book.add(toAsset(row));
       rows += batch.length;
       const last = batch.at(-1);
       if (batch.length < EXPORT_BATCH || !last) break;

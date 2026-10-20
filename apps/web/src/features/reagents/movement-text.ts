@@ -1,5 +1,5 @@
 import type { OperationFacets, OperationGroupBy } from '@platlab/contracts';
-import { addDays } from '../../app/format';
+import { addDays, todayInZone } from '../../app/format';
 import type { MovementFilters } from './movement-filters';
 
 /** Grupos de filtros de Movimientos, en el orden de la barra (R-01C, ADR 0021). */
@@ -173,13 +173,8 @@ export const groupNames: Record<OperationGroupBy, string> = {
   month: 'Mes',
 };
 
-/** Día civil de un instante en la zona del espacio, «AAAA-MM-DD», para agrupar y comparar. */
-export function dayKey(date: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
-}
-
 /** El año en curso en la zona del espacio: el periodo lo omite cuando es este. */
-export const currentYearIn = (timeZone: string): number => Number(dayKey(new Date(), timeZone).slice(0, 4));
+export const currentYearIn = (timeZone: string): number => Number(todayInZone(timeZone).slice(0, 4));
 
 /** Cuántos valores tiene marcados un grupo. */
 function selectedCount(filters: MovementFilters, group: FilterGroupId): number {

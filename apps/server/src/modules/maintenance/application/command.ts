@@ -1,5 +1,6 @@
 import { AppError } from '../../../platform/errors.js';
-import { moduleCommand, moduleQuery } from '../../core/index.js';
+import { moduleCommand, moduleQuery, type WorkspaceAccess } from '../../core/index.js';
+import { workspaceToday as workspaceTodayQuery } from '../infrastructure/work.queries.js';
 
 /** Permisos de Mantenimiento (manifiesto, ADR 0020): Administrador y Operador consultan y registran. */
 const READ = 'maintenance.work.read';
@@ -24,6 +25,13 @@ export const runRecordCommand = moduleCommand('maintenance', 'equipment');
 
 /** Consultas de Mantenimiento: admisión de consulta y lectura del trabajo. */
 export const runQuery = moduleQuery('maintenance', READ);
+
+/** Hoy en la zona del espacio, por el reloj de la base: el mismo con que las consultas calculan las fechas. */
+export async function workspaceToday(access: WorkspaceAccess): Promise<string> {
+  const [row] = await workspaceTodayQuery.run({ timeZone: access.workspace.timeZone }, access.client);
+  // Un SELECT sin FROM devuelve siempre una fila.
+  return row!.today;
+}
 
 /**
  * Edición con la versión que la persona vio (02): un recurso archivado no se modifica, y uno que otra

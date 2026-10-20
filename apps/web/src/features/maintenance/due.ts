@@ -1,5 +1,5 @@
 import type { WorkResult } from '@platlab/contracts';
-import { dayInZone, formatDate } from '../../app/format';
+import { countText, daysBetween, formatDate } from '../../app/format';
 
 /**
  * Plazos de Mantenimiento (ADR 0020), calculados al consultar: todas las fechas son días civiles AAAA-MM-DD
@@ -10,20 +10,6 @@ import { dayInZone, formatDate } from '../../app/format';
 interface DueEntry {
   dueOn: string;
   lastResult: WorkResult | null;
-}
-
-/** Hoy en la zona del espacio, AAAA-MM-DD; `now` en milisegundos. */
-export function todayInZone(timeZone: string, now: number): string {
-  return dayInZone(new Date(now).toISOString(), timeZone);
-}
-
-/** Días civiles de `today` a `dueOn`: negativo si ya pasó. */
-export function daysUntil(dueOn: string, today: string): number {
-  const utc = (value: string) => {
-    const [year, month, day] = value.split('-').map(Number);
-    return Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1);
-  };
-  return Math.round((utc(dueOn) - utc(today)) / 86_400_000);
 }
 
 export type DueGroup = 'overdue' | 'upcoming';
@@ -39,7 +25,7 @@ const groupLabels: Record<DueGroup, string> = {
  */
 export function dueGroup(entry: DueEntry, today: string): DueGroup | null {
   if (entry.lastResult === 'fail') return 'overdue';
-  const days = daysUntil(entry.dueOn, today);
+  const days = daysBetween(today, entry.dueOn);
   if (days < 0) return 'overdue';
   return days <= 30 ? 'upcoming' : null;
 }
@@ -63,16 +49,15 @@ export function firstDue<T extends DueEntry>(items: T[], today: string, limit: n
 
 /** El plazo en palabras: «Vence hoy», «hace 3 días», «en 1 día». */
 export function dueText(dueOn: string, today: string): string {
-  const days = daysUntil(dueOn, today);
-  const span = (n: number) => `${n} ${n === 1 ? 'día' : 'días'}`;
+  const days = daysBetween(today, dueOn);
   if (days === 0) return 'Vence hoy';
-  return days < 0 ? `hace ${span(-days)}` : `en ${span(days)}`;
+  return days < 0 ? `hace ${countText(-days, 'día', 'días')}` : `en ${countText(days, 'día', 'días')}`;
 }
 
 /** Qué tan a tiempo se hizo un trabajo (M-01c): «Tocaba el 12 nov 2026 · hecho a tiempo» o «… · hecho 3 días después». */
 export function doneText(dueOn: string, performedOn: string): string {
-  const late = daysUntil(performedOn, dueOn);
-  return `Tocaba el ${formatDate(dueOn)} · ${late <= 0 ? 'hecho a tiempo' : `hecho ${late} ${late === 1 ? 'día' : 'días'} después`}`;
+  const late = daysBetween(dueOn, performedOn);
+  return `Tocaba el ${formatDate(dueOn)} · ${late <= 0 ? 'hecho a tiempo' : `hecho ${countText(late, 'día', 'días')} después`}`;
 }
 
 /**
@@ -86,10 +71,10 @@ export function workStatus(
 ): { date: string; text: string } {
   if (entry.lastResult === 'fail') {
     if (!entry.lastPerformedOn) return { date: entry.dueOn, text: 'Repetir · no conforme' };
-    const ago = -daysUntil(entry.lastPerformedOn, today);
-    return { date: entry.lastPerformedOn, text: `Repetir · no conforme ${ago === 0 ? 'hoy' : `hace ${ago} ${ago === 1 ? 'día' : 'días'}`}` };
+    const ago = -daysBetween(today, entry.lastPerformedOn);
+    return { date: entry.lastPerformedOn, text: `Repetir · no conforme ${ago === 0 ? 'hoy' : `hace ${countText(ago, 'día', 'días')}`}` };
   }
-  const days = daysUntil(entry.dueOn, today);
+  const days = daysBetween(today, entry.dueOn);
   return { date: entry.dueOn, text: days < 0 ? `Atrasado · ${dueText(entry.dueOn, today)}` : dueText(entry.dueOn, today) };
 }
 
@@ -99,7 +84,7 @@ export type DueTone = 'danger' | 'warning' | 'success' | 'neutral';
 export function dueTone(entry: DueEntry | null, today: string): DueTone {
   if (!entry) return 'neutral';
   if (entry.lastResult === 'fail') return 'danger';
-  const days = daysUntil(entry.dueOn, today);
+  const days = daysBetween(today, entry.dueOn);
   if (days < 0) return 'danger';
   return days <= 30 ? 'warning' : 'success';
 }

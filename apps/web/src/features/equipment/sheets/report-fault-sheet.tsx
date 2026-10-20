@@ -5,9 +5,9 @@ import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { isApiError } from '../../../app/api';
 import { FormSheet, validate, type SheetBaseProps } from '../../../app/form-sheet';
-import { readLabelLink } from '../../../app/label-link';
+import { readEquipmentLabel } from '../../../app/label-link';
 import { PillField } from '../../../app/pills';
-import { ScannerView, type ScanReading } from '../../../app/scan/scanner-view';
+import { ScannerView } from '../../../app/scan/scanner-view';
 import { AssetThumb } from '../asset-list';
 import { placeLines } from '../asset-text';
 import { equipmentErrorMessage, useReportFault } from '../commands';
@@ -31,15 +31,6 @@ function AssetLine({ asset }: { asset: ReportableAsset }) {
       </span>
     </span>
   );
-}
-
-/** Aquí solo sirve la etiqueta de un equipo de este espacio; lo demás avisa por qué y sigue escaneando. */
-function readAssetLabel(workspaceId: string, text: string): ScanReading<string> {
-  const link = readLabelLink(text);
-  if (!link) return { notice: 'Este código no es una etiqueta de PlatLab' };
-  if (link.kind !== 'equipo') return { notice: 'Es la etiqueta de un frasco: apunta a la del equipo' };
-  if (link.workspaceId !== workspaceId) return { notice: 'Este equipo es de otro espacio de trabajo' };
-  return { value: link.id, found: 'Etiqueta leída. Buscando el equipo…' };
 }
 
 /**
@@ -118,7 +109,7 @@ function AssetPicker({
         </div>
         <ScannerView
           active={active}
-          read={(scanned) => readAssetLabel(workspaceId, scanned)}
+          read={readEquipmentLabel(workspaceId, 'Etiqueta leída. Buscando el equipo…')}
           onFound={(assetId) => {
             setScanning(false);
             onScanned(assetId);

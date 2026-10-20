@@ -1,9 +1,4 @@
-import { formatDate } from '../../app/format';
-
-/** Hoy como fecha civil AAAA-MM-DD en la zona del espacio, nunca en la del navegador (03 §3). */
-export function todayIn(timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-}
+import { countText, daysBetween, formatDate } from '../../app/format';
 
 const parts = (isoDate: string) => {
   const [year = 1970, month = 1, day = 1] = isoDate.split('-').map(Number);
@@ -18,16 +13,6 @@ function wholeMonths(from: string, to: string): number {
   return Math.max(0, months);
 }
 
-const daysBetween = (from: string, to: string) => {
-  const utc = (value: string) => {
-    const { year, month, day } = parts(value);
-    return Date.UTC(year, month - 1, day);
-  };
-  return Math.round((utc(to) - utc(from)) / 86_400_000);
-};
-
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
-
 /**
  * La garantía en una frase: «Vence en 8 meses» (o «en 12 días» si falta menos de un mes, «Vence hoy»),
  * «Vencida el 3 mar 2025» o «Sin garantía». El último día de garantía aún la cubre.
@@ -37,7 +22,7 @@ export function warrantyText(warrantyUntil: string | null, today: string): strin
   if (warrantyUntil < today) return `Vencida el ${formatDate(warrantyUntil)}`;
   if (warrantyUntil === today) return 'Vence hoy';
   const months = wholeMonths(today, warrantyUntil);
-  return months >= 1 ? `Vence en ${plural(months, 'mes', 'meses')}` : `Vence en ${plural(daysBetween(today, warrantyUntil), 'día', 'días')}`;
+  return months >= 1 ? `Vence en ${countText(months, 'mes', 'meses')}` : `Vence en ${countText(daysBetween(today, warrantyUntil), 'día', 'días')}`;
 }
 
 /**
@@ -50,11 +35,11 @@ export function usefulLifeText(acquiredOn: string | null, years: number | null, 
   const end = new Date(Date.UTC(year + years, month - 1, day)).toISOString().slice(0, 10);
   if (end <= today) return 'Cumplida';
   const months = wholeMonths(today, end);
-  if (months < 1) return `Quedan ${plural(daysBetween(today, end), 'día', 'días')}`;
+  if (months < 1) return `Quedan ${countText(daysBetween(today, end), 'día', 'días')}`;
   const left = months % 12;
   const whole = Math.floor(months / 12);
-  if (whole === 0) return `Quedan ${plural(months, 'mes', 'meses')}`;
-  return `Quedan ${plural(whole, 'año', 'años')}${left > 0 ? ` y ${plural(left, 'mes', 'meses')}` : ''}`;
+  if (whole === 0) return `Quedan ${countText(months, 'mes', 'meses')}`;
+  return `Quedan ${countText(whole, 'año', 'años')}${left > 0 ? ` y ${countText(left, 'mes', 'meses')}` : ''}`;
 }
 
 /**

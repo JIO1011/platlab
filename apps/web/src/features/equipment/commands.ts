@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { areaManager, asset, assetDocument, assetType, fault, location, type AssetDocumentKind } from '@platlab/contracts';
-import { api, apiDownload, isApiError } from '../../app/api';
-import { useModuleCommand } from '../../app/commands';
-import { saveFile } from '../../app/save-file';
+import { api, isApiError } from '../../app/api';
+import { commonErrorMessage, useModuleCommand } from '../../app/commands';
+import { useFileDownload } from '../../app/save-file';
 import { assetFilterSearch, type AssetQuery } from './asset-filters';
 import type { PhotoType } from './photo';
 import { useEquipmentKey } from './queries';
@@ -106,12 +106,7 @@ export function useAssignAreaManager(workspaceId: string, areaId: string) {
  * Es una consulta: no cambia nada, así que no lleva clave idempotente ni refresca la caché.
  */
 export function useExportAssets(workspaceId: string) {
-  return useMutation({
-    mutationFn: async (query: AssetQuery) => {
-      const { blob, fileName } = await apiDownload(`/workspaces/${workspaceId}/equipment/assets/export?${assetFilterSearch(query)}`);
-      saveFile(blob, fileName);
-    },
-  });
+  return useFileDownload((query: AssetQuery) => `/workspaces/${workspaceId}/equipment/assets/export?${assetFilterSearch(query)}`);
 }
 
 /** «Reportar incidente»: tipo, descripción y si el equipo se puede seguir usando. */
@@ -135,7 +130,5 @@ export function equipmentErrorMessage(error: unknown): string {
   }
   if (isApiError(error, 'TRANSIENT_CONFLICT')) return 'Otra persona está cambiando este equipo. Vuelve a intentarlo: no se duplicará.';
   if (isApiError(error, 'NOT_FOUND')) return 'Ese equipo ya no está disponible en este espacio.';
-  if (isApiError(error, 'NETWORK')) return 'Sin conexión. Vuelve a intentarlo: si ya se registró, no se duplicará.';
-  if (isApiError(error, 'VALIDATION_FAILED')) return error.message;
-  return 'PlatLab no pudo registrar el cambio. Vuelve a intentarlo.';
+  return commonErrorMessage(error);
 }

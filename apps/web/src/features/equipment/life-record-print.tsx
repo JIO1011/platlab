@@ -1,13 +1,13 @@
 import type { Asset, AssetDocument, Fault } from '@platlab/contracts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, cn } from '@platlab/ui';
 import { useState, type ReactNode } from 'react';
-import { formatDate, formatDateTime, formatDayInZone } from '../../app/format';
+import { formatDate, formatDateTime, formatDayInZone, todayInZone } from '../../app/format';
 import { PrintDialog, printCell, printHead } from '../../app/print-dialog';
 import { PRINT_LIMIT, usePrintRows } from '../../app/print-rows';
 import { QueryErrorState } from '../../app/states';
 import type { TimelineEntry } from '../../app/timeline';
 import { useAssetTimeline } from './asset-history';
-import { formatMoney, todayIn, usefulLifeText, warrantyText } from './asset-facts';
+import { formatMoney, usefulLifeText, warrantyText } from './asset-facts';
 import { availabilityLabel, conditionLabel, conservationLabel, placeLines } from './asset-text';
 import { useEquipment } from './context';
 import { documentKindLabel } from './document-text';
@@ -65,7 +65,7 @@ function Note({ count, hasMore }: { count: number; hasMore: boolean }) {
 }
 
 function IdentitySection({ asset, timeZone }: { asset: Asset; timeZone: string }) {
-  const today = todayIn(timeZone);
+  const today = todayInZone(timeZone);
   return (
     <>
       <Section title="Identificación">

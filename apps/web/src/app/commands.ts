@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { z } from 'zod';
-import { api } from './api';
+import { api, isApiError } from './api';
 import { workspaceKey } from './queries';
 import { useSession } from './session';
 
@@ -33,6 +33,16 @@ export function useModuleCommand<S extends z.ZodType>(
       ]);
     },
   });
+}
+
+/**
+ * Mensaje de los errores que los módulos dicen igual (02 §7, ADR 0022): sin conexión y datos no válidos. Cada módulo
+ * lo llama al final de los suyos; `fallback` es el texto de lo inesperado, que Reactivos dice con «acción».
+ */
+export function commonErrorMessage(error: unknown, fallback = 'PlatLab no pudo registrar el cambio. Vuelve a intentarlo.'): string {
+  if (isApiError(error, 'NETWORK')) return 'Sin conexión. Vuelve a intentarlo: si ya se registró, no se duplicará.';
+  if (isApiError(error, 'VALIDATION_FAILED')) return error.message;
+  return fallback;
 }
 
 /** Errores de un contrato Zod por campo, con mensajes en español para los casos genéricos. */

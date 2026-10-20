@@ -1,4 +1,3 @@
-import { PassThrough } from 'node:stream';
 import type { FastifyPluginAsync } from 'fastify';
 import type pg from 'pg';
 import {
@@ -22,7 +21,7 @@ import {
   updateProviderRequest,
   voidRecordRequest,
 } from '@platlab/contracts';
-import { XLSX_TYPE } from '../../../platform/export/xlsx.js';
+import { sendXlsx } from '../../../platform/http/download.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import { exportRecords } from '../application/export.js';
@@ -100,21 +99,10 @@ export function maintenanceRoutes({ pool, publicFiles }: { pool: pg.Pool; public
 
     app.get('/areas', async (request) => listAreas(pool, queryRequest(request)));
 
-    // Excel del Historial (M-01d), como el del Informe de Equipos: sale por partes mientras se lee. Un rechazo
-    // antes de empezar responde con su error; un fallo a mitad corta la descarga y la transacción se revierte.
+    // Excel del Historial (M-01d), como el del Informe de Equipos.
     app.get('/records/export', async (request, reply) => {
       const filters = recordFilterQuery.parse(request.query);
-      const body = new PassThrough();
-      try {
-        await exportRecords(pool, queryRequest(request), filters, (fileName) => {
-          void reply.type(XLSX_TYPE).header('content-disposition', `attachment; filename="${fileName}"`).send(body);
-          return body;
-        });
-      } catch (error) {
-        if (!reply.sent) throw error;
-        body.destroy(error instanceof Error ? error : new Error(String(error)));
-      }
-      return reply;
+      return sendXlsx(reply, (open) => exportRecords(pool, queryRequest(request), filters, open));
     });
 
     app.post('/records', async (request, reply) => {

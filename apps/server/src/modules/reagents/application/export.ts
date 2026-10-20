@@ -3,7 +3,8 @@ import type pg from 'pg';
 import type { z } from 'zod';
 import type { Operation, OperationFacets, operationExportQuery } from '@platlab/contracts';
 import { listOperationPage, operationFacetsOf, type InventoryContext, type OperationFilter } from '../../../capabilities/inventory/index.js';
-import { writeXlsx, type XlsxCell } from '../../../platform/export/xlsx.js';
+import { dayIn } from '../../../platform/dates.js';
+import { startReport, type ReportColumn } from '../../../platform/export/report.js';
 import { recordAudit, requirePermission, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import { listProductSafety } from '../infrastructure/products.queries.js';
 import { inventoryContext } from './command.js';
@@ -16,11 +17,9 @@ const EXPORT_BATCH = 500;
 
 const typeLabel: Record<Operation['type'], string> = { receipt: 'Ingreso', issue: 'Salida', adjustment: 'Ajuste', transfer: 'Traslado' };
 
-/** Día civil (`YYYY-MM-DD`) y hora («14:05») en la zona del espacio. */
-const dayIn = (iso: string, timeZone: string) => new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date(iso));
+/** La hora («14:05») en la zona del espacio. */
 const hourIn = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat('es-EC', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
-const stamp = (timeZone: string) => new Intl.DateTimeFormat('es-EC', { timeZone, dateStyle: 'short', timeStyle: 'short' }).format(new Date());
 
 /** Un asiento con la marca «Controlado» de su reactivo, que es de la ficha química y no de la capacidad (ADR 0015). */
 interface Row {
@@ -32,7 +31,7 @@ interface Row {
  * Columnas del Excel de Movimientos (ADR 0021): todo lo que el asiento guarda, con su ancho en caracteres. Las
  * cantidades van con signo y como número decimal exacto; «Controlado» sirve al reporte de controlados (ADR 0016).
  */
-const columns = (timeZone: string): Array<[title: string, width: number, value: (row: Row) => XlsxCell]> => [
+const columns = (timeZone: string): ReportColumn<Row>[] => [
   ['Fecha', 12, ({ operation }) => ({ date: dayIn(operation.effectiveAt, timeZone) })],
   ['Hora', 7, ({ operation }) => hourIn(operation.effectiveAt, timeZone)],
   ['Tipo', 10, ({ operation }) => typeLabel[operation.type]],
@@ -96,24 +95,17 @@ export async function exportOperations(
 ): Promise<void> {
   const sheet = await runQuery(pool, request, async (access: WorkspaceAccess) => {
     await requirePermission(access, REPORT);
-    const { timeZone } = access.workspace;
     const ctx = inventoryContext(access);
     const filter = operationFilter(access, query);
-    const filterLine = await filtersText(ctx, query, filter);
-    const sheetColumns = columns(timeZone);
-    const book = writeXlsx(open(`movimientos-reactivos-${dayIn(new Date().toISOString(), timeZone)}.xlsx`), {
+    const book = await startReport(open, {
+      fileName: 'movimientos-reactivos',
       sheetName: 'Movimientos',
-      widths: sheetColumns.map(([, width]) => width),
+      title: 'Movimientos de reactivos',
+      workspace: access.workspace,
+      author: access.displayName,
+      filters: await filtersText(ctx, query, filter),
+      columns: columns(access.workspace.timeZone),
     });
-    await book.row(['Movimientos de reactivos'], { bold: true });
-    await book.row([`Espacio: ${access.workspace.name}`]);
-    await book.row([`Generado el ${stamp(timeZone)} por ${access.displayName}`]);
-    await book.row([`Filtros: ${filterLine}`]);
-    await book.row([]);
-    await book.row(
-      sheetColumns.map(([title]) => title),
-      { bold: true },
-    );
 
     // «Controlado» por reactivo, pedido una vez por reactivo nuevo de cada lote.
     const controlled = new Map<string, boolean>();
@@ -128,7 +120,7 @@ export async function exportOperations(
         for (const row of safety) controlled.set(row.item_id, row.controlled);
       }
       for (const operation of page.items) {
-        await book.row(sheetColumns.map(([, , value]) => value({ operation, controlled: controlled.get(operation.product.id) === true })));
+        await book.add({ operation, controlled: controlled.get(operation.product.id) === true });
       }
       rows += page.items.length;
       cursor = page.nextCursor ?? undefined;

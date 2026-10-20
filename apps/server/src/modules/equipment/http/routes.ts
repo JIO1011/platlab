@@ -1,4 +1,3 @@
-import { PassThrough } from 'node:stream';
 import type { FastifyPluginAsync } from 'fastify';
 import type pg from 'pg';
 import {
@@ -26,7 +25,7 @@ import {
   updateAssetRequest,
   uploadAssetDocumentQuery,
 } from '@platlab/contracts';
-import { XLSX_TYPE } from '../../../platform/export/xlsx.js';
+import { sendXlsx } from '../../../platform/http/download.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import { listAreas, listTypesOfArea, setAreaManager } from '../application/areas.js';
@@ -96,21 +95,10 @@ export function equipmentRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFi
     // Indicadores del Informe (E-01c): con los mismos filtros.
     app.get('/assets/totals', async (request) => getAssetTotals(pool, queryRequest(request), assetFilterQuery.parse(request.query)));
 
-    // Excel del Informe (ADR 0017): sale por partes mientras se lee. Un rechazo antes de empezar responde
-    // con su error; un fallo a mitad corta la descarga, que queda incompleta, y la transacción se revierte.
+    // Excel del Informe (ADR 0017): sale por partes mientras se lee.
     app.get('/assets/export', async (request, reply) => {
       const filters = assetFilterQuery.parse(request.query);
-      const body = new PassThrough();
-      try {
-        await exportAssets(pool, queryRequest(request), filters, (fileName) => {
-          void reply.type(XLSX_TYPE).header('content-disposition', `attachment; filename="${fileName}"`).send(body);
-          return body;
-        });
-      } catch (error) {
-        if (!reply.sent) throw error;
-        body.destroy(error instanceof Error ? error : new Error(String(error)));
-      }
-      return reply;
+      return sendXlsx(reply, (open) => exportAssets(pool, queryRequest(request), filters, open));
     });
 
     app.post('/assets', async (request, reply) => {

@@ -5,7 +5,6 @@ import {
   updatePlanRequest,
   type IntervalUnit,
   type Plan,
-  type PlanKind,
 } from '@platlab/contracts';
 import { Field, Input, OptionRow, Select, Skeleton, Textarea, toast } from '@platlab/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -14,11 +13,12 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { api } from '../../app/api';
 import { FormSheet, validate, type SheetBaseProps } from '../../app/form-sheet';
+import { todayInZone } from '../../app/format';
 import { PillField } from '../../app/pills';
 import { AssetSearch, ChosenAsset } from './asset-search';
 import { maintenanceErrorMessage, useCreatePlan, useUpdatePlan } from './commands';
 import { useMaintenance } from './context';
-import { todayInZone } from './due';
+import { createPlanPayload, missingPlanFields, planChanges, type PlanFormValues } from './plan-form';
 import { frequencyPresets, intervalUnitOptions, presetFor, scopeText } from './plan-text';
 import { useAssetMaintenance, useMaintenanceKey, usePlans } from './queries';
 import { kindLabels } from './work-text';
@@ -44,29 +44,6 @@ function useAssetTypes(workspaceId: string, enabled: boolean) {
   });
 }
 
-interface PlanFormValues {
-  kind: PlanKind | '';
-  scope: 'type' | 'asset';
-  assetTypeId: string;
-  title: string;
-  /** Con el número y la unidad: una frecuencia de un toque los fija; «Otro» los deja escribir. */
-  intervalCount: string;
-  intervalUnit: IntervalUnit;
-  startsOn: string;
-  /** Un ítem por línea. */
-  checklist: string;
-  acceptanceCriteria: string;
-  requirement: string;
-  /** El plan del tipo que este reemplaza, `none` si se suma, `''` sin elegir. */
-  replaces: string;
-}
-
-const lines = (text: string) =>
-  text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '');
-
 /** Una pregunta de «Nuevo plan»: su título y lo que se contesta. */
 function Question({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -74,6 +51,54 @@ function Question({ title, children }: { title: string; children: ReactNode }) {
       <h3 className="text-base font-semibold text-ink">{title}</h3>
       {children}
     </section>
+  );
+}
+
+/** «¿Reemplaza al plan de su tipo?»: un plan propio sustituye a uno de los que ya cubren al equipo, o se suma. */
+function ReplacesChoice({
+  candidates,
+  value,
+  error,
+  onChoose,
+}: {
+  candidates: readonly Plan[];
+  value: string;
+  error: string | undefined;
+  onChoose: (value: string) => void;
+}) {
+  return (
+    <fieldset className="grid min-w-0 gap-1.5">
+      <legend className="mb-1.5 text-sm font-medium text-ink">
+        ¿Reemplaza al plan de su tipo?
+        <span aria-hidden className="ml-0.5">
+          *
+        </span>
+      </legend>
+      <div className="grid gap-0.5 rounded-xl border border-line bg-white/60 p-1">
+        {candidates.map((entry) => (
+          <OptionRow
+            key={entry.id}
+            type="radio"
+            name="reemplaza"
+            checked={value === entry.id}
+            aria-invalid={error ? true : undefined}
+            onChange={() => onChoose(entry.id)}
+          >
+            <span className="block font-medium">Sí, reemplaza a «{entry.title}»</span>
+            <span className="block text-[13px] font-normal text-ink-muted">Si archivas este plan, el equipo vuelve a aquel.</span>
+          </OptionRow>
+        ))}
+        <OptionRow type="radio" name="reemplaza" checked={value === 'none'} aria-invalid={error ? true : undefined} onChange={() => onChoose('none')}>
+          <span className="block font-medium">No, se suma</span>
+          <span className="block text-[13px] font-normal text-ink-muted">Tendrá este plan además del de su tipo.</span>
+        </OptionRow>
+      </div>
+      {error ? (
+        <p role="alert" className="text-[13px] font-medium text-danger">
+          {error}
+        </p>
+      ) : null}
+    </fieldset>
   );
 }
 
@@ -161,25 +186,12 @@ export function PlanSheet({
     setGeneralError(null);
     form.clearErrors();
     const values = form.getValues();
-    const count = Number(values.intervalCount);
-    const items = lines(values.checklist);
-    const criteria = values.acceptanceCriteria.trim();
-    const requirement = values.requirement.trim();
-    if (values.intervalCount.trim() === '') {
-      form.setError('intervalCount', { message: custom ? 'Escribe cada cuánto se repite.' : 'Elige cada cuánto se repite.' });
-      if (editing) return;
-    }
+    const missing = missingPlanFields(values, { editing, custom, asset, candidates });
+    for (const { field, message } of missing) form.setError(field, { message });
+    if (missing.length > 0) return;
     try {
       if (plan) {
-        const changes = {
-          ...(values.title.trim() !== plan.title ? { title: values.title.trim() } : {}),
-          ...(count !== plan.intervalCount ? { intervalCount: count } : {}),
-          ...(values.intervalUnit !== plan.intervalUnit ? { intervalUnit: values.intervalUnit } : {}),
-          ...(values.startsOn !== plan.startsOn ? { startsOn: values.startsOn } : {}),
-          ...(items.join('\n') !== plan.checklist.join('\n') ? { checklist: items } : {}),
-          ...(criteria !== (plan.acceptanceCriteria ?? '') ? { acceptanceCriteria: criteria === '' ? null : criteria } : {}),
-          ...(requirement !== (plan.requirement ?? '') ? { requirement: requirement === '' ? null : requirement } : {}),
-        };
+        const changes = planChanges(plan, values);
         if (Object.keys(changes).length === 0) {
           setGeneralError('No cambiaste nada.');
           return;
@@ -189,40 +201,7 @@ export function PlanSheet({
         await update.mutateAsync(payload);
         toast.success('Plan actualizado', { description: recalculates ? 'Las próximas fechas se recalcularon.' : values.title.trim() });
       } else {
-        let invalid = values.intervalCount.trim() === '';
-        if (!values.kind) {
-          form.setError('kind', { message: 'Elige qué trabajo es.' });
-          invalid = true;
-        }
-        if (values.scope === 'type' && !values.assetTypeId) {
-          form.setError('assetTypeId', { message: 'Elige el tipo de equipo que cubre.' });
-          invalid = true;
-        }
-        if (values.scope === 'asset' && !asset) {
-          form.setError('root', { message: 'Elige el equipo del plan.' });
-          invalid = true;
-        }
-        if (values.scope === 'asset' && candidates.length > 0 && values.replaces === '') {
-          form.setError('replaces', { message: 'Elige si reemplaza al plan de su tipo o se suma a él.' });
-          invalid = true;
-        }
-        if (invalid) return;
-        const payload = validate(
-          createPlanRequest,
-          {
-            kind: values.kind,
-            ...(values.scope === 'type' ? { assetTypeId: values.assetTypeId } : { assetId: asset?.id }),
-            ...(values.scope === 'asset' && values.replaces !== '' && values.replaces !== 'none' ? { replacesPlanId: values.replaces } : {}),
-            title: values.title.trim(),
-            intervalCount: count,
-            intervalUnit: values.intervalUnit,
-            startsOn: values.startsOn,
-            checklist: items,
-            acceptanceCriteria: criteria === '' ? null : criteria,
-            requirement: requirement === '' ? null : requirement,
-          },
-          form,
-        );
+        const payload = validate(createPlanRequest, createPlanPayload(values, asset), form);
         if (!payload) return;
         await create.mutateAsync(payload);
         toast.success('Plan creado', { description: values.title.trim() });
@@ -347,50 +326,15 @@ export function PlanSheet({
                   <AssetSearch workspaceId={workspaceId} onChoose={setAsset} />
                 )}
                 {scope === 'asset' && asset && candidates.length > 0 ? (
-                  <fieldset className="grid min-w-0 gap-1.5">
-                    <legend className="mb-1.5 text-sm font-medium text-ink">
-                      ¿Reemplaza al plan de su tipo?
-                      <span aria-hidden className="ml-0.5">
-                        *
-                      </span>
-                    </legend>
-                    <div className="grid gap-0.5 rounded-xl border border-line bg-white/60 p-1">
-                      {candidates.map((entry) => (
-                        <OptionRow
-                          key={entry.id}
-                          type="radio"
-                          name="reemplaza"
-                          checked={replaces === entry.id}
-                          aria-invalid={errors.replaces ? true : undefined}
-                          onChange={() => {
-                            form.setValue('replaces', entry.id, { shouldDirty: true });
-                            form.clearErrors('replaces');
-                          }}
-                        >
-                          <span className="block font-medium">Sí, reemplaza a «{entry.title}»</span>
-                          <span className="block text-[13px] font-normal text-ink-muted">Si archivas este plan, el equipo vuelve a aquel.</span>
-                        </OptionRow>
-                      ))}
-                      <OptionRow
-                        type="radio"
-                        name="reemplaza"
-                        checked={replaces === 'none'}
-                        aria-invalid={errors.replaces ? true : undefined}
-                        onChange={() => {
-                          form.setValue('replaces', 'none', { shouldDirty: true });
-                          form.clearErrors('replaces');
-                        }}
-                      >
-                        <span className="block font-medium">No, se suma</span>
-                        <span className="block text-[13px] font-normal text-ink-muted">Tendrá este plan además del de su tipo.</span>
-                      </OptionRow>
-                    </div>
-                    {errors.replaces?.message ? (
-                      <p role="alert" className="text-[13px] font-medium text-danger">
-                        {errors.replaces.message}
-                      </p>
-                    ) : null}
-                  </fieldset>
+                  <ReplacesChoice
+                    candidates={candidates}
+                    value={replaces}
+                    error={errors.replaces?.message}
+                    onChoose={(value) => {
+                      form.setValue('replaces', value, { shouldDirty: true });
+                      form.clearErrors('replaces');
+                    }}
+                  />
                 ) : null}
               </>
             )}

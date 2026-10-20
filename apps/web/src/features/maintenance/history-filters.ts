@@ -1,5 +1,6 @@
 import type { WorkKind, WorkResult } from '@platlab/contracts';
 import { z } from 'zod';
+import { invertSlugs } from '../../app/slugs';
 
 /**
  * Filtros del Historial en la URL (M-01d), como Movimientos: lo que se filtra es lo que se imprime y se exporta,
@@ -33,10 +34,8 @@ const kindSlugs: Record<WorkKind, string> = {
 const resultSlugs: Record<WorkResult, string> = { pass: 'conforme', pass_with_observations: 'con-observaciones', fail: 'no-conforme' };
 const INTERNAL_SLUG = 'interno';
 
-const reverse = <T extends string>(slugs: Record<T, string>) =>
-  Object.fromEntries(Object.entries(slugs).map(([code, slug]) => [slug, code])) as Record<string, T>;
-const kindOf = reverse(kindSlugs);
-const resultOf = reverse(resultSlugs);
+const kindOf = invertSlugs(kindSlugs);
+const resultOf = invertSlugs(resultSlugs);
 /** El código de la API de una palabra de la URL; ninguno si no es una de ellas. */
 const lookup = <T>(map: Record<string, T>) => (slug: string): T[] => (Object.hasOwn(map, slug) ? [map[slug] as T] : []);
 

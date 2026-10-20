@@ -1,8 +1,14 @@
 import type { MaintenanceIndicators } from '@platlab/contracts';
 import { cn } from '@platlab/ui';
-import { useState, type KeyboardEvent } from 'react';
-import { niceScale, stepIndex } from '../../app/chart-scale';
+import { ChartDataTable, ChartGrid, ChartLegend, ChartTooltip, ChartYAxis, MonthRowHeader, useChartCursor } from '../../app/bar-chart-parts';
+import { niceScale } from '../../app/chart-scale';
 import { scheduleText, schedulePoints, scheduleTotals } from './indicator-text';
+
+/** Programado es el riel gris; Hecho, el relleno en el acento. */
+const legend = [
+  { name: 'Programado', fill: 'bg-line-strong' },
+  { name: 'Hecho', fill: 'bg-action' },
+];
 
 /**
  * «Programado frente a realizado» (M-01c; Resumen, ADR 0021): una barra de tope redondeado por mes. Su riel gris es lo
@@ -10,54 +16,22 @@ import { scheduleText, schedulePoints, scheduleTotals } from './indicator-text';
  * Puntero y teclado (flechas, Inicio, Fin) muestran el mes; la lectura en texto y la tabla lo dejan leer sin interactuar.
  */
 export function ScheduleChart({ months }: { months: MaintenanceIndicators['months'] }) {
-  const [active, setActive] = useState<number | null>(null);
   const points = schedulePoints(months);
+  const { active, setActive, groupProps } = useChartCursor(points.length);
   const totals = scheduleTotals(months);
   const { max, ticks } = niceScale(Math.max(...months.map((entry) => entry.due)));
   const current = active === null ? null : (points[active] ?? null);
   const label = 'Trabajos programados y hechos por mes';
 
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const next = stepIndex(event.key, active, points.length);
-    if (next === null) return;
-    event.preventDefault();
-    setActive(next);
-  }
-
   return (
     <figure className="@container m-0">
       <figcaption className="sr-only">Cada barra es lo programado en el mes; la parte llena, lo que ya se hizo.</figcaption>
-      <ul className="flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-ink-muted" aria-label="Leyenda">
-        <li className="inline-flex items-center gap-2">
-          <span aria-hidden className="size-3 rounded-[4px] bg-line-strong" />
-          Programado
-        </li>
-        <li className="inline-flex items-center gap-2">
-          <span aria-hidden className="size-3 rounded-[4px] bg-action" />
-          Hecho
-        </li>
-      </ul>
+      <ChartLegend items={legend} />
       <div className="mt-5 flex gap-3">
-        <div className="relative w-6 shrink-0 text-right text-[12px] tabular-nums text-ink-muted" aria-hidden>
-          {ticks.map((tick) => (
-            <span key={tick} className="absolute right-0 translate-y-1/2" style={{ bottom: `${(tick / max) * 100}%` }}>
-              {tick}
-            </span>
-          ))}
-        </div>
+        <ChartYAxis ticks={ticks} max={max} />
         <div className="relative h-40 flex-1 lg:h-52">
-          {ticks.map((tick) => (
-            <span key={tick} className={cn('absolute inset-x-0 h-px', tick === 0 ? 'bg-line-strong' : 'bg-line')} style={{ bottom: `${(tick / max) * 100}%` }} aria-hidden />
-          ))}
-          <div
-            role="group"
-            aria-label={label}
-            tabIndex={0}
-            onKeyDown={onKeyDown}
-            onBlur={() => setActive(null)}
-            onPointerLeave={() => setActive(null)}
-            className="relative flex h-full items-end gap-1 rounded-[6px] outline-offset-4"
-          >
+          <ChartGrid ticks={ticks} max={max} />
+          <div role="group" aria-label={label} {...groupProps} className="relative flex h-full items-end gap-1 rounded-[6px] outline-offset-4">
             {points.map((point, index) => (
               // La columna entera es la zona de puntero: más grande que la barra.
               <div key={point.month} className="flex h-full flex-1 items-end justify-center" onPointerEnter={() => setActive(index)}>
@@ -73,20 +47,13 @@ export function ScheduleChart({ months }: { months: MaintenanceIndicators['month
               </div>
             ))}
             {current && active !== null ? (
-              <div
-                // En los extremos se ancla al borde del gráfico: centrada, la etiqueta sobresaldría.
-                className={cn(
-                  'pointer-events-none absolute bottom-full z-10 mb-4 whitespace-nowrap rounded-control bg-ink px-2.5 py-1.5 text-[12px] text-surface shadow-overlay',
-                  active / points.length > 0.7 ? 'right-0' : active / points.length < 0.3 ? 'left-0' : '-translate-x-1/2',
-                )}
-                style={active / points.length >= 0.3 && active / points.length <= 0.7 ? { left: `${current.x}%` } : undefined}
-              >
+              <ChartTooltip index={active} count={points.length} x={current.x} className="mb-4">
                 <strong className="block font-semibold">{scheduleText(current)}</strong>
                 <span className="opacity-80">
                   {current.long}
                   {current.current ? ' · en curso' : ''}
                 </span>
-              </div>
+              </ChartTooltip>
             ) : null}
           </div>
         </div>
@@ -114,35 +81,26 @@ export function ScheduleChart({ months }: { months: MaintenanceIndicators['month
       <p className="sr-only" aria-live="polite">
         {current ? `${current.long}: ${scheduleText(current)}` : ''}
       </p>
-      <details className="mt-3 text-sm">
-        <summary className="inline-flex min-h-11 cursor-pointer select-none items-center font-medium text-action sm:min-h-0">Ver datos</summary>
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full text-left text-[13px]">
-            <caption className="sr-only">{label}</caption>
-            <thead>
-              <tr className="border-b border-line text-ink-muted">
-                <th scope="col" className="py-1.5 pr-3 font-medium">Mes</th>
-                <th scope="col" className="px-2 py-1.5 text-right font-medium">Programados</th>
-                <th scope="col" className="px-2 py-1.5 text-right font-medium">Hechos</th>
-                <th scope="col" className="py-1.5 pl-2 text-right font-medium">A tiempo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {points.map((point) => (
-                <tr key={point.month} className="border-b border-line last:border-0">
-                  <th scope="row" className="py-1.5 pr-3 font-normal text-ink">
-                    {point.long}
-                    {point.current ? <span className="text-ink-muted"> · en curso</span> : null}
-                  </th>
-                  <td className="px-2 py-1.5 text-right tabular-nums text-ink">{point.due}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums text-ink">{point.done}</td>
-                  <td className="py-1.5 pl-2 text-right tabular-nums text-ink">{point.onTime}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
+      <ChartDataTable label={label}>
+        <thead>
+          <tr className="border-b border-line text-ink-muted">
+            <th scope="col" className="py-1.5 pr-3 font-medium">Mes</th>
+            <th scope="col" className="px-2 py-1.5 text-right font-medium">Programados</th>
+            <th scope="col" className="px-2 py-1.5 text-right font-medium">Hechos</th>
+            <th scope="col" className="py-1.5 pl-2 text-right font-medium">A tiempo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {points.map((point) => (
+            <tr key={point.month} className="border-b border-line last:border-0">
+              <MonthRowHeader long={point.long} current={point.current} />
+              <td className="px-2 py-1.5 text-right tabular-nums text-ink">{point.due}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums text-ink">{point.done}</td>
+              <td className="py-1.5 pl-2 text-right tabular-nums text-ink">{point.onTime}</td>
+            </tr>
+          ))}
+        </tbody>
+      </ChartDataTable>
     </figure>
   );
 }

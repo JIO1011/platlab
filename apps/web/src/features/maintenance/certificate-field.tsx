@@ -1,7 +1,7 @@
 import { Button } from '@platlab/ui';
 import { FileText, Paperclip, X } from 'lucide-react';
 import { useId, useRef } from 'react';
-import { certificateLimitText, formatFileSize } from './certificate-file';
+import { formatFileSize, pdfLimitText } from '../../app/pdf-file';
 
 /**
  * El campo del certificado PDF: «Elegir PDF», y elegido, su nombre y su peso con «Quitar». El archivo no se
@@ -79,7 +79,7 @@ export function CertificateField({
         </p>
       ) : (
         <p id={`${id}-hint`} className="text-[13px] text-ink-muted">
-          Un solo PDF de hasta {certificateLimitText}. Queda en el historial del equipo.
+          Un solo PDF de hasta {pdfLimitText}. Queda en el historial del equipo.
         </p>
       )}
     </div>

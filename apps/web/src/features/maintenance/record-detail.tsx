@@ -4,8 +4,8 @@ import { Ban, Check, ClipboardCheck, Minus, Paperclip } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { formatDate, formatDayInZone } from '../../app/format';
+import { formatFileSize } from '../../app/pdf-file';
 import { assetFichaPath, faultPath } from './asset-path';
-import { formatFileSize } from './certificate-file';
 import { doneText } from './due';
 import { kindLabels, noPlanText, resultLabels } from './work-text';
 

@@ -27,8 +27,8 @@ import {
   workCosts,
 } from '../infrastructure/indicators.queries.js';
 import { directoryAsset } from '../infrastructure/plans.queries.js';
-import { dueCounts, workspaceToday } from '../infrastructure/work.queries.js';
-import { REVIEW, runCommand, runQuery } from './command.js';
+import { dueCounts } from '../infrastructure/work.queries.js';
+import { REVIEW, runCommand, runQuery, workspaceToday } from './command.js';
 
 /** «Evaluar reemplazo» (02 §12): la parte del valor de reposición que alcanza lo reparado y los incidentes del periodo. */
 const REPAIR_SHARE = '0.5';
@@ -48,7 +48,7 @@ export function periodStart(today: string): string {
 }
 
 async function workspaceDay(access: WorkspaceAccess): Promise<{ today: string; from: string }> {
-  const [{ today }] = (await workspaceToday.run({ timeZone: access.workspace.timeZone }, access.client)) as [{ today: string }];
+  const today = await workspaceToday(access);
   return { today, from: periodStart(today) };
 }
 
