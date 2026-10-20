@@ -42,19 +42,18 @@ M1 es obligatorio. Cada módulo se contrata por espacio y funciona con sus depen
 | M1 Núcleo | Espacio, personas y control | Miembros, invitaciones, roles, ubicaciones, suscripción, documentos, auditoría y avisos | — | F1a |
 | M2 Reactivos | Qué hay, dónde y en qué estado | Catálogo químico (CAS, concentración, peligros, SDS), lotes, ingresos, salidas, ajustes, traslados y bajas (ajuste a cero con motivo); custodia y retorno; caducidad y mínimos; fiscalizados y su reporte | M1 | R-00 en F1a; F2 |
 | M3 Equipos | Activos y su estado | Resumen, Inventario por áreas con encargado, Informe exportable e Incidentes (fallas) ([ADR 0019](05_decisiones.md#adr-0019)); tipos de equipo; ficha con foto (código, marca, modelo, serie, alimentación, ubicación, responsable); condición, conservación y disponibilidad calculada; traslado trazado, fallas, QR, documentos, hoja de vida e historial; con M6, «Prestado» | M1 | F2 |
-| M4 Laboratorios | Espacios físicos y agenda | Capacidad, responsable, horarios y cierres; reservas directas sin conflictos; tiempos de preparación y limpieza | M1 | F3 |
-| M5 Prácticas y Solicitudes | Operación central integrada | Plantillas, solicitudes de docencia e investigación, revisión, aprobación condicionada, preparación, ejecución, cierre e impresión | M1 + M4 | F3 |
+| M4 Laboratorios ([ADR 0023](05_decisiones.md#adr-0023)) | Solicitudes y agenda de los espacios físicos | Solicitudes del Docente con formato del espacio (núcleo fijo y campos libres) y recursos vinculados a los inventarios; bandeja del Administrador; Cronograma de horas por áreas donde el Administrador programa cada solicitud y asigna su responsable, sin choques y con márgenes de preparación y limpieza; aforo, horarios, cierres y plazo de anticipación; después, reserva real, preparación, cierre con consumo y devolución, e impresión | M1 | F3 |
 | M6 Materiales y Préstamos | Consumibles, reutilizables y préstamos | Existencias, préstamos de material y de equipos ([ADR 0019](05_decisiones.md#adr-0019)), devoluciones parciales, daños, pérdidas y transferencias | M1 | F4; un mínimo en F3 si P-04 lo exige |
 | M7 Mantenimiento | Continuidad de equipos | Planes preventivos y calibraciones con próxima fecha, registro con informe y costo, correctivo enlazado al incidente y aviso de reemplazo (M-01, tras E-01); después, órdenes asignadas, bloqueo de agenda y repuestos | M1 + M3 | F2 (M-01); F5 |
 | M8 Analítica y Alertas | Prevención y decisiones | Indicadores con periodo y fórmula, alertas configurables, resúmenes, escalamiento y reportes | M1 + un módulo operativo | F5 |
 
 Construir un módulo no lo pone a la venta. Cada módulo avanza por etapas: desarrollo → piloto → general. Solo en etapa general entra en los paquetes publicados ([02 §6](02_arquitectura.md#6-autorización-etapas-y-admisión)).
 
-Capacidades compartidas, que no se venden por separado: inventario (M2 y M6), agenda y conflictos (M3–M7), incidencias, documentos, auditoría, avisos, importación y exportación.
+Capacidades compartidas, que no se venden por separado: inventario (M2 y M6), agenda y conflictos (de Laboratorios; la consultan M3 y M7), incidencias, documentos, auditoría, avisos, importación y exportación.
 
 Reglas entre módulos:
 
-- M5 solo verifica recursos de módulos habilitados. Sin M2, M3 o M6, esos recursos aparecen como «no verificados»: no hay stock, reserva ni consumo automático.
+- Laboratorios solo verifica recursos de módulos habilitados. Sin M2, M3 o M6, esos recursos aparecen como «no verificados»: no hay stock, reserva ni consumo automático.
 - Si P-04 muestra que una práctica usa material que se entrega y se devuelve, se adelanta a F3 un Materiales mínimo para cerrar ese circuito.
 - Los avisos esenciales (caducidad, stock mínimo, averías y pendientes) pertenecen a cada módulo. M8 añade el análisis avanzado.
 - Un módulo nuevo se agrega con el [contrato de módulo](02_arquitectura.md#4-contrato-de-módulo) sin modificar los existentes.
@@ -68,8 +67,7 @@ Un paquete es una combinación del registro de módulos; no crea versiones del c
 | Inventario químico | M1 + M2 | F2 |
 | Activos de laboratorio | M1 + M3 | F2 |
 | Inventario institucional | M1 + M2 + M3 | F2 |
-| Agenda de laboratorios | M1 + M4 | F3 |
-| Prácticas e investigación | M1 + M4 + M5 | F3 |
+| Laboratorios (solicitudes y agenda) | M1 + M4 | F3 |
 | Materiales y préstamos | M1 + M6 | F4 |
 | Mantenimiento | M7 sobre M1 + M3 | F5 |
 | Analítica avanzada | M8 sobre un paquete operativo | F5 |
@@ -96,9 +94,9 @@ Los roles del espacio salen de un catálogo fijo en código. Son combinables y v
 | Rol | Propósito | Puede | No puede |
 |---|---|---|---|
 | Propietario | Gobierno de la cuenta; uno por espacio y transferible | Todo lo del Administrador en todo el espacio, sin asignación ([ADR 0008](05_decisiones.md#adr-0008), cambio del 02-10-2026); además, ver suscripción y uso, solicitar módulos, invitar miembros y asignar roles, configurar marca y ubicaciones, transferir la propiedad | Borrar registros, aprobar su propia solicitud o actuar como Responsable de fiscalizados sin que se le asigne ese rol |
-| Administrador | Decide y configura la operación | Todo lo del Operador; revisar solicitudes (aprobar, rechazar, pedir cambios, proponer ajustes, reubicar); catálogos, laboratorios, plantillas, mínimos, motivos y destinos; ajustes y bajas con motivo; reportes | Borrar registros, aprobar su propia solicitud o invitar miembros sin delegación del propietario |
+| Administrador | Decide y configura la operación | Todo lo del Operador; revisar solicitudes (aprobar, rechazar, pedir cambios, proponer ajustes, reubicar); catálogos, laboratorios, formatos de solicitud, mínimos, motivos y destinos; ajustes y bajas con motivo; reportes | Borrar registros, aprobar su propia solicitud o invitar miembros sin delegación del propietario |
 | Operador | Ejecuta el día a día | Ingresos, salidas (descargas), traslados, preparación, entregas y devoluciones; condición de equipos e incidencias; consultar toda la información operativa | Aprobar solicitudes, ajustar existencias, configurar o gestionar miembros |
-| Docente | Solicita actividades de docencia | Crear solicitudes desde plantillas, ver el catálogo solicitable con disponibilidad orientativa, aceptar o declinar propuestas, seguir sus actividades y reportar incidencias de ellas | Fijar la sala definitiva, tocar el inventario o ver solicitudes ajenas |
+| Docente | Solicita actividades de docencia | Crear solicitudes con el formato del espacio, ver el catálogo solicitable con disponibilidad orientativa, aceptar o declinar propuestas, seguir sus actividades y reportar incidencias de ellas | Fijar la sala definitiva, tocar el inventario o ver solicitudes ajenas |
 | Estudiante (tesista) | Solicita actividades de investigación | Lo mismo que el Docente, con docente responsable y vigencia | Solicitar cuando vence su participación |
 | Responsable de fiscalizados | Rol especial asignado por el propietario | Revisar las operaciones reguladas y el reporte del periodo según REG-01 | Nada más por este rol |
 
@@ -118,7 +116,7 @@ Matriz de referencia (✔ incluido; — no incluido):
 | Suscripción, uso y solicitud de módulos | ✔ | — | — | — |
 | Miembros y roles | ✔ | Delegable | — | — |
 | Marca y ubicaciones | ✔ | ✔ | — | — |
-| Catálogos, laboratorios, plantillas y configuración de módulos | ✔ | ✔ | — | — |
+| Catálogos, laboratorios, formatos y configuración de módulos | ✔ | ✔ | — | — |
 | Ingresos, salidas, traslados, entregas y devoluciones | ✔ | ✔ | ✔ | — |
 | Ajustes de existencias y bajas | ✔ | ✔ | — | — |
 | Condición de equipos e incidencias | ✔ | ✔ | ✔ | Reportar |
@@ -154,11 +152,13 @@ Una caducidad desconocida se muestra «sin confirmar». Al elegir frascos, el or
 
 Fiscalizados: cada producto regulado tiene perfil, autorizaciones, sitios y cupos. Cada operación regulada guarda su detalle y el reporte del periodo lo revisa el Responsable de fiscalizados. REG-01 valida con el laboratorio el formato y las reglas antes de implementarlos; no se automatiza el envío a la autoridad.
 
-### 6.2 Solicitud y práctica (M5 con M4 y los inventarios habilitados)
+### 6.2 Solicitud y práctica
 
-1. **Docente o Estudiante.** Elige una plantilla, la fecha o franja y las condiciones. Agrega reactivos y materiales del catálogo solicitable, y equipos por tipo y características (un equipo concreto solo con justificación). Si algo no existe, agrega una línea «no catalogada». No elige la sala definitiva.
+En Laboratorios ([ADR 0023](05_decisiones.md#adr-0023)), con los inventarios habilitados. Todo entra por solicitud: el Administrador la programa en el Cronograma y programarla es aprobarla.
+
+1. **Docente o Estudiante.** Llena el formato del espacio (o duplica una solicitud anterior) con la fecha, la franja y las condiciones. Agrega reactivos y materiales del catálogo solicitable, y equipos por tipo y características (un equipo concreto solo con justificación). Si algo no existe, agrega una línea «no catalogada». No elige la sala definitiva.
 2. **Sistema.** Valida cada línea: ✔ disponible, ⚠ insuficiente o en conflicto, ✖ no existe o no verificado. Validar no reserva nada.
-3. **Administrador.** Revisa su bandeja con las excepciones primero. Asigna la sala, con sugerencias del sistema, los lotes y el equipo concreto de cada tipo pedido. Resuelve los faltantes: traslado desde otro laboratorio, preparación, mover un equipo o cambiar sala u hora. Luego decide:
+3. **Administrador.** Revisa su bandeja con las excepciones primero. En el Cronograma arrastra el bloque de la solicitud al área y la hora, y le asigna su responsable; desde la reserva real (L-01d), también los lotes y el equipo concreto de cada tipo pedido. Resuelve los faltantes: traslado desde otro laboratorio, preparación, mover un equipo o cambiar sala u hora. Luego decide:
    - **Aprobar.** Si respeta lo solicitado, confirma y reserva todo en una transacción.
    - **Proponer ajuste.** Si cambia fecha, cantidades, sustitutos o condiciones, el solicitante acepta o declina esa revisión. Aceptar confirma solo si todo sigue disponible ([ADR 0007](05_decisiones.md#adr-0007)).
    - **Pedir cambios o rechazar**, siempre con motivo.
@@ -238,7 +238,7 @@ Un módulo por dentro, con Reactivos como ejemplo:
 - La ficha de producto reúne datos químicos, SDS, lotes, existencias por ubicación e historial.
 - Registrar una salida toma pocos pasos: buscar el producto, indicar la cantidad con atajos, elegir motivo y destino de listas y ver el saldo resultante.
 - La ficha de un equipo tiene pestañas Información, Mantenimiento, Fallas e Historial, y Reservas cuando llega la agenda ([ADR 0019](05_decisiones.md#adr-0019)).
-- Nueva práctica: Plantilla → Fecha y condiciones → Recursos → Revisión. La agenda se ve por laboratorio y franja, con vista de lista en el móvil.
+- Nueva solicitud: Datos → Recursos → Revisar. El Cronograma muestra un día en una tabla de horas por áreas, con la bandeja «Por programar» al costado; en el móvil, un área a la vez y «Programar…» en lugar de arrastrar ([ADR 0023](05_decisiones.md#adr-0023)).
 
 Dirección visual (tomada de ReactiLab desde el 04-10-2026, [ADR 0010](05_decisiones.md#adr-0010)):
 
