@@ -1,7 +1,7 @@
 import type { HomeTrend } from '@platlab/contracts';
 import { cn } from '@platlab/ui';
-import { useState, type KeyboardEvent } from 'react';
-import { niceScale, stepIndex } from './chart-scale';
+import { ChartGrid, ChartTooltip, ChartYAxis, useChartCursor } from './bar-chart-parts';
+import { niceScale } from './chart-scale';
 
 type Point = HomeTrend['points'][number];
 
@@ -55,7 +55,7 @@ export function TrendChart({
   points: Point[];
   unit: { one: string; many: string };
 }) {
-  const [active, setActive] = useState<number | null>(null);
+  const { active, setActive, groupProps } = useChartCursor(points.length);
   const { max, ticks } = scale(points);
   const current = active === null ? null : points[active];
   const peak = points.reduce<Point | null>((best, point) => (best === null || point.value > best.value ? point : best), null);
@@ -63,42 +63,14 @@ export function TrendChart({
     peak && peak.value > 0 ? `; el día con más, ${formatDay(peak.date, 'long')}, con ${peak.value}` : ''
   }.`;
 
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const next = stepIndex(event.key, active, points.length);
-    if (next === null) return;
-    event.preventDefault();
-    setActive(next);
-  }
-
   return (
     <figure className="m-0">
       <div className="flex gap-3">
         {/* Eje Y: pocas marcas enteras; las líneas guía son finas y quedan detrás de las barras. */}
-        <div className="relative w-6 shrink-0 text-right text-[12px] tabular-nums text-ink-muted" aria-hidden>
-          {ticks.map((tick) => (
-            <span key={tick} className="absolute right-0 -translate-y-1/2" style={{ bottom: `${(tick / max) * 100}%` }}>
-              {tick}
-            </span>
-          ))}
-        </div>
+        <ChartYAxis ticks={ticks} max={max} />
         <div className="relative h-40 flex-1 lg:h-56">
-          {ticks.map((tick) => (
-            <span
-              key={tick}
-              className={cn('absolute inset-x-0 h-px', tick === 0 ? 'bg-line-strong' : 'bg-line')}
-              style={{ bottom: `${(tick / max) * 100}%` }}
-              aria-hidden
-            />
-          ))}
-          <div
-            role="group"
-            aria-label={summary}
-            tabIndex={0}
-            onKeyDown={onKeyDown}
-            onBlur={() => setActive(null)}
-            onPointerLeave={() => setActive(null)}
-            className="relative flex h-full items-end gap-[2px] rounded-[6px] outline-offset-4"
-          >
+          <ChartGrid ticks={ticks} max={max} />
+          <div role="group" aria-label={summary} {...groupProps} className="relative flex h-full items-end gap-[2px] rounded-[6px] outline-offset-4">
             {points.map((point, index) => (
               // La columna entera es la zona de puntero: más grande que la barra.
               <div
@@ -116,17 +88,10 @@ export function TrendChart({
               </div>
             ))}
             {current && active !== null ? (
-              <div
-                // En los extremos se ancla al borde del gráfico: centrada, la etiqueta sobresaldría.
-                className={cn(
-                  'pointer-events-none absolute bottom-full z-10 mb-4 whitespace-nowrap rounded-control bg-ink px-2.5 py-1.5 text-[12px] text-surface shadow-overlay',
-                  active / points.length > 0.7 ? 'right-0' : active / points.length < 0.3 ? 'left-0' : '-translate-x-1/2',
-                )}
-                style={active / points.length >= 0.3 && active / points.length <= 0.7 ? { left: `${((active + 0.5) / points.length) * 100}%` } : undefined}
-              >
+              <ChartTooltip index={active} count={points.length} x={((active + 0.5) / points.length) * 100} className="mb-4">
                 <strong className="font-semibold">{countLabel(current.value, unit)}</strong>
                 <span className="ml-1.5 opacity-80">{formatDay(current.date)}</span>
-              </div>
+              </ChartTooltip>
             ) : null}
           </div>
           <p className="sr-only" aria-live="polite">

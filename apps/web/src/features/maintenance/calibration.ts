@@ -1,6 +1,6 @@
 import type { AssetMaintenance } from '@platlab/contracts';
-import { formatDate } from '../../app/format';
-import { daysUntil, type DueTone } from './due';
+import { daysBetween, formatDate } from '../../app/format';
+import type { DueTone } from './due';
 
 /**
  * Estado de calibración de un equipo (M-01d, ISO/IEC 17025 6.4.8), con la regla de «Calibraciones vigentes» de
@@ -38,6 +38,6 @@ export function calibrationText(status: CalibrationStatus, today: string): { tex
     case 'expired':
       return { text: 'Calibración vencida: no usar', tone: 'danger' };
     case 'current':
-      return { text: `Calibrada hasta el ${formatDate(status.until)}`, tone: daysUntil(status.until, today) <= 30 ? 'warning' : 'success' };
+      return { text: `Calibrada hasta el ${formatDate(status.until)}`, tone: daysBetween(today, status.until) <= 30 ? 'warning' : 'success' };
   }
 }

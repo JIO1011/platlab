@@ -1,11 +1,9 @@
 import type { z } from 'zod';
 import { WARRANTY_EXPIRING_DAYS, type assetFilterQuery } from '@platlab/contracts';
+import { todayIn } from '../../../platform/dates.js';
 
 /** Los filtros del Inventario y del Informe (ADR 0019, E-01c), sin paginar. */
 export type AssetFilters = z.infer<typeof assetFilterQuery>;
-
-/** Hoy en el huso del espacio, como `YYYY-MM-DD`. */
-export const todayIn = (timeZone: string) => new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date());
 
 /** `YYYY-MM-DD` más unos días: aritmética de calendario, no de cantidades. */
 function addDays(iso: string, days: number): string {

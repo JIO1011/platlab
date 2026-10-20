@@ -22,9 +22,8 @@ import {
   listAreas as listAreasQuery,
   listDue as listDueQuery,
   nextDueByAsset,
-  workspaceToday,
 } from '../infrastructure/work.queries.js';
-import { runQuery } from './command.js';
+import { runQuery, workspaceToday } from './command.js';
 import { replacementCount } from './indicators.js';
 import { recordsOf } from './records.js';
 
@@ -42,7 +41,7 @@ const lastResult = (value: string | null) => value as WorkResult | null;
 export function listDue(pool: pg.Pool, request: QueryRequest): Promise<DueList> {
   return runQuery(pool, request, async (access) => {
     const timeZone = access.workspace.timeZone;
-    const [{ today }] = (await workspaceToday.run({ timeZone }, access.client)) as [{ today: string }];
+    const today = await workspaceToday(access);
     const rows = await listDueQuery.run({ workspaceId: access.workspace.id, timeZone, limit: DUE_LIMIT }, access.client);
     const total = rows[0]?.total ?? 0;
     return {

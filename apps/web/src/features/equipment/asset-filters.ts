@@ -1,5 +1,6 @@
 import type { AssetCondition, AssetConservation, usefulLifeState, warrantyState } from '@platlab/contracts';
 import type { z } from 'zod';
+import { invertSlugs } from '../../app/slugs';
 
 /**
  * Filtros del Inventario de Equipos (ADR 0019): viven en la URL, en español, y se envían a la API con
@@ -40,10 +41,7 @@ const conditionSlugs: Record<AssetCondition, string> = {
   faulted: 'fuera-de-servicio',
   retired: 'baja',
 };
-const conditionOf = Object.fromEntries(Object.entries(conditionSlugs).map(([code, slug]) => [slug, code])) as Record<
-  string,
-  AssetCondition
->;
+const conditionOf = invertSlugs(conditionSlugs);
 
 /** Filtros del Informe en la URL (E-01c): palabras legibles por código de la API; `sin-dato` es `none`. */
 const conservationSlugs: Record<AssetQuery['conservations'][number], string> = { good: 'bueno', fair: 'regular', poor: 'malo', none: 'sin-dato' };
@@ -56,11 +54,9 @@ const warrantySlugs: Record<AssetQuery['warranties'][number], string> = {
 const usefulLifeSlugs: Record<AssetQuery['usefulLives'][number], string> = { reached: 'cumplida', current: 'vigente', none: 'sin-dato' };
 const NO_RESPONSIBLE = 'sin';
 
-const reverse = <T extends string>(slugs: Record<T, string>) =>
-  Object.fromEntries(Object.entries(slugs).map(([code, slug]) => [slug, code])) as Record<string, T>;
-const conservationOf = reverse(conservationSlugs);
-const warrantyOf = reverse(warrantySlugs);
-const usefulLifeOf = reverse(usefulLifeSlugs);
+const conservationOf = invertSlugs(conservationSlugs);
+const warrantyOf = invertSlugs(warrantySlugs);
+const usefulLifeOf = invertSlugs(usefulLifeSlugs);
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const unique = <T>(values: T[]) => [...new Set(values)];

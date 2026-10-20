@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { product } from '@platlab/contracts';
 import { z } from 'zod';
-import { api, apiDownload, isApiError } from '../../app/api';
-import { useModuleCommand } from '../../app/commands';
-import { saveFile } from '../../app/save-file';
+import { api, isApiError } from '../../app/api';
+import { commonErrorMessage, useModuleCommand } from '../../app/commands';
+import { useFileDownload } from '../../app/save-file';
 import { operationSearch, type OperationQuery } from './movement-filters';
 import { useReagentsKey } from './queries';
 
@@ -62,12 +62,7 @@ export function useUploadSafetySheet(workspaceId: string) {
  * una consulta: no cambia nada, así que no lleva clave idempotente ni refresca la caché.
  */
 export function useExportOperations(workspaceId: string) {
-  return useMutation({
-    mutationFn: async (query: OperationQuery) => {
-      const { blob, fileName } = await apiDownload(`/workspaces/${workspaceId}/reagents/operations/export?${operationSearch(query)}`);
-      saveFile(blob, fileName);
-    },
-  });
+  return useFileDownload((query: OperationQuery) => `/workspaces/${workspaceId}/reagents/operations/export?${operationSearch(query)}`);
 }
 
 /** Mensaje para la persona según el código estable del error (02 §7). */
@@ -83,7 +78,5 @@ export function commandErrorMessage(error: unknown): string {
   }
   if (isApiError(error, 'CODE_TAKEN')) return `${error.message}: cambia el código o usa el sugerido.`;
   if (isApiError(error, 'NOT_FOUND')) return 'Ese registro ya no está disponible en este espacio.';
-  if (isApiError(error, 'NETWORK')) return 'Sin conexión. Vuelve a intentarlo: si ya se registró, no se duplicará.';
-  if (isApiError(error, 'VALIDATION_FAILED')) return error.message;
-  return 'PlatLab no pudo registrar la acción. Vuelve a intentarlo.';
+  return commonErrorMessage(error, 'PlatLab no pudo registrar la acción. Vuelve a intentarlo.');
 }

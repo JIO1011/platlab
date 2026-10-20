@@ -4,6 +4,8 @@
  * el equipo. Un enlace corto da un QR con módulos más grandes, que se lee mejor impreso en 22 mm. No es un
  * secreto: abrirlo exige sesión y pertenecer al espacio.
  */
+import type { ScanReading } from './scan/scanner-view';
+
 type LabelKind = 'frasco' | 'equipo';
 
 const prefixes: Record<LabelKind, string> = { frasco: '/q/', equipo: '/q/e/' };
@@ -66,4 +68,19 @@ export function readLabelLink(text: string): LabelLink | null {
   if (!match || !target) return null;
   const kind: LabelKind = match[1] ? 'equipo' : 'frasco';
   return { kind, ...target, path: labelPath(kind, target.workspaceId, target.id) };
+}
+
+/**
+ * El QR de una etiqueta de equipo de este espacio, leído dentro de una hoja: da el id del equipo sin navegar y
+ * `found` es lo que dice la cámara al leerla. Una etiqueta de frasco o de otro espacio dice por qué no sirve y la
+ * cámara sigue.
+ */
+export function readEquipmentLabel(workspaceId: string, found: string) {
+  return (text: string): ScanReading<string> => {
+    const link = readLabelLink(text);
+    if (!link) return { notice: 'Ese código no es una etiqueta de PlatLab.' };
+    if (link.kind !== 'equipo') return { notice: 'Es la etiqueta de un frasco: escanea la de un equipo.' };
+    if (link.workspaceId !== workspaceId) return { notice: 'Ese equipo es de otro espacio de trabajo.' };
+    return { value: link.id, found };
+  };
 }

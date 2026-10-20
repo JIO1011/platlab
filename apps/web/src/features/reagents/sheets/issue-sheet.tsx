@@ -20,7 +20,7 @@ import { FlaskConical, LogOut, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { isApiError } from '../../../app/api';
-import { formatDate } from '../../../app/format';
+import { formatDate, todayInZone } from '../../../app/format';
 import { useDestinations, useReasons } from '../queries';
 import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
@@ -41,9 +41,6 @@ const issueOption = (position: Position): SelectOption => {
       : `${formatDecimal(available)} ${position.unit} disponibles`;
   return { ...positionOption(position), detail: `${amount} · ${expiryText(position)}` };
 };
-
-/** Fecha de hoy en la zona del espacio, como AAAA-MM-DD, para comparar caducidades. */
-const todayIn = (timeZone: string) => new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date());
 
 /**
  * Salida de un frasco (ADR 0012): atajos de cantidad y lo que quedará, sugerencia FEFO, aviso si
@@ -72,7 +69,7 @@ export function IssueSheet({
 }) {
   const command = useCommand(workspaceId, '/issues', issueResponse);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const today = todayIn(timeZone);
+  const today = todayInZone(timeZone);
   const scoped = productId ? positions.filter((p) => p.product.id === productId) : positions;
   const preselected = positionId ?? (productId ? fefoCandidates(positions, productId, today)[0]?.id : undefined);
   const form = useForm({ defaultValues: { positionId: preselected ?? '', quantity: '', reason: '', destination: '' } });

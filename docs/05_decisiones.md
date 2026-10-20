@@ -779,6 +779,32 @@ Motivo: el usuario quiere un módulo intermedio con la estructura de los demás,
 
 Motivo: Mantenimiento se apartaba del patrón de Resumen que ya comparten Equipos y Reactivos, y sus listas planas cansaban la vista. El usuario prefiere validar el rediseño en un módulo antes de extenderlo.
 
+## ADR 0022 — Calidad de Equipos y Mantenimiento: piezas comunes sin duplicar
+
+Estado: aceptada (20-10-2026, a pedido del usuario: «cero lógica muerta o duplicada»).
+
+- **Revisión con codebase-memory.** Fronteras, tipado y código muerto ya los vigilan `deps`, `typecheck` y `knip` en verde. Lo que falla es la duplicación entre módulos: cada uno copió lo que el anterior ya tenía, porque `web-features-isolated` impide importar de otro módulo. Hay además dos hojas de cientos de líneas que mezclan la lógica del formulario con la pantalla.
+- **Lo común sube a su capa** (`apps/server/src/platform/` y `apps/web/src/app/`), nunca a otro módulo:
+  - Servidor:
+    - el Excel de un informe: la respuesta en partes de la ruta, el encabezado (espacio, fecha, autor y filtros) y la marca de tiempo; hoy está tres veces;
+    - el día civil en la zona del espacio.
+  - Mantenimiento lee «hoy» de la base con un solo ayudante tipado, sin conversiones.
+  - Web:
+    - el menú «Exportar» y la cabecera de sección;
+    - las fechas civiles («hoy», días entre fechas), el conteo con plural, la validación y el peso del PDF y la inversión de las abreviaturas de la URL;
+    - la lectura de la etiqueta de un equipo y los mensajes de error comunes.
+- **Las hojas grandes se parten como la del equipo** (`asset-form.ts`):
+  - la del plan pasa su lógica a funciones puras con pruebas;
+  - la del registro se divide en secciones.
+  - Los dos gráficos de barras comparten la leyenda, el eje y el cursor de teclado.
+- **Se acepta sin cambio:**
+  - la consulta de tipos de equipo que Mantenimiento repite: el aislamiento de los módulos de la web vale más que una caché compartida;
+  - que ninguno de los dos tenga capa `domain/`: sus reglas viven en SQL y en `application/` (ADR 0006);
+  - el `!` tras un `INSERT … RETURNING`.
+- **No cambian** las funciones, los datos ni los permisos. Hay dos excepciones:
+  - la cabecera de Equipos gana el foco de respaldo que ya tiene Mantenimiento;
+  - los avisos del escáner de equipos dicen lo mismo en los dos módulos.
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |

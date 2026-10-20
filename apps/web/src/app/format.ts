@@ -13,6 +13,11 @@ export function dayInZone(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
 }
 
+/** Hoy en la zona del espacio, AAAA-MM-DD; `now` en milisegundos. */
+export function todayInZone(timeZone: string, now = Date.now()): string {
+  return dayInZone(new Date(now).toISOString(), timeZone);
+}
+
 /**
  * Versión corta para listas estrechas: «1 oct, 8:23 p. m.»; el año solo si no es el actual. Con `alwaysYear`, siempre
  * lo lleva («1 oct 2026, 8:23 p. m.»): una línea de tiempo que mezcla años no puede dejarlo a la suposición.
@@ -52,19 +57,29 @@ export function formatAgo(timestamp: number, now: number): string {
   return `hace ${Math.round(minutes / 60)} h`;
 }
 
+/** Días civiles de `from` a `to`, ambas AAAA-MM-DD: negativo si `to` es anterior. Sin horas ni zonas. */
+export function daysBetween(from: string, to: string): number {
+  const utc = (value: string) => {
+    const [year, month, day] = value.split('-').map(Number);
+    return Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1);
+  };
+  return Math.round((utc(to) - utc(from)) / 86_400_000);
+}
+
+/** «1 equipo», «3 equipos»: la cuenta con su unidad en singular o plural. */
+export function countText(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 /**
  * Cuánto falta o cuánto pasó desde una fecha civil: «hoy», «mañana», «en 3 meses», «hace 35 días».
  * Ambas fechas son AAAA-MM-DD y se comparan como días civiles, sin horas ni zonas.
  */
 export function relativeDays(isoDate: string, today: string): string {
-  const utc = (value: string) => {
-    const [year, month, day] = value.split('-').map(Number);
-    return Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1);
-  };
-  const diff = Math.round((utc(isoDate) - utc(today)) / 86_400_000);
+  const diff = daysBetween(today, isoDate);
   const span = (days: number) =>
     days < 60
-      ? `${days} ${days === 1 ? 'día' : 'días'}`
+      ? countText(days, 'día', 'días')
       : days < 730
         ? `${Math.round(days / 30)} meses`
         : `${Math.round(days / 365)} años`;

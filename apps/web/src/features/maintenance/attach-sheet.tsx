@@ -3,8 +3,8 @@ import { Paperclip } from 'lucide-react';
 import { useState } from 'react';
 import { FormSheet, type SheetBaseProps } from '../../app/form-sheet';
 import { formatDate } from '../../app/format';
+import { pdfFileError } from '../../app/pdf-file';
 import { CertificateField } from './certificate-field';
-import { certificateFileError } from './certificate-file';
 import { maintenanceErrorMessage, useAttachCertificate } from './commands';
 
 /**
@@ -28,7 +28,7 @@ export function AttachSheet({
       setFileError('Elige el PDF del certificado.');
       return;
     }
-    const problem = certificateFileError(file);
+    const problem = pdfFileError(file);
     if (problem) {
       setFileError(problem);
       return;

@@ -3,13 +3,13 @@ import { Button, Field, Quantity, Segmented, Select, Skeleton, StatePanel, cn } 
 import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, History, Scale } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { CodeTag } from '../../app/code-tag';
-import { formatDate } from '../../app/format';
+import { dayInZone, formatDate } from '../../app/format';
 import { MovementAmount } from '../../app/movement-amount';
 import { QueryErrorState } from '../../app/states';
 import { useReagents } from './context';
 import { serializeMovementFilters, type MovementFilters } from './movement-filters';
 import { MovementFilterBar } from './movement-filter-bar';
-import { activeGroups, currentYearIn, dayKey, groupNames, hourOf, movementsText, periodText, tight, typeSingular } from './movement-text';
+import { activeGroups, currentYearIn, groupNames, hourOf, movementsText, periodText, tight, typeSingular } from './movement-text';
 import { MovementTotals } from './movement-totals';
 import { placeOf, purposeOf } from './operation-text';
 import { canReadReports } from './queries';
@@ -250,7 +250,7 @@ function MovementRow({ operation, to, timeZone }: { operation: Operation; to: st
   const actor = operation.actor.displayName ?? 'Miembro anterior';
   const requestedBy = operation.requestedBy ? `Pidió ${operation.requestedBy.displayName ?? 'un miembro anterior'}` : null;
   const hour = hourOf(operation.effectiveAt, timeZone);
-  const day = formatDate(dayKey(new Date(operation.effectiveAt), timeZone));
+  const day = formatDate(dayInZone(operation.effectiveAt, timeZone));
   return (
     <Link
       to={to}

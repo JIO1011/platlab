@@ -3,13 +3,13 @@ import { Badge, Button, Sheet, Skeleton, StatePanel, Textarea, cn, toast } from 
 import { Archive, CalendarClock, Pencil, Repeat } from 'lucide-react';
 import { useEffect, useRef, useState, type Ref } from 'react';
 import { fieldErrors } from '../../app/commands';
-import { formatDate } from '../../app/format';
+import { formatDate, todayInZone } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
 import { maintenanceErrorMessage, useAddExclusion, useArchiveExclusion, useArchivePlan } from './commands';
 import { ConfirmArchive } from './confirm-archive';
 import { frequencyText, scopeText } from './plan-text';
 import { useMaintenance } from './context';
-import { dueTone, todayInZone, workStatus } from './due';
+import { dueTone, workStatus } from './due';
 import { toneText } from './due-view';
 import { usePlanAssets, usePlans } from './queries';
 import { kindLabels } from './work-text';

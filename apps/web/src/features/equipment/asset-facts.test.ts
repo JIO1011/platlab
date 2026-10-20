@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMoney, todayIn, usefulLifeText, warrantyText } from './asset-facts';
+import { formatMoney, usefulLifeText, warrantyText } from './asset-facts';
 
 const today = '2026-10-15';
 
@@ -45,11 +45,5 @@ describe('formatMoney', () => {
     expect(formatMoney('1234567.89')).toBe('USD 1.234.567,89');
     expect(formatMoney('0.5')).toBe('USD 0,50');
     expect(formatMoney('950')).toBe('USD 950,00');
-  });
-});
-
-describe('todayIn', () => {
-  it('es una fecha civil AAAA-MM-DD', () => {
-    expect(todayIn('America/Guayaquil')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

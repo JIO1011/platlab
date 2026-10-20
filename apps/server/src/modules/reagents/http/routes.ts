@@ -1,4 +1,3 @@
-import { PassThrough } from 'node:stream';
 import type { FastifyPluginAsync } from 'fastify';
 import type pg from 'pg';
 import {
@@ -32,7 +31,7 @@ import {
   weightAdjustmentRequest,
 } from '@platlab/contracts';
 import type { NamedList } from '../../../capabilities/inventory/index.js';
-import { XLSX_TYPE } from '../../../platform/export/xlsx.js';
+import { sendXlsx } from '../../../platform/http/download.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import {
@@ -262,21 +261,10 @@ export function reagentsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFil
       listOperationTotals(pool, queryRequest(request), operationTotalsQuery.parse(request.query)),
     );
 
-    // Excel de Movimientos (ADR 0021), como el del Historial de Mantenimiento: sale por partes mientras se lee. Un
-    // rechazo antes de empezar responde con su error; un fallo a mitad corta la descarga y la transacción se revierte.
+    // Excel de Movimientos (ADR 0021), como el del Historial de Mantenimiento.
     app.get('/operations/export', async (request, reply) => {
       const query = operationExportQuery.parse(request.query);
-      const body = new PassThrough();
-      try {
-        await exportOperations(pool, queryRequest(request), query, (fileName) => {
-          void reply.type(XLSX_TYPE).header('content-disposition', `attachment; filename="${fileName}"`).send(body);
-          return body;
-        });
-      } catch (error) {
-        if (!reply.sent) throw error;
-        body.destroy(error instanceof Error ? error : new Error(String(error)));
-      }
-      return reply;
+      return sendXlsx(reply, (open) => exportOperations(pool, queryRequest(request), query, open));
     });
   };
 }

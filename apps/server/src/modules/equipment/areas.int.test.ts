@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { areaList, areaManager, areaTypeList, assetHistory, assetList, assetTotals, errorResponse, locationList } from '@platlab/contracts';
-import { todayIn } from './application/filters.js';
+import { todayIn } from '../../platform/dates.js';
 import { addLocation, addMember, revokeMembership } from '../../testing/core-fixtures.js';
 import { readZipEntry } from '../../testing/zip.js';
 import {

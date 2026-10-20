@@ -2,6 +2,7 @@ import type { MaintenanceIndicators, MaintenanceSummary } from '@platlab/contrac
 import { Skeleton } from '@platlab/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { BadgeCheck, CalendarClock, CircleAlert, ClipboardCheck, ScanLine, Wrench } from 'lucide-react';
+import { countText } from '../../app/format';
 import { QuickActions, quickActionPrimary, quickActionSecondary } from '../../app/quick-actions';
 import { StatLink } from '../../app/stat-link';
 import { QueryErrorState } from '../../app/states';
@@ -15,8 +16,6 @@ import { ScheduleChart } from './schedule-chart';
 import { SectionHeader } from './section-header';
 import { CostCard, NoPlanNotice, RequirementsCard } from './summary-cards';
 import { UpcomingCard } from './upcoming-card';
-
-const countText = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * Las cuatro cifras, como en Equipos y Reactivos (ADR 0021): el color cuenta un estado y solo si hay algo que

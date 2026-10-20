@@ -42,8 +42,7 @@ import {
   voidRecord as voidRecordQuery,
   type IListRecordsResult,
 } from '../infrastructure/records.queries.js';
-import { workspaceToday } from '../infrastructure/work.queries.js';
-import { RECORD, runCommand, runQuery, runRecordCommand, VOID } from './command.js';
+import { RECORD, runCommand, runQuery, runRecordCommand, VOID, workspaceToday } from './command.js';
 
 /**
  * Registro de lo hecho (ADR 0020): inmutable, con el plan que se elige o, sin plan, con su tipo de trabajo.
@@ -241,7 +240,7 @@ async function registerWork(access: WorkspaceAccess, input: WorkInput, correctio
     if (!provider) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
     if (provider.archived_at) throw new AppError('VALIDATION_FAILED', 'El proveedor está archivado');
   }
-  const [{ today }] = (await workspaceToday.run({ timeZone: access.workspace.timeZone }, access.client)) as [{ today: string }];
+  const today = await workspaceToday(access);
   // Fechas ISO (AAAA-MM-DD): el orden del texto es el del calendario.
   if (input.performedOn > today) throw new AppError('VALIDATION_FAILED', 'La fecha del trabajo no puede ser posterior a hoy');
   if (input.validUntil && !VALIDITY_KINDS.includes(work.kind)) {

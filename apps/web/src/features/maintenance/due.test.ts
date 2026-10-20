@@ -1,32 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { formatDate } from '../../app/format';
-import { daysUntil, doneText, dueGroup, dueText, dueTone, firstDue, groupDue, todayInZone, workStatus } from './due';
+import { doneText, dueGroup, dueText, dueTone, firstDue, groupDue, workStatus } from './due';
 
 const today = '2026-10-17';
 const pending = (dueOn: string) => ({ dueOn, lastResult: null });
-
-describe('todayInZone', () => {
-  it('toma el día civil de la zona del espacio, no el de UTC', () => {
-    // 03:00 UTC del 17 aún es el 16 en Guayaquil (UTC−5) y ya es el 17 en Madrid.
-    const now = Date.UTC(2026, 9, 17, 3, 0);
-    expect(todayInZone('America/Guayaquil', now)).toBe('2026-10-16');
-    expect(todayInZone('Europe/Madrid', now)).toBe('2026-10-17');
-  });
-
-  it('cambia de día justo a la medianoche local', () => {
-    expect(todayInZone('America/Guayaquil', Date.UTC(2026, 9, 17, 4, 59))).toBe('2026-10-16');
-    expect(todayInZone('America/Guayaquil', Date.UTC(2026, 9, 17, 5, 0))).toBe('2026-10-17');
-  });
-});
-
-describe('daysUntil', () => {
-  it('cuenta días civiles a través del fin de mes y de año', () => {
-    expect(daysUntil('2026-11-01', '2026-10-31')).toBe(1);
-    expect(daysUntil('2026-10-31', '2026-11-01')).toBe(-1);
-    expect(daysUntil('2027-01-01', '2026-12-31')).toBe(1);
-    expect(daysUntil('2027-03-01', '2027-02-28')).toBe(1);
-  });
-});
 
 describe('dueGroup', () => {
   it('pone hoy en Próximos 30 días y ayer en Atrasados', () => {

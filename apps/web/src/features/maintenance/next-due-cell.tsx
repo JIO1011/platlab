@@ -1,8 +1,8 @@
 import { Skeleton } from '@platlab/ui';
 import { useParams } from 'react-router';
-import { formatDate } from '../../app/format';
+import { formatDate, todayInZone } from '../../app/format';
 import { useWorkspaceMe } from '../../app/queries';
-import { dueTone, todayInZone, workStatus } from './due';
+import { dueTone, workStatus } from './due';
 import { DuePill } from './due-view';
 import { useNextDue } from './queries';
 import { kindLabels } from './work-text';

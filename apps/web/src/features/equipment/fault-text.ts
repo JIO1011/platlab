@@ -1,5 +1,5 @@
 import type { Fault, FaultCounts, FaultStatus, FaultType } from '@platlab/contracts';
-import { formatDate } from '../../app/format';
+import { countText, formatDate } from '../../app/format';
 
 /** Cómo se llama cada tipo de falla en pantalla (ADR 0019). */
 export const faultTypeLabel: Record<FaultType, string> = {
@@ -64,8 +64,6 @@ export function warrantyNotice({ until, supplier }: NonNullable<Fault['warranty'
   };
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
 /**
  * «hace un momento», «hace 5 min», «hace 3 h», «hace 2 días», «hace 1 mes», «hace 2 años»: cuánto pasó
  * desde un instante. Cada unidad toma el relevo cuando la anterior se redondearía a la siguiente.
@@ -78,11 +76,11 @@ export function faultAgo(iso: string, now: number): string {
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `hace ${hours} h`;
   const days = Math.round(hours / 24);
-  if (days < 30) return `hace ${plural(days, 'día', 'días')}`;
+  if (days < 30) return `hace ${countText(days, 'día', 'días')}`;
   const months = Math.round(days / 30);
-  if (months < 12) return `hace ${plural(months, 'mes', 'meses')}`;
+  if (months < 12) return `hace ${countText(months, 'mes', 'meses')}`;
   const years = Math.round(days / 365);
-  return `hace ${plural(years, 'año', 'años')}`;
+  return `hace ${countText(years, 'año', 'años')}`;
 }
 
 const decimal = new Intl.NumberFormat('es-EC', { maximumFractionDigits: 1 });
@@ -124,7 +122,7 @@ export function faultStepParts(fault: Fault, now: number): { when: string; who: 
 /** Lo que sumaron los equipos fuera de servicio en el período: «31 días · en 4 equipos», «2 h · en 1 equipo» o «Ninguno». */
 export function outOfServiceText({ seconds, assets }: { seconds: number; assets: number }): string {
   if (assets === 0) return 'Ninguno';
-  return `${durationText(seconds)} · en ${plural(assets, 'equipo', 'equipos')}`;
+  return `${durationText(seconds)} · en ${countText(assets, 'equipo', 'equipos')}`;
 }
 
 export interface FaultStep {

@@ -5,9 +5,10 @@ import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { fieldLabel, FilledInput } from '../../../app/filled';
 import { FormSheet, validate, type SheetBaseProps } from '../../../app/form-sheet';
+import { formatFileSize, pdfLimitText } from '../../../app/pdf-file';
 import { PillField } from '../../../app/pills';
 import { equipmentErrorMessage, useUploadAssetDocument } from '../commands';
-import { DOCUMENT_TITLE_MAX, documentFileError, documentLimitText, formatFileSize, titleFromFileName } from '../document-file';
+import { DOCUMENT_TITLE_MAX, documentFileError, titleFromFileName } from '../document-file';
 import { documentKindOptions } from '../document-text';
 
 /**
@@ -80,7 +81,7 @@ export function DocumentSheet({
         control={form.control}
         name="file"
         render={({ field }) => (
-          <Field label="Archivo" labelClassName={fieldLabel} hint={`Solo PDF, hasta ${documentLimitText}.`} error={errors.file?.message}>
+          <Field label="Archivo" labelClassName={fieldLabel} hint={`Solo PDF, hasta ${pdfLimitText}.`} error={errors.file?.message}>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <Button className="h-11 shrink-0" onClick={() => fileRef.current?.click()}>
                 <Upload aria-hidden />

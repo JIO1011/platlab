@@ -1,10 +1,11 @@
 import { Button } from '@platlab/ui';
 import { Gauge, TriangleAlert } from 'lucide-react';
 import { useParams } from 'react-router';
+import { todayInZone } from '../../app/format';
 import { InfoPill } from '../../app/pills';
 import { useWorkspaceMe } from '../../app/queries';
 import { calibrationStatus, calibrationText } from './calibration';
-import { todayInZone, type DueTone } from './due';
+import type { DueTone } from './due';
 import { DueDot } from './due-view';
 import { useAssetMaintenance } from './queries';
 

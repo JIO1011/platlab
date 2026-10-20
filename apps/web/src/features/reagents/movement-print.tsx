@@ -1,6 +1,6 @@
 import { Quantity, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, cn } from '@platlab/ui';
 import { useState } from 'react';
-import { formatDateTime, formatShortDate } from '../../app/format';
+import { dayInZone, formatDateTime, formatShortDate } from '../../app/format';
 import { PrintDialog, printCell, printHead } from '../../app/print-dialog';
 import { PRINT_LIMIT, usePrintRows } from '../../app/print-rows';
 import { QueryErrorState } from '../../app/states';
@@ -8,7 +8,6 @@ import type { ReagentsContext } from './context';
 import { MovementTotals } from './movement-totals';
 import {
   currentYearIn,
-  dayKey,
   filterLines,
   groupNames,
   hourOf,
@@ -119,7 +118,7 @@ export function MovementPrint({
               {rows.map((operation) => (
                 <TableRow key={operation.entryId} className="break-inside-avoid hover:bg-transparent">
                   <TableCell className={cn(printCell, 'whitespace-nowrap')}>
-                    {formatShortDate(dayKey(new Date(operation.effectiveAt), timeZone))} {hourOf(operation.effectiveAt, timeZone)}
+                    {formatShortDate(dayInZone(operation.effectiveAt, timeZone))} {hourOf(operation.effectiveAt, timeZone)}
                   </TableCell>
                   <TableCell className={cn(printCell, 'font-medium')}>{tight(operation.product.name)}</TableCell>
                   <TableCell className={cn(printCell, 'whitespace-nowrap')}>{operation.container?.code ?? operation.lot.code}</TableCell>

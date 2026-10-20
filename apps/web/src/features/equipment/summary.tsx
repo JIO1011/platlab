@@ -3,6 +3,7 @@ import { Skeleton } from '@platlab/ui';
 import { CircleCheck, CircleX, Hourglass, List, Microscope, Plus, ScanLine, ShieldAlert, TriangleAlert, UserX } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { countText } from '../../app/format';
 import { NoticeCard } from '../../app/notice-card';
 import { QuickActions, quickActionPrimary, quickActionSecondary } from '../../app/quick-actions';
 import { StatLink } from '../../app/stat-link';
@@ -137,8 +138,6 @@ export function EquipmentSummaryPage() {
     </>
   );
 }
-
-const countText = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * Los avisos del pie, en tarjeta y con su acción: garantía por vencer, vida útil cumplida y sin responsable. Cada uno

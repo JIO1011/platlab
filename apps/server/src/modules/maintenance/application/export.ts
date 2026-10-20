@@ -1,10 +1,11 @@
 import type { Writable } from 'node:stream';
 import type pg from 'pg';
 import { workKindLabel, workResultLabel, type MaintenanceRecord, type RecordFilters } from '@platlab/contracts';
-import { writeXlsx, type XlsxCell } from '../../../platform/export/xlsx.js';
+import { startReport, type ReportColumn } from '../../../platform/export/report.js';
+import type { XlsxCell } from '../../../platform/export/xlsx.js';
 import { activeLocations, recordAudit, requirePermission, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import { listProviders } from '../infrastructure/providers.queries.js';
-import { findAssets, workspaceToday } from '../infrastructure/work.queries.js';
+import { findAssets } from '../infrastructure/work.queries.js';
 import { REPORT, runQuery } from './command.js';
 import { recordBatches } from './records.js';
 
@@ -32,7 +33,7 @@ function voidText(record: MaintenanceRecord, timeZone: string): string | null {
  * Columnas del Excel del Historial (M-01d): todo lo que el registro guarda, con su ancho en caracteres. «A
  * tiempo» compara la fecha del trabajo con la que tocaba, como Indicadores (M-01c).
  */
-const columns = (timeZone: string): Array<[title: string, width: number, value: (record: MaintenanceRecord) => XlsxCell]> => [
+const columns = (timeZone: string): ReportColumn<MaintenanceRecord>[] => [
   ['Fecha del trabajo', 12, (record) => day(record.performedOn)],
   ['Código', 12, (record) => record.asset.code],
   ['Equipo', 28, (record) => record.asset.name],
@@ -80,8 +81,6 @@ async function filtersText(access: WorkspaceAccess, filters: RecordFilters): Pro
   return parts.length > 0 ? parts.join(' · ') : 'ninguno';
 }
 
-const stamp = (timeZone: string) => dateTime(new Date().toISOString(), timeZone);
-
 /**
  * Excel del Historial (M-01d), del Administrador: lo filtrado, con los anulados y su motivo, el espacio, la fecha, quién lo generó
  * y los filtros en el encabezado. Es un reporte (01 §5) y queda en la auditoría. Abre el destino solo después
@@ -96,27 +95,19 @@ export async function exportRecords(
 ): Promise<void> {
   const sheet = await runQuery(pool, request, async (access) => {
     await requirePermission(access, REPORT);
-    const { timeZone } = access.workspace;
-    const [{ today }] = (await workspaceToday.run({ timeZone }, access.client)) as [{ today: string }];
-    const filterLine = await filtersText(access, filters);
-    const sheetColumns = columns(timeZone);
-    const book = writeXlsx(open(`historial-mantenimiento-${today}.xlsx`), {
+    const book = await startReport(open, {
+      fileName: 'historial-mantenimiento',
       sheetName: 'Historial',
-      widths: sheetColumns.map(([, width]) => width),
+      title: 'Historial de mantenimiento',
+      workspace: access.workspace,
+      author: access.displayName,
+      filters: await filtersText(access, filters),
+      columns: columns(access.workspace.timeZone),
     });
-    await book.row(['Historial de mantenimiento'], { bold: true });
-    await book.row([`Espacio: ${access.workspace.name}`]);
-    await book.row([`Generado el ${stamp(timeZone)} por ${access.displayName}`]);
-    await book.row([`Filtros: ${filterLine}`]);
-    await book.row([]);
-    await book.row(
-      sheetColumns.map(([title]) => title),
-      { bold: true },
-    );
 
     let rows = 0;
     for await (const batch of recordBatches(access, filters, EXPORT_BATCH)) {
-      for (const record of batch) await book.row(sheetColumns.map(([, , value]) => value(record)));
+      for (const record of batch) await book.add(record);
       rows += batch.length;
     }
 
