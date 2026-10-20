@@ -805,6 +805,46 @@ Estado: aceptada (20-10-2026, a pedido del usuario: «cero lógica muerta o dupl
   - la cabecera de Equipos gana el foco de respaldo que ya tiene Mantenimiento;
   - los avisos del escáner de equipos dicen lo mismo en los dos módulos.
 
+## ADR 0023 — Laboratorios: solicitudes y cronograma en un solo módulo
+
+Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de producto). Reemplaza la división M4 Laboratorios + M5 Prácticas y Solicitudes de [01 §3](01_producto.md#3-módulos).
+
+- **Un módulo, «Laboratorios»** (código `labs`, ruta `laboratorios`). Absorbe M4 y M5: para el cliente es un solo trabajo, del pedido del docente al laboratorio listo. El mapa queda en siete módulos; M5 no se reutiliza.
+  - El nombre sirve a universidades y a laboratorios de empresa. «Prácticas» era solo académico y «Agenda» dejaba fuera las solicitudes.
+  - La agenda (franjas, choques y márgenes) es una capacidad con dueño técnico en `labs`, para que Equipos («Reservado») y Mantenimiento (bloqueos, F5) la consulten por su interfaz, sin escribir en ella.
+- **Todo entra por solicitud y el Administrador organiza.**
+  - Nadie reserva directo: cada bloque del cronograma nace de una solicitud. Quien administra también puede llenarla, por ejemplo para una clase.
+  - Sin repetición semanal: cada práctica es una solicitud.
+- **Cuatro secciones:**
+  - **Cronograma** (Administrador y Operador; el Docente ve la tabla completa, sin la bandeja y sin mover nada):
+    - la tabla de horas por áreas de un día, con un calendario para elegir el día y la carga de la semana;
+    - la bandeja «Por programar» al costado (abajo en el móvil), con lo urgente primero: plazo y recursos que faltan;
+    - cada bloque dice «Actividad · Solicitante · Grupo», y el Administrador renombra «Grupo» («Carrera», «Proyecto», «Cliente»);
+    - al arrastrar un bloque se programa y se asigna su responsable (un Operador); con un clic se abre la solicitud. Arrastrar tiene siempre la alternativa «Programar…» (área y hora), en el móvil y con teclado;
+    - mientras se arrastra se valida: choque, horario del área, cierre, aforo y márgenes de preparación y limpieza. El margen se ve como el borde rayado del bloque;
+    - cambiar la hora el mismo día es del Administrador. Cambiar el día pide cambios al docente, con motivo.
+  - **Solicitudes:**
+    - el Docente la llena en tres pasos (Datos → Recursos → Revisar) o duplica una anterior, y sigue su estado en «Mis solicitudes»;
+    - el Administrador la revisa en su bandeja, con lo excepcional primero, y la rechaza o pide cambios con motivo. Programarla es aprobarla;
+    - los estados son los de [01 §6.2](01_producto.md#62-solicitud-y-práctica).
+  - **Formatos** (Administrador): un núcleo fijo y campos libres.
+    - El núcleo: encabezado y datos de la actividad, fecha y franja pedidas, participantes y tres columnas de recursos (equipos por tipo, materiales y reactivos) vinculadas a los inventarios. Validan ✔ ⚠ ✖ sin reservar nada.
+    - Los campos libres: el Administrador los agrega, quita y ordena; los tipos son texto, número, fecha, lista y sí/no, y cada uno puede ser obligatorio. Sin lógica condicional.
+    - Cada solicitud guarda la versión del formato con que se llenó.
+    - Los materiales quedan «no verificados» hasta Materiales (M6).
+  - **Espacios** (Administrador):
+    - las áreas del Core ([03](03_datos.md), `core.location_areas`), sin duplicarlas, con aforo, horario semanal, cierres y márgenes;
+    - el plazo de anticipación, 7 días por defecto. Lo que llega tarde no se bloquea: entra marcado «fuera de plazo» y el Administrador decide.
+- **Lista blanca:** es invitar con el rol Docente. Las invitaciones reales dependen de T-03B, y por CSV y con Google o Microsoft llegan en F3. La demo usa las cuentas sembradas.
+- **Entregas** ([04](04_roadmap.md), L-01):
+  - **L-01a:** Espacios y Formatos.
+  - **L-01b:** Solicitudes, con los recursos validados y la bandeja.
+  - **L-01c:** Cronograma.
+  - **L-01d:** reserva real. Al programar se apartan el stock y los equipos concretos en una sola transacción, y el docente puede aceptar las propuestas de cambio ([ADR 0007](#adr-0007)).
+  - **L-01e:** preparación y cierre. El consumo real y la devolución mueven el inventario de Reactivos, como operaciones distintas de reservar ([03](03_datos.md)); también la impresión.
+  - L-01a a L-01c son el mínimo que se muestra al cliente. Después viene su G0.
+- **Se valida con el cliente** antes de cerrar cada regla (Pendientes, «Reglas de Laboratorios»): lo dudoso no se programa.
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |
@@ -815,7 +855,8 @@ Estado: aceptada (20-10-2026, a pedido del usuario: «cero lógica muerta o dupl
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Equipos | ¿Qué campos de la ficha y qué documentos considera necesarios el cliente? ¿Qué valores de alimentación usa? ¿Quiere un aviso al pesar en Reactivos con una balanza de calibración vencida? ([ADR 0019](#adr-0019)) | F0, antes de E-01 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
-| Reglas de Prácticas | Anticipación, cancelaciones, salas exclusivas, devoluciones químicas y quién declara el consumo al cerrar | P-04, antes de F3 |
+| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿Se agenda por área o por sala dentro del área? ¿El Estudiante (tesista) también solicita desde el inicio? ¿Horario y cierres por laboratorio, y feriados comunes? ¿Márgenes de preparación y limpieza fijos por laboratorio? ¿Bastan 7 días de anticipación? ¿Cancelaciones con qué plazo? ¿El responsable del bloque es siempre un técnico (Operador)? ¿Salas exclusivas? ¿Devoluciones químicas y quién declara el consumo al cerrar? | P-04, antes de L-01a (lo del cierre, antes de L-01e) |
+| Inicio | Propuesta del 20-10-2026 en espera: el usuario tiene otras ideas. «Por atender» de todos los módulos (rojo antes que ámbar, con su enlace filtrado), tres tarjetas por fila con gráfico solo si hay datos (Equipos hoy dice siempre «Sin cambios»), «Por atender» primero en el móvil y avisos declarados por cada módulo en su `module.tsx` | Al terminar los módulos, con las ideas del usuario |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
 | Datos de Mantenimiento | ¿Qué datos del proveedor necesita el cliente (acreditación, identificación tributaria)? ¿Las tareas de la lista necesitan «No aplica» o una explicación cuando no se hacen? ¿Se identifica al técnico interno que hizo el trabajo? ¿Su sistema de calidad exige que una segunda persona revise las calibraciones? M-01a guarda nombre y contacto del proveedor, casillas simples y quién registró, y el registro es inmutable ([ADR 0020](#adr-0020)) | F0, con el cliente |

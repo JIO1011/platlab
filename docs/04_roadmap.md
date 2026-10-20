@@ -12,8 +12,8 @@ Contexto confirmado: hay un laboratorio interesado en los ocho módulos. Acepta 
 | F1a + R-00 | Core mínimo y primer recorrido de Reactivos | Ver su flujo de reactivos funcionando con datos de prueba | Modelo y un caso sintético |
 | F1b | Operación del SaaS: alta real, consola, cuotas, recuperación y salida | Plataforma lista para recibir sus datos con garantías | F1a; en paralelo con F2 |
 | F2 | Reactivos y Equipos utilizables por separado y juntos | Inventario real conciliado y reporte de fiscalizados revisable | Las partes de F1a/F1b que use cada entrega |
-| F3 | Laboratorios, agenda, docentes, estudiantes y Prácticas | Una práctica completa: solicitud, preparación, consumo y devolución | Core y agenda; integra los inventarios publicados |
-| F4 | Materiales, préstamos y transferencias ampliadas | Material y préstamos controlados de punta a punta | Core; Prácticas solo para integrarse |
+| F3 | Laboratorios: solicitudes y cronograma ([ADR 0023](05_decisiones.md#adr-0023)) | Una práctica completa: solicitud, programación, preparación, consumo y devolución | Core; integra los inventarios publicados |
+| F4 | Materiales, préstamos y transferencias ampliadas | Material y préstamos controlados de punta a punta | Core; Laboratorios solo para integrarse |
 | F5 | Mantenimiento, indicadores y alertas avanzadas | Equipos con mantenimiento al día y alertas preventivas | Equipos para M7; datos operativos suficientes para M8 |
 
 - R-00 es el primer tramo de Reactivos, no un módulo aparte.
@@ -32,7 +32,7 @@ G0 y G2 se aplican a cada módulo y fijan su etapa ([02 §6](02_arquitectura.md#
 | G2 del módulo — venta abierta | Etapa `general`: venderlo en paquetes publicados | G1 del módulo en al menos un cliente, incorporación repetible, soporte documentado, capacidad y costos medidos |
 
 - **G2 de la oferta inicial** (Reactivos, Equipos y ambos) exige además las tres combinaciones validadas y la transferencia de propiedad en la interfaz.
-- **Módulos posteriores (M4–M8):** cada uno define sus criterios de G0 y G2 al iniciar su fase.
+- **Módulos posteriores (M4, M6 y M8):** cada uno define sus criterios de G0 y G2 al iniciar su fase.
 
 Los dos pasos de G1:
 
@@ -93,14 +93,13 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 - Mantenimiento (M-01, después de E-01): planes preventivos y calibraciones, registros con informe y costo, correctivo enlazado al incidente y aviso de reemplazo.
 - Común: Inicio por paquete, búsqueda, marca, exportación y desactivación con pendientes.
 
-**F3.**
+**F3.** Laboratorios ([ADR 0023](05_decisiones.md#adr-0023)): solicitudes y agenda en un solo módulo.
 
-- Laboratorios y agenda.
-- Plantillas y actividades de docencia e investigación.
-- Invitaciones por CSV y OAuth de Google y Microsoft.
-- Solicitud desde plantilla, revisión del Administrador, aprobación condicionada y reubicación.
-- Confirmación en lote, con un resultado por solicitud.
-- Preparación, cierre y cancelación; tablero del Operador.
+- Espacios sobre las áreas del Core (aforo, horario, cierres, márgenes y anticipación) y formatos de solicitud con campos libres.
+- Solicitudes del Docente con recursos vinculados a los inventarios; bandeja del Administrador con lo excepcional primero.
+- Cronograma de horas por áreas: programar arrastrando o con «Programar…», con responsable y sin choques.
+- Reserva real al programar y propuestas de cambio; preparación, cierre con consumo y devolución, y cancelación.
+- Invitaciones por CSV y OAuth de Google y Microsoft (la lista blanca de docentes).
 - Materiales mínimo, si P-04 lo exige.
 - Impresión HTML con la marca del espacio.
 
@@ -171,6 +170,7 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | E-01 | Equipos e incidencias ([ADR 0019](05_decisiones.md#adr-0019)) | Resumen, Inventario por áreas con encargado, Informe exportable e Incidentes (fallas); tipos de equipo, activos con foto, condición y conservación, disponibilidad calculada, traslados, QR, documentos públicos, hoja de vida e historial; `incidents` separado de Core | T-04, T-05, P-02 |
 | M-01 | Mantenimiento ([ADR 0019](05_decisiones.md#adr-0019), [ADR 0020](05_decisiones.md#adr-0020); M-01a a M-01d) | Módulo propio: planes preventivos y calibraciones con próxima fecha y semáforo, registros firmados e inmutables (corrección por anulación), correctivo enlazado al incidente, Indicadores con cumplimiento por requisito y aviso de reemplazo; línea de tiempo y estado de calibración en la ficha y el QR de Equipos (ISO/IEC 17025 6.4) | E-01 |
 | U-01 | Mejoras de UX de Reactivos y Equipos (revisión del 17-10-2026) | «Ver todos los movimientos» filtrado por el reactivo; búsqueda y filtros conservados al volver de una ficha; cabecera de la ficha de Equipos más corta con «Reportar incidente» visible | M-01a |
+| L-01 | Laboratorios ([ADR 0023](05_decisiones.md#adr-0023); L-01a a L-01e) | L-01a Espacios y Formatos; L-01b Solicitudes con recursos validados y bandeja; L-01c Cronograma con arrastre, responsable y validación en vivo; L-01d reserva real y propuestas; L-01e preparación, cierre con consumo y devolución, e impresión. L-01a a L-01c son el mínimo para mostrar al cliente | T-04, T-05; reglas de P-04 |
 | I-01 | Importación conciliada | Lotes reiniciables e idempotentes por módulo | Q-01 y R-01A o E-01 |
 | X-00 | Salida del primer módulo | Exportación, documentos, supresión y otros espacios intactos, incluidos los datos regulatorios | DP-01, T-07, R-01A o E-01; REG-02 para este cliente |
 | T-06 | Recuperación del alcance piloto | Base, archivos y configuración recuperados; supresiones respetadas | S-01, T-07, DP-01, R-01A o E-01; REG-02 para este cliente |
@@ -179,7 +179,7 @@ Para el laboratorio interesado, REG-01 y REG-02 forman parte de G1. Cada módulo
 | O-02 | Transferencia de propiedad en la interfaz | Aceptación, concurrencia y revocación probadas | T-03B, O-01 |
 | X-01 | Salida de toda la oferta | Reactivos, Equipos y combinado, con archivos | X-00, R-01B, E-01 |
 | V-01 | G2 de la oferta inicial | Combinaciones, importación, incorporación, soporte, carga, costos y salida completos; Reactivos y Equipos pasan a etapa `general` | V-P01, R-01B, E-01, I-01, X-01, O-02 |
-| V-Mx | G0 y G2 de cada módulo posterior (M4–M8) | Criterios propios, definidos al iniciar su fase | Su fase; el G1 de su alcance para G2 |
+| V-Mx | G0 y G2 de cada módulo posterior (M4, M6 y M8; M7 avanzado) | Criterios propios, definidos al iniciar su fase | Su fase; el G1 de su alcance para G2 |
 
 - Reactivos queda concluido para el piloto con R-00, R-01A, R-01C, R-01D y la ficha en PDF de R-01B. El resto de R-01B, REG-02 y lo previo a G1 se programan solo si el cliente los confirma; sigue E-01 ([ADR 0018](05_decisiones.md#adr-0018)).
 - T-01 puede empezar mientras se recogen muestras.
