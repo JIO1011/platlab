@@ -2,11 +2,11 @@ import type { OperationGroupBy, OperationTotals } from '@platlab/contracts';
 import { Quantity, Skeleton, StatePanel, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, cn } from '@platlab/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { ChevronRight, Sigma } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { QueryErrorState } from '../../app/states';
 import { serializeMovementFilters, type MovementFilters } from './movement-filters';
-import { countFormat, monthBounds, monthHeading, movementsText, noName, tight } from './movement-text';
+import { countFormat, groupNames, monthBounds, monthHeading, movementsText, noName, tight } from './movement-text';
 
 type Group = OperationTotals['groups'][number];
 type Row = Group['rows'][number];
@@ -56,9 +56,9 @@ function Amount({ value, unit, signed = true }: { value: string | null; unit: st
 }
 
 /**
- * Totales del libro filtrado (R-01C, ADR 0014): una fila por reactivo y unidad, agrupadas por reactivo,
- * responsable, destino o mes. Cada fila abre Detalle con esos filtros. Tabla desde 42 rem de ancho de
- * la lista; por debajo, cada fila es una tarjeta apilada.
+ * Totales del libro filtrado (R-01C, ADR 0014 y 0021): una fila por reactivo y unidad, agrupadas por reactivo,
+ * responsable, destino o mes. Cada fila abre Detalle con esos filtros. Una sola tarjeta como la del Detalle: tabla
+ * desde 42 rem de ancho de la lista, con los grupos como filas de grupo; por debajo, cada fila se apila.
  */
 export function MovementTotals({
   totals,
@@ -90,8 +90,8 @@ export function MovementTotals({
   }
   const columns = shownColumns(filters);
   // En papel, la tabla es más densa: más filas por hoja.
-  const dense = print ? 'h-8 px-2' : '';
-  const cell = print ? 'px-2 py-1.5' : '';
+  const dense = print ? 'h-8 px-2' : 'h-auto px-5 py-2.5 text-[13px] font-medium normal-case tracking-normal';
+  const cell = print ? 'px-2 py-1.5' : 'px-5 py-3';
   const hrefOf = (group: Group, row: Row) => {
     if (print) return null;
     const next = detailFilters(filters, groupBy, group, row);
@@ -102,101 +102,150 @@ export function MovementTotals({
     groupBy === 'product'
       ? [{ key: 'todos', heading: null, count: 0, group: { key: null, label: null, count: 0, rows: groups.flatMap((group) => group.rows) } }]
       : groups.map((group, index) => ({ key: `${group.key ?? 'sin'}-${index}`, heading: groupName(groupBy, group), count: group.count, group }));
+  const caption = `Totales por ${groupNames[groupBy].toLowerCase()}`;
+  const columnCount = 2 + [columns.receipts, columns.issues, columns.adjustments, columns.net, columns.transfers].filter(Boolean).length;
+
+  const head = (
+    <TableHead>
+      <TableRow className="hover:bg-transparent">
+        <TableHeader className={dense}>Reactivo</TableHeader>
+        {columns.receipts ? <TableHeader numeric className={dense}>Ingresos</TableHeader> : null}
+        {columns.issues ? <TableHeader numeric className={dense}>Salidas</TableHeader> : null}
+        {columns.adjustments ? <TableHeader numeric className={dense}>Ajustes</TableHeader> : null}
+        {columns.net ? <TableHeader numeric className={dense}>Neto</TableHeader> : null}
+        {columns.transfers ? <TableHeader numeric className={dense}>Traslados</TableHeader> : null}
+        <TableHeader numeric className={dense}>Movimientos</TableHeader>
+      </TableRow>
+    </TableHead>
+  );
+  const tableRows = (group: Group) =>
+    group.rows.map((row) => {
+      const href = hrefOf(group, row);
+      return (
+        <TableRow
+          key={`${row.product.id}-${row.unit}`}
+          className={cn('group relative', print ? 'break-inside-avoid' : 'h-[4.5rem]', href ? 'hover:bg-surface-sunken/60' : !print && 'hover:bg-transparent')}
+        >
+          <TableCell className={cell}>
+            <ProductName row={row} href={href} stretched />
+          </TableCell>
+          {columns.receipts ? <TableCell numeric className={cell}><Amount value={row.receipts} unit={row.unit} /></TableCell> : null}
+          {columns.issues ? <TableCell numeric className={cell}><Amount value={row.issues} unit={row.unit} /></TableCell> : null}
+          {columns.adjustments ? <TableCell numeric className={cell}><Amount value={row.adjustments} unit={row.unit} /></TableCell> : null}
+          {columns.net ? <TableCell numeric className={cn(cell, 'font-semibold')}><Amount value={row.net} unit={row.unit} /></TableCell> : null}
+          {columns.transfers ? <TableCell numeric className={cell}><Count value={row.transfers} /></TableCell> : null}
+          <TableCell numeric className={cell}>
+            <span className="inline-flex items-center justify-end gap-2">
+              {countFormat.format(row.count)}
+              {/* El chevron dice que la fila abre Detalle; sin enlace, un hueco mantiene la columna alineada. */}
+              {print ? null : href ? <ChevronRight className="size-4 shrink-0 text-ink-muted" aria-hidden /> : <span className="size-4 shrink-0" aria-hidden />}
+            </span>
+          </TableCell>
+        </TableRow>
+      );
+    });
+
+  if (print) {
+    return (
+      <div className="grid gap-6">
+        {sections.map((section) => (
+          <section key={section.key} aria-label={section.heading ?? caption}>
+            {section.heading ? (
+              <h2 className="mb-2 flex items-baseline gap-2 px-1 py-1 text-sm">
+                <span className="font-bold text-ink">{section.heading}</span>
+                <span className="ml-auto text-[13px] font-normal tabular-nums text-ink-muted">{movementsText(section.count)}</span>
+              </h2>
+            ) : null}
+            <Table>
+              <caption className="sr-only">{section.heading ?? caption}</caption>
+              {head}
+              <TableBody>{tableRows(section.group)}</TableBody>
+            </Table>
+          </section>
+        ))}
+      </div>
+    );
+  }
   return (
-    <div className="grid gap-6">
-      {sections.map((section) => (
-        <section key={section.key} aria-label={section.heading ?? 'Totales por reactivo'} className="@container">
-          {section.heading ? (
-            <h2 className="mb-2 flex items-baseline gap-2 px-1 py-1 text-sm">
-              <span className="font-bold text-ink">{section.heading}</span>
-              <span className="ml-auto text-[13px] font-normal tabular-nums text-ink-muted">{movementsText(section.count)}</span>
-            </h2>
-          ) : null}
-          <div className={cn(!print && 'overflow-hidden rounded-card bg-surface shadow-raised')}>
-            <div className={print ? undefined : 'hidden @2xl:block'}>
-              <Table>
-                <caption className="sr-only">{section.heading ?? 'Totales por reactivo'}</caption>
-                <TableHead>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHeader className={dense}>Reactivo</TableHeader>
-                    {columns.receipts ? <TableHeader numeric className={dense}>Ingresos</TableHeader> : null}
-                    {columns.issues ? <TableHeader numeric className={dense}>Salidas</TableHeader> : null}
-                    {columns.adjustments ? <TableHeader numeric className={dense}>Ajustes</TableHeader> : null}
-                    {columns.net ? <TableHeader numeric className={dense}>Neto</TableHeader> : null}
-                    {columns.transfers ? <TableHeader numeric className={dense}>Traslados</TableHeader> : null}
-                    <TableHeader numeric className={dense}>Movimientos</TableHeader>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {section.group.rows.map((row) => {
-                    const href = hrefOf(section.group, row);
-                    return (
-                      <TableRow key={`${row.product.id}-${row.unit}`} className={cn('group relative', print && 'break-inside-avoid', href && 'hover:bg-surface-sunken/60')}>
-                        <TableCell className={cell}>
-                          <ProductName row={row} href={href} stretched />
-                        </TableCell>
-                        {columns.receipts ? <TableCell numeric className={cell}><Amount value={row.receipts} unit={row.unit} /></TableCell> : null}
-                        {columns.issues ? <TableCell numeric className={cell}><Amount value={row.issues} unit={row.unit} /></TableCell> : null}
-                        {columns.adjustments ? <TableCell numeric className={cell}><Amount value={row.adjustments} unit={row.unit} /></TableCell> : null}
-                        {columns.net ? <TableCell numeric className={cn(cell, 'font-semibold')}><Amount value={row.net} unit={row.unit} /></TableCell> : null}
-                        {columns.transfers ? <TableCell numeric className={cell}><Count value={row.transfers} /></TableCell> : null}
-                        <TableCell numeric className={cell}>
-                          <span className="inline-flex items-center justify-end gap-2">
-                            {countFormat.format(row.count)}
-                            {/* El chevron dice que la fila abre Detalle; sin enlace, un hueco mantiene la columna alineada. */}
-                            {print ? null : href ? <ChevronRight className="size-4 shrink-0 text-ink-muted" aria-hidden /> : <span className="size-4 shrink-0" aria-hidden />}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-            <ul className={cn('divide-y divide-line @2xl:hidden', print && 'hidden')}>
-              {section.group.rows.map((row) => {
-                const href = hrefOf(section.group, row);
-                const cells: Array<[string, ReactNode]> = [];
-                if (columns.receipts) cells.push(['Ingresos', <Amount key="r" value={row.receipts} unit={row.unit} />]);
-                if (columns.issues) cells.push(['Salidas', <Amount key="i" value={row.issues} unit={row.unit} />]);
-                if (columns.adjustments) cells.push(['Ajustes', <Amount key="a" value={row.adjustments} unit={row.unit} />]);
-                if (columns.net) cells.push(['Neto', <Amount key="n" value={row.net} unit={row.unit} />]);
-                if (columns.transfers) cells.push(['Traslados', <Count key="t" value={row.transfers} />]);
-                cells.push(['Movimientos', countFormat.format(row.count)]);
-                const content = (
-                  <>
-                    <p className="flex items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate font-bold text-ink">{tight(row.product.name)}</span>
-                      {href ? <ChevronRight className="size-4 shrink-0 text-ink-muted" aria-hidden /> : null}
-                    </p>
-                    <p className="text-[13px] text-ink-muted">{row.product.code}</p>
-                    <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-                      {cells.map(([label, value]) => (
-                        <div key={label} className="flex items-baseline justify-between gap-2">
-                          <dt className="text-[13px] text-ink-muted">{label}</dt>
-                          <dd className={cn('text-right tabular-nums text-ink', label === 'Neto' && 'font-semibold')}>{value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </>
-                );
-                return (
-                  <li key={`${row.product.id}-${row.unit}`}>
-                    {href ? (
-                      <Link to={href} className="block px-4 py-3.5 transition-colors hover:bg-surface-sunken/60 focus-visible:-outline-offset-2">
-                        {content}
-                        <span className="sr-only">Ver movimientos en Detalle</span>
-                      </Link>
-                    ) : (
-                      <div className="px-4 py-3.5">{content}</div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </section>
-      ))}
+    <div className="@container grid gap-4">
+      <div className="overflow-hidden rounded-card bg-surface shadow-raised">
+        <div className="hidden @2xl:block">
+          <Table>
+            <caption className="sr-only">{caption}</caption>
+            {head}
+            <TableBody>
+              {sections.map((section) => (
+                <Fragment key={section.key}>
+                  {section.heading ? (
+                    <TableRow className="bg-surface-sunken/40 hover:bg-surface-sunken/40">
+                      <th scope="colgroup" colSpan={columnCount} className="px-5 py-2.5 text-left text-sm font-normal">
+                        <h2 className="flex items-baseline gap-2">
+                          <span className="font-bold text-ink">{section.heading}</span>
+                          <span className="ml-auto text-[13px] font-normal tabular-nums text-ink-muted">{movementsText(section.count)}</span>
+                        </h2>
+                      </th>
+                    </TableRow>
+                  ) : null}
+                  {tableRows(section.group)}
+                </Fragment>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="divide-y divide-line @2xl:hidden">
+          {sections.map((section) => (
+            <section key={section.key} aria-label={section.heading ?? caption} className="divide-y divide-line">
+              {section.heading ? (
+                <h2 className="flex items-baseline gap-2 bg-surface-sunken/40 px-4 py-2.5 text-sm sm:px-5">
+                  <span className="font-bold text-ink">{section.heading}</span>
+                  <span className="ml-auto text-[13px] font-normal tabular-nums text-ink-muted">{movementsText(section.count)}</span>
+                </h2>
+              ) : null}
+              <ul className="divide-y divide-line">
+                {section.group.rows.map((row) => {
+                  const href = hrefOf(section.group, row);
+                  const cells: Array<[string, ReactNode]> = [];
+                  if (columns.receipts) cells.push(['Ingresos', <Amount key="r" value={row.receipts} unit={row.unit} />]);
+                  if (columns.issues) cells.push(['Salidas', <Amount key="i" value={row.issues} unit={row.unit} />]);
+                  if (columns.adjustments) cells.push(['Ajustes', <Amount key="a" value={row.adjustments} unit={row.unit} />]);
+                  if (columns.net) cells.push(['Neto', <Amount key="n" value={row.net} unit={row.unit} />]);
+                  if (columns.transfers) cells.push(['Traslados', <Count key="t" value={row.transfers} />]);
+                  cells.push(['Movimientos', countFormat.format(row.count)]);
+                  const content = (
+                    <>
+                      <p className="flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate font-semibold text-ink">{tight(row.product.name)}</span>
+                        {href ? <ChevronRight className="size-4 shrink-0 text-ink-muted" aria-hidden /> : null}
+                      </p>
+                      <p className="text-[13px] text-ink-muted">{row.product.code}</p>
+                      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                        {cells.map(([label, value]) => (
+                          <div key={label} className="flex items-baseline justify-between gap-2">
+                            <dt className="text-[13px] text-ink-muted">{label}</dt>
+                            <dd className={cn('text-right tabular-nums text-ink', label === 'Neto' && 'font-semibold')}>{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </>
+                  );
+                  return (
+                    <li key={`${row.product.id}-${row.unit}`}>
+                      {href ? (
+                        <Link to={href} className="block px-4 py-3 transition-colors hover:bg-surface-sunken/60 focus-visible:-outline-offset-2 sm:px-5">
+                          {content}
+                          <span className="sr-only">Ver movimientos en Detalle</span>
+                        </Link>
+                      ) : (
+                        <div className="px-4 py-3 sm:px-5">{content}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </div>
       {truncated ? <p className="text-center text-[13px] text-ink-muted">Se muestran los primeros 1000 grupos; acota el periodo.</p> : null}
     </div>
   );

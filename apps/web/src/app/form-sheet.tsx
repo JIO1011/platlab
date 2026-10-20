@@ -41,10 +41,9 @@ export function FormSheet({
   sections = false,
   flush = false,
   wide = false,
-  fullWidthSubmit = false,
   submitIcon: SubmitIcon,
-  submitDisabled = false,
   submitLead,
+  required = false,
   status,
   initialFocus,
   focusFirst = false,
@@ -70,14 +69,12 @@ export function FormSheet({
   flush?: boolean;
   /** Ventana ancha (hasta 40 rem); `xl`, de dos columnas desde 1024 px (hasta 64 rem). */
   wide?: boolean | 'xl';
-  /** El botón principal ocupa todo el ancho del pie y «Cancelar» sale (la cabecera cierra la hoja). */
-  fullWidthSubmit?: boolean;
-  /** Icono antes del texto del botón principal (con `fullWidthSubmit`). */
+  /** Icono antes del texto del botón principal. */
   submitIcon?: LucideIcon;
-  /** Falta algo para poder enviar (p. ej., la cantidad): el botón queda pálido y deshabilitado. */
-  submitDisabled?: boolean;
-  /** Control unido al botón principal, a su izquierda y de su misma altura (con `fullWidthSubmit`): el número de frascos. */
+  /** Control unido al botón principal, a su izquierda y de su misma altura: el número de frascos. */
   submitLead?: ReactNode;
+  /** El formulario mezcla campos obligatorios y opcionales: abre el cuerpo con «* Campos obligatorios». */
+  required?: boolean;
   /** Lo que falta o «Listo», en una línea sobre el botón principal. */
   status?: ReactNode;
   initialFocus?: RefObject<HTMLElement | null>;
@@ -144,24 +141,20 @@ export function FormSheet({
             </p>
           ) : null}
           <div className="flex items-center gap-3">
-            {fullWidthSubmit ? null : (
-              <Button variant="ghost" className="h-12 shrink-0 rounded-2xl px-5" onClick={() => requestOpenChange(false)}>
-                Cancelar
-              </Button>
-            )}
-            {fullWidthSubmit ? submitLead : null}
+            <Button variant="ghost" className="h-12 shrink-0 rounded-2xl px-5" onClick={() => requestOpenChange(false)}>
+              Cancelar
+            </Button>
+            {submitLead}
             <Button
               type="submit"
               form={formId}
               variant="primary"
               loading={pending}
-              disabled={submitDisabled}
               className={cn(
-                'w-full flex-1 rounded-2xl text-base font-bold',
+                'h-12 w-full flex-1 rounded-2xl text-base font-bold',
                 destructive
                   ? 'border-transparent bg-danger text-white hover:bg-danger/90'
-                  : 'bg-linear-to-r from-action to-action-deep shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep disabled:shadow-none',
-                fullWidthSubmit ? 'h-14 [&_svg]:size-5' : 'h-12',
+                  : 'bg-linear-to-r from-action to-action-deep shadow-lg shadow-action/25 hover:from-action-hover hover:to-action-deep',
               )}
             >
               {SubmitIcon ? <SubmitIcon aria-hidden /> : null}
@@ -194,6 +187,10 @@ export function FormSheet({
         <p role="status" className="sr-only">
           {pending ? pendingText : (announcement ?? '')}
         </p>
+        {required ? (
+          // En bandas, una franja corta: sin el relleno de una banda de contenido.
+          <p className={cn('text-[13px] text-ink-muted', flush && 'px-6 pt-5', sections && 'py-3!')}>* Campos obligatorios</p>
+        ) : null}
         {generalError ? (
           <div className={cn(flush && 'px-6 pt-5')}>
             <p role="alert" className="rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger">

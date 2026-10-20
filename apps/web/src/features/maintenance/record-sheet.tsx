@@ -201,6 +201,8 @@ export function RecordSheet({
       return;
     }
     const values = form.getValues();
+    // Mientras llegan los datos del equipo elegido aún no hay qué validar: el esqueleto ya lo dice.
+    if (chosenId !== '' && work.asset.isPending) return;
     form.clearErrors();
     setPlanError(null);
     setFileError(null);
@@ -267,13 +269,12 @@ export function RecordSheet({
         }
         open={open}
         onOpenChange={onOpenChange}
-        submitLabel={saved ? 'Listo' : correcting ? 'Guardar corrección' : 'Guardar'}
+        submitLabel={saved ? 'Listo' : correcting ? 'Guardar corrección' : 'Registrar mantenimiento'}
         pending={work.pending}
         generalError={saved ? null : generalError}
         onSubmit={submit}
-        submitDisabled={!saved && chosenId !== '' && asset.isPending}
+        required={!saved}
         dirty={work.dirty && !saved}
-        fullWidthSubmit
         fullscreenMobile
         focusFirst={wideScreen}
         pendingText={
@@ -287,9 +288,6 @@ export function RecordSheet({
           <RecordSaved work={work} />
         ) : (
           <>
-            <p aria-hidden className="-mb-2 text-[13px] text-ink-muted">
-              * obligatorio
-            </p>
             <section aria-label="Equipo y trabajo" className="grid gap-4">
               {chosenId === '' ? (
                 <AssetPicker workspaceId={workspaceId} open={open} startScanning={scan} error={errors.assetId?.message} onChoose={resetAsset} />

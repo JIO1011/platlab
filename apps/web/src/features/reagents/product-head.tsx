@@ -10,7 +10,7 @@ import { physicalStateIcon, physicalStateLabel } from './product-parts';
 import { SdsReference } from './sds';
 import { glassCard, iconAction, primaryAction } from '../../app/glass';
 import { RefreshButton } from '../../app/refresh-button';
-import { RowLabel, SummaryCard } from '../../app/summary-card';
+import { RowLabel } from '../../app/summary-card';
 
 /** El id de «Etiquetas QR»: la ficha le devuelve el foco al cerrar el modo. */
 export const labelsButtonId = 'etiquetas-qr';
@@ -136,16 +136,17 @@ export type ExpiryDates = {
   oldestExpired: string | null;
 };
 
-const valueClass = 'text-[18px] font-bold leading-tight tracking-tight';
-const detailClass = 'text-[11px] leading-snug text-ink-muted max-sm:hidden';
+const valueClass = 'text-lg font-bold leading-tight tracking-tight';
+const detailClass = 'text-[11px] leading-snug text-ink-muted [overflow-wrap:anywhere]';
+const cellClass = 'grid min-w-0 content-start gap-1.5 px-3 py-4 sm:px-6';
 
 /**
- * Resumen de la ficha (ADR 0010, «Ventanas como ReactiLab»; ADR 0015): tres tarjetas pequeñas y separadas,
- * Existencia, Mínimo y Caducidad, en una columna de 11 rem desde `xl`, una sobre otra; por debajo,
- * como franja de tres columnas bajo la cabecera, y en el móvil sin la línea de detalle (quedan el valor,
- * el estado y el enlace del mínimo). La existencia lleva la barra de nivel (el saldo frente a lo inicial
- * de los frascos con saldo, solo cuando todos ya se conocen); la caducidad dice su estado con texto y
- * color, y la próxima fecha exacta cuando la ficha conoce todos los frascos.
+ * Resumen de la ficha (ADR 0010, «Ventanas como ReactiLab»; ADR 0021): una sola tarjeta a todo el ancho bajo la
+ * cabecera, con tres celdas en fila en todos los anchos (Existencia, Mínimo y Caducidad) separadas por divisores
+ * verticales. A 390 px los valores siguen en `text-lg` y los textos secundarios se parten en varias líneas.
+ * La existencia lleva la barra de nivel (el saldo frente a lo inicial de los frascos con saldo, solo cuando
+ * todos ya se conocen); la caducidad dice su estado con texto y color, y la próxima fecha exacta cuando la
+ * ficha conoce todos los frascos.
  */
 export function ProductSummary({
   product,
@@ -174,8 +175,8 @@ export function ProductSummary({
       ? `Venció: ${formatDate(expiry.oldestExpired)}`
       : null;
   return (
-    <dl className="grid grid-cols-3 gap-2 xl:grid-cols-1">
-      <SummaryCard>
+    <dl className="grid grid-cols-3 divide-x divide-line rounded-card bg-surface shadow-raised">
+      <div className={cellClass}>
         <RowLabel icon={Package}>Existencia</RowLabel>
         <dd>
           <Quantity
@@ -195,9 +196,9 @@ export function ProductSummary({
             ? 'Sin existencias'
             : `${product.containersWithStock === 1 ? '1 frasco' : `${product.containersWithStock} frascos`}${stockPercent !== null ? ` · ${stockPercent} %` : ''}`}
         </dd>
-      </SummaryCard>
+      </div>
       {/* Mínimo para todo el espacio (ADR 0012, 05-10-2026): lo fija quien administra el catálogo. */}
-      <SummaryCard>
+      <div className={cellClass}>
         <RowLabel icon={TrendingDown} tone={product.belowMinimum ? 'warning' : 'soft'}>
           Mínimo
         </RowLabel>
@@ -224,9 +225,9 @@ export function ProductSummary({
             ) : null}
           </dd>
         ) : null}
-      </SummaryCard>
+      </div>
       {/* Solo afirma lo que se cuenta: un frasco sin caducidad confirmada lo dice en su tarjeta. */}
-      <SummaryCard>
+      <div className={cellClass}>
         <RowLabel icon={expired ? CalendarX : expiring ? CalendarClock : CalendarCheck} tone={stateTone}>
           Caducidad
         </RowLabel>
@@ -237,7 +238,7 @@ export function ProductSummary({
           {!expired && !expiring ? <span>Sin vencidos ni por vencer</span> : null}
           {nextDate ? <span className="font-semibold tabular-nums text-ink">{nextDate}</span> : null}
         </dd>
-      </SummaryCard>
+      </div>
     </dl>
   );
 }

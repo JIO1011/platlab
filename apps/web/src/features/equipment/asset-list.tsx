@@ -79,13 +79,14 @@ export function AssetTable({ assets, base, picks }: { assets: Asset[]; base: str
                 <span className="sr-only">Etiqueta</span>
               </TableHeader>
             ) : null}
-            <TableHeader className="w-28 px-3 pl-5">Código</TableHeader>
+            <TableHeader className="w-24 px-3 pl-5">Código</TableHeader>
             <TableHeader className="px-3">Equipo</TableHeader>
-            <TableHeader className="w-[22%] px-3">Ubicación</TableHeader>
-            <TableHeader className="hidden w-[20%] px-3 @3xl:table-cell">Responsable</TableHeader>
+            <TableHeader className="w-[16%] px-3">Ubicación</TableHeader>
+            <TableHeader className="hidden w-[14%] px-3 @5xl:table-cell">Responsable</TableHeader>
             <TableHeader className="w-36 px-3 pr-4">Estado</TableHeader>
             {columns.map((column) => (
-              <TableHeader key={column.code} className="w-40 px-3 pr-4">
+              // El rótulo del módulo puede ser largo («Próximo mantenimiento»): se parte en dos líneas antes que desbordar la tabla.
+              <TableHeader key={column.code} className="w-52 whitespace-normal px-3 pr-4 leading-tight">
                 {column.label}
               </TableHeader>
             ))}
@@ -97,7 +98,8 @@ export function AssetTable({ assets, base, picks }: { assets: Asset[]; base: str
             return (
               <TableRow
                 key={asset.id}
-                className="relative has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-action"
+                // Cebra suave: es una tabla ancha de datos y la vista no se pierde al leer en horizontal (ADR 0021).
+                className="relative even:bg-surface-sunken/50 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-action"
               >
                 {picks?.flipped ? (
                   <TableCell className="pl-3 pr-0 align-top">
@@ -118,7 +120,7 @@ export function AssetTable({ assets, base, picks }: { assets: Asset[]; base: str
                         {asset.name}
                       </Link>
                       <p className="break-words text-[13px] text-ink-muted">{line}</p>
-                      <p className="break-words text-[13px] text-ink-muted @3xl:hidden">
+                      <p className="break-words text-[13px] text-ink-muted @5xl:hidden">
                         Responsable: {asset.responsible ? asset.responsible.name : noResponsibleLabel}
                       </p>
                     </div>
@@ -127,7 +129,7 @@ export function AssetTable({ assets, base, picks }: { assets: Asset[]; base: str
                 <TableCell className="px-3 align-top">
                   <Place location={asset.location} />
                 </TableCell>
-                <TableCell className="hidden break-words px-3 align-top @3xl:table-cell">
+                <TableCell className="hidden break-words px-3 align-top @5xl:table-cell">
                   {asset.responsible ? asset.responsible.name : <span className="text-ink-muted">{noResponsibleLabel}</span>}
                 </TableCell>
                 <TableCell className="whitespace-nowrap px-3 pr-4 align-top">
@@ -155,7 +157,8 @@ export function AssetCards({ assets, base, picks }: { assets: Asset[]; base: str
   const lines = useExtensions(ASSET_NEXT, me);
   const assetIds = assets.map((asset) => asset.id);
   return (
-    <ul className="grid gap-3">
+    // Dos columnas cuando hay ancho (portátil pequeño, tableta horizontal): la tabla llega desde 1280 px.
+    <ul className="grid gap-3 lg:grid-cols-2">
       {assets.map((asset) => {
         const meta = assetMeta(asset);
         const place = placeLines(asset.location);
@@ -233,7 +236,7 @@ const stackLayer = 'pointer-events-none absolute inset-0 rounded-card border bor
  * De alto fijo. Con `stacked` (un tipo es un grupo) asoman dos capas detrás, a 8 y 16 px. El enlace o botón de
  * `children` se extiende sobre todo el cuadro (`after:absolute after:inset-0`).
  */
-export function Tile({
+function Tile({
   photoUrl,
   stacked = false,
   labels,

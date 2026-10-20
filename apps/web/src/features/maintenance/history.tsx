@@ -7,7 +7,7 @@ import { QueryErrorState } from '../../app/states';
 import { formatDate } from '../../app/format';
 import { AttachSheet } from './attach-sheet';
 import { useMaintenance } from './context';
-import { CodeTag } from './code-tag';
+import { CodeTag } from '../../app/code-tag';
 import { DuePill } from './due-view';
 import { RecordDetail, resultTone } from './record-detail';
 import { HistoryExport } from './history-export';

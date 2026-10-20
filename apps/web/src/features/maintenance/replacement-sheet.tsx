@@ -52,7 +52,7 @@ export function ReplacementSheet({ workspaceId, open, onOpenChange, asset }: She
         El aviso de este equipo se oculta 6 meses y vuelve después si sigue cumpliendo alguna condición. El descarte queda guardado con tu
         motivo y no se edita. El equipo no cambia.
       </p>
-      <Field label="Motivo del descarte" required hint="Queda registrado con tu nombre. Hasta 500 caracteres." error={reasonError}>
+      <Field label="Motivo del descarte" hint="Queda registrado con tu nombre. Hasta 500 caracteres." error={reasonError}>
         <Textarea
           rows={3}
           maxLength={500}

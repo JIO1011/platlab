@@ -1,3 +1,4 @@
+import { PassThrough } from 'node:stream';
 import type { FastifyPluginAsync } from 'fastify';
 import type pg from 'pg';
 import {
@@ -14,6 +15,7 @@ import {
   rejectIssueRequest,
   issueRequest,
   newProduct,
+  operationExportQuery,
   operationFacetsQuery,
   operationListQuery,
   operationTotalsQuery,
@@ -30,6 +32,7 @@ import {
   weightAdjustmentRequest,
 } from '@platlab/contracts';
 import type { NamedList } from '../../../capabilities/inventory/index.js';
+import { XLSX_TYPE } from '../../../platform/export/xlsx.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import {
@@ -38,6 +41,7 @@ import {
   setProductMinimum,
   updateProduct,
 } from '../application/catalog.js';
+import { exportOperations } from '../application/export.js';
 import { approveRequest, cancelRequest, registerIssue, rejectRequest } from '../application/issues.js';
 import { archiveEntry, archiveReason, createEntry, createReason } from '../application/lists.js';
 import {
@@ -257,5 +261,22 @@ export function reagentsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFil
     app.get('/operations/totals', async (request) =>
       listOperationTotals(pool, queryRequest(request), operationTotalsQuery.parse(request.query)),
     );
+
+    // Excel de Movimientos (ADR 0021), como el del Historial de Mantenimiento: sale por partes mientras se lee. Un
+    // rechazo antes de empezar responde con su error; un fallo a mitad corta la descarga y la transacción se revierte.
+    app.get('/operations/export', async (request, reply) => {
+      const query = operationExportQuery.parse(request.query);
+      const body = new PassThrough();
+      try {
+        await exportOperations(pool, queryRequest(request), query, (fileName) => {
+          void reply.type(XLSX_TYPE).header('content-disposition', `attachment; filename="${fileName}"`).send(body);
+          return body;
+        });
+      } catch (error) {
+        if (!reply.sent) throw error;
+        body.destroy(error instanceof Error ? error : new Error(String(error)));
+      }
+      return reply;
+    });
   };
 }

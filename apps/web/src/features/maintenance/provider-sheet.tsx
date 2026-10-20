@@ -72,6 +72,7 @@ export function ProviderSheet({
       generalError={generalError}
       onSubmit={() => void submit()}
       dirty={form.formState.isDirty}
+      required
       focusFirst
     >
       <Field label="Nombre" required error={errors.name?.message}>

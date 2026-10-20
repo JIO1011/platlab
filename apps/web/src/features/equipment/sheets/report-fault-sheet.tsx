@@ -134,7 +134,6 @@ function AssetPicker({
   return (
     <Field
       label="Equipo"
-      required
       hint="Escribe al menos 2 letras de su código o de su nombre, o escanea su etiqueta."
       error={error}
     >
@@ -315,7 +314,6 @@ export function ReportFaultSheet({
         render={({ field }) => (
           <PillField
             label="Tipo de falla"
-            required
             value={field.value}
             options={faultTypes.map((type) => ({ value: type, label: faultTypeLabel[type] }))}
             onChange={(value) => {
@@ -328,7 +326,6 @@ export function ReportFaultSheet({
       />
       <Field
         label="Qué le pasa"
-        required
         hint={`Qué viste, cuándo empezó y qué estabas haciendo. Hasta ${DESCRIPTION_MAX} caracteres.`}
         error={errors.description?.message}
       >
@@ -340,7 +337,6 @@ export function ReportFaultSheet({
         render={({ field }) => (
           <PillField
             label="¿Se puede seguir usando?"
-            required
             size="sm"
             value={field.value}
             options={[

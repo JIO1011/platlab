@@ -1,21 +1,20 @@
 import type { Position } from '@platlab/contracts';
 import { Band, Button, HelpTip, Quantity, StockLevelBar, cn, formatDecimal, ratioPercent } from '@platlab/ui';
-import { ArrowLeftRight, ArrowUpFromLine, CalendarClock, CalendarDays, CalendarX, FlaskConical, MapPin, QrCode as QrIcon, Scale, Star, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, ArrowUpFromLine, Ban, CalendarClock, CalendarDays, CalendarX, FlaskConical, Lock, MapPin, QrCode as QrIcon, Scale, ShieldAlert, Star, TriangleAlert } from 'lucide-react';
 import { formatGrams, gramsPerUnit, weightFigures } from './weight';
 import { type ComponentProps } from 'react';
 import { formatDate, formatDateTime, formatShortDate, relativeDays } from '../../app/format';
 import { flipCard, flipDelay, flipFront, LabelBack } from '../../app/labels/label-flip';
-import { ModuleMark } from '../../app/module-mark';
 import { type Allowed, type SheetRequest } from './context';
 import { ContainerLabel, type LabelProduct } from './labels';
 import { physicalStateIcon } from './product-parts';
 import { availableOf, expiryOf } from './stock';
 
 /**
- * Estados del frasco como insignias sobre el borde superior de la tarjeta (ADR 0015), en fila si coinciden:
- * «Usar primero» (éxito), «Vencido» y «Restringido» (peligro), «Apartado» y «Cuarentena» (aviso). Llevan
- * relleno sólido con texto claro; el color cuenta el estado y el texto lo dice. Con `scanned`, la primera es
- * «Desde su etiqueta». Si no caben en una línea, las siguientes suben por encima del borde.
+ * Estados del frasco como etiquetas dentro de la tarjeta (ADR 0021), bajo el código y a la derecha de la marca; si
+ * no caben, se parten en varias líneas. Solo se montan las que aplican: «Usar primero» (éxito), «Vencido» y
+ * «Restringido» (peligro), «Apartado» y «Cuarentena» (aviso). Llevan relleno sólido, icono y texto claro; el color
+ * cuenta el estado y el texto lo dice. Con `scanned`, la primera es «Desde su etiqueta».
  */
 function StatusBadges({
   scanned,
@@ -30,32 +29,48 @@ function StatusBadges({
   reserved: boolean;
   disposition: Position['disposition'];
 }) {
-  const badge = 'inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-xs font-bold leading-none text-on-action shadow-sm';
+  const badge = 'inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-xs font-bold leading-none text-on-action';
+  const icon = 'size-3 shrink-0';
   if (!scanned && !recommended && !expired && !reserved && disposition === 'usable') return null;
   return (
-    <div className="pointer-events-none absolute inset-x-3 bottom-full flex translate-y-3 flex-wrap-reverse gap-1">
+    <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-1">
       {scanned ? (
         <span className={cn(badge, 'bg-action')}>
-          <QrIcon className="size-3" aria-hidden />
+          <QrIcon className={icon} aria-hidden />
           Desde su etiqueta
         </span>
       ) : null}
       {recommended ? (
         <span className={cn(badge, 'bg-success')}>
-          <Star className="size-3 fill-current" aria-hidden />
+          <Star className={cn(icon, 'fill-current')} aria-hidden />
           Usar primero
           <span className="sr-only"> (vence antes: conviene usarlo primero)</span>
         </span>
       ) : null}
       {expired ? (
         <span className={cn(badge, 'bg-danger')}>
-          <TriangleAlert className="size-3" aria-hidden />
+          <TriangleAlert className={icon} aria-hidden />
           Vencido
         </span>
       ) : null}
-      {reserved ? <span className={cn(badge, 'bg-warning')}>Apartado</span> : null}
-      {disposition === 'quarantine' ? <span className={cn(badge, 'bg-warning')}>Cuarentena</span> : null}
-      {disposition === 'restricted' ? <span className={cn(badge, 'bg-danger')}>Restringido</span> : null}
+      {reserved ? (
+        <span className={cn(badge, 'bg-warning')}>
+          <Lock className={icon} aria-hidden />
+          Apartado
+        </span>
+      ) : null}
+      {disposition === 'quarantine' ? (
+        <span className={cn(badge, 'bg-warning')}>
+          <ShieldAlert className={icon} aria-hidden />
+          Cuarentena
+        </span>
+      ) : null}
+      {disposition === 'restricted' ? (
+        <span className={cn(badge, 'bg-danger')}>
+          <Ban className={icon} aria-hidden />
+          Restringido
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -76,7 +91,7 @@ function CodeButton({ position, code, timeZone }: { position: Position; code: st
       hover
       label={`Detalles del frasco ${code}`}
       trigger={code}
-      className="block min-w-0 max-w-full shrink truncate rounded-sm text-center font-mono text-[17px] font-bold leading-tight tabular-nums text-ink transition-colors hover:text-action aria-expanded:text-action"
+      className="block min-w-0 max-w-full shrink truncate rounded-sm text-left font-mono text-[17px] font-bold leading-tight tabular-nums text-ink transition-colors hover:text-action aria-expanded:text-action"
     >
       <p className="mb-2 font-semibold">Detalles del frasco</p>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
@@ -264,11 +279,12 @@ function Place({ path, name }: { path: string[]; name: string }) {
 
 /**
  * Un frasco en la ficha (ADR 0012; ADR 0010, «Ventanas como ReactiLab»): el mismo lenguaje que la tarjeta del
- * reactivo en el Inventario (14-10-2026): radio de 20 px, `bg-surface`, `p-4`, el matraz del módulo de marca
- * de agua y todo el contenido centrado. Caben tres por fila junto al resumen lateral. Los estados son
- * insignias sobre el borde superior («Usar primero», «Vencido», «Apartado», «Cuarentena», «Restringido»).
- * De arriba abajo: el código mono en negrita de 17 px, un botón que abre «Detalles del frasco», con el icono
- * del estado físico del reactivo en línea a su izquierda; una línea gris con la marca y el área; tras una línea, «Saldo» y la
+ * reactivo en el Inventario (14-10-2026): radio de 20 px, `bg-surface`, `p-4` y el contenido centrado, salvo la
+ * fila superior. Todas las tarjetas llevan el mismo borde y sombra neutros (ADR 0021): el estado va en etiquetas
+ * dentro de la tarjeta («Usar primero», «Vencido», «Apartado», «Cuarentena», «Restringido») y solo el frasco
+ * recién escaneado lleva anillo. Caben las que quepan por fila (rejilla `auto-fill`).
+ * De arriba abajo: el código mono en negrita de 17 px a la izquierda, un botón que abre «Detalles del frasco», con el icono
+ * del estado físico del reactivo en línea a su izquierda, y las etiquetas de estado a su derecha; una línea gris con la marca y el área; tras una línea, «Saldo» y la
  * cantidad de 22 px con su unidad y el %, y la barra por nivel a todo el ancho; la ubicación en dos líneas (la
  * sala y, en gris, el resto del camino); una fila de fichas, la caducidad corta (ámbar o roja según el estado)
  * y la ficha ⚖ («Debe pesar N g» con tara; «Sin pesar» sin ella, solo para quien ajusta), cada una con su nube; y, tras una línea de borde a borde, «Salida»,
@@ -338,33 +354,27 @@ export function ContainerCard({
         aria-hidden={flipped || undefined}
         className={cn(
           // El lenguaje de la tarjeta del Inventario; el color solo cuenta un estado y siempre con texto (ADR 0010).
-          'group relative flex flex-col gap-2.5 [grid-area:1/1] rounded-[20px] bg-surface p-4 shadow-raised [backface-visibility:hidden] transition-[translate,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1',
+          'flex flex-col gap-2.5 [grid-area:1/1] rounded-[20px] bg-surface p-4 shadow-raised [backface-visibility:hidden] transition-[translate,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1',
           flipFront(flipped),
           scanned && 'ring-2 ring-action',
-          !scanned && recommended && 'ring-2 ring-success/50',
-          !scanned && !recommended && expired && 'ring-1 ring-danger/40',
         )}
       >
-        <StatusBadges scanned={scanned} recommended={recommended} expired={expired} reserved={reserved} disposition={position.disposition} />
-        {/* Marca de agua: decorativa y casi invisible. Su propio recorte, para que los estados salgan por el borde. */}
-        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-[20px]">
-          <ModuleMark
-            code="reagents"
-            className="absolute -bottom-4 -right-3 size-24 rotate-12 text-surface-sunken transition-[color,transform] duration-500 group-hover:text-action-soft motion-safe:group-hover:scale-110"
-          />
-        </div>
-        <div className="relative grid gap-1 text-center">
-          {/* El estado físico va en línea, a la izquierda del código (misma fila, centrada). El código es la identidad de la etiqueta: si no cabe, se corta con puntos y el título lo dice entero. */}
-          <h3 title={code} className="flex min-w-0 items-center justify-center gap-2">
+        <div className="grid gap-1">
+          {/* El código con el estado físico en línea. Es la identidad de la etiqueta: si no cabe, se corta con puntos y el título lo dice entero. */}
+          <h3 title={code} className="flex min-w-0 items-center gap-2">
             <StateIcon aria-hidden className={cn('size-5 shrink-0', empty ? 'text-ink-subtle' : 'text-action')} />
             <CodeButton position={position} code={code} timeZone={timeZone} />
           </h3>
-          {/* Siempre mide una línea: el saldo de todas las tarjetas de una fila cae a la misma altura. */}
-          <p title={origin || undefined} className="h-4 truncate text-[12px] leading-4 text-ink-muted">
-            {origin}
-          </p>
+          {/* Marca y área a la izquierda y las etiquetas de estado a la derecha, en una fila de alto fijo: el saldo de
+              todas las tarjetas de una fila cae a la misma altura, tengan o no etiqueta. */}
+          <div className="flex min-h-6 items-center gap-2">
+            <p title={origin || undefined} className="min-w-0 flex-1 truncate text-[12px] leading-4 text-ink-muted">
+              {origin}
+            </p>
+            <StatusBadges scanned={scanned} recommended={recommended} expired={expired} reserved={reserved} disposition={position.disposition} />
+          </div>
         </div>
-        <div className="relative grid gap-2 border-t border-line pt-2.5">
+        <div className="grid gap-2 border-t border-line pt-2.5">
           {/* Saldo al centro, como «Total» del Inventario: rótulo, cantidad con su unidad y el %, y la barra a todo el ancho. */}
           <div className="grid min-w-0 justify-items-center gap-1">
             <p className="text-[11px] font-semibold uppercase leading-5 tracking-wide text-ink-muted">Saldo</p>
@@ -393,16 +403,16 @@ export function ContainerCard({
             </p>
           ) : null}
         </div>
-        <div className="relative">
+        <div>
           <Place path={position.location.path} name={position.location.name} />
         </div>
-        <div className="relative flex flex-wrap justify-center gap-1">
+        <div className="flex flex-wrap justify-center gap-1">
           <ExpiryChip expiresOn={expiresOn} today={today} />
           {showWeight ? <WeightChip figures={figures} adjust={adjust} /> : null}
         </div>
         {canIssue || canTransfer ? (
           // Banda inferior de borde a borde: «Salida» es la primaria y «⇄» traslada. «Ajustar» vive en la ficha ⚖.
-          <Band ruled className="relative -mx-4 -mb-1 mt-auto flex items-center gap-1.5 px-4 pt-3">
+          <Band ruled className="-mx-4 -mb-1 mt-auto flex items-center gap-1.5 px-4 pt-3">
             {canIssue ? (
               // Relleno solo el frasco que conviene usar primero: la acción primaria de la ficha es una.
               <Button

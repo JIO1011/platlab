@@ -124,119 +124,117 @@ export function ReagentsProductPage() {
         />
       </section>
 
-      {/* Desde `xl`, el resumen es una columna derecha fija; por debajo, una franja bajo la cabecera. */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_11rem]">
-        <aside aria-label="Resumen del reactivo" className="xl:sticky xl:top-6 xl:col-start-2 xl:row-start-1 xl:self-start">
-          <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} expiry={expiry} onAction={openSheet} />
-        </aside>
-        <div className="grid min-w-0 content-start gap-9 xl:col-start-1 xl:row-start-1">
-          <section aria-labelledby="frascos" className="grid gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="frascos" className="scroll-mt-20 text-xl font-bold text-ink">
-                Frascos
-              </h2>
-              <div className="flex flex-wrap items-center gap-2">
-                <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="vacíos" />
-              </div>
-            </div>
-            {/* Escaneado pero sin descarga posible: se dice por qué, con texto (ADR 0012, entrega 4). */}
-            {scanBlocked ? (
-              <p role="status" className="flex items-center gap-2 rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink">
-                <QrIcon className="size-4 shrink-0 text-ink-muted" aria-hidden />
-                {scanBlocked}
-              </p>
-            ) : null}
-            {positions.isPending ? (
-              <Skeleton className="h-44 rounded-card" />
-            ) : positions.isError ? (
-              <QueryErrorState error={positions.error} onRetry={() => void positions.refetch()} />
-            ) : visible.length === 0 ? (
-              <p className="rounded-panel bg-surface px-4 py-8 text-center text-sm text-ink-muted shadow-raised">
-                {containers.length === 0 ? 'Este reactivo aún no tiene frascos. Regístralos con un ingreso.' : 'Todos sus frascos están vacíos.'}
-              </p>
-            ) : (
-              <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4 xl:grid-cols-3">
-                {visible.map((position) => (
-                  <li key={position.id}>
-                    <ContainerCard
-                      position={position}
-                      physicalState={product.data.physicalState}
-                      today={today}
-                      timeZone={me.workspace.timeZone}
-                      allowed={allowed}
-                      recommended={position.id === recommendedId}
-                      scanned={containerId !== undefined && position.container?.id === containerId}
-                      labels={
-                        labelMode.used && position.container && position.balance !== '0'
-                          ? {
-                              product: product.data,
-                              url: containerUrl(workspaceId, position.container.id),
-                              flipped: labelMode.active,
-                              picked: picked.has(position.id),
-                              order: labelable.indexOf(position),
-                              onPick: () => togglePick(position.id),
-                            }
-                          : undefined
-                      }
-                      onAction={openSheet}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+      <aside aria-label="Resumen del reactivo">
+        <ProductSummary product={product.data} canManage={allowed.product} stockPercent={stockPercent} expiry={expiry} onAction={openSheet} />
+      </aside>
 
-          {labelMode.used ? (
-            <LabelBar
-              open={labelMode.active}
-              count={pickedNow.length}
-              allPicked={allPicked}
-              onToggleAll={() => setPicked(new Set(allPicked ? [] : labelable.map((position) => position.id)))}
-              onDone={labelMode.close}
-              onPrint={printPicked}
-            />
-          ) : null}
-
-          <section aria-labelledby="historial-reactivo" className="rounded-card bg-surface p-6 shadow-raised md:p-8">
-            <h2 id="historial-reactivo" className="text-xl font-bold text-ink">
-              Historial del reactivo
+      <div className="grid min-w-0 gap-9">
+        <section aria-labelledby="frascos" className="grid gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="frascos" className="scroll-mt-20 text-xl font-bold text-ink">
+              Frascos
             </h2>
-            {history.isPending ? (
-              <Skeleton className="mt-4 h-24" />
-            ) : history.isError ? (
-              <QueryErrorState error={history.error} onRetry={() => void history.refetch()} />
-            ) : entries.length === 0 ? (
-              <StatePanel icon={History} title="Sin movimientos" description="Cada ingreso, salida o ajuste quedará aquí con su responsable." />
-            ) : (
-              // Línea de tiempo, como en el Resumen: el hilo pasa por detrás de los círculos de icono.
-              <ul className="relative mt-5 space-y-6 before:absolute before:bottom-5 before:left-5 before:top-5 before:w-0.5 before:bg-line">
-                {entries.map((operation) => (
-                  <li key={operation.entryId}>
-                    <ActivityRow
-                      type={operation.type}
-                      title={operation.container?.code ?? operation.lot.code}
-                      detail={[placeOf(operation), purposeOf(operation)].filter(Boolean).join(' · ')}
-                      quantity={operation.quantity}
-                      unit={operation.unit}
-                      occurredAt={operation.effectiveAt}
-                      actor={responsibleOf(operation)}
-                      timeZone={me.workspace.timeZone}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-            {hasMoreHistory ? (
-              <Link
-                to={`${base}/movimientos`}
-                className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-action transition-colors hover:text-action-hover"
-              >
-                Ver todos los movimientos
-                <ArrowRight className="size-4" aria-hidden />
-              </Link>
-            ) : null}
-          </section>
-        </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <EmptyToggle count={emptyCount} shown={showEmpty} onToggle={() => setShowEmpty(!showEmpty)} noun="vacíos" />
+            </div>
+          </div>
+          {/* Escaneado pero sin descarga posible: se dice por qué, con texto (ADR 0012, entrega 4). */}
+          {scanBlocked ? (
+            <p role="status" className="flex items-center gap-2 rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink">
+              <QrIcon className="size-4 shrink-0 text-ink-muted" aria-hidden />
+              {scanBlocked}
+            </p>
+          ) : null}
+          {positions.isPending ? (
+            <Skeleton className="h-44 rounded-card" />
+          ) : positions.isError ? (
+            <QueryErrorState error={positions.error} onRetry={() => void positions.refetch()} />
+          ) : visible.length === 0 ? (
+            <p className="rounded-panel bg-surface px-4 py-8 text-center text-sm text-ink-muted shadow-raised">
+              {containers.length === 0 ? 'Este reactivo aún no tiene frascos. Regístralos con un ingreso.' : 'Todos sus frascos están vacíos.'}
+            </p>
+          ) : (
+            <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-4">
+              {visible.map((position) => (
+                <li key={position.id}>
+                  <ContainerCard
+                    position={position}
+                    physicalState={product.data.physicalState}
+                    today={today}
+                    timeZone={me.workspace.timeZone}
+                    allowed={allowed}
+                    recommended={position.id === recommendedId}
+                    scanned={containerId !== undefined && position.container?.id === containerId}
+                    labels={
+                      labelMode.used && position.container && position.balance !== '0'
+                        ? {
+                            product: product.data,
+                            url: containerUrl(workspaceId, position.container.id),
+                            flipped: labelMode.active,
+                            picked: picked.has(position.id),
+                            order: labelable.indexOf(position),
+                            onPick: () => togglePick(position.id),
+                          }
+                        : undefined
+                    }
+                    onAction={openSheet}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {labelMode.used ? (
+          <LabelBar
+            open={labelMode.active}
+            count={pickedNow.length}
+            allPicked={allPicked}
+            onToggleAll={() => setPicked(new Set(allPicked ? [] : labelable.map((position) => position.id)))}
+            onDone={labelMode.close}
+            onPrint={printPicked}
+          />
+        ) : null}
+
+        <section aria-labelledby="historial-reactivo" className="rounded-card bg-surface p-6 shadow-raised md:p-8">
+          <h2 id="historial-reactivo" className="text-xl font-bold text-ink">
+            Historial del reactivo
+          </h2>
+          {history.isPending ? (
+            <Skeleton className="mt-4 h-24" />
+          ) : history.isError ? (
+            <QueryErrorState error={history.error} onRetry={() => void history.refetch()} />
+          ) : entries.length === 0 ? (
+            <StatePanel icon={History} title="Sin movimientos" description="Cada ingreso, salida o ajuste quedará aquí con su responsable." />
+          ) : (
+            // Línea de tiempo, como en el Resumen: el hilo pasa por detrás de los círculos de icono.
+            <ul className="relative mt-5 space-y-6 before:absolute before:bottom-5 before:left-5 before:top-5 before:w-0.5 before:bg-line">
+              {entries.map((operation) => (
+                <li key={operation.entryId}>
+                  <ActivityRow
+                    type={operation.type}
+                    title={operation.container?.code ?? operation.lot.code}
+                    detail={[placeOf(operation), purposeOf(operation)].filter(Boolean).join(' · ')}
+                    quantity={operation.quantity}
+                    unit={operation.unit}
+                    occurredAt={operation.effectiveAt}
+                    actor={responsibleOf(operation)}
+                    timeZone={me.workspace.timeZone}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          {hasMoreHistory ? (
+            <Link
+              to={`${base}/movimientos`}
+              className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-action transition-colors hover:text-action-hover"
+            >
+              Ver todos los movimientos
+              <ArrowRight className="size-4" aria-hidden />
+            </Link>
+          ) : null}
+        </section>
       </div>
     </div>
   );

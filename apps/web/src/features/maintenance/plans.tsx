@@ -4,7 +4,7 @@ import { Building2, CalendarClock, CalendarX, ChevronDown, ChevronRight, MoreHor
 import { useState } from 'react';
 import { formatDate } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
-import { CodeTag } from './code-tag';
+import { CodeTag } from '../../app/code-tag';
 import { useMaintenance } from './context';
 import { DuePill } from './due-view';
 import { frequencyText, scopeText } from './plan-text';

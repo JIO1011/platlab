@@ -7,7 +7,7 @@ import { fold } from '../../app/fold';
 import { formatDate } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
 import { assetFichaPath } from './asset-path';
-import { CodeTag } from './code-tag';
+import { CodeTag } from '../../app/code-tag';
 import { useMaintenance } from './context';
 import { dueTone, groupDue, workStatus, type DueGroup } from './due';
 import { DuePill } from './due-view';

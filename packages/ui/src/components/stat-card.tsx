@@ -11,6 +11,16 @@ const hintTones = {
   danger: 'text-danger',
 } as const;
 
+/**
+ * Un indicador que pide atención se tiñe con el `-soft` de su estado y la cifra toma el color del
+ * estado (ADR 0021); su línea neutra toma el mismo color. Neutral y acento no cambian. La cifra siempre lleva su
+ * etiqueta y su línea de texto.
+ */
+const attention = {
+  warning: { card: 'bg-warning-soft', value: 'text-warning' },
+  danger: { card: 'bg-danger-soft', value: 'text-danger' },
+} as const;
+
 export interface StatCardProps {
   label: string;
   /** La cifra: un dato real del servidor, nunca decorativo. */
@@ -31,27 +41,31 @@ export interface StatCardProps {
  * vista, quien la usa la envuelve en el enlace y le pone el `group` para la elevación al pasar.
  */
 export function StatCard({ label, value, hint, hintTone = 'neutral', icon, tone = 'accent', compact = false, className }: StatCardProps) {
+  const alert = tone === 'warning' || tone === 'danger' ? attention[tone] : null;
   return (
     <div
       className={cn(
-        'flex h-full items-start justify-between gap-3 rounded-card bg-surface shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo group-hover:shadow-float motion-safe:group-hover:-translate-y-1',
+        'flex h-full items-start justify-between gap-3 rounded-card shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo group-hover:shadow-float motion-safe:group-hover:-translate-y-1',
+        alert ? alert.card : 'bg-surface',
         compact ? 'p-4 lg:px-5' : 'p-4 sm:gap-4 sm:p-6',
         className,
       )}
     >
       <div className="min-w-0">
         <p className="text-sm font-medium text-ink-muted">{label}</p>
-        <p className={cn('font-bold tracking-tight text-ink tabular-nums', compact ? 'mt-1 text-[1.75rem] leading-tight' : 'mt-2 text-3xl')}>
+        <p className={cn('font-bold tracking-tight tabular-nums', alert ? alert.value : 'text-ink', compact ? 'mt-1 text-[1.75rem] leading-tight' : 'mt-2 text-3xl')}>
           {value}
         </p>
         {hint ? (
-          <p className={cn('text-xs font-medium', compact ? 'mt-1' : 'mt-2', hintTones[hintTone], hintTone !== 'neutral' && 'font-bold')}>{hint}</p>
+          <p className={cn('text-xs font-medium', compact ? 'mt-1' : 'mt-2', hintTone === 'neutral' && alert ? alert.value : hintTones[hintTone], hintTone !== 'neutral' && 'font-bold')}>{hint}</p>
         ) : null}
       </div>
       <IconChip
         icon={icon}
         tone={tone}
         className={cn(
+          // Sobre el tinte, el chip va en blanco para no desaparecer en su propio fondo.
+          alert && 'bg-surface',
           compact ? 'size-10 rounded-xl [&>svg]:size-5' : 'size-10 rounded-xl sm:size-12 sm:rounded-2xl [&>svg]:size-5 sm:[&>svg]:size-6',
         )}
       />

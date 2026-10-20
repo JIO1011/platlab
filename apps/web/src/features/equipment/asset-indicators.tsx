@@ -27,7 +27,7 @@ const tile = 'flex min-w-0 flex-col items-start justify-start gap-0.5 rounded-co
  * Indicadores del Informe (E-01c), bajo la cabecera y con los mismos filtros que la tabla: equipos, valor de
  * reposición (solo informa), sin responsable, garantía por vencer y vida útil cumplida. Tocar uno aplica su
  * filtro y lo marca con su tono, tocarlo otra vez lo quita; «Equipos» quita todos. Un indicador en cero no se
- * ofrece (salvo que su filtro esté puesto); «Equipos» queda marcado sin búsqueda ni filtros. En 5 columnas cuando caben y, si no, en una fila desplazable.
+ * ofrece (salvo que su filtro esté puesto); «Equipos» queda marcado sin búsqueda ni filtros. En 5 columnas cuando caben; si no, en 3 o en 2, sin cortar ninguno (ADR 0021).
  */
 export function AssetIndicators({
   totals,
@@ -66,14 +66,14 @@ export function AssetIndicators({
         aria-label="Indicadores del Informe"
         aria-busy={totals.isPlaceholderData}
         className={cn(
-          'flex gap-2 overflow-x-auto pb-1 transition-opacity duration-150 @xl:grid @xl:grid-cols-[1fr_1.5fr_1fr_1fr_1fr] @xl:overflow-visible @xl:pb-0',
+          'grid grid-cols-2 gap-2 transition-opacity duration-150 @lg:grid-cols-3 @3xl:grid-cols-[1fr_1.5fr_1fr_1fr_1fr]',
           totals.isPlaceholderData && 'opacity-60',
         )}
       >
         {data ? (
           <>
             <Indicator label="Equipos" value={number.format(data.count)} tone="action" pressed={!isFiltered(query)} onClick={onClear} />
-            <li className="w-44 shrink-0 @xl:w-auto">
+            <li className="min-w-0">
               <div className={cn(tile, 'h-full')}>
                 <span className="text-lg font-bold leading-tight tabular-nums text-ink">{formatMoney(data.replacementValue)}</span>
                 <span className="text-[13px] leading-tight text-ink-muted">Valor de reposición</span>
@@ -107,7 +107,7 @@ export function AssetIndicators({
           </>
         ) : (
           [0, 1, 2, 3, 4].map((slot) => (
-            <li key={slot} className="w-36 shrink-0 @xl:w-auto" aria-hidden>
+            <li key={slot} className="min-w-0" aria-hidden>
               <Skeleton className="h-[3.75rem] w-full rounded-control" />
             </li>
           ))
@@ -134,7 +134,7 @@ function Indicator({
   onClick: () => void;
 }) {
   return (
-    <li className="w-36 shrink-0 @xl:w-auto">
+    <li className="min-w-0">
       <button
         type="button"
         aria-pressed={pressed}

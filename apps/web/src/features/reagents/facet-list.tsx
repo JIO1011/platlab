@@ -1,6 +1,6 @@
 /**
- * Lista de casillas de un grupo plegable del panel de filtros de Movimientos (R-01C, ADR 0014):
- * buscador, las opciones con más movimientos y «Ver más». Cada cambio escribe la URL desde quien la usa.
+ * Cuerpo del menú de un filtro de la barra de Movimientos (R-01C, ADR 0021): buscador, las opciones con
+ * más movimientos y «Ver más». Cada cambio escribe la URL desde quien la usa.
  */
 import { Input, OptionRow } from '@platlab/ui';
 import { useState } from 'react';
@@ -13,7 +13,7 @@ export interface FacetOption {
   count: number;
 }
 
-/** Cuántas opciones se ven al abrir el grupo y cuántas suma cada «Ver más»: las de más movimientos. */
+/** Cuántas opciones se ven al abrir el menú y cuántas suma cada «Ver más»: las de más movimientos. */
 const STEP = 5;
 
 /**
@@ -40,8 +40,8 @@ export function FacetList({
 }) {
   const [shown, setShown] = useState(STEP);
   const [typed, setTyped] = useState('');
-  // Lo marcado sube arriba solo al montarse la lista (abrir el grupo, recargar, abrir el cajón),
-  // nunca al marcar: la fila no debe saltar bajo el puntero.
+  // Lo marcado sube arriba solo al montarse la lista (abrir el menú, recargar), nunca al marcar:
+  // la fila no debe saltar bajo el puntero.
   const [pinned] = useState(selected);
   const text = search ? search.value : typed;
   const needle = fold(text.trim());
@@ -67,7 +67,7 @@ export function FacetList({
       ) : visible.length === 0 ? (
         <p className="px-2 py-1.5 text-[13px] text-ink-subtle">{needle ? 'Sin coincidencias.' : 'Sin opciones con estos filtros.'}</p>
       ) : (
-        <div>
+        <div className="max-h-64 overflow-y-auto">
           {visible.map((option) => (
             <OptionRow
               key={option.key}

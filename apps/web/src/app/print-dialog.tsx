@@ -57,17 +57,34 @@ export function PrintDialog({
   // Diálogo modal: el foco entra en «Volver», Tab no sale de la ventana y Esc cierra; al cerrar, vuelve a quien lo abrió.
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    root.current?.querySelector('button')?.focus();
+    const focusInside = () => root.current?.querySelector('button')?.focus();
+    focusInside();
+    // Abierta desde el menú «Exportar», el menú aún bloquea la página al montarse: el foco entra un cuadro después.
+    const frame = requestAnimationFrame(focusInside);
+    // Si el foco sale (el menú lo devuelve a su botón al cerrarse), vuelve a la ventana: es modal.
+    const keepFocus = (event: FocusEvent) => {
+      if (event.target instanceof Node && !root.current?.contains(event.target)) focusInside();
+    };
+    document.addEventListener('focusin', keepFocus);
     return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('focusin', keepFocus);
       if (opener?.isConnected) opener.focus();
     };
   }, []);
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
+  // Esc cierra aunque el foco no haya entrado todavía (queda en `body`).
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const onEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
       event.stopPropagation();
-      onClose();
-      return;
-    }
+      close.current();
+    };
+    document.addEventListener('keydown', onEscape);
+    return () => document.removeEventListener('keydown', onEscape);
+  }, []);
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab') return;
     const focusable = [...(root.current?.querySelectorAll<HTMLElement>('button:not(:disabled)') ?? [])];
     const first = focusable[0];

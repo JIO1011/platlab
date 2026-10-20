@@ -57,6 +57,7 @@ export function TransferSheet({ workspaceId, open, onOpenChange, asset }: SheetB
       open={open}
       onOpenChange={onOpenChange}
       submitLabel="Trasladar equipo"
+      required
       pending={command.isPending}
       generalError={generalError}
       onSubmit={() => void submit()}

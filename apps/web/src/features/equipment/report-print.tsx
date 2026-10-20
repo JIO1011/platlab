@@ -4,7 +4,7 @@ import { formatDateTime } from '../../app/format';
 import { PrintDialog, printCell, printHead } from '../../app/print-dialog';
 import { PRINT_LIMIT, usePrintRows } from '../../app/print-rows';
 import { QueryErrorState } from '../../app/states';
-import type { ActiveFilter } from './asset-chips';
+import type { ActiveFilter } from './active-filters';
 import { assetsText, conditionLabel, placeLines } from './asset-text';
 import { useEquipment } from './context';
 import type { useAssets } from './queries';

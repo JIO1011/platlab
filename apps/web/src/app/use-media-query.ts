@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
-/** Sigue una media query del navegador (p. ej., si hay sitio para el panel de filtros). */
+/** Sigue una media query del navegador (p. ej., si la pantalla es ancha). */
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
     (notify) => {

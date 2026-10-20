@@ -1,11 +1,10 @@
-import { Badge, Button, Skeleton, StatePanel } from '@platlab/ui';
-import { ChevronRight, ClipboardCheck } from 'lucide-react';
+import { Badge, Button, Skeleton, StatePanel, cn } from '@platlab/ui';
+import { CircleCheck, ClipboardCheck, TriangleAlert, Wrench, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
+import { formatDateTime, formatShortDateTime } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
-import { useNow } from '../../app/use-now';
 import { useEquipment } from './context';
-import { FaultSteps } from './fault-steps';
-import { faultAgo, faultStatusOrder, faultTypeLabel, personText } from './fault-text';
+import { faultStatusOrder, faultSteps, faultTypeLabel, type FaultStep } from './fault-text';
 import { useFaults } from './queries';
 import { FaultSheet } from './sheets/fault-sheet';
 
@@ -16,56 +15,106 @@ interface OpenFault {
   open: boolean;
 }
 
+const stepIcons: Record<FaultStep['key'], LucideIcon> = { reported: TriangleAlert, repairing: Wrench, resolved: CircleCheck };
+
+/** El nodo del paso en que está el incidente lleva el color de su estado (con su texto al lado); los ya pasados, en gris. */
+const currentNode: Record<FaultStep['key'], string> = {
+  reported: 'bg-danger-soft text-danger',
+  repairing: 'bg-warning-soft text-warning',
+  resolved: 'bg-success-soft text-success',
+};
+
 /**
- * Pestaña «Incidentes» de la ficha (ADR 0019): todos los incidentes del equipo, la más reciente primero, en filas
- * compactas. Cada fila abre el detalle en una hoja sobre la ficha, sin salir de ella.
+ * Pestaña «Incidentes» de la ficha (ADR 0019, 0021): cada incidente de este equipo, el más reciente primero, en su
+ * tarjeta con un título (el tipo y lo que se describió) y su línea de tiempo vertical —reportado, en reparación y
+ * solucionado, con quién y cuándo—. «Ver incidente» abre el detalle en una hoja sobre la ficha, sin salir de ella.
  */
 export function AssetFaults({ assetId }: { assetId: string }) {
   const { workspaceId, me, canOperate } = useEquipment();
+  const timeZone = me.workspace.timeZone;
   const faults = useFaults(workspaceId, { statuses: faultStatusOrder, assetId }, 20);
-  const now = useNow(30_000);
   const [sheet, setSheet] = useState<OpenFault | null>(null);
   const items = faults.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <section aria-label="Incidentes del equipo" className="rounded-card bg-surface shadow-raised">
+    <section aria-label="Incidentes del equipo">
       {faults.isPending ? (
-        <div className="grid gap-3 p-5 md:p-6" role="status" aria-busy="true" aria-label="Cargando los incidentes">
+        <div className="grid gap-3 rounded-card bg-surface p-5 shadow-raised md:p-6" role="status" aria-busy="true" aria-label="Cargando los incidentes">
           <Skeleton className="h-14" />
           <Skeleton className="h-14" />
         </div>
       ) : faults.isError ? (
-        <QueryErrorState error={faults.error} onRetry={() => void faults.refetch()} />
+        <div className="rounded-card bg-surface shadow-raised">
+          <QueryErrorState error={faults.error} onRetry={() => void faults.refetch()} />
+        </div>
       ) : items.length === 0 ? (
-        <StatePanel icon={ClipboardCheck} title="Sin incidentes reportados" description="Los incidentes que se reporten de este equipo quedarán aquí, con su estado." />
+        <div className="rounded-card bg-surface shadow-raised">
+          <StatePanel icon={ClipboardCheck} title="Sin incidentes reportados" description="Los incidentes que se reporten de este equipo quedarán aquí, con su estado." />
+        </div>
       ) : (
-        <ul className="divide-y divide-line">
-          {items.map((fault) => (
-            <li key={fault.id}>
-              <button
-                type="button"
-                aria-haspopup="dialog"
-                onClick={() => setSheet({ id: fault.id, n: (sheet?.n ?? 0) + 1, open: true })}
-                className="group flex min-h-14 w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-surface-sunken/60 focus-visible:-outline-offset-2 md:px-6"
-              >
-                <span className="grid min-w-0 flex-1 gap-1">
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                    <span className="text-sm font-semibold text-ink">{faultTypeLabel[fault.faultType]}</span>
-                    {fault.usable ? null : <Badge tone="danger">No se puede usar</Badge>}
-                  </span>
-                  <FaultSteps status={fault.status} />
-                  <span className="text-[13px] text-ink-muted">
-                    Reportado por {personText(fault.reportedBy)} · {faultAgo(fault.reportedAt, now)}
-                  </span>
-                </span>
-                <ChevronRight className="size-4 shrink-0 text-ink-muted transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
-              </button>
-            </li>
-          ))}
+        <ul className="grid gap-4">
+          {items.map((fault) => {
+            const steps = faultSteps(fault);
+            return (
+              <li key={fault.id} className="rounded-card bg-surface p-5 shadow-raised md:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+                  <div className="grid min-w-0 flex-1 gap-1.5">
+                    <h3 className="line-clamp-2 break-words font-semibold leading-snug text-ink" title={fault.description}>
+                      {faultTypeLabel[fault.faultType]}
+                      <span className="font-normal text-ink-muted"> · {fault.description}</span>
+                    </h3>
+                    {fault.usable ? null : (
+                      <span>
+                        <Badge tone="danger">No se puede usar</Badge>
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-[44px] sm:h-8"
+                    aria-haspopup="dialog"
+                    aria-label={`Ver incidente: ${faultTypeLabel[fault.faultType]}, ${steps[0] ? formatDateTime(steps[0].at, timeZone) : ''}`}
+                    onClick={() => setSheet({ id: fault.id, n: (sheet?.n ?? 0) + 1, open: true })}
+                  >
+                    Ver incidente
+                  </Button>
+                </div>
+                {/* Línea de tiempo: el hilo pasa por detrás de los nodos; el último paso es el estado actual. */}
+                <ol aria-label="Pasos del incidente" className="relative mt-5 space-y-4 before:absolute before:bottom-3 before:left-3 before:top-3 before:w-0.5 before:-translate-x-1/2 before:bg-line">
+                  {steps.map((step, index) => {
+                    const Icon = stepIcons[step.key];
+                    const current = index === steps.length - 1;
+                    return (
+                      <li key={step.key} aria-current={current ? 'step' : undefined} className="flex items-start gap-3.5">
+                        <span
+                          className={cn(
+                            'relative z-10 inline-flex size-6 shrink-0 items-center justify-center rounded-full ring-4 ring-surface',
+                            current ? currentNode[step.key] : 'bg-surface-sunken text-ink-muted',
+                          )}
+                        >
+                          <Icon className="size-3.5" aria-hidden />
+                        </span>
+                        <div className="grid min-w-0 flex-1 gap-0.5">
+                          <p className="text-sm font-semibold text-ink">{step.label}</p>
+                          <p className="text-[13px] text-ink-muted">
+                            {step.by ?? 'Miembro anterior'} ·{' '}
+                            <time dateTime={step.at} title={formatDateTime(step.at, timeZone)}>
+                              {formatShortDateTime(step.at, timeZone, true)}
+                            </time>
+                          </p>
+                          {step.note ? <p className="break-words text-[13px] text-ink">{step.note}</p> : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </li>
+            );
+          })}
         </ul>
       )}
       {faults.hasNextPage ? (
-        <div className="border-t border-line p-4 text-center">
+        <div className="mt-4 text-center">
           <Button className="h-[44px] sm:h-10" loading={faults.isFetchingNextPage} onClick={() => void faults.fetchNextPage()}>
             Cargar más
           </Button>
@@ -78,7 +127,7 @@ export function AssetFaults({ assetId }: { assetId: string }) {
           open={sheet.open}
           onOpenChange={(open) => setSheet((current) => (current ? { ...current, open } : current))}
           faultId={sheet.id}
-          timeZone={me.workspace.timeZone}
+          timeZone={timeZone}
           canHandle={canOperate && me.permissions.includes('equipment.fault.manage')}
           fichaBase={null}
         />

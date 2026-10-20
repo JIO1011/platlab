@@ -1,11 +1,11 @@
 import type { AreaTypeList, AssetCondition } from '@platlab/contracts';
-import { Button, Skeleton, StatePanel, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, cn } from '@platlab/ui';
+import { Badge, Button, IconChip, Skeleton, StatePanel, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, cn } from '@platlab/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Microscope, QrCode, SearchX } from 'lucide-react';
-import { Fragment } from 'react';
-import { LabelBack } from '../../app/labels/label-flip';
+import type { ReactNode } from 'react';
+import { flipCard, flipDelay, flipFront, LabelBack } from '../../app/labels/label-flip';
 import { QueryErrorState } from '../../app/states';
-import { labelFit, Tile, tileGrid, tileHeight } from './asset-list';
+import { labelFit } from './asset-list';
 import { stateParts } from './asset-text';
 import { PickBox } from './pick-box';
 
@@ -37,12 +37,27 @@ const pickState = (count: number, total: number) => (count === 0 ? false : count
 /** Una cifra en cero se apaga: el color es para lo que hay. */
 const countTone = (count: number, tone: string) => (count > 0 ? tone : 'text-ink-muted');
 
-const toneClass = { success: 'text-success', warning: 'text-warning', danger: 'text-danger' } as const;
+/** Las cifras por estado de un tipo, en pastillas con texto («47 operativos», «2 uso limitado»): el color solo acompaña. */
+function StateBadges({ entry, className }: { entry: AreaType; className?: string }) {
+  return (
+    <div className={cn('flex flex-wrap gap-1.5 tabular-nums', className)}>
+      {stateParts(entry).map((part) => (
+        <Badge key={part.text} tone={part.tone}>
+          {part.text}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+/** La cuadrícula de cuadros de tipo: 2 columnas en el móvil, 3 desde `md`, 4 desde `xl`; la capa de atrás asoma 6 px. */
+const typeGrid = 'grid grid-cols-2 items-stretch gap-x-5 gap-y-5 pb-2 pr-2 md:grid-cols-3 xl:grid-cols-4';
 
 /**
- * Un tipo del área: foto o icono, «Microscopio óptico ×50» y su estado en texto y color («47 operativos · 2 uso
- * limitado · 1 fuera de servicio»). Siempre con la pila de dos capas detrás: un tipo es un grupo y el ×N dice
- * cuántos. El botón con el nombre se extiende sobre todo el cuadro y abre sus unidades.
+ * Un tipo del área: la foto (si la hay) o un icono pequeño, «Microscopio óptico», «×50» y su estado en pastillas
+ * con texto («47 operativos», «2 uso limitado»). Sin foto no se reserva el hueco de la imagen: el contenido va
+ * arriba y el cuadro mide lo que su contenido. Un tipo es un grupo, y detrás asoma una sola capa de 6 px. El
+ * botón con el nombre se extiende sobre todo el cuadro y abre sus unidades.
  */
 function TypeTile({
   entry,
@@ -57,35 +72,53 @@ function TypeTile({
   order: number;
   onOpen: () => void;
 }) {
-  const parts = stateParts(entry);
+  const flipped = picks?.flipped === true;
+  const count: ReactNode = (
+    <Badge aria-hidden className="shrink-0 tabular-nums">
+      ×{entry.total}
+    </Badge>
+  );
   return (
-    <Tile
-      photoUrl={entry.photoUrl}
-      stacked
-      labels={picks ? { flipped: picks.flipped, order, back: <TypeBack entry={entry} total={total} picks={picks} /> } : undefined}
-    >
-      <button
-        type="button"
-        onClick={onOpen}
-        title={entry.type.name}
-        className="flex w-full items-baseline gap-1.5 text-left text-[15px] font-semibold leading-tight text-ink after:absolute after:inset-0 focus-visible:outline-none"
-      >
-        {/* El nombre se recorta antes que el ×N: la cantidad es lo que agrupa el cuadro. */}
-        <span className="min-w-0 truncate">{entry.type.name}</span>
-        <span aria-hidden className="shrink-0 font-medium tabular-nums text-ink-muted">
-          ×{entry.total}
-        </span>
-        <span className="sr-only">, {entry.total === 1 ? '1 equipo' : `${entry.total} equipos`}</span>
-      </button>
-      <p className="text-[13px] font-medium leading-snug tabular-nums">
-        {parts.map((part, index) => (
-          <Fragment key={part.text}>
-            {index > 0 ? <span className="font-normal text-ink-subtle"> · </span> : null}
-            <span className={toneClass[part.tone]}>{part.text}</span>
-          </Fragment>
-        ))}
-      </p>
-    </Tile>
+    <li className="group relative rounded-card transition-transform duration-200 ease-out-expo has-[button:focus-visible]:outline-2 has-[button:focus-visible]:outline-offset-2 has-[button:focus-visible]:outline-action motion-safe:hover:-translate-y-0.5">
+      <span aria-hidden className="pointer-events-none absolute inset-0 translate-x-1.5 translate-y-1.5 rounded-card border border-line bg-surface-sunken" />
+      {/* Gira solo la tarjeta: la capa de atrás se queda. Frente y reverso comparten la celda. */}
+      <div style={flipDelay(order)} className={cn(flipCard(flipped), 'relative')}>
+        <div
+          inert={flipped}
+          aria-hidden={flipped || undefined}
+          className={cn(
+            'relative flex min-h-[10.5rem] flex-col overflow-hidden rounded-card bg-surface shadow-raised [backface-visibility:hidden] [grid-area:1/1] transition-shadow duration-200 ease-out-expo group-hover:shadow-float',
+            flipFront(flipped),
+          )}
+        >
+          {entry.photoUrl ? (
+            <div className="relative h-28 shrink-0 md:h-32">
+              <img src={entry.photoUrl} alt="" loading="lazy" decoding="async" className="size-full object-contain p-3" />
+              <span className="absolute right-3 top-3">{count}</span>
+            </div>
+          ) : null}
+          <div className="flex min-h-0 flex-1 flex-col gap-2.5 p-4">
+            {entry.photoUrl ? null : (
+              <div className="flex items-center justify-between gap-2">
+                <IconChip icon={Microscope} size="sm" />
+                {count}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onOpen}
+              title={entry.type.name}
+              className="line-clamp-2 break-words text-left text-[15px] font-semibold leading-tight text-ink after:absolute after:inset-0 focus-visible:outline-none"
+            >
+              {entry.type.name}
+              <span className="sr-only">, {entry.total === 1 ? '1 equipo' : `${entry.total} equipos`}</span>
+            </button>
+            <StateBadges entry={entry} />
+          </div>
+        </div>
+        {picks ? <TypeBack entry={entry} total={total} picks={picks} /> : null}
+      </div>
+    </li>
   );
 }
 
@@ -160,7 +193,6 @@ function TypesTable({ items, filter, picks, onOpen }: { items: AreaType[]; filte
         </TableHead>
         <TableBody>
           {items.map((entry) => {
-            const parts = stateParts(entry);
             const total = typeUnits(entry, filter);
             return (
               <TableRow
@@ -184,14 +216,7 @@ function TypesTable({ items, filter, picks, onOpen }: { items: AreaType[]; filte
                   >
                     {entry.type.name}
                   </button>
-                  <p className="mt-0.5 text-[13px] font-medium leading-snug @3xl:hidden">
-                    {parts.map((part, index) => (
-                      <Fragment key={part.text}>
-                        {index > 0 ? <span className="font-normal text-ink-subtle"> · </span> : null}
-                        <span className={toneClass[part.tone]}>{part.text}</span>
-                      </Fragment>
-                    ))}
-                  </p>
+                  <StateBadges entry={entry} className="mt-1 @3xl:hidden" />
                 </TableCell>
                 <TableCell numeric className="px-3 font-semibold">
                   {entry.total}
@@ -235,9 +260,9 @@ export function AreaTypes({
 }) {
   if (types.isPending) {
     return (
-      <div role="status" aria-busy="true" aria-label="Cargando" className={tileGrid}>
+      <div role="status" aria-busy="true" aria-label="Cargando" className={typeGrid}>
         {[0, 1, 2, 3].map((tile) => (
-          <Skeleton key={tile} className={`${tileHeight} rounded-card`} />
+          <Skeleton key={tile} className="h-44 rounded-card" />
         ))}
       </div>
     );
@@ -270,7 +295,7 @@ export function AreaTypes({
   }
   if (list) return <TypesTable items={items} filter={filter} picks={picks} onOpen={onOpen} />;
   return (
-    <ul aria-label="Tipos de equipo" className={tileGrid}>
+    <ul aria-label="Tipos de equipo" className={typeGrid}>
       {items.map((entry, order) => (
         <TypeTile key={entry.type.id} entry={entry} total={typeUnits(entry, filter)} picks={picks} order={order} onOpen={() => onOpen(entry.type.id)} />
       ))}

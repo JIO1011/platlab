@@ -9,7 +9,6 @@ import {
   StockLevelBar,
   formatDecimal,
   ratioPercent,
-  sectionLabel,
   normalizeDecimalInput,
   percentOfDecimal,
   subtractDecimal,
@@ -93,8 +92,6 @@ export function IssueSheet({
   // La barra del stock cuenta lo que quedará (o lo disponible si aún no hay cantidad) frente a lo que entró.
   const barBase = remaining !== null && !remaining.startsWith('-') ? remaining : available;
   const stockPercent = position?.container?.initialQuantity && barBase ? ratioPercent(barBase, position.container.initialQuantity) : null;
-  // Con cantidad escrita y válida (decimal, mayor que cero) se puede enviar; si no alcanza, lo dice el servidor.
-  const hasQuantity = /^\d{1,15}(\.\d{1,9})?$/.test(quantity) && !/^0+(\.0+)?$/.test(quantity);
   const issuable = scoped.filter((p) => availableOf(p) !== '0');
   // El selector solo hace falta si hay de dónde elegir: se abrió sin frasco ni reactivo (se queda para poder
   // cambiar), aún no hay frasco, o el reactivo tiene más de un frasco con saldo.
@@ -173,10 +170,8 @@ export function IssueSheet({
       }
       open={open}
       onOpenChange={onOpenChange}
-      submitLabel={needsApproval ? 'Enviar solicitud' : 'Confirmar salida'}
-      fullWidthSubmit
+      submitLabel={needsApproval ? 'Solicitar salida' : 'Registrar salida'}
       submitIcon={LogOut}
-      submitDisabled={!position || !hasQuantity}
       pending={command.isPending}
       generalError={generalError}
       onSubmit={() => void submit()}
@@ -189,7 +184,7 @@ export function IssueSheet({
             </p>
           ) : null}
           {showSelector ? (
-            <Field label="Frasco" error={errors.positionId?.message} labelClassName={sectionLabel}>
+            <Field label="Frasco" error={errors.positionId?.message}>
               <Controller
                 control={form.control}
                 name="positionId"
@@ -255,7 +250,6 @@ export function IssueSheet({
         <Field
           label="Cantidad a retirar"
           className="text-center"
-          labelClassName={sectionLabel}
           error={errors.quantity?.message}
           hint={
             position && available !== null && remaining !== null && remaining.startsWith('-') ? (

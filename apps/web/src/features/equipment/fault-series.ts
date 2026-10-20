@@ -12,6 +12,8 @@ export interface FaultPlotPoint {
   long: string;
   /** El año, bajo el primer mes del eje y bajo cada enero; `null` en los demás. */
   year: string | null;
+  /** El mes actual: el último; sus incidentes aún pueden crecer. */
+  current: boolean;
   reported: number;
   resolved: number;
   /** Posición horizontal en %: el centro de su columna. */
@@ -22,7 +24,7 @@ export interface FaultPlotPoint {
 }
 
 /**
- * La escala entera del eje y la posición de cada mes en las dos líneas. Con todo en cero, ambas quedan sobre la base.
+ * La escala entera del eje y la altura de las dos barras de cada mes. Con todo en cero, ambas quedan sobre la base.
  * Hasta 5, el eje marca cada entero: con tan pocos incidentes, la lectura exacta importa más que un eje despejado.
  */
 export function faultPlot(months: Month[]): { max: number; ticks: number[]; points: FaultPlotPoint[] } {
@@ -34,6 +36,7 @@ export function faultPlot(months: Month[]): { max: number; ticks: number[]; poin
     short: monthName(entry.month, 'short'),
     long: monthName(entry.month, 'long'),
     year: index === 0 || entry.month.endsWith('-01') ? entry.month.slice(0, 4) : null,
+    current: index === months.length - 1,
     reported: entry.reported,
     resolved: entry.resolved,
     x: ((index + 0.5) / months.length) * 100,
@@ -43,7 +46,7 @@ export function faultPlot(months: Month[]): { max: number; ticks: number[]; poin
   return { max, ticks, points };
 }
 
-/** Sin un solo incidente reportado ni solucionado en el período, no hay línea que dibujar. */
+/** Sin un solo incidente reportado ni solucionado en el período, no hay barra que dibujar. */
 export const hasFaultActivity = (months: Month[]) => months.some((entry) => entry.reported > 0 || entry.resolved > 0);
 
 const reportedText = (n: number) => `${n} ${n === 1 ? 'reportado' : 'reportados'}`;
@@ -52,8 +55,9 @@ const resolvedText = (n: number) => `${n} ${n === 1 ? 'solucionado' : 'soluciona
 /** «4 reportados · 3 solucionados»: la lectura de un mes y la suma del período. */
 export const faultCountsText = (reported: number, resolved: number) => `${reportedText(reported)} · ${resolvedText(resolved)}`;
 
-/** «febrero de 2026: 4 reportados · 3 solucionados». */
-export const monthReading = (point: FaultPlotPoint) => `${point.long}: ${faultCountsText(point.reported, point.resolved)}`;
+/** «febrero de 2026: 4 reportados, 3 solucionados»; el mes actual lo dice: «octubre de 2026 (en curso): …». */
+export const monthReading = (point: FaultPlotPoint) =>
+  `${point.long}${point.current ? ' (en curso)' : ''}: ${reportedText(point.reported)}, ${resolvedText(point.resolved)}`;
 
 /** Lo que suman los 12 meses. */
 export function faultTotals(months: Month[]): { reported: number; resolved: number } {
@@ -63,10 +67,8 @@ export function faultTotals(months: Month[]): { reported: number; resolved: numb
   };
 }
 
-/**
- * De qué lado de su punto va el nombre de cada línea al final: la más alta, arriba, y la otra, abajo; con el
- * mismo valor, Reportados arriba. Así los dos nombres no se pisan aunque las líneas terminen juntas.
- */
-export function endLabelSides(point: Pick<FaultPlotPoint, 'reported' | 'resolved'>): { reported: 'above' | 'below'; resolved: 'above' | 'below' } {
-  return point.resolved > point.reported ? { reported: 'below', resolved: 'above' } : { reported: 'above', resolved: 'below' };
-}
+const openText = (n: number) => (n === 0 ? 'ninguno abierto hoy' : `${n} ${n === 1 ? 'abierto' : 'abiertos'} hoy`);
+
+/** «14 reportados · 11 solucionados en 12 meses · 2 abiertos hoy»: la frase que encabeza el gráfico. */
+export const faultSummaryText = (totals: { reported: number; resolved: number }, open: number) =>
+  `${faultCountsText(totals.reported, totals.resolved)} en 12 meses · ${openText(open)}`;

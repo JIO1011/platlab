@@ -3,13 +3,14 @@ import { useParams } from 'react-router';
 import { formatDate } from '../../app/format';
 import { useWorkspaceMe } from '../../app/queries';
 import { dueTone, todayInZone, workStatus } from './due';
-import { DueDot, toneText } from './due-view';
+import { DuePill } from './due-view';
 import { useNextDue } from './queries';
 import { kindLabels } from './work-text';
 
 /**
- * La celda «Próximo mantenimiento» de la tabla de equipos (ADR 0020): «Calibración · 20 oct» con el punto del semáforo
- * —rojo vencido o no conforme, ámbar hasta 30 días, verde después— y «Sin plan» en gris. Si falla la carga, «—» con su
+ * La celda «Próximo mantenimiento» de la tabla de equipos (ADR 0020, 0021): el tipo y la fecha en texto
+ * («Calibración · 20/10/2026») y debajo el plazo en pastilla —rojo vencido o no conforme, ámbar hasta 30 días, verde
+ * después— y «Sin plan» en gris. Si falla la carga, «—» con su
  * título: nunca «Sin plan», que sería afirmar algo que no se sabe. Las filas visibles se piden juntas.
  */
 export function NextDueCell({ assetId, assetIds }: { assetId: string; assetIds: string[] }) {
@@ -26,25 +27,15 @@ export function NextDueCell({ assetId, assetIds }: { assetId: string; assetIds: 
   }
   const today = todayInZone(me.data.workspace.timeZone, Date.now());
   const entry = next.data;
-  if (!entry) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-ink-muted">
-        <DueDot tone="neutral" />
-        Sin plan
-      </span>
-    );
-  }
+  if (!entry) return <DuePill tone="neutral">Sin plan</DuePill>;
   const tone = dueTone(entry, today);
   const failed = entry.lastResult === 'fail';
   return (
-    <span title={entry.plan.title} className="inline-flex items-start gap-1.5 text-sm">
-      <DueDot tone={tone} className="mt-[7px]" />
-      <span className="grid">
-        <span className={failed ? `font-medium ${toneText.danger}` : 'text-ink'}>
-          {kindLabels[entry.plan.kind]} · {failed ? 'No conforme' : <span className="tabular-nums">{formatDate(entry.dueOn)}</span>}
-        </span>
-        {failed ? null : <span className={`text-[13px] font-medium ${toneText[tone]}`}>{workStatus({ ...entry, lastPerformedOn: null }, today).text}</span>}
+    <span title={entry.plan.title} className="grid min-w-0 justify-items-start gap-1 text-sm">
+      <span className="max-w-full truncate text-ink">
+        {kindLabels[entry.plan.kind]} · <span className="tabular-nums">{formatDate(entry.dueOn)}</span>
       </span>
+      <DuePill tone={failed ? 'danger' : tone}>{failed ? 'No conforme' : workStatus({ ...entry, lastPerformedOn: null }, today).text}</DuePill>
     </span>
   );
 }

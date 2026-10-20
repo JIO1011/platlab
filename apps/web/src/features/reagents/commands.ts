@@ -1,8 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { product } from '@platlab/contracts';
 import { z } from 'zod';
-import { api, isApiError } from '../../app/api';
+import { api, apiDownload, isApiError } from '../../app/api';
 import { useModuleCommand } from '../../app/commands';
+import { saveFile } from '../../app/save-file';
+import { operationSearch, type OperationQuery } from './movement-filters';
 import { useReagentsKey } from './queries';
 
 /** Envío de un comando de Reactivos: clave idempotente por envío y caché refrescada (`useModuleCommand`). */
@@ -52,6 +54,19 @@ export function useUploadSafetySheet(workspaceId: string) {
         schema: product,
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: reagentsKey }),
+  });
+}
+
+/**
+ * «Excel» de Movimientos (ADR 0021, el pendiente de R-01B): lo filtrado, con el nombre de archivo del servidor. Es
+ * una consulta: no cambia nada, así que no lleva clave idempotente ni refresca la caché.
+ */
+export function useExportOperations(workspaceId: string) {
+  return useMutation({
+    mutationFn: async (query: OperationQuery) => {
+      const { blob, fileName } = await apiDownload(`/workspaces/${workspaceId}/reagents/operations/export?${operationSearch(query)}`);
+      saveFile(blob, fileName);
+    },
   });
 }
 

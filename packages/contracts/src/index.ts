@@ -44,6 +44,7 @@ export {
   newProduct,
   reagentsSummary,
   operation,
+  operationExportQuery,
   operationFacets,
   operationFacetsQuery,
   operationGroupBy,

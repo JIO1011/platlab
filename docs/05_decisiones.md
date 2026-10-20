@@ -722,6 +722,15 @@ Motivo: el usuario quiere un módulo intermedio con la estructura de los demás,
   - Los requisitos se muestran en barras de progreso, siempre con el % en texto.
 - **Equipos** (segunda fase, 19-10-2026; el usuario aprobó Mantenimiento y dio ideas, no requisitos):
   - Fondo neutro y plano en toda la app; las tarjetas, en blanco con sombra suave.
+  - Resumen con la estructura del de Mantenimiento (pedido del usuario, 20-10-2026):
+    - las cuatro cifras, sin cambios;
+    - «Gestión rápida» con «Registrar equipo», «Escanear» y «Reportar incidente»;
+    - el gráfico de incidentes;
+    - a la derecha, «Incidentes por atender»: los primeros reportados o en reparación, con «Ver incidentes»;
+    - debajo, «Estado por área»;
+    - al pie, avisos en tarjeta con su acción, solo si hay alguno: «Garantía por vencer», «Vida útil cumplida» y «Sin responsable», que llevan al Informe ya filtrado.
+    - Todo sale de datos que ya existen; el componente del aviso pasa a `app/` y lo comparten Mantenimiento y Equipos.
+  - Informe: el buscador arriba y los filtros debajo en todos los anchos (pedido del usuario). La tabla no se desplaza de lado: aparece desde 1280 px, con tarjetas en dos columnas antes. «Responsable» pasa a una línea dentro de «Equipo» cuando no cabe.
   - Las cifras del Resumen se tiñen cuando piden atención, también en Reactivos, porque comparten el componente. Las cifras de incidentes van dentro de la tarjeta de su gráfico.
   - En las áreas, los tipos de equipo llevan el estado en pastillas. Sin foto, la tarjeta no reserva el hueco de la imagen.
   - Incidentes en tarjetas compactas, en dos columnas en pantallas anchas, con todo lo del incidente junto. Sin calendario ni otras funciones nuevas.
@@ -732,6 +741,40 @@ Motivo: el usuario quiere un módulo intermedio con la estructura de los demás,
     - pestañas con la activa subrayada en el color del módulo, en el componente común;
     - los incidentes, como línea de tiempo;
     - y U-01: la cabecera más corta con «Reportar incidente» a la vista, y la búsqueda y los filtros conservados al volver de una ficha.
+  - Degradado por módulo (pedido del usuario, 20-10-2026): como el de Reactivos (índigo a violeta), el de Equipos y el de Mantenimiento se oscurecen hacia un tono vecino, sin tomar el de otro módulo ni el verde de estado. Solo cambia `action-deep`.
+- **Reactivos** (tercera fase, 20-10-2026; ideas del usuario, no requisitos):
+  - Resumen: «Gestión rápida» conserva sus botones dentro de la banda, como en los otros dos módulos; la cabecera no lleva acciones en ningún Resumen. El gráfico de salidas marca cada semana en el eje.
+  - Cantidades de movimiento (Resumen, Movimientos y ficha): texto con signo y color, sin recuadro (DESIGN.md, «Voz única»). Un solo componente en `app/`.
+  - Inventario: el buscador arriba y los filtros debajo, como el Informe de Equipos. (La tarjeta reorganizada se descartó en la segunda ronda.)
+  - Movimientos adopta la barra de filtros horizontal: Periodo (con sus atajos), Tipo, Reactivo, Responsable, Destino, Motivo y Ubicación, con sus cuentas y buscador. Se van el panel lateral, el cajón y las fichas de filtros, y cada fila usa todo el ancho.
+  - Solicitudes: la solicitud a la izquierda; la cantidad y las acciones a la derecha, con «Aprobar salida» al final. En el móvil, las acciones van abajo a todo el ancho.
+  - Ficha:
+    - Existencia, Mínimo y Caducidad, en una tarjeta propia bajo la cabecera, en lugar de la columna angosta de la derecha. Los frascos usan todo el ancho.
+    - Frascos con el mismo borde neutro: el estado va en su etiqueta, dentro de la tarjeta y arriba a la derecha. Solo el frasco recién escaneado lleva anillo.
+  - Segunda ronda (pedido del usuario, 20-10-2026):
+    - Movimientos con el formato de los otros informes (Historial de Mantenimiento e Informe de Equipos):
+      - «Exportar» en la cabecera, con «Imprimir o guardar PDF» y «Excel (.xlsx)»;
+      - la barra de filtros con la cuenta a la derecha;
+      - la lista con encabezado de columnas y filas de altura uniforme y la fecha en su columna, sin filas de día: el periodo se acota con su filtro (pedido del usuario).
+    - Los nombres se quedan: «Informe» (Equipos) es una foto del estado actual; «Historial» (Mantenimiento) y «Movimientos» (Reactivos) son registros en el tiempo con la palabra de su oficio. Se unifica el formato, no el nombre. Los encabezados de columna son iguales en todas las tablas: 13 px, peso medio y tipo oración.
+    - La tarjeta de reactivo del Inventario vuelve a su diseño anterior (pedido del usuario: el nuevo no gustó).
+    - El Excel de Movimientos, pendiente de R-01B ([ADR 0017](#adr-0017), [ADR 0018](#adr-0018)), lo pide ahora el usuario:
+      - sale por partes;
+      - en el encabezado lleva el espacio, la fecha, quién lo generó y los filtros;
+      - la columna «Controlado» sirve al reporte de controlados ([ADR 0016](#adr-0016));
+      - queda en la auditoría;
+      - es de quien tiene `reagents.report.read`, como los Totales.
+
+      El Excel del Inventario sigue pendiente.
+    - Resumen con los elementos de los otros módulos:
+      - a la derecha, «Por atender»: los reactivos con frascos vencidos o por vencer y los que están bajo mínimo, con su acción; debajo, la actividad reciente;
+      - al pie, avisos con su acción, solo si los hay: reactivos sin ficha de seguridad y sin mínimo. Abren el Inventario ya filtrado con dos filtros nuevos, sobre datos que ya llegan.
+    - Ventanas emergentes iguales en los tres módulos:
+      - en el pie de todas, «Cancelar» y la acción con su verbo;
+      - el botón principal nunca se desactiva: al enviar marca lo que falta;
+      - rótulos de campo en tipo oración (las mayúsculas, solo para el título de un grupo de campos);
+      - la nota «* Campos obligatorios» en el mismo lugar cuando hay campos opcionales.
+    - Solicitudes queda como está por ahora («es algo genérico de momento», dijo el usuario).
 - **Se mantiene:** DESIGN.md y el [ADR 0010](#adr-0010) (tokens, el color siempre con texto, movimiento) y las reglas del dominio. Las funciones, los datos y los permisos no cambian.
 
 Motivo: Mantenimiento se apartaba del patrón de Resumen que ya comparten Equipos y Reactivos, y sus listas planas cansaban la vista. El usuario prefiere validar el rediseño en un módulo antes de extenderlo.

@@ -3,13 +3,6 @@
   describen el papel, no el color, para poder añadir el tema oscuro sin tocar componentes.
   La aplicación importa este archivo después de `@import "tailwindcss"`.
 */
-/* Un tablero que cabe en una ventana (ADR 0012, 05-10-2026): escritorio desde 1280 × 720. Por
-   debajo, el contenido fluye y la página se desplaza. */
-@custom-variant fit (@media (min-width: 80rem) and (min-height: 45rem));
-/* Con alto de sobra (desde 864 px), el mismo tablero respira: más espacio y acción rápida más alta.
-   Antes, el gráfico se quedaría sin alto legible. */
-@custom-variant fit-tall (@media (min-width: 80rem) and (min-height: 54rem));
-
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
@@ -48,8 +41,6 @@
   --color-on-action: #ffffff;
   /* La marca PlatLab no cambia con el tema del módulo (ADR 0010, color por módulo). */
   --color-brand: #1f5f96;
-  /* Brillo del lienzo arriba a la izquierda; cada módulo lo tiñe con su color. */
-  --color-canvas-glow: #ffffff;
 
   --color-success: #1d7a46;
   --color-success-soft: #e5f3ea;
@@ -140,8 +131,8 @@
     scrollbar-gutter: stable;
   }
   body {
-    /* Un brillo muy leve desde arriba a la izquierda da profundidad a los paneles flotantes. */
-    background: radial-gradient(1100px 620px at 0% 0%, var(--color-canvas-glow) 0%, transparent 62%) fixed, var(--color-canvas);
+    /* Fondo gris neutro y plano (ADR 0021): la profundidad la dan las tarjetas blancas con su sombra. */
+    background: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-feature-settings: "cv11", "ss01";
@@ -216,34 +207,32 @@
   --color-action-pressed: #3730a3;
   --color-action-soft: #eef2ff;
   --color-action-deep: #6d28d9;
-  --color-canvas-glow: #eef0ff;
 }
 
 [data-module='equipment'] {
   /*
-   * Azul degradado de Equipos (ADR 0019): 5,4:1 con blanco; el texto #1967D2 sobre #EAF1FE, 4,7:1. El
-   * extremo claro del degradado (#2370E4, 4,7:1 con blanco) es el más claro que deja leer el texto
-   * blanco centrado de los botones degradados.
+   * Azul de Equipos (ADR 0019): 5,4:1 con blanco; el texto #1967D2 sobre #EAF1FE, 4,7:1. Como en
+   * Reactivos, el degradado se oscurece hacia su vecino (ADR 0021): al azul real #1E40AF (8,7:1 con
+   * blanco), sin llegar al índigo de Reactivos.
    */
   --color-action: #1967d2;
   --color-action-hover: #1558b8;
   --color-action-pressed: #114a9c;
   --color-action-soft: #eaf1fe;
-  --color-action-deep: #2370e4;
-  --color-canvas-glow: #eaf2ff;
+  --color-action-deep: #1e40af;
 }
 
 [data-module='maintenance'] {
   /*
-   * Petróleo de Mantenimiento (ADR 0020): 5,4:1 con blanco; el texto #0E7490 sobre #ECFEFF, 5,1:1. El
-   * extremo claro del degradado (#0E7C9A, 4,8:1 con blanco) aún deja leer el texto blanco de los botones.
+   * Petróleo de Mantenimiento (ADR 0020): 5,4:1 con blanco; el texto #0E7490 sobre #ECFEFF, 5,1:1. Como en
+   * Reactivos, el degradado se oscurece hacia su vecino (ADR 0021): al azul petróleo #0C4A6E (10:1 con
+   * blanco), sin ir al verde, que queda para los estados.
    */
   --color-action: #0e7490;
   --color-action-hover: #155e75;
   --color-action-pressed: #164e63;
   --color-action-soft: #ecfeff;
-  --color-action-deep: #0e7c9a;
-  --color-canvas-glow: #e9f8fb;
+  --color-action-deep: #0c4a6e;
 }
 
 /*

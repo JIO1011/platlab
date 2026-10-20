@@ -4,9 +4,10 @@ import { formatDateTime, formatShortDate } from '../../app/format';
 import { PrintDialog, printCell, printHead } from '../../app/print-dialog';
 import { PRINT_LIMIT, usePrintRows } from '../../app/print-rows';
 import { QueryErrorState } from '../../app/states';
-import { useReagents } from './context';
+import type { ReagentsContext } from './context';
 import { MovementTotals } from './movement-totals';
 import {
+  currentYearIn,
   dayKey,
   filterLines,
   groupNames,
@@ -18,25 +19,28 @@ import {
 } from './movement-text';
 import { purposeOf, responsibleOf } from './operation-text';
 
+const columns = ['Fecha', 'Reactivo', 'Frasco', 'Tipo', 'Motivo o destino', 'Responsable', 'Cantidad', 'Saldo'];
+
 /**
- * Vista imprimible de Movimientos (R-01C, ADR 0014): el espacio, el período y los filtros en texto y,
- * en Detalle, una tabla con todas las páginas de la consulta actual (hasta 1.000 filas) o, en Totales,
- * la tabla de totales. Es el mismo caché que la lista: no pide nada nuevo, solo termina de cargarla.
- * El diálogo, el foco y la hoja A4 son los de `PrintDialog`.
+ * Vista imprimible de Movimientos (R-01C, ADR 0014 y 0021): el espacio, «Movimientos de reactivos», el período y los
+ * filtros en texto y, en Detalle, una tabla A4 apaisada con todas las páginas de la consulta actual (hasta 1.000 filas)
+ * o, en Totales, la tabla de totales. Es el mismo caché que la lista: no pide nada nuevo, solo termina de cargarla. El
+ * diálogo, el foco y la hoja son los de `PrintDialog`; el contexto de Reactivos llega por props porque «Exportar»
+ * vive en la cabecera, fuera del `Outlet`.
  */
 export function MovementPrint({
+  reagents,
   view,
-  total,
-  currentYear,
   onClose,
 }: {
+  reagents: ReagentsContext;
   view: 'detail' | 'totals';
-  total: number | undefined;
-  currentYear: number;
   onClose: () => void;
 }) {
-  const { me, base, operations, operationTotals, movementFilters: filters, operationFacets, productList } = useReagents();
+  const { me, base, operations, operationTotals, movementFilters: filters, operationFacets, productList } = reagents;
   const timeZone = me.workspace.timeZone;
+  const currentYear = currentYearIn(timeZone);
+  const total = operationFacets.data?.total;
   const [printedAt] = useState(() => new Date().toISOString());
 
   const { isSuccess, isError, isPlaceholderData } = operations;
@@ -84,6 +88,7 @@ export function MovementPrint({
       ready={ready}
       failed={failed}
       hasContent={hasContent}
+      landscape
       onClose={onClose}
     >
       {failed ? (
@@ -103,8 +108,8 @@ export function MovementPrint({
             <caption className="sr-only">Movimientos</caption>
             <TableHead>
               <TableRow className="hover:bg-transparent">
-                {['Fecha', 'Tipo', 'Reactivo', 'Frasco', 'Cantidad', 'Motivo o destino', 'Responsable'].map((title) => (
-                  <TableHeader key={title} numeric={title === 'Cantidad'} className={printHead}>
+                {columns.map((title) => (
+                  <TableHeader key={title} numeric={title === 'Cantidad' || title === 'Saldo'} className={printHead}>
                     {title}
                   </TableHeader>
                 ))}
@@ -116,14 +121,17 @@ export function MovementPrint({
                   <TableCell className={cn(printCell, 'whitespace-nowrap')}>
                     {formatShortDate(dayKey(new Date(operation.effectiveAt), timeZone))} {hourOf(operation.effectiveAt, timeZone)}
                   </TableCell>
-                  <TableCell className={printCell}>{typeSingular[operation.type]}</TableCell>
                   <TableCell className={cn(printCell, 'font-medium')}>{tight(operation.product.name)}</TableCell>
                   <TableCell className={cn(printCell, 'whitespace-nowrap')}>{operation.container?.code ?? operation.lot.code}</TableCell>
-                  <TableCell numeric className={cn(printCell, 'font-semibold')}>
-                    <Quantity value={operation.quantity} unit={operation.unit} signed />
-                  </TableCell>
+                  <TableCell className={printCell}>{typeSingular[operation.type]}</TableCell>
                   <TableCell className={printCell}>{purposeOf(operation) ?? '—'}</TableCell>
                   <TableCell className={printCell}>{responsibleOf(operation)}</TableCell>
+                  <TableCell numeric className={cn(printCell, 'whitespace-nowrap font-semibold')}>
+                    <Quantity value={operation.quantity} unit={operation.unit} signed />
+                  </TableCell>
+                  <TableCell numeric className={cn(printCell, 'whitespace-nowrap')}>
+                    <Quantity value={operation.balanceAfter} unit={operation.unit} />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

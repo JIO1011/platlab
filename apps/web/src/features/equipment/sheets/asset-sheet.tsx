@@ -166,11 +166,11 @@ export function AssetFormSheet({
       wide="xl"
       icon={editing ? Pencil : Microscope}
       title={editing ? 'Editar ficha' : 'Registrar equipo'}
-      description={editing ? 'La ubicación y el estado se cambian con «Trasladar equipo» y «Cambiar estado».' : '* Campos obligatorios'}
+      description={editing ? 'La ubicación y el estado se cambian con «Trasladar equipo» y «Cambiar estado».' : 'Da de alta un equipo con su ubicación y su estado.'}
+      required
       open={open}
       onOpenChange={onOpenChange}
       submitLabel={editing ? 'Guardar cambios' : 'Registrar equipo'}
-      submitDisabled={editing && !dirty}
       status={editing && !dirty ? 'Sin cambios por guardar' : undefined}
       pending={saving || create.isPending || update.isPending || uploadPhoto.isPending}
       generalError={generalError}

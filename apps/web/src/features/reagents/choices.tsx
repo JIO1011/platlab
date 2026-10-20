@@ -1,5 +1,5 @@
 import { entryList, type ListEntry } from '@platlab/contracts';
-import { Button, Input, Select, cn, sectionLabel, sheetToasterId, toast } from '@platlab/ui';
+import { Button, Input, Select, cn, sheetToasterId, toast } from '@platlab/ui';
 import { Plus, Trash2, type LucideIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 import { commandErrorMessage, useArchiveEntry, useCommand } from './commands';
@@ -22,7 +22,7 @@ interface ChoiceFieldProps {
   addPath: '/reasons' | '/destinations' | '/areas';
   addBody: (name: string) => Record<string, string>;
   addLabel: string;
-  /** Estilo del rótulo; por defecto, el de sección de las ventanas. */
+  /** Estilo del rótulo; por defecto, el de un campo (tipo oración, como el de `Field`). */
   labelClassName?: string;
   /** Icono que acompaña a cada etiqueta (el destino lleva un pin). */
   icon?: LucideIcon;
@@ -58,7 +58,7 @@ export function ChoiceField({
   addPath,
   addBody,
   addLabel,
-  labelClassName = sectionLabel,
+  labelClassName = 'text-sm font-medium text-ink',
   icon: Icon,
   display = 'pills',
   noneLabel,
