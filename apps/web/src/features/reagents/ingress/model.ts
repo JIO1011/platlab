@@ -70,7 +70,8 @@ export interface BottlesForm {
   noExpiry: boolean;
   expiresOn: string;
   brand: string;
-  area: string;
+  /** Departamento dueño del lote (ADR 0024); vacío si no se elige. */
+  departmentId: string;
   /** Peso en g de un frasco lleno: con él, el servidor calcula la tara. */
   grossWeight: string;
   /** Densidad de los frascos de un reactivo existente; la de uno nuevo va en su ficha (`Draft`). */
@@ -85,7 +86,7 @@ export const emptyBottles: BottlesForm = {
   noExpiry: false,
   expiresOn: '',
   brand: '',
-  area: '',
+  departmentId: '',
   grossWeight: '',
   density: '',
 };

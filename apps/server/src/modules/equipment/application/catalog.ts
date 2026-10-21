@@ -5,15 +5,19 @@ import {
   type Asset,
   type AssetType,
   type createAssetTypeRequest,
-  type createLocationRequest,
-  type Location,
   type newAsset,
   type updateAssetRequest,
 } from '@platlab/contracts';
 import { freeCodeFor, lockKey } from '../../../platform/db/codes.js';
 import { AppError } from '../../../platform/errors.js';
 import { definedFields } from '../../../platform/objects.js';
-import { createAuditedLocation, recordAudit, requires, type CommandRequest, type WorkspaceAccess } from '../../core/index.js';
+import {
+  recordAudit,
+  requireActiveDepartment,
+  requires,
+  type CommandRequest,
+  type WorkspaceAccess,
+} from '../../core/index.js';
 import {
   activeTypeNamed,
   archiveAssetType as archiveAssetTypeQuery,
@@ -29,7 +33,7 @@ import {
 import { CATALOG, lockActiveAsset, runCommand } from './command.js';
 import { assetById } from './queries.js';
 
-/** Catálogo de Equipos (ADR 0019): tipos, alta y ficha del equipo, y ubicaciones de Core. */
+/** Catálogo de Equipos (ADR 0019): tipos, alta y ficha del equipo. */
 
 /** Serializa, por espacio, los códigos automáticos y los cambios de código. */
 const codesLock = (access: WorkspaceAccess) => `equipment.assets/${access.workspace.id}`;
@@ -119,9 +123,11 @@ export function createAsset(pool: pg.Pool, request: CommandRequest, input: z.inf
       warrantyUntil: input.warrantyUntil ?? null,
       usefulLifeYears: input.usefulLifeYears ?? null,
       replacementValue: input.replacementValue ?? null,
+      departmentId: input.departmentId ?? null,
     };
     requireRules(fields);
     await requireReferences(access, { typeId: input.typeId, locationId: input.locationId, responsibleId: fields.responsibleId });
+    if (fields.departmentId !== null) await requireActiveDepartment(access, fields.departmentId);
     const code = await assetCode(access, input);
     const [row] = await insertAsset.run(
       {
@@ -175,12 +181,16 @@ export function updateAsset(
       warrantyUntil: locked.warranty_until,
       usefulLifeYears: locked.useful_life_years,
       replacementValue: locked.replacement_value,
+      departmentId: locked.department_id,
     };
     const after = { ...before, ...definedFields(input) };
     requireRules(after);
     const typeId = after.typeId !== before.typeId ? after.typeId : null;
     const responsibleId = after.responsibleId !== before.responsibleId ? after.responsibleId : null;
     if (typeId !== null || responsibleId !== null) await requireReferences(access, { typeId, locationId: null, responsibleId });
+    if (after.departmentId !== before.departmentId && after.departmentId !== null) {
+      await requireActiveDepartment(access, after.departmentId);
+    }
     // Un código nuevo se comprueba bajo el bloqueo de códigos: un UPDATE no tiene ON CONFLICT.
     if (after.code.toLowerCase() !== before.code.toLowerCase()) {
       await lockKey(access.client, codesLock(access));
@@ -209,15 +219,4 @@ export function updateAsset(
     await recordAudit(access, { action: 'equipment.asset.update', entityType: 'equipment.asset', entityId: assetId, changes });
     return assetById(access, assetId);
   });
-}
-
-/** Crea una ubicación de Core desde Equipos (ADR 0015) con el permiso de catálogo del módulo. */
-export function createEquipmentLocation(
-  pool: pg.Pool,
-  request: CommandRequest,
-  input: z.infer<typeof createLocationRequest>,
-): Promise<Location> {
-  return runCommand(pool, request, 'equipment.location.create', input, requires(CATALOG), (access) =>
-    createAuditedLocation(access, input, 'equipment.location.create'),
-  );
 }

@@ -11,7 +11,7 @@ export const inventoryContext = (access: WorkspaceAccess): InventoryContext => (
   kind: 'reagent',
 });
 
-/** Catálogo: alta y edición de reactivos, listas y ubicaciones (Administrador y Propietario). */
+/** Catálogo: alta y edición de reactivos y motivos (Administrador y Propietario). */
 export const CATALOG = 'reagents.catalog.manage';
 
 /** Comandos de Reactivos: una transacción con su admisión, permiso, idempotencia y auditoría. */

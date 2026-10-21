@@ -845,6 +845,36 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
   - L-01a a L-01c son el mínimo que se muestra al cliente. Después viene su G0.
 - **Se valida con el cliente** antes de cerrar cada regla (Pendientes, «Reglas de Laboratorios»): lo dudoso no se programa.
 
+## ADR 0024 — Áreas y departamentos en una sección propia
+
+Estado: aceptada (20-10-2026; idea del usuario: cuadros que la app dibuja como un croquis). Ajusta la lista «área o departamento» de Reactivos ([ADR 0015](#adr-0015)), sus destinos ([ADR 0012](#adr-0012)) y Espacios de Laboratorios ([ADR 0023](#adr-0023)).
+
+- **Dos datos en todo recurso:**
+  - **Área (dónde):** la ubicación física del Núcleo (`core.locations`, `core.location_areas`), ya común a los módulos.
+  - **Departamento (de quién):** lista nueva del Núcleo, con dueños y carreras. Un mismo laboratorio guarda cosas de varios departamentos.
+- **Sección «Áreas» en la barra lateral, bajo «Inicio».** No va en el Resumen de los módulos.
+  - La ven el Propietario, el Administrador y el Operador; crean, renombran y archivan el Propietario y el Administrador.
+  - Un selector «Áreas | Departamentos» cambia la vista.
+  - La app dibuja un cuadro por área, agrupado por sede o edificio: nombre, encargado y una cifra por módulo (🧪 reactivos con existencias, 🔬 equipos activos). No es un lienzo ni una tabla: nadie dibuja ni mueve cuadros.
+  - Cada cifra abre la lista de su módulo filtrada por esa área o ese departamento.
+  - Al abrir un área se ven y se crean sus estantes, y se asigna su encargado (Equipos lo muestra y deja de editarlo).
+  - La vista Departamentos usa los mismos cuadros, con las cifras de cada dueño.
+  - Cada módulo declara su icono y su cifra, como su tarjeta de Inicio: la sección no conoce a los módulos.
+- **Los formularios solo eligen:**
+  - la ubicación (ingreso, traslado, alta de equipo), entre áreas y estantes existentes, sin «+ Crear». Si falta, el aviso pide al Administrador crearla en Áreas;
+  - el **departamento**, opcional, al ingresar un reactivo (reemplaza «Área o departamento») y al dar de alta o editar un equipo;
+  - el **destino** de una salida es un departamento, como una carrera. La lista de destinos de Reactivos desaparece;
+  - los motivos no cambian.
+- **Reglas:**
+  - un área con reactivos o equipos, en ella o en sus estantes, no se archiva: primero se trasladan;
+  - archivar un departamento solo lo deja de ofrecer;
+  - la historia no cambia: salidas y solicitudes guardan el texto del destino, como hoy. El lote y el equipo guardan el departamento enlazado: renombrarlo cambia en todas partes.
+- **Datos actuales:** las listas «área o departamento» y de destinos pasan a la de departamentos, sin repetir nombres, y cada lote se enlaza por nombre. No hay datos reales; la demo usa carreras como departamentos.
+- **Laboratorios** (se confirma al empezar L-01a): el «Grupo» del bloque, la carrera, se elige de Departamentos. Espacios solo agrega horario, aforo y cierres a las áreas, que se crean aquí.
+- **Entregas** ([04](04_roadmap.md), C-01), antes de L-01a:
+  - **C-01a:** datos, API, cifras por área y por departamento y el paso de las listas actuales;
+  - **C-01b:** la sección Áreas y los formularios que solo eligen.
+
 ## Pendientes
 
 | Tema | Pregunta | Se resuelve en |

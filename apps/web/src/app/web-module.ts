@@ -46,8 +46,24 @@ export interface WebModule {
     /** Qué cuenta el gráfico del módulo, para la frase que lo acompaña. */
     trendNoun: { one: string; many: string };
   };
+  /**
+   * Cómo cuenta el módulo en los cuadros de Áreas y Departamentos (ADR 0024): la sección no conoce a los
+   * módulos, solo lo que cada uno declara aquí. El icono es el `Icon` del módulo.
+   */
+  areas?: {
+    /** El nombre de lo que se cuenta, según la cifra: «reactivo» o «reactivos». */
+    label: (n: number) => string;
+    /** Dónde se abre la lista del módulo ya filtrada, desde el espacio y sin barra inicial: `reactivos/inventario?area=…`. */
+    href: (filter: AreaFilter) => string;
+  };
   /** Lo que aporta a los puntos de extensión de otros módulos. */
   extensions?: ModuleExtension[];
+}
+
+/** Lo que filtra una cifra de la sección Áreas: un área o un departamento (ADR 0024). */
+export interface AreaFilter {
+  kind: 'area' | 'department';
+  id: string;
 }
 
 /** Rutas de un módulo: hijas de `/e/:workspaceId` y de primer nivel (enlaces que sobreviven al acceso). */

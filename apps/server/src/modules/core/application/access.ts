@@ -6,10 +6,12 @@ import { setActor, setRequestScope } from '../../../platform/db/context.queries.
 import { withTransaction } from '../../../platform/db/transaction.js';
 import { AppError, accessDenied } from '../../../platform/errors.js';
 import {
+  admitAnyModule,
   admitModule,
   admitWorkspace,
   findIdentity,
   findMembershipClasses,
+  listActiveMembers as listActiveMembersQuery,
   listMemberRoles as listMemberRolesQuery,
   listMyWorkspaces as listMyWorkspacesQuery,
   listPermissionCodes,
@@ -143,6 +145,48 @@ export function withModuleAccess<T>(
   });
 }
 
+/**
+ * Para lo común a varios módulos, sin derecho propio (áreas y departamentos, ADR 0024): decide con los dos
+ * ejes para cada módulo de `grants` y bloquea espacio, sus derechos y membresía como withModuleAccess. Lo
+ * admite un módulo admitido para la clase de acción cuyo permiso (`grants[módulo]`) tiene el miembro;
+ * `work` recibe esos módulos. Sin ninguno admitido, la decisión del primero; admitidos sin permiso, la
+ * denegación de siempre.
+ */
+export function withAnyModuleAccess<T>(
+  pool: pg.Pool,
+  request: AccessRequest & { grants: Readonly<Record<string, string>> },
+  work: (access: WorkspaceAccess, modules: string[]) => Promise<T>,
+): Promise<T> {
+  return withTransaction(pool, async (client) => {
+    await setRequestScope.run({ authSubject: request.subject, workspaceId: request.workspaceId }, client);
+    const rows = await admitAnyModule.run(
+      {
+        workspaceId: request.workspaceId,
+        subject: request.subject,
+        moduleCodes: Object.keys(request.grants),
+        actionClass: request.actionClass,
+      },
+      client,
+    );
+    const admitted = rows.filter((row) => row.decision === 'admitted');
+    const [first] = admitted.length > 0 ? admitted : rows;
+    if (!first) {
+      const [member] = await findMembershipClasses.run(
+        { workspaceId: request.workspaceId, subject: request.subject },
+        client,
+      );
+      throw member && member.workspace_classes.length > 0 ? rejection('module_unavailable') : accessDenied();
+    }
+    const access = await enter(client, first);
+    const granted = await listGrantedPermissions(access);
+    const modules = admitted
+      .map((row) => row.module_code)
+      .filter((code) => granted.includes(request.grants[code] ?? ''));
+    if (modules.length === 0) throw new AppError('ACCESS_DENIED', 'No tienes permiso para esta acción');
+    return work(access, modules);
+  });
+}
+
 /** Espacios donde la identidad del JWT tiene una membresía activa; sin identidad, ninguno. */
 export function listMyWorkspaces(pool: pg.Pool, subject: string): Promise<WorkspaceSummary[]> {
   return withTransaction(pool, async (client) => {
@@ -179,6 +223,11 @@ export function listGrantedPermissions(access: WorkspaceAccess): Promise<string[
     grantedByAccess.set(access, granted);
   }
   return granted;
+}
+
+/** Miembros activos del espacio, por nombre: a quién se asigna un equipo o el encargo de un área. */
+export function listActiveMembers(access: WorkspaceAccess): Promise<Array<{ id: string; name: string }>> {
+  return listActiveMembersQuery.run({ workspaceId: access.workspace.id }, access.client);
 }
 
 /** Nombres de los roles vigentes del miembro, para mostrarlos; no autorizan nada. */

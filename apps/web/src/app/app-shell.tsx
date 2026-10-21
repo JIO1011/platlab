@@ -8,6 +8,7 @@ import {
   House,
   LayoutDashboard,
   LogOut,
+  MapPinned,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -341,6 +342,7 @@ export function AppShell() {
   const apps = moduleApps(me.data);
   const app = apps.find((entry) => entry.path === segment);
   const workspaceList = workspaces.data?.workspaces ?? [];
+  const showAreas = me.data.areas !== 'none';
   const descriptor = app ? webModule(app.code) : undefined;
 
   // El Resumen tiene el mismo icono en todos los módulos; las demás secciones, el que declare el módulo.
@@ -399,6 +401,12 @@ export function AppShell() {
                 <NavItem to={base} end icon={House}>
                   Inicio
                 </NavItem>
+                {/* Áreas y departamentos del Núcleo (ADR 0024): no es un módulo; la ven quienes tienen `read` o `manage`. */}
+                {showAreas ? (
+                  <NavItem to={`${base}/areas`} icon={MapPinned}>
+                    Áreas
+                  </NavItem>
+                ) : null}
               </nav>
             </>
           )}
@@ -434,7 +442,7 @@ export function AppShell() {
             )}
             {/* En escritorio, la barra dice dónde se está: módulo › sección › lo que la página sume. */}
             <ShellCrumbs
-              module={app ? app.name : 'Inicio'}
+              module={app ? app.name : segment === 'areas' ? 'Áreas' : 'Inicio'}
               section={
                 section && app
                   ? { label: section.label, to: section.path ? `${base}/${app.path}/${section.path}` : `${base}/${app.path}` }
@@ -461,6 +469,16 @@ export function AppShell() {
                 {sections(true)}
               </nav>
             </div>
+          ) : showAreas ? (
+            // Fuera de un módulo no hay menú lateral en el móvil: Inicio y Áreas, en la misma fila de píldoras.
+            <nav aria-label="Secciones en el móvil" className="flex gap-1 px-3 pb-2 md:hidden">
+              <NavItem to={base} end compact>
+                Inicio
+              </NavItem>
+              <NavItem to={`${base}/areas`} compact>
+                Áreas
+              </NavItem>
+            </nav>
           ) : null}
         </header>
         <main className="px-4 pb-16 pt-6 md:px-8 md:pb-8 md:pt-8">

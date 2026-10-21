@@ -87,8 +87,6 @@ export function TransferSheet({ workspaceId, open, onOpenChange, asset }: SheetB
         <LocationPicker
           places={places}
           recentIds={[]}
-          canCreate={false}
-          onCreate={() => Promise.resolve(null)}
           placeholders={placeholders}
           error={errors.locationId?.message}
           onChange={(placeId) => {

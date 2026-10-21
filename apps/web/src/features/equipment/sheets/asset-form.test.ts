@@ -1,6 +1,6 @@
 import type { Asset } from '@platlab/contracts';
 import { describe, expect, it } from 'vitest';
-import { changedFields, createPayload, emptyForm, formOfAsset, hasPendingChanges, normalizeForm, parseMoney, parseYears } from './asset-form';
+import { changedFields, createPayload, emptyForm, formOfAsset, hasPendingChanges, normalizeForm, NONE, parseMoney, parseYears } from './asset-form';
 
 const asset: Asset = {
   id: '3f1a4b2c-0000-4000-8000-000000000001',
@@ -21,6 +21,7 @@ const asset: Asset = {
   warrantyUntil: '2026-03-01',
   usefulLifeYears: 10,
   replacementValue: '9800.00',
+  department: null,
   photoUrl: null,
   createdAt: '2024-03-02T10:00:00Z',
 };
@@ -107,6 +108,15 @@ describe('changedFields', () => {
     const next = normalizeForm({ ...formOfAsset(asset), brand: '', model: 'CX23', usefulLifeYears: '12' }).fields;
     expect(changedFields(initial, next)).toEqual({ brand: null, model: 'CX23', usefulLifeYears: 12 });
   });
+
+  it('el departamento se envía al elegirlo y null lo quita', () => {
+    const owned = { ...asset, department: { id: 'd1', name: 'Química' } };
+    expect(formOfAsset(owned).departmentId).toBe('d1');
+    expect(formOfAsset(asset).departmentId).toBe(NONE);
+    const saved = normalizeForm(formOfAsset(owned)).fields;
+    expect(changedFields(saved, normalizeForm({ ...formOfAsset(owned), departmentId: NONE }).fields)).toEqual({ departmentId: null });
+    expect(changedFields(initial, normalizeForm({ ...formOfAsset(asset), departmentId: 'd2' }).fields)).toEqual({ departmentId: 'd2' });
+  });
 });
 
 describe('createPayload', () => {
@@ -120,6 +130,12 @@ describe('createPayload', () => {
       locationId: 'l1',
       condition: 'restricted',
     });
+  });
+
+  it('envía el departamento solo si se eligió', () => {
+    const named = { ...emptyForm, name: 'Balanza', typeId: 't1' };
+    expect(createPayload(normalizeForm(named).fields, { locationId: 'l1', condition: 'operational' })).not.toHaveProperty('departmentId');
+    expect(createPayload(normalizeForm({ ...named, departmentId: 'd1' }).fields, { locationId: 'l1', condition: 'operational' })).toMatchObject({ departmentId: 'd1' });
   });
 
   it('con código escrito lo envía', () => {

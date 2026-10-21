@@ -84,8 +84,8 @@ select throws_ok(
   '23503', null, 'el encargado no es un miembro de otro espacio');
 
 select throws_ok(
-  $$ update core.locations set name = 'Cuarto caliente' where id = 'a3000000-0000-4000-8000-000000000002' $$,
-  '42501', null, 'el nombre de una ubicación no se cambia desde la API');
+  $$ update core.locations set code = 'CC' where id = 'a3000000-0000-4000-8000-000000000002' $$,
+  '42501', null, 'el código de una ubicación no se cambia desde la API (el nombre sí, ADR 0024)');
 
 select throws_ok(
   $$ update core.locations set parent_id = null where id = 'a3000000-0000-4000-8000-000000000003' $$,

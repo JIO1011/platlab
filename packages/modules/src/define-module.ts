@@ -34,6 +34,11 @@ export interface ModuleManifest {
   roleGrants: Partial<Record<RoleCode, readonly string[]>>;
   nav: readonly NavEntry[];
   homeCard?: { permission: string };
+  /**
+   * Áreas y departamentos del Núcleo (ADR 0024): el módulo que guarda cosas en ellos los declara con su
+   * permiso de consulta y el de administración. Core no tiene permisos propios.
+   */
+  areas?: { read: string; manage: string };
   stage: ModuleStage;
 }
 
@@ -55,6 +60,7 @@ export function defineModule<const M extends ModuleManifest>(manifest: M): M {
     ...Object.values(manifest.roleGrants).flatMap((grants) => grants ?? []),
     ...manifest.nav.flatMap((entry) => [entry.permission, ...entry.sections.map((section) => section.permission)]),
     ...(manifest.homeCard ? [manifest.homeCard.permission] : []),
+    ...(manifest.areas ? [manifest.areas.read, manifest.areas.manage] : []),
   ];
   for (const permission of used) {
     if (!declared.has(permission)) {

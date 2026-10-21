@@ -21,7 +21,8 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { isApiError } from '../../../app/api';
 import { formatDate, todayInZone } from '../../../app/format';
-import { useDestinations, useReasons } from '../queries';
+import { useReasons } from '../queries';
+import { useDepartments } from '../../../app/queries';
 import { ChoiceField } from '../choices';
 import { commandErrorMessage, useCommand } from '../commands';
 import { ControlledMark } from '../controlled';
@@ -75,7 +76,7 @@ export function IssueSheet({
   const form = useForm({ defaultValues: { positionId: preselected ?? '', quantity: '', reason: '', destination: '' } });
   const position = positions.find((p) => p.id === form.watch('positionId'));
   const reasons = useReasons(workspaceId, 'issue', open);
-  const destinations = useDestinations(workspaceId, open);
+  const destinations = useDepartments(workspaceId, open);
   const errors = form.formState.errors;
   const suggestion = position ? fefoSuggestion(positions, position, today) : null;
   const quantity = normalizeDecimalInput(form.watch('quantity'));
@@ -311,7 +312,6 @@ export function IssueSheet({
             value={field.value}
             onChange={field.onChange}
             canAdd={canManageLists}
-            addPath="/reasons"
             addBody={(name) => ({ kind: 'issue', name })}
             addLabel="Nuevo motivo"
           />
@@ -329,10 +329,7 @@ export function IssueSheet({
             loading={destinations.isPending}
             value={field.value}
             onChange={field.onChange}
-            canAdd={canManageLists}
-            addPath="/destinations"
-            addBody={(name) => ({ name })}
-            addLabel="Nuevo destino"
+            canAdd={false}
             icon={MapPin}
           />
         )}

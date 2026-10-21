@@ -262,7 +262,6 @@ export function ReagentsLayout() {
           products={productList}
           productId={current.request.productId}
           canCreate={allowed.product}
-          canManageLists={allowed.lists}
           base={base}
         />
       ) : null}

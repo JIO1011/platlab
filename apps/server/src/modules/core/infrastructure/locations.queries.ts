@@ -1,6 +1,8 @@
 /** Types generated for queries found in "src/modules/core/infrastructure/locations.sql" */
 import { PreparedQuery } from '@pgtyped/runtime';
 
+export type stringArray = (string)[];
+
 /** 'ListActiveLocations' parameters type */
 export interface IListActiveLocationsParams {
   workspaceId: string;
@@ -59,14 +61,16 @@ export interface IFindActiveLocationQuery {
   result: IFindActiveLocationResult;
 }
 
-const findActiveLocationIR: any = {"usedParamSet":{"workspaceId":true,"locationId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":57,"b":69}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":80,"b":91}]}],"statement":"SELECT id, kind\nFROM core.locations\nWHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL"};
+const findActiveLocationIR: any = {"usedParamSet":{"workspaceId":true,"locationId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":162,"b":174}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":185,"b":196}]}],"statement":"-- El padre de una ubicación nueva, bloqueado (compartido) hasta el final: no se archiva mientras tanto.\nSELECT id, kind\nFROM core.locations\nWHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL\nFOR SHARE"};
 
 /**
  * Query generated from SQL:
  * ```
+ * -- El padre de una ubicación nueva, bloqueado (compartido) hasta el final: no se archiva mientras tanto.
  * SELECT id, kind
  * FROM core.locations
  * WHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL
+ * FOR SHARE
  * ```
  */
 export const findActiveLocation = new PreparedQuery<IFindActiveLocationParams,IFindActiveLocationResult>(findActiveLocationIR);
@@ -115,7 +119,6 @@ export interface IInsertLocationParams {
 /** 'InsertLocation' return type */
 export interface IInsertLocationResult {
   code: string;
-  created: boolean;
   id: string;
   kind: string;
   name: string;
@@ -128,30 +131,275 @@ export interface IInsertLocationQuery {
   result: IInsertLocationResult;
 }
 
-const insertLocationIR: any = {"usedParamSet":{"workspaceId":true,"parentId":true,"kind":true,"code":true,"name":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":339,"b":351},{"a":746,"b":758}]},{"name":"parentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":354,"b":362},{"a":795,"b":803}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":365,"b":370}]},{"name":"code","required":true,"transform":{"type":"scalar"},"locs":[{"a":373,"b":378}]},{"name":"name","required":true,"transform":{"type":"scalar"},"locs":[{"a":381,"b":386},{"a":855,"b":860}]}],"statement":"-- Un nombre activo repetido bajo el mismo padre, sin distinguir tildes ni mayúsculas, no crea otra:\n-- devuelve la existente. Se ejecuta bajo el\n-- bloqueo de códigos del espacio, así que la existente ya es visible para esta sentencia.\nWITH inserted AS (\n  INSERT INTO core.locations (workspace_id, parent_id, kind, code, name)\n  VALUES (:workspaceId!, :parentId, :kind!, :code!, :name!)\n  ON CONFLICT (workspace_id, parent_id, core.fold_text(name)) WHERE archived_at IS NULL DO NOTHING\n  RETURNING id, code, name, kind, parent_id\n)\nSELECT id AS \"id!\", code AS \"code!\", name AS \"name!\", kind AS \"kind!\", parent_id, true AS \"created!\" FROM inserted\nUNION ALL\nSELECT id, code, name, kind, parent_id, false FROM core.locations\nWHERE workspace_id = :workspaceId! AND parent_id IS NOT DISTINCT FROM :parentId::uuid\n  AND core.fold_text(name) = core.fold_text(:name!)\n  AND archived_at IS NULL\n  AND NOT EXISTS (SELECT 1 FROM inserted)"};
+const insertLocationIR: any = {"usedParamSet":{"workspaceId":true,"parentId":true,"kind":true,"code":true,"name":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":273,"b":285}]},{"name":"parentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":288,"b":296}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":299,"b":304}]},{"name":"code","required":true,"transform":{"type":"scalar"},"locs":[{"a":307,"b":312}]},{"name":"name","required":true,"transform":{"type":"scalar"},"locs":[{"a":315,"b":320}]}],"statement":"-- Un nombre activo repetido bajo el mismo padre, sin distinguir tildes ni mayúsculas, no inserta nada: el\n-- comando responde NAME_TAKEN. Se ejecuta bajo el bloqueo de ubicaciones del espacio.\nINSERT INTO core.locations (workspace_id, parent_id, kind, code, name)\nVALUES (:workspaceId!, :parentId, :kind!, :code!, :name!)\nON CONFLICT (workspace_id, parent_id, core.fold_text(name)) WHERE archived_at IS NULL DO NOTHING\nRETURNING id, code, name, kind, parent_id"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Un nombre activo repetido bajo el mismo padre, sin distinguir tildes ni mayúsculas, no crea otra:
- * -- devuelve la existente. Se ejecuta bajo el
- * -- bloqueo de códigos del espacio, así que la existente ya es visible para esta sentencia.
- * WITH inserted AS (
- *   INSERT INTO core.locations (workspace_id, parent_id, kind, code, name)
- *   VALUES (:workspaceId!, :parentId, :kind!, :code!, :name!)
- *   ON CONFLICT (workspace_id, parent_id, core.fold_text(name)) WHERE archived_at IS NULL DO NOTHING
- *   RETURNING id, code, name, kind, parent_id
- * )
- * SELECT id AS "id!", code AS "code!", name AS "name!", kind AS "kind!", parent_id, true AS "created!" FROM inserted
- * UNION ALL
- * SELECT id, code, name, kind, parent_id, false FROM core.locations
- * WHERE workspace_id = :workspaceId! AND parent_id IS NOT DISTINCT FROM :parentId::uuid
- *   AND core.fold_text(name) = core.fold_text(:name!)
- *   AND archived_at IS NULL
- *   AND NOT EXISTS (SELECT 1 FROM inserted)
+ * -- Un nombre activo repetido bajo el mismo padre, sin distinguir tildes ni mayúsculas, no inserta nada: el
+ * -- comando responde NAME_TAKEN. Se ejecuta bajo el bloqueo de ubicaciones del espacio.
+ * INSERT INTO core.locations (workspace_id, parent_id, kind, code, name)
+ * VALUES (:workspaceId!, :parentId, :kind!, :code!, :name!)
+ * ON CONFLICT (workspace_id, parent_id, core.fold_text(name)) WHERE archived_at IS NULL DO NOTHING
+ * RETURNING id, code, name, kind, parent_id
  * ```
  */
 export const insertLocation = new PreparedQuery<IInsertLocationParams,IInsertLocationResult>(insertLocationIR);
+
+
+/** 'LockLocation' parameters type */
+export interface ILockLocationParams {
+  locationId: string;
+  workspaceId: string;
+}
+
+/** 'LockLocation' return type */
+export interface ILockLocationResult {
+  id: string;
+  kind: string;
+  name: string;
+  parent_id: string | null;
+}
+
+/** 'LockLocation' query type */
+export interface ILockLocationQuery {
+  params: ILockLocationParams;
+  result: ILockLocationResult;
+}
+
+const lockLocationIR: any = {"usedParamSet":{"workspaceId":true,"locationId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":126,"b":138}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":149,"b":160}]}],"statement":"-- La ubicación activa, bloqueada para renombrarla.\nSELECT id, name, kind, parent_id\nFROM core.locations\nWHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL\nFOR UPDATE"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- La ubicación activa, bloqueada para renombrarla.
+ * SELECT id, name, kind, parent_id
+ * FROM core.locations
+ * WHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL
+ * FOR UPDATE
+ * ```
+ */
+export const lockLocation = new PreparedQuery<ILockLocationParams,ILockLocationResult>(lockLocationIR);
+
+
+/** 'SiblingNamed' parameters type */
+export interface ISiblingNamedParams {
+  exceptId: string;
+  name: string;
+  parentId?: string | null | void;
+  workspaceId: string;
+}
+
+/** 'SiblingNamed' return type */
+export interface ISiblingNamedResult {
+  name: string;
+}
+
+/** 'SiblingNamed' query type */
+export interface ISiblingNamedQuery {
+  params: ISiblingNamedParams;
+  result: ISiblingNamedResult;
+}
+
+const siblingNamedIR: any = {"usedParamSet":{"workspaceId":true,"parentId":true,"name":true,"exceptId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":155,"b":167}]},{"name":"parentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":204,"b":212}]},{"name":"name","required":true,"transform":{"type":"scalar"},"locs":[{"a":264,"b":269}]},{"name":"exceptId","required":true,"transform":{"type":"scalar"},"locs":[{"a":306,"b":315}]}],"statement":"-- Otra ubicación activa con el mismo nombre plegado bajo el mismo padre, para nombrarla en el error.\nSELECT name\nFROM core.locations\nWHERE workspace_id = :workspaceId! AND parent_id IS NOT DISTINCT FROM :parentId::uuid\n  AND core.fold_text(name) = core.fold_text(:name!) AND archived_at IS NULL AND id <> :exceptId!"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Otra ubicación activa con el mismo nombre plegado bajo el mismo padre, para nombrarla en el error.
+ * SELECT name
+ * FROM core.locations
+ * WHERE workspace_id = :workspaceId! AND parent_id IS NOT DISTINCT FROM :parentId::uuid
+ *   AND core.fold_text(name) = core.fold_text(:name!) AND archived_at IS NULL AND id <> :exceptId!
+ * ```
+ */
+export const siblingNamed = new PreparedQuery<ISiblingNamedParams,ISiblingNamedResult>(siblingNamedIR);
+
+
+/** 'SetLocationName' parameters type */
+export interface ISetLocationNameParams {
+  locationId: string;
+  name: string;
+  workspaceId: string;
+}
+
+/** 'SetLocationName' return type */
+export type ISetLocationNameResult = void;
+
+/** 'SetLocationName' query type */
+export interface ISetLocationNameQuery {
+  params: ISetLocationNameParams;
+  result: ISetLocationNameResult;
+}
+
+const setLocationNameIR: any = {"usedParamSet":{"name":true,"workspaceId":true,"locationId":true},"params":[{"name":"name","required":true,"transform":{"type":"scalar"},"locs":[{"a":33,"b":38}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":84,"b":96}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":107,"b":118}]}],"statement":"UPDATE core.locations\nSET name = :name!, version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :locationId!"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE core.locations
+ * SET name = :name!, version = version + 1
+ * WHERE workspace_id = :workspaceId! AND id = :locationId!
+ * ```
+ */
+export const setLocationName = new PreparedQuery<ISetLocationNameParams,ISetLocationNameResult>(setLocationNameIR);
+
+
+/** 'LockLocationTree' parameters type */
+export interface ILockLocationTreeParams {
+  locationId: string;
+  workspaceId: string;
+}
+
+/** 'LockLocationTree' return type */
+export interface ILockLocationTreeResult {
+  id: string;
+  kind: string;
+  name: string;
+}
+
+/** 'LockLocationTree' query type */
+export interface ILockLocationTreeQuery {
+  params: ILockLocationTreeParams;
+  result: ILockLocationTreeResult;
+}
+
+const lockLocationTreeIR: any = {"usedParamSet":{"workspaceId":true,"locationId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":284,"b":296},{"a":475,"b":487},{"a":597,"b":609}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":307,"b":318}]}],"statement":"-- La ubicación activa y toda su descendencia activa, bloqueadas en orden de id para archivarlas (ADR 0024):\n-- un ingreso, un traslado o un alta que esperaba la ubicación la relee archivada y no la usa.\nWITH RECURSIVE tree AS (\n  SELECT id FROM core.locations\n  WHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL\n  UNION ALL\n  SELECT child.id\n  FROM core.locations AS child\n  JOIN tree ON child.parent_id = tree.id\n  WHERE child.workspace_id = :workspaceId! AND child.archived_at IS NULL\n)\nSELECT l.id, l.kind, l.name\nFROM core.locations AS l\nWHERE l.workspace_id = :workspaceId! AND l.id IN (SELECT id FROM tree) AND l.archived_at IS NULL\nORDER BY l.id\nFOR UPDATE OF l"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- La ubicación activa y toda su descendencia activa, bloqueadas en orden de id para archivarlas (ADR 0024):
+ * -- un ingreso, un traslado o un alta que esperaba la ubicación la relee archivada y no la usa.
+ * WITH RECURSIVE tree AS (
+ *   SELECT id FROM core.locations
+ *   WHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL
+ *   UNION ALL
+ *   SELECT child.id
+ *   FROM core.locations AS child
+ *   JOIN tree ON child.parent_id = tree.id
+ *   WHERE child.workspace_id = :workspaceId! AND child.archived_at IS NULL
+ * )
+ * SELECT l.id, l.kind, l.name
+ * FROM core.locations AS l
+ * WHERE l.workspace_id = :workspaceId! AND l.id IN (SELECT id FROM tree) AND l.archived_at IS NULL
+ * ORDER BY l.id
+ * FOR UPDATE OF l
+ * ```
+ */
+export const lockLocationTree = new PreparedQuery<ILockLocationTreeParams,ILockLocationTreeResult>(lockLocationTreeIR);
+
+
+/** 'ArchiveLocations' parameters type */
+export interface IArchiveLocationsParams {
+  locationIds: stringArray;
+  workspaceId: string;
+}
+
+/** 'ArchiveLocations' return type */
+export interface IArchiveLocationsResult {
+  id: string;
+}
+
+/** 'ArchiveLocations' query type */
+export interface IArchiveLocationsQuery {
+  params: IArchiveLocationsParams;
+  result: IArchiveLocationsResult;
+}
+
+const archiveLocationsIR: any = {"usedParamSet":{"workspaceId":true,"locationIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":90,"b":102}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":118,"b":130}]}],"statement":"UPDATE core.locations\nSET archived_at = now(), version = version + 1\nWHERE workspace_id = :workspaceId! AND id = ANY (:locationIds!::uuid[]) AND archived_at IS NULL\nRETURNING id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * UPDATE core.locations
+ * SET archived_at = now(), version = version + 1
+ * WHERE workspace_id = :workspaceId! AND id = ANY (:locationIds!::uuid[]) AND archived_at IS NULL
+ * RETURNING id
+ * ```
+ */
+export const archiveLocations = new PreparedQuery<IArchiveLocationsParams,IArchiveLocationsResult>(archiveLocationsIR);
+
+
+/** 'ListAreaCards' parameters type */
+export interface IListAreaCardsParams {
+  workspaceId: string;
+}
+
+/** 'ListAreaCards' return type */
+export interface IListAreaCardsResult {
+  code: string;
+  group_id: string;
+  group_name: string;
+  id: string;
+  manager_name: string;
+  manager_principal_id: string | null;
+  name: string;
+}
+
+/** 'ListAreaCards' query type */
+export interface IListAreaCardsQuery {
+  params: IListAreaCardsParams;
+  result: IListAreaCardsResult;
+}
+
+const listAreaCardsIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":864,"b":876}]}],"statement":"-- Las áreas activas (ADR 0024): el primer nivel bajo la sede o el edificio, o la raíz; con su grupo (la\n-- sede o el edificio que las contiene) y su encargado. Por grupo y nombre.\nSELECT a.id, a.code, a.name, g.id AS group_id, g.name AS group_name,\n       a.manager_principal_id, ident.display_name AS manager_name\nFROM core.locations AS a\nJOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.id AND la.area_id = a.id\nLEFT JOIN core.locations AS g ON g.workspace_id = a.workspace_id AND g.id = a.parent_id AND g.kind IN ('site', 'building')\nLEFT JOIN core.principals AS pr ON pr.workspace_id = a.workspace_id AND pr.id = a.manager_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE a.workspace_id = :workspaceId! AND a.archived_at IS NULL AND a.kind NOT IN ('site', 'building')\nORDER BY g.name IS NOT NULL, core.fold_text(coalesce(g.name, '')), core.fold_text(a.name), a.id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Las áreas activas (ADR 0024): el primer nivel bajo la sede o el edificio, o la raíz; con su grupo (la
+ * -- sede o el edificio que las contiene) y su encargado. Por grupo y nombre.
+ * SELECT a.id, a.code, a.name, g.id AS group_id, g.name AS group_name,
+ *        a.manager_principal_id, ident.display_name AS manager_name
+ * FROM core.locations AS a
+ * JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.id AND la.area_id = a.id
+ * LEFT JOIN core.locations AS g ON g.workspace_id = a.workspace_id AND g.id = a.parent_id AND g.kind IN ('site', 'building')
+ * LEFT JOIN core.principals AS pr ON pr.workspace_id = a.workspace_id AND pr.id = a.manager_principal_id
+ * LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+ * LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
+ * WHERE a.workspace_id = :workspaceId! AND a.archived_at IS NULL AND a.kind NOT IN ('site', 'building')
+ * ORDER BY g.name IS NOT NULL, core.fold_text(coalesce(g.name, '')), core.fold_text(a.name), a.id
+ * ```
+ */
+export const listAreaCards = new PreparedQuery<IListAreaCardsParams,IListAreaCardsResult>(listAreaCardsIR);
+
+
+/** 'ListShelves' parameters type */
+export interface IListShelvesParams {
+  workspaceId: string;
+}
+
+/** 'ListShelves' return type */
+export interface IListShelvesResult {
+  area_id: string;
+  code: string;
+  id: string;
+  name: string;
+  parent_id: string;
+}
+
+/** 'ListShelves' query type */
+export interface IListShelvesQuery {
+  params: IListShelvesParams;
+  result: IListShelvesResult;
+}
+
+const listShelvesIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":305,"b":317}]}],"statement":"-- Estantes y niveles activos de las áreas, con su padre para armar los niveles.\nSELECT l.id, l.code, l.name, l.parent_id AS \"parent_id!\", la.area_id AS \"area_id!\"\nFROM core.locations AS l\nJOIN core.location_areas AS la ON la.workspace_id = l.workspace_id AND la.location_id = l.id\nWHERE l.workspace_id = :workspaceId! AND l.archived_at IS NULL AND la.area_id <> l.id\n  AND l.kind NOT IN ('site', 'building')\nORDER BY core.fold_text(l.name), l.id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Estantes y niveles activos de las áreas, con su padre para armar los niveles.
+ * SELECT l.id, l.code, l.name, l.parent_id AS "parent_id!", la.area_id AS "area_id!"
+ * FROM core.locations AS l
+ * JOIN core.location_areas AS la ON la.workspace_id = l.workspace_id AND la.location_id = l.id
+ * WHERE l.workspace_id = :workspaceId! AND l.archived_at IS NULL AND la.area_id <> l.id
+ *   AND l.kind NOT IN ('site', 'building')
+ * ORDER BY core.fold_text(l.name), l.id
+ * ```
+ */
+export const listShelves = new PreparedQuery<IListShelvesParams,IListShelvesResult>(listShelvesIR);
 
 
 /** 'LockArea' parameters type */

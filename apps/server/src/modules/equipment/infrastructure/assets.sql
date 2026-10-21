@@ -35,7 +35,8 @@ RETURNING id, name;
 
 /* @name assetReferences */
 -- Valida en un viaje las referencias de un alta o una edición; un parámetro nulo no se comprueba:
--- tipo y ubicación activos del espacio, y responsable miembro activo.
+-- tipo y ubicación activos del espacio, y responsable miembro activo. La ubicación queda bloqueada
+-- (compartida) hasta el final: no se archiva mientras el equipo llega a ella (ADR 0024).
 SELECT
   (:typeId::uuid IS NULL OR EXISTS (
     SELECT 1 FROM equipment.asset_types
@@ -44,6 +45,7 @@ SELECT
   (:locationId::uuid IS NULL OR EXISTS (
     SELECT 1 FROM core.locations
     WHERE workspace_id = :workspaceId! AND id = :locationId::uuid AND archived_at IS NULL
+    FOR SHARE
   )) AS "location_ok!",
   (:responsibleId::uuid IS NULL OR EXISTS (
     SELECT 1
@@ -62,25 +64,16 @@ WHERE workspace_id = :workspaceId! AND (lower(code) = lower(:base!) OR starts_wi
 SELECT code
 FROM equipment.assets
 WHERE workspace_id = :workspaceId! AND lower(code) = lower(:code!) AND id <> :exceptId!;
-
-/* @name listResponsibles */
-SELECT pr.id, ident.display_name AS name
-FROM core.principals AS pr
-JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
-JOIN core.identities AS ident ON ident.id = m.identity_id
-WHERE pr.workspace_id = :workspaceId! AND pr.kind = 'member' AND m.status = 'active'
-ORDER BY inventory.fold_text(ident.display_name), pr.id;
-
 /* @name insertAsset */
 -- Un código repetido (assets_code) no inserta nada: el comando responde CODE_TAKEN.
 INSERT INTO equipment.assets (
   workspace_id, type_id, code, name, brand, model, serial_number, power_supply, location_id,
   responsible_principal_id, condition, conservation, supplier, acquired_on, warranty_until,
-  useful_life_years, replacement_value, created_by_principal_id
+  useful_life_years, replacement_value, department_id, created_by_principal_id
 ) VALUES (
   :workspaceId!, :typeId!, :code!, :name!, :brand, :model, :serialNumber, :powerSupply, :locationId!,
   :responsibleId, :condition!, :conservation, :supplier, :acquiredOn::date, :warrantyUntil::date,
-  :usefulLifeYears::integer, :replacementValue::numeric, :createdBy!
+  :usefulLifeYears::integer, :replacementValue::numeric, :departmentId::uuid, :createdBy!
 )
 ON CONFLICT (workspace_id, lower(code)) DO NOTHING
 RETURNING id;
@@ -89,7 +82,7 @@ RETURNING id;
 -- Lo último del orden de bloqueo (02 §6): el equipo, después de espacio, derecho y membresía.
 SELECT id, code, name, type_id, brand, model, serial_number, power_supply, location_id,
        responsible_principal_id, condition, conservation, supplier, acquired_on, warranty_until,
-       useful_life_years, trim_scale(replacement_value) AS replacement_value, photo_id
+       useful_life_years, trim_scale(replacement_value) AS replacement_value, department_id, photo_id
 FROM equipment.assets
 WHERE workspace_id = :workspaceId! AND id = :assetId!
 FOR UPDATE;
@@ -101,7 +94,7 @@ SET type_id = :typeId!, code = :code!, name = :name!, brand = :brand, model = :m
     serial_number = :serialNumber, power_supply = :powerSupply, responsible_principal_id = :responsibleId,
     conservation = :conservation, supplier = :supplier, acquired_on = :acquiredOn::date,
     warranty_until = :warrantyUntil::date, useful_life_years = :usefulLifeYears::integer,
-    replacement_value = :replacementValue::numeric, version = version + 1
+    replacement_value = :replacementValue::numeric, department_id = :departmentId::uuid, version = version + 1
 WHERE workspace_id = :workspaceId! AND id = :assetId!
 RETURNING id;
 
@@ -121,12 +114,14 @@ WHERE a.workspace_id = :workspaceId! AND a.id = change.asset_id
 RETURNING a.id;
 
 /* @name moveAsset */
--- Una sentencia: el destino debe ser una ubicación activa del espacio; deja el traslado en el
--- historial y mueve el equipo, ya bloqueado por el comando. Sin fila, el destino no es válido.
+-- Una sentencia: el destino debe ser una ubicación activa del espacio, que queda bloqueada (compartida)
+-- para que no se archive mientras tanto (ADR 0024); deja el traslado en el historial y mueve el equipo,
+-- ya bloqueado por el comando. Sin fila, el destino no es válido.
 WITH target AS (
   SELECT id
   FROM core.locations
   WHERE workspace_id = :workspaceId! AND id = :toLocationId! AND archived_at IS NULL
+  FOR SHARE
 ), change AS (
   INSERT INTO equipment.location_changes
     (workspace_id, asset_id, from_location_id, to_location_id, note, actor_principal_id)
@@ -160,7 +155,7 @@ RETURNING id;
 -- cursor), y después, solo para sus filas, tipo, ubicación con sus niveles y responsable. Con
 -- :assetId, la ficha de un equipo (también dado de baja). Sin :conditions, los dados de baja no
 -- aparecen. :locationIds incluye sus niveles inferiores. Responsable y estado físico admiten «sin dato»
--- (:withoutResponsible, :withoutConservation); garantía y vida útil se miden a :today (E-01c). :q busca en
+-- (:withoutResponsible, :withoutConservation); :departmentIds filtra por departamento (ADR 0024); garantía y vida útil se miden a :today (E-01c). :q busca en
 -- search_text, plegado al escribir; `\`, `%` y `_` se escapan con `\` (chr(92), porque PgTyped no admite
 -- `\` en un literal). assetTotals repite estos filtros: un cambio aquí va también allí.
 WITH RECURSIVE search AS (
@@ -178,7 +173,7 @@ WITH RECURSIVE search AS (
 ), page AS (
   SELECT a.id, a.code, a.name, a.type_id, a.brand, a.model, a.serial_number, a.power_supply, a.location_id,
          a.responsible_principal_id, a.condition, a.conservation, a.supplier, a.acquired_on, a.warranty_until,
-         a.useful_life_years, a.replacement_value, a.photo_id, a.created_at
+         a.useful_life_years, a.replacement_value, a.department_id, a.photo_id, a.created_at
   FROM equipment.assets AS a
   CROSS JOIN search
   WHERE a.workspace_id = :workspaceId!
@@ -188,6 +183,7 @@ WITH RECURSIVE search AS (
               ELSE a.condition = ANY (:conditions::text[]) END)
     AND (:typeIds::uuid[] IS NULL OR a.type_id = ANY (:typeIds::uuid[]))
     AND (:locationIds::uuid[] IS NULL OR a.location_id IN (SELECT id FROM scope))
+    AND (:departmentIds::uuid[] IS NULL OR a.department_id = ANY (:departmentIds::uuid[]))
     AND (:responsibleIds::uuid[] IS NULL AND NOT coalesce(:withoutResponsible::boolean, false)
          OR a.responsible_principal_id = ANY (:responsibleIds::uuid[])
          OR (coalesce(:withoutResponsible::boolean, false) AND a.responsible_principal_id IS NULL))
@@ -245,6 +241,8 @@ SELECT
   p.warranty_until,
   p.useful_life_years,
   trim_scale(p.replacement_value) AS replacement_value,
+  dept.id AS "department_id?",
+  dept.name AS "department_name?",
   photo.url AS "photo_url?",
   p.created_at
 FROM page AS p
@@ -256,6 +254,7 @@ LEFT JOIN core.principals AS pr ON pr.workspace_id = :workspaceId! AND pr.id = p
 LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
 LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
 LEFT JOIN equipment.asset_photos AS photo ON photo.workspace_id = :workspaceId! AND photo.id = p.photo_id
+LEFT JOIN core.departments AS dept ON dept.workspace_id = :workspaceId! AND dept.id = p.department_id
 ORDER BY lower(p.code);
 
 /* @name setAssetConservation */
@@ -304,6 +303,7 @@ WHERE a.workspace_id = :workspaceId!
               ELSE a.condition = ANY (:conditions::text[]) END)
     AND (:typeIds::uuid[] IS NULL OR a.type_id = ANY (:typeIds::uuid[]))
     AND (:locationIds::uuid[] IS NULL OR a.location_id IN (SELECT id FROM scope))
+    AND (:departmentIds::uuid[] IS NULL OR a.department_id = ANY (:departmentIds::uuid[]))
     AND (:responsibleIds::uuid[] IS NULL AND NOT coalesce(:withoutResponsible::boolean, false)
          OR a.responsible_principal_id = ANY (:responsibleIds::uuid[])
          OR (coalesce(:withoutResponsible::boolean, false) AND a.responsible_principal_id IS NULL))
@@ -370,3 +370,25 @@ SELECT count(*) FILTER (WHERE condition <> 'retired') AS "assets!",
            AND reported_by_principal_id = :principalId!) AS "my_open_faults!"
 FROM equipment.assets
 WHERE workspace_id = :workspaceId!;
+
+/* @name assetsByArea */
+-- Cifras de Áreas (ADR 0024): equipos que no están dados de baja en cada área, en todos sus niveles.
+SELECT la.area_id AS "area_id!", count(*)::integer AS "count!"
+FROM equipment.assets AS a
+JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
+WHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired'
+GROUP BY la.area_id;
+
+/* @name assetsByDepartment */
+SELECT department_id AS "department_id!", count(*)::integer AS "count!"
+FROM equipment.assets
+WHERE workspace_id = :workspaceId! AND condition <> 'retired' AND department_id IS NOT NULL
+GROUP BY department_id;
+
+/* @name activeAssetAt */
+-- ¿Hay algún equipo activo en estas ubicaciones? Lo pregunta el archivo de un área (ADR 0024), con las
+-- ubicaciones ya bloqueadas.
+SELECT EXISTS (
+  SELECT 1 FROM equipment.assets
+  WHERE workspace_id = :workspaceId! AND condition <> 'retired' AND location_id = ANY (:locationIds!::uuid[])
+) AS "placed!";

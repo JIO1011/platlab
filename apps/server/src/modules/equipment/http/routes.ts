@@ -11,10 +11,8 @@ import {
   assetParams,
   assetPhotoTypes,
   assetTypeParams,
-  assignAreaManagerRequest,
   conditionChangeRequest,
   createAssetTypeRequest,
-  createLocationRequest,
   faultListQuery,
   faultParams,
   newAsset,
@@ -28,14 +26,8 @@ import {
 import { sendXlsx } from '../../../platform/http/download.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
-import { listAreas, listTypesOfArea, setAreaManager } from '../application/areas.js';
-import {
-  archiveAssetType,
-  createAsset,
-  createAssetType,
-  createEquipmentLocation,
-  updateAsset,
-} from '../application/catalog.js';
+import { listAreas, listTypesOfArea } from '../application/areas.js';
+import { archiveAssetType, createAsset, createAssetType, updateAsset } from '../application/catalog.js';
 import {
   getAsset,
   getAssetHistory,
@@ -191,23 +183,14 @@ export function equipmentRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFi
 
     app.get('/responsibles', async (request) => listResponsibles(pool, queryRequest(request)));
 
-    // Inventario por áreas (E-01c): el área es una ubicación de Core; su encargado lo asigna el Administrador.
+    // Inventario por áreas (E-01c): el área es una ubicación de Core; su encargado se asigna en Áreas (ADR 0024).
     app.get('/areas', async (request) => listAreas(pool, queryRequest(request)));
 
     app.get('/areas/:areaId/types', async (request) =>
       listTypesOfArea(pool, queryRequest(request), areaParams.parse(request.params).areaId),
     );
 
-    app.put('/areas/:areaId/manager', async (request) =>
-      setAreaManager(pool, commandRequest(request), areaParams.parse(request.params).areaId, assignAreaManagerRequest.parse(request.body)),
-    );
-
-    // Ubicaciones de Core (ADR 0015): las mismas de Reactivos; se crean con el permiso de catálogo.
+    // Ubicaciones de Core (ADR 0015): las mismas de Reactivos; se crean en Áreas (ADR 0024).
     app.get('/locations', async (request) => listLocations(pool, queryRequest(request)));
-
-    app.post('/locations', async (request, reply) => {
-      const input = createLocationRequest.parse(request.body);
-      return reply.status(201).send(await createEquipmentLocation(pool, commandRequest(request), input));
-    });
   };
 }

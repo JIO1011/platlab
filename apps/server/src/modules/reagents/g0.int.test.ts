@@ -483,14 +483,16 @@ describe('G0 · concurrencia', () => {
     expect(codes.map((product) => product.code).sort()).toEqual(['ACETONA-99', 'ACETONA-99-2']);
   });
 
-  it('dos altas simultáneas de la misma ubicación devuelven la misma', async () => {
+  it('de dos altas simultáneas de la misma ubicación, una la crea y la otra responde NAME_TAKEN', async () => {
     const lab = await createLab();
     const create = () =>
-      call(lab.adminMember.subject, `${lab.base}/locations`, { method: 'POST', body: { name: 'Bodega norte', parentId: null } });
+      call(lab.adminMember.subject, `/workspaces/${lab.workspace.id}/locations`, { method: 'POST', body: { name: 'Bodega norte', parentId: null } });
     const results = await Promise.all([create(), create()]);
-    expect(results.map((r) => r.status)).toEqual([201, 201]);
-    const [first, second] = results.map((r) => location.parse(r.body));
-    expect(first!.id).toBe(second!.id);
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    const created = results.find((r) => r.status === 201)!;
+    const taken = results.find((r) => r.status === 409)!;
+    expect(location.parse(created.body).name).toBe('Bodega norte');
+    expect(errorCode(taken.body)).toBe('NAME_TAKEN');
     expect(
       await count('select count(*) as n from core.locations where workspace_id = $1 and name = $2', [lab.workspace.id, 'Bodega norte']),
     ).toBe(1);

@@ -4,6 +4,7 @@ import {
   warrantyStateLabel,
   type AssetCondition,
   type AssetTypeList,
+  type DepartmentList,
   type ResponsibleList,
 } from '@platlab/contracts';
 import type { UseQueryResult } from '@tanstack/react-query';
@@ -26,7 +27,7 @@ const usefulLifeOptions = optionsOf(usefulLifeStateLabel);
 const queryState = (query: UseQueryResult<unknown>) => (query.isPending ? 'loading' : query.isError ? 'error' : 'ready');
 
 /**
- * Filtros del Informe de equipos (ADR 0019, 0021): «Estado · Tipo · Ubicación · Responsable · Estado físico ·
+ * Filtros del Informe de equipos (ADR 0019, 0021): «Estado · Tipo · Ubicación · Responsable · Departamento · Estado físico ·
  * Garantía · Vida útil» en la barra horizontal común, cada uno con su menú de casillas. Se aplican al marcarlos y
  * escriben la URL; este archivo solo dice cuáles son. Estado lleva «Dado de baja» entre sus opciones con su aviso;
  * Ubicación ofrece el primer nivel bajo la sede con sus hijas («Sala › lugar»); Responsable suma «Sin responsable»;
@@ -36,6 +37,7 @@ export function AssetFilterBar({
   query,
   types,
   responsibles,
+  departments,
   places,
   placesFailed,
   onRetryPlaces,
@@ -45,6 +47,7 @@ export function AssetFilterBar({
   query: AssetQuery;
   types: UseQueryResult<AssetTypeList>;
   responsibles: UseQueryResult<ResponsibleList>;
+  departments: UseQueryResult<DepartmentList>;
   /** Las ubicaciones del árbol de Core; `undefined` mientras llegan. */
   places: Place[] | undefined;
   placesFailed: boolean;
@@ -106,6 +109,18 @@ export function AssetFilterBar({
       state: responsibles.isPending ? 'loading' : responsibles.isError ? 'error' : 'ready',
       what: 'los responsables',
       onRetry: () => void responsibles.refetch(),
+    },
+    {
+      kind: 'options',
+      id: 'departamento',
+      label: 'Departamento',
+      options: (departments.data?.items ?? []).map((department) => ({ value: department.id, label: department.name })),
+      selected: query.departments,
+      onChange: (next) => onChange({ departments: next }),
+      state: queryState(departments),
+      what: 'los departamentos',
+      empty: 'Aún no hay departamentos. El Administrador los crea en Áreas.',
+      onRetry: () => void departments.refetch(),
     },
     {
       kind: 'options',

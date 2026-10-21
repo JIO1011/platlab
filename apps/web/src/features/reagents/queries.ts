@@ -164,33 +164,12 @@ export function useProduct(workspaceId: string, productId: string, enabled = tru
   });
 }
 
-/** Motivos de salida o de ajuste y destinos del laboratorio (ADR 0012). */
+/** Motivos de salida o de ajuste del laboratorio (ADR 0012). */
 export function useReasons(workspaceId: string, kind: ReasonKind, enabled = true) {
   const user = useUserKey();
   return useQuery({
     queryKey: [...reagentsKey(user, workspaceId), 'reasons', kind],
     queryFn: () => api(`/workspaces/${workspaceId}/reagents/reasons?kind=${kind}`, { schema: entryList }),
-    enabled,
-    staleTime: 60_000,
-  });
-}
-
-export function useDestinations(workspaceId: string, enabled = true) {
-  const user = useUserKey();
-  return useQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'destinations'],
-    queryFn: () => api(`/workspaces/${workspaceId}/reagents/destinations`, { schema: entryList }),
-    enabled,
-    staleTime: 60_000,
-  });
-}
-
-/** Áreas o departamentos del espacio (ADR 0015): se guardan como texto en el lote del ingreso. */
-export function useAreas(workspaceId: string, enabled = true) {
-  const user = useUserKey();
-  return useQuery({
-    queryKey: [...reagentsKey(user, workspaceId), 'areas'],
-    queryFn: () => api(`/workspaces/${workspaceId}/reagents/areas`, { schema: entryList }),
     enabled,
     staleTime: 60_000,
   });

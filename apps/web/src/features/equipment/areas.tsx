@@ -4,7 +4,7 @@ import { Microscope, ScanLine, SearchX } from 'lucide-react';
 import { Link } from 'react-router';
 import { ModuleMark } from '../../app/module-mark';
 import { QueryErrorState } from '../../app/states';
-import { AreaManagerLine } from './area-manager';
+import { ManagerLine } from '../../app/manager-line';
 import { hasSeveralSites } from './area-order';
 import { AssetResults } from './asset-results';
 import { AssetSearch, useAssetSearch } from './asset-search';
@@ -33,11 +33,10 @@ export function AreaStatus({ area }: { area: Area }) {
 
 /**
  * Tarjeta de un área (ADR 0019, E-01c): nombre y, si hay más de una sede, la sede; la cifra de equipos con cómo
- * están, y el encargado al pie. Toda la tarjeta abre el área; el botón del encargado es aparte y queda por
- * encima del enlace. El microscopio de marca de agua es decorativo, va detrás del texto y despierta al pasar
+ * están, y el encargado al pie. Toda la tarjeta abre el área. El microscopio de marca de agua es decorativo, va detrás del texto y despierta al pasar
  * el puntero.
  */
-function AreaCard({ area, base, canManage, showParent }: { area: Area; base: string; canManage: boolean; showParent: boolean }) {
+function AreaCard({ area, base, showParent }: { area: Area; base: string; showParent: boolean }) {
   return (
     <li className="group relative isolate flex flex-col overflow-hidden rounded-card bg-surface p-6 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-action motion-safe:hover:-translate-y-0.5">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
@@ -64,7 +63,7 @@ function AreaCard({ area, base, canManage, showParent }: { area: Area; base: str
         </div>
       </div>
       <div className="mt-5 border-t border-line pt-4">
-        <AreaManagerLine area={area} canManage={canManage} />
+        <ManagerLine manager={area.manager} />
       </div>
     </li>
   );
@@ -107,8 +106,8 @@ function SearchResults({ term, onClear }: { term: string; onClear: () => void })
 
 /**
  * Inventario por áreas (ADR 0019, E-01c): una tarjeta por área con equipos, en orden alfabético, y un buscador
- * que, desde 2 letras, muestra los equipos de todas las áreas, con «Escanear» junto a él. «Registrar equipo» y
- * el encargado de cada área son del Administrador.
+ * que, desde 2 letras, muestra los equipos de todas las áreas, con «Escanear» junto a él. «Registrar equipo» es
+ * del Administrador; el encargado de cada área se asigna en Áreas (ADR 0024).
  */
 export function EquipmentAreasPage() {
   const { workspaceId, base, canManage } = useEquipment();
@@ -165,7 +164,7 @@ export function EquipmentAreasPage() {
         ) : (
           <ul aria-label="Áreas" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {items.map((area) => (
-              <AreaCard key={area.id} area={area} base={base} canManage={canManage} showParent={showParent} />
+              <AreaCard key={area.id} area={area} base={base} showParent={showParent} />
             ))}
           </ul>
         )}

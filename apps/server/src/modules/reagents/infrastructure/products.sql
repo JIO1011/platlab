@@ -56,6 +56,10 @@ WHERE r.workspace_id = :workspaceId! AND r.item_id = ANY (:itemIds!::uuid[]);
 WITH search AS (
   SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),
            chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
+),
+-- El área de cada ubicación del espacio, calculada una sola vez para todos los reactivos.
+place AS MATERIALIZED (
+  SELECT location_id, area_id FROM core.location_areas WHERE workspace_id = :workspaceId!
 )
 SELECT
   i.id,
@@ -95,6 +99,16 @@ SELECT
       AND p.balance > 0
       AND l.expires_on BETWEEN (now() AT TIME ZONE :timeZone!)::date
                            AND (now() AT TIME ZONE :timeZone!)::date + :expiringDays!::int)::int AS "expiring_containers!",
+  -- Dónde tiene existencias (ADR 0024): las cifras de la sección Áreas abren el Inventario filtrado por ellas.
+  ARRAY(SELECT DISTINCT place.area_id
+          FROM inventory.positions AS p
+          JOIN place ON place.location_id = p.location_id
+         WHERE p.workspace_id = i.workspace_id AND p.item_id = i.id AND p.balance > 0) AS "area_ids!",
+  ARRAY(SELECT DISTINCT l.department_id
+          FROM inventory.positions AS p
+          JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+         WHERE p.workspace_id = i.workspace_id AND p.item_id = i.id AND p.balance > 0
+           AND l.department_id IS NOT NULL) AS "department_ids!",
   lower(i.code) AS "sort_code!"
 FROM inventory.items AS i
 JOIN reagents.products AS r ON r.workspace_id = i.workspace_id AND r.item_id = i.id

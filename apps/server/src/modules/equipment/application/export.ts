@@ -8,8 +8,16 @@ import {
   type Asset,
 } from '@platlab/contracts';
 import { startReport, type ReportColumn } from '../../../platform/export/report.js';
-import { activeLocations, recordAudit, requirePermission, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
-import { listAssets as listAssetsQuery, listAssetTypes, listResponsibles } from '../infrastructure/assets.queries.js';
+import {
+  activeDepartments,
+  activeLocations,
+  recordAudit,
+  listActiveMembers,
+  requirePermission,
+  type QueryRequest,
+  type WorkspaceAccess,
+} from '../../core/index.js';
+import { listAssets as listAssetsQuery, listAssetTypes } from '../infrastructure/assets.queries.js';
 import { REPORT, runQuery } from './command.js';
 import { assetFilterParams, type AssetFilters } from './filters.js';
 import { toAsset } from './queries.js';
@@ -30,6 +38,7 @@ const COLUMNS: ReportColumn<Asset>[] = [
   ['Estado', 16, (asset) => conditionLabel[asset.condition]],
   ['Estado físico', 12, (asset) => (asset.conservation ? conservationLabel[asset.conservation] : null)],
   ['Responsable', 22, (asset) => asset.responsible?.name ?? null],
+  ['Departamento', 22, (asset) => asset.department?.name ?? null],
   ['Proveedor', 20, (asset) => asset.supplier],
   ['Fecha de compra', 14, (asset) => (asset.acquiredOn ? { date: asset.acquiredOn } : null)],
   ['Garantía hasta', 14, (asset) => (asset.warrantyUntil ? { date: asset.warrantyUntil } : null)],
@@ -50,8 +59,12 @@ async function filtersText(access: WorkspaceAccess, filters: AssetFilters): Prom
     const names = new Map((await activeLocations(access)).map((location) => [location.id, location.name]));
     parts.push(`Ubicación: ${filters.location.map((id) => names.get(id) ?? 'ubicación archivada').join(', ')}`);
   }
+  if (filters.departamento) {
+    const names = new Map((await activeDepartments(access)).map((department) => [department.id, department.name]));
+    parts.push(`Departamento: ${filters.departamento.map((id) => names.get(id) ?? 'departamento archivado').join(', ')}`);
+  }
   if (filters.responsible) {
-    const people = await listResponsibles.run({ workspaceId: access.workspace.id }, access.client);
+    const people = await listActiveMembers(access);
     const names = new Map(people.map((person) => [person.id, person.name]));
     const chosen = filters.responsible.map((id) => (id === 'none' ? 'Sin responsable' : (names.get(id) ?? 'miembro inactivo')));
     parts.push(`Responsable: ${chosen.join(', ')}`);

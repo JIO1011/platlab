@@ -51,5 +51,7 @@ export const reagentsModule = defineModule({
     },
   ],
   homeCard: { permission: 'reagents.catalog.read' },
+  // Áreas y departamentos (ADR 0024): los ve quien consulta el catálogo; los cambia quien lo administra.
+  areas: { read: 'reagents.catalog.read', manage: 'reagents.catalog.manage' },
   stage: 'pilot',
 });

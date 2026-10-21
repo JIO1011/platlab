@@ -332,7 +332,7 @@ export function ContainerCard({
   const canIssue = allowed.issue && available !== '0' && position.disposition === 'usable';
   // Se traslada el frasco entero; con salidas pendientes, primero se resuelven (ADR 0012, entrega 4).
   const canTransfer = allowed.transfer && !empty && !reserved;
-  const origin = [position.lot.brand, position.lot.area].filter(Boolean).join(' · ');
+  const origin = [position.lot.brand, position.lot.department?.name].filter(Boolean).join(' · ');
   const code = position.container?.code ?? position.lot.code;
   const figures = weightFigures(position);
   const flipped = labels?.flipped === true;

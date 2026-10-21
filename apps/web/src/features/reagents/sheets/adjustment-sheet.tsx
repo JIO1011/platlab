@@ -280,8 +280,7 @@ export function AdjustmentSheet({
               value={field.value}
               onChange={field.onChange}
               canAdd={canManageLists}
-              addPath="/reasons"
-              addBody={(name) => ({ kind: 'adjustment', name })}
+                addBody={(name) => ({ kind: 'adjustment', name })}
               addLabel="Nuevo motivo"
             />
           )}

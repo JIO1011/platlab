@@ -7,6 +7,9 @@ import {
   listPositions,
   operationFacets,
   operationTotals,
+  stockAt,
+  stockedItemsByArea,
+  stockedItemsByDepartment,
 } from '../infrastructure/inventory.queries.js';
 import type { InventoryContext } from './context.js';
 
@@ -52,7 +55,7 @@ export async function listPositionPage(
         code: row.lot_code,
         expiresOn: row.expires_on,
         brand: row.brand,
-        area: row.area,
+        department: row.department_id && row.department_name ? { id: row.department_id, name: row.department_name } : null,
       },
       container:
         row.container_id && row.container_code && row.container_initial_quantity && row.container_received_at
@@ -263,4 +266,24 @@ export async function countOperationsPerDay(
 export async function containerItem(ctx: InventoryContext, containerId: string): Promise<string | null> {
   const [row] = await findContainerItem.run({ workspaceId: ctx.workspaceId, containerId, kind: ctx.kind }, ctx.client);
   return row?.item_id ?? null;
+}
+
+/** Cifras de Áreas (ADR 0024): ítems distintos del tipo con existencias, por área y por departamento. */
+export async function stockedItemCounts(
+  ctx: InventoryContext,
+): Promise<{ byArea: Record<string, number>; byDepartment: Record<string, number> }> {
+  const [areas, departments] = await Promise.all([
+    stockedItemsByArea.run({ workspaceId: ctx.workspaceId, kind: ctx.kind }, ctx.client),
+    stockedItemsByDepartment.run({ workspaceId: ctx.workspaceId, kind: ctx.kind }, ctx.client),
+  ]);
+  return {
+    byArea: Object.fromEntries(areas.map((row) => [row.area_id, row.count])),
+    byDepartment: Object.fromEntries(departments.map((row) => [row.department_id, row.count])),
+  };
+}
+
+/** ¿Hay existencias del tipo en alguna de estas ubicaciones? (archivo de un área, ADR 0024). */
+export async function hasStockAt(ctx: InventoryContext, locationIds: string[]): Promise<boolean> {
+  const [row] = await stockAt.run({ workspaceId: ctx.workspaceId, kind: ctx.kind, locationIds }, ctx.client);
+  return row?.stocked ?? false;
 }

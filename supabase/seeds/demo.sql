@@ -340,16 +340,13 @@ select w.id, 'reagent', r.kind, r.name
 update inventory.items set minimum_quantity = 1000 where id = 'da600000-0000-4000-8000-000000000005';
 update inventory.items set minimum_quantity = 1000 where id = 'da600000-0000-4000-8000-000000000003';
 update inventory.items set minimum_quantity = 500 where id = 'da600000-0000-4000-8000-000000000001';
-insert into inventory.destinations (workspace_id, item_kind, name)
-select w.id, 'reagent', d.name
+-- Departamentos de A y B (ADR 0024): las carreras, dueñas de lo que se guarda. Se eligen al ingresar un
+-- reactivo y al dar de alta un equipo.
+insert into core.departments (id, workspace_id, name)
+select (left(w.id::text, 2) || 'a00000-0000-4000-8000-00000000000' || d.n)::uuid, w.id, d.name
   from (values ('da000000-0000-4000-8000-00000000000a'::uuid), ('db000000-0000-4000-8000-00000000000b'::uuid)) as w (id)
- cross join (values ('Laboratorio de Química'), ('Laboratorio de Física'), ('Bodega central')) as d (name);
-
--- Áreas o departamentos de A y B (ADR 0015): se eligen en el ingreso y se guardan en el lote.
-insert into inventory.areas (workspace_id, item_kind, name)
-select w.id, 'reagent', a.name
-  from (values ('da000000-0000-4000-8000-00000000000a'::uuid), ('db000000-0000-4000-8000-00000000000b'::uuid)) as w (id)
- cross join (values ('Docencia'), ('Investigación')) as a (name);
+ cross join (values (1, 'Bioquímica y Farmacia'), (2, 'Ingeniería Química'), (3, 'Biotecnología'), (4, 'Ingeniería Ambiental'))
+   as d (n, name);
 
 -- Una solicitud de salida pendiente del Operador en la Facultad de Ciencias (ADR 0012): aparta 50 g del primer
 -- frasco de NaCl hasta que la Administradora la apruebe o la rechace.
@@ -591,4 +588,14 @@ values ('da000000-0000-4000-8000-00000000000a', 'da920000-0000-4000-8000-0000000
         'da940000-0000-4000-8000-000000000001', 'pass', 'Cambio de la lámpara de deuterio', '[]', 420.00,
         'da200000-0000-4000-8000-000000000002', now() - interval '60 days');
 
+
+-- Departamentos enlazados (ADR 0024): dos lotes y cinco equipos de A tienen dueño; el resto, ninguno.
+update inventory.lots set department_id = 'daa00000-0000-4000-8000-000000000001'
+ where id = 'da700000-0000-4000-8000-000000000001';
+update inventory.lots set department_id = 'daa00000-0000-4000-8000-000000000002'
+ where id = 'da700000-0000-4000-8000-000000000002';
+update equipment.assets set department_id = 'daa00000-0000-4000-8000-000000000001'
+ where id in ('da920000-0000-4000-8000-000000000002', 'da920000-0000-4000-8000-000000000004', 'da920000-0000-4000-8000-000000000008');
+update equipment.assets set department_id = 'daa00000-0000-4000-8000-000000000003'
+ where id in ('da920000-0000-4000-8000-000000000006', 'da920000-0000-4000-8000-000000000007');
 commit;

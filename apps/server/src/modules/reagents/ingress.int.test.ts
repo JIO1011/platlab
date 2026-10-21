@@ -14,7 +14,7 @@ import {
   containerCodeSuggestion,
   brandList,
   receiptResponse,
-  entryList,
+  departmentList,
 } from '@platlab/contracts';
 import { addLocation, uniqueSuffix } from '../../testing/core-fixtures.js';
 import {
@@ -28,6 +28,7 @@ import {
   receive,
   receivedPosition,
   count,
+  createDepartment,
   operationsIn,
 } from './reagents.fixtures.js';
 
@@ -48,10 +49,11 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
 
   it('el Administrador ingresa un reactivo nuevo: código automático, lote L-001, frascos con sus códigos y auditoría', async () => {
     const lab = await createLab();
+    const docencia = await createDepartment(lab, 'Docencia');
     const response = await ingress(lab, {
       newProduct: acetone,
       brand: 'Merck',
-      area: 'Docencia',
+      departmentId: docencia.id,
       expiresOn: '2027-05-31',
       quantity: '500',
       unit: 'mL',
@@ -76,7 +78,7 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
       unitEditable: false,
     });
     const positions = await positionsOf(lab, received.product.id);
-    expect(positions.map((position) => [position.container?.code, position.product.controlled, position.lot.brand, position.lot.area])).toEqual([
+    expect(positions.map((position) => [position.container?.code, position.product.controlled, position.lot.brand, position.lot.department?.name])).toEqual([
       ['ACE-001', true, 'Merck', 'Docencia'],
       ['ACE-002', true, 'Merck', 'Docencia'],
       ['ACE-003', true, 'Merck', 'Docencia'],
@@ -294,10 +296,10 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
     expect((await suggest(`productId=${foreign.id}`)).status).toBe(404);
   });
 
-  it('crea ubicaciones en tres niveles con su tipo; la repetida devuelve la misma y nadie más las crea', async () => {
+  it('crea ubicaciones del Núcleo en tres niveles con su tipo; la repetida responde NAME_TAKEN y nadie más las crea', async () => {
     const lab = await createLab();
     const create = (body: Record<string, unknown>, subject = lab.adminMember.subject) =>
-      call(subject, `${lab.base}/locations`, { method: 'POST', body });
+      call(subject, `/workspaces/${lab.workspace.id}/locations`, { method: 'POST', body });
     const created = async (body: Record<string, unknown>) => {
       const response = await create(body);
       expect(response.status).toBe(201);
@@ -309,10 +311,12 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
     expect(shelf).toMatchObject({ code: 'ESTANTE-A', kind: 'storage', parentId: room.id });
     const level = await created({ name: 'Nivel 1', parentId: shelf.id });
     expect(level).toMatchObject({ code: 'NIVEL-1', kind: 'storage', parentId: shelf.id });
-    // Bajo la sede del laboratorio, una sala; repetida sin distinguir mayúsculas, la misma.
+    // Bajo la sede del laboratorio, una sala; repetida sin distinguir tildes ni mayúsculas, NAME_TAKEN.
     const site = (await admin.query<{ parent_id: string }>('select parent_id from core.locations where id = $1', [lab.storage])).rows[0]!.parent_id;
     expect(await created({ name: 'Sala 2', parentId: site })).toMatchObject({ kind: 'room' });
-    expect((await created({ name: 'estante a', parentId: room.id })).id).toBe(shelf.id);
+    const repeated = await create({ name: 'estánte a', parentId: room.id });
+    expect(repeated.status).toBe(409);
+    expect(errorCode(repeated.body)).toBe('NAME_TAKEN');
     // El mismo nombre bajo otro padre es otra ubicación, con otro código.
     expect(await created({ name: 'Estante A', parentId: level.id })).toMatchObject({ code: 'ESTANTE-A-2' });
 
@@ -331,7 +335,7 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
   it('cada posición trae la ruta de su ubicación desde el primer nivel bajo la sede', async () => {
     const lab = await createLab();
     const created = async (name: string, parentId: string) => {
-      const response = await call(lab.adminMember.subject, `${lab.base}/locations`, { method: 'POST', body: { name, parentId } });
+      const response = await call(lab.adminMember.subject, `/workspaces/${lab.workspace.id}/locations`, { method: 'POST', body: { name, parentId } });
       expect(response.status).toBe(201);
       return location.parse(response.body).id;
     };
@@ -348,17 +352,36 @@ describe('R-01D · ingreso en un paso, ficha y control por peso (ADR 0015)', () 
     expect(pathOf(inRoom)).toEqual(['Lab']);
   });
 
-  it('las áreas se administran como los destinos y las marcas usadas se sugieren, recientes primero', async () => {
+  it('el ingreso enlaza un departamento activo del espacio; uno archivado o de otro espacio se rechaza', async () => {
     const lab = await createLab();
-    const area = await call(lab.adminMember.subject, `${lab.base}/areas`, { method: 'POST', body: { name: 'Investigación' } });
-    expect(area.status).toBe(201);
-    const entry = entryList.shape.items.element.parse(area.body);
-    const again = await call(lab.adminMember.subject, `${lab.base}/areas`, { method: 'POST', body: { name: 'investigación' } });
-    expect(entryList.shape.items.element.parse(again.body).id).toBe(entry.id);
-    expect((await call(lab.operator.subject, `${lab.base}/areas`, { method: 'POST', body: { name: 'Docencia' } })).status).toBe(403);
-    expect(entryList.parse((await call(lab.operator.subject, `${lab.base}/areas`)).body).items).toEqual([entry]);
-    expect((await call(lab.adminMember.subject, `${lab.base}/areas/${entry.id}/archive`, { method: 'POST' })).status).toBe(200);
-    expect(entryList.parse((await call(lab.operator.subject, `${lab.base}/areas`)).body).items).toEqual([]);
+    const product = await createProduct(lab);
+    const research = await createDepartment(lab, 'Investigación');
+    const received = await receive(lab, product.id, '1', lab.storage, lab.operator.subject, { departmentId: research.id });
+    expect(received.status).toBe(201);
+    const lotOf = (positionId: string) => admin.query<{ department_id: string | null }>(
+      'select l.department_id from inventory.positions as p join inventory.lots as l on l.id = p.lot_id where p.id = $1',
+      [positionId],
+    );
+    expect((await lotOf(receivedPosition(received))).rows[0]?.department_id).toBe(research.id);
+
+    const operations = await operationsIn(lab.workspace.id);
+    const foreign = await createDepartment(await createLab(), 'Ajeno');
+    const crossed = await receive(lab, product.id, '1', lab.storage, lab.operator.subject, { departmentId: foreign.id });
+    expect(crossed.status).toBe(400);
+    expect(errorCode(crossed.body)).toBe('VALIDATION_FAILED');
+    const archive = await call(lab.adminMember.subject, `/workspaces/${lab.workspace.id}/departments/${research.id}/archive`, { method: 'POST' });
+    expect(archive.status).toBe(200);
+    const archived = await receive(lab, product.id, '1', lab.storage, lab.operator.subject, { departmentId: research.id });
+    expect(archived.status).toBe(400);
+    expect(errorCode(archived.body)).toBe('VALIDATION_FAILED');
+    expect(await operationsIn(lab.workspace.id)).toBe(operations);
+    // El lote ya enlazado lo conserva; la lista deja de ofrecerlo.
+    expect((await lotOf(receivedPosition(received))).rows[0]?.department_id).toBe(research.id);
+    expect(departmentList.parse((await call(lab.operator.subject, `/workspaces/${lab.workspace.id}/departments`)).body).items).toEqual([]);
+  });
+
+  it('las marcas usadas se sugieren, recientes primero', async () => {
+    const lab = await createLab();
 
     const product = await createProduct(lab);
     for (const brand of ['Merck', 'Sigma', 'merck']) {

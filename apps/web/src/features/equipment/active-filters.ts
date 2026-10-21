@@ -14,6 +14,7 @@ export interface FilterNames {
   types: ReadonlyMap<string, string>;
   places: ReadonlyMap<string, string>;
   responsibles: ReadonlyMap<string, string>;
+  departments: ReadonlyMap<string, string>;
 }
 
 /** Los filtros puestos en la consulta, en el orden de la barra («Búsqueda» primero). */
@@ -28,6 +29,7 @@ export function activeFilters(query: AssetQuery, names: FilterNames): ActiveFilt
       group: 'Responsable',
       label: id === NO_RESPONSIBLE ? noResponsibleLabel : (names.responsibles.get(id) ?? 'Responsable'),
     })),
+    ...query.departments.map((id) => ({ key: `d-${id}`, group: 'Departamento', label: names.departments.get(id) ?? 'Departamento' })),
     ...query.conservations.map((value) => ({ key: `f-${value}`, group: 'Estado físico', label: value === 'none' ? 'Sin dato' : conservationLabel[value] })),
     ...query.warranties.map((value) => ({ key: `g-${value}`, group: 'Garantía', label: warrantyStateLabel[value] })),
     ...query.usefulLives.map((value) => ({ key: `v-${value}`, group: 'Vida útil', label: usefulLifeStateLabel[value] })),

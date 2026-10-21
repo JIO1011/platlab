@@ -1,9 +1,8 @@
 import type pg from 'pg';
-import type { z } from 'zod';
-import type { AreaList, AreaManager, AreaTypeList, assignAreaManagerRequest } from '@platlab/contracts';
-import { assignAreaManager, requires, type CommandRequest, type QueryRequest } from '../../core/index.js';
+import type { AreaList, AreaTypeList } from '@platlab/contracts';
+import type { QueryRequest } from '../../core/index.js';
 import { listAreas as listAreasQuery, listAreaTypes } from '../infrastructure/areas.queries.js';
-import { CATALOG, runCommand, runQuery } from './command.js';
+import { runQuery } from './command.js';
 
 /** Tarjetas del Inventario (ADR 0019, E-01c): áreas con equipos, su encargado y sus cifras. */
 export function listAreas(pool: pg.Pool, request: QueryRequest): Promise<AreaList> {
@@ -40,16 +39,4 @@ export function listTypesOfArea(pool: pg.Pool, request: QueryRequest, areaId: st
       })),
     };
   });
-}
-
-/** El Administrador asigna o quita el encargado de un área; el área es de Core, el permiso de Equipos. */
-export function setAreaManager(
-  pool: pg.Pool,
-  request: CommandRequest,
-  areaId: string,
-  input: z.infer<typeof assignAreaManagerRequest>,
-): Promise<AreaManager> {
-  return runCommand(pool, request, 'equipment.area.manager', { areaId, ...input }, requires(CATALOG), (access) =>
-    assignAreaManager(access, { areaId, managerId: input.managerId }, 'equipment.area.manager'),
-  );
 }

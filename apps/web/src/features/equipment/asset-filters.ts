@@ -13,6 +13,8 @@ export interface AssetQuery {
   locations: string[];
   /** Ids de miembros; `none` es «sin responsable» (E-01c). */
   responsibles: string[];
+  /** Ids de departamentos dueños (ADR 0024). */
+  departments: string[];
   conservations: Array<AssetConservation | 'none'>;
   warranties: Array<z.infer<typeof warrantyState>>;
   usefulLives: Array<z.infer<typeof usefulLifeState>>;
@@ -25,6 +27,7 @@ export const emptyAssetQuery: AssetQuery = {
   types: [],
   locations: [],
   responsibles: [],
+  departments: [],
   conservations: [],
   warranties: [],
   usefulLives: [],
@@ -72,6 +75,7 @@ export function assetQueryFrom(search: URLSearchParams): AssetQuery {
     responsibles: unique(
       search.getAll('responsable').flatMap((value) => (value === NO_RESPONSIBLE ? ['none'] : uuid.test(value) ? [value] : [])),
     ),
+    departments: unique(search.getAll('departamento').filter((id) => uuid.test(id))),
     conservations: unique(search.getAll('estado-fisico').flatMap((slug) => conservationOf[slug] ?? [])),
     warranties: unique(search.getAll('garantia').flatMap((slug) => warrantyOf[slug] ?? [])),
     usefulLives: unique(search.getAll('vida-util').flatMap((slug) => usefulLifeOf[slug] ?? [])),
@@ -86,6 +90,7 @@ export function assetSearch(query: Partial<AssetQuery>): URLSearchParams {
   for (const type of query.types ?? []) search.append('tipo', type);
   for (const location of query.locations ?? []) search.append('ubicacion', location);
   for (const id of query.responsibles ?? []) search.append('responsable', id === 'none' ? NO_RESPONSIBLE : id);
+  for (const id of query.departments ?? []) search.append('departamento', id);
   for (const value of query.conservations ?? []) search.append('estado-fisico', conservationSlugs[value]);
   for (const value of query.warranties ?? []) search.append('garantia', warrantySlugs[value]);
   for (const value of query.usefulLives ?? []) search.append('vida-util', usefulLifeSlugs[value]);
@@ -100,6 +105,7 @@ export function assetFilterSearch(query: AssetQuery): URLSearchParams {
   for (const type of query.types) search.append('type', type);
   for (const location of query.locations) search.append('location', location);
   for (const id of query.responsibles) search.append('responsible', id);
+  for (const id of query.departments) search.append('departamento', id);
   for (const value of query.conservations) search.append('conservation', value);
   for (const value of query.warranties) search.append('warranty', value);
   for (const value of query.usefulLives) search.append('usefulLife', value);
@@ -117,6 +123,13 @@ export function assetApiSearch(query: AssetQuery, cursor?: string, limit = 50): 
 /** ¿Hay algún filtro aplicado? Decide entre «Sin equipos» y «Sin resultados con estos filtros». */
 export const isFiltered = (query: AssetQuery) =>
   query.q !== '' ||
-  [query.conditions, query.types, query.locations, query.responsibles, query.conservations, query.warranties, query.usefulLives].some(
-    (values) => values.length > 0,
-  );
+  [
+    query.conditions,
+    query.types,
+    query.locations,
+    query.responsibles,
+    query.departments,
+    query.conservations,
+    query.warranties,
+    query.usefulLives,
+  ].some((values) => values.length > 0);

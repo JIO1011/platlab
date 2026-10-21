@@ -22,7 +22,7 @@ import {
   setTare,
   transferContainer,
 } from '../../../capabilities/inventory/index.js';
-import { recordAudit, requirePermission, type WorkspaceAccess } from '../../core/index.js';
+import { recordAudit, requireActiveDepartment, requirePermission, type WorkspaceAccess } from '../../core/index.js';
 import { insertProduct, productDetailOf } from './catalog.js';
 import { CATALOG, inventoryContext, requires, runCommand, type CommandRequest } from './command.js';
 
@@ -62,6 +62,7 @@ export function registerReceipt(
     if (input.newProduct) await requirePermission(access, CATALOG);
   };
   return runCommand(pool, request, permission, input, authorize, async (access) => {
+    const departmentId = input.departmentId ? (await requireActiveDepartment(access, input.departmentId)).id : null;
     const created = input.newProduct ? await insertProduct(access, input.newProduct) : null;
     const productId = created?.id ?? input.productId ?? '';
     const weight = input.weight
@@ -74,7 +75,7 @@ export function registerReceipt(
       inventoryContext(access),
       {
         itemId: productId,
-        lot: { brand: input.brand ?? null, area: input.area ?? null, expiresOn: input.expiresOn ?? null },
+        lot: { brand: input.brand ?? null, departmentId, expiresOn: input.expiresOn ?? null },
         locationId: input.locationId,
         codes: input.codes,
         quantity: input.quantity,
@@ -90,6 +91,7 @@ export function registerReceipt(
       changes: {
         productId: result.product.id,
         lotId: result.lot.id,
+        departmentId,
         unit: result.unit,
         containers: result.containers.map(({ containerId, code, positionId, quantity, tare }) => ({
           containerId,

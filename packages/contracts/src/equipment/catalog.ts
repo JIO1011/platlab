@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { homeActivity, homeTrend } from '../access.js';
 import { code, list, many, money, page, text } from '../common.js';
+import { memberList } from '../organization.js';
 
 // ---------------------------------------------------------------------------
 // Estado del equipo (ADR 0019): cuatro dimensiones, nunca una sola lista
@@ -48,6 +49,8 @@ const optionalFields = {
   warrantyUntil: z.iso.date().nullable(),
   usefulLifeYears: z.number().int().min(1).max(100).nullable(),
   replacementValue: money.nullable(),
+  /** Departamento dueño (ADR 0024): activo y del espacio. */
+  departmentId: z.uuid().nullable(),
 };
 
 /** Campos editables de la ficha. */
@@ -106,6 +109,7 @@ export const asset = z.object({
   warrantyUntil: z.iso.date().nullable(),
   usefulLifeYears: z.number().int().nullable(),
   replacementValue: z.string().nullable(),
+  department: z.object({ id: z.uuid(), name: z.string() }).nullable(),
   /** Enlace público de la foto vigente; null sin foto. */
   photoUrl: z.string().nullable(),
   createdAt: z.string(),
@@ -137,13 +141,16 @@ export const assetListQuery = z
     conservation: many(z.union([assetConservation, z.literal('none')])),
     warranty: many(warrantyState),
     usefulLife: many(usefulLifeState),
+    /** Departamento dueño (ADR 0024). */
+    departamento: many(z.uuid()),
   })
   .strict();
 
 export const assetList = list(asset);
 
 /** Miembros activos del espacio que pueden ser responsables de un equipo. */
-export const responsibleList = z.object({ items: z.array(z.object({ id: z.uuid(), name: z.string() })) });
+/** Los mismos miembros activos que el encargado de un área (ADR 0024). */
+export const responsibleList = memberList;
 
 /**
  * GET /summary (ADR 0011, 0019): cifras de la tarjeta de Inicio y del Resumen, sin los dados de baja.

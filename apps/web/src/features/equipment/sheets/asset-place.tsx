@@ -6,10 +6,10 @@ import { Controller, useWatch } from 'react-hook-form';
 import { fieldLabel, filled } from '../../../app/filled';
 import { Section } from '../../../app/form-section';
 import { LocationPicker } from '../../../app/location-picker';
-import { toPlaces, type Place } from '../../../app/places';
+import { toPlaces } from '../../../app/places';
 import { PillField } from '../../../app/pills';
+import { useDepartments } from '../../../app/queries';
 import { conditionLabel, conservationLabel } from '../asset-text';
-import { equipmentErrorMessage, useCreateEquipmentLocation } from '../commands';
 import { useEquipmentLocations, useResponsibles } from '../queries';
 import { NONE } from './asset-form';
 import type { AssetFormApi } from './asset-sections';
@@ -20,22 +20,10 @@ const placeholders = ['Laboratorio o bodega', 'Mesón o estante', 'Nivel (opcion
 const conditions: Array<Exclude<AssetCondition, 'retired'>> = ['operational', 'restricted', 'faulted'];
 const conservations: Array<AssetConservation | typeof NONE> = ['good', 'fair', 'poor', NONE];
 
-/** Las ubicaciones del espacio en el selector por niveles; quien administra el catálogo agrega las que falten. */
-function LocationField({ form, workspaceId, open, canManage }: { form: AssetFormApi; workspaceId: string; open: boolean; canManage: boolean }) {
+/** Las ubicaciones del espacio en el selector por niveles; las que falten se crean en Áreas (ADR 0024). */
+function LocationField({ form, workspaceId, open }: { form: AssetFormApi; workspaceId: string; open: boolean }) {
   const locations = useEquipmentLocations(workspaceId, open);
-  const createLocation = useCreateEquipmentLocation(workspaceId);
   const places = useMemo(() => toPlaces(locations.data?.items ?? []), [locations.data]);
-
-  const create = async (name: string, parentId: string | null): Promise<Place | null> => {
-    try {
-      const created = await createLocation.mutateAsync({ name, parentId });
-      form.clearErrors('locationId');
-      return { id: created.id, name: created.name, parentId: created.parentId };
-    } catch (error) {
-      form.setError('locationId', { message: equipmentErrorMessage(error) });
-      return null;
-    }
-  };
 
   if (locations.isPending) {
     return (
@@ -59,8 +47,6 @@ function LocationField({ form, workspaceId, open, canManage }: { form: AssetForm
     <LocationPicker
       places={places}
       recentIds={[]}
-      canCreate={canManage}
-      onCreate={create}
       placeholders={placeholders}
       initialId={form.getValues('locationId') || undefined}
       error={form.formState.errors.locationId?.message}
@@ -120,6 +106,40 @@ function ResponsibleField({
   );
 }
 
+/** «Departamento» (ADR 0024): de quién es el equipo; opcional, se elige de la lista que se administra en Áreas. */
+function DepartmentField({ form, workspaceId, open, current }: { form: AssetFormApi; workspaceId: string; open: boolean; current: { id: string; name: string } | null }) {
+  const departments = useDepartments(workspaceId, open);
+  const items = departments.data?.items ?? [];
+  const options = [
+    { value: NONE, label: 'Sin departamento' },
+    // El departamento que ya tenía sigue en la lista aunque se haya archivado.
+    ...(current && !items.some((entry) => entry.id === current.id) ? [{ value: current.id, label: current.name }] : []),
+    ...items.map((entry) => ({ value: entry.id, label: entry.name })),
+  ];
+  return (
+    <Field
+      label="Departamento"
+      optional
+      labelClassName={fieldLabel}
+      error={departments.isError ? 'No se pudo cargar la lista de departamentos. Vuelve a abrir la hoja.' : undefined}
+    >
+      <Controller
+        control={form.control}
+        name="departmentId"
+        render={({ field }) => (
+          <Select
+            value={field.value}
+            onValueChange={field.onChange}
+            options={options}
+            placeholder={departments.isPending ? 'Cargando…' : 'Sin departamento'}
+            triggerClassName={filled}
+          />
+        )}
+      />
+    </Field>
+  );
+}
+
 function ConservationField({ form }: { form: AssetFormApi }) {
   return (
     <Controller
@@ -158,24 +178,15 @@ function useAreaManagerPrefill(form: AssetFormApi, workspaceId: string, open: bo
   }, [form, locationId, locations.data, responsibles.data, touched]);
 }
 
-/** Alta — «Dónde está y quién responde»: la ubicación por niveles (obligatoria) y el responsable. */
-export function PlaceSection({
-  form,
-  workspaceId,
-  open,
-  canManage,
-}: {
-  form: AssetFormApi;
-  workspaceId: string;
-  open: boolean;
-  canManage: boolean;
-}) {
+/** Alta — «Dónde está y quién responde»: la ubicación por niveles (obligatoria), el departamento y el responsable. */
+export function PlaceSection({ form, workspaceId, open }: { form: AssetFormApi; workspaceId: string; open: boolean }) {
   const touched = useRef(false);
   useAreaManagerPrefill(form, workspaceId, open, touched);
   return (
     <Section icon={MapPin} title="Dónde está y quién responde">
       <div className="grid gap-4">
-        <LocationField form={form} workspaceId={workspaceId} open={open} canManage={canManage} />
+        <LocationField form={form} workspaceId={workspaceId} open={open} />
+        <DepartmentField form={form} workspaceId={workspaceId} open={open} current={null} />
         <ResponsibleField
           form={form}
           workspaceId={workspaceId}
@@ -216,7 +227,7 @@ export function StatusSection({ form }: { form: AssetFormApi }) {
 }
 
 /**
- * Edición — «Responsable y estado físico». La ubicación y el estado no se cambian aquí: tienen su hoja
+ * Edición — «Responsable, departamento y estado físico». La ubicación y el estado no se cambian aquí: tienen su hoja
  * («Trasladar equipo», «Cambiar estado») y dejan huella en el historial.
  */
 export function OwnerSection({
@@ -224,16 +235,19 @@ export function OwnerSection({
   workspaceId,
   open,
   responsible,
+  department,
 }: {
   form: AssetFormApi;
   workspaceId: string;
   open: boolean;
   responsible: { id: string; name: string } | null;
+  department: { id: string; name: string } | null;
 }) {
   return (
-    <Section icon={UserRound} title="Responsable y estado físico">
+    <Section icon={UserRound} title="Responsable, departamento y estado físico">
       <div className="grid gap-4">
         <ResponsibleField form={form} workspaceId={workspaceId} open={open} current={responsible} />
+        <DepartmentField form={form} workspaceId={workspaceId} open={open} current={department} />
         <ConservationField form={form} />
       </div>
     </Section>

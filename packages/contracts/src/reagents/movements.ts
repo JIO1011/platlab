@@ -33,7 +33,8 @@ export const receiptRequest = z
         (codes) => new Set(codes.map((value) => value.toLowerCase())).size === codes.length,
         'Cada frasco lleva un código distinto',
       ),
-    area: text(200).nullish(),
+    /** Departamento dueño del lote (ADR 0024): activo y del espacio. */
+    departmentId: z.uuid().nullish(),
     locationId: z.uuid(),
     weight: z.object({ grossWeight: positiveQuantity, density: positiveQuantity.nullish() }).strict().nullish(),
   })
@@ -197,9 +198,9 @@ export const position = z.object({
     id: z.uuid(),
     code: z.string(),
     expiresOn: z.string().nullable(),
-    /** Marca y área, tal como se registraron; null si no se conocen (ADR 0015). */
+    /** Marca tal como se registró (ADR 0015) y departamento dueño (ADR 0024); null si no se conocen. */
     brand: z.string().nullable(),
-    area: z.string().nullable(),
+    department: z.object({ id: z.uuid(), name: z.string() }).nullable(),
   }),
   container: z
     .object({

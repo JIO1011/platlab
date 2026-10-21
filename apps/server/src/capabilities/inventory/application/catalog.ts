@@ -105,7 +105,8 @@ export async function updateItemFields(
 
 export interface LotDetails {
   brand: string | null;
-  area: string | null;
+  /** Departamento dueño (ADR 0024), ya validado por el módulo. */
+  departmentId: string | null;
   expiresOn: string | null;
 }
 

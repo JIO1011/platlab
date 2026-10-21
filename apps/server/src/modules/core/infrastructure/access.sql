@@ -103,6 +103,43 @@ WHERE w.id = :workspaceId!
   AND i.provider_subject = :subject!
 FOR SHARE OF w, e, e2, m;
 
+/* @name admitAnyModule */
+-- Áreas y departamentos (ADR 0024): Core no tiene derecho propio; los admite algún módulo que los declara
+-- en su manifiesto. Una fila por derecho de :moduleCodes con su decisión; espacio, derechos y membresía
+-- quedan bloqueados (FOR SHARE) en la misma consulta que decide, en orden de módulo.
+SELECT
+  w.id AS workspace_id,
+  w.code,
+  w.name,
+  w.status,
+  w.time_zone,
+  i.id AS identity_id,
+  i.display_name,
+  m.id AS membership_id,
+  p.id AS principal_id,
+  (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS "is_owner!",
+  core.workspace_axis(w.status, w.suspension_reason) AS "workspace_classes!",
+  e.module_code,
+  core.admission(
+    :actionClass!,
+    core.workspace_axis(w.status, w.suspension_reason),
+    core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,
+                     md.stage, e.contract_kind, env.data_class, now())
+  ) AS "decision!"
+FROM core.workspaces AS w
+JOIN core.workspace_entitlements AS e ON e.workspace_id = w.id AND e.module_code = ANY (:moduleCodes!::text[])
+JOIN core.module_definitions AS md ON md.code = e.module_code
+JOIN core.memberships AS m ON m.workspace_id = w.id
+JOIN core.identities AS i ON i.id = m.identity_id
+JOIN core.principals AS p ON p.workspace_id = m.workspace_id AND p.membership_id = m.id
+CROSS JOIN platform.environment AS env
+WHERE w.id = :workspaceId!
+  AND m.status = 'active'
+  AND i.provider = 'supabase'
+  AND i.provider_subject = :subject!
+ORDER BY e.module_code
+FOR SHARE OF w, e, m;
+
 /* @name findMembershipClasses */
 -- Sin bloqueo: solo distingue «sin acceso» de «módulo no disponible» tras una denegación.
 SELECT core.workspace_axis(w.status, w.suspension_reason) AS "workspace_classes!"
@@ -160,3 +197,12 @@ WHERE ra.workspace_id = :workspaceId!
   AND ra.valid_from <= now()
   AND (ra.valid_until IS NULL OR ra.valid_until > now())
 ORDER BY r.name;
+
+/* @name listActiveMembers */
+-- Miembros activos del espacio, por nombre: responsables de un equipo y encargados de un área (ADR 0019, 0024).
+SELECT pr.id, ident.display_name AS name
+FROM core.principals AS pr
+JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+JOIN core.identities AS ident ON ident.id = m.identity_id
+WHERE pr.workspace_id = :workspaceId! AND pr.kind = 'member' AND m.status = 'active'
+ORDER BY inventory.fold_text(ident.display_name), pr.id;

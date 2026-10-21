@@ -37,4 +37,9 @@ export const reagentsWebModule: WebModule = {
     },
     trendNoun: { one: 'salida', many: 'salidas' },
   },
+  // Reactivos con existencias en un área o de un departamento (ADR 0024): abre el Inventario filtrado.
+  areas: {
+    label: (n) => (n === 1 ? 'reactivo' : 'reactivos'),
+    href: ({ kind, id }) => `reactivos/inventario?${kind === 'area' ? 'area' : 'departamento'}=${id}`,
+  },
 };

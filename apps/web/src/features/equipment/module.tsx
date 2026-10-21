@@ -40,4 +40,9 @@ export const equipmentWebModule: WebModule = {
     },
     trendNoun: { one: 'cambio', many: 'cambios' },
   },
+  // Equipos activos de un área (su inventario) o de un departamento (el Informe filtrado) (ADR 0024).
+  areas: {
+    label: (n) => (n === 1 ? 'equipo' : 'equipos'),
+    href: ({ kind, id }) => (kind === 'area' ? `equipos/inventario/area/${id}` : `equipos/informe?departamento=${id}`),
+  },
 };

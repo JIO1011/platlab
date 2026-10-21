@@ -1,9 +1,9 @@
--- R-01D (ADR 0015): ficha del reactivo, código y tara del frasco, áreas y ubicaciones creadas desde la
--- API, con sus restricciones y bajo el rol real de runtime.
+-- R-01D (ADR 0015): ficha del reactivo, código y tara del frasco, departamentos (C-01a, ADR 0024) y
+-- ubicaciones creadas desde la API, con sus restricciones y bajo el rol real de runtime.
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(48);
+select plan(53);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -53,8 +53,8 @@ with moved as (
    where id = 'a8000000-0000-4000-8000-000000000001' returning id, balance)
 insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
 select 'a0000000-0000-4000-8000-00000000000a', 'a9000000-0000-4000-8000-000000000001', id, 500, 500, 'g', balance from moved;
-insert into inventory.areas (workspace_id, item_kind, name) values
-  ('b0000000-0000-4000-8000-00000000000b', 'reagent', 'Área de B');
+insert into core.departments (id, workspace_id, name) values
+  ('bd000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', 'Departamento de B');
 
 -- ---------------------------------------------------------------------------
 -- Ficha del reactivo
@@ -158,13 +158,18 @@ select results_eq(
 select is(inventory.grams_per_unit('mL', null), null, 'en volumen sin densidad no hay factor');
 
 -- ---------------------------------------------------------------------------
--- Áreas y ubicaciones
+-- Departamentos y ubicaciones
 -- ---------------------------------------------------------------------------
 
 select throws_ok(
-  $$ insert into inventory.areas (workspace_id, item_kind, name) values
-       ('b0000000-0000-4000-8000-00000000000b', 'reagent', 'área de b') $$,
-  '23505', null, 'un área activa no se repite sin distinguir mayúsculas');
+  $$ insert into core.departments (workspace_id, name) values
+       ('b0000000-0000-4000-8000-00000000000b', 'departamento de b') $$,
+  '23505', null, 'un departamento activo no se repite sin distinguir mayúsculas');
+
+select throws_ok(
+  $$ update inventory.lots set department_id = 'bd000000-0000-4000-8000-000000000001'
+      where id = 'a7000000-0000-4000-8000-000000000001' $$,
+  '23503', null, 'un lote no se enlaza a un departamento de otro espacio');
 
 select throws_ok(
   $$ insert into core.locations (workspace_id, parent_id, kind, code, name) values
@@ -229,31 +234,35 @@ select is(inventory.fold_text(E'  Ácido \t CLORHÍDRICO   Ñu '), 'acido clorhi
   'el plegado quita tildes, mayúsculas y espacios de más');
 
 select lives_ok(
-  $$ insert into inventory.areas (workspace_id, item_kind, name) values ('a0000000-0000-4000-8000-00000000000a', 'reagent', 'Docencia') $$,
-  'el runtime añade un área en su espacio');
+  $$ insert into core.departments (workspace_id, name) values ('a0000000-0000-4000-8000-00000000000a', 'Docencia') $$,
+  'el runtime añade un departamento en su espacio');
 
 select throws_ok(
-  $$ insert into inventory.areas (workspace_id, item_kind, name) values ('b0000000-0000-4000-8000-00000000000b', 'reagent', 'Ajena') $$,
-  '42501', null, 'el runtime no añade áreas en otro espacio');
+  $$ insert into core.departments (workspace_id, name) values ('b0000000-0000-4000-8000-00000000000b', 'Ajeno') $$,
+  '42501', null, 'el runtime no añade departamentos en otro espacio');
 
 select throws_ok(
-  $$ insert into inventory.areas (workspace_id, item_kind, name, archived_at)
-     values ('a0000000-0000-4000-8000-00000000000a', 'reagent', 'Archivada', now()) $$,
-  '42501', null, 'un área nace activa');
+  $$ insert into core.departments (workspace_id, name, archived_at)
+     values ('a0000000-0000-4000-8000-00000000000a', 'Archivado', now()) $$,
+  '42501', null, 'un departamento nace activo');
 
-select is_empty($$ select id from inventory.areas where name = 'Área de B' $$, 'las áreas de B no se ven desde A');
+select is_empty($$ select id from core.departments where name = 'Departamento de B' $$, 'los departamentos de B no se ven desde A');
+
+select is_empty(
+  $$ update core.departments set name = 'Tomado' where id = 'bd000000-0000-4000-8000-000000000001' returning id $$,
+  'el runtime no renombra departamentos de otro espacio');
+
+select lives_ok(
+  $$ update core.departments set name = 'Docencia general' where name = 'Docencia' $$,
+  'el runtime renombra un departamento');
+
+select throws_ok($$ delete from core.departments $$, '42501', null, 'los departamentos no se borran');
+
+select lives_ok($$ update core.departments set archived_at = now() where name = 'Docencia general' $$, 'un departamento se archiva');
 
 select throws_ok(
-  $$ update inventory.areas set name = 'Otra' where name = 'Docencia' $$,
-  '42501', null, 'el nombre de un área no se edita');
-
-select throws_ok($$ delete from inventory.areas $$, '42501', null, 'las áreas no se borran');
-
-select lives_ok($$ update inventory.areas set archived_at = now() where name = 'Docencia' $$, 'un área se archiva');
-
-select throws_ok(
-  $$ update inventory.areas set archived_at = now() where name = 'Docencia' $$,
-  '23514', null, 'un área archivada no vuelve a cambiar');
+  $$ update core.departments set name = 'Otra vez' where name = 'Docencia general' $$,
+  '23514', null, 'un departamento archivado no vuelve a cambiar');
 
 select lives_ok(
   $$ insert into core.locations (workspace_id, parent_id, kind, code, name) values
@@ -275,9 +284,21 @@ select throws_ok(
        ('a0000000-0000-4000-8000-00000000000a', 'room', 'ARCH', 'Archivada', now()) $$,
   '42501', null, 'una ubicación nace activa');
 
+select lives_ok(
+  $$ update core.locations set name = 'Estante norte' where code = 'EST-1' $$,
+  'el runtime renombra una ubicación (ADR 0024)');
+
 select throws_ok(
-  $$ update core.locations set name = 'Otro' where code = 'EST-1' $$,
-  '42501', null, 'el runtime no edita ubicaciones');
+  $$ update core.locations set code = 'OTRO' where code = 'EST-1' $$,
+  '42501', null, 'el código, el tipo y el padre de una ubicación no cambian');
+
+select lives_ok(
+  $$ update core.locations set archived_at = now() where code = 'EST-1' $$,
+  'el runtime archiva una ubicación');
+
+select throws_ok(
+  $$ update core.locations set name = 'Revive' where code = 'EST-1' $$,
+  '23514', null, 'una ubicación archivada no vuelve a cambiar');
 
 select throws_ok($$ delete from core.locations $$, '42501', null, 'el runtime no borra ubicaciones');
 

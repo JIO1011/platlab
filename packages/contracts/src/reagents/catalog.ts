@@ -127,6 +127,9 @@ export const stockedProduct = product.extend({
   expiringContainers: z.number().int().nonnegative(),
   /** Existencia física menor que su mínimo (ADR 0012, 05-10-2026); false si no tiene mínimo. */
   belowMinimum: z.boolean(),
+  /** Áreas y departamentos donde tiene frascos con saldo (ADR 0024): filtran el Inventario desde la sección Áreas. */
+  areaIds: z.array(z.uuid()),
+  departmentIds: z.array(z.uuid()),
 });
 export const productList = list(stockedProduct);
 /** Ficha (GET /products/:productId): además, si la unidad aún puede cambiar (sin movimientos). */

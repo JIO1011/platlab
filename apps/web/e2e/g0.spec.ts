@@ -215,7 +215,7 @@ test('G0: 100 g, salida de 20 g y ajuste de −0,5 g dejan 79,5 g, con responsab
   // Un solo frasco con saldo: no hay nada que elegir, el selector no aparece.
   await expect(issue.getByLabel('Frasco', { exact: true })).toHaveCount(0);
   await pick(issue, 'Práctica de Química General');
-  await pick(issue, 'Laboratorio de Química');
+  await pick(issue, 'Ingeniería Química');
   await expectAccessible(operator, 'hoja de salida');
   await capture(operator, 'desktop-issue', false);
   await issue.getByRole('button', { name: 'Solicitar salida' }).click();
@@ -521,7 +521,7 @@ test('solicitudes de salida: aviso en el Resumen, rechazo con motivo y cancelaci
   // El ácido clorhídrico es controlado: la cabecera lo marca con su ficha (ADR 0015).
   await expect(issue.getByText('Controlado', { exact: true })).toBeVisible();
   await pick(issue, 'Preparación de soluciones');
-  await pick(issue, 'Laboratorio de Física');
+  await pick(issue, 'Biotecnología');
   await issue.getByRole('button', { name: 'Solicitar salida' }).click();
   await expect(operator.getByText('Solicitud enviada')).toBeVisible();
   // Con todo el frasco apartado, su tarjeta lo dice y ya no ofrece «Salida»; el otro frasco, sí.
@@ -952,7 +952,7 @@ test('stock insuficiente: la salida se rechaza en el formulario y el saldo no ca
   // Antes de enviar ya se ve que no alcanza; el servidor lo confirma igual.
   await expect(issue.getByText('No alcanza: el frasco tiene 500 mL.')).toBeVisible();
   await pick(issue, 'Práctica de Química General');
-  await pick(issue, 'Laboratorio de Física');
+  await pick(issue, 'Biotecnología');
   await issue.getByRole('button', { name: 'Registrar salida' }).click();
   await expect(issue.getByText('No alcanza: el frasco tiene 500 mL.')).toBeVisible();
   await expect(issue.getByLabel('Cantidad a retirar', { exact: true })).toHaveAttribute('aria-invalid', 'true');
@@ -965,29 +965,35 @@ test('stock insuficiente: la salida se rechaza en el formulario y el saldo no ca
   await expect(ethanol).toContainText(/500\s*mL/);
 });
 
-test('listas de la hoja de salida: la Administradora quita un destino con la papelera y lo deshace; el Operador no ve papeleras', async ({ browser }) => {
+test('listas de la hoja de salida: la Administradora quita un motivo con la papelera y lo deshace; el destino es un departamento que solo se elige', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test');
   await openReagents(admin, 'Facultad de Ciencias');
   await goTo(admin, 'Inventario');
   await admin.getByRole('button', { name: 'Registrar salida' }).click();
   const issue = admin.getByRole('dialog');
+  // El destino es un departamento del Núcleo (ADR 0024): se elige, y se crea o se archiva en Áreas.
   const destinations = issue.getByRole('group', { name: 'Destino' });
-  // Se agrega un destino propio para no tocar los del resto de pruebas.
-  await destinations.getByRole('button', { name: 'Agregar' }).click();
-  await destinations.getByLabel('Nuevo destino').fill('Aula de prueba');
-  await destinations.getByRole('button', { name: 'Guardar' }).click();
-  await expect(destinations.getByRole('radio', { name: 'Aula de prueba', exact: true })).toBeChecked();
-  await expect(destinations.getByRole('button', { name: /^Quitar «/ }).first()).toBeVisible();
+  await expect(destinations.getByRole('radio', { name: 'Ingeniería Química', exact: true })).toBeAttached();
+  await expect(destinations.getByRole('button', { name: 'Agregar' })).toHaveCount(0);
+  await expect(destinations.getByRole('button', { name: /^Quitar «/ })).toHaveCount(0);
 
-  // Un clic en la papelera archiva el destino, lo deselecciona y avisa con «Deshacer».
-  await destinations.getByRole('button', { name: 'Quitar «Aula de prueba»' }).click();
-  await expect(admin.getByText('Se quitó «Aula de prueba»')).toBeVisible();
-  await expect(destinations.getByRole('radio', { name: 'Aula de prueba', exact: true })).toHaveCount(0);
-  await expectAccessible(admin, 'hoja de salida tras quitar un destino');
+  const reasons = issue.getByRole('group', { name: 'Motivo' });
+  // Se agrega un motivo propio para no tocar los del resto de pruebas.
+  await reasons.getByRole('button', { name: 'Agregar' }).click();
+  await reasons.getByLabel('Nuevo motivo').fill('Motivo de prueba');
+  await reasons.getByRole('button', { name: 'Guardar' }).click();
+  await expect(reasons.getByRole('radio', { name: 'Motivo de prueba', exact: true })).toBeChecked();
+  await expect(reasons.getByRole('button', { name: /^Quitar «/ }).first()).toBeVisible();
+
+  // Un clic en la papelera archiva el motivo, lo deselecciona y avisa con «Deshacer».
+  await reasons.getByRole('button', { name: 'Quitar «Motivo de prueba»' }).click();
+  await expect(admin.getByText('Se quitó «Motivo de prueba»')).toBeVisible();
+  await expect(reasons.getByRole('radio', { name: 'Motivo de prueba', exact: true })).toHaveCount(0);
+  await expectAccessible(admin, 'hoja de salida tras quitar un motivo');
 
   await admin.getByRole('button', { name: 'Deshacer' }).click();
-  await expect(destinations.getByRole('radio', { name: 'Aula de prueba', exact: true })).toBeAttached();
-  await expect(destinations.getByRole('radio', { name: 'Aula de prueba', exact: true })).toBeChecked();
+  await expect(reasons.getByRole('radio', { name: 'Motivo de prueba', exact: true })).toBeAttached();
+  await expect(reasons.getByRole('radio', { name: 'Motivo de prueba', exact: true })).toBeChecked();
 
   // El Operador elige de las listas, pero no las modifica.
   const operator = await signIn(browser, 'operador@demo.platlab.test');
@@ -1308,4 +1314,83 @@ test('Movimientos a 1280 px: la barra cabe y dice lo elegido, y Totales cabe (R-
   await admin.getByRole('button', { name: 'Totales', exact: true }).click();
   await expect(admin.getByRole('table')).toBeVisible();
   await capture(admin, 'desktop-1280-movements-totals', false);
+});
+
+test('Áreas: la Administradora crea un área y la ve en su edificio con sus cifras; el Operador solo consulta (ADR 0024)', async ({ browser }) => {
+  const admin = await signIn(browser, 'admin@demo.platlab.test');
+  await switchTo(admin, 'Facultad de Ciencias');
+  await admin.getByRole('navigation').getByRole('link', { name: 'Áreas', exact: true }).click();
+  await expect(admin.getByRole('heading', { name: 'Áreas', level: 1 })).toBeVisible();
+
+  // El croquis: la sede es un contorno con su nombre y cada área, un cuarto con encargado y una cifra por módulo.
+  const campus = admin.getByRole('region', { name: 'Sede central' });
+  const chemistry = campus.getByRole('listitem').filter({ hasText: 'Laboratorio de Química' });
+  await expect(chemistry).toBeVisible();
+  await expect(chemistry.getByRole('link', { name: /reactivos?$/ })).toBeVisible();
+  await expect(chemistry.getByRole('link', { name: /equipos?$/ })).toBeVisible();
+  await expect(admin.getByRole('table')).toHaveCount(0);
+
+  // Cada cifra abre la lista del módulo ya filtrada por el área.
+  await chemistry.getByRole('link', { name: /reactivos?$/ }).click();
+  await expect(admin).toHaveURL(/reactivos\/inventario\?area=/);
+  await expect(admin.getByRole('button', { name: 'Quitar filtro Área: Laboratorio de Química' })).toBeVisible();
+  await admin.getByRole('button', { name: 'Quitar filtro Área: Laboratorio de Química' }).click();
+  await expect(admin).not.toHaveURL(/area=/);
+
+  // «Nueva área» crea el cuarto dentro de la sede; un nombre repetido es error del campo. Dentro de Reactivos
+  // el menú es el del módulo: se vuelve a Áreas con «Atrás».
+  await admin.goBack();
+  await expect(admin.getByRole('heading', { name: 'Áreas', level: 1 })).toBeVisible();
+  const name = `Sala ${suffix}`;
+  await campus.getByRole('button', { name: 'Nueva área' }).click();
+  const sheet = admin.getByRole('dialog', { name: 'Nueva área' });
+  await sheet.getByLabel('Nombre del área').fill(name);
+  await expectAccessible(admin, 'nueva área');
+  await sheet.getByRole('button', { name: 'Crear área' }).click();
+  await expect(admin.getByText(`Área «${name}» creada`)).toBeVisible();
+  const room = campus.getByRole('listitem').filter({ hasText: name });
+  await expect(room).toBeVisible();
+  await expect(room).toContainText('Sin encargado');
+  await capture(admin, 'desktop-areas', false);
+
+  await campus.getByRole('button', { name: 'Nueva área' }).click();
+  const repeated = admin.getByRole('dialog', { name: 'Nueva área' });
+  await repeated.getByLabel('Nombre del área').fill(name);
+  await repeated.getByRole('button', { name: 'Crear área' }).click();
+  await expect(repeated.getByLabel('Nombre del área')).toHaveAttribute('aria-invalid', 'true');
+  // Con algo escrito, cerrar pide confirmar el descarte, como en todas las hojas.
+  await repeated.getByRole('button', { name: 'Cancelar' }).click();
+  await repeated.getByRole('button', { name: 'Descartar' }).click();
+  await expect(repeated).toBeHidden();
+
+  // Al abrir el área se ven sus estantes y quien administra los crea.
+  await room.getByRole('button', { name }).click();
+  const area = admin.getByRole('dialog', { name });
+  await expect(area.getByText('Esta área aún no tiene estantes.')).toBeVisible();
+  await area.getByRole('button', { name: 'Nuevo estante' }).click();
+  await admin.getByLabel('Nombre del estante').fill('Estante A');
+  await admin.getByRole('button', { name: 'Crear estante' }).click();
+  await expect(admin.getByRole('dialog', { name }).getByRole('list', { name: `Estantes de ${name}` })).toContainText('Estante A');
+
+  // Archivar un área vacía la quita del croquis, previa confirmación.
+  await admin.getByRole('dialog', { name }).getByRole('button', { name: 'Archivar', exact: true }).click();
+  await admin.getByRole('dialog', { name: 'Archivar área' }).getByRole('button', { name: 'Archivar área' }).click();
+  await expect(campus.getByRole('listitem').filter({ hasText: name })).toHaveCount(0);
+
+  // Departamentos: los mismos cuadros, con sus cifras.
+  await admin.getByRole('button', { name: 'Departamentos', exact: true }).click();
+  await expect(admin).toHaveURL(/vista=departamentos/);
+  await expect(admin.getByRole('listitem').filter({ hasText: 'Ingeniería Química' })).toBeVisible();
+  await expect(admin.getByRole('button', { name: 'Nuevo departamento' })).toBeVisible();
+
+  // El Operador consulta: ve los cuadros, sin crear ni cambiar.
+  const operator = await signIn(browser, 'operador@demo.platlab.test');
+  await switchTo(operator, 'Facultad de Ciencias');
+  await operator.getByRole('navigation').getByRole('link', { name: 'Áreas', exact: true }).click();
+  await expect(operator.getByRole('region', { name: 'Sede central' })).toBeVisible();
+  await expect(operator.getByRole('button', { name: 'Nueva área' })).toHaveCount(0);
+  await operator.getByRole('button', { name: 'Laboratorio de Química' }).click();
+  const readOnly = operator.getByRole('dialog', { name: 'Laboratorio de Química' });
+  await expect(readOnly.getByRole('button', { name: 'Nuevo estante' })).toHaveCount(0);
+  await expect(readOnly.getByRole('button', { name: 'Archivar', exact: true })).toHaveCount(0);
 });

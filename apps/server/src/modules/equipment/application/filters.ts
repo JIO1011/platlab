@@ -26,6 +26,7 @@ export function assetFilterParams(timeZone: string, filters: AssetFilters) {
     typeIds: filters.type ?? null,
     conditions: filters.condition ?? null,
     locationIds: filters.location ?? null,
+    departmentIds: filters.departamento ?? null,
     responsibleIds: responsibleIds.length > 0 ? responsibleIds : null,
     withoutResponsible: responsibles.includes('none'),
     conservations: conservationStates.length > 0 ? conservationStates : null,

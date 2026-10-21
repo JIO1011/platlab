@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import { product as productContract, entryList, receiptResponse } from '@platlab/contracts';
+import { department, product as productContract, entryList, receiptResponse } from '@platlab/contracts';
 import { admin, call, count } from '../../testing/api.js';
 import { addLocation, addMember, seedWorkspace, uniqueSuffix, type Member, type Workspace } from '../../testing/core-fixtures.js';
 
@@ -39,6 +39,13 @@ export async function createProduct(lab: Lab, unit = 'g', name = 'Cloruro de sod
   });
   expect(created.status).toBe(201);
   return productContract.parse(created.body);
+}
+
+/** El Administrador crea un departamento del Núcleo por la API (ADR 0024). */
+export async function createDepartment(lab: Lab, name: string) {
+  const created = await call(lab.adminMember.subject, `/workspaces/${lab.workspace.id}/departments`, { method: 'POST', body: { name } });
+  expect(created.status).toBe(201);
+  return department.parse(created.body);
 }
 
 /** Códigos de frasco únicos para un ingreso de prueba. */

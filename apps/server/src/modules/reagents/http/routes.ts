@@ -5,8 +5,6 @@ import {
   containerCodeSuggestionQuery,
   containerParams,
   countRequest,
-  createEntryRequest,
-  createLocationRequest,
   createReasonRequest,
   entryParams,
   issueRequestListQuery,
@@ -30,19 +28,13 @@ import {
   updateProductRequest,
   weightAdjustmentRequest,
 } from '@platlab/contracts';
-import type { NamedList } from '../../../capabilities/inventory/index.js';
 import { sendXlsx } from '../../../platform/http/download.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
-import {
-  createProduct,
-  createWorkspaceLocation,
-  setProductMinimum,
-  updateProduct,
-} from '../application/catalog.js';
+import { createProduct, setProductMinimum, updateProduct } from '../application/catalog.js';
 import { exportOperations } from '../application/export.js';
 import { approveRequest, cancelRequest, registerIssue, rejectRequest } from '../application/issues.js';
-import { archiveEntry, archiveReason, createEntry, createReason } from '../application/lists.js';
+import { archiveReason, createReason } from '../application/lists.js';
 import {
   registerAdjustment,
   registerCount,
@@ -57,7 +49,6 @@ import {
   listBrands,
   listCountLocations,
   getSummary,
-  listEntries,
   listOperationFacets,
   listOperations,
   listOperationTotals,
@@ -70,12 +61,6 @@ import {
   suggestCodes,
 } from '../application/queries.js';
 import { uploadSafetySheet } from '../application/safety-sheet.js';
-
-/** Listas con solo un nombre, por su ruta: destinos de salida (ADR 0012) y áreas (ADR 0015). */
-const namedLists: Array<[path: string, list: NamedList]> = [
-  ['destinations', 'destination'],
-  ['areas', 'area'],
-];
 
 /**
  * Rutas de Reactivos bajo /v1/workspaces/:workspaceId/reagents (primer incremento, «Rutas»).
@@ -129,12 +114,6 @@ export function reagentsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFil
     );
 
     app.get('/receipt-locations', async (request) => listReceiptLocations(pool, queryRequest(request)));
-
-    // Ubicaciones de Core creadas desde el ingreso (ADR 0015), con el permiso de catálogo.
-    app.post('/locations', async (request, reply) => {
-      const input = createLocationRequest.parse(request.body);
-      return reply.status(201).send(await createWorkspaceLocation(pool, commandRequest(request), input));
-    });
 
     app.get('/container-codes/suggestion', async (request) =>
       suggestCodes(pool, queryRequest(request), containerCodeSuggestionQuery.parse(request.query)),
@@ -196,7 +175,8 @@ export function reagentsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFil
       return reply.status(201).send(await registerWeightAdjustment(pool, commandRequest(request), input));
     });
 
-    // Motivos, destinos y áreas (ADR 0012, 0015): los consulta quien registra; los administra el Administrador.
+    // Motivos (ADR 0012): los consulta quien registra; los administra el Administrador. Destinos y áreas
+    // pasaron a los departamentos del Núcleo (ADR 0024).
     app.get('/reasons', async (request) =>
       listReasons(pool, queryRequest(request), reasonListQuery.parse(request.query).kind),
     );
@@ -209,19 +189,6 @@ export function reagentsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFil
     app.post('/reasons/:entryId/archive', async (request) =>
       archiveReason(pool, commandRequest(request), entryParams.parse(request.params).entryId),
     );
-
-    for (const [path, list] of namedLists) {
-      app.get(`/${path}`, async (request) => listEntries(pool, queryRequest(request), list));
-
-      app.post(`/${path}`, async (request, reply) => {
-        const input = createEntryRequest.parse(request.body);
-        return reply.status(201).send(await createEntry(pool, commandRequest(request), list, input));
-      });
-
-      app.post(`/${path}/:entryId/archive`, async (request) =>
-        archiveEntry(pool, commandRequest(request), list, entryParams.parse(request.params).entryId),
-      );
-    }
 
     // Solicitudes de salida (ADR 0012): bandeja de quien aprueba o «mis solicitudes».
     app.get('/issue-requests', async (request) =>
