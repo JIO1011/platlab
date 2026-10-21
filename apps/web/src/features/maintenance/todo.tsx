@@ -13,7 +13,7 @@ import { dueTone, groupDue, workStatus, type DueGroup } from './due';
 import { DuePill } from './due-view';
 import { useDue } from './queries';
 import { useRecordLauncher } from './record-launcher';
-import { SectionHeader } from './section-header';
+import { SectionHeader } from '../../app/section-header';
 import { titleWithKind } from './work-text';
 
 type DueItem = DueList['items'][number];

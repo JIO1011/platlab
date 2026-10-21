@@ -1,6 +1,6 @@
-import { useIsFetching, useQueryClient } from '@tanstack/react-query';
-import { Navigate, Outlet, useLocation } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { moduleApps, useShell } from '../../app/app-shell';
+import { ModuleOutlet, useModuleApp } from '../../app/module-app';
 import type { EquipmentContext } from './context';
 import { useEquipmentKey } from './queries';
 
@@ -10,37 +10,31 @@ import { useEquipmentKey } from './queries';
  */
 export function EquipmentLayout() {
   const { workspaceId, me } = useShell();
-  const queryClient = useQueryClient();
-  const equipmentKey = useEquipmentKey(workspaceId);
-  const module = me.modules.find((entry) => entry.code === 'equipment');
-  const canOperate = module?.access.includes('new_operation') ?? false;
-  const app = moduleApps(me).find((entry) => entry.code === 'equipment');
-  const refreshing = useIsFetching({ queryKey: equipmentKey }) > 0;
+  const app = useModuleApp(
+    'equipment',
+    useEquipmentKey(workspaceId),
+    'Equipos está en modo consulta: puedes ver el inventario, pero no registrar cambios.',
+  );
+  const nav = moduleApps(me).find((entry) => entry.code === 'equipment');
   const { pathname } = useLocation();
 
   // Quien no tiene el Resumen (el Docente solo reporta) entra por «Incidentes».
-  const base = `/e/${workspaceId}/${app?.path ?? 'equipos'}`;
-  if (app && !app.sections.some((section) => section.path === '') && pathname.replace(/\/+$/, '') === base) {
+  const base = `/e/${workspaceId}/${nav?.path ?? 'equipos'}`;
+  if (nav && !nav.sections.some((entry) => entry.path === '') && pathname.replace(/\/+$/, '') === base) {
     return <Navigate to={`${base}/incidentes`} replace />;
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <Outlet
-        context={
-          {
-            workspaceId,
-            me,
-            base,
-            canManage: canOperate && me.permissions.includes('equipment.catalog.manage'),
-            // Exportar es consulta: vale también en modo consulta.
-            canExport: me.permissions.includes('equipment.report.read'),
-            canOperate,
-            // Todo lo de Equipos: las consultas activas se vuelven a pedir y las demás quedan viejas.
-            freshness: { refreshing, refresh: () => void queryClient.invalidateQueries({ queryKey: equipmentKey }) },
-          } satisfies EquipmentContext
-        }
-      />
-    </div>
+    <ModuleOutlet
+      context={
+        {
+          ...app,
+          base,
+          canManage: app.canOperate && me.permissions.includes('equipment.catalog.manage'),
+          // Exportar es consulta: vale también en modo consulta.
+          canExport: me.permissions.includes('equipment.report.read'),
+        } satisfies EquipmentContext
+      }
+    />
   );
 }

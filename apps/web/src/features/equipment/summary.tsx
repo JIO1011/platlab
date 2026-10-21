@@ -16,7 +16,7 @@ import { EquipmentScan } from './equipment-scan';
 import { IncidentsCard } from './incidents-card';
 import { OpenFaultsCard } from './open-faults-card';
 import { useAssetTotals, useEquipmentSummary } from './queries';
-import { SectionHeader } from './section-header';
+import { SectionHeader } from '../../app/section-header';
 import { RegisterAsset } from './sheets/register-asset';
 import { ReportFaultSheet } from './sheets/report-fault-sheet';
 

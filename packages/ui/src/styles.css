@@ -235,6 +235,19 @@
   --color-action-deep: #0c4a6e;
 }
 
+[data-module='labs'] {
+  /*
+   * Fucsia de Laboratorios (ADR 0023): 6,3:1 con blanco; el texto #A21CAF sobre #FDF4FF, 5,9:1. Como en los demás,
+   * el degradado se oscurece hacia un tono vecino (ADR 0021): al ciruela #701A75 (10:1 con blanco), sin ir al
+   * violeta de Reactivos ni al rojo de los estados.
+   */
+  --color-action: #a21caf;
+  --color-action-hover: #86198f;
+  --color-action-pressed: #701a75;
+  --color-action-soft: #fdf4ff;
+  --color-action-deep: #701a75;
+}
+
 /*
  * Impresión de etiquetas (ADR 0012, entrega 4): si la página tiene una zona `.print-area`, solo
  * ella se imprime, sin el menú, la barra ni las acciones.

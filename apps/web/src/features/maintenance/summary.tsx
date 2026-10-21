@@ -13,7 +13,7 @@ import { useDue, useIndicators, useMaintenanceSummary } from './queries';
 import { useRecordLauncher } from './record-launcher';
 import { ReplacementSection } from './replacement-section';
 import { ScheduleChart } from './schedule-chart';
-import { SectionHeader } from './section-header';
+import { SectionHeader } from '../../app/section-header';
 import { CostCard, NoPlanNotice, RequirementsCard } from './summary-cards';
 import { UpcomingCard } from './upcoming-card';
 

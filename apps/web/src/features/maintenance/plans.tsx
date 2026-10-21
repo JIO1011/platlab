@@ -12,7 +12,7 @@ import { PlanDetailSheet } from './plan-detail';
 import { PlanSheet } from './plan-sheet';
 import { ProvidersSheet } from './providers-sheet';
 import { usePlans } from './queries';
-import { SectionHeader } from './section-header';
+import { SectionHeader } from '../../app/section-header';
 import { kindLabels } from './work-text';
 
 /** Una hoja de plan abierta: crear, editar o «Cambiar frecuencia» de un equipo; `n` la monta de nuevo en cada apertura. */

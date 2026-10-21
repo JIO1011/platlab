@@ -1,6 +1,5 @@
-import { useIsFetching, useQueryClient } from '@tanstack/react-query';
-import { Outlet } from 'react-router';
 import { useShell } from '../../app/app-shell';
+import { ModuleOutlet, useModuleApp } from '../../app/module-app';
 import type { MaintenanceContext } from './context';
 import { useMaintenanceKey } from './queries';
 import { maintenancePath } from './work-text';
@@ -11,31 +10,25 @@ import { maintenancePath } from './work-text';
  */
 export function MaintenanceLayout() {
   const { workspaceId, me } = useShell();
-  const queryClient = useQueryClient();
-  const maintenanceKey = useMaintenanceKey(workspaceId);
-  const module = me.modules.find((entry) => entry.code === 'maintenance');
-  const canOperate = module?.access.includes('new_operation') ?? false;
-  const refreshing = useIsFetching({ queryKey: maintenanceKey }) > 0;
-
+  const app = useModuleApp(
+    'maintenance',
+    useMaintenanceKey(workspaceId),
+    'Mantenimiento está en modo consulta: puedes ver lo que hay por hacer, el historial y los planes, pero no registrar cambios.',
+  );
+  const { canOperate } = app;
   return (
-    <div className="mx-auto max-w-6xl">
-      <Outlet
-        context={
-          {
-            workspaceId,
-            me,
-            base: maintenancePath(me.modules, workspaceId),
-            canOperate,
-            canRecord: canOperate && me.permissions.includes('maintenance.work.record'),
-            canManagePlans: canOperate && me.permissions.includes('maintenance.plan.manage'),
-            canReviewReplacement: canOperate && me.permissions.includes('maintenance.replacement.review'),
-            // Exportar es una consulta: sigue disponible en modo consulta (ADR 0009).
-            canExport: me.permissions.includes('maintenance.report.export'),
-            // Todo lo de Mantenimiento: las consultas activas se vuelven a pedir y las demás quedan viejas.
-            freshness: { refreshing, refresh: () => void queryClient.invalidateQueries({ queryKey: maintenanceKey }) },
-          } satisfies MaintenanceContext
-        }
-      />
-    </div>
+    <ModuleOutlet
+      context={
+        {
+          ...app,
+          base: maintenancePath(me.modules, workspaceId),
+          canRecord: canOperate && me.permissions.includes('maintenance.work.record'),
+          canManagePlans: canOperate && me.permissions.includes('maintenance.plan.manage'),
+          canReviewReplacement: canOperate && me.permissions.includes('maintenance.replacement.review'),
+          // Exportar es una consulta: sigue disponible en modo consulta (ADR 0009).
+          canExport: me.permissions.includes('maintenance.report.export'),
+        } satisfies MaintenanceContext
+      }
+    />
   );
 }

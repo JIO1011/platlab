@@ -6,7 +6,7 @@ import { fieldErrors } from '../../app/commands';
 import { formatDate, todayInZone } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
 import { maintenanceErrorMessage, useAddExclusion, useArchiveExclusion, useArchivePlan } from './commands';
-import { ConfirmArchive } from './confirm-archive';
+import { ConfirmArchive } from '../../app/confirm-archive';
 import { frequencyText, scopeText } from './plan-text';
 import { useMaintenance } from './context';
 import { dueTone, workStatus } from './due';

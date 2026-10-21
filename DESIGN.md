@@ -31,6 +31,9 @@ colors:
   # Tema de Mantenimiento (petróleo): [data-module='maintenance'].
   maintenance-action: "#0e7490"
   maintenance-action-deep: "#0c4a6e"
+  # Tema de Laboratorios (fucsia): [data-module='labs'].
+  labs-action: "#a21caf"
+  labs-action-deep: "#701a75"
   success: "#1d7a46"
   success-soft: "#e5f3ea"
   warning: "#8a5a00"
@@ -98,6 +101,7 @@ components:
 - **Reactivos:** índigo (`reagents-*`) con `action-deep` violeta como extremo del degradado. El tema se activa con `[data-module]` en `<html>` para que lo hereden hojas, menús y avisos, que viven en portales.
 - **Equipos y Mantenimiento** (ADR 0021): con el mismo esquema. El degradado se oscurece hacia un tono vecino, para que se note como en Reactivos.
   - Equipos va del azul al azul real, sin llegar al índigo; Mantenimiento, del petróleo al azul petróleo, sin ir al verde de los estados. Los extremos pasan AA con texto blanco.
+  - Laboratorios usa fucsia (`#a21caf`, 6,3:1 con blanco) y su degradado va al ciruela `#701a75`: ni el violeta de Reactivos ni el rojo de los estados.
 - **Neutros** (pizarra): `canvas` (fondo plano de toda la app), `surface` (paneles), `surface-sunken` (pistas, hover, esqueletos), `ink` / `ink-muted` / `ink-subtle` (texto principal, atenuado, tenue), `line` / `line-strong` (divisores y bordes de campo).
 - **Estados:** `success`, `warning`, `danger`, cada uno como texto sobre su `-soft`.
   - Lo pendiente de decidir va en ámbar y solo si existe (pastilla, aviso del Resumen, píldora del Inicio, insignia).
@@ -195,10 +199,11 @@ Cada pieza vive en `packages/ui/src/components` o en `apps/web/src/features`; su
 - **Equipos.** Inventario por áreas y tipos, ficha con Incidentes, Documentos e Historial, Informe, Hoja de vida imprimible y Resumen con incidentes ([ADR 0019](docs/05_decisiones.md#adr-0019), [0021](docs/05_decisiones.md#adr-0021)). «Dar de baja» es definitivo y pide confirmar.
 - **Áreas** ([ADR 0024](docs/05_decisiones.md#adr-0024), sección del Núcleo bajo «Inicio»). Un croquis, nunca una tabla: la sede o el edificio es un contorno de pared gruesa (`line-strong`) sobre una cuadrícula de puntos, con su nombre como leyenda sobre el borde, y cada área, un cuarto (tarjeta blanca) con nombre, encargado y una cifra por módulo (icono del módulo, número, nombre; cada cifra es un enlace a la lista filtrada). El cuarto por construir es un cuadro punteado «Nueva área»; el selector «Áreas | Departamentos» cambia la vista, con los mismos cuartos. Abrir un área abre una hoja con sus estantes; renombrar, encargado y archivar son hojas aparte que vuelven a ella. El filtro que llega a un módulo se muestra como ficha quitable con el nombre.
 - **Mantenimiento.** Por hacer, Historial, Planes e Indicadores; el registro es una hoja corta con resultado en tres botones (Conforme, Con observaciones, No conforme) y no se edita: se corrige o anula con motivo ([ADR 0020](docs/05_decisiones.md#adr-0020), [0021](docs/05_decisiones.md#adr-0021)).
+- **Laboratorios** ([ADR 0023](docs/05_decisiones.md#adr-0023)). El Formato es la plantilla estándar A4 (`features/labs/form-paper.tsx`), una tabla de bordes finos de 12 px (rejilla con `gap-px` sobre `line-strong`) que se edita en el mismo lugar. Encabezado en una sola franja (espacio de trabajo, título con «Revisión N» y casilla «Código»); barra «Sección I» y filas «etiqueta | valor» de a dos (el título de la práctica, a lo ancho), con la etiqueta en mayúsculas sobre `surface-sunken` y el valor en blanco con un ejemplo fantasma; Recursos, una tabla real con su cabecera de dos filas (Reactivos, Equipos, Materiales; tres filas de muestra en pantalla). La hoja es densa: filas de 24 px en pantalla y, al imprimir, de 4,5 mm a 8 pt, con el presupuesto de una A4 (encabezado 14 mm, Observaciones 12, Entrega / Recepción 18) y filas vacías de Recursos que llenan lo que sobra (mínimo 30; si no caben, pasan a otra página con la cabecera repetida, `form-sheet.ts`). Los controles de edición miden 44 px en el móvil y 24 px en escritorio; las notas de ayuda no se imprimen. Observaciones y Entrega / Recepción con dos firmas. Los encabezados usan el color suave del módulo (`action-soft` con `action-deep`, AA) y la hoja fuerza su impresión (`print-color-adjust`). Los datos del sistema llevan un candado pequeño; título, código, «Asignatura» y «Carrera» y la etiqueta de cada dato extra se renombran con un clic (línea punteada, nombre accesible propio). Los datos extra se intercalan en la rejilla, abren sus ajustes en un `Popover` (tipo, opciones, obligatorio, quitar) y se reordenan arrastrando el asa (dnd kit, en rejilla), con Espacio y flechas en ella o con Alt + flecha arriba o abajo en la etiqueta; «Agregar dato» es la última celda de la Sección I. Barra de versión y acciones fija: abajo en el móvil, arriba en escritorio. «Imprimir» monta la hoja de solo lectura como única hoja A4 (`print-report`).
 
 ### Movimiento
 
-`ease-out-expo` para pulsación, fundidos y menús; `ease-sheet` (cajón, sin rebote) para hojas. Superposiciones de 150–200 ms desde su origen; hojas de 260 ms al entrar; las salidas, más cortas. Con `prefers-reduced-motion`, hojas y menús pasan a fundidos y las elevaciones de tarjeta se omiten. Sin bucles ni animación de filas o barras.
+`ease-out-expo` para pulsación, fundidos y menús; `ease-sheet` (cajón, sin rebote) para hojas. Superposiciones de 150–200 ms desde su origen; hojas de 260 ms al entrar; las salidas, más cortas. Con `prefers-reduced-motion`, hojas y menús pasan a fundidos y las elevaciones de tarjeta se omiten. Sin bucles ni animación de filas o barras; la única excepción es reordenar arrastrando (200 ms con `ease-out-expo`, sin movimiento con `prefers-reduced-motion`).
 
 ## Do's and Don'ts
 
