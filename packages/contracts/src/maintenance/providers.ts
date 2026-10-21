@@ -1,10 +1,7 @@
 import { z } from 'zod';
-import { text } from '../common.js';
+import { expectedVersion, text } from '../common.js';
 
 /** Proveedores de servicio del espacio (ADR 0020): los crea, edita y archiva el Administrador; nunca se borran. */
-
-/** La versión que la persona vio al editar: si otra persona cambió el recurso antes, VERSION_CONFLICT. */
-export const expectedVersion = z.number().int().positive();
 
 export const provider = z.object({
   id: z.uuid(),

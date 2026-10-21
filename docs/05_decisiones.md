@@ -844,6 +844,12 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
   - **L-01e:** preparación y cierre. El consumo real y la devolución mueven el inventario de Reactivos, como operaciones distintas de reservar ([03](03_datos.md)); también la impresión.
   - L-01a a L-01c son el mínimo que se muestra al cliente. Después viene su G0.
 - **Se valida con el cliente** antes de cerrar cada regla (Pendientes, «Reglas de Laboratorios»): lo dudoso no se programa.
+- **Reglas de L-01a** (confirmadas por el usuario, 21-10-2026):
+  - se agenda el **área completa**: cada área del Núcleo con horario es una fila del Cronograma; si un laboratorio tiene salas, se crean como áreas en «Áreas»;
+  - **horario semanal y cierres por área**, y **feriados comunes** que se cargan una vez para todo el espacio;
+  - **anticipación de 7 días**, configurable por el Administrador para todo el espacio;
+  - **sin áreas exclusivas** por ahora: toda área con horario es solicitable y el Administrador decide al programar.
+  - **Formato:** uno por espacio de trabajo. Cada guardado publica una versión nueva e inmutable; el núcleo no se edita, solo el título y los campos libres.
 
 ## ADR 0024 — Áreas y departamentos en una sección propia
 
@@ -885,7 +891,7 @@ Estado: aceptada (20-10-2026; idea del usuario: cuadros que la app dibuja como u
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Equipos | ¿Qué campos de la ficha y qué documentos considera necesarios el cliente? ¿Qué valores de alimentación usa? ¿Quiere un aviso al pesar en Reactivos con una balanza de calibración vencida? ([ADR 0019](#adr-0019)) | F0, antes de E-01 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
-| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿Se agenda por área o por sala dentro del área? ¿El Estudiante (tesista) también solicita desde el inicio? ¿Horario y cierres por laboratorio, y feriados comunes? ¿Bastan 7 días de anticipación? ¿Cancelaciones con qué plazo? ¿El responsable del bloque es siempre un técnico (Operador)? ¿Salas exclusivas? ¿Devoluciones químicas y quién declara el consumo al cerrar? | P-04, antes de L-01a (lo del cierre, antes de L-01e) |
+| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿El Estudiante (tesista) también solicita desde el inicio? ¿Cancelaciones con qué plazo? ¿El responsable del bloque es siempre un técnico (Operador)? ¿Devoluciones químicas y quién declara el consumo al cerrar? | P-04, antes de L-01b (lo del cierre, antes de L-01e) |
 | Inicio | Propuesta del 20-10-2026 en espera: el usuario tiene otras ideas. «Por atender» de todos los módulos (rojo antes que ámbar, con su enlace filtrado), tres tarjetas por fila con gráfico solo si hay datos (Equipos hoy dice siempre «Sin cambios»), «Por atender» primero en el móvil y avisos declarados por cada módulo en su `module.tsx` | Al terminar los módulos, con las ideas del usuario |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |

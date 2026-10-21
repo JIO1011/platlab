@@ -14,6 +14,7 @@ export type { AreaContribution } from './application/organization.js';
 export {
   moduleCommand,
   moduleQuery,
+  requireEditable,
   requires,
   type CommandRequest,
   type QueryRequest,

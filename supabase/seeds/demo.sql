@@ -8,8 +8,8 @@
 --                                  permisos del Administrador por ser propietaria (ADR 0008, 02-10-2026).
 --   docente@demo.platlab.test      Diego Docente: Docente en A, sin permisos de Reactivos.
 --
--- Espacios: A con Reactivos y Equipos (30 días de historial y 12 equipos), B con Reactivos y
--- existencias propias; C sin módulos.
+-- Espacios: A con Reactivos, Equipos, Mantenimiento y Laboratorios (30 días de historial y 12 equipos),
+-- B con Reactivos y existencias propias; C sin módulos.
 
 begin;
 
@@ -123,6 +123,8 @@ insert into platform.contract_revision_modules (workspace_id, revision_id, modul
   ('da000000-0000-4000-8000-00000000000a', 'da500000-0000-4000-8000-000000000001', 'equipment', now() - interval '1 day'),
   -- Mantenimiento (ADR 0020) depende de Equipos y también está en development.
   ('da000000-0000-4000-8000-00000000000a', 'da500000-0000-4000-8000-000000000001', 'maintenance', now() - interval '1 day'),
+  -- Laboratorios (ADR 0023) en development: Espacios y Formato sobre las áreas de A.
+  ('da000000-0000-4000-8000-00000000000a', 'da500000-0000-4000-8000-000000000001', 'labs', now() - interval '1 day'),
   ('db000000-0000-4000-8000-00000000000b', 'db500000-0000-4000-8000-000000000001', 'reagents', now() - interval '1 day');
 
 select platform.apply_contract_revision('da500000-0000-4000-8000-000000000001', 'seed demo');
@@ -598,4 +600,45 @@ update equipment.assets set department_id = 'daa00000-0000-4000-8000-00000000000
  where id in ('da920000-0000-4000-8000-000000000002', 'da920000-0000-4000-8000-000000000004', 'da920000-0000-4000-8000-000000000008');
 update equipment.assets set department_id = 'daa00000-0000-4000-8000-000000000003'
  where id in ('da920000-0000-4000-8000-000000000006', 'da920000-0000-4000-8000-000000000007');
+
+-- ---------------------------------------------------------------------------
+-- Laboratorios de A (ADR 0023): dos áreas habilitadas como espacios, un feriado común y un cierre por
+-- mantenimiento del Laboratorio de Física, uno anulado, y la primera versión del Formato. La
+-- anticipación queda en los 7 días por defecto (sin fila de ajustes).
+-- ---------------------------------------------------------------------------
+
+insert into labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_by_principal_id) values
+  ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000003', 24,
+   '{"1": [{"opens": "07:00", "closes": "13:00"}, {"opens": "14:00", "closes": "19:00"}],
+     "2": [{"opens": "07:00", "closes": "13:00"}, {"opens": "14:00", "closes": "19:00"}],
+     "3": [{"opens": "07:00", "closes": "13:00"}, {"opens": "14:00", "closes": "19:00"}],
+     "4": [{"opens": "07:00", "closes": "13:00"}, {"opens": "14:00", "closes": "19:00"}],
+     "5": [{"opens": "07:00", "closes": "13:00"}],
+     "6": [], "7": []}',
+   'da200000-0000-4000-8000-000000000001'),
+  ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000004', 16,
+   '{"1": [{"opens": "08:00", "closes": "16:00"}], "2": [{"opens": "08:00", "closes": "16:00"}],
+     "3": [{"opens": "08:00", "closes": "16:00"}], "4": [{"opens": "08:00", "closes": "16:00"}],
+     "5": [{"opens": "08:00", "closes": "12:00"}], "6": [{"opens": "08:00", "closes": "12:00"}], "7": []}',
+   'da200000-0000-4000-8000-000000000001');
+
+insert into labs.closures (workspace_id, area_id, starts_on, ends_on, reason, created_by_principal_id) values
+  ('da000000-0000-4000-8000-00000000000a', null, current_date + 20, current_date + 21, 'Feriado nacional',
+   'da200000-0000-4000-8000-000000000001'),
+  ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000004', current_date + 10, current_date + 12,
+   'Mantenimiento de las mesas de trabajo', 'da200000-0000-4000-8000-000000000001');
+
+insert into labs.closures
+  (workspace_id, area_id, starts_on, ends_on, reason, voided_at, voided_by_principal_id, created_by_principal_id)
+values ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000003', current_date + 5, current_date + 5,
+        'Fumigación (reprogramada)', now(), 'da200000-0000-4000-8000-000000000001', 'da200000-0000-4000-8000-000000000001');
+
+insert into labs.form_versions (workspace_id, version, title, fields, published_by_principal_id) values
+  ('da000000-0000-4000-8000-00000000000a', 1, 'Solicitud de laboratorio',
+   '[{"key": "asignatura", "label": "Asignatura", "type": "text", "required": true},
+     {"key": "paralelo", "label": "Paralelo", "type": "text", "required": false},
+     {"key": "tipo_practica", "label": "Tipo de práctica", "type": "list", "required": true,
+      "options": ["Docencia", "Investigación", "Tesis"]},
+     {"key": "requiere_epp", "label": "¿Requiere bata y gafas?", "type": "boolean", "required": false}]',
+   'da200000-0000-4000-8000-000000000001');
 commit;

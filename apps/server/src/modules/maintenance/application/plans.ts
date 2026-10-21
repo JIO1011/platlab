@@ -2,7 +2,7 @@ import type pg from 'pg';
 import type { z } from 'zod';
 import type { createExclusionRequest, createPlanRequest, Plan, PlanAssetList, PlanKind, PlanList, updatePlanRequest } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
-import { recordAudit, requires, type CommandRequest, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
+import { recordAudit, requireEditable, requires, type CommandRequest, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import {
   activeAssetType,
   archiveExclusion as archiveExclusionQuery,
@@ -19,7 +19,7 @@ import {
   type IDirectoryAssetResult,
   type IListPlansResult,
 } from '../infrastructure/plans.queries.js';
-import { PLAN_MANAGE, requireEditable, runCommand, runQuery } from './command.js';
+import { PLAN_MANAGE, runCommand, runQuery } from './command.js';
 
 /**
  * Planes (ADR 0020): por tipo de equipo, que cubre todas sus unidades y las nuevas, o por equipo. El plan
