@@ -860,6 +860,12 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
   - **Asignatura y carrera se eligen de una lista** que se arma al usarlas, nunca como texto libre: de ellas salen las métricas (L-01b).
   - **Cantidades** (L-01b): equipos y materiales con «por grupo / total», y se guarda el total (2 por grupo × 8 grupos = 16). Los equipos se piden por tipo y el Administrador asigna los concretos al programar. Los reactivos van siempre en total, con unidad y cantidad exacta.
   - **Campos libres y observaciones**, solo para lo propio de cada cliente; no entran en las métricas.
+  - **Hoja A4 que se edita en el mismo lugar:** el formato se ve como la hoja impresa (tabla compacta con bordes, membrete en una franja y recursos en tres columnas) y el Administrador lo edita sobre ella. Renombra en la hoja; los bloques fijos llevan candado; «+ Agregar campo» elige el tipo con íconos; los campos se reordenan arrastrando o con flechas. Imprime en A4.
+  - **Código de la solicitud programada** (L-01b y L-01c), por ejemplo `P1-S12-ANT03`: período, semana del período, sigla del área y secuencia. ANT01, ANT02 y ANT03 son la primera, la segunda y la tercera de Anatomía en esa semana.
+    - Se asigna al programar, con el número siguiente del área en esa semana. Los números no se reutilizan. Antes de programar, la solicitud lleva un número fijo (`SOL-0042`).
+    - Se programa y se mueve solo hacia el futuro. Al moverla, toma el número siguiente de su nueva semana, y el código anterior queda en el historial.
+    - Período, semana, área y secuencia se guardan por separado para filtrar; el código solo se muestra.
+    - Requiere, antes de L-01b, los períodos del espacio (por ejemplo «P1: 01-04 al 15-08»; la semana se calcula desde su inicio) y la sigla de cada área en Áreas.
   - **Métricas previstas:** horas de uso por área, solicitudes y participantes por carrera, asignatura y tipo, consumo de reactivos y uso de equipos por carrera y por práctica, pedidos fuera de plazo, rechazos y tiempo de respuesta.
 
 ## ADR 0024 — Áreas y departamentos en una sección propia
