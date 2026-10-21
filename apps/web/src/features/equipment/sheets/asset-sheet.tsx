@@ -185,11 +185,11 @@ export function AssetFormSheet({
           photo={<PhotoField photo={photo} currentUrl={asset?.photoUrl ?? null} />}
         />
         {asset ? (
-          <OwnerSection form={form} workspaceId={workspaceId} open={open} responsible={asset.responsible} />
+          <OwnerSection form={form} workspaceId={workspaceId} open={open} responsible={asset.responsible} department={asset.department} />
         ) : (
           // La columna derecha del alta: la ubicación y el responsable, y debajo el estado, sin hueco entre ellos.
           <div className="grid content-start gap-4 lg:gap-5">
-            <PlaceSection form={form} workspaceId={workspaceId} open={open} canManage={canManage} />
+            <PlaceSection form={form} workspaceId={workspaceId} open={open} />
             <StatusSection form={form} />
           </div>
         )}

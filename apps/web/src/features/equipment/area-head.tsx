@@ -4,7 +4,7 @@ import { Check, Microscope, QrCode } from 'lucide-react';
 import { glassCard, primaryAction } from '../../app/glass';
 import { ModuleMark } from '../../app/module-mark';
 import { RefreshButton } from '../../app/refresh-button';
-import { AreaManagerLine } from './area-manager';
+import { ManagerLine } from '../../app/manager-line';
 import { conditionLabel, stateParts } from './asset-text';
 import { RegisterAssetButton } from './sheets/register-asset';
 
@@ -96,7 +96,7 @@ export function AreaHeader({
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
         <div className="flex min-w-0 max-w-full items-center gap-2">
           {area.manager ? <span className="shrink-0 text-[13px] text-ink-muted">Encargado:</span> : null}
-          <AreaManagerLine area={area} canManage={canManage} />
+          <ManagerLine manager={area.manager} />
         </div>
         <p className="text-[13px] font-medium tabular-nums text-ink-muted">
           {number.format(area.total)} {area.total === 1 ? 'equipo' : 'equipos'}

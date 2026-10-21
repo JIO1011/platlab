@@ -1,45 +1,45 @@
-import type { Area } from '@platlab/contracts';
 import { Button, Field, toast } from '@platlab/ui';
 import { UserRound } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { Combobox, type ComboOption } from '../../../app/combobox';
 import { fieldLabel } from '../../../app/filled';
-import { FormSheet, type SheetBaseProps } from '../../../app/form-sheet';
-import { equipmentErrorMessage, useAssignAreaManager } from '../commands';
-import { useEquipment } from '../context';
-import { useResponsibles } from '../queries';
+import { FormSheet } from '../../../app/form-sheet';
+import { areasErrorMessage, useAssignManager } from '../commands';
+import type { WorkspaceArea } from '../plan-model';
+import { useAreaManagers } from '../queries';
+
+type Person = { id: string; name: string };
 
 /**
- * «Encargado del área» (ADR 0019, E-01c): quien responde por los equipos del área. Se elige entre los miembros
- * activos del espacio, o se quita. El alta de un equipo en el área lo propone como responsable. Nada cambia en
- * pantalla hasta que el servidor confirma.
+ * «Encargado del área» (ADR 0024; antes en Equipos): quien responde por lo que hay en el área. Se elige entre los
+ * miembros activos del espacio, o se quita. Nada cambia en pantalla hasta que el servidor confirma.
  */
-function AreaManagerSheet({ workspaceId, open, onOpenChange, area }: SheetBaseProps & { area: Area }) {
-  const command = useAssignAreaManager(workspaceId, area.id);
-  const responsibles = useResponsibles(workspaceId, open);
+export function ManagerSheet({ workspaceId, area, onClose }: { workspaceId: string; area: WorkspaceArea; onClose: () => void }) {
+  const command = useAssignManager(workspaceId, area.id);
+  const managers = useAreaManagers(workspaceId, true);
   const [text, setText] = useState('');
-  const [chosen, setChosen] = useState<{ id: string; name: string } | null>(null);
+  const [chosen, setChosen] = useState<Person | null>(null);
   const [removing, setRemoving] = useState(false);
   const [pickError, setPickError] = useState<string | undefined>(undefined);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const options = useMemo<ComboOption[]>(
     () =>
-      (responsibles.data?.items ?? [])
+      (managers.data?.items ?? [])
         .filter((person) => person.id !== area.manager?.id)
         .map((person) => ({ id: person.id, label: person.name, leading: <UserRound className="size-4 shrink-0 text-ink-muted" aria-hidden /> })),
-    [responsibles.data, area.manager],
+    [managers.data, area.manager],
   );
 
-  const save = async (person: { id: string; name: string } | null) => {
+  const save = async (person: Person | null) => {
     setGeneralError(null);
     try {
       await command.mutateAsync({ managerId: person?.id ?? null });
       toast.success(person ? 'Encargado asignado' : 'Encargado quitado', {
         description: person ? `${person.name} es el encargado de ${area.name}.` : `${area.name} queda sin encargado.`,
       });
-      onOpenChange(false);
+      onClose();
     } catch (error) {
-      setGeneralError(equipmentErrorMessage(error));
+      setGeneralError(areasErrorMessage(error));
     }
   };
 
@@ -47,10 +47,11 @@ function AreaManagerSheet({ workspaceId, open, onOpenChange, area }: SheetBasePr
     <FormSheet
       icon={UserRound}
       title="Encargado del área"
-      description="Quien responde por los equipos del área. Al registrar un equipo aquí, se propone como su responsable."
-      open={open}
-      onOpenChange={onOpenChange}
+      description="Quien responde por lo que hay en el área. Al registrar un equipo aquí, se propone como su responsable."
+      open
+      onOpenChange={(open) => (open ? undefined : onClose())}
       submitLabel="Asignar encargado"
+      focusFirst
       pending={command.isPending && !removing}
       generalError={generalError}
       onSubmit={() => {
@@ -68,7 +69,7 @@ function AreaManagerSheet({ workspaceId, open, onOpenChange, area }: SheetBasePr
         label={area.manager ? 'Nuevo encargado' : 'Encargado'}
         labelClassName={fieldLabel}
         hint="Escribe un nombre y elígelo de la lista."
-        error={responsibles.isError ? 'No se pudo cargar la lista de personas. Vuelve a abrir la hoja.' : pickError}
+        error={managers.isError ? 'No se pudo cargar la lista de personas. Vuelve a abrir la hoja.' : pickError}
       >
         <Combobox
           value={text}
@@ -84,7 +85,7 @@ function AreaManagerSheet({ workspaceId, open, onOpenChange, area }: SheetBasePr
             setText(option.label);
           }}
           openOnFocus
-          placeholder={responsibles.isPending ? 'Cargando…' : 'Buscar persona'}
+          placeholder={managers.isPending ? 'Cargando…' : 'Buscar persona'}
         />
       </Field>
       {area.manager ? (
@@ -102,29 +103,5 @@ function AreaManagerSheet({ workspaceId, open, onOpenChange, area }: SheetBasePr
         </div>
       ) : null}
     </FormSheet>
-  );
-}
-
-/**
- * Lleva la hoja del encargado para quien dibuja el botón (la tarjeta del área y su cabecera): `children`
- * recibe la función que la abre. Cada apertura la monta de nuevo, con su propia clave idempotente. Quien lo
- * usa decide si mostrarlo (`canManage`).
- */
-export function AssignAreaManager({ area, children }: { area: Area; children: (open: () => void) => ReactNode }) {
-  const { workspaceId } = useEquipment();
-  const [sheet, setSheet] = useState<{ id: number; open: boolean } | null>(null);
-  return (
-    <>
-      {children(() => setSheet({ id: Date.now(), open: true }))}
-      {sheet ? (
-        <AreaManagerSheet
-          key={sheet.id}
-          workspaceId={workspaceId}
-          open={sheet.open}
-          onOpenChange={(open) => setSheet((current) => (current ? { ...current, open } : current))}
-          area={area}
-        />
-      ) : null}
-    </>
   );
 }

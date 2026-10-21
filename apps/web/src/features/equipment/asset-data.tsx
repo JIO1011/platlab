@@ -20,7 +20,7 @@ function Fact({ label, children, detail, muted = false }: { label: string; child
 
 /**
  * La franja de datos del membrete de la ficha: Estado, Estado físico, Ubicación (la sala y, debajo, los
- * niveles), Responsable, Compra (con el proveedor), Garantía, Vida útil y Valor de reposición. Lo que falta se
+ * niveles), Responsable, Departamento, Compra (con el proveedor), Garantía, Vida útil y Valor de reposición. Lo que falta se
  * dice («Sin dato»), no se deja en blanco; la garantía y la vida útil se cuentan contra hoy en la zona del
  * espacio, y el valor de reposición se formatea desde su cadena decimal, sin pasar por `number`.
  */
@@ -40,6 +40,9 @@ export function AssetData({ asset, timeZone }: { asset: Asset; timeZone: string 
       </Fact>
       <Fact label="Responsable" muted={!asset.responsible}>
         {asset.responsible?.name ?? 'Sin responsable'}
+      </Fact>
+      <Fact label="Departamento" muted={!asset.department}>
+        {asset.department?.name ?? 'Sin departamento'}
       </Fact>
       <Fact
         label="Compra"

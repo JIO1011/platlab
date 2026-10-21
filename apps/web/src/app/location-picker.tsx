@@ -15,15 +15,13 @@ const levelNames = ['Ubicación', 'Estante o armario', 'Nivel o repisa'];
  * el móvil, cada uno con las hijas del anterior en el árbol de Core y su texto guía. El segundo se
  * habilita al elegir el primero y el tercero al elegir el segundo, con el foco puesto. El elegido
  * muestra su nombre y una × que lo quita junto con los niveles que cuelgan de él. Basta un nivel; el
- * tercero es opcional. Quien administra el catálogo crea con el «+» del campo o con Enter; la
- * ubicación se crea en el servidor al momento.
+ * tercero es opcional. Solo elige (ADR 0024): las ubicaciones se crean en Áreas, y si falta una el
+ * campo lo dice.
  */
 export function LocationPicker({
   places,
   recentIds,
   onChange,
-  canCreate,
-  onCreate,
   error,
   className,
   placeholders = defaultPlaceholders,
@@ -33,9 +31,6 @@ export function LocationPicker({
   recentIds: string[];
   /** La ubicación más profunda elegida; vacío mientras no hay ninguna. */
   onChange: (placeId: string) => void;
-  canCreate: boolean;
-  /** Crea una ubicación dentro de `parentId` y la devuelve; null si no se pudo (el error lo dice la hoja). */
-  onCreate: (name: string, parentId: string | null) => Promise<Place | null>;
   error?: string | undefined;
   className?: string;
   /** Texto guía de los tres niveles; por omisión, el de un almacén de reactivos. */
@@ -51,7 +46,6 @@ export function LocationPicker({
     return path.length <= LEVELS ? path.map(({ id: placeId, name }) => ({ id: placeId, name })) : [];
   });
   const [text, setText] = useState('');
-  const [creating, setCreating] = useState(false);
   const [focusLevel, setFocusLevel] = useState<number | null>(null);
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -84,13 +78,6 @@ export function LocationPicker({
     onChange(chosen[level - 1]?.id ?? '');
     setFocusLevel(level);
   };
-  const create = async (level: number, name: string) => {
-    if (creating) return;
-    setCreating(true);
-    const place = await onCreate(name, parentOf(level));
-    setCreating(false);
-    if (place) pick(level, place);
-  };
 
   return (
     <div className={cn('grid content-start gap-1.5', className)}>
@@ -112,7 +99,6 @@ export function LocationPicker({
             'aria-required': level === 0 ? (true as const) : undefined,
             'aria-invalid': level === 0 && error && chosen.length === 0 ? (true as const) : undefined,
             'aria-describedby': level === 0 && error ? errorId : undefined,
-            'aria-busy': creating && !done ? (true as const) : undefined,
           };
           return (
             <div key={level} className="min-w-0">
@@ -141,11 +127,7 @@ export function LocationPicker({
                     onChange={setText}
                     options={waiting ? [] : options}
                     onPick={(option) => pick(level, { id: option.id, name: option.label })}
-                    canCreate={canCreate && !waiting}
-                    inlineCreate
                     openOnFocus
-                    readOnly={creating}
-                    onCreate={(name) => void create(level, name)}
                     placeholder={placeholders[level] ?? ''}
                     menuClassName="min-w-56"
                     inputProps={common}
@@ -169,6 +151,7 @@ export function LocationPicker({
           {error}
         </p>
       ) : null}
+      <p className="text-[13px] text-ink-muted">¿Falta un lugar? Pide al Administrador que lo cree en Áreas.</p>
     </div>
   );
 }

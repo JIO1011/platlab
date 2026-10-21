@@ -120,10 +120,8 @@ export function IngressSheet({
             onDepartment={(departmentId) => patch({ departmentId })}
             places={places}
             recentIds={recents.locations}
-            canCreate={canCreate}
             error={errors.placeId}
             onPlace={(placeId) => patch({ placeId })}
-            onServerErrors={entry.setServerErrors}
           />
 
           <WeightSection

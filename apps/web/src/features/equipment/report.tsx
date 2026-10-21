@@ -3,6 +3,7 @@ import { Microscope, Plus, Search, SearchX } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { toPlaces } from '../../app/places';
+import { useDepartments } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
 import { useMediaQuery } from '../../app/use-media-query';
 import { activeFilters } from './active-filters';
@@ -33,6 +34,7 @@ export function EquipmentReportPage() {
   const totals = useAssetTotals(workspaceId, query);
   const types = useAssetTypes(workspaceId);
   const responsibles = useResponsibles(workspaceId);
+  const departments = useDepartments(workspaceId);
   const locations = useEquipmentLocations(workspaceId);
   const places = useMemo(() => (locations.data ? toPlaces(locations.data.items) : undefined), [locations.data]);
 
@@ -82,6 +84,7 @@ export function EquipmentReportPage() {
     types: new Map((types.data?.items ?? []).map((entry) => [entry.id, entry.name])),
     places: new Map((places ?? []).map((place) => [place.id, place.name])),
     responsibles: new Map((responsibles.data?.items ?? []).map((member) => [member.id, member.name])),
+    departments: new Map((departments.data?.items ?? []).map((department) => [department.id, department.name])),
   });
 
   const items = assets.data?.pages.flatMap((page) => page.items) ?? [];
@@ -122,6 +125,7 @@ export function EquipmentReportPage() {
               query={query}
               types={types}
               responsibles={responsibles}
+              departments={departments}
               places={places}
               placesFailed={locations.isError}
               onRetryPlaces={() => void locations.refetch()}

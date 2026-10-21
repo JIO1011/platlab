@@ -1,10 +1,12 @@
 import type { StockedProduct } from '@platlab/contracts';
 import { Badge, Button, IconChip, Input, Quantity, Skeleton, StatePanel, cn } from '@platlab/ui';
-import { CalendarClock, CircleAlert, FlaskConical, Layers, Lock, PackagePlus, Search, TrendingDown, TriangleAlert } from 'lucide-react';
+import { CalendarClock, CircleAlert, FlaskConical, Layers, Lock, PackagePlus, Search, TrendingDown, TriangleAlert, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ModuleMark } from '../../app/module-mark';
+import { useAreasOverview } from '../../app/queries';
 import { useReagents } from './context';
+import { inScope, readScope } from './inventory-scope';
 import { EmptyToggle, physicalStateIcon, physicalStateLabel } from './product-parts';
 
 const matches = (product: StockedProduct, query: string) => {
@@ -79,13 +81,34 @@ function FilterPill({ label, count, active, onToggle }: { label: string; count: 
   );
 }
 
+/** Ficha del alcance que trae la sección Áreas («Área: Química»): dice a qué se limita la lista y se quita con un toque. */
+function ScopeChip({ label, name, onRemove }: { label: string; name: string | undefined; onRemove: () => void }) {
+  const text = name ? `${label}: ${name}` : label;
+  return (
+    <button
+      type="button"
+      onClick={onRemove}
+      aria-label={`Quitar filtro ${text}`}
+      className="inline-flex h-9 max-w-full items-center gap-1.5 rounded-full bg-action-soft px-3.5 text-sm font-medium text-action transition-colors hover:bg-action-soft/70"
+    >
+      <span className="truncate">{text}</span>
+      <X className="size-3.5 shrink-0" aria-hidden />
+    </button>
+  );
+}
+
 /**
  * Inventario, primer nivel (ADR 0012): un reactivo por tarjeta con su total, sus frascos con saldo
  * y sus avisos de caducidad. Toda la tarjeta abre su ficha, el segundo nivel.
  */
 export function ReagentsInventoryPage() {
-  const { base, allowed, products, productList, openSheet } = useReagents();
+  const { workspaceId, me, base, allowed, products, productList, openSheet } = useReagents();
   const [params, setParams] = useSearchParams();
+  // El nombre del área o del departamento viene de Áreas; sin acceso a ella, la ficha dice solo qué filtra.
+  const overview = useAreasOverview(workspaceId, me.areas !== 'none');
+  const scope = readScope(params);
+  const areaName = overview.data?.areas.find((area) => area.id === scope.areaId)?.name;
+  const departmentName = overview.data?.departments.find((department) => department.id === scope.departmentId)?.name;
   const [query, setQuery] = useState('');
   const [showEmpty, setShowEmpty] = useState(false);
   const active = alertFilterKeys.find((key) => params.get(alertFilters[key].param[0]) === alertFilters[key].param[1]) ?? null;
@@ -94,6 +117,7 @@ export function ReagentsInventoryPage() {
   const visible = productList.filter(
     (product) =>
       matches(product, query) &&
+      inScope(product, scope) &&
       (active ? alertFilters[active].has(product) : showEmpty || product.balance !== '0'),
   );
   const toggleAlert = (filter: AlertFilter) =>
@@ -102,6 +126,16 @@ export function ReagentsInventoryPage() {
         const next = new URLSearchParams(current);
         for (const key of alertFilterKeys) next.delete(alertFilters[key].param[0]);
         if (active !== filter) next.set(alertFilters[filter].param[0], alertFilters[filter].param[1]);
+        return next;
+      },
+      { replace: true },
+    );
+
+  const removeScope = (key: 'area' | 'departamento') =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.delete(key);
         return next;
       },
       { replace: true },
@@ -156,6 +190,8 @@ export function ReagentsInventoryPage() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {scope.areaId ? <ScopeChip label="Área" name={areaName} onRemove={() => removeScope('area')} /> : null}
+          {scope.departmentId ? <ScopeChip label="Departamento" name={departmentName} onRemove={() => removeScope('departamento')} /> : null}
           {alertFilterKeys.map((filter) => (
             <FilterPill
               key={filter}
@@ -176,7 +212,13 @@ export function ReagentsInventoryPage() {
       </div>
       {visible.length === 0 ? (
         <p className="rounded-panel bg-surface px-4 py-8 text-center text-sm text-ink-muted shadow-raised">
-          {query.trim() ? `Ningún reactivo coincide con «${query}».` : active ? alertFilters[active].empty : 'No hay reactivos con existencias.'}
+          {query.trim()
+            ? `Ningún reactivo coincide con «${query}».`
+            : scope.areaId || scope.departmentId
+              ? 'Ningún reactivo con existencias coincide con el filtro de Áreas. Quítalo para ver todos.'
+              : active
+                ? alertFilters[active].empty
+                : 'No hay reactivos con existencias.'}
         </p>
       ) : (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { areaManager, asset, assetDocument, assetType, fault, location, type AssetDocumentKind } from '@platlab/contracts';
+import { asset, assetDocument, assetType, fault, type AssetDocumentKind } from '@platlab/contracts';
 import { api, isApiError } from '../../app/api';
 import { commonErrorMessage, useModuleCommand } from '../../app/commands';
 import { useFileDownload } from '../../app/save-file';
@@ -35,11 +35,6 @@ export function useTransferAsset(workspaceId: string, assetId: string) {
 /** «+ Agregar» tipo de equipo desde el alta (Administrador). */
 export function useCreateAssetType(workspaceId: string) {
   return useModuleCommand(workspaceId, '/equipment/asset-types', assetType, useEquipmentKey(workspaceId));
-}
-
-/** Crear una ubicación del Núcleo desde el selector por niveles (Administrador, ADR 0015, 0024). */
-export function useCreateEquipmentLocation(workspaceId: string) {
-  return useModuleCommand(workspaceId, '/locations', location, useEquipmentKey(workspaceId));
 }
 
 /**
@@ -94,11 +89,6 @@ export function useArchiveAssetDocument(workspaceId: string, assetId: string) {
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: equipmentKey }),
   });
-}
-
-/** Encargado de un área (E-01c; en el Núcleo, ADR 0024): un miembro activo, o `null` para quitarlo. */
-export function useAssignAreaManager(workspaceId: string, areaId: string) {
-  return useModuleCommand(workspaceId, `/areas/${areaId}/manager`, areaManager, useEquipmentKey(workspaceId), 'PUT');
 }
 
 /**

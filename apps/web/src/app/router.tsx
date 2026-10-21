@@ -37,6 +37,8 @@ export const router = createBrowserRouter([
         element: <AppShell />,
         children: [
           { index: true, element: <HomePage /> },
+          // Áreas y departamentos del Núcleo (ADR 0024): no es un módulo, así que su ruta vive aquí.
+          { path: 'areas', lazy: async () => ({ Component: (await import('../features/areas/areas-page')).AreasPage }) },
           ...moduleRoutes.flatMap((module) => module.workspace),
         ],
       },

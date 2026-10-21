@@ -1,7 +1,7 @@
 import { assetRuleViolation, type Asset, type AssetCondition, type AssetConservation } from '@platlab/contracts';
 import { normalizeDecimalInput, toDecimalInput } from '@platlab/ui';
 
-/** El valor de «Sin responsable» y «Sin dato» en los selectores (un `Select` no admite el vacío). */
+/** El valor de «Sin responsable», «Sin departamento» y «Sin dato» en los selectores (un `Select` no admite el vacío). */
 export const NONE = 'none';
 
 /** Alimentación: texto libre con estas sugerencias (pendiente del cliente, ADR 0019). */
@@ -20,6 +20,8 @@ export type AssetForm = {
   powerSupply: string;
   locationId: string;
   responsibleId: string;
+  /** Departamento dueño (ADR 0024); `NONE` es «Sin departamento». */
+  departmentId: string;
   condition: Exclude<AssetCondition, 'retired'>;
   conservation: AssetConservation | typeof NONE;
   supplier: string;
@@ -39,6 +41,7 @@ export type AssetFields = {
   serialNumber: string | null;
   powerSupply: string | null;
   responsibleId: string | null;
+  departmentId: string | null;
   conservation: AssetConservation | null;
   supplier: string | null;
   acquiredOn: string | null;
@@ -60,6 +63,7 @@ export const emptyForm: AssetForm = {
   powerSupply: '',
   locationId: '',
   responsibleId: NONE,
+  departmentId: NONE,
   condition: 'operational',
   conservation: NONE,
   supplier: '',
@@ -82,6 +86,7 @@ export function formOfAsset(asset: Asset): AssetForm {
     powerSupply: asset.powerSupply ?? '',
     locationId: asset.location.id,
     responsibleId: asset.responsible?.id ?? NONE,
+    departmentId: asset.department?.id ?? NONE,
     condition: asset.condition === 'retired' ? 'operational' : asset.condition,
     conservation: asset.conservation ?? NONE,
     supplier: asset.supplier ?? '',
@@ -139,6 +144,7 @@ export function normalizeForm(form: AssetForm): { fields: AssetFields; errors: A
     serialNumber: optionalText(form.serialNumber),
     powerSupply: optionalText(form.powerSupply),
     responsibleId: form.responsibleId === NONE || form.responsibleId === '' ? null : form.responsibleId,
+    departmentId: form.departmentId === NONE || form.departmentId === '' ? null : form.departmentId,
     conservation: form.conservation === NONE ? null : form.conservation,
     supplier: optionalText(form.supplier),
     acquiredOn: form.acquiredOn || null,
@@ -163,6 +169,7 @@ const fieldKeys = [
   'serialNumber',
   'powerSupply',
   'responsibleId',
+  'departmentId',
   'conservation',
   'supplier',
   'acquiredOn',

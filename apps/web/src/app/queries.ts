@@ -1,4 +1,4 @@
-import { departmentList, homeResponse, myWorkspacesResponse, workspaceMeResponse } from '@platlab/contracts';
+import { areasOverview, departmentList, homeResponse, myWorkspacesResponse, workspaceMeResponse } from '@platlab/contracts';
 import { useQuery, type Query } from '@tanstack/react-query';
 import { api } from './api';
 import { useSession } from './session';
@@ -48,6 +48,20 @@ export function useDepartments(workspaceId: string, enabled = true) {
     queryFn: () => api(`/workspaces/${workspaceId}/departments`, { schema: departmentList }),
     enabled,
     staleTime: 60_000,
+  });
+}
+
+/**
+ * Áreas y departamentos con sus cifras por módulo (ADR 0024): la sección Áreas, y el nombre de la ficha de
+ * filtro que Reactivos muestra al llegar desde ella.
+ */
+export function useAreasOverview(workspaceId: string, enabled = true) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...workspaceKey(user, workspaceId), 'areas-overview'],
+    queryFn: () => api(`/workspaces/${workspaceId}/areas`, { schema: areasOverview }),
+    enabled,
+    refetchInterval: jitteredPoll,
   });
 }
 

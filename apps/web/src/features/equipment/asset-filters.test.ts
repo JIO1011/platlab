@@ -39,6 +39,15 @@ describe('filtros del Inventario de Equipos', () => {
     expect(assetQueryFrom(new URLSearchParams('responsable=otro&garantia=eterna'))).toEqual(emptyAssetQuery);
   });
 
+  it('lee y escribe el departamento (ADR 0024) y lo envía a la API con su nombre en español', () => {
+    const search = new URLSearchParams(`departamento=${type}&departamento=${type}&departamento=no-es-id`);
+    const query = assetQueryFrom(search);
+    expect(query).toEqual({ ...emptyAssetQuery, departments: [type] });
+    expect(assetSearch(query).toString()).toBe(`departamento=${type}`);
+    expect(assetApiSearch(query).toString()).toBe(`departamento=${type}&limit=50`);
+    expect(isFiltered(query)).toBe(true);
+  });
+
   it('envía a la API los códigos, el cursor y el límite', () => {
     const query = assetQueryFrom(new URLSearchParams('condicion=operativo'));
     expect(assetApiSearch(query, 'abc', 20).toString()).toBe('condition=operational&limit=20&cursor=abc');
