@@ -5,7 +5,7 @@ import { addLocation, addMember, seedWorkspace, uniqueSuffix } from '../../testi
 
 /**
  * L-01a (ADR 0023): Espacios, cierres, anticipación y Formatos por HTTP, con el rol de runtime. El
- * Administrador configura; el Operador y el Docente consultan; el Estudiante no entra.
+ * Administrador configura; el Operador, el Docente y el tesista consultan (L-01b: el tesista llena formatos).
  */
 
 /** Espacio con Laboratorios, una sede con dos áreas (una con un estante) y sus cuatro roles. */
@@ -55,17 +55,9 @@ async function enable(target: LabsLab, areaId: string, capacity = 20) {
 }
 
 describe('roles', () => {
-  it('el Estudiante no entra a Laboratorios', async () => {
-    for (const path of ['/settings', '/spaces', '/periods', '/closures?from=2026-01-01&to=2026-12-31', '/forms']) {
-      const response = await call(lab.student.subject, `${lab.base}${path}`);
-      expect(response.status).toBe(403);
-      expect(errorCode(response.body)).toBe('ACCESS_DENIED');
-    }
-  });
-
-  it('el Operador y el Docente consultan, pero no configuran', async () => {
+  it('el Operador, el Docente y el tesista consultan, pero no configuran', async () => {
     const area = await addLocation(admin, lab.workspace.id, { kind: 'room', parentId: lab.site });
-    for (const member of [lab.operator, lab.teacher]) {
+    for (const member of [lab.operator, lab.teacher, lab.student]) {
       for (const path of ['/settings', '/spaces', '/periods', '/closures?from=2026-01-01&to=2026-12-31', '/forms']) {
         expect((await call(member.subject, `${lab.base}${path}`)).status).toBe(200);
       }

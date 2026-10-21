@@ -2,6 +2,7 @@
 export {
   hasPermission,
   listActiveMembers,
+  moduleAdmits,
   requirePermission,
   withModuleAccess,
   withWorkspaceAccess,

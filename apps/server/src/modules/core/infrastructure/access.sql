@@ -206,3 +206,18 @@ JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.mem
 JOIN core.identities AS ident ON ident.id = m.identity_id
 WHERE pr.workspace_id = :workspaceId! AND pr.kind = 'member' AND m.status = 'active'
 ORDER BY inventory.fold_text(ident.display_name), pr.id;
+
+/* @name moduleAdmits */
+-- Si el módulo admite hoy la clase de acción en el espacio, sin bloquear su derecho: para lo que un módulo
+-- solo consulta de otro y no decide nada con ello (los recursos de una solicitud de Laboratorios, ADR 0023).
+SELECT core.admission(
+  :actionClass!,
+  core.workspace_axis(w.status, w.suspension_reason),
+  core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,
+                   md.stage, e.contract_kind, env.data_class, now())
+) = 'admitted' AS "admitted!"
+FROM core.workspace_entitlements AS e
+JOIN core.workspaces AS w ON w.id = e.workspace_id
+JOIN core.module_definitions AS md ON md.code = e.module_code
+CROSS JOIN platform.environment AS env
+WHERE e.workspace_id = :workspaceId! AND e.module_code = :moduleCode!;

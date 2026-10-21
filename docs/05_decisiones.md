@@ -892,6 +892,17 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
       - Solicitan el Docente y el Estudiante (tesista) desde el inicio; cada uno ve solo sus solicitudes.
       - El solicitante cancela una solicitud aprobada hasta el día anterior; después solo la cancela el laboratorio (Administrador u Operador).
       - Los materiales que se entregan y se devuelven se piden como texto libre con cantidad; sin inventario ni devolución controlada hasta un Materiales mínimo.
+      - El tesista llena su propio formato (por ejemplo «Tesis», con «Docente» renombrado a «Tutor»): el dato esencial es un texto que, para el Docente, se llena con su nombre. El solicitante sale siempre de la sesión.
+      - El Operador consulta las solicitudes recibidas; pedir cambios y rechazar son del Administrador.
+      - Los equipos se piden solo por tipo; un caso especial va en Observaciones.
+    - **Diseño de L-01b** (21-10-2026, sobre las reglas anteriores).
+      - Estados de esta entrega: borrador → enviada, más cambios solicitados, rechazada y cancelada. «Programada» llega con el Cronograma (L-01c). El solicitante edita en borrador y en cambios solicitados, y cancela mientras no esté programada.
+      - Número fijo `SOL-0042` desde el borrador, correlativo por espacio de trabajo y sin reutilizarse.
+      - Los datos del sistema se guardan en columnas (título, docente, tipo, asignatura, carrera, horario, participantes, grupos) para las métricas; los datos libres, en un `jsonb` que el servidor valida contra la revisión del formato al enviar. Asignatura y carrera son listas de Laboratorios que crecen al usarlas.
+      - Una o varias fechas sueltas con un mismo horario. Al enviar, toda fecha debe ser futura y estar dentro de un período activo («fuera de ellos no se agenda»); si la primera cae antes de la anticipación, entra «fuera de plazo» y no se bloquea. Horario del área, cierres y choques se validan al programar (L-01c).
+      - Recursos en una sola tabla de líneas: reactivo del catálogo en su unidad base o «no catalogado» con unidad; tipo de equipo o «no catalogado», con por grupo y total; material como texto con cantidad. Validar no reserva: ✔ si el stock usable de reactivos o los equipos operativos del tipo alcanzan, ⚠ si no, ✖ si no está catalogado o es material. Se calcula al leer, por la interfaz pública de Reactivos y Equipos, y solo si ese módulo admite consulta.
+      - Historial visible de la solicitud (enviada, cambios con motivo, reenviada, rechazada con motivo, cancelada), aparte de la auditoría.
+      - Bandeja del Administrador: lo excepcional primero (fuera de plazo y líneas con ⚠ o ✖), luego por la fecha más próxima.
   - **Métricas previstas:** horas de uso por área, solicitudes y participantes por carrera, asignatura y tipo, consumo de reactivos y uso de equipos por carrera y por práctica, pedidos fuera de plazo, rechazos y tiempo de respuesta.
 
 ## ADR 0024 — Áreas y departamentos en una sección propia

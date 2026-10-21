@@ -500,3 +500,44 @@ const listActiveMembersIR: any = {"usedParamSet":{"workspaceId":true},"params":[
 export const listActiveMembers = new PreparedQuery<IListActiveMembersParams,IListActiveMembersResult>(listActiveMembersIR);
 
 
+/** 'ModuleAdmits' parameters type */
+export interface IModuleAdmitsParams {
+  actionClass: string;
+  moduleCode: string;
+  workspaceId: string;
+}
+
+/** 'ModuleAdmits' return type */
+export interface IModuleAdmitsResult {
+  admitted: boolean;
+}
+
+/** 'ModuleAdmits' query type */
+export interface IModuleAdmitsQuery {
+  params: IModuleAdmitsParams;
+  result: IModuleAdmitsResult;
+}
+
+const moduleAdmitsIR: any = {"usedParamSet":{"actionClass":true,"workspaceId":true,"moduleCode":true},"params":[{"name":"actionClass","required":true,"transform":{"type":"scalar"},"locs":[{"a":243,"b":255}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":713,"b":725}]},{"name":"moduleCode","required":true,"transform":{"type":"scalar"},"locs":[{"a":747,"b":758}]}],"statement":"-- Si el módulo admite hoy la clase de acción en el espacio, sin bloquear su derecho: para lo que un módulo\n-- solo consulta de otro y no decide nada con ello (los recursos de una solicitud de Laboratorios, ADR 0023).\nSELECT core.admission(\n  :actionClass!,\n  core.workspace_axis(w.status, w.suspension_reason),\n  core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,\n                   md.stage, e.contract_kind, env.data_class, now())\n) = 'admitted' AS \"admitted!\"\nFROM core.workspace_entitlements AS e\nJOIN core.workspaces AS w ON w.id = e.workspace_id\nJOIN core.module_definitions AS md ON md.code = e.module_code\nCROSS JOIN platform.environment AS env\nWHERE e.workspace_id = :workspaceId! AND e.module_code = :moduleCode!"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Si el módulo admite hoy la clase de acción en el espacio, sin bloquear su derecho: para lo que un módulo
+ * -- solo consulta de otro y no decide nada con ello (los recursos de una solicitud de Laboratorios, ADR 0023).
+ * SELECT core.admission(
+ *   :actionClass!,
+ *   core.workspace_axis(w.status, w.suspension_reason),
+ *   core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,
+ *                    md.stage, e.contract_kind, env.data_class, now())
+ * ) = 'admitted' AS "admitted!"
+ * FROM core.workspace_entitlements AS e
+ * JOIN core.workspaces AS w ON w.id = e.workspace_id
+ * JOIN core.module_definitions AS md ON md.code = e.module_code
+ * CROSS JOIN platform.environment AS env
+ * WHERE e.workspace_id = :workspaceId! AND e.module_code = :moduleCode!
+ * ```
+ */
+export const moduleAdmits = new PreparedQuery<IModuleAdmitsParams,IModuleAdmitsResult>(moduleAdmitsIR);
+
+

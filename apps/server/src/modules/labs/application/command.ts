@@ -6,9 +6,15 @@ const READ = 'labs.read';
 export const SPACE_MANAGE = 'labs.space.manage';
 /** El Formato de solicitud: el Administrador. */
 export const FORM_MANAGE = 'labs.form.manage';
+/** Pedir: el Docente, el tesista y el Administrador (ADR 0023, «Reglas de L-01b»). */
+export const REQUEST_CREATE = 'labs.request.create';
+/** Consultar las recibidas: el Operador y el Administrador. */
+export const REQUEST_VIEW = 'labs.request.view';
+/** Pedir cambios y rechazar: el Administrador. */
+export const REQUEST_REVIEW = 'labs.request.review';
 
 /** Comandos de Laboratorios: una transacción con su admisión, permiso, idempotencia y auditoría. */
 export const runCommand = moduleCommand('labs');
 
-/** Consultas de Laboratorios: admisión de consulta y lectura de los espacios (también el Formato, que el Docente llenará en L-01b). */
+/** Consultas de Laboratorios: admisión de consulta y lectura de los espacios y los Formatos, que quien pide llena. */
 export const runQuery = moduleQuery('labs', READ);

@@ -6,10 +6,16 @@ import {
   createClosureRequest,
   createFormRequest,
   createPeriodRequest,
+  createRequestRequest,
   createSpaceRequest,
   formParams,
   periodParams,
   publishFormRequest,
+  requestListQuery,
+  requestParams,
+  requestReasonRequest,
+  requestVersionRequest,
+  saveRequestRequest,
   spaceParams,
   updateFormRequest,
   updatePeriodRequest,
@@ -20,6 +26,17 @@ import { commandRequest, queryRequest } from '../../../platform/http/module-requ
 import { createClosure, listClosures, voidClosure } from '../application/closures.js';
 import { archiveForm, createForm, getForm, listForms, publishForm, updateForm } from '../application/form.js';
 import { archivePeriod, createPeriod, listPeriods, updatePeriod } from '../application/periods.js';
+import {
+  cancelRequest,
+  createRequest,
+  getRequest,
+  getRequestOptions,
+  listRequests,
+  rejectRequest,
+  requestChanges,
+  saveRequest,
+  submitRequest,
+} from '../application/requests.js';
 import { getSettings, updateSettings } from '../application/settings.js';
 import { archiveSpace, createSpace, listSpaces, updateSpace } from '../application/spaces.js';
 
@@ -29,6 +46,38 @@ import { archiveSpace, createSpace, listSpaces, updateSpace } from '../applicati
  */
 export function labsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync {
   return async (app) => {
+    // Solicitudes (L-01b): quien pide las suyas; el Operador y el Administrador, las recibidas.
+    app.get('/requests', async (request) => listRequests(pool, queryRequest(request), requestListQuery.parse(request.query)));
+
+    app.get('/request-options', async (request) => getRequestOptions(pool, queryRequest(request)));
+
+    app.post('/requests', async (request, reply) => {
+      const input = createRequestRequest.parse(request.body);
+      return reply.status(201).send(await createRequest(pool, commandRequest(request), input));
+    });
+
+    app.get('/requests/:requestId', async (request) => getRequest(pool, queryRequest(request), requestParams.parse(request.params).requestId));
+
+    app.put('/requests/:requestId', async (request) =>
+      saveRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, saveRequestRequest.parse(request.body)),
+    );
+
+    app.post('/requests/:requestId/submit', async (request) =>
+      submitRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestVersionRequest.parse(request.body)),
+    );
+
+    app.post('/requests/:requestId/cancel', async (request) =>
+      cancelRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestVersionRequest.parse(request.body)),
+    );
+
+    app.post('/requests/:requestId/request-changes', async (request) =>
+      requestChanges(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestReasonRequest.parse(request.body)),
+    );
+
+    app.post('/requests/:requestId/reject', async (request) =>
+      rejectRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestReasonRequest.parse(request.body)),
+    );
+
     // Anticipación del espacio de trabajo.
     app.get('/settings', async (request) => getSettings(pool, queryRequest(request)));
 
