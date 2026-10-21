@@ -811,7 +811,7 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
 
 - **Un módulo, «Laboratorios»** (código `labs`, ruta `laboratorios`). Absorbe M4 y M5: para el cliente es un solo trabajo, del pedido del docente al laboratorio listo. El mapa queda en siete módulos; M5 no se reutiliza.
   - El nombre sirve a universidades y a laboratorios de empresa. «Prácticas» era solo académico y «Agenda» dejaba fuera las solicitudes.
-  - La agenda (franjas, choques y márgenes) es una capacidad con dueño técnico en `labs`, para que Equipos («Reservado») y Mantenimiento (bloqueos, F5) la consulten por su interfaz, sin escribir en ella.
+  - La agenda (franjas y choques) es una capacidad con dueño técnico en `labs`, para que Equipos («Reservado») y Mantenimiento (bloqueos, F5) la consulten por su interfaz, sin escribir en ella.
 - **Todo entra por solicitud y el Administrador organiza.**
   - Nadie reserva directo: cada bloque del cronograma nace de una solicitud. Quien administra también puede llenarla, por ejemplo para una clase.
   - Sin repetición semanal: cada práctica es una solicitud.
@@ -821,7 +821,7 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
     - la bandeja «Por programar» al costado (abajo en el móvil), con lo urgente primero: plazo y recursos que faltan;
     - cada bloque dice «Actividad · Solicitante · Grupo», y el Administrador renombra «Grupo» («Carrera», «Proyecto», «Cliente»);
     - al arrastrar un bloque se programa y se asigna su responsable (un Operador); con un clic se abre la solicitud. Arrastrar tiene siempre la alternativa «Programar…» (área y hora), en el móvil y con teclado;
-    - mientras se arrastra se valida: choque, horario del área, cierre, aforo y márgenes de preparación y limpieza. El margen se ve como el borde rayado del bloque;
+    - mientras se arrastra se valida: choque, horario del área, cierre y aforo. Sin márgenes de preparación ni limpieza: el bloque ocupa solo su franja (decisión del usuario, 20-10-2026);
     - cambiar la hora el mismo día es del Administrador. Cambiar el día pide cambios al docente, con motivo.
   - **Solicitudes:**
     - el Docente la llena en tres pasos (Datos → Recursos → Revisar) o duplica una anterior, y sigue su estado en «Mis solicitudes»;
@@ -833,7 +833,7 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
     - Cada solicitud guarda la versión del formato con que se llenó.
     - Los materiales quedan «no verificados» hasta Materiales (M6).
   - **Espacios** (Administrador):
-    - las áreas del Core ([03](03_datos.md), `core.location_areas`), sin duplicarlas, con aforo, horario semanal, cierres y márgenes;
+    - las áreas del Core ([03](03_datos.md), `core.location_areas`), sin duplicarlas, con aforo, horario semanal y cierres;
     - el plazo de anticipación, 7 días por defecto. Lo que llega tarde no se bloquea: entra marcado «fuera de plazo» y el Administrador decide.
 - **Lista blanca:** es invitar con el rol Docente. Las invitaciones reales dependen de T-03B, y por CSV y con Google o Microsoft llegan en F3. La demo usa las cuentas sembradas.
 - **Entregas** ([04](04_roadmap.md), L-01):
@@ -855,7 +855,7 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Equipos | ¿Qué campos de la ficha y qué documentos considera necesarios el cliente? ¿Qué valores de alimentación usa? ¿Quiere un aviso al pesar en Reactivos con una balanza de calibración vencida? ([ADR 0019](#adr-0019)) | F0, antes de E-01 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
-| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿Se agenda por área o por sala dentro del área? ¿El Estudiante (tesista) también solicita desde el inicio? ¿Horario y cierres por laboratorio, y feriados comunes? ¿Márgenes de preparación y limpieza fijos por laboratorio? ¿Bastan 7 días de anticipación? ¿Cancelaciones con qué plazo? ¿El responsable del bloque es siempre un técnico (Operador)? ¿Salas exclusivas? ¿Devoluciones químicas y quién declara el consumo al cerrar? | P-04, antes de L-01a (lo del cierre, antes de L-01e) |
+| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿Se agenda por área o por sala dentro del área? ¿El Estudiante (tesista) también solicita desde el inicio? ¿Horario y cierres por laboratorio, y feriados comunes? ¿Bastan 7 días de anticipación? ¿Cancelaciones con qué plazo? ¿El responsable del bloque es siempre un técnico (Operador)? ¿Salas exclusivas? ¿Devoluciones químicas y quién declara el consumo al cerrar? | P-04, antes de L-01a (lo del cierre, antes de L-01e) |
 | Inicio | Propuesta del 20-10-2026 en espera: el usuario tiene otras ideas. «Por atender» de todos los módulos (rojo antes que ámbar, con su enlace filtrado), tres tarjetas por fila con gráfico solo si hay datos (Equipos hoy dice siempre «Sin cambios»), «Por atender» primero en el móvil y avisos declarados por cada módulo en su `module.tsx` | Al terminar los módulos, con las ideas del usuario |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
