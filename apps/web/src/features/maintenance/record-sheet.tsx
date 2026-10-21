@@ -10,6 +10,7 @@ import { RecordSaved } from './record-saved';
 import { ChecklistSection, DateSection, ExtraSection, ProviderField, ReasonSection, ResultSection } from './record-sections';
 import { WorkSection } from './record-work-section';
 import { useRecordWork } from './use-record-work';
+import { canOperateModule } from '../../app/module-access';
 
 /**
  * «Registrar mantenimiento» (ADR 0020), una hoja corta: el equipo y el trabajo (elegidos o por buscar), la fecha, el
@@ -44,8 +45,7 @@ export function RecordSheet({
   // En pantalla ancha la hoja abre en su primer campo; en el móvil no, para no abrir el teclado ni el selector de fecha.
   const wideScreen = useMediaQuery('(min-width: 640px)');
   const canChangeCondition =
-    me.permissions.includes('equipment.condition.change') &&
-    (me.modules.find((entry) => entry.code === 'equipment')?.access.includes('new_operation') ?? false);
+    me.permissions.includes('equipment.condition.change') && canOperateModule(me, 'equipment');
   const work = useRecordWork({
     workspaceId,
     today,
@@ -57,7 +57,7 @@ export function RecordSheet({
   });
   const { form } = work;
   const canCreateProvider =
-    me.permissions.includes('maintenance.plan.manage') && (me.modules.find((entry) => entry.code === 'maintenance')?.access.includes('new_operation') ?? false);
+    me.permissions.includes('maintenance.plan.manage') && canOperateModule(me, 'maintenance');
   // La hoja de «Nuevo proveedor» va aparte, fuera del formulario: un envío suyo no debe llegar al de esta hoja.
   const [newProvider, setNewProvider] = useState<number | null>(null);
   const errors = form.formState.errors;

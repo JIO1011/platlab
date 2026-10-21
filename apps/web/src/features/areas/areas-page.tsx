@@ -7,6 +7,7 @@ import { useAreasOverview } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
 import { AreasView, DepartmentsView } from './areas-view';
 import type { AreaTarget } from './commands';
+import { HeaderActions } from './extensions';
 import { groupChoices } from './plan-model';
 import { ArchiveSheet } from './sheets/archive-sheet';
 import { AreaSheet } from './sheets/area-sheet';
@@ -126,15 +127,18 @@ export function AreasPage() {
           </h1>
           <p aria-live="polite" className="mt-2 max-w-prose text-body-lg font-medium text-ink-muted">{intro[view]}</p>
         </div>
-        <Segmented<View>
-          label="Vista"
-          value={view}
-          onValueChange={changeView}
-          options={[
-            { value: 'areas', label: 'Áreas' },
-            { value: 'departamentos', label: 'Departamentos' },
-          ]}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <HeaderActions />
+          <Segmented<View>
+            label="Vista"
+            value={view}
+            onValueChange={changeView}
+            options={[
+              { value: 'areas', label: 'Áreas' },
+              { value: 'departamentos', label: 'Departamentos' },
+            ]}
+          />
+        </div>
       </header>
 
       <div className="mt-8">

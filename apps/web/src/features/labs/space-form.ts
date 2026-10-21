@@ -11,7 +11,6 @@ export const capacityOf = (text: string): number | undefined => (/^\d+$/.test(te
 
 /** Lo que el contrato rechazó de un espacio, dicho donde la persona lo corrige. */
 export interface SpaceIssues {
-  areaId?: string | undefined;
   capacity?: string | undefined;
   hours?: string | undefined;
 }
@@ -25,7 +24,6 @@ export function spaceIssues(error: z.ZodError): SpaceIssues {
   const hours = error.issues.find((issue) => issue.path[0] === 'weeklyHours');
   const day = days.find((entry) => entry.key === hours?.path[1]);
   return {
-    areaId: fields['areaId'] ? 'Elige un área.' : undefined,
     capacity: fields['capacity'] ? 'Escribe cuántas personas caben a la vez (1 o más).' : undefined,
     hours: hours
       ? `${day ? `${day.name}: ` : ''}${hours.code === 'invalid_format' ? 'Completa la apertura y el cierre.' : hours.message}`

@@ -12,7 +12,7 @@ export function LabsLayout() {
   const app = useModuleApp(
     'labs',
     useLabsKey(workspaceId),
-    'Laboratorios está en modo consulta: puedes ver los espacios y los formatos, pero no registrar cambios.',
+    'Laboratorios está en modo consulta: puedes ver los formatos, pero no registrar cambios.',
   );
   return (
     <ModuleOutlet

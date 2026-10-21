@@ -5,6 +5,7 @@ import { ManagerLine } from '../../app/manager-line';
 import type { AreaTarget } from './commands';
 import { byName, groupAreas } from './plan-model';
 import { Contour, NewRoom } from './plan';
+import { AreaMarks } from './extensions';
 import { Room } from './room';
 
 const areasCount = (n: number) => (n === 1 ? '1 área' : `${n} áreas`);
@@ -59,6 +60,7 @@ export function AreasView({
               base={base}
               filter={{ kind: 'area', id: area.id }}
               counts={area.counts}
+              marks={<AreaMarks areaId={area.id} />}
               onOpen={() => onOpen(area.id)}
             />
           ))}

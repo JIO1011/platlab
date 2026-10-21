@@ -1,35 +1,33 @@
-import { createClosureRequest, type Space } from '@platlab/contracts';
-import { Field, Input, Select, toast } from '@platlab/ui';
+import { createClosureRequest } from '@platlab/contracts';
+import { Field, Input, toast } from '@platlab/ui';
 import { CalendarOff } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { FormSheet, validate, type SheetBaseProps } from '../../app/form-sheet';
 import { labsErrorMessage, useCreateClosure } from './commands';
 
-/** El valor del selector para «todo el espacio»: un feriado común, sin área. */
-const EVERYONE = 'all';
+/** De qué es un cierre: de un área o, con `null`, un feriado común a todas. */
+export type ClosureScope = { areaId: string; areaName: string } | null;
 
 /**
- * «Nuevo cierre» (Administrador): un rango de fechas en que no se agenda, de un espacio o, sin área, un feriado
- * común a todos. Un cierre no se borra: se anula desde la lista.
+ * «Nuevo cierre» o «Nuevo feriado» (Administrador): un rango de fechas en que no se agenda, de un área o, sin ella, común
+ * a todas. Un cierre no se borra: se anula desde la lista.
  */
 export function ClosureSheet({
   workspaceId,
   open,
   onOpenChange,
-  spaces,
+  scope,
   today,
 }: SheetBaseProps & {
-  /** Los espacios activos que se pueden cerrar. */
-  spaces: Space[];
+  scope: ClosureScope;
   /** Hoy en la zona del espacio, AAAA-MM-DD: la fecha con que se abre. */
   today: string;
 }) {
   const create = useCreateClosure(workspaceId);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const form = useForm({ defaultValues: { areaId: EVERYONE, startsOn: today, endsOn: today, reason: '' } });
+  const form = useForm({ defaultValues: { startsOn: today, endsOn: today, reason: '' } });
   const errors = form.formState.errors;
-  const areaId = form.watch('areaId');
 
   const submit = async () => {
     setGeneralError(null);
@@ -40,13 +38,13 @@ export function ClosureSheet({
     if (missing.length > 0) return;
     const payload = validate(
       createClosureRequest,
-      { areaId: values.areaId === EVERYONE ? null : values.areaId, startsOn: values.startsOn, endsOn: values.endsOn, reason: values.reason },
+      { areaId: scope?.areaId ?? null, startsOn: values.startsOn, endsOn: values.endsOn, reason: values.reason },
       form,
     );
     if (!payload) return;
     try {
       await create.mutateAsync(payload);
-      toast.success('Cierre creado', { description: values.reason.trim() });
+      toast.success(scope ? 'Cierre creado' : 'Feriado creado', { description: values.reason.trim() });
       onOpenChange(false);
     } catch (error) {
       setGeneralError(labsErrorMessage(error));
@@ -56,31 +54,19 @@ export function ClosureSheet({
   return (
     <FormSheet
       icon={CalendarOff}
-      title="Nuevo cierre"
-      description="Los días en que no se agenda: un feriado de todo el espacio o el cierre de una sola área."
+      title={scope ? 'Nuevo cierre' : 'Nuevo feriado'}
+      description={scope ? `Los días en que ${scope.areaName} no se agenda.` : 'Los días en que no se agenda ninguna área.'}
       open={open}
       onOpenChange={onOpenChange}
-      submitLabel="Crear cierre"
+      submitLabel={scope ? 'Crear cierre' : 'Crear feriado'}
       pending={create.isPending}
       generalError={generalError ?? errors.root?.message ?? null}
       onSubmit={() => void submit()}
       dirty={form.formState.isDirty}
       required
       focusFirst
-      pendingText="Creando el cierre…"
+      pendingText={scope ? 'Creando el cierre…' : 'Creando el feriado…'}
     >
-      <Field label="Qué se cierra" required error={errors.areaId?.message}>
-        <Select
-          value={areaId}
-          onValueChange={(value) => form.setValue('areaId', value, { shouldDirty: true })}
-          placeholder="Elige"
-          triggerClassName="h-11 sm:h-10"
-          options={[
-            { value: EVERYONE, label: 'Todo el espacio (feriado común)' },
-            ...spaces.map((entry) => ({ value: entry.areaId, label: entry.areaName, ...(entry.groupName ? { group: entry.groupName } : {}) })),
-          ]}
-        />
-      </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Desde" required error={errors.startsOn?.message}>
           <Input type="date" className="h-11 sm:h-10" {...form.register('startsOn', { onChange: (event) => form.getValues('endsOn') < event.target.value && form.setValue('endsOn', event.target.value) })} />

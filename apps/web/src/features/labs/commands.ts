@@ -16,7 +16,7 @@ export function useSaveSettings(workspaceId: string) {
   return useModuleCommand(workspaceId, '/labs/settings', labsSettings, useLabsKey(workspaceId), 'PUT');
 }
 
-/** «Habilitar área»: un área activa del Núcleo con su aforo y su horario; un espacio archivado se reactiva con estos datos. */
+/** «Habilitar para prácticas»: un área activa del Núcleo con su aforo y su horario; un espacio archivado se reactiva con estos datos. */
 export function useCreateSpace(workspaceId: string) {
   return useModuleCommand(workspaceId, '/labs/spaces', space, useLabsKey(workspaceId));
 }

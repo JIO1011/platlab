@@ -2,6 +2,7 @@ import type { WorkspaceMeResponse } from '@platlab/contracts';
 import { type QueryKey, useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { Outlet, useOutletContext } from 'react-router';
 import { useShell } from './app-shell';
+import { canOperateModule } from './module-access';
 
 /** Lo que toda app de módulo comparte con sus secciones: el espacio, la persona, el modo consulta y «Actualizar». */
 export interface ModuleContext {
@@ -25,7 +26,7 @@ export function useModuleApp(code: string, queryKey: QueryKey, readOnlyNotice: s
   return {
     workspaceId,
     me,
-    canOperate: me.modules.find((entry) => entry.code === code)?.access.includes('new_operation') ?? false,
+    canOperate: canOperateModule(me, code),
     readOnlyNotice,
     freshness: { refreshing, refresh: () => void queryClient.invalidateQueries({ queryKey }) },
   };

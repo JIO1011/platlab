@@ -1,9 +1,9 @@
 import { defineModule } from './define-module.js';
 
 /**
- * Manifiesto de Laboratorios (ADR 0023). Espacios agrega aforo, horario semanal y cierres a las áreas del
- * Núcleo, que se crean en «Áreas» (ADR 0024); los Formatos son las solicitudes del espacio de trabajo, cada
- * uno con revisiones inmutables. El Administrador los configura; el Operador y el Docente consultan. Etapa
+ * Manifiesto de Laboratorios (ADR 0023). Aforo, horario semanal y cierres de las áreas del Núcleo se
+ * editan en «Áreas» (ADR 0024) por un punto de extensión, sin sección propia; los Formatos son las
+ * solicitudes del espacio de trabajo, cada uno con revisiones inmutables. El Administrador los configura; el Operador y el Docente consultan. Etapa
  * `development` hasta su G0.
  */
 export const labsModule = defineModule({
@@ -25,7 +25,6 @@ export const labsModule = defineModule({
       // ven un módulo vacío. Su lectura ya sirve a la API (el Docente llena los formatos activos en L-01b).
       permission: 'labs.space.manage',
       sections: [
-        { path: 'espacios', label: 'Espacios', permission: 'labs.space.manage' },
         { path: 'formatos', label: 'Formatos', permission: 'labs.form.manage' },
       ],
     },
