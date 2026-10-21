@@ -853,7 +853,7 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
   - **horario semanal y cierres por área**, y **feriados comunes** que se cargan una vez para todo el espacio;
   - **anticipación de 7 días**, configurable por el Administrador para todo el espacio;
   - **sin áreas exclusivas** por ahora: toda área con horario es solicitable y el Administrador decide al programar.
-  - **Formato:** uno por espacio de trabajo. Cada guardado publica una versión nueva e inmutable; el núcleo no se edita, solo el título y los campos libres.
+  - **Formato:** cada guardado publica una versión nueva e inmutable. Ya no es uno por espacio: ver «Diseño por filas y varios formatos».
 - **Formato estándar** (decisión del usuario, 21-10-2026): un formato general para universidades, laboratorios y empresas, que el Administrador ajusta sin diseñarlo. Es rápido de llenar y deja métricas comparables.
   - **Membrete:** logo y nombre de la institución, nombre del formato, código del documento y revisión, que es la versión publicada. El número de solicitud y la fecha los pone el sistema. Logo y nombre son del espacio de trabajo y sirven a todas las impresiones: llegan con una pieza del Core; hasta entonces se muestra el nombre del espacio.
   - **Cuatro bloques fijos:**
@@ -864,13 +864,22 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
   - **Asignatura y carrera se eligen de una lista** que se arma al usarlas, nunca como texto libre: de ellas salen las métricas (L-01b).
   - **Cantidades** (L-01b): equipos y materiales con «por grupo / total», y se guarda el total (2 por grupo × 8 grupos = 16). Los equipos se piden por tipo y el Administrador asigna los concretos al programar. Los reactivos van siempre en total, con unidad y cantidad exacta.
   - **Campos libres y observaciones**, solo para lo propio de cada cliente; no entran en las métricas.
-  - **Plantilla estándar, no de diseño libre** (21-10-2026): una hoja A4 como la P69, con la misma estructura para todos los clientes. El Administrador solo ajusta, sobre la hoja: título y código; los nombres de asignatura y carrera; y los datos extra de la Sección I (colaborador, curso-paralelo y práctica Nº vienen precargados y se pueden renombrar, quitar u ordenar).
+  - **Plantilla estándar** (21-10-2026; la hace editable «Diseño por filas y varios formatos»): una hoja A4 como la P69, que es el punto de partida de todo formato nuevo. Antes el Administrador solo ajustaba, sobre la hoja: título y código; los nombres de asignatura y carrera; y los datos extra de la Sección I (colaborador, curso-paralelo y práctica Nº vienen precargados y se pueden renombrar, quitar u ordenar).
     - **Encabezado:** espacio, revisión, título y la casilla del código de la solicitud.
     - **Sección I, Datos de la actividad:** filas «etiqueta | valor», dos por fila. Primero los datos del sistema (docente, título, tipo, asignatura, carrera, fecha, horario, nº de alumnos y nº de grupos) y después los extra.
     - **Recursos:** Reactivos (cantidad total), Equipos (por curso, por grupo y código) y Materiales (por curso y por grupo). Por curso = por grupo × nº de grupos. Se imprimen filas vacías hasta llenar la hoja.
     - **Observaciones** al final.
     - **Entrega / Recepción:** firmas físicas del asistente de laboratorio y del docente; bajo la firma del docente se imprime su nombre.
     - La columna «Código» de equipos lleva el código del equipo asignado, o queda en blanco para escribirlo a mano. Esto está por confirmar con el cliente.
+  - **Diseño por filas y varios formatos** (decisión del usuario, 21-10-2026). Sirve a universidades, empresas y otros usuarios sin un lienzo libre: posicionar a mano rompería la impresión y el móvil.
+    - **Toda la plantilla se edita sobre la hoja, sin candados.** La Sección I es una lista de filas de 1 a 3 datos «etiqueta | valor». Los títulos de sección son opcionales: se agregan, renombran y quitan. Cada dato se mueve entre filas.
+    - **Cinco datos esenciales:** docente, título, fecha, horario y nº de participantes. Se renombran y se mueven, pero no se quitan, porque el Cronograma y el aforo los usan. Al intentarlo, un aviso lo explica.
+    - **Datos del sistema opcionales:** asignatura, carrera, tipo y nº de grupos. Se pueden quitar; sin ellos se pierde esa métrica. Por dentro conservan su clave en todos los formatos, así que las métricas siguen siendo comparables.
+    - **Recursos:** Reactivos, Equipos y Materiales se pueden renombrar u ocultar (al menos uno queda), y la columna «Código» de equipos se puede quitar.
+    - **Observaciones**, opcionales.
+    - **Firmas:** de 1 a 3 con nombre libre. Una puede ser la del solicitante, que imprime su nombre.
+    - **Varios formatos** («Práctica académica», «Servicio externo»…). Cada uno tiene su nombre y sus versiones, se archiva y no se borra, y uno nuevo parte de la plantilla estándar o duplica otro. La sección pasa a llamarse «Formatos».
+    - **Quién llena:** el docente, y quien esté en la lista blanca, ve los formatos activos y llena el que necesite. Cada solicitud guarda el formato y la versión con que se llenó.
   - **Código de la solicitud programada** (L-01b y L-01c), por ejemplo `P1-S12-ANT03`: período, semana del período, sigla del área y secuencia. ANT01, ANT02 y ANT03 son la primera, la segunda y la tercera de Anatomía en esa semana.
     - Se asigna al programar, con el número siguiente del área en esa semana. Los números no se reutilizan. Antes de programar, la solicitud lleva un número fijo (`SOL-0042`).
     - Se programa y se mueve solo hacia el futuro. Al moverla, toma el número siguiente de su nueva semana, y el código anterior queda en el historial.
