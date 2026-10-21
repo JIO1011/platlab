@@ -2,11 +2,15 @@ import { z } from 'zod';
 import { expectedVersion, text } from '../common.js';
 
 /**
- * Formato de solicitud de Laboratorios (ADR 0023): uno por espacio de trabajo. Cada guardado publica una
- * versión nueva e inmutable con el título y los campos libres; el núcleo es fijo y no se guarda.
+ * Formato de solicitud de Laboratorios (ADR 0023, formato estándar): uno por espacio de trabajo. Cada guardado
+ * publica una versión nueva e inmutable con el membrete (título y código; la revisión es la versión), los nombres
+ * de asignatura y carrera, y los campos libres. Los cuatro bloques del núcleo son fijos.
  */
 
 export const FORM_MAX_FIELDS = 30;
+
+/** Los nombres del núcleo sin versión publicada; el Administrador los adapta («Proyecto», «Cliente»). */
+export const FORM_DEFAULT_LABELS = { subjectLabel: 'Asignatura', unitLabel: 'Carrera' } as const;
 
 export const formFieldType = z.enum(['text', 'number', 'date', 'list', 'boolean']);
 
@@ -35,10 +39,13 @@ const fields = z
   .max(FORM_MAX_FIELDS)
   .refine((values) => new Set(values.map((field) => field.key)).size === values.length, 'Las claves no se repiten');
 
-/** GET /form: la última versión; sin ninguna publicada, la versión 0 sin título ni campos. */
+/** GET /form: la última versión; sin ninguna publicada, la versión 0 sin título ni campos y con los nombres por defecto. */
 export const labsForm = z.object({
   version: z.number().int().nonnegative(),
   title: z.string().nullable(),
+  documentCode: z.string().nullable(),
+  subjectLabel: z.string(),
+  unitLabel: z.string(),
   fields: z.array(formField),
   publishedAt: z.string().nullable(),
 });
@@ -48,7 +55,14 @@ export const labsForm = z.object({
  * ninguna); si otra persona publicó antes, VERSION_CONFLICT.
  */
 export const publishFormRequest = z
-  .object({ title: text(120), fields, expectedVersion: expectedVersion.or(z.literal(0)) })
+  .object({
+    title: text(120),
+    documentCode: text(40).nullable(),
+    subjectLabel: text(40),
+    unitLabel: text(40),
+    fields,
+    expectedVersion: expectedVersion.or(z.literal(0)),
+  })
   .strict();
 
 export type FormField = z.infer<typeof formField>;

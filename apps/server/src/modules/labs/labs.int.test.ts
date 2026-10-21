@@ -42,6 +42,8 @@ const key = () => `labs-${uniqueSuffix()}`;
 const send = (target: LabsLab, method: 'POST' | 'PATCH' | 'PUT', path: string, body?: unknown, subject = target.adminMember.subject, idempotencyKey = key()) =>
   call(subject, `${target.base}${path}`, { method, ...(body === undefined ? {} : { body }), key: idempotencyKey });
 
+/** Membrete mínimo de un formato: sin código y con los nombres por defecto. */
+const header = { documentCode: null, subjectLabel: 'Asignatura', unitLabel: 'Carrera' };
 const closed = { '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [] };
 const weekdays = { ...closed, '1': [{ opens: '07:00', closes: '13:00' }, { opens: '14:00', closes: '18:00' }], '5': [{ opens: '08:00', closes: '12:00' }] };
 
@@ -70,7 +72,7 @@ describe('roles', () => {
         await send(lab, 'PUT', '/settings', { leadDays: 3 }, member.subject),
         await send(lab, 'POST', '/spaces', { areaId: area, capacity: 10, weeklyHours: weekdays }, member.subject),
         await send(lab, 'POST', '/closures', { startsOn: '2026-12-25', endsOn: '2026-12-25', reason: 'Navidad' }, member.subject),
-        await send(lab, 'POST', '/form', { title: 'Solicitud', fields: [], expectedVersion: 0 }, member.subject),
+        await send(lab, 'POST', '/form', { ...header, title: 'Solicitud', fields: [], expectedVersion: 0 }, member.subject),
       ];
       for (const response of denied) {
         expect(response.status).toBe(403);
@@ -238,18 +240,40 @@ describe('formato', () => {
 
   it('sin publicar es la versión 0; cada guardado publica la siguiente y la anterior queda intacta', async () => {
     const target = await createLabsLab();
-    expect(labsForm.parse((await call(target.teacher.subject, `${target.base}/form`)).body)).toMatchObject({ version: 0, title: null, fields: [] });
+    expect(labsForm.parse((await call(target.teacher.subject, `${target.base}/form`)).body)).toMatchObject({
+      version: 0,
+      title: null,
+      documentCode: null,
+      subjectLabel: 'Asignatura',
+      unitLabel: 'Carrera',
+      fields: [],
+    });
 
-    const first = await send(target, 'POST', '/form', { title: 'Solicitud', fields, expectedVersion: 0 });
+    const first = await send(target, 'POST', '/form', {
+      ...header,
+      title: 'Solicitud',
+      documentCode: 'LAB-FR-01',
+      subjectLabel: 'Proyecto',
+      unitLabel: 'Cliente',
+      fields,
+      expectedVersion: 0,
+    });
     expect(first.status).toBe(201);
-    expect(labsForm.parse(first.body)).toMatchObject({ version: 1, title: 'Solicitud', fields });
+    expect(labsForm.parse(first.body)).toMatchObject({
+      version: 1,
+      title: 'Solicitud',
+      documentCode: 'LAB-FR-01',
+      subjectLabel: 'Proyecto',
+      unitLabel: 'Cliente',
+      fields,
+    });
 
-    const second = await send(target, 'POST', '/form', { title: 'Solicitud de práctica', fields: fields.slice(0, 1), expectedVersion: 1 });
+    const second = await send(target, 'POST', '/form', { ...header, title: 'Solicitud de práctica', fields: fields.slice(0, 1), expectedVersion: 1 });
     expect(labsForm.parse(second.body).version).toBe(2);
     expect(labsForm.parse((await call(target.teacher.subject, `${target.base}/form`)).body).version).toBe(2);
     expect(await count('select count(*) as n from labs.form_versions where workspace_id = $1 and version = 1 and jsonb_array_length(fields) = 2', [target.workspace.id])).toBe(1);
 
-    const stale = await send(target, 'POST', '/form', { title: 'Tarde', fields, expectedVersion: 1 });
+    const stale = await send(target, 'POST', '/form', { ...header, title: 'Tarde', fields, expectedVersion: 1 });
     expect(stale.status).toBe(409);
     expect(errorCode(stale.body)).toBe('VERSION_CONFLICT');
   });
@@ -257,8 +281,8 @@ describe('formato', () => {
   it('dos publicaciones a la vez sobre la misma versión: solo una gana', async () => {
     const target = await createLabsLab();
     const results = await Promise.all([
-      send(target, 'POST', '/form', { title: 'Una', fields, expectedVersion: 0 }),
-      send(target, 'POST', '/form', { title: 'Otra', fields, expectedVersion: 0 }),
+      send(target, 'POST', '/form', { ...header, title: 'Una', fields, expectedVersion: 0 }),
+      send(target, 'POST', '/form', { ...header, title: 'Otra', fields, expectedVersion: 0 }),
     ]);
     expect(results.map((result) => result.status).sort()).toEqual([201, 409]);
     expect(await count('select count(*) as n from labs.form_versions where workspace_id = $1', [target.workspace.id])).toBe(1);
@@ -277,10 +301,12 @@ describe('formato', () => {
       Array.from({ length: 31 }, (_, index) => field(index)),
     ];
     for (const value of invalid) {
-      const rejected = await send(lab, 'POST', '/form', { title: 'Solicitud', fields: value, expectedVersion: 0 });
+      const rejected = await send(lab, 'POST', '/form', { ...header, title: 'Solicitud', fields: value, expectedVersion: 0 });
       expect(rejected.status).toBe(400);
     }
-    const thirty = await send(other, 'POST', '/form', { title: 'Solicitud', fields: Array.from({ length: 30 }, (_, index) => field(index)), expectedVersion: 0 });
+    const blankLabel = await send(lab, 'POST', '/form', { ...header, title: 'Solicitud', subjectLabel: ' ', fields: [], expectedVersion: 0 });
+    expect(blankLabel.status).toBe(400);
+    const thirty = await send(other, 'POST', '/form', { ...header, title: 'Solicitud', fields: Array.from({ length: 30 }, (_, index) => field(index)), expectedVersion: 0 });
     expect(thirty.status).toBe(201);
   });
 });

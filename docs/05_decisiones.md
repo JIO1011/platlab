@@ -850,6 +850,17 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
   - **anticipación de 7 días**, configurable por el Administrador para todo el espacio;
   - **sin áreas exclusivas** por ahora: toda área con horario es solicitable y el Administrador decide al programar.
   - **Formato:** uno por espacio de trabajo. Cada guardado publica una versión nueva e inmutable; el núcleo no se edita, solo el título y los campos libres.
+- **Formato estándar** (decisión del usuario, 21-10-2026): un formato general para universidades, laboratorios y empresas, que el Administrador ajusta sin diseñarlo. Es rápido de llenar y deja métricas comparables.
+  - **Membrete:** logo y nombre de la institución, nombre del formato, código del documento y revisión, que es la versión publicada. El número de solicitud y la fecha los pone el sistema. Logo y nombre son del espacio de trabajo y sirven a todas las impresiones: llegan con una pieza del Core; hasta entonces se muestra el nombre del espacio.
+  - **Cuatro bloques fijos:**
+    1. Actividad: tipo (práctica, investigación o tesis, servicio, capacitación), título, asignatura y carrera. El Administrador renombra «Asignatura» y «Carrera», por ejemplo a «Proyecto» y «Cliente».
+    2. Fecha: fecha deseada, hora de inicio y fin, y área opcional.
+    3. Participantes: número de participantes y de grupos (1 por defecto).
+    4. Recursos del inventario. El solicitante sale de la sesión.
+  - **Asignatura y carrera se eligen de una lista** que se arma al usarlas, nunca como texto libre: de ellas salen las métricas (L-01b).
+  - **Cantidades** (L-01b): equipos y materiales con «por grupo / total», y se guarda el total (2 por grupo × 8 grupos = 16). Los equipos se piden por tipo y el Administrador asigna los concretos al programar. Los reactivos van siempre en total, con unidad y cantidad exacta.
+  - **Campos libres y observaciones**, solo para lo propio de cada cliente; no entran en las métricas.
+  - **Métricas previstas:** horas de uso por área, solicitudes y participantes por carrera, asignatura y tipo, consumo de reactivos y uso de equipos por carrera y por práctica, pedidos fuera de plazo, rechazos y tiempo de respuesta.
 
 ## ADR 0024 — Áreas y departamentos en una sección propia
 

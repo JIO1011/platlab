@@ -115,7 +115,7 @@ create trigger closures_protect_voided before update on labs.closures
 
 -- Campos libres: hasta 30 objetos {key, label, type, required[, options]} con claves únicas en minúsculas,
 -- etiqueta de 1 a 80 caracteres y, solo en las listas y obligatorias en ellas, de 1 a 30 opciones únicas
--- de 1 a 80 caracteres. El núcleo del formato es fijo y no se guarda.
+-- de 1 a 80 caracteres. El núcleo del formato es fijo: de él solo se guardan dos nombres que se adaptan.
 create function labs.form_fields_valid(fields jsonb) returns boolean
   language sql immutable parallel safe set search_path = ''
   as $$
@@ -154,6 +154,11 @@ create table labs.form_versions (
   workspace_id uuid not null references core.workspaces (id),
   version integer not null check (version >= 1),
   title text not null check (length(btrim(title)) between 1 and 120),
+  -- Membrete (ADR 0023, formato estándar): el código del documento; la revisión es la versión.
+  document_code text check (length(btrim(document_code)) between 1 and 40),
+  -- Nombres de dos campos del núcleo que el Administrador adapta («Proyecto», «Cliente»).
+  subject_label text not null check (length(btrim(subject_label)) between 1 and 40),
+  unit_label text not null check (length(btrim(unit_label)) between 1 and 40),
   fields jsonb not null check (labs.form_fields_valid(fields)),
   published_by_principal_id uuid not null,
   published_at timestamptz not null default now(),
@@ -233,7 +238,8 @@ grant update (voided_at, voided_by_principal_id) on labs.closures to platlab_api
 
 -- Una versión publicada no se edita ni se borra.
 grant select on labs.form_versions to platlab_api;
-grant insert (workspace_id, version, title, fields, published_by_principal_id) on labs.form_versions to platlab_api;
+grant insert (workspace_id, version, title, document_code, subject_label, unit_label, fields, published_by_principal_id)
+  on labs.form_versions to platlab_api;
 
 -- ---------------------------------------------------------------------------
 -- Permisos del manifiesto (02 §4); catalog.int.test.ts verifica que coincidan

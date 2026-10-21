@@ -1,6 +1,6 @@
 import type pg from 'pg';
 import type { z } from 'zod';
-import type { FormField, LabsForm, publishFormRequest } from '@platlab/contracts';
+import { FORM_DEFAULT_LABELS, type FormField, type LabsForm, type publishFormRequest } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
 import { recordAudit, requires, type CommandRequest, type QueryRequest } from '../../core/index.js';
 import { insertFormVersion, latestForm, type ILatestFormResult } from '../infrastructure/form.queries.js';
@@ -13,8 +13,16 @@ import { FORM_MANAGE, runCommand, runQuery } from './command.js';
 
 const toForm = (row: ILatestFormResult | undefined): LabsForm =>
   row
-    ? { version: row.version, title: row.title, fields: row.fields as FormField[], publishedAt: row.published_at.toISOString() }
-    : { version: 0, title: null, fields: [], publishedAt: null };
+    ? {
+        version: row.version,
+        title: row.title,
+        documentCode: row.document_code,
+        subjectLabel: row.subject_label,
+        unitLabel: row.unit_label,
+        fields: row.fields as FormField[],
+        publishedAt: row.published_at.toISOString(),
+      }
+    : { version: 0, title: null, documentCode: null, ...FORM_DEFAULT_LABELS, fields: [], publishedAt: null };
 
 const versionConflict = () => new AppError('VERSION_CONFLICT', 'Otra persona publicó el formato mientras editabas: vuelve a cargarlo');
 
@@ -36,6 +44,9 @@ export function publishForm(pool: pg.Pool, request: CommandRequest, input: z.inf
         workspaceId,
         version: input.expectedVersion + 1,
         title: input.title,
+        documentCode: input.documentCode,
+        subjectLabel: input.subjectLabel,
+        unitLabel: input.unitLabel,
         fields: JSON.stringify(input.fields),
         publishedBy: access.principalId,
       },
@@ -46,7 +57,14 @@ export function publishForm(pool: pg.Pool, request: CommandRequest, input: z.inf
       action: 'labs.form.publish',
       entityType: 'labs.form',
       entityId: workspaceId,
-      changes: { version: published.version, title: input.title, fields: input.fields },
+      changes: {
+        version: published.version,
+        title: input.title,
+        documentCode: input.documentCode,
+        subjectLabel: input.subjectLabel,
+        unitLabel: input.unitLabel,
+        fields: input.fields,
+      },
     });
     return toForm(published);
   });

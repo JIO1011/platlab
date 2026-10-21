@@ -633,12 +633,11 @@ insert into labs.closures
 values ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000003', current_date + 5, current_date + 5,
         'Fumigación (reprogramada)', now(), 'da200000-0000-4000-8000-000000000001', 'da200000-0000-4000-8000-000000000001');
 
-insert into labs.form_versions (workspace_id, version, title, fields, published_by_principal_id) values
-  ('da000000-0000-4000-8000-00000000000a', 1, 'Solicitud de laboratorio',
-   '[{"key": "asignatura", "label": "Asignatura", "type": "text", "required": true},
-     {"key": "paralelo", "label": "Paralelo", "type": "text", "required": false},
-     {"key": "tipo_practica", "label": "Tipo de práctica", "type": "list", "required": true,
-      "options": ["Docencia", "Investigación", "Tesis"]},
+insert into labs.form_versions
+  (workspace_id, version, title, document_code, subject_label, unit_label, fields, published_by_principal_id) values
+  ('da000000-0000-4000-8000-00000000000a', 1, 'Solicitud de práctica de laboratorio', 'LAB-FR-01', 'Asignatura', 'Carrera',
+   '[{"key": "paralelo", "label": "Curso y paralelo", "type": "text", "required": false},
+     {"key": "parcial", "label": "Parcial", "type": "list", "required": false, "options": ["1", "2", "3"]},
      {"key": "requiere_epp", "label": "¿Requiere bata y gafas?", "type": "boolean", "required": false}]',
    'da200000-0000-4000-8000-000000000001');
 commit;

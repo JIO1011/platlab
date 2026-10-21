@@ -283,6 +283,7 @@ export {
   createSpaceRequest,
   formField,
   formFieldType,
+  FORM_DEFAULT_LABELS,
   FORM_MAX_FIELDS,
   LEAD_DAYS_DEFAULT,
   labsForm,

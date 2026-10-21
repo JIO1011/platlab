@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(31);
+select plan(32);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -151,9 +151,16 @@ select throws_ok(
   '42501', null, 'del cierre solo se cambia la anulación');
 
 select lives_ok(
-  $$ insert into labs.form_versions (workspace_id, version, title, fields, published_by_principal_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 1, 'Solicitud', '[]', 'a2000000-0000-4000-8000-000000000001') $$,
-  'el runtime publica una versión del Formato');
+  $$ insert into labs.form_versions
+       (workspace_id, version, title, document_code, subject_label, unit_label, fields, published_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 1, 'Solicitud', 'LAB-01', 'Proyecto', 'Cliente', '[]',
+       'a2000000-0000-4000-8000-000000000001') $$,
+  'el runtime publica una versión del Formato con su membrete');
+
+select throws_ok(
+  $$ insert into labs.form_versions (workspace_id, version, title, subject_label, unit_label, fields, published_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 2, 'Solicitud', ' ', 'Carrera', '[]', 'a2000000-0000-4000-8000-000000000001') $$,
+  '23514', null, 'el nombre de asignatura no queda en blanco');
 
 select throws_ok(
   $$ update labs.form_versions set title = 'Otro' where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
