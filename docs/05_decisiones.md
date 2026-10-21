@@ -888,6 +888,10 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
     - **Períodos y sigla** (decisión del usuario, 21-10-2026). El período solo identifica la actividad en el código, y fuera de todo período no se agenda.
       - Los períodos son de Laboratorios y se editan junto a la anticipación: un código corto («P1») y sus fechas, sin solaparse; se archivan, no se borran.
       - La sigla (2 a 5 letras, única en el espacio) se guarda con el aforo del área, en `labs.spaces`, y se edita en su panel «Laboratorio» de Áreas. Se sugiere desde el nombre («Anatomía» → ANT) y el Administrador la cambia. No toca el Núcleo: solo Laboratorios la usa.
+    - **Reglas de L-01b** (decisión del usuario, 21-10-2026).
+      - Solicitan el Docente y el Estudiante (tesista) desde el inicio; cada uno ve solo sus solicitudes.
+      - El solicitante cancela una solicitud aprobada hasta el día anterior; después solo la cancela el laboratorio (Administrador u Operador).
+      - Los materiales que se entregan y se devuelven se piden como texto libre con cantidad; sin inventario ni devolución controlada hasta un Materiales mínimo.
   - **Métricas previstas:** horas de uso por área, solicitudes y participantes por carrera, asignatura y tipo, consumo de reactivos y uso de equipos por carrera y por práctica, pedidos fuera de plazo, rechazos y tiempo de respuesta.
 
 ## ADR 0024 — Áreas y departamentos en una sección propia
@@ -930,7 +934,7 @@ Estado: aceptada (20-10-2026; idea del usuario: cuadros que la app dibuja como u
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Equipos | ¿Qué campos de la ficha y qué documentos considera necesarios el cliente? ¿Qué valores de alimentación usa? ¿Quiere un aviso al pesar en Reactivos con una balanza de calibración vencida? ([ADR 0019](#adr-0019)) | F0, antes de E-01 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
-| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿El Estudiante (tesista) también solicita desde el inicio? ¿Cancelaciones con qué plazo? ¿El responsable del bloque es siempre un técnico (Operador)? ¿Devoluciones químicas y quién declara el consumo al cerrar? | P-04, antes de L-01b (lo del cierre, antes de L-01e) |
+| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿El responsable del bloque es siempre un técnico (Operador)? ¿Devoluciones químicas y quién declara el consumo al cerrar? (Solicitantes, cancelación y materiales, decididos el 21-10-2026) | P-04, antes de L-01c (lo del cierre, antes de L-01e) |
 | Inicio | Propuesta del 20-10-2026 en espera: el usuario tiene otras ideas. «Por atender» de todos los módulos (rojo antes que ámbar, con su enlace filtrado), tres tarjetas por fila con gráfico solo si hay datos (Equipos hoy dice siempre «Sin cambios»), «Por atender» primero en el móvil y avisos declarados por cada módulo en su `module.tsx` | Al terminar los módulos, con las ideas del usuario |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
