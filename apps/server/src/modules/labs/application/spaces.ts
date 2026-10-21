@@ -22,7 +22,7 @@ import {
 import { runCommand, runQuery, SPACE_MANAGE } from './command.js';
 
 /**
- * Espacios (ADR 0023): se agenda el área completa del Núcleo. El Administrador la habilita con aforo y
+ * Espacios (ADR 0023): se agenda el área completa del Núcleo. El Administrador la habilita con sigla, aforo y
  * horario semanal, los edita y la archiva; las áreas se crean en «Áreas» (ADR 0024).
  */
 
@@ -31,6 +31,7 @@ const toSpace = (row: IListSpacesResult): Space => ({
   areaName: row.area_name,
   groupName: row.group_name,
   areaArchived: row.area_archived,
+  abbreviation: row.abbreviation,
   capacity: row.capacity,
   weeklyHours: row.weekly_hours as WeeklyHours,
   version: row.version,
@@ -41,6 +42,18 @@ async function spaceById(access: WorkspaceAccess, areaId: string): Promise<Space
   const [row] = await listSpacesQuery.run({ workspaceId: access.workspace.id, areaId }, access.client);
   if (!row) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
   return toSpace(row);
+}
+
+/** Una sigla repetida (spaces_abbreviation), también si otra persona la tomó a la vez, es CODE_TAKEN. */
+async function withFreeAbbreviation<T>(abbreviation: string, write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if ((error as { constraint?: unknown }).constraint === 'spaces_abbreviation') {
+      throw new AppError('CODE_TAKEN', `Otra área ya usa la sigla ${abbreviation}`);
+    }
+    throw error;
+  }
 }
 
 export function listSpaces(pool: pg.Pool, request: QueryRequest): Promise<SpaceList> {
@@ -60,13 +73,21 @@ export function createSpace(pool: pg.Pool, request: CommandRequest, input: z.inf
     const [area] = await shareActiveArea.run({ workspaceId, areaId: input.areaId }, access.client);
     if (!area) throw new AppError('VALIDATION_FAILED', 'Elige un área activa de «Áreas»');
     const alreadyEnabled = () => new AppError('VALIDATION_FAILED', 'Esa área ya está habilitada como espacio');
-    const values = { workspaceId, areaId: input.areaId, capacity: input.capacity, weeklyHours: JSON.stringify(input.weeklyHours) };
+    const values = {
+      workspaceId,
+      areaId: input.areaId,
+      abbreviation: input.abbreviation,
+      capacity: input.capacity,
+      weeklyHours: JSON.stringify(input.weeklyHours),
+    };
     const [current] = await lockSpace.run({ workspaceId, areaId: input.areaId }, access.client);
     if (current && !current.archived_at) throw alreadyEnabled();
     if (current) {
-      await writeSpace.run(values, access.client);
+      await withFreeAbbreviation(input.abbreviation, () => writeSpace.run(values, access.client));
     } else {
-      const [created] = await insertSpace.run({ ...values, createdBy: access.principalId }, access.client);
+      const [created] = await withFreeAbbreviation(input.abbreviation, () =>
+        insertSpace.run({ ...values, createdBy: access.principalId }, access.client),
+      );
       if (!created) throw alreadyEnabled();
     }
     await recordAudit(access, {
@@ -90,14 +111,18 @@ export function updateSpace(
     const workspaceId = access.workspace.id;
     const [current] = await lockSpace.run({ workspaceId, areaId }, access.client);
     requireEditable(current, expectedVersion);
-    await writeSpace.run(
-      {
-        workspaceId,
-        areaId,
-        capacity: changes.capacity ?? current.capacity,
-        weeklyHours: JSON.stringify(changes.weeklyHours ?? current.weekly_hours),
-      },
-      access.client,
+    const abbreviation = changes.abbreviation ?? current.abbreviation;
+    await withFreeAbbreviation(abbreviation, () =>
+      writeSpace.run(
+        {
+          workspaceId,
+          areaId,
+          abbreviation,
+          capacity: changes.capacity ?? current.capacity,
+          weeklyHours: JSON.stringify(changes.weeklyHours ?? current.weekly_hours),
+        },
+        access.client,
+      ),
     );
     await recordAudit(access, { action: 'labs.space.update', entityType: 'labs.space', entityId: areaId, changes });
     return spaceById(access, areaId);

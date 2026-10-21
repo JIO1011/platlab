@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { closure, closureList, FORM_STANDARD_LAYOUT, formList, labsForm, labsSettings, space, spaceList, type FormLayout } from '@platlab/contracts';
+import { closure, closureList, FORM_STANDARD_LAYOUT, formList, labsForm, labsSettings, period, periodList, space, spaceList, type FormLayout } from '@platlab/contracts';
 import { admin, call, count, errorCode } from '../../testing/api.js';
 import { addLocation, addMember, seedWorkspace, uniqueSuffix } from '../../testing/core-fixtures.js';
 
@@ -39,6 +39,9 @@ beforeAll(async () => {
 });
 
 const key = () => `labs-${uniqueSuffix()}`;
+let siglas = 0;
+/** Una sigla nueva en cada habilitación: no se repite en el espacio de trabajo. */
+const sigla = () => `S${++siglas}`;
 const send = (target: LabsLab, method: 'POST' | 'PATCH' | 'PUT', path: string, body?: unknown, subject = target.adminMember.subject, idempotencyKey = key()) =>
   call(subject, `${target.base}${path}`, { method, ...(body === undefined ? {} : { body }), key: idempotencyKey });
 
@@ -46,14 +49,14 @@ const closed = { '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [] }
 const weekdays = { ...closed, '1': [{ opens: '07:00', closes: '13:00' }, { opens: '14:00', closes: '18:00' }], '5': [{ opens: '08:00', closes: '12:00' }] };
 
 async function enable(target: LabsLab, areaId: string, capacity = 20) {
-  const created = await send(target, 'POST', '/spaces', { areaId, capacity, weeklyHours: weekdays });
+  const created = await send(target, 'POST', '/spaces', { abbreviation: sigla(), areaId, capacity, weeklyHours: weekdays });
   expect(created.status).toBe(201);
   return space.parse(created.body);
 }
 
 describe('roles', () => {
   it('el Estudiante no entra a Laboratorios', async () => {
-    for (const path of ['/settings', '/spaces', '/closures?from=2026-01-01&to=2026-12-31', '/forms']) {
+    for (const path of ['/settings', '/spaces', '/periods', '/closures?from=2026-01-01&to=2026-12-31', '/forms']) {
       const response = await call(lab.student.subject, `${lab.base}${path}`);
       expect(response.status).toBe(403);
       expect(errorCode(response.body)).toBe('ACCESS_DENIED');
@@ -63,14 +66,15 @@ describe('roles', () => {
   it('el Operador y el Docente consultan, pero no configuran', async () => {
     const area = await addLocation(admin, lab.workspace.id, { kind: 'room', parentId: lab.site });
     for (const member of [lab.operator, lab.teacher]) {
-      for (const path of ['/settings', '/spaces', '/closures?from=2026-01-01&to=2026-12-31', '/forms']) {
+      for (const path of ['/settings', '/spaces', '/periods', '/closures?from=2026-01-01&to=2026-12-31', '/forms']) {
         expect((await call(member.subject, `${lab.base}${path}`)).status).toBe(200);
       }
       const denied = [
         await send(lab, 'PUT', '/settings', { leadDays: 3 }, member.subject),
-        await send(lab, 'POST', '/spaces', { areaId: area, capacity: 10, weeklyHours: weekdays }, member.subject),
+        await send(lab, 'POST', '/spaces', { abbreviation: sigla(), areaId: area, capacity: 10, weeklyHours: weekdays }, member.subject),
         await send(lab, 'POST', '/closures', { startsOn: '2026-12-25', endsOn: '2026-12-25', reason: 'Navidad' }, member.subject),
         await send(lab, 'POST', '/forms', { name: 'Práctica' }, member.subject),
+        await send(lab, 'POST', '/periods', { code: 'P9', startsOn: '2030-01-01', endsOn: '2030-02-01' }, member.subject),
       ];
       for (const response of denied) {
         expect(response.status).toBe(403);
@@ -119,11 +123,11 @@ describe('espacios', () => {
   it('una habilitada responde que ya lo está; una archivada se reactiva con los datos nuevos', async () => {
     const area = await addLocation(admin, lab.workspace.id, { kind: 'room', parentId: lab.site });
     await enable(lab, area);
-    const repeated = await send(lab, 'POST', '/spaces', { areaId: area, capacity: 5, weeklyHours: closed });
+    const repeated = await send(lab, 'POST', '/spaces', { abbreviation: sigla(), areaId: area, capacity: 5, weeklyHours: closed });
     expect(errorCode(repeated.body)).toBe('VALIDATION_FAILED');
 
     await send(lab, 'POST', `/spaces/${area}/archive`);
-    const reactivated = await send(lab, 'POST', '/spaces', { areaId: area, capacity: 5, weeklyHours: closed });
+    const reactivated = await send(lab, 'POST', '/spaces', { abbreviation: sigla(), areaId: area, capacity: 5, weeklyHours: closed });
     expect(reactivated.status).toBe(201);
     expect(space.parse(reactivated.body)).toMatchObject({ capacity: 5, weeklyHours: closed, archivedAt: null });
   });
@@ -132,7 +136,7 @@ describe('espacios', () => {
     const archivedArea = await addLocation(admin, lab.workspace.id, { kind: 'room', parentId: lab.site });
     await admin.query('update core.locations set archived_at = now() where id = $1', [archivedArea]);
     for (const areaId of [lab.shelf, lab.site, archivedArea, other.room]) {
-      const rejected = await send(lab, 'POST', '/spaces', { areaId, capacity: 10, weeklyHours: weekdays });
+      const rejected = await send(lab, 'POST', '/spaces', { abbreviation: sigla(), areaId, capacity: 10, weeklyHours: weekdays });
       expect(rejected.status).toBe(400);
       expect(errorCode(rejected.body)).toBe('VALIDATION_FAILED');
     }
@@ -150,18 +154,18 @@ describe('espacios', () => {
       { '1': [], '2': [], '3': [], '4': [], '5': [], '6': [] },
     ];
     for (const weeklyHours of invalid) {
-      const rejected = await send(lab, 'POST', '/spaces', { areaId: area, capacity: 10, weeklyHours });
+      const rejected = await send(lab, 'POST', '/spaces', { abbreviation: sigla(), areaId: area, capacity: 10, weeklyHours });
       expect(rejected.status).toBe(400);
     }
     // Franjas contiguas: una cierra cuando la siguiente abre.
     const contiguous = { ...closed, '2': [{ opens: '08:00', closes: '12:00' }, { opens: '12:00', closes: '23:59' }] };
-    expect((await send(lab, 'POST', '/spaces', { areaId: area, capacity: 10, weeklyHours: contiguous })).status).toBe(201);
+    expect((await send(lab, 'POST', '/spaces', { abbreviation: sigla(), areaId: area, capacity: 10, weeklyHours: contiguous })).status).toBe(201);
   });
 
   it('repetir la misma clave no habilita dos veces ni duplica la auditoría', async () => {
     const area = await addLocation(admin, lab.workspace.id, { kind: 'room', parentId: lab.site });
     const idempotencyKey = key();
-    const body = { areaId: area, capacity: 10, weeklyHours: weekdays };
+    const body = { abbreviation: sigla(), areaId: area, capacity: 10, weeklyHours: weekdays };
     const first = await send(lab, 'POST', '/spaces', body, lab.adminMember.subject, idempotencyKey);
     const second = await send(lab, 'POST', '/spaces', body, lab.adminMember.subject, idempotencyKey);
     expect(first.status).toBe(201);
@@ -227,6 +231,64 @@ describe('cierres', () => {
     const foreign = closure.parse((await send(other, 'POST', '/closures', { startsOn: '2027-03-01', endsOn: '2027-03-01', reason: 'Feriado' })).body);
     const response = await send(lab, 'POST', `/closures/${foreign.id}/void`);
     expect(response.status).toBe(404);
+  });
+});
+
+describe('sigla', () => {
+  it('se guarda en mayúsculas, se cambia con la versión vista y no se repite (CODE_TAKEN)', async () => {
+    const target = await createLabsLab();
+    const created = await send(target, 'POST', '/spaces', { abbreviation: ' ant ', areaId: target.room, capacity: 10, weeklyHours: weekdays });
+    expect(space.parse(created.body).abbreviation).toBe('ANT');
+    const taken = await send(target, 'POST', '/spaces', { abbreviation: 'ANT', areaId: target.otherRoom, capacity: 10, weeklyHours: weekdays });
+    expect(taken.status).toBe(409);
+    expect(errorCode(taken.body)).toBe('CODE_TAKEN');
+    const second = await send(target, 'POST', '/spaces', { abbreviation: 'FIS', areaId: target.otherRoom, capacity: 10, weeklyHours: weekdays });
+    expect(second.status).toBe(201);
+    const renamed = await send(target, 'PATCH', `/spaces/${target.room}`, { abbreviation: 'ANA', expectedVersion: 1 });
+    expect(space.parse(renamed.body)).toMatchObject({ abbreviation: 'ANA', version: 2 });
+    expect(errorCode((await send(target, 'PATCH', `/spaces/${target.room}`, { abbreviation: 'FIS', expectedVersion: 2 })).body)).toBe('CODE_TAKEN');
+    for (const abbreviation of ['A', 'ABCDEF', '1AB', 'AÑO']) {
+      expect((await send(target, 'PATCH', `/spaces/${target.room}`, { abbreviation, expectedVersion: 2 })).status).toBe(400);
+    }
+  });
+});
+
+describe('períodos', () => {
+  it('se crean, se editan con la versión vista y se archivan; los activos no se solapan ni repiten código', async () => {
+    const target = await createLabsLab();
+    const created = await send(target, 'POST', '/periods', { code: 'p1', startsOn: '2027-04-01', endsOn: '2027-08-15' });
+    expect(created.status).toBe(201);
+    const first = period.parse(created.body);
+    expect(first).toMatchObject({ code: 'P1', startsOn: '2027-04-01', endsOn: '2027-08-15', version: 1, archivedAt: null });
+
+    const overlap = await send(target, 'POST', '/periods', { code: 'P2', startsOn: '2027-08-15', endsOn: '2027-12-20' });
+    expect(errorCode(overlap.body)).toBe('VALIDATION_FAILED');
+    const repeated = await send(target, 'POST', '/periods', { code: 'P1', startsOn: '2028-01-01', endsOn: '2028-03-01' });
+    expect(errorCode(repeated.body)).toBe('CODE_TAKEN');
+    const second = period.parse((await send(target, 'POST', '/periods', { code: 'P2', startsOn: '2027-09-01', endsOn: '2027-12-20' })).body);
+
+    const moved = await send(target, 'PATCH', `/periods/${first.id}`, { endsOn: '2027-08-20', expectedVersion: 1 });
+    expect(period.parse(moved.body)).toMatchObject({ endsOn: '2027-08-20', version: 2 });
+    expect(errorCode((await send(target, 'PATCH', `/periods/${first.id}`, { endsOn: '2027-09-10', expectedVersion: 2 })).body)).toBe('VALIDATION_FAILED');
+    expect(errorCode((await send(target, 'PATCH', `/periods/${first.id}`, { startsOn: '2027-08-21', expectedVersion: 2 })).body)).toBe('VALIDATION_FAILED');
+    expect(errorCode((await send(target, 'PATCH', `/periods/${first.id}`, { code: 'P3', expectedVersion: 1 })).body)).toBe('VERSION_CONFLICT');
+
+    const archived = await send(target, 'POST', `/periods/${second.id}/archive`);
+    expect(period.parse(archived.body).archivedAt).not.toBeNull();
+    expect((await send(target, 'POST', '/periods', { code: 'P2', startsOn: '2027-09-01', endsOn: '2027-12-20' })).status).toBe(201);
+    const list = periodList.parse((await call(target.teacher.subject, `${target.base}/periods`)).body);
+    expect(list.items.map((item) => [item.code, item.archivedAt === null])).toEqual([['P1', true], ['P2', true], ['P2', false]]);
+  });
+
+  it('rechaza fechas al revés, de más de un año y códigos con tildes o espacios', async () => {
+    for (const body of [
+      { code: 'P1', startsOn: '2027-05-01', endsOn: '2027-04-01' },
+      { code: 'P1', startsOn: '2027-01-01', endsOn: '2028-01-02' },
+      { code: 'AÑO', startsOn: '2027-01-01', endsOn: '2027-02-01' },
+      { code: 'P 1', startsOn: '2027-01-01', endsOn: '2027-02-01' },
+    ]) {
+      expect((await send(lab, 'POST', '/periods', body)).status).toBe(400);
+    }
   });
 });
 

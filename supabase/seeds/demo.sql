@@ -607,8 +607,8 @@ update equipment.assets set department_id = 'daa00000-0000-4000-8000-00000000000
 -- anticipación queda en los 7 días por defecto (sin fila de ajustes).
 -- ---------------------------------------------------------------------------
 
-insert into labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_by_principal_id) values
-  ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000003', 24,
+insert into labs.spaces (workspace_id, area_id, abbreviation, capacity, weekly_hours, created_by_principal_id) values
+  ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000003', 'QUI', 24,
    '{"1": [{"opens": "07:00", "closes": "13:00"}, {"opens": "14:00", "closes": "19:00"}],
      "2": [{"opens": "07:00", "closes": "13:00"}, {"opens": "14:00", "closes": "19:00"}],
      "3": [{"opens": "07:00", "closes": "13:00"}, {"opens": "14:00", "closes": "19:00"}],
@@ -616,7 +616,7 @@ insert into labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_
      "5": [{"opens": "07:00", "closes": "13:00"}],
      "6": [], "7": []}',
    'da200000-0000-4000-8000-000000000001'),
-  ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000004', 16,
+  ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000004', 'FIS', 16,
    '{"1": [{"opens": "08:00", "closes": "16:00"}], "2": [{"opens": "08:00", "closes": "16:00"}],
      "3": [{"opens": "08:00", "closes": "16:00"}], "4": [{"opens": "08:00", "closes": "16:00"}],
      "5": [{"opens": "08:00", "closes": "12:00"}], "6": [{"opens": "08:00", "closes": "12:00"}], "7": []}',
@@ -632,6 +632,11 @@ insert into labs.closures
   (workspace_id, area_id, starts_on, ends_on, reason, voided_at, voided_by_principal_id, created_by_principal_id)
 values ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000003', current_date + 5, current_date + 5,
         'Fumigación (reprogramada)', now(), 'da200000-0000-4000-8000-000000000001', 'da200000-0000-4000-8000-000000000001');
+
+-- Dos períodos académicos: el que está en curso y el siguiente.
+insert into labs.periods (workspace_id, code, starts_on, ends_on, created_by_principal_id) values
+  ('da000000-0000-4000-8000-00000000000a', 'P1', current_date - 60, current_date + 60, 'da200000-0000-4000-8000-000000000001'),
+  ('da000000-0000-4000-8000-00000000000a', 'P2', current_date + 75, current_date + 200, 'da200000-0000-4000-8000-000000000001');
 
 -- Dos formatos: «Práctica académica» es la plantilla estándar (la P69) con un dato extra; «Servicio
 -- externo» no pide reactivos ni asignatura y lo firma el cliente.

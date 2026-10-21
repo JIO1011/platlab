@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(49);
+select plan(56);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -34,11 +34,11 @@ insert into core.locations (id, workspace_id, parent_id, kind, code, name) value
   ('a3000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-00000000000a', null, 'room', 'LAB-1', 'Laboratorio 1'),
   ('a3000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-00000000000a', null, 'room', 'LAB-2', 'Laboratorio 2'),
   ('b3000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', null, 'room', 'LAB-B', 'Laboratorio B');
-insert into labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_by_principal_id) values
-  ('a0000000-0000-4000-8000-00000000000a', 'a3000000-0000-4000-8000-000000000001', 20,
+insert into labs.spaces (workspace_id, area_id, abbreviation, capacity, weekly_hours, created_by_principal_id) values
+  ('a0000000-0000-4000-8000-00000000000a', 'a3000000-0000-4000-8000-000000000001', 'LUNO', 20,
    '{"1": [{"opens": "08:00", "closes": "12:00"}], "2": [], "3": [], "4": [], "5": [], "6": [], "7": []}',
    'a2000000-0000-4000-8000-000000000001'),
-  ('b0000000-0000-4000-8000-00000000000b', 'b3000000-0000-4000-8000-000000000001', 10,
+  ('b0000000-0000-4000-8000-00000000000b', 'b3000000-0000-4000-8000-000000000001', 'LB', 10,
    '{"1": [], "2": [], "3": [], "4": [], "5": [], "6": [], "7": []}', 'b2000000-0000-4000-8000-000000000001');
 insert into labs.closures (id, workspace_id, area_id, starts_on, ends_on, reason, created_by_principal_id) values
   ('b6000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', null, '2027-01-01', '2027-01-01',
@@ -150,22 +150,56 @@ select is((select count(*)::int from labs.spaces), 1, 'RLS: el runtime solo ve l
 select is((select count(*)::int from labs.closures), 1, 'RLS: no ve los cierres de otro espacio de trabajo');
 
 select lives_ok(
-  $$ insert into labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_by_principal_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'a3000000-0000-4000-8000-000000000002', 12,
+  $$ insert into labs.spaces (workspace_id, area_id, abbreviation, capacity, weekly_hours, created_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a3000000-0000-4000-8000-000000000002', 'LDOS', 12,
              '{"1": [], "2": [], "3": [], "4": [], "5": [], "6": [], "7": []}', 'a2000000-0000-4000-8000-000000000001') $$,
   'el runtime habilita un área de su espacio');
 
 select throws_ok(
-  $$ insert into labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_by_principal_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'b3000000-0000-4000-8000-000000000001', 12,
+  $$ insert into labs.spaces (workspace_id, area_id, abbreviation, capacity, weekly_hours, created_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'b3000000-0000-4000-8000-000000000001', 'LX', 12,
              '{"1": [], "2": [], "3": [], "4": [], "5": [], "6": [], "7": []}', 'a2000000-0000-4000-8000-000000000001') $$,
   '23503', null, 'FK compuesta: no habilita un área de otro espacio');
 
 select throws_ok(
-  $$ insert into labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_by_principal_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 'a3000000-0000-4000-8000-000000000002', 12,
+  $$ insert into labs.spaces (workspace_id, area_id, abbreviation, capacity, weekly_hours, created_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a3000000-0000-4000-8000-000000000002', 'LTRES', 12,
              '{"1": [], "2": [], "3": [], "4": [], "5": [], "6": [], "7": []}', 'a2000000-0000-4000-8000-000000000002') $$,
   '42501', null, 'la autoría es de quien escribe');
+
+select throws_ok(
+  $$ update labs.spaces set abbreviation = 'LUNO' where area_id = 'a3000000-0000-4000-8000-000000000002' $$,
+  '23505', null, 'la sigla no se repite en el espacio');
+
+select throws_ok(
+  $$ update labs.spaces set abbreviation = 'l1' where area_id = 'a3000000-0000-4000-8000-000000000002' $$,
+  '23514', null, 'la sigla va en mayúsculas, de 2 a 5 caracteres y empieza por letra');
+
+select lives_ok(
+  $$ insert into labs.periods (workspace_id, code, starts_on, ends_on, created_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'P1', '2027-04-01', '2027-08-15', 'a2000000-0000-4000-8000-000000000001') $$,
+  'el runtime crea un período');
+
+select throws_ok(
+  $$ insert into labs.periods (workspace_id, code, starts_on, ends_on, created_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'P2', '2027-08-15', '2027-12-20', 'a2000000-0000-4000-8000-000000000001') $$,
+  '23P01', null, 'dos períodos activos no se solapan, ni en un día');
+
+select throws_ok(
+  $$ insert into labs.periods (workspace_id, code, starts_on, ends_on, created_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'P1', '2028-01-01', '2028-03-01', 'a2000000-0000-4000-8000-000000000001') $$,
+  '23505', null, 'dos períodos activos no repiten código');
+
+select throws_ok(
+  $$ insert into labs.periods (workspace_id, code, starts_on, ends_on, created_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'AÑO', '2029-01-01', '2030-02-01', 'a2000000-0000-4000-8000-000000000001') $$,
+  '23514', null, 'un período dura hasta un año y su código va en mayúsculas sin tildes');
+
+select lives_ok(
+  $$ update labs.periods set archived_at = now(), version = version + 1 where code = 'P1';
+     insert into labs.periods (workspace_id, code, starts_on, ends_on, created_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'P1', '2027-05-01', '2027-09-01', 'a2000000-0000-4000-8000-000000000001') $$,
+  'un período archivado libera su código y sus fechas');
 
 select throws_ok(
   $$ insert into labs.closures (workspace_id, area_id, starts_on, ends_on, reason, created_by_principal_id)
@@ -249,6 +283,7 @@ select ok(
   not has_table_privilege('platlab_api', 'labs.spaces', 'DELETE')
   and not has_table_privilege('platlab_api', 'labs.closures', 'DELETE')
   and not has_table_privilege('platlab_api', 'labs.forms', 'DELETE')
+  and not has_table_privilege('platlab_api', 'labs.periods', 'DELETE')
   and not has_table_privilege('platlab_api', 'labs.form_revisions', 'DELETE')
   and not has_table_privilege('platlab_api', 'labs.settings', 'DELETE'),
   'nada se borra: el runtime no tiene DELETE en Laboratorios');

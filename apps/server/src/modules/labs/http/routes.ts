@@ -5,17 +5,21 @@ import {
   closureParams,
   createClosureRequest,
   createFormRequest,
+  createPeriodRequest,
   createSpaceRequest,
   formParams,
+  periodParams,
   publishFormRequest,
   spaceParams,
   updateFormRequest,
+  updatePeriodRequest,
   updateLabsSettingsRequest,
   updateSpaceRequest,
 } from '@platlab/contracts';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import { createClosure, listClosures, voidClosure } from '../application/closures.js';
 import { archiveForm, createForm, getForm, listForms, publishForm, updateForm } from '../application/form.js';
+import { archivePeriod, createPeriod, listPeriods, updatePeriod } from '../application/periods.js';
 import { getSettings, updateSettings } from '../application/settings.js';
 import { archiveSpace, createSpace, listSpaces, updateSpace } from '../application/spaces.js';
 
@@ -29,6 +33,22 @@ export function labsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync {
     app.get('/settings', async (request) => getSettings(pool, queryRequest(request)));
 
     app.put('/settings', async (request) => updateSettings(pool, commandRequest(request), updateLabsSettingsRequest.parse(request.body)));
+
+    // Períodos: identifican la actividad en su código; fuera de ellos no se agenda.
+    app.get('/periods', async (request) => listPeriods(pool, queryRequest(request)));
+
+    app.post('/periods', async (request, reply) => {
+      const input = createPeriodRequest.parse(request.body);
+      return reply.status(201).send(await createPeriod(pool, commandRequest(request), input));
+    });
+
+    app.patch('/periods/:periodId', async (request) =>
+      updatePeriod(pool, commandRequest(request), periodParams.parse(request.params).periodId, updatePeriodRequest.parse(request.body)),
+    );
+
+    app.post('/periods/:periodId/archive', async (request) =>
+      archivePeriod(pool, commandRequest(request), periodParams.parse(request.params).periodId),
+    );
 
     // Espacios: los consulta quien agenda; los administra el Administrador.
     app.get('/spaces', async (request) => listSpaces(pool, queryRequest(request)));

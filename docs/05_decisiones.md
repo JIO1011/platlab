@@ -885,6 +885,9 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
     - Se programa y se mueve solo hacia el futuro. Al moverla, toma el número siguiente de su nueva semana, y el código anterior queda en el historial.
     - Período, semana, área y secuencia se guardan por separado para filtrar; el código solo se muestra.
     - Requiere, antes de L-01b, los períodos del espacio (por ejemplo «P1: 01-04 al 15-08»; la semana se calcula desde su inicio) y la sigla de cada área en Áreas.
+    - **Períodos y sigla** (decisión del usuario, 21-10-2026). El período solo identifica la actividad en el código, y fuera de todo período no se agenda.
+      - Los períodos son de Laboratorios y se editan junto a la anticipación: un código corto («P1») y sus fechas, sin solaparse; se archivan, no se borran.
+      - La sigla (2 a 5 letras, única en el espacio) se guarda con el aforo del área, en `labs.spaces`, y se edita en su panel «Laboratorio» de Áreas. Se sugiere desde el nombre («Anatomía» → ANT) y el Administrador la cambia. No toca el Núcleo: solo Laboratorios la usa.
   - **Métricas previstas:** horas de uso por área, solicitudes y participantes por carrera, asignatura y tipo, consumo de reactivos y uso de equipos por carrera y por práctica, pedidos fuera de plazo, rechazos y tiempo de respuesta.
 
 ## ADR 0024 — Áreas y departamentos en una sección propia

@@ -127,7 +127,7 @@ export const FORM_STANDARD_LAYOUT: FormLayout = {
   ],
 };
 
-export const formParams = z.object({ formId: z.uuid() });
+export const formParams = z.object({ workspaceId: z.uuid(), formId: z.uuid() });
 
 /** Un formato en la lista: su nombre, su estado y su última revisión. */
 const formSummary = z.object({

@@ -1,5 +1,5 @@
--- L-01a (ADR 0023): módulo Laboratorios. Espacios: áreas del Núcleo habilitadas para agendar, con aforo,
--- horario semanal y cierres; feriados comunes; la anticipación del espacio de trabajo; y los Formatos de
+-- L-01a (ADR 0023): módulo Laboratorios. Espacios: áreas del Núcleo habilitadas para agendar, con sigla,
+-- aforo, horario semanal y cierres; feriados comunes; la anticipación y los períodos del espacio de trabajo; y los Formatos de
 -- solicitud, cuyas revisiones son inmutables. No escribe en Core: que la ubicación sea un área activa lo
 -- comprueba el comando. Nada se borra: los espacios se archivan y los cierres se anulan.
 
@@ -8,6 +8,9 @@ insert into core.module_definitions (code, name, stage) values ('labs', 'Laborat
 create schema labs;
 revoke all on schema labs from public;
 grant usage on schema labs to platlab_api;
+
+-- Para que dos períodos activos de un espacio no se solapen (exclusión GiST con igualdad de uuid).
+create extension if not exists btree_gist with schema extensions;
 
 -- ---------------------------------------------------------------------------
 -- Ajustes del espacio de trabajo: sin fila, la anticipación es de 7 días
@@ -55,6 +58,9 @@ create function labs.weekly_hours_valid(hours jsonb) returns boolean
 create table labs.spaces (
   workspace_id uuid not null references core.workspaces (id),
   area_id uuid not null,
+  -- Sigla del área en el código de la solicitud programada (P1-S12-ANT03, ADR 0023): no se repite en el
+  -- espacio, tampoco con un espacio archivado, que al reactivarse la conserva.
+  abbreviation text not null check (abbreviation ~ '^[A-Z][A-Z0-9]{1,4}$'),
   capacity integer not null check (capacity > 0),
   weekly_hours jsonb not null check (labs.weekly_hours_valid(weekly_hours)),
   version integer not null default 1 check (version > 0),
@@ -62,6 +68,7 @@ create table labs.spaces (
   created_by_principal_id uuid not null,
   created_at timestamptz not null default now(),
   primary key (workspace_id, area_id),
+  constraint spaces_abbreviation unique (workspace_id, abbreviation),
   foreign key (workspace_id, area_id) references core.locations (workspace_id, id),
   foreign key (workspace_id, created_by_principal_id) references core.principals (workspace_id, id)
 );
@@ -108,6 +115,31 @@ revoke execute on function labs.protect_voided() from public;
 
 create trigger closures_protect_voided before update on labs.closures
   for each row execute function labs.protect_voided();
+
+-- ---------------------------------------------------------------------------
+-- Períodos: identifican la actividad en su código y fuera de ellos no se agenda (ADR 0023)
+-- ---------------------------------------------------------------------------
+
+-- Un código corto («P1», «2026-1») y sus fechas, de hasta un año. Los activos no se solapan ni repiten
+-- código; se archivan, no se borran.
+create table labs.periods (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references core.workspaces (id),
+  code text not null check (code ~ '^[A-Z0-9][A-Z0-9-]{0,9}$'),
+  starts_on date not null,
+  ends_on date not null,
+  version integer not null default 1 check (version > 0),
+  archived_at timestamptz,
+  created_by_principal_id uuid not null,
+  created_at timestamptz not null default now(),
+  unique (workspace_id, id),
+  foreign key (workspace_id, created_by_principal_id) references core.principals (workspace_id, id),
+  constraint periods_dates check (starts_on <= ends_on and ends_on - starts_on <= 365),
+  constraint periods_no_overlap exclude using gist (workspace_id with =, daterange(starts_on, ends_on, '[]') with &&)
+    where (archived_at is null)
+);
+
+create unique index periods_active_code on labs.periods (workspace_id, code) where archived_at is null;
 
 -- ---------------------------------------------------------------------------
 -- Formatos de solicitud: varios por espacio de trabajo, cada uno con sus revisiones inmutables
@@ -294,6 +326,7 @@ create table labs.form_revisions (
 alter table labs.settings enable row level security;
 alter table labs.spaces enable row level security;
 alter table labs.closures enable row level security;
+alter table labs.periods enable row level security;
 alter table labs.forms enable row level security;
 alter table labs.form_revisions enable row level security;
 
@@ -332,6 +365,18 @@ create policy closures_update on labs.closures for update to platlab_api
     and voided_by_principal_id = (select core.current_principal_id())
   );
 
+create policy periods_select on labs.periods for select to platlab_api
+  using (workspace_id = (select core.current_workspace_id()));
+create policy periods_insert on labs.periods for insert to platlab_api
+  with check (
+    workspace_id = (select core.current_workspace_id())
+    and created_by_principal_id = (select core.current_principal_id())
+    and archived_at is null
+  );
+create policy periods_update on labs.periods for update to platlab_api
+  using (workspace_id = (select core.current_workspace_id()))
+  with check (workspace_id = (select core.current_workspace_id()));
+
 create policy forms_select on labs.forms for select to platlab_api
   using (workspace_id = (select core.current_workspace_id()));
 create policy forms_insert on labs.forms for insert to platlab_api
@@ -363,14 +408,18 @@ grant insert (workspace_id, lead_days) on labs.settings to platlab_api;
 grant update (lead_days, version) on labs.settings to platlab_api;
 
 grant select on labs.spaces to platlab_api;
-grant insert (workspace_id, area_id, capacity, weekly_hours, created_by_principal_id) on labs.spaces to platlab_api;
+grant insert (workspace_id, area_id, abbreviation, capacity, weekly_hours, created_by_principal_id) on labs.spaces to platlab_api;
 -- El área es la identidad del espacio: los cierres apuntan a ella.
-grant update (capacity, weekly_hours, archived_at, version) on labs.spaces to platlab_api;
+grant update (abbreviation, capacity, weekly_hours, archived_at, version) on labs.spaces to platlab_api;
 
 grant select on labs.closures to platlab_api;
 grant insert (workspace_id, area_id, starts_on, ends_on, reason, created_by_principal_id) on labs.closures to platlab_api;
 -- Anular es lo único que se cambia de un cierre.
 grant update (voided_at, voided_by_principal_id) on labs.closures to platlab_api;
+
+grant select on labs.periods to platlab_api;
+grant insert (workspace_id, code, starts_on, ends_on, created_by_principal_id) on labs.periods to platlab_api;
+grant update (code, starts_on, ends_on, archived_at, version) on labs.periods to platlab_api;
 
 grant select on labs.forms to platlab_api;
 grant insert (workspace_id, name, created_by_principal_id) on labs.forms to platlab_api;

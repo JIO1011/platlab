@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { expectedVersion, text } from '../common.js';
 
 /**
- * Espacios de Laboratorios (ADR 0023): áreas del Núcleo habilitadas para agendar, con aforo, horario
+ * Espacios de Laboratorios (ADR 0023): áreas del Núcleo habilitadas para agendar, con sigla, aforo, horario
  * semanal y cierres; feriados comunes y la anticipación del espacio de trabajo. Los configura el
  * Administrador; nada se borra.
  */
@@ -38,6 +38,16 @@ export const weeklyHours = z
   .object({ '1': daySlots, '2': daySlots, '3': daySlots, '4': daySlots, '5': daySlots, '6': daySlots, '7': daySlots })
   .strict();
 
+/**
+ * Sigla del área en el código de la solicitud programada (P1-S12-ANT03): de 2 a 5 letras o números en mayúsculas,
+ * empieza por letra y no se repite en el espacio (CODE_TAKEN).
+ */
+export const abbreviation = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z][A-Z0-9]{1,4}$/, 'De 2 a 5 letras o números, empezando por letra');
+
 /** Aforo: personas a la vez en el área. */
 const capacity = z.number().int().positive().max(2_147_483_647);
 
@@ -48,6 +58,7 @@ export const space = z.object({
   groupName: z.string().nullable(),
   /** El área se archivó en «Áreas»: el espacio ya no se agenda. */
   areaArchived: z.boolean(),
+  abbreviation: z.string(),
   capacity: z.number().int().positive(),
   weeklyHours,
   version: z.number().int().positive(),
@@ -61,10 +72,12 @@ export const spaceList = z.object({ items: z.array(space) });
  * POST /spaces: habilita un área activa del Núcleo; uno archivado se reactiva con estos datos y uno
  * activo responde VALIDATION_FAILED.
  */
-export const createSpaceRequest = z.object({ areaId: z.uuid(), capacity, weeklyHours }).strict();
+export const createSpaceRequest = z.object({ areaId: z.uuid(), abbreviation, capacity, weeklyHours }).strict();
 
 /** PATCH /spaces/:areaId: solo lo que llega cambia, con la versión que la persona vio. */
-export const updateSpaceRequest = z.object({ capacity: capacity.optional(), weeklyHours: weeklyHours.optional(), expectedVersion }).strict();
+export const updateSpaceRequest = z
+  .object({ abbreviation: abbreviation.optional(), capacity: capacity.optional(), weeklyHours: weeklyHours.optional(), expectedVersion })
+  .strict();
 
 export const spaceParams = z.object({ workspaceId: z.uuid(), areaId: z.uuid() });
 

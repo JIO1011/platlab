@@ -11,6 +11,7 @@ export interface IListSpacesParams {
 
 /** 'ListSpaces' return type */
 export interface IListSpacesResult {
+  abbreviation: string;
   archived_at: Date | null;
   area_archived: boolean;
   area_id: string;
@@ -27,7 +28,7 @@ export interface IListSpacesQuery {
   result: IListSpacesResult;
 }
 
-const listSpacesIR: any = {"usedParamSet":{"workspaceId":true,"areaId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":577,"b":589}]},{"name":"areaId","required":false,"transform":{"type":"scalar"},"locs":[{"a":598,"b":604},{"a":635,"b":641}]}],"statement":"-- Activos primero, por sede o edificio y nombre del área, con si el área se archivó en «Áreas»; con\n-- :areaId, ese espacio (la respuesta de un comando).\nSELECT s.area_id, a.name AS area_name, g.name AS \"group_name?\", (a.archived_at IS NOT NULL) AS \"area_archived!\",\n       s.capacity, s.weekly_hours, s.version, s.archived_at\nFROM labs.spaces AS s\nJOIN core.locations AS a ON a.workspace_id = s.workspace_id AND a.id = s.area_id\nLEFT JOIN core.locations AS g ON g.workspace_id = a.workspace_id AND g.id = a.parent_id AND g.kind IN ('site', 'building')\nWHERE s.workspace_id = :workspaceId!\n  AND (:areaId::uuid IS NULL OR s.area_id = :areaId::uuid)\nORDER BY s.archived_at IS NOT NULL, g.name IS NOT NULL, core.fold_text(coalesce(g.name, '')), core.fold_text(a.name), s.area_id"};
+const listSpacesIR: any = {"usedParamSet":{"workspaceId":true,"areaId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":593,"b":605}]},{"name":"areaId","required":false,"transform":{"type":"scalar"},"locs":[{"a":614,"b":620},{"a":651,"b":657}]}],"statement":"-- Activos primero, por sede o edificio y nombre del área, con si el área se archivó en «Áreas»; con\n-- :areaId, ese espacio (la respuesta de un comando).\nSELECT s.area_id, a.name AS area_name, g.name AS \"group_name?\", (a.archived_at IS NOT NULL) AS \"area_archived!\",\n       s.abbreviation, s.capacity, s.weekly_hours, s.version, s.archived_at\nFROM labs.spaces AS s\nJOIN core.locations AS a ON a.workspace_id = s.workspace_id AND a.id = s.area_id\nLEFT JOIN core.locations AS g ON g.workspace_id = a.workspace_id AND g.id = a.parent_id AND g.kind IN ('site', 'building')\nWHERE s.workspace_id = :workspaceId!\n  AND (:areaId::uuid IS NULL OR s.area_id = :areaId::uuid)\nORDER BY s.archived_at IS NOT NULL, g.name IS NOT NULL, core.fold_text(coalesce(g.name, '')), core.fold_text(a.name), s.area_id"};
 
 /**
  * Query generated from SQL:
@@ -35,7 +36,7 @@ const listSpacesIR: any = {"usedParamSet":{"workspaceId":true,"areaId":true},"pa
  * -- Activos primero, por sede o edificio y nombre del área, con si el área se archivó en «Áreas»; con
  * -- :areaId, ese espacio (la respuesta de un comando).
  * SELECT s.area_id, a.name AS area_name, g.name AS "group_name?", (a.archived_at IS NOT NULL) AS "area_archived!",
- *        s.capacity, s.weekly_hours, s.version, s.archived_at
+ *        s.abbreviation, s.capacity, s.weekly_hours, s.version, s.archived_at
  * FROM labs.spaces AS s
  * JOIN core.locations AS a ON a.workspace_id = s.workspace_id AND a.id = s.area_id
  * LEFT JOIN core.locations AS g ON g.workspace_id = a.workspace_id AND g.id = a.parent_id AND g.kind IN ('site', 'building')
@@ -94,6 +95,7 @@ export interface ILockSpaceParams {
 
 /** 'LockSpace' return type */
 export interface ILockSpaceResult {
+  abbreviation: string;
   archived_at: Date | null;
   capacity: number;
   version: number;
@@ -106,13 +108,13 @@ export interface ILockSpaceQuery {
   result: ILockSpaceResult;
 }
 
-const lockSpaceIR: any = {"usedParamSet":{"workspaceId":true,"areaId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":184,"b":196}]},{"name":"areaId","required":true,"transform":{"type":"scalar"},"locs":[{"a":212,"b":219}]}],"statement":"-- Lo último del orden de bloqueo (02 §6): el espacio que se habilita, se edita o se archiva.\nSELECT capacity, weekly_hours, archived_at, version\nFROM labs.spaces\nWHERE workspace_id = :workspaceId! AND area_id = :areaId!\nFOR UPDATE"};
+const lockSpaceIR: any = {"usedParamSet":{"workspaceId":true,"areaId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":198,"b":210}]},{"name":"areaId","required":true,"transform":{"type":"scalar"},"locs":[{"a":226,"b":233}]}],"statement":"-- Lo último del orden de bloqueo (02 §6): el espacio que se habilita, se edita o se archiva.\nSELECT abbreviation, capacity, weekly_hours, archived_at, version\nFROM labs.spaces\nWHERE workspace_id = :workspaceId! AND area_id = :areaId!\nFOR UPDATE"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Lo último del orden de bloqueo (02 §6): el espacio que se habilita, se edita o se archiva.
- * SELECT capacity, weekly_hours, archived_at, version
+ * SELECT abbreviation, capacity, weekly_hours, archived_at, version
  * FROM labs.spaces
  * WHERE workspace_id = :workspaceId! AND area_id = :areaId!
  * FOR UPDATE
@@ -156,6 +158,7 @@ export const shareSpace = new PreparedQuery<IShareSpaceParams,IShareSpaceResult>
 
 /** 'InsertSpace' parameters type */
 export interface IInsertSpaceParams {
+  abbreviation: string;
   areaId: string;
   capacity: number;
   createdBy: string;
@@ -174,15 +177,15 @@ export interface IInsertSpaceQuery {
   result: IInsertSpaceResult;
 }
 
-const insertSpaceIR: any = {"usedParamSet":{"workspaceId":true,"areaId":true,"capacity":true,"weeklyHours":true,"createdBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":222,"b":234}]},{"name":"areaId","required":true,"transform":{"type":"scalar"},"locs":[{"a":237,"b":244}]},{"name":"capacity","required":true,"transform":{"type":"scalar"},"locs":[{"a":247,"b":256}]},{"name":"weeklyHours","required":true,"transform":{"type":"scalar"},"locs":[{"a":259,"b":271}]},{"name":"createdBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":281,"b":291}]}],"statement":"-- Si otra persona habilitó la misma área a la vez, no inserta nada y el comando responde que ya está\n-- habilitada.\nINSERT INTO labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_by_principal_id)\nVALUES (:workspaceId!, :areaId!, :capacity!, :weeklyHours!::jsonb, :createdBy!)\nON CONFLICT (workspace_id, area_id) DO NOTHING\nRETURNING area_id"};
+const insertSpaceIR: any = {"usedParamSet":{"workspaceId":true,"areaId":true,"abbreviation":true,"capacity":true,"weeklyHours":true,"createdBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":315,"b":327}]},{"name":"areaId","required":true,"transform":{"type":"scalar"},"locs":[{"a":330,"b":337}]},{"name":"abbreviation","required":true,"transform":{"type":"scalar"},"locs":[{"a":340,"b":353}]},{"name":"capacity","required":true,"transform":{"type":"scalar"},"locs":[{"a":356,"b":365}]},{"name":"weeklyHours","required":true,"transform":{"type":"scalar"},"locs":[{"a":368,"b":380}]},{"name":"createdBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":390,"b":400}]}],"statement":"-- Si otra persona habilitó la misma área a la vez, no inserta nada y el comando responde que ya está\n-- habilitada. Una sigla tomada (spaces_abbreviation) falla y el comando responde CODE_TAKEN.\nINSERT INTO labs.spaces (workspace_id, area_id, abbreviation, capacity, weekly_hours, created_by_principal_id)\nVALUES (:workspaceId!, :areaId!, :abbreviation!, :capacity!, :weeklyHours!::jsonb, :createdBy!)\nON CONFLICT (workspace_id, area_id) DO NOTHING\nRETURNING area_id"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Si otra persona habilitó la misma área a la vez, no inserta nada y el comando responde que ya está
- * -- habilitada.
- * INSERT INTO labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_by_principal_id)
- * VALUES (:workspaceId!, :areaId!, :capacity!, :weeklyHours!::jsonb, :createdBy!)
+ * -- habilitada. Una sigla tomada (spaces_abbreviation) falla y el comando responde CODE_TAKEN.
+ * INSERT INTO labs.spaces (workspace_id, area_id, abbreviation, capacity, weekly_hours, created_by_principal_id)
+ * VALUES (:workspaceId!, :areaId!, :abbreviation!, :capacity!, :weeklyHours!::jsonb, :createdBy!)
  * ON CONFLICT (workspace_id, area_id) DO NOTHING
  * RETURNING area_id
  * ```
@@ -192,6 +195,7 @@ export const insertSpace = new PreparedQuery<IInsertSpaceParams,IInsertSpaceResu
 
 /** 'WriteSpace' parameters type */
 export interface IWriteSpaceParams {
+  abbreviation: string;
   areaId: string;
   capacity: number;
   weeklyHours: Json;
@@ -207,15 +211,15 @@ export interface IWriteSpaceQuery {
   result: IWriteSpaceResult;
 }
 
-const writeSpaceIR: any = {"usedParamSet":{"capacity":true,"weeklyHours":true,"workspaceId":true,"areaId":true},"params":[{"name":"capacity","required":true,"transform":{"type":"scalar"},"locs":[{"a":172,"b":181}]},{"name":"weeklyHours","required":true,"transform":{"type":"scalar"},"locs":[{"a":199,"b":211}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":284,"b":296}]},{"name":"areaId","required":true,"transform":{"type":"scalar"},"locs":[{"a":312,"b":319}]}],"statement":"-- Escribe aforo y horario ya combinados, reactiva si estaba archivado y sube la versión; el comando lo\n-- hace con el espacio bloqueado.\nUPDATE labs.spaces\nSET capacity = :capacity!, weekly_hours = :weeklyHours!::jsonb, archived_at = NULL, version = version + 1\nWHERE workspace_id = :workspaceId! AND area_id = :areaId!"};
+const writeSpaceIR: any = {"usedParamSet":{"abbreviation":true,"capacity":true,"weeklyHours":true,"workspaceId":true,"areaId":true},"params":[{"name":"abbreviation","required":true,"transform":{"type":"scalar"},"locs":[{"a":230,"b":243}]},{"name":"capacity","required":true,"transform":{"type":"scalar"},"locs":[{"a":257,"b":266}]},{"name":"weeklyHours","required":true,"transform":{"type":"scalar"},"locs":[{"a":284,"b":296}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":369,"b":381}]},{"name":"areaId","required":true,"transform":{"type":"scalar"},"locs":[{"a":397,"b":404}]}],"statement":"-- Escribe sigla, aforo y horario ya combinados, reactiva si estaba archivado y sube la versión; el\n-- comando lo hace con el espacio bloqueado. Una sigla tomada falla igual que al habilitar.\nUPDATE labs.spaces\nSET abbreviation = :abbreviation!, capacity = :capacity!, weekly_hours = :weeklyHours!::jsonb, archived_at = NULL, version = version + 1\nWHERE workspace_id = :workspaceId! AND area_id = :areaId!"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Escribe aforo y horario ya combinados, reactiva si estaba archivado y sube la versión; el comando lo
- * -- hace con el espacio bloqueado.
+ * -- Escribe sigla, aforo y horario ya combinados, reactiva si estaba archivado y sube la versión; el
+ * -- comando lo hace con el espacio bloqueado. Una sigla tomada falla igual que al habilitar.
  * UPDATE labs.spaces
- * SET capacity = :capacity!, weekly_hours = :weeklyHours!::jsonb, archived_at = NULL, version = version + 1
+ * SET abbreviation = :abbreviation!, capacity = :capacity!, weekly_hours = :weeklyHours!::jsonb, archived_at = NULL, version = version + 1
  * WHERE workspace_id = :workspaceId! AND area_id = :areaId!
  * ```
  */

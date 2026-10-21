@@ -4,7 +4,7 @@
 -- Activos primero, por sede o edificio y nombre del área, con si el área se archivó en «Áreas»; con
 -- :areaId, ese espacio (la respuesta de un comando).
 SELECT s.area_id, a.name AS area_name, g.name AS "group_name?", (a.archived_at IS NOT NULL) AS "area_archived!",
-       s.capacity, s.weekly_hours, s.version, s.archived_at
+       s.abbreviation, s.capacity, s.weekly_hours, s.version, s.archived_at
 FROM labs.spaces AS s
 JOIN core.locations AS a ON a.workspace_id = s.workspace_id AND a.id = s.area_id
 LEFT JOIN core.locations AS g ON g.workspace_id = a.workspace_id AND g.id = a.parent_id AND g.kind IN ('site', 'building')
@@ -28,7 +28,7 @@ FOR SHARE OF l;
 
 /* @name lockSpace */
 -- Lo último del orden de bloqueo (02 §6): el espacio que se habilita, se edita o se archiva.
-SELECT capacity, weekly_hours, archived_at, version
+SELECT abbreviation, capacity, weekly_hours, archived_at, version
 FROM labs.spaces
 WHERE workspace_id = :workspaceId! AND area_id = :areaId!
 FOR UPDATE;
@@ -42,17 +42,17 @@ FOR SHARE;
 
 /* @name insertSpace */
 -- Si otra persona habilitó la misma área a la vez, no inserta nada y el comando responde que ya está
--- habilitada.
-INSERT INTO labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_by_principal_id)
-VALUES (:workspaceId!, :areaId!, :capacity!, :weeklyHours!::jsonb, :createdBy!)
+-- habilitada. Una sigla tomada (spaces_abbreviation) falla y el comando responde CODE_TAKEN.
+INSERT INTO labs.spaces (workspace_id, area_id, abbreviation, capacity, weekly_hours, created_by_principal_id)
+VALUES (:workspaceId!, :areaId!, :abbreviation!, :capacity!, :weeklyHours!::jsonb, :createdBy!)
 ON CONFLICT (workspace_id, area_id) DO NOTHING
 RETURNING area_id;
 
 /* @name writeSpace */
--- Escribe aforo y horario ya combinados, reactiva si estaba archivado y sube la versión; el comando lo
--- hace con el espacio bloqueado.
+-- Escribe sigla, aforo y horario ya combinados, reactiva si estaba archivado y sube la versión; el
+-- comando lo hace con el espacio bloqueado. Una sigla tomada falla igual que al habilitar.
 UPDATE labs.spaces
-SET capacity = :capacity!, weekly_hours = :weeklyHours!::jsonb, archived_at = NULL, version = version + 1
+SET abbreviation = :abbreviation!, capacity = :capacity!, weekly_hours = :weeklyHours!::jsonb, archived_at = NULL, version = version + 1
 WHERE workspace_id = :workspaceId! AND area_id = :areaId!;
 
 /* @name archiveSpace */
