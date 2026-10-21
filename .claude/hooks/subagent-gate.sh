@@ -60,7 +60,7 @@ changed=""
 lane=$(grep -E "$delicate" <<<"$changed")
 if [ -n "$lane" ]; then
   failed+=" carril ($(paste -sd' ' <<<"$lane"))"
-  out+="Cambiaste lógica delicada, que le corresponde a platlab-implementer (ADR 0013):"$'\n'"$lane"$'\n'
+  out+="Cambiaste lógica delicada, que le corresponde a la sesión principal (ADR 0013):"$'\n'"$lane"$'\n'
   out+="No lo deshagas por tu cuenta: repórtalo como «Bloqueo». Si lo cambió otro agente en paralelo o una regeneración (pnpm db:types), dilo."$'\n'
 fi
 
