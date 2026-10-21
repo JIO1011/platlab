@@ -22,13 +22,13 @@ export const labsWebModule: WebModule = {
     {
       point: 'areas.area-panel',
       label: 'Laboratorio',
-      permission: 'labs.space.read',
+      permission: 'labs.read',
       load: async () => (await extensionPages()).AreaLabPanel,
     },
     {
       point: 'areas.area-mark',
       label: 'Habilitada para prácticas',
-      permission: 'labs.space.read',
+      permission: 'labs.read',
       load: async () => (await extensionPages()).AreaLabMark,
     },
     {

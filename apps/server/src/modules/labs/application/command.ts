@@ -1,7 +1,7 @@
 import { moduleCommand, moduleQuery } from '../../core/index.js';
 
 /** Permisos de Laboratorios (manifiesto, ADR 0023): Administrador, Operador y Docente consultan. */
-const READ = 'labs.space.read';
+const READ = 'labs.read';
 /** Espacios, cierres y anticipación: el Administrador. */
 export const SPACE_MANAGE = 'labs.space.manage';
 /** El Formato de solicitud: el Administrador. */

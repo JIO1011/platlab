@@ -386,7 +386,7 @@ grant insert (workspace_id, form_id, revision, title, document_code, layout, pub
 -- ---------------------------------------------------------------------------
 
 insert into core.permissions (code, module_code) values
-  ('labs.space.read', 'labs'),
+  ('labs.read', 'labs'),
   ('labs.space.manage', 'labs'),
   ('labs.form.manage', 'labs');
 
@@ -394,8 +394,8 @@ insert into core.permissions (code, module_code) values
 -- Docente consultan (el Docente llenará los formatos activos en L-01b). El Propietario hereda por
 -- core.effective_role_assignments.
 insert into core.role_permissions (role_code, permission_code) values
-  ('admin', 'labs.space.read'),
+  ('admin', 'labs.read'),
   ('admin', 'labs.space.manage'),
   ('admin', 'labs.form.manage'),
-  ('operator', 'labs.space.read'),
-  ('teacher', 'labs.space.read');
+  ('operator', 'labs.read'),
+  ('teacher', 'labs.read');

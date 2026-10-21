@@ -11,11 +11,11 @@ export const labsModule = defineModule({
   name: 'Laboratorios',
   requires: ['core'],
   integrates: [],
-  permissions: ['labs.space.read', 'labs.space.manage', 'labs.form.manage'],
+  permissions: ['labs.read', 'labs.space.manage', 'labs.form.manage'],
   roleGrants: {
-    admin: ['labs.space.read', 'labs.space.manage', 'labs.form.manage'],
-    operator: ['labs.space.read'],
-    teacher: ['labs.space.read'],
+    admin: ['labs.read', 'labs.space.manage', 'labs.form.manage'],
+    operator: ['labs.read'],
+    teacher: ['labs.read'],
   },
   nav: [
     {
