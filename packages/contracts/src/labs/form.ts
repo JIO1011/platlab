@@ -9,6 +9,9 @@ import { expectedVersion, text } from '../common.js';
  */
 
 export const FORM_MAX_FREE_FIELDS = 30;
+/** Datos por fila de la Sección I y firmas al pie: de 1 a 3. */
+export const FORM_MAX_PER_ROW = 3;
+export const FORM_MAX_SIGNATURES = 3;
 
 /** Los datos del sistema que el Cronograma y el aforo usan: se renombran y se mueven, pero no se quitan. */
 export const FORM_ESSENTIAL_KEYS = ['docente', 'titulo', 'fecha', 'horario', 'participantes'] as const;
@@ -50,7 +53,7 @@ export const formField = z.union([formSystemField, formFreeField]);
 /** La Sección I: títulos de sección opcionales y filas de 1 a 3 datos «etiqueta | valor». */
 const formRow = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('section'), title: text(80) }).strict(),
-  z.object({ kind: z.literal('row'), fields: z.array(formField).min(1).max(3) }).strict(),
+  z.object({ kind: z.literal('row'), fields: z.array(formField).min(1).max(FORM_MAX_PER_ROW) }).strict(),
 ]);
 
 export const formResourceKind = z.enum(['reagents', 'equipment', 'materials']);
@@ -74,7 +77,7 @@ export const formLayout = z
     signatures: z
       .array(signature)
       .min(1)
-      .max(3)
+      .max(FORM_MAX_SIGNATURES)
       .refine((values) => values.filter((value) => value.requester).length <= 1, 'Solo una firma es del solicitante'),
   })
   .strict()

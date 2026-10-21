@@ -16,7 +16,7 @@ import {
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FORM_MAX_FREE_FIELDS } from '@platlab/contracts';
+import { FORM_MAX_FREE_FIELDS, FORM_MAX_PER_ROW } from '@platlab/contracts';
 import {
   Button,
   DropdownMenu,
@@ -36,7 +36,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useMediaQuery } from '../../app/use-media-query';
 import { SYSTEM_LABELS, fieldsOf, freeKeys, newField, typeLabels, type DraftField, type DraftRow, type FieldType, type FormIssues, type SystemKey } from './form-draft';
 import {
-  MAX_PER_ROW,
   addField,
   addSection,
   canAddFree,
@@ -408,7 +407,7 @@ export function FormRowsEditor({ rows, issues, onChange }: { rows: DraftRow[]; i
           ? placeInRow(rows, id, rowOf.id, rowOf.fields.findIndex((field) => field.id === String(over.id)))
           : undefined;
     if (next) apply(next, `${nameOf(id)} quedó en ${whereIs(next, id)}.`, `move-${id}`);
-    else setStatus(`Esa fila ya tiene ${MAX_PER_ROW} datos: no cabe otro.`);
+    else setStatus(`Esa fila ya tiene ${FORM_MAX_PER_ROW} datos: no cabe otro.`);
   };
 
   const add = (type: FieldType) => {

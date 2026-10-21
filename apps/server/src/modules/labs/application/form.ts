@@ -5,6 +5,7 @@ import {
   type createFormRequest,
   type FormLayout,
   type FormList,
+  type FormSummary,
   type LabsForm,
   type publishFormRequest,
   type updateFormRequest,
@@ -20,6 +21,7 @@ import {
   listForms as listFormsQuery,
   lockForm,
   renameForm,
+  type IListFormsResult,
 } from '../infrastructure/form.queries.js';
 import { FORM_MANAGE, runCommand, runQuery } from './command.js';
 
@@ -32,20 +34,20 @@ import { FORM_MANAGE, runCommand, runQuery } from './command.js';
 const notFound = () => new AppError('NOT_FOUND', 'Recurso no encontrado');
 const revisionConflict = () => new AppError('VERSION_CONFLICT', 'Otra persona publicó el formato mientras editabas: vuelve a cargarlo');
 
+const toSummary = (row: IListFormsResult): FormSummary => ({
+  id: row.id,
+  name: row.name,
+  version: row.version,
+  archivedAt: row.archived_at?.toISOString() ?? null,
+  revision: row.revision,
+  title: row.title,
+  publishedAt: row.published_at.toISOString(),
+});
+
 async function formById(access: WorkspaceAccess, formId: string): Promise<LabsForm> {
   const [row] = await formByIdQuery.run({ workspaceId: access.workspace.id, formId }, access.client);
   if (!row) throw notFound();
-  return {
-    id: row.id,
-    name: row.name,
-    version: row.version,
-    archivedAt: row.archived_at?.toISOString() ?? null,
-    revision: row.revision,
-    title: row.title,
-    documentCode: row.document_code,
-    layout: row.layout as FormLayout,
-    publishedAt: row.published_at.toISOString(),
-  };
+  return { ...toSummary(row), documentCode: row.document_code, layout: row.layout as FormLayout };
 }
 
 /** Un nombre activo repetido (forms_active_name), también si otra persona lo tomó a la vez, es NAME_TAKEN. */
@@ -64,17 +66,7 @@ export function listForms(pool: pg.Pool, request: QueryRequest): Promise<FormLis
   return runQuery(pool, request, async (access) => {
     const includeArchived = await hasPermission(access, FORM_MANAGE);
     const rows = await listFormsQuery.run({ workspaceId: access.workspace.id, includeArchived }, access.client);
-    return {
-      items: rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        version: row.version,
-        archivedAt: row.archived_at?.toISOString() ?? null,
-        revision: row.revision,
-        title: row.title,
-        publishedAt: row.published_at.toISOString(),
-      })),
-    };
+    return { items: rows.map(toSummary) };
   });
 }
 

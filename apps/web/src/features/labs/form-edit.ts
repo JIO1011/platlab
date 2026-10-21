@@ -1,4 +1,4 @@
-import { FORM_MAX_FREE_FIELDS, FORM_OPTIONAL_KEYS } from '@platlab/contracts';
+import { FORM_MAX_FREE_FIELDS, FORM_MAX_PER_ROW, FORM_MAX_SIGNATURES, FORM_OPTIONAL_KEYS } from '@platlab/contracts';
 import {
   SYSTEM_LABELS,
   fieldsOf,
@@ -17,10 +17,6 @@ import {
  * (un dato esencial que se quita, una fila de cuatro datos, una columna menos de la mínima…), `undefined`, y la pantalla
  * lo explica. Nada se guarda hasta «Publicar revisión».
  */
-
-/** Los datos que caben en una fila. */
-export const MAX_PER_ROW = 3;
-export const MAX_SIGNATURES = 3;
 
 /** Los elementos con el de la posición `from` llevado a `to` (acotada a la lista); una posición que no existe, o la misma, devuelve la lista sin cambios. */
 export function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
@@ -116,7 +112,7 @@ export function placeInRow(rows: readonly DraftRow[], fieldId: string, rowId: st
   if (!from || source?.kind !== 'row' || destination?.kind !== 'row') return undefined;
   if (from.row === target) return replaceAt(rows, target, { ...destination, fields: moveItem(destination.fields, from.at, index) });
   const field = source.fields[from.at];
-  if (!field || destination.fields.length >= MAX_PER_ROW) return undefined;
+  if (!field || destination.fields.length >= FORM_MAX_PER_ROW) return undefined;
   const fields = [...destination.fields];
   fields.splice(Math.min(Math.max(index, 0), fields.length), 0, field);
   return without(rows, fieldId).map((row) => (row.id === rowId && row.kind === 'row' ? { ...row, fields } : row));
@@ -152,7 +148,7 @@ export function shiftField(rows: readonly DraftRow[], fieldId: string, direction
   }
   const step = direction === 'up' ? -1 : 1;
   const next = rows[from.row + step];
-  if (next?.kind === 'row' && next.fields.length < MAX_PER_ROW) return placeInRow(rows, fieldId, next.id, Math.min(from.at, next.fields.length));
+  if (next?.kind === 'row' && next.fields.length < FORM_MAX_PER_ROW) return placeInRow(rows, fieldId, next.id, Math.min(from.at, next.fields.length));
   if (row.fields.length > 1) return placeInNewRow(rows, fieldId, step < 0 ? from.row : from.row + 1);
   return next ? moveItem(rows, from.row, from.row + step) : undefined;
 }
@@ -167,7 +163,7 @@ export function setResourceShown(resources: readonly DraftResource[], kind: Reso
 }
 
 export const addSignature = (signatures: readonly DraftSignature[]): DraftSignature[] | undefined =>
-  signatures.length >= MAX_SIGNATURES ? undefined : [...signatures, { id: crypto.randomUUID(), label: '', requester: false }];
+  signatures.length >= FORM_MAX_SIGNATURES ? undefined : [...signatures, { id: crypto.randomUUID(), label: '', requester: false }];
 
 export const removeSignature = (signatures: readonly DraftSignature[], id: string): DraftSignature[] | undefined =>
   signatures.length <= 1 ? undefined : signatures.filter((signature) => signature.id !== id);

@@ -1,7 +1,8 @@
+import { FORM_MAX_SIGNATURES } from '@platlab/contracts';
 import { Button, OptionRow, cn } from '@platlab/ui';
 import { Plus, Trash2 } from 'lucide-react';
 import type { Draft, DraftSignature, FormIssues } from './form-draft';
-import { MAX_SIGNATURES, addSignature, removeSignature, renameSignature, setRequester } from './form-edit';
+import { addSignature, removeSignature, renameSignature, setRequester } from './form-edit';
 import { Cell, EditableText, Ghost, sheetGrid } from './form-parts';
 
 /** Las columnas del pie según las firmas (1 a 3): el rótulo «Entrega / Recepción» y una columna por firma. */
@@ -72,7 +73,7 @@ export function Signatures({ draft, issues, onChange }: { draft: Draft; issues: 
     <footer aria-label="Entrega y recepción" className={cn(sheetGrid, footerColumns[signatures.length - 1], 'print:h-[18mm]')}>
       <Cell kind="head" className="flex flex-col items-center justify-center gap-1 text-center">
         Entrega / Recepción
-        {onChange && signatures.length < MAX_SIGNATURES ? (
+        {onChange && signatures.length < FORM_MAX_SIGNATURES ? (
           <Button className="h-11 sm:h-6 print:hidden" onClick={() => apply(addSignature(signatures))}>
             <Plus aria-hidden />
             Agregar firma

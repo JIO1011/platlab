@@ -1,8 +1,7 @@
-import { FORM_MAX_FREE_FIELDS, FORM_STANDARD_LAYOUT, publishFormRequest, type LabsForm } from '@platlab/contracts';
+import { FORM_MAX_FREE_FIELDS, FORM_MAX_PER_ROW, FORM_STANDARD_LAYOUT, publishFormRequest, type LabsForm } from '@platlab/contracts';
 import { describe, expect, it } from 'vitest';
 import { draftFrom, fieldsOf, newField, publishPayload, type DraftRow } from './form-draft';
 import {
-  MAX_PER_ROW,
   addField,
   addSignature,
   canAddFree,
@@ -97,7 +96,7 @@ describe('placeInRow', () => {
 
   it('ninguna fila pasa de tres datos tras mover', () => {
     const next = placeInRow(base.rows, 'tipo', 'row-1', 0);
-    expect(next && Math.max(...idsOf(next).map((ids) => ids.length))).toBeLessThanOrEqual(MAX_PER_ROW);
+    expect(next && Math.max(...idsOf(next).map((ids) => ids.length))).toBeLessThanOrEqual(FORM_MAX_PER_ROW);
   });
 });
 
