@@ -38,7 +38,7 @@ export function ResourcesTable({ draft, issues, onChange }: { draft: Draft; issu
   const weights = shown.flatMap((resource) => columnWeights(resource.kind, draft.equipmentCode));
   const total = weights.reduce((sum, weight) => sum + weight, 0);
   const head = cn(sheetCell, denseCell, cellKinds.head, 'text-center');
-  const sub = cn(sheetCell, denseCell, cellKinds.label, 'text-center text-[10px]');
+  const sub = cn(sheetCell, denseCell, cellKinds.label, 'text-center text-[11px]');
 
   const heading = (resource: DraftResource) => (
     <th key={resource.kind} rowSpan={2} className={cn(head, editable && 'p-0.5')}>

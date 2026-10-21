@@ -116,7 +116,7 @@ export function PeriodsSection({
             {active.length === 0 ? (
               <p className="rounded-control bg-surface-sunken px-3 py-3 text-sm text-ink-muted">Aún no hay períodos: mientras no exista uno, no se agenda.</p>
             ) : (
-              <ul className="divide-y divide-line rounded-control border border-line bg-surface/60">
+              <ul className="divide-y divide-line">
                 {active.map((entry) => (
                   <PeriodRow key={entry.id} workspaceId={workspaceId} period={entry} {...(canManage ? { onEdit: () => openSheet(entry) } : {})} />
                 ))}
@@ -127,7 +127,7 @@ export function PeriodsSection({
                 <summary className="min-h-11 cursor-pointer list-none text-sm font-medium text-action focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action [&::-webkit-details-marker]:hidden">
                   Archivados ({archived.length})
                 </summary>
-                <ul className="mt-1 divide-y divide-line rounded-control border border-line bg-surface/60">
+                <ul className="mt-1 divide-y divide-line">
                   {archived.map((entry) => (
                     <PeriodRow key={entry.id} workspaceId={workspaceId} period={entry} />
                   ))}

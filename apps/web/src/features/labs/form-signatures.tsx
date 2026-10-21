@@ -53,7 +53,7 @@ function Signature({
           signature.label.trim() || 'Firma'
         )}
       </div>
-      <Ghost note className="min-h-[0.875rem] text-center text-[10px] leading-tight">
+      <Ghost note className="min-h-[0.875rem] text-center text-[11px] leading-tight">
         {signature.requester ? 'Nombre de quien solicita (de su cuenta)' : undefined}
       </Ghost>
     </div>

@@ -58,7 +58,7 @@ import { Cell, Datum, EditableText, FieldSummary, Ghost, datumRoot, dataRowGrid,
 const SYSTEM_EXAMPLES: Record<SystemKey, string> = {
   titulo: 'Nombre de la práctica o del trabajo',
   docente: 'Nombre del docente',
-  tipo: 'Práctica, servicio, capacitación…',
+  tipo: 'Se elige de una lista',
   asignatura: 'Se elige de una lista',
   carrera: 'Se elige de una lista',
   fecha: 'Una o varias fechas',

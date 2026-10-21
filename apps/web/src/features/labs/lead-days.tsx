@@ -1,7 +1,7 @@
 import { updateLabsSettingsRequest, type LabsSettings } from '@platlab/contracts';
 import { Button, Field, Input, Skeleton, toast } from '@platlab/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { QueryErrorState } from '../../app/states';
 import { labsErrorMessage, useSaveSettings } from './commands';
 
@@ -25,6 +25,7 @@ export function LeadDaysSection({
   // Sin edición en curso (`null`), el campo sigue al valor confirmado; guardado, vuelve a seguirlo.
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hintId = useId();
   const saved = settings.data?.leadDays;
   const text = draft ?? String(saved ?? '');
   const dirty = draft !== null && draft !== String(saved);
@@ -56,36 +57,39 @@ export function LeadDaysSection({
         ) : settings.isError ? (
           <QueryErrorState error={settings.error} onRetry={() => void settings.refetch()} />
         ) : canManage ? (
-          <form
-            className="flex flex-wrap items-end gap-x-4 gap-y-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void submit();
-            }}
-          >
-            <Field
-              label="Días de anticipación"
-              hint="Con cuántos días de antelación se pide un espacio. Vale para todas las áreas."
-              error={error ?? undefined}
-              className="min-w-0 flex-1 basis-64"
+          <div className="grid gap-1.5">
+            <form
+              className="flex flex-wrap items-start gap-x-4 gap-y-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submit();
+              }}
             >
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={90}
-                className="h-11 w-32 tabular-nums sm:h-10"
-                value={text}
-                onChange={(event) => {
-                  setDraft(event.target.value);
-                  setError(null);
-                }}
-              />
-            </Field>
-            <Button type="submit" variant="primary" className="h-11 sm:h-10" disabled={!dirty} loading={save.isPending}>
-              Guardar anticipación
-            </Button>
-          </form>
+              <Field label="Días de anticipación" error={error ?? undefined}>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={90}
+                  className="h-11 w-32 tabular-nums sm:h-10"
+                  // La pista va bajo la fila para que el botón quede junto al campo; con error, Field describe el error.
+                  {...(error ? {} : { 'aria-describedby': hintId })}
+                  value={text}
+                  onChange={(event) => {
+                    setDraft(event.target.value);
+                    setError(null);
+                  }}
+                />
+              </Field>
+              {/* Alineado con el campo: baja lo que ocupa el rótulo (20px de línea + 6px de separación). */}
+              <Button type="submit" variant="primary" className="mt-[26px] h-11 sm:h-10" disabled={!dirty} loading={save.isPending}>
+                Guardar anticipación
+              </Button>
+            </form>
+            <p id={hintId} className="text-[13px] text-ink-muted">
+              Con cuántos días de antelación se pide un espacio. Vale para todas las áreas.
+            </p>
+          </div>
         ) : (
           <p className="text-sm text-ink">
             <span className="font-medium tabular-nums">{saved === 1 ? '1 día' : `${saved} días`}</span> de anticipación para solicitar un espacio.

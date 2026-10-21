@@ -3,7 +3,6 @@ import { Button, Skeleton, toast } from '@platlab/ui';
 import { Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmArchive } from '../../app/confirm-archive';
-import { CodeTag } from '../../app/code-tag';
 import { QueryErrorState } from '../../app/states';
 import { useLabsAccess } from './area-access';
 import { ClosuresList } from './closures';
@@ -48,10 +47,7 @@ function SpaceDetails({ workspaceId, space, areaName, canManage, onEdit }: { wor
         <div className="grid gap-1 text-sm">
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums text-ink">
             <span>{space.capacity === 1 ? 'Aforo: 1 persona' : `Aforo: ${space.capacity} personas`}</span>
-            <span className="inline-flex items-center gap-1.5">
-              Sigla
-              <CodeTag>{space.abbreviation}</CodeTag>
-            </span>
+            <span>Sigla: {space.abbreviation}</span>
           </p>
           {hours.length === 0 ? (
             <p className="text-ink-muted">Sin horario: no se puede agendar ningún día.</p>
@@ -69,8 +65,8 @@ function SpaceDetails({ workspaceId, space, areaName, canManage, onEdit }: { wor
               <Pencil aria-hidden />
               Editar
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setArchiving(true)}>
-              Archivar
+            <Button size="sm" variant="ghost" aria-label={`Archivar el espacio de ${areaName}`} onClick={() => setArchiving(true)}>
+              Archivar espacio
             </Button>
           </div>
         ) : null}

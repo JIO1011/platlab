@@ -18,14 +18,14 @@ export const fieldTypes = Object.keys(typeLabels) as FieldType[];
 export const sheetGrid = 'grid gap-px bg-line-strong';
 
 /**
- * Las columnas de una fila de la Sección I según sus datos (1 a 3): cada dato es etiqueta y valor, y el valor es algo
- * más ancho. En el móvil, un dato por fila. Cada dato es una subrejilla de dos columnas (`datumRoot`), para que las
- * etiquetas de una fila queden alineadas con sus valores.
+ * Las columnas de una fila de la Sección I según sus datos (1 a 3): cada dato es etiqueta y valor; con 2, la etiqueta
+ * es algo más ancha y, con 3, el valor, que lleva sus controles. En el móvil, un dato por fila. Cada dato es una
+ * subrejilla de dos columnas (`datumRoot`), para que las etiquetas de una fila queden alineadas con sus valores.
  */
 const rowColumns = [
   'sm:grid-cols-[minmax(0,1fr)_minmax(0,4fr)]',
-  'sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.5fr)]',
-  'sm:grid-cols-[repeat(3,minmax(0,1fr)_minmax(0,1.2fr))]',
+  'sm:grid-cols-[repeat(2,minmax(0,1.25fr)_minmax(0,1fr))]',
+  'sm:grid-cols-[repeat(3,minmax(0,1fr)_minmax(0,1.25fr))]',
 ] as const;
 
 export const dataRowGrid = (count: number) => cn(sheetGrid, 'grid-cols-[minmax(0,2fr)_minmax(0,3fr)]', rowColumns[Math.min(Math.max(count, 1), 3) - 1]);
@@ -48,9 +48,12 @@ export const cellKinds = {
  */
 export const denseCell = 'min-h-6 px-1.5 py-0.5 print:h-[4.5mm] print:min-h-0 print:overflow-hidden print:whitespace-nowrap print:px-1 print:py-0 print:text-[8pt] print:leading-[4.5mm]';
 
+/** La etiqueta de un dato, en cambio, no se recorta al imprimir: envuelve y la fila crece (4,5 mm como mínimo). */
+const denseLabelCell = 'min-h-6 px-1.5 py-0.5 print:h-auto print:min-h-[4.5mm] print:px-1 print:py-0 print:text-[8pt] print:leading-[4.5mm]';
+
 /** Una celda de la hoja; `dense` la deja del alto de una fila de la plantilla. */
 export function Cell({ kind = 'value', dense = false, className, children }: { kind?: keyof typeof cellKinds; dense?: boolean; className?: string | undefined; children?: ReactNode }) {
-  return <div className={cn('min-w-0 break-words px-2 py-1 leading-snug', cellKinds[kind], dense && denseCell, className)}>{children}</div>;
+  return <div className={cn('min-w-0 break-words px-2 py-1 leading-snug', cellKinds[kind], dense && (kind === 'label' ? denseLabelCell : denseCell), className)}>{children}</div>;
 }
 
 /**
@@ -95,13 +98,14 @@ export function EditableText({
   placeholder?: string;
   error?: string | undefined;
   focusKey?: string;
-  onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
+  onKeyDown?: KeyboardEventHandler<HTMLTextAreaElement>;
   className?: string;
 }) {
   const errorId = useId();
   return (
     <>
-      <input
+      <textarea
+        rows={1}
         aria-label={label}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
@@ -110,10 +114,14 @@ export function EditableText({
         maxLength={maxLength}
         placeholder={placeholder}
         autoComplete="off"
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={onKeyDown}
+        onChange={(event) => onChange(event.target.value.replace(/[\r\n]+/g, ''))}
+        onKeyDown={(event) => {
+          // Es un campo de una línea que se ajusta al texto: Enter no abre otra.
+          if (event.key === 'Enter') event.preventDefault();
+          onKeyDown?.(event);
+        }}
         className={cn(
-          'block min-h-11 w-full rounded-[4px] border-b border-dashed border-ink-subtle bg-transparent px-1.5 py-1 font-[inherit] text-inherit placeholder:font-normal placeholder:text-ink-subtle sm:min-h-8',
+          'block min-h-11 w-full resize-none overflow-hidden rounded-[4px] border-b border-dashed border-ink-subtle bg-transparent px-1.5 py-1 font-[inherit] leading-[inherit] text-inherit field-sizing-content placeholder:font-normal placeholder:text-ink-subtle sm:min-h-8',
           'transition-colors hover:bg-action-soft focus-visible:bg-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action',
           className,
         )}

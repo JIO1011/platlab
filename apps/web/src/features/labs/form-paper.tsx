@@ -11,7 +11,7 @@ import { Signatures } from './form-signatures';
 function MastheadBlock({ head, headClassName, children }: { head: string; headClassName?: string; children: ReactNode }) {
   return (
     <div className={cn(sheetGrid, 'grid-rows-[auto_minmax(0,1fr)]')}>
-      <Cell kind="head" className={cn('py-0 text-center text-[10px] print:text-[7pt] print:leading-[3.5mm]', headClassName)}>
+      <Cell kind="head" className={cn('py-0 text-center text-[11px] print:text-[7pt] print:leading-[3.5mm]', headClassName)}>
         {head}
       </Cell>
       {children}
@@ -57,7 +57,7 @@ function Masthead({ draft, workspaceName, revision, issues, editable, set }: { d
           ) : code ? (
             <span className="font-bold print:text-[9pt]">{code}</span>
           ) : null}
-          <Ghost note className="text-[10px] leading-tight">
+          <Ghost note className="text-[11px] leading-tight">
             Lo pone el sistema al programar
           </Ghost>
         </Cell>
