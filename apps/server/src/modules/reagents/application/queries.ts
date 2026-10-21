@@ -26,8 +26,8 @@ import {
   brandsOf,
   containerItem,
   countOperationsPerDay,
-  entriesOf,
   hasMovements,
+  hasStockAt,
   listIssueRequests,
   listOperationPage,
   listPositionPage,
@@ -35,8 +35,8 @@ import {
   operationTotalsOf,
   pendingRequestCount,
   reasonsOf,
+  stockedItemCounts,
   suggestContainerCodes,
-  type NamedList,
   type OperationFilter,
 } from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
@@ -46,6 +46,7 @@ import {
   hasPermission,
   moduleQuery,
   requirePermission,
+  type AreaContribution,
   type HomeContribution,
   type QueryRequest,
   type WorkspaceAccess,
@@ -87,6 +88,8 @@ const toStockedProduct = (row: IListProductsResult): StockedProduct => ({
   expiredContainers: row.expired_containers,
   expiringContainers: row.expiring_containers,
   belowMinimum: row.below_minimum,
+  areaIds: row.area_ids,
+  departmentIds: row.department_ids,
 });
 
 /**
@@ -139,11 +142,6 @@ export function listRequests(
 /** Motivos de salida o de ajuste: los usa quien registra; los administra el Administrador. */
 export function listReasons(pool: pg.Pool, request: QueryRequest, kind: ReasonKind): Promise<{ items: ListEntry[] }> {
   return runQuery(pool, request, async (access) => ({ items: await reasonsOf(inventoryContext(access), kind) }));
-}
-
-/** Destinos o áreas del espacio (ADR 0012, 0015). */
-export function listEntries(pool: pg.Pool, request: QueryRequest, list: NamedList): Promise<{ items: ListEntry[] }> {
-  return runQuery(pool, request, async (access) => ({ items: await entriesOf(inventoryContext(access), list) }));
 }
 
 /** Marcas ya usadas, para sugerirlas al registrar un ingreso (ADR 0015). */
@@ -381,3 +379,12 @@ export function getContainer(pool: pg.Pool, request: QueryRequest, containerId: 
     return { containerId, productId };
   });
 }
+
+/**
+ * Aporte de Reactivos a Áreas (ADR 0024): reactivos distintos con existencias por área y por departamento,
+ * y si quedan existencias en unas ubicaciones.
+ */
+export const reagentsAreaContribution: AreaContribution = {
+  counts: (access) => stockedItemCounts(inventoryContext(access)),
+  occupies: (access, locationIds) => hasStockAt(inventoryContext(access), locationIds),
+};

@@ -37,9 +37,9 @@ export function useCreateAssetType(workspaceId: string) {
   return useModuleCommand(workspaceId, '/equipment/asset-types', assetType, useEquipmentKey(workspaceId));
 }
 
-/** Crear una ubicación de Core desde el selector por niveles (Administrador, ADR 0015). */
+/** Crear una ubicación del Núcleo desde el selector por niveles (Administrador, ADR 0015, 0024). */
 export function useCreateEquipmentLocation(workspaceId: string) {
-  return useModuleCommand(workspaceId, '/equipment/locations', location, useEquipmentKey(workspaceId));
+  return useModuleCommand(workspaceId, '/locations', location, useEquipmentKey(workspaceId));
 }
 
 /**
@@ -96,9 +96,9 @@ export function useArchiveAssetDocument(workspaceId: string, assetId: string) {
   });
 }
 
-/** Encargado de un área (E-01c, Administrador): un miembro activo, o `null` para quitarlo. */
+/** Encargado de un área (E-01c; en el Núcleo, ADR 0024): un miembro activo, o `null` para quitarlo. */
 export function useAssignAreaManager(workspaceId: string, areaId: string) {
-  return useModuleCommand(workspaceId, `/equipment/areas/${areaId}/manager`, areaManager, useEquipmentKey(workspaceId), 'PUT');
+  return useModuleCommand(workspaceId, `/areas/${areaId}/manager`, areaManager, useEquipmentKey(workspaceId), 'PUT');
 }
 
 /**

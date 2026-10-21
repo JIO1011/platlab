@@ -66,8 +66,8 @@ set constraints all immediate;
 select tables_are('core',
   array['workspaces', 'identities', 'memberships', 'principals', 'roles', 'permissions',
         'role_permissions', 'locations', 'role_assignments', 'module_definitions',
-        'module_dependencies', 'workspace_entitlements', 'audit_events'],
-  'core contiene solo las tablas de T-02 a T-05');
+        'module_dependencies', 'workspace_entitlements', 'audit_events', 'departments'],
+  'core contiene las tablas de T-02 a T-05 y los departamentos (ADR 0024)');
 
 -- ADR 0008 y 0016: los roles valen para todo el espacio; la asignación no tiene ámbito.
 select hasnt_column('core', 'role_assignments', 'location_id',
@@ -115,8 +115,9 @@ select set_eq(
         and privilege_type = 'UPDATE' $$,
   array['core.workspaces.version', 'core.memberships.version',
         'core.workspace_entitlements.version', 'platform.idempotency_records.response',
-        'core.locations.manager_principal_id', 'core.locations.version'],
-  'platlab_api solo actualiza version (para FOR SHARE), la respuesta idempotente y el encargado del área (E-01c)');
+        'core.locations.manager_principal_id', 'core.locations.version',
+        'core.locations.name', 'core.locations.archived_at', 'core.departments.name', 'core.departments.archived_at'],
+  'platlab_api solo actualiza version (para FOR SHARE), la respuesta idempotente, el encargado del área (E-01c) y el nombre y el archivo de ubicaciones y departamentos (ADR 0024)');
 
 select ok(
   not has_table_privilege('platlab_api', 'platform.customer_accounts', 'SELECT'),

@@ -20,15 +20,15 @@ export function useCommand<S extends z.ZodType>(
 const archived = z.object({ id: z.string() });
 
 /**
- * Quita una opción de las listas de motivos, destinos o áreas (la archiva: lo ya registrado la
- * conserva). Cada clic lleva su propia clave idempotente; refresca las listas con lo confirmado.
+ * Quita un motivo de la lista (lo archiva: lo ya registrado lo conserva). Cada clic lleva su propia clave
+ * idempotente; refresca las listas con lo confirmado.
  */
-export function useArchiveEntry(workspaceId: string, path: '/reasons' | '/destinations' | '/areas') {
+export function useArchiveEntry(workspaceId: string) {
   const queryClient = useQueryClient();
   const reagentsKey = useReagentsKey(workspaceId);
   return useMutation({
     mutationFn: (id: string) =>
-      api(`/workspaces/${workspaceId}/reagents${path}/${id}/archive`, {
+      api(`/workspaces/${workspaceId}/reagents/reasons/${id}/archive`, {
         method: 'POST',
         idempotencyKey: crypto.randomUUID(),
         schema: archived,
@@ -77,6 +77,7 @@ export function commandErrorMessage(error: unknown): string {
     return 'Otra persona está registrando en la misma ubicación. Vuelve a intentarlo: no se duplicará.';
   }
   if (isApiError(error, 'CODE_TAKEN')) return `${error.message}: cambia el código o usa el sugerido.`;
+  if (isApiError(error, 'NAME_TAKEN')) return error.message;
   if (isApiError(error, 'NOT_FOUND')) return 'Ese registro ya no está disponible en este espacio.';
   return commonErrorMessage(error, 'PlatLab no pudo registrar la acción. Vuelve a intentarlo.');
 }

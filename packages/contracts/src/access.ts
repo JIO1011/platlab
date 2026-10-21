@@ -27,6 +27,10 @@ export const myWorkspacesResponse = z.object({
 });
 
 /** Módulo visible para el miembro: lo que admite ahora y sus entradas de menú permitidas. */
+export const areasAccess = z.enum(['none', 'read', 'manage']);
+
+export type AreasAccess = z.infer<typeof areasAccess>;
+
 export const moduleAccess = z.object({
   code: z.string(),
   name: z.string(),
@@ -62,6 +66,8 @@ export const workspaceMeResponse = z.object({
   }),
   modules: z.array(moduleAccess),
   permissions: z.array(z.string()),
+  /** La sección Áreas (ADR 0024): `none` la oculta, `read` la muestra y `manage` además permite cambiarla. */
+  areas: areasAccess,
 });
 
 /**

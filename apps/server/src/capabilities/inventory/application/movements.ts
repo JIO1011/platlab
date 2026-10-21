@@ -11,6 +11,7 @@ import {
   lockContainerStock,
   lockCountPosition,
   lockPosition,
+  lockPositionPlace,
   lockTransferPosition,
   reserveContainerSeqs,
   setContainerTare,
@@ -317,6 +318,11 @@ export async function applyMovement(
   requireBaseUnit(input.unit, position.baseUnit);
   if (input.type === 'issue' && !position.movable) {
     throw new AppError('VALIDATION_FAILED', 'El frasco no está disponible para salidas');
+  }
+  // Sumar existencias exige que el frasco siga en una ubicación activa (ADR 0024): nada queda en un área archivada.
+  if (input.type !== 'issue' && !input.quantity.startsWith('-')) {
+    const [place] = await lockPositionPlace.run({ workspaceId: ctx.workspaceId, positionId: position.id }, ctx.client);
+    if (!place) throw new AppError('VALIDATION_FAILED', 'El frasco está en una ubicación archivada: no se le suman existencias');
   }
   const [operation] = await insertOperation.run(
     {

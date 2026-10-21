@@ -40,11 +40,6 @@ export const areaTypeList = z.object({
   ),
 });
 
-/** PUT /areas/:areaId/manager: asigna el encargado del área o lo quita con `null`. */
-export const assignAreaManagerRequest = z.object({ managerId: z.uuid().nullable() }).strict();
-
-export const areaManager = z.object({ areaId: z.uuid(), managerId: z.uuid().nullable() });
-
 /** Los filtros del Informe sin paginar: el Excel (GET /assets/export, ADR 0017) y los indicadores (GET /assets/totals). */
 export const assetFilterQuery = assetListQuery.omit({ cursor: true, limit: true });
 
@@ -65,5 +60,4 @@ export const assetTotals = z.object({
 export type Area = z.infer<typeof area>;
 export type AreaList = z.infer<typeof areaList>;
 export type AreaTypeList = z.infer<typeof areaTypeList>;
-export type AreaManager = z.infer<typeof areaManager>;
 export type AssetTotals = z.infer<typeof assetTotals>;

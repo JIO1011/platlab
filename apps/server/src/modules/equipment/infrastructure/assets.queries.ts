@@ -156,13 +156,14 @@ export interface IAssetReferencesQuery {
   result: IAssetReferencesResult;
 }
 
-const assetReferencesIR: any = {"usedParamSet":{"typeId":true,"workspaceId":true,"locationId":true,"responsibleId":true},"params":[{"name":"typeId","required":false,"transform":{"type":"scalar"},"locs":[{"a":180,"b":186},{"a":302,"b":308}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":279,"b":291},{"a":459,"b":471},{"a":759,"b":771}]},{"name":"locationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":363,"b":373},{"a":482,"b":492}]},{"name":"responsibleId","required":false,"transform":{"type":"scalar"},"locs":[{"a":551,"b":564},{"a":785,"b":798}]}],"statement":"-- Valida en un viaje las referencias de un alta o una edición; un parámetro nulo no se comprueba:\n-- tipo y ubicación activos del espacio, y responsable miembro activo.\nSELECT\n  (:typeId::uuid IS NULL OR EXISTS (\n    SELECT 1 FROM equipment.asset_types\n    WHERE workspace_id = :workspaceId! AND id = :typeId::uuid AND archived_at IS NULL\n  )) AS \"type_ok!\",\n  (:locationId::uuid IS NULL OR EXISTS (\n    SELECT 1 FROM core.locations\n    WHERE workspace_id = :workspaceId! AND id = :locationId::uuid AND archived_at IS NULL\n  )) AS \"location_ok!\",\n  (:responsibleId::uuid IS NULL OR EXISTS (\n    SELECT 1\n    FROM core.principals AS pr\n    JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n    WHERE pr.workspace_id = :workspaceId! AND pr.id = :responsibleId::uuid AND pr.kind = 'member' AND m.status = 'active'\n  )) AS \"responsible_ok!\""};
+const assetReferencesIR: any = {"usedParamSet":{"typeId":true,"workspaceId":true,"locationId":true,"responsibleId":true},"params":[{"name":"typeId","required":false,"transform":{"type":"scalar"},"locs":[{"a":299,"b":305},{"a":421,"b":427}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":398,"b":410},{"a":578,"b":590},{"a":892,"b":904}]},{"name":"locationId","required":false,"transform":{"type":"scalar"},"locs":[{"a":482,"b":492},{"a":601,"b":611}]},{"name":"responsibleId","required":false,"transform":{"type":"scalar"},"locs":[{"a":684,"b":697},{"a":918,"b":931}]}],"statement":"-- Valida en un viaje las referencias de un alta o una edición; un parámetro nulo no se comprueba:\n-- tipo y ubicación activos del espacio, y responsable miembro activo. La ubicación queda bloqueada\n-- (compartida) hasta el final: no se archiva mientras el equipo llega a ella (ADR 0024).\nSELECT\n  (:typeId::uuid IS NULL OR EXISTS (\n    SELECT 1 FROM equipment.asset_types\n    WHERE workspace_id = :workspaceId! AND id = :typeId::uuid AND archived_at IS NULL\n  )) AS \"type_ok!\",\n  (:locationId::uuid IS NULL OR EXISTS (\n    SELECT 1 FROM core.locations\n    WHERE workspace_id = :workspaceId! AND id = :locationId::uuid AND archived_at IS NULL\n    FOR SHARE\n  )) AS \"location_ok!\",\n  (:responsibleId::uuid IS NULL OR EXISTS (\n    SELECT 1\n    FROM core.principals AS pr\n    JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n    WHERE pr.workspace_id = :workspaceId! AND pr.id = :responsibleId::uuid AND pr.kind = 'member' AND m.status = 'active'\n  )) AS \"responsible_ok!\""};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Valida en un viaje las referencias de un alta o una edición; un parámetro nulo no se comprueba:
- * -- tipo y ubicación activos del espacio, y responsable miembro activo.
+ * -- tipo y ubicación activos del espacio, y responsable miembro activo. La ubicación queda bloqueada
+ * -- (compartida) hasta el final: no se archiva mientras el equipo llega a ella (ADR 0024).
  * SELECT
  *   (:typeId::uuid IS NULL OR EXISTS (
  *     SELECT 1 FROM equipment.asset_types
@@ -171,6 +172,7 @@ const assetReferencesIR: any = {"usedParamSet":{"typeId":true,"workspaceId":true
  *   (:locationId::uuid IS NULL OR EXISTS (
  *     SELECT 1 FROM core.locations
  *     WHERE workspace_id = :workspaceId! AND id = :locationId::uuid AND archived_at IS NULL
+ *     FOR SHARE
  *   )) AS "location_ok!",
  *   (:responsibleId::uuid IS NULL OR EXISTS (
  *     SELECT 1
@@ -245,39 +247,6 @@ const assetCodeTakenIR: any = {"usedParamSet":{"workspaceId":true,"code":true,"e
 export const assetCodeTaken = new PreparedQuery<IAssetCodeTakenParams,IAssetCodeTakenResult>(assetCodeTakenIR);
 
 
-/** 'ListResponsibles' parameters type */
-export interface IListResponsiblesParams {
-  workspaceId: string;
-}
-
-/** 'ListResponsibles' return type */
-export interface IListResponsiblesResult {
-  id: string;
-  name: string;
-}
-
-/** 'ListResponsibles' query type */
-export interface IListResponsiblesQuery {
-  params: IListResponsiblesParams;
-  result: IListResponsiblesResult;
-}
-
-const listResponsiblesIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":241,"b":253}]}],"statement":"SELECT pr.id, ident.display_name AS name\nFROM core.principals AS pr\nJOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nJOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE pr.workspace_id = :workspaceId! AND pr.kind = 'member' AND m.status = 'active'\nORDER BY inventory.fold_text(ident.display_name), pr.id"};
-
-/**
- * Query generated from SQL:
- * ```
- * SELECT pr.id, ident.display_name AS name
- * FROM core.principals AS pr
- * JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
- * JOIN core.identities AS ident ON ident.id = m.identity_id
- * WHERE pr.workspace_id = :workspaceId! AND pr.kind = 'member' AND m.status = 'active'
- * ORDER BY inventory.fold_text(ident.display_name), pr.id
- * ```
- */
-export const listResponsibles = new PreparedQuery<IListResponsiblesParams,IListResponsiblesResult>(listResponsiblesIR);
-
-
 /** 'InsertAsset' parameters type */
 export interface IInsertAssetParams {
   acquiredOn?: string | null | void;
@@ -286,6 +255,7 @@ export interface IInsertAssetParams {
   condition: string;
   conservation?: string | null | void;
   createdBy: string;
+  departmentId?: string | null | void;
   locationId: string;
   model?: string | null | void;
   name: string;
@@ -311,7 +281,7 @@ export interface IInsertAssetQuery {
   result: IInsertAssetResult;
 }
 
-const insertAssetIR: any = {"usedParamSet":{"workspaceId":true,"typeId":true,"code":true,"name":true,"brand":true,"model":true,"serialNumber":true,"powerSupply":true,"locationId":true,"responsibleId":true,"condition":true,"conservation":true,"supplier":true,"acquiredOn":true,"warrantyUntil":true,"usefulLifeYears":true,"replacementValue":true,"createdBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":378,"b":390}]},{"name":"typeId","required":true,"transform":{"type":"scalar"},"locs":[{"a":393,"b":400}]},{"name":"code","required":true,"transform":{"type":"scalar"},"locs":[{"a":403,"b":408}]},{"name":"name","required":true,"transform":{"type":"scalar"},"locs":[{"a":411,"b":416}]},{"name":"brand","required":false,"transform":{"type":"scalar"},"locs":[{"a":419,"b":424}]},{"name":"model","required":false,"transform":{"type":"scalar"},"locs":[{"a":427,"b":432}]},{"name":"serialNumber","required":false,"transform":{"type":"scalar"},"locs":[{"a":435,"b":447}]},{"name":"powerSupply","required":false,"transform":{"type":"scalar"},"locs":[{"a":450,"b":461}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":464,"b":475}]},{"name":"responsibleId","required":false,"transform":{"type":"scalar"},"locs":[{"a":480,"b":493}]},{"name":"condition","required":true,"transform":{"type":"scalar"},"locs":[{"a":496,"b":506}]},{"name":"conservation","required":false,"transform":{"type":"scalar"},"locs":[{"a":509,"b":521}]},{"name":"supplier","required":false,"transform":{"type":"scalar"},"locs":[{"a":524,"b":532}]},{"name":"acquiredOn","required":false,"transform":{"type":"scalar"},"locs":[{"a":535,"b":545}]},{"name":"warrantyUntil","required":false,"transform":{"type":"scalar"},"locs":[{"a":554,"b":567}]},{"name":"usefulLifeYears","required":false,"transform":{"type":"scalar"},"locs":[{"a":578,"b":593}]},{"name":"replacementValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":605,"b":621}]},{"name":"createdBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":633,"b":643}]}],"statement":"-- Un código repetido (assets_code) no inserta nada: el comando responde CODE_TAKEN.\nINSERT INTO equipment.assets (\n  workspace_id, type_id, code, name, brand, model, serial_number, power_supply, location_id,\n  responsible_principal_id, condition, conservation, supplier, acquired_on, warranty_until,\n  useful_life_years, replacement_value, created_by_principal_id\n) VALUES (\n  :workspaceId!, :typeId!, :code!, :name!, :brand, :model, :serialNumber, :powerSupply, :locationId!,\n  :responsibleId, :condition!, :conservation, :supplier, :acquiredOn::date, :warrantyUntil::date,\n  :usefulLifeYears::integer, :replacementValue::numeric, :createdBy!\n)\nON CONFLICT (workspace_id, lower(code)) DO NOTHING\nRETURNING id"};
+const insertAssetIR: any = {"usedParamSet":{"workspaceId":true,"typeId":true,"code":true,"name":true,"brand":true,"model":true,"serialNumber":true,"powerSupply":true,"locationId":true,"responsibleId":true,"condition":true,"conservation":true,"supplier":true,"acquiredOn":true,"warrantyUntil":true,"usefulLifeYears":true,"replacementValue":true,"departmentId":true,"createdBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":393,"b":405}]},{"name":"typeId","required":true,"transform":{"type":"scalar"},"locs":[{"a":408,"b":415}]},{"name":"code","required":true,"transform":{"type":"scalar"},"locs":[{"a":418,"b":423}]},{"name":"name","required":true,"transform":{"type":"scalar"},"locs":[{"a":426,"b":431}]},{"name":"brand","required":false,"transform":{"type":"scalar"},"locs":[{"a":434,"b":439}]},{"name":"model","required":false,"transform":{"type":"scalar"},"locs":[{"a":442,"b":447}]},{"name":"serialNumber","required":false,"transform":{"type":"scalar"},"locs":[{"a":450,"b":462}]},{"name":"powerSupply","required":false,"transform":{"type":"scalar"},"locs":[{"a":465,"b":476}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":479,"b":490}]},{"name":"responsibleId","required":false,"transform":{"type":"scalar"},"locs":[{"a":495,"b":508}]},{"name":"condition","required":true,"transform":{"type":"scalar"},"locs":[{"a":511,"b":521}]},{"name":"conservation","required":false,"transform":{"type":"scalar"},"locs":[{"a":524,"b":536}]},{"name":"supplier","required":false,"transform":{"type":"scalar"},"locs":[{"a":539,"b":547}]},{"name":"acquiredOn","required":false,"transform":{"type":"scalar"},"locs":[{"a":550,"b":560}]},{"name":"warrantyUntil","required":false,"transform":{"type":"scalar"},"locs":[{"a":569,"b":582}]},{"name":"usefulLifeYears","required":false,"transform":{"type":"scalar"},"locs":[{"a":593,"b":608}]},{"name":"replacementValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":620,"b":636}]},{"name":"departmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":648,"b":660}]},{"name":"createdBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":669,"b":679}]}],"statement":"-- Un código repetido (assets_code) no inserta nada: el comando responde CODE_TAKEN.\nINSERT INTO equipment.assets (\n  workspace_id, type_id, code, name, brand, model, serial_number, power_supply, location_id,\n  responsible_principal_id, condition, conservation, supplier, acquired_on, warranty_until,\n  useful_life_years, replacement_value, department_id, created_by_principal_id\n) VALUES (\n  :workspaceId!, :typeId!, :code!, :name!, :brand, :model, :serialNumber, :powerSupply, :locationId!,\n  :responsibleId, :condition!, :conservation, :supplier, :acquiredOn::date, :warrantyUntil::date,\n  :usefulLifeYears::integer, :replacementValue::numeric, :departmentId::uuid, :createdBy!\n)\nON CONFLICT (workspace_id, lower(code)) DO NOTHING\nRETURNING id"};
 
 /**
  * Query generated from SQL:
@@ -320,11 +290,11 @@ const insertAssetIR: any = {"usedParamSet":{"workspaceId":true,"typeId":true,"co
  * INSERT INTO equipment.assets (
  *   workspace_id, type_id, code, name, brand, model, serial_number, power_supply, location_id,
  *   responsible_principal_id, condition, conservation, supplier, acquired_on, warranty_until,
- *   useful_life_years, replacement_value, created_by_principal_id
+ *   useful_life_years, replacement_value, department_id, created_by_principal_id
  * ) VALUES (
  *   :workspaceId!, :typeId!, :code!, :name!, :brand, :model, :serialNumber, :powerSupply, :locationId!,
  *   :responsibleId, :condition!, :conservation, :supplier, :acquiredOn::date, :warrantyUntil::date,
- *   :usefulLifeYears::integer, :replacementValue::numeric, :createdBy!
+ *   :usefulLifeYears::integer, :replacementValue::numeric, :departmentId::uuid, :createdBy!
  * )
  * ON CONFLICT (workspace_id, lower(code)) DO NOTHING
  * RETURNING id
@@ -346,6 +316,7 @@ export interface ILockAssetResult {
   code: string;
   condition: string;
   conservation: string | null;
+  department_id: string | null;
   id: string;
   location_id: string;
   model: string | null;
@@ -367,7 +338,7 @@ export interface ILockAssetQuery {
   result: ILockAssetResult;
 }
 
-const lockAssetIR: any = {"usedParamSet":{"workspaceId":true,"assetId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":410,"b":422}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":433,"b":441}]}],"statement":"-- Lo último del orden de bloqueo (02 §6): el equipo, después de espacio, derecho y membresía.\nSELECT id, code, name, type_id, brand, model, serial_number, power_supply, location_id,\n       responsible_principal_id, condition, conservation, supplier, acquired_on, warranty_until,\n       useful_life_years, trim_scale(replacement_value) AS replacement_value, photo_id\nFROM equipment.assets\nWHERE workspace_id = :workspaceId! AND id = :assetId!\nFOR UPDATE"};
+const lockAssetIR: any = {"usedParamSet":{"workspaceId":true,"assetId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":425,"b":437}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":448,"b":456}]}],"statement":"-- Lo último del orden de bloqueo (02 §6): el equipo, después de espacio, derecho y membresía.\nSELECT id, code, name, type_id, brand, model, serial_number, power_supply, location_id,\n       responsible_principal_id, condition, conservation, supplier, acquired_on, warranty_until,\n       useful_life_years, trim_scale(replacement_value) AS replacement_value, department_id, photo_id\nFROM equipment.assets\nWHERE workspace_id = :workspaceId! AND id = :assetId!\nFOR UPDATE"};
 
 /**
  * Query generated from SQL:
@@ -375,7 +346,7 @@ const lockAssetIR: any = {"usedParamSet":{"workspaceId":true,"assetId":true},"pa
  * -- Lo último del orden de bloqueo (02 §6): el equipo, después de espacio, derecho y membresía.
  * SELECT id, code, name, type_id, brand, model, serial_number, power_supply, location_id,
  *        responsible_principal_id, condition, conservation, supplier, acquired_on, warranty_until,
- *        useful_life_years, trim_scale(replacement_value) AS replacement_value, photo_id
+ *        useful_life_years, trim_scale(replacement_value) AS replacement_value, department_id, photo_id
  * FROM equipment.assets
  * WHERE workspace_id = :workspaceId! AND id = :assetId!
  * FOR UPDATE
@@ -391,6 +362,7 @@ export interface IUpdateAssetFieldsParams {
   brand?: string | null | void;
   code: string;
   conservation?: string | null | void;
+  departmentId?: string | null | void;
   model?: string | null | void;
   name: string;
   powerSupply?: string | null | void;
@@ -415,7 +387,7 @@ export interface IUpdateAssetFieldsQuery {
   result: IUpdateAssetFieldsResult;
 }
 
-const updateAssetFieldsIR: any = {"usedParamSet":{"typeId":true,"code":true,"name":true,"brand":true,"model":true,"serialNumber":true,"powerSupply":true,"responsibleId":true,"conservation":true,"supplier":true,"acquiredOn":true,"warrantyUntil":true,"usefulLifeYears":true,"replacementValue":true,"workspaceId":true,"assetId":true},"params":[{"name":"typeId","required":true,"transform":{"type":"scalar"},"locs":[{"a":117,"b":124}]},{"name":"code","required":true,"transform":{"type":"scalar"},"locs":[{"a":134,"b":139}]},{"name":"name","required":true,"transform":{"type":"scalar"},"locs":[{"a":149,"b":154}]},{"name":"brand","required":false,"transform":{"type":"scalar"},"locs":[{"a":165,"b":170}]},{"name":"model","required":false,"transform":{"type":"scalar"},"locs":[{"a":181,"b":186}]},{"name":"serialNumber","required":false,"transform":{"type":"scalar"},"locs":[{"a":209,"b":221}]},{"name":"powerSupply","required":false,"transform":{"type":"scalar"},"locs":[{"a":239,"b":250}]},{"name":"responsibleId","required":false,"transform":{"type":"scalar"},"locs":[{"a":280,"b":293}]},{"name":"conservation","required":false,"transform":{"type":"scalar"},"locs":[{"a":315,"b":327}]},{"name":"supplier","required":false,"transform":{"type":"scalar"},"locs":[{"a":341,"b":349}]},{"name":"acquiredOn","required":false,"transform":{"type":"scalar"},"locs":[{"a":366,"b":376}]},{"name":"warrantyUntil","required":false,"transform":{"type":"scalar"},"locs":[{"a":406,"b":419}]},{"name":"usefulLifeYears","required":false,"transform":{"type":"scalar"},"locs":[{"a":448,"b":463}]},{"name":"replacementValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":499,"b":515}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":570,"b":582}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":593,"b":601}]}],"statement":"-- Escribe la ficha ya combinada; el comando la edita con el equipo bloqueado.\nUPDATE equipment.assets\nSET type_id = :typeId!, code = :code!, name = :name!, brand = :brand, model = :model,\n    serial_number = :serialNumber, power_supply = :powerSupply, responsible_principal_id = :responsibleId,\n    conservation = :conservation, supplier = :supplier, acquired_on = :acquiredOn::date,\n    warranty_until = :warrantyUntil::date, useful_life_years = :usefulLifeYears::integer,\n    replacement_value = :replacementValue::numeric, version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :assetId!\nRETURNING id"};
+const updateAssetFieldsIR: any = {"usedParamSet":{"typeId":true,"code":true,"name":true,"brand":true,"model":true,"serialNumber":true,"powerSupply":true,"responsibleId":true,"conservation":true,"supplier":true,"acquiredOn":true,"warrantyUntil":true,"usefulLifeYears":true,"replacementValue":true,"departmentId":true,"workspaceId":true,"assetId":true},"params":[{"name":"typeId","required":true,"transform":{"type":"scalar"},"locs":[{"a":117,"b":124}]},{"name":"code","required":true,"transform":{"type":"scalar"},"locs":[{"a":134,"b":139}]},{"name":"name","required":true,"transform":{"type":"scalar"},"locs":[{"a":149,"b":154}]},{"name":"brand","required":false,"transform":{"type":"scalar"},"locs":[{"a":165,"b":170}]},{"name":"model","required":false,"transform":{"type":"scalar"},"locs":[{"a":181,"b":186}]},{"name":"serialNumber","required":false,"transform":{"type":"scalar"},"locs":[{"a":209,"b":221}]},{"name":"powerSupply","required":false,"transform":{"type":"scalar"},"locs":[{"a":239,"b":250}]},{"name":"responsibleId","required":false,"transform":{"type":"scalar"},"locs":[{"a":280,"b":293}]},{"name":"conservation","required":false,"transform":{"type":"scalar"},"locs":[{"a":315,"b":327}]},{"name":"supplier","required":false,"transform":{"type":"scalar"},"locs":[{"a":341,"b":349}]},{"name":"acquiredOn","required":false,"transform":{"type":"scalar"},"locs":[{"a":366,"b":376}]},{"name":"warrantyUntil","required":false,"transform":{"type":"scalar"},"locs":[{"a":406,"b":419}]},{"name":"usefulLifeYears","required":false,"transform":{"type":"scalar"},"locs":[{"a":448,"b":463}]},{"name":"replacementValue","required":false,"transform":{"type":"scalar"},"locs":[{"a":499,"b":515}]},{"name":"departmentId","required":false,"transform":{"type":"scalar"},"locs":[{"a":543,"b":555}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":607,"b":619}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":630,"b":638}]}],"statement":"-- Escribe la ficha ya combinada; el comando la edita con el equipo bloqueado.\nUPDATE equipment.assets\nSET type_id = :typeId!, code = :code!, name = :name!, brand = :brand, model = :model,\n    serial_number = :serialNumber, power_supply = :powerSupply, responsible_principal_id = :responsibleId,\n    conservation = :conservation, supplier = :supplier, acquired_on = :acquiredOn::date,\n    warranty_until = :warrantyUntil::date, useful_life_years = :usefulLifeYears::integer,\n    replacement_value = :replacementValue::numeric, department_id = :departmentId::uuid, version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :assetId!\nRETURNING id"};
 
 /**
  * Query generated from SQL:
@@ -426,7 +398,7 @@ const updateAssetFieldsIR: any = {"usedParamSet":{"typeId":true,"code":true,"nam
  *     serial_number = :serialNumber, power_supply = :powerSupply, responsible_principal_id = :responsibleId,
  *     conservation = :conservation, supplier = :supplier, acquired_on = :acquiredOn::date,
  *     warranty_until = :warrantyUntil::date, useful_life_years = :usefulLifeYears::integer,
- *     replacement_value = :replacementValue::numeric, version = version + 1
+ *     replacement_value = :replacementValue::numeric, department_id = :departmentId::uuid, version = version + 1
  * WHERE workspace_id = :workspaceId! AND id = :assetId!
  * RETURNING id
  * ```
@@ -501,17 +473,19 @@ export interface IMoveAssetQuery {
   result: IMoveAssetResult;
 }
 
-const moveAssetIR: any = {"usedParamSet":{"workspaceId":true,"toLocationId":true,"assetId":true,"fromLocationId":true,"note":true,"actorId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":265,"b":277},{"a":481,"b":493},{"a":765,"b":777}]},{"name":"toLocationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":288,"b":301}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":502,"b":510}]},{"name":"fromLocationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":519,"b":534}]},{"name":"note","required":false,"transform":{"type":"scalar"},"locs":[{"a":554,"b":558}]},{"name":"actorId","required":true,"transform":{"type":"scalar"},"locs":[{"a":567,"b":575}]}],"statement":"-- Una sentencia: el destino debe ser una ubicación activa del espacio; deja el traslado en el\n-- historial y mueve el equipo, ya bloqueado por el comando. Sin fila, el destino no es válido.\nWITH target AS (\n  SELECT id\n  FROM core.locations\n  WHERE workspace_id = :workspaceId! AND id = :toLocationId! AND archived_at IS NULL\n), change AS (\n  INSERT INTO equipment.location_changes\n    (workspace_id, asset_id, from_location_id, to_location_id, note, actor_principal_id)\n  SELECT :workspaceId!::uuid, :assetId!::uuid, :fromLocationId!::uuid, target.id, :note::text, :actorId!::uuid\n  FROM target\n  RETURNING asset_id, to_location_id\n)\nUPDATE equipment.assets AS a\nSET location_id = change.to_location_id, version = a.version + 1\nFROM change\nWHERE a.workspace_id = :workspaceId! AND a.id = change.asset_id\nRETURNING a.id"};
+const moveAssetIR: any = {"usedParamSet":{"workspaceId":true,"toLocationId":true,"assetId":true,"fromLocationId":true,"note":true,"actorId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":351,"b":363},{"a":579,"b":591},{"a":863,"b":875}]},{"name":"toLocationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":374,"b":387}]},{"name":"assetId","required":true,"transform":{"type":"scalar"},"locs":[{"a":600,"b":608}]},{"name":"fromLocationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":617,"b":632}]},{"name":"note","required":false,"transform":{"type":"scalar"},"locs":[{"a":652,"b":656}]},{"name":"actorId","required":true,"transform":{"type":"scalar"},"locs":[{"a":665,"b":673}]}],"statement":"-- Una sentencia: el destino debe ser una ubicación activa del espacio, que queda bloqueada (compartida)\n-- para que no se archive mientras tanto (ADR 0024); deja el traslado en el historial y mueve el equipo,\n-- ya bloqueado por el comando. Sin fila, el destino no es válido.\nWITH target AS (\n  SELECT id\n  FROM core.locations\n  WHERE workspace_id = :workspaceId! AND id = :toLocationId! AND archived_at IS NULL\n  FOR SHARE\n), change AS (\n  INSERT INTO equipment.location_changes\n    (workspace_id, asset_id, from_location_id, to_location_id, note, actor_principal_id)\n  SELECT :workspaceId!::uuid, :assetId!::uuid, :fromLocationId!::uuid, target.id, :note::text, :actorId!::uuid\n  FROM target\n  RETURNING asset_id, to_location_id\n)\nUPDATE equipment.assets AS a\nSET location_id = change.to_location_id, version = a.version + 1\nFROM change\nWHERE a.workspace_id = :workspaceId! AND a.id = change.asset_id\nRETURNING a.id"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Una sentencia: el destino debe ser una ubicación activa del espacio; deja el traslado en el
- * -- historial y mueve el equipo, ya bloqueado por el comando. Sin fila, el destino no es válido.
+ * -- Una sentencia: el destino debe ser una ubicación activa del espacio, que queda bloqueada (compartida)
+ * -- para que no se archive mientras tanto (ADR 0024); deja el traslado en el historial y mueve el equipo,
+ * -- ya bloqueado por el comando. Sin fila, el destino no es válido.
  * WITH target AS (
  *   SELECT id
  *   FROM core.locations
  *   WHERE workspace_id = :workspaceId! AND id = :toLocationId! AND archived_at IS NULL
+ *   FOR SHARE
  * ), change AS (
  *   INSERT INTO equipment.location_changes
  *     (workspace_id, asset_id, from_location_id, to_location_id, note, actor_principal_id)
@@ -608,6 +582,7 @@ export interface IListAssetsParams {
   assetId?: string | null | void;
   conditions?: stringArray | null | void;
   conservations?: stringArray | null | void;
+  departmentIds?: stringArray | null | void;
   limit: NumberOrString;
   locationIds?: stringArray | null | void;
   q?: string | null | void;
@@ -631,6 +606,8 @@ export interface IListAssetsResult {
   condition: string;
   conservation: string | null;
   created_at: Date;
+  department_id: string | null;
+  department_name: string | null;
   id: string;
   location_area_id: string;
   location_code: string;
@@ -659,7 +636,7 @@ export interface IListAssetsQuery {
   result: IListAssetsResult;
 }
 
-const listAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"locationIds":true,"assetId":true,"conditions":true,"typeIds":true,"responsibleIds":true,"withoutResponsible":true,"conservations":true,"withoutConservation":true,"warranties":true,"today":true,"warrantyHorizon":true,"usefulLives":true,"afterCode":true,"limit":true},"params":[{"name":"q","required":false,"transform":{"type":"scalar"},"locs":[{"a":783,"b":784}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":976,"b":988},{"a":1157,"b":1169},{"a":1553,"b":1565},{"a":3185,"b":3197},{"a":3405,"b":3417},{"a":4595,"b":4607},{"a":4679,"b":4691},{"a":4824,"b":4836},{"a":4928,"b":4940},{"a":5206,"b":5218}]},{"name":"locationIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1006,"b":1017},{"a":1892,"b":1903}]},{"name":"assetId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1576,"b":1583},{"a":1609,"b":1616},{"a":1691,"b":1698}]},{"name":"conditions","required":false,"transform":{"type":"scalar"},"locs":[{"a":1644,"b":1654},{"a":1784,"b":1794}]},{"name":"typeIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1819,"b":1826},{"a":1864,"b":1871}]},{"name":"responsibleIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1974,"b":1988},{"a":2106,"b":2120}]},{"name":"withoutResponsible","required":false,"transform":{"type":"scalar"},"locs":[{"a":2023,"b":2041},{"a":2153,"b":2171}]},{"name":"conservations","required":false,"transform":{"type":"scalar"},"locs":[{"a":2240,"b":2253},{"a":2360,"b":2373}]},{"name":"withoutConservation","required":false,"transform":{"type":"scalar"},"locs":[{"a":2288,"b":2307},{"a":2406,"b":2425}]},{"name":"warranties","required":false,"transform":{"type":"scalar"},"locs":[{"a":2482,"b":2492},{"a":2610,"b":2620}]},{"name":"today","required":false,"transform":{"type":"scalar"},"locs":[{"a":2565,"b":2570},{"a":2746,"b":2751}]},{"name":"warrantyHorizon","required":false,"transform":{"type":"scalar"},"locs":[{"a":2579,"b":2594}]},{"name":"usefulLives","required":false,"transform":{"type":"scalar"},"locs":[{"a":2641,"b":2652},{"a":2767,"b":2778}]},{"name":"afterCode","required":false,"transform":{"type":"scalar"},"locs":[{"a":2869,"b":2878},{"a":2913,"b":2922}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":2964,"b":2970}]}],"statement":"-- Primero la página, del índice assets_code (espacio y código en minúsculas, que también es el\n-- cursor), y después, solo para sus filas, tipo, ubicación con sus niveles y responsable. Con\n-- :assetId, la ficha de un equipo (también dado de baja). Sin :conditions, los dados de baja no\n-- aparecen. :locationIds incluye sus niveles inferiores. Responsable y estado físico admiten «sin dato»\n-- (:withoutResponsible, :withoutConservation); garantía y vida útil se miden a :today (E-01c). :q busca en\n-- search_text, plegado al escribir; `\\`, `%` y `_` se escapan con `\\` (chr(92), porque PgTyped no admite\n-- `\\` en un literal). assetTotals repite estos filtros: un cambio aquí va también allí.\nWITH RECURSIVE search AS (\n  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),\n           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern\n), scope AS (\n  SELECT l.id\n  FROM core.locations AS l\n  WHERE l.workspace_id = :workspaceId! AND l.id = ANY (:locationIds::uuid[])\n  UNION\n  SELECT child.id\n  FROM core.locations AS child\n  JOIN scope ON child.parent_id = scope.id\n  WHERE child.workspace_id = :workspaceId!\n), page AS (\n  SELECT a.id, a.code, a.name, a.type_id, a.brand, a.model, a.serial_number, a.power_supply, a.location_id,\n         a.responsible_principal_id, a.condition, a.conservation, a.supplier, a.acquired_on, a.warranty_until,\n         a.useful_life_years, a.replacement_value, a.photo_id, a.created_at\n  FROM equipment.assets AS a\n  CROSS JOIN search\n  WHERE a.workspace_id = :workspaceId!\n    AND (:assetId::uuid IS NULL OR a.id = :assetId::uuid)\n    AND (CASE WHEN :conditions::text[] IS NULL\n              THEN :assetId::uuid IS NOT NULL OR a.condition <> 'retired'\n              ELSE a.condition = ANY (:conditions::text[]) END)\n    AND (:typeIds::uuid[] IS NULL OR a.type_id = ANY (:typeIds::uuid[]))\n    AND (:locationIds::uuid[] IS NULL OR a.location_id IN (SELECT id FROM scope))\n    AND (:responsibleIds::uuid[] IS NULL AND NOT coalesce(:withoutResponsible::boolean, false)\n         OR a.responsible_principal_id = ANY (:responsibleIds::uuid[])\n         OR (coalesce(:withoutResponsible::boolean, false) AND a.responsible_principal_id IS NULL))\n    AND (:conservations::text[] IS NULL AND NOT coalesce(:withoutConservation::boolean, false)\n         OR a.conservation = ANY (:conservations::text[])\n         OR (coalesce(:withoutConservation::boolean, false) AND a.conservation IS NULL))\n    AND (:warranties::text[] IS NULL\n         OR equipment.warranty_state(a.warranty_until, :today::date, :warrantyHorizon::date) = ANY (:warranties::text[]))\n    AND (:usefulLives::text[] IS NULL\n         OR equipment.useful_life_state(a.acquired_on, a.useful_life_years, :today::date) = ANY (:usefulLives::text[]))\n    AND (search.pattern IS NULL OR a.search_text LIKE search.pattern)\n    AND (:afterCode::text IS NULL OR lower(a.code) > :afterCode::text)\n  ORDER BY lower(a.code)\n  LIMIT :limit!\n), up AS (\n  -- Niveles de cada ubicación de la página, hasta 6 hacia la raíz.\n  SELECT loc.id AS location_id, loc.parent_id, loc.kind, loc.name, 0 AS depth\n  FROM core.locations AS loc\n  WHERE loc.workspace_id = :workspaceId! AND loc.id IN (SELECT location_id FROM page)\n  UNION ALL\n  SELECT up.location_id, parent.parent_id, parent.kind, parent.name, up.depth + 1\n  FROM up\n  JOIN core.locations AS parent ON parent.workspace_id = :workspaceId! AND parent.id = up.parent_id\n  WHERE up.depth < 5\n), paths AS (\n  -- Desde el primer nivel bajo la sede (sin ella, salvo que sea la propia).\n  SELECT location_id, array_agg(name ORDER BY depth DESC) FILTER (WHERE depth = 0 OR kind <> 'site') AS path\n  FROM up\n  GROUP BY location_id\n)\nSELECT\n  p.id,\n  p.code,\n  lower(p.code) AS \"sort_code!\",\n  p.name,\n  t.id AS type_id,\n  t.name AS type_name,\n  p.brand,\n  p.model,\n  p.serial_number,\n  p.power_supply,\n  loc.id AS location_id,\n  loc.code AS location_code,\n  loc.name AS location_name,\n  paths.path AS \"location_path!\",\n  area.area_id AS \"location_area_id!\",\n  p.responsible_principal_id,\n  ident.display_name AS \"responsible_name?\",\n  p.condition,\n  p.conservation,\n  -- Disponibilidad calculada (ADR 0019): préstamo, mantenimiento y reservas llegan con su entrega.\n  CASE WHEN p.condition IN ('operational', 'restricted') THEN 'available' ELSE 'unavailable' END AS \"availability!\",\n  p.supplier,\n  p.acquired_on,\n  p.warranty_until,\n  p.useful_life_years,\n  trim_scale(p.replacement_value) AS replacement_value,\n  photo.url AS \"photo_url?\",\n  p.created_at\nFROM page AS p\nJOIN equipment.asset_types AS t ON t.workspace_id = :workspaceId! AND t.id = p.type_id\nJOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = p.location_id\nJOIN paths ON paths.location_id = p.location_id\nJOIN core.location_areas AS area ON area.workspace_id = :workspaceId! AND area.location_id = p.location_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = :workspaceId! AND pr.id = p.responsible_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nLEFT JOIN equipment.asset_photos AS photo ON photo.workspace_id = :workspaceId! AND photo.id = p.photo_id\nORDER BY lower(p.code)"};
+const listAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"locationIds":true,"assetId":true,"conditions":true,"typeIds":true,"departmentIds":true,"responsibleIds":true,"withoutResponsible":true,"conservations":true,"withoutConservation":true,"warranties":true,"today":true,"warrantyHorizon":true,"usefulLives":true,"afterCode":true,"limit":true},"params":[{"name":"q","required":false,"transform":{"type":"scalar"},"locs":[{"a":834,"b":835}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1027,"b":1039},{"a":1208,"b":1220},{"a":1621,"b":1633},{"a":3344,"b":3356},{"a":3564,"b":3576},{"a":4820,"b":4832},{"a":4904,"b":4916},{"a":5049,"b":5061},{"a":5153,"b":5165},{"a":5431,"b":5443},{"a":5529,"b":5541}]},{"name":"locationIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1057,"b":1068},{"a":1960,"b":1971}]},{"name":"assetId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1644,"b":1651},{"a":1677,"b":1684},{"a":1759,"b":1766}]},{"name":"conditions","required":false,"transform":{"type":"scalar"},"locs":[{"a":1712,"b":1722},{"a":1852,"b":1862}]},{"name":"typeIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1887,"b":1894},{"a":1932,"b":1939}]},{"name":"departmentIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":2042,"b":2055},{"a":2099,"b":2112}]},{"name":"responsibleIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":2133,"b":2147},{"a":2265,"b":2279}]},{"name":"withoutResponsible","required":false,"transform":{"type":"scalar"},"locs":[{"a":2182,"b":2200},{"a":2312,"b":2330}]},{"name":"conservations","required":false,"transform":{"type":"scalar"},"locs":[{"a":2399,"b":2412},{"a":2519,"b":2532}]},{"name":"withoutConservation","required":false,"transform":{"type":"scalar"},"locs":[{"a":2447,"b":2466},{"a":2565,"b":2584}]},{"name":"warranties","required":false,"transform":{"type":"scalar"},"locs":[{"a":2641,"b":2651},{"a":2769,"b":2779}]},{"name":"today","required":false,"transform":{"type":"scalar"},"locs":[{"a":2724,"b":2729},{"a":2905,"b":2910}]},{"name":"warrantyHorizon","required":false,"transform":{"type":"scalar"},"locs":[{"a":2738,"b":2753}]},{"name":"usefulLives","required":false,"transform":{"type":"scalar"},"locs":[{"a":2800,"b":2811},{"a":2926,"b":2937}]},{"name":"afterCode","required":false,"transform":{"type":"scalar"},"locs":[{"a":3028,"b":3037},{"a":3072,"b":3081}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":3123,"b":3129}]}],"statement":"-- Primero la página, del índice assets_code (espacio y código en minúsculas, que también es el\n-- cursor), y después, solo para sus filas, tipo, ubicación con sus niveles y responsable. Con\n-- :assetId, la ficha de un equipo (también dado de baja). Sin :conditions, los dados de baja no\n-- aparecen. :locationIds incluye sus niveles inferiores. Responsable y estado físico admiten «sin dato»\n-- (:withoutResponsible, :withoutConservation); :departmentIds filtra por departamento (ADR 0024); garantía y vida útil se miden a :today (E-01c). :q busca en\n-- search_text, plegado al escribir; `\\`, `%` y `_` se escapan con `\\` (chr(92), porque PgTyped no admite\n-- `\\` en un literal). assetTotals repite estos filtros: un cambio aquí va también allí.\nWITH RECURSIVE search AS (\n  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),\n           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern\n), scope AS (\n  SELECT l.id\n  FROM core.locations AS l\n  WHERE l.workspace_id = :workspaceId! AND l.id = ANY (:locationIds::uuid[])\n  UNION\n  SELECT child.id\n  FROM core.locations AS child\n  JOIN scope ON child.parent_id = scope.id\n  WHERE child.workspace_id = :workspaceId!\n), page AS (\n  SELECT a.id, a.code, a.name, a.type_id, a.brand, a.model, a.serial_number, a.power_supply, a.location_id,\n         a.responsible_principal_id, a.condition, a.conservation, a.supplier, a.acquired_on, a.warranty_until,\n         a.useful_life_years, a.replacement_value, a.department_id, a.photo_id, a.created_at\n  FROM equipment.assets AS a\n  CROSS JOIN search\n  WHERE a.workspace_id = :workspaceId!\n    AND (:assetId::uuid IS NULL OR a.id = :assetId::uuid)\n    AND (CASE WHEN :conditions::text[] IS NULL\n              THEN :assetId::uuid IS NOT NULL OR a.condition <> 'retired'\n              ELSE a.condition = ANY (:conditions::text[]) END)\n    AND (:typeIds::uuid[] IS NULL OR a.type_id = ANY (:typeIds::uuid[]))\n    AND (:locationIds::uuid[] IS NULL OR a.location_id IN (SELECT id FROM scope))\n    AND (:departmentIds::uuid[] IS NULL OR a.department_id = ANY (:departmentIds::uuid[]))\n    AND (:responsibleIds::uuid[] IS NULL AND NOT coalesce(:withoutResponsible::boolean, false)\n         OR a.responsible_principal_id = ANY (:responsibleIds::uuid[])\n         OR (coalesce(:withoutResponsible::boolean, false) AND a.responsible_principal_id IS NULL))\n    AND (:conservations::text[] IS NULL AND NOT coalesce(:withoutConservation::boolean, false)\n         OR a.conservation = ANY (:conservations::text[])\n         OR (coalesce(:withoutConservation::boolean, false) AND a.conservation IS NULL))\n    AND (:warranties::text[] IS NULL\n         OR equipment.warranty_state(a.warranty_until, :today::date, :warrantyHorizon::date) = ANY (:warranties::text[]))\n    AND (:usefulLives::text[] IS NULL\n         OR equipment.useful_life_state(a.acquired_on, a.useful_life_years, :today::date) = ANY (:usefulLives::text[]))\n    AND (search.pattern IS NULL OR a.search_text LIKE search.pattern)\n    AND (:afterCode::text IS NULL OR lower(a.code) > :afterCode::text)\n  ORDER BY lower(a.code)\n  LIMIT :limit!\n), up AS (\n  -- Niveles de cada ubicación de la página, hasta 6 hacia la raíz.\n  SELECT loc.id AS location_id, loc.parent_id, loc.kind, loc.name, 0 AS depth\n  FROM core.locations AS loc\n  WHERE loc.workspace_id = :workspaceId! AND loc.id IN (SELECT location_id FROM page)\n  UNION ALL\n  SELECT up.location_id, parent.parent_id, parent.kind, parent.name, up.depth + 1\n  FROM up\n  JOIN core.locations AS parent ON parent.workspace_id = :workspaceId! AND parent.id = up.parent_id\n  WHERE up.depth < 5\n), paths AS (\n  -- Desde el primer nivel bajo la sede (sin ella, salvo que sea la propia).\n  SELECT location_id, array_agg(name ORDER BY depth DESC) FILTER (WHERE depth = 0 OR kind <> 'site') AS path\n  FROM up\n  GROUP BY location_id\n)\nSELECT\n  p.id,\n  p.code,\n  lower(p.code) AS \"sort_code!\",\n  p.name,\n  t.id AS type_id,\n  t.name AS type_name,\n  p.brand,\n  p.model,\n  p.serial_number,\n  p.power_supply,\n  loc.id AS location_id,\n  loc.code AS location_code,\n  loc.name AS location_name,\n  paths.path AS \"location_path!\",\n  area.area_id AS \"location_area_id!\",\n  p.responsible_principal_id,\n  ident.display_name AS \"responsible_name?\",\n  p.condition,\n  p.conservation,\n  -- Disponibilidad calculada (ADR 0019): préstamo, mantenimiento y reservas llegan con su entrega.\n  CASE WHEN p.condition IN ('operational', 'restricted') THEN 'available' ELSE 'unavailable' END AS \"availability!\",\n  p.supplier,\n  p.acquired_on,\n  p.warranty_until,\n  p.useful_life_years,\n  trim_scale(p.replacement_value) AS replacement_value,\n  dept.id AS \"department_id?\",\n  dept.name AS \"department_name?\",\n  photo.url AS \"photo_url?\",\n  p.created_at\nFROM page AS p\nJOIN equipment.asset_types AS t ON t.workspace_id = :workspaceId! AND t.id = p.type_id\nJOIN core.locations AS loc ON loc.workspace_id = :workspaceId! AND loc.id = p.location_id\nJOIN paths ON paths.location_id = p.location_id\nJOIN core.location_areas AS area ON area.workspace_id = :workspaceId! AND area.location_id = p.location_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = :workspaceId! AND pr.id = p.responsible_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nLEFT JOIN equipment.asset_photos AS photo ON photo.workspace_id = :workspaceId! AND photo.id = p.photo_id\nLEFT JOIN core.departments AS dept ON dept.workspace_id = :workspaceId! AND dept.id = p.department_id\nORDER BY lower(p.code)"};
 
 /**
  * Query generated from SQL:
@@ -668,7 +645,7 @@ const listAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"location
  * -- cursor), y después, solo para sus filas, tipo, ubicación con sus niveles y responsable. Con
  * -- :assetId, la ficha de un equipo (también dado de baja). Sin :conditions, los dados de baja no
  * -- aparecen. :locationIds incluye sus niveles inferiores. Responsable y estado físico admiten «sin dato»
- * -- (:withoutResponsible, :withoutConservation); garantía y vida útil se miden a :today (E-01c). :q busca en
+ * -- (:withoutResponsible, :withoutConservation); :departmentIds filtra por departamento (ADR 0024); garantía y vida útil se miden a :today (E-01c). :q busca en
  * -- search_text, plegado al escribir; `\`, `%` y `_` se escapan con `\` (chr(92), porque PgTyped no admite
  * -- `\` en un literal). assetTotals repite estos filtros: un cambio aquí va también allí.
  * WITH RECURSIVE search AS (
@@ -686,7 +663,7 @@ const listAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"location
  * ), page AS (
  *   SELECT a.id, a.code, a.name, a.type_id, a.brand, a.model, a.serial_number, a.power_supply, a.location_id,
  *          a.responsible_principal_id, a.condition, a.conservation, a.supplier, a.acquired_on, a.warranty_until,
- *          a.useful_life_years, a.replacement_value, a.photo_id, a.created_at
+ *          a.useful_life_years, a.replacement_value, a.department_id, a.photo_id, a.created_at
  *   FROM equipment.assets AS a
  *   CROSS JOIN search
  *   WHERE a.workspace_id = :workspaceId!
@@ -696,6 +673,7 @@ const listAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"location
  *               ELSE a.condition = ANY (:conditions::text[]) END)
  *     AND (:typeIds::uuid[] IS NULL OR a.type_id = ANY (:typeIds::uuid[]))
  *     AND (:locationIds::uuid[] IS NULL OR a.location_id IN (SELECT id FROM scope))
+ *     AND (:departmentIds::uuid[] IS NULL OR a.department_id = ANY (:departmentIds::uuid[]))
  *     AND (:responsibleIds::uuid[] IS NULL AND NOT coalesce(:withoutResponsible::boolean, false)
  *          OR a.responsible_principal_id = ANY (:responsibleIds::uuid[])
  *          OR (coalesce(:withoutResponsible::boolean, false) AND a.responsible_principal_id IS NULL))
@@ -753,6 +731,8 @@ const listAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"location
  *   p.warranty_until,
  *   p.useful_life_years,
  *   trim_scale(p.replacement_value) AS replacement_value,
+ *   dept.id AS "department_id?",
+ *   dept.name AS "department_name?",
  *   photo.url AS "photo_url?",
  *   p.created_at
  * FROM page AS p
@@ -764,6 +744,7 @@ const listAssetsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"location
  * LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
  * LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
  * LEFT JOIN equipment.asset_photos AS photo ON photo.workspace_id = :workspaceId! AND photo.id = p.photo_id
+ * LEFT JOIN core.departments AS dept ON dept.workspace_id = :workspaceId! AND dept.id = p.department_id
  * ORDER BY lower(p.code)
  * ```
  */
@@ -838,6 +819,7 @@ export const insertConservationChange = new PreparedQuery<IInsertConservationCha
 export interface IAssetTotalsParams {
   conditions?: stringArray | null | void;
   conservations?: stringArray | null | void;
+  departmentIds?: stringArray | null | void;
   locationIds?: stringArray | null | void;
   q?: string | null | void;
   responsibleIds?: stringArray | null | void;
@@ -867,7 +849,7 @@ export interface IAssetTotalsQuery {
   result: IAssetTotalsResult;
 }
 
-const assetTotalsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"locationIds":true,"today":true,"warrantyHorizon":true,"conditions":true,"typeIds":true,"responsibleIds":true,"withoutResponsible":true,"conservations":true,"withoutConservation":true,"warranties":true,"usefulLives":true},"params":[{"name":"q","required":false,"transform":{"type":"scalar"},"locs":[{"a":339,"b":340}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":532,"b":544},{"a":713,"b":725},{"a":1449,"b":1461}]},{"name":"locationIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":562,"b":573},{"a":1686,"b":1697}]},{"name":"today","required":false,"transform":{"type":"scalar"},"locs":[{"a":1113,"b":1118},{"a":1311,"b":1316},{"a":2359,"b":2364},{"a":2540,"b":2545}]},{"name":"warrantyHorizon","required":false,"transform":{"type":"scalar"},"locs":[{"a":1127,"b":1142},{"a":2373,"b":2388}]},{"name":"conditions","required":false,"transform":{"type":"scalar"},"locs":[{"a":1482,"b":1492},{"a":1578,"b":1588}]},{"name":"typeIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1613,"b":1620},{"a":1658,"b":1665}]},{"name":"responsibleIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1768,"b":1782},{"a":1900,"b":1914}]},{"name":"withoutResponsible","required":false,"transform":{"type":"scalar"},"locs":[{"a":1817,"b":1835},{"a":1947,"b":1965}]},{"name":"conservations","required":false,"transform":{"type":"scalar"},"locs":[{"a":2034,"b":2047},{"a":2154,"b":2167}]},{"name":"withoutConservation","required":false,"transform":{"type":"scalar"},"locs":[{"a":2082,"b":2101},{"a":2200,"b":2219}]},{"name":"warranties","required":false,"transform":{"type":"scalar"},"locs":[{"a":2276,"b":2286},{"a":2404,"b":2414}]},{"name":"usefulLives","required":false,"transform":{"type":"scalar"},"locs":[{"a":2435,"b":2446},{"a":2561,"b":2572}]}],"statement":"-- Indicadores del Informe (E-01c) con los mismos filtros que listAssets, sin paginar: cuántos equipos,\n-- su valor de reposición sumado (exacto) y cuántos lo tienen, sin responsable, con la garantía por vencer\n-- y con la vida útil cumplida a :today.\nWITH RECURSIVE search AS (\n  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),\n           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern\n), scope AS (\n  SELECT l.id\n  FROM core.locations AS l\n  WHERE l.workspace_id = :workspaceId! AND l.id = ANY (:locationIds::uuid[])\n  UNION\n  SELECT child.id\n  FROM core.locations AS child\n  JOIN scope ON child.parent_id = scope.id\n  WHERE child.workspace_id = :workspaceId!\n)\nSELECT count(*)::integer AS \"count!\",\n       trim_scale(coalesce(sum(a.replacement_value), 0))::text AS \"replacement_value!\",\n       count(a.replacement_value)::integer AS \"with_replacement_value!\",\n       count(*) FILTER (WHERE a.responsible_principal_id IS NULL)::integer AS \"without_responsible!\",\n       count(*) FILTER (\n         WHERE equipment.warranty_state(a.warranty_until, :today::date, :warrantyHorizon::date) = 'expiring'\n       )::integer AS \"warranty_expiring!\",\n       count(*) FILTER (\n         WHERE equipment.useful_life_state(a.acquired_on, a.useful_life_years, :today::date) = 'reached'\n       )::integer AS \"useful_life_reached!\"\nFROM equipment.assets AS a\nCROSS JOIN search\nWHERE a.workspace_id = :workspaceId!\n    AND (CASE WHEN :conditions::text[] IS NULL THEN a.condition <> 'retired'\n              ELSE a.condition = ANY (:conditions::text[]) END)\n    AND (:typeIds::uuid[] IS NULL OR a.type_id = ANY (:typeIds::uuid[]))\n    AND (:locationIds::uuid[] IS NULL OR a.location_id IN (SELECT id FROM scope))\n    AND (:responsibleIds::uuid[] IS NULL AND NOT coalesce(:withoutResponsible::boolean, false)\n         OR a.responsible_principal_id = ANY (:responsibleIds::uuid[])\n         OR (coalesce(:withoutResponsible::boolean, false) AND a.responsible_principal_id IS NULL))\n    AND (:conservations::text[] IS NULL AND NOT coalesce(:withoutConservation::boolean, false)\n         OR a.conservation = ANY (:conservations::text[])\n         OR (coalesce(:withoutConservation::boolean, false) AND a.conservation IS NULL))\n    AND (:warranties::text[] IS NULL\n         OR equipment.warranty_state(a.warranty_until, :today::date, :warrantyHorizon::date) = ANY (:warranties::text[]))\n    AND (:usefulLives::text[] IS NULL\n         OR equipment.useful_life_state(a.acquired_on, a.useful_life_years, :today::date) = ANY (:usefulLives::text[]))\n    AND (search.pattern IS NULL OR a.search_text LIKE search.pattern)"};
+const assetTotalsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"locationIds":true,"today":true,"warrantyHorizon":true,"conditions":true,"typeIds":true,"departmentIds":true,"responsibleIds":true,"withoutResponsible":true,"conservations":true,"withoutConservation":true,"warranties":true,"usefulLives":true},"params":[{"name":"q","required":false,"transform":{"type":"scalar"},"locs":[{"a":339,"b":340}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":532,"b":544},{"a":713,"b":725},{"a":1449,"b":1461}]},{"name":"locationIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":562,"b":573},{"a":1686,"b":1697}]},{"name":"today","required":false,"transform":{"type":"scalar"},"locs":[{"a":1113,"b":1118},{"a":1311,"b":1316},{"a":2450,"b":2455},{"a":2631,"b":2636}]},{"name":"warrantyHorizon","required":false,"transform":{"type":"scalar"},"locs":[{"a":1127,"b":1142},{"a":2464,"b":2479}]},{"name":"conditions","required":false,"transform":{"type":"scalar"},"locs":[{"a":1482,"b":1492},{"a":1578,"b":1588}]},{"name":"typeIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1613,"b":1620},{"a":1658,"b":1665}]},{"name":"departmentIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1768,"b":1781},{"a":1825,"b":1838}]},{"name":"responsibleIds","required":false,"transform":{"type":"scalar"},"locs":[{"a":1859,"b":1873},{"a":1991,"b":2005}]},{"name":"withoutResponsible","required":false,"transform":{"type":"scalar"},"locs":[{"a":1908,"b":1926},{"a":2038,"b":2056}]},{"name":"conservations","required":false,"transform":{"type":"scalar"},"locs":[{"a":2125,"b":2138},{"a":2245,"b":2258}]},{"name":"withoutConservation","required":false,"transform":{"type":"scalar"},"locs":[{"a":2173,"b":2192},{"a":2291,"b":2310}]},{"name":"warranties","required":false,"transform":{"type":"scalar"},"locs":[{"a":2367,"b":2377},{"a":2495,"b":2505}]},{"name":"usefulLives","required":false,"transform":{"type":"scalar"},"locs":[{"a":2526,"b":2537},{"a":2652,"b":2663}]}],"statement":"-- Indicadores del Informe (E-01c) con los mismos filtros que listAssets, sin paginar: cuántos equipos,\n-- su valor de reposición sumado (exacto) y cuántos lo tienen, sin responsable, con la garantía por vencer\n-- y con la vida útil cumplida a :today.\nWITH RECURSIVE search AS (\n  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),\n           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern\n), scope AS (\n  SELECT l.id\n  FROM core.locations AS l\n  WHERE l.workspace_id = :workspaceId! AND l.id = ANY (:locationIds::uuid[])\n  UNION\n  SELECT child.id\n  FROM core.locations AS child\n  JOIN scope ON child.parent_id = scope.id\n  WHERE child.workspace_id = :workspaceId!\n)\nSELECT count(*)::integer AS \"count!\",\n       trim_scale(coalesce(sum(a.replacement_value), 0))::text AS \"replacement_value!\",\n       count(a.replacement_value)::integer AS \"with_replacement_value!\",\n       count(*) FILTER (WHERE a.responsible_principal_id IS NULL)::integer AS \"without_responsible!\",\n       count(*) FILTER (\n         WHERE equipment.warranty_state(a.warranty_until, :today::date, :warrantyHorizon::date) = 'expiring'\n       )::integer AS \"warranty_expiring!\",\n       count(*) FILTER (\n         WHERE equipment.useful_life_state(a.acquired_on, a.useful_life_years, :today::date) = 'reached'\n       )::integer AS \"useful_life_reached!\"\nFROM equipment.assets AS a\nCROSS JOIN search\nWHERE a.workspace_id = :workspaceId!\n    AND (CASE WHEN :conditions::text[] IS NULL THEN a.condition <> 'retired'\n              ELSE a.condition = ANY (:conditions::text[]) END)\n    AND (:typeIds::uuid[] IS NULL OR a.type_id = ANY (:typeIds::uuid[]))\n    AND (:locationIds::uuid[] IS NULL OR a.location_id IN (SELECT id FROM scope))\n    AND (:departmentIds::uuid[] IS NULL OR a.department_id = ANY (:departmentIds::uuid[]))\n    AND (:responsibleIds::uuid[] IS NULL AND NOT coalesce(:withoutResponsible::boolean, false)\n         OR a.responsible_principal_id = ANY (:responsibleIds::uuid[])\n         OR (coalesce(:withoutResponsible::boolean, false) AND a.responsible_principal_id IS NULL))\n    AND (:conservations::text[] IS NULL AND NOT coalesce(:withoutConservation::boolean, false)\n         OR a.conservation = ANY (:conservations::text[])\n         OR (coalesce(:withoutConservation::boolean, false) AND a.conservation IS NULL))\n    AND (:warranties::text[] IS NULL\n         OR equipment.warranty_state(a.warranty_until, :today::date, :warrantyHorizon::date) = ANY (:warranties::text[]))\n    AND (:usefulLives::text[] IS NULL\n         OR equipment.useful_life_state(a.acquired_on, a.useful_life_years, :today::date) = ANY (:usefulLives::text[]))\n    AND (search.pattern IS NULL OR a.search_text LIKE search.pattern)"};
 
 /**
  * Query generated from SQL:
@@ -905,6 +887,7 @@ const assetTotalsIR: any = {"usedParamSet":{"q":true,"workspaceId":true,"locatio
  *               ELSE a.condition = ANY (:conditions::text[]) END)
  *     AND (:typeIds::uuid[] IS NULL OR a.type_id = ANY (:typeIds::uuid[]))
  *     AND (:locationIds::uuid[] IS NULL OR a.location_id IN (SELECT id FROM scope))
+ *     AND (:departmentIds::uuid[] IS NULL OR a.department_id = ANY (:departmentIds::uuid[]))
  *     AND (:responsibleIds::uuid[] IS NULL AND NOT coalesce(:withoutResponsible::boolean, false)
  *          OR a.responsible_principal_id = ANY (:responsibleIds::uuid[])
  *          OR (coalesce(:withoutResponsible::boolean, false) AND a.responsible_principal_id IS NULL))
@@ -1038,5 +1021,102 @@ const equipmentSummaryIR: any = {"usedParamSet":{"workspaceId":true,"principalId
  * ```
  */
 export const equipmentSummary = new PreparedQuery<IEquipmentSummaryParams,IEquipmentSummaryResult>(equipmentSummaryIR);
+
+
+/** 'AssetsByArea' parameters type */
+export interface IAssetsByAreaParams {
+  workspaceId: string;
+}
+
+/** 'AssetsByArea' return type */
+export interface IAssetsByAreaResult {
+  area_id: string;
+  count: number;
+}
+
+/** 'AssetsByArea' query type */
+export interface IAssetsByAreaQuery {
+  params: IAssetsByAreaParams;
+  result: IAssetsByAreaResult;
+}
+
+const assetsByAreaIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":317,"b":329}]}],"statement":"-- Cifras de Áreas (ADR 0024): equipos que no están dados de baja en cada área, en todos sus niveles.\nSELECT la.area_id AS \"area_id!\", count(*)::integer AS \"count!\"\nFROM equipment.assets AS a\nJOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id\nWHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired'\nGROUP BY la.area_id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Cifras de Áreas (ADR 0024): equipos que no están dados de baja en cada área, en todos sus niveles.
+ * SELECT la.area_id AS "area_id!", count(*)::integer AS "count!"
+ * FROM equipment.assets AS a
+ * JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
+ * WHERE a.workspace_id = :workspaceId! AND a.condition <> 'retired'
+ * GROUP BY la.area_id
+ * ```
+ */
+export const assetsByArea = new PreparedQuery<IAssetsByAreaParams,IAssetsByAreaResult>(assetsByAreaIR);
+
+
+/** 'AssetsByDepartment' parameters type */
+export interface IAssetsByDepartmentParams {
+  workspaceId: string;
+}
+
+/** 'AssetsByDepartment' return type */
+export interface IAssetsByDepartmentResult {
+  count: number;
+  department_id: string;
+}
+
+/** 'AssetsByDepartment' query type */
+export interface IAssetsByDepartmentQuery {
+  params: IAssetsByDepartmentParams;
+  result: IAssetsByDepartmentResult;
+}
+
+const assetsByDepartmentIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":115,"b":127}]}],"statement":"SELECT department_id AS \"department_id!\", count(*)::integer AS \"count!\"\nFROM equipment.assets\nWHERE workspace_id = :workspaceId! AND condition <> 'retired' AND department_id IS NOT NULL\nGROUP BY department_id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT department_id AS "department_id!", count(*)::integer AS "count!"
+ * FROM equipment.assets
+ * WHERE workspace_id = :workspaceId! AND condition <> 'retired' AND department_id IS NOT NULL
+ * GROUP BY department_id
+ * ```
+ */
+export const assetsByDepartment = new PreparedQuery<IAssetsByDepartmentParams,IAssetsByDepartmentResult>(assetsByDepartmentIR);
+
+
+/** 'ActiveAssetAt' parameters type */
+export interface IActiveAssetAtParams {
+  locationIds: stringArray;
+  workspaceId: string;
+}
+
+/** 'ActiveAssetAt' return type */
+export interface IActiveAssetAtResult {
+  placed: boolean;
+}
+
+/** 'ActiveAssetAt' query type */
+export interface IActiveAssetAtQuery {
+  params: IActiveAssetAtParams;
+  result: IActiveAssetAtResult;
+}
+
+const activeAssetAtIR: any = {"usedParamSet":{"workspaceId":true,"locationIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":206,"b":218}]},{"name":"locationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":270,"b":282}]}],"statement":"-- ¿Hay algún equipo activo en estas ubicaciones? Lo pregunta el archivo de un área (ADR 0024), con las\n-- ubicaciones ya bloqueadas.\nSELECT EXISTS (\n  SELECT 1 FROM equipment.assets\n  WHERE workspace_id = :workspaceId! AND condition <> 'retired' AND location_id = ANY (:locationIds!::uuid[])\n) AS \"placed!\""};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- ¿Hay algún equipo activo en estas ubicaciones? Lo pregunta el archivo de un área (ADR 0024), con las
+ * -- ubicaciones ya bloqueadas.
+ * SELECT EXISTS (
+ *   SELECT 1 FROM equipment.assets
+ *   WHERE workspace_id = :workspaceId! AND condition <> 'retired' AND location_id = ANY (:locationIds!::uuid[])
+ * ) AS "placed!"
+ * ```
+ */
+export const activeAssetAt = new PreparedQuery<IActiveAssetAtParams,IActiveAssetAtResult>(activeAssetAtIR);
 
 

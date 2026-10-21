@@ -44,8 +44,9 @@ export const location = z.object({
 });
 
 /**
- * POST /locations (ADR 0015): una ubicación bajo otra, o en la raíz; el tipo y el código los decide el
- * servidor. Un nombre activo repetido bajo el mismo padre devuelve la existente.
+ * POST /locations del Núcleo (ADR 0015, 0024): un área en la raíz o bajo una sede o un edificio, o un estante
+ * bajo otra ubicación; el tipo y el código los decide el servidor. Un nombre activo repetido bajo el mismo
+ * padre responde NAME_TAKEN.
  */
 export const createLocationRequest = z.object({ name: text(200), parentId: z.uuid().nullable() }).strict();
 

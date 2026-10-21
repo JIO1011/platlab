@@ -1,4 +1,4 @@
-import type { HomeActivity, HomeResponse, HomeTrend, ModuleAccess } from '@platlab/contracts';
+import type { AreasAccess, HomeActivity, HomeResponse, HomeTrend, ModuleAccess } from '@platlab/contracts';
 import { actionClass } from '@platlab/contracts';
 import { moduleRegistry } from '@platlab/modules';
 import { listModuleAccess } from '../infrastructure/access.queries.js';
@@ -7,6 +7,7 @@ import { listGrantedPermissions, type WorkspaceAccess } from './access.js';
 export interface WorkspaceView {
   modules: ModuleAccess[];
   permissions: string[];
+  areas: AreasAccess;
 }
 
 /**
@@ -43,7 +44,23 @@ export async function describeWorkspace(access: WorkspaceAccess): Promise<Worksp
       },
     ];
   });
-  return { modules, permissions };
+  return { modules, permissions, areas: areasAccess(modules, permissions) };
+}
+
+/**
+ * Qué puede hacer el miembro en Áreas (ADR 0024), con la misma regla que la API: consultar si un módulo que las
+ * declara admite consulta y le da su permiso de lectura; cambiarlas si uno admite operación nueva y le da el de
+ * administrarlas. Sirve para el menú; el servidor vuelve a decidir en cada petición.
+ */
+function areasAccess(modules: ModuleAccess[], permissions: string[]): AreasAccess {
+  const grants = (actionClass: ModuleAccess['access'][number], kind: 'read' | 'manage') =>
+    modules.some((module) => {
+      const manifest = moduleRegistry.find((entry) => entry.code === module.code);
+      const areas = manifest && 'areas' in manifest ? manifest.areas : undefined;
+      return areas !== undefined && module.access.includes(actionClass) && permissions.includes(areas[kind]);
+    });
+  if (grants('new_operation', 'manage')) return 'manage';
+  return grants('read_export', 'read') ? 'read' : 'none';
 }
 
 /** Lo que cada módulo aporta a su tarjeta de Inicio: contadores, gráfico y actividad reciente. */

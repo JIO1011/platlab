@@ -16,12 +16,14 @@ interface ChoiceFieldProps {
   loading: boolean;
   value: string;
   onChange: (value: string) => void;
-  /** El Administrador amplía y poda la lista desde la misma hoja (ADR 0012): «Agregar» y la papelera de cada etiqueta. */
+  /**
+   * El Administrador amplía y poda la lista de motivos desde la misma hoja (ADR 0012): «Agregar» y la
+   * papelera de cada etiqueta. Los departamentos solo se eligen: se administran en Áreas (ADR 0024).
+   */
   canAdd: boolean;
-  /** Ruta y cuerpo del alta: `/reasons` con su tipo, `/destinations` o `/areas`. */
-  addPath: '/reasons' | '/destinations' | '/areas';
-  addBody: (name: string) => Record<string, string>;
-  addLabel: string;
+  /** Cuerpo y rótulo del alta de un motivo, con su tipo; sin ellos no se agrega. */
+  addBody?: (name: string) => Record<string, string>;
+  addLabel?: string;
   /** Estilo del rótulo; por defecto, el de un campo (tipo oración, como el de `Field`). */
   labelClassName?: string;
   /** Icono que acompaña a cada etiqueta (el destino lleva un pin). */
@@ -41,7 +43,7 @@ interface ChoiceFieldProps {
 const NONE = '__none__';
 
 /**
- * Motivo, destino o área elegido de la lista del laboratorio, como botones de opción (ADR 0012, lección
+ * Motivo o destino (un departamento) elegido de la lista del laboratorio, como botones de opción (ADR 0012, lección
  * de ReactiLab). La operación guarda el texto elegido. Si la lista está vacía y la persona no
  * puede ampliarla, se escribe a mano: el motivo sigue siendo obligatorio.
  */
@@ -54,10 +56,9 @@ export function ChoiceField({
   loading,
   value,
   onChange,
-  canAdd,
-  addPath,
+  canAdd: canAddProp,
   addBody,
-  addLabel,
+  addLabel = 'Nueva opción',
   labelClassName = 'text-sm font-medium text-ink',
   icon: Icon,
   display = 'pills',
@@ -68,14 +69,15 @@ export function ChoiceField({
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
-  const command = useCommand(workspaceId, addPath, listEntry);
-  const archive = useArchiveEntry(workspaceId, addPath);
+  const canAdd = canAddProp && addBody !== undefined;
+  const command = useCommand(workspaceId, '/reasons', listEntry);
+  const archive = useArchiveEntry(workspaceId);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const describedBy = [hint && !error ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(' ') || undefined;
 
   async function add() {
     const name = draft.trim();
-    if (!name) return;
+    if (!name || !addBody) return;
     setAddError(null);
     try {
       const entry = await command.mutateAsync(addBody(name));
@@ -101,6 +103,7 @@ export function ChoiceField({
         action: {
           label: 'Deshacer',
           onClick: () => {
+            if (!addBody) return;
             command
               .mutateAsync(addBody(option.name))
               .then(() => {

@@ -21,6 +21,7 @@ const asset: Asset = {
   warrantyUntil: '2026-03-01',
   usefulLifeYears: 10,
   replacementValue: '9800.00',
+  department: null,
   photoUrl: null,
   createdAt: '2024-03-02T10:00:00Z',
 };

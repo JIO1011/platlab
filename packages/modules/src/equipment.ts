@@ -55,5 +55,7 @@ export const equipmentModule = defineModule({
     },
   ],
   homeCard: { permission: 'equipment.fault.report' },
+  // Áreas y departamentos (ADR 0024): los ve quien consulta el catálogo; los cambia quien lo administra.
+  areas: { read: 'equipment.catalog.read', manage: 'equipment.catalog.manage' },
   stage: 'development',
 });

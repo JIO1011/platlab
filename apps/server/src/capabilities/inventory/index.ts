@@ -5,16 +5,7 @@
 export { createItem, hasMovements, lockItem, setMinimum, updateItemFields } from './application/catalog.js';
 export { suggestContainerCodes } from './application/codes.js';
 export type { InventoryContext } from './application/context.js';
-export {
-  addEntry,
-  addReason,
-  brandsOf,
-  entriesOf,
-  reasonsOf,
-  retireEntry,
-  retireReason,
-  type NamedList,
-} from './application/lists.js';
+export { addReason, brandsOf, reasonsOf, retireReason } from './application/lists.js';
 export {
   adjustByWeight,
   applyMovement,
@@ -27,10 +18,12 @@ export {
 export {
   containerItem,
   countOperationsPerDay,
+  hasStockAt,
   listOperationPage,
   listPositionPage,
   operationFacetsOf,
   operationTotalsOf,
+  stockedItemCounts,
   type OperationFilter,
 } from './application/queries.js';
 export {

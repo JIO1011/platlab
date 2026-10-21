@@ -29,7 +29,7 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 
 | Esquema | Propietario técnico | Contenido | Fase |
 |---|---|---|---|
-| `core` | Core | Espacios, identidades, membresías, principales, invitaciones, roles y asignaciones, ubicaciones, derechos de módulos, documentos, marca y auditoría | F1a |
+| `core` | Core | Espacios, identidades, membresías, principales, invitaciones, roles y asignaciones, ubicaciones, departamentos, derechos de módulos, documentos, marca y auditoría | F1a |
 | `platform` | Plataforma | Titulares, paquetes, contratos, staff, límites, cuotas, admisión de datos, idempotencia, outbox, trabajos, importaciones y disposición | F1a–F1b |
 | `inventory` | Capacidad inventario | Items, lotes, posiciones, operaciones y asientos, motivos, preparaciones, custodias, retornos, reservas y transferencias | R-00; F2–F4 |
 | `reagents` | Módulo Reactivos | Datos químicos y perfil fiscalizado | R-00; F2 + REG-02 |
@@ -60,7 +60,8 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 | `core.invitations` | Email, hash del token, expiración, roles propuestos y estado; se canjea en una transacción |
 | `core.permissions`, `roles`, `role_permissions` | Catálogo global fijo, sincronizado desde los manifiestos |
 | `core.role_assignments` | Principal, rol y vigencia. Los roles valen para todo el espacio, sin ámbito por ubicación ([ADR 0008](05_decisiones.md#adr-0008)); una sola asignación abierta por principal y rol |
-| `core.locations` | Árbol por `parent_id`: sede, edificio, sala, almacén, custodia o tránsito. Un nombre activo no se repite en el mismo nivel sin distinguir tildes ni mayúsculas. El área es el primer nivel bajo la sede o el edificio (vista `core.location_areas`) y guarda su encargado, un miembro del espacio ([ADR 0019](05_decisiones.md#adr-0019)) |
+| `core.locations` | Árbol por `parent_id`: sede, edificio, sala, almacén, custodia o tránsito. Un nombre activo no se repite en el mismo nivel sin distinguir tildes ni mayúsculas. El área es el primer nivel bajo la sede o el edificio (vista `core.location_areas`) y guarda su encargado, un miembro del espacio ([ADR 0019](05_decisiones.md#adr-0019)). Se renombra y se archiva desde Áreas; archivada no cambia más (`core.protect_archived`) ([ADR 0024](05_decisiones.md#adr-0024)) |
+| `core.departments` | Departamento (de quién): dueños y carreras del espacio; el área dice dónde ([ADR 0024](05_decisiones.md#adr-0024)). Un nombre activo no se repite sin distinguir mayúsculas. Se renombra y se archiva; archivado no cambia más (`core.protect_archived`) y solo se deja de ofrecer: lotes y equipos lo conservan enlazado |
 | `core.module_definitions`, `module_dependencies` | Registro global de módulos |
 | `core.workspace_entitlements` | Módulo, vigencia, estado operativo, contrato y revisión aplicada |
 | `core.documents`, `core.branding` | Archivos versionados y marca validada |
@@ -85,6 +86,11 @@ Reglas:
 - **Delegación.** Una invitación no otorga permisos que el invitador no pueda delegar.
 - **Autoaprobación.** Está deshabilitada por defecto, incluso para el propietario.
 - **Árbol de ubicaciones.** Sin ciclos ni padres de otro espacio. Mover el árbol se serializa y se audita.
+- **Áreas y departamentos** ([ADR 0024](05_decisiones.md#adr-0024)):
+  - Core no tiene derecho propio: los admite algún módulo que los declara en su manifiesto (`areas: { read, manage }`), con su permiso. La admisión bloquea espacio, derechos y membresía en la misma consulta.
+  - Un área con existencias o equipos activos, en ella o en sus estantes, no se archiva: primero se trasladan. Archivar un área archiva también sus estantes.
+  - El bloqueo de ubicaciones del espacio serializa altas, nombres y archivos; el archivo bloquea después el árbol (exclusivo, en orden de id) y recién entonces pregunta a los módulos.
+  - Quien coloca algo (ingreso, traslado, conteo, alta o traslado de equipo, estante nuevo) exige una ubicación activa, bloqueada (compartida) hasta el final. Quien enlaza un departamento lo exige activo, bloqueado igual.
 - **Permisos entre laboratorios.** Los roles valen para todo el espacio ([ADR 0008](05_decisiones.md#adr-0008), 05-10-2026): quien opera Reactivos opera todas sus ubicaciones. Un traslado registra origen y destino, pero no exige permisos distintos en cada uno.
 - **Trabajos.** `platform.claim_jobs(limit)` es la única función `SECURITY DEFINER` para reclamar trabajos. Es estrecha, no lee datos de dominio y solo la ejecuta el rol del dispatcher.
 
@@ -95,12 +101,12 @@ Reglas:
 | `inventory.items` | Código, nombre, `kind`, unidad base, mínimo opcional (en la unidad base), modo de seguimiento y archivado |
 | `reagents.products` | Extensión 1:1 del item: CAS (obligatorio salvo en mezclas), estado físico (sólido, líquido, acuoso, mezcla, gas), pictogramas SGA, controlado, ficha de seguridad (digital con enlace o PDF, física o ninguna) y densidad en g/mL ([ADR 0015](05_decisiones.md#adr-0015)) |
 | `reagents.safety_sheets` | Cada PDF subido de la ficha de seguridad: ruta en el bucket público, enlace, tamaño, SHA-256 y quién lo subió. Nunca se edita ni se borra; el reactivo apunta a la vigente ([ADR 0017](05_decisiones.md#adr-0017)) |
-| `inventory.lots` | Item (FK compuesta), código automático, marca, área y caducidad (puede ser desconocida). Sin estado propio: cada frasco se gestiona por separado ([ADR 0012](05_decisiones.md#adr-0012), 05-10-2026) |
+| `inventory.lots` | Item (FK compuesta), código automático, marca, departamento opcional (FK compuesta a `core.departments`, [ADR 0024](05_decisiones.md#adr-0024)) y caducidad (puede ser desconocida). Sin estado propio: cada frasco se gestiona por separado ([ADR 0012](05_decisiones.md#adr-0012), 05-10-2026) |
 | `inventory.containers` | Envase identificable (frasco): código propio y único en el espacio, lote, cantidad inicial y, con control por peso, tara en g y la densidad con que se calculó ([ADR 0015](05_decisiones.md#adr-0015)). La apertura y la caducidad tras abrir, cuando el proceso lo exija |
 | `inventory.positions` | Item, lote, envase y retorno opcionales, ubicación, disposición, saldo, reservado y versión |
 | `inventory.operations` | Cabecera del movimiento: tipo, actor, motivo, fecha, correlación y referencia |
 | `inventory.entries` | Asientos inmutables con signo por posición |
-| `inventory.reasons`, `destinations`, `areas` | Listas de motivos (salida y ajuste; desechar un frasco es un ajuste con motivo), destinos y áreas o departamentos que administra el laboratorio; desde R-01 |
+| `inventory.reasons` | Motivos de salida y ajuste (desechar un frasco es un ajuste con motivo); desde R-01. El destino de una salida es un departamento y la historia guarda su texto ([ADR 0024](05_decisiones.md#adr-0024)) |
 | `inventory.preparation_inputs` | Preparación: lote resultante y asientos de los insumos consumidos |
 | `inventory.custodies`, `custody_lines` | Entrega a un responsable y su conciliación |
 | `inventory.return_batches` | Retorno segregado hasta verificarlo o disponerlo |
@@ -153,7 +159,7 @@ Reglas:
 | Tabla | Esencial |
 |---|---|
 | `equipment.asset_types` | Tipo de equipo y características que se pueden solicitar |
-| `equipment.assets` | Tipo, código, marca, modelo, serie, alimentación, ubicación, responsable, condición, conservación, proveedor, fecha de compra, garantía, vida útil, valor de reposición y foto vigente |
+| `equipment.assets` | Tipo, código, marca, modelo, serie, alimentación, ubicación, departamento opcional (FK compuesta a `core.departments`, [ADR 0024](05_decisiones.md#adr-0024)), responsable, condición, conservación, proveedor, fecha de compra, garantía, vida útil, valor de reposición y foto vigente |
 | `equipment.condition_changes` | Condición anterior y nueva, actor, motivo, resultado y falla de origen |
 | `equipment.location_changes` | Traslado trazado entre ubicaciones |
 | `equipment.conservation_changes` | Cambio de estado físico desde la ficha: de, a (nulo es «sin dato»), quién y cuándo; inmutable ([ADR 0019](05_decisiones.md#adr-0019)) |

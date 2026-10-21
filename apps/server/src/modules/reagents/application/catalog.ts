@@ -2,8 +2,6 @@ import type pg from 'pg';
 import type { z } from 'zod';
 import {
   productRuleViolation,
-  type createLocationRequest,
-  type Location,
   type newProduct,
   type Product,
   type updateProductRequest,
@@ -11,7 +9,7 @@ import {
 import { createItem, lockItem, setMinimum, updateItemFields } from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
 import { definedFields } from '../../../platform/objects.js';
-import { createAuditedLocation, recordAudit, type WorkspaceAccess } from '../../core/index.js';
+import { recordAudit, type WorkspaceAccess } from '../../core/index.js';
 import {
   findProductDetail,
   insertProductDetail,
@@ -171,24 +169,5 @@ export function setProductMinimum(
       });
       return { productId, minimum: stored };
     },
-  );
-}
-
-/**
- * Crea una ubicación de Core desde Reactivos (ADR 0015): Core no tiene permisos propios, así que la
- * crea quien administra el catálogo, en todo el espacio. Un nombre repetido devuelve la existente.
- */
-export function createWorkspaceLocation(
-  pool: pg.Pool,
-  request: CommandRequest,
-  input: z.infer<typeof createLocationRequest>,
-): Promise<Location> {
-  return runCommand(
-    pool,
-    request,
-    'reagents.location.create',
-    input,
-    requires(CATALOG),
-    (access) => createAuditedLocation(access, input, 'reagents.location.create'),
   );
 }

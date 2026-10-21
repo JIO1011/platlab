@@ -35,7 +35,6 @@ export function IngressSheet({
   products,
   productId,
   canCreate,
-  canManageLists,
   base,
 }: SheetBaseProps & {
   /** La lista ya cargada: de ella salen los recientes. */
@@ -44,7 +43,6 @@ export function IngressSheet({
   productId: string | undefined;
   /** Crear reactivos y ubicaciones: `reagents.catalog.manage`. */
   canCreate: boolean;
-  canManageLists: boolean;
   base: string;
 }) {
   const [recents] = useState(() => readRecents(workspaceId));
@@ -118,12 +116,11 @@ export function IngressSheet({
           <StorageSection
             workspaceId={workspaceId}
             open={open}
-            area={form.area}
-            onArea={(area) => patch({ area })}
+            departmentId={form.departmentId}
+            onDepartment={(departmentId) => patch({ departmentId })}
             places={places}
             recentIds={recents.locations}
             canCreate={canCreate}
-            canManageLists={canManageLists}
             error={errors.placeId}
             onPlace={(placeId) => patch({ placeId })}
             onServerErrors={entry.setServerErrors}

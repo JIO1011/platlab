@@ -68,15 +68,18 @@ RETURNING lot_seq, code, name, base_unit;
 
 /* @name insertLot */
 -- Si el código automático ya lo tiene un lote anterior del ítem, no inserta y se prueba el siguiente.
-INSERT INTO inventory.lots (workspace_id, item_id, code, brand, area, expires_on)
-VALUES (:workspaceId!, :itemId!, :code!, :brand, :area, :expiresOn)
+INSERT INTO inventory.lots (workspace_id, item_id, code, brand, department_id, expires_on)
+VALUES (:workspaceId!, :itemId!, :code!, :brand, :departmentId, :expiresOn)
 ON CONFLICT (workspace_id, item_id, lower(code)) DO NOTHING
 RETURNING id, code;
 
 /* @name findLocation */
+-- La ubicación activa donde se coloca o se cuenta, bloqueada (compartida) hasta el final: archivarla
+-- espera a que esta operación termine y, si se archivó antes, la relectura no la devuelve (ADR 0024).
 SELECT id
 FROM core.locations
-WHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL;
+WHERE workspace_id = :workspaceId! AND id = :locationId! AND archived_at IS NULL
+FOR SHARE;
 
 /* @name reserveContainerSeqs */
 -- Reparte números de frasco del lote: el UPDATE bloquea el lote, así que dos ingresos simultáneos
@@ -275,7 +278,8 @@ SELECT
   l.code AS lot_code,
   l.expires_on,
   l.brand,
-  l.area,
+  dept.id AS "department_id?",
+  dept.name AS "department_name?",
   p.disposition,
   c.id AS "container_id?",
   c.code AS container_code,
@@ -327,6 +331,7 @@ LEFT JOIN LATERAL (
   LIMIT 1
 ) AS receipt ON true
 JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+LEFT JOIN core.departments AS dept ON dept.workspace_id = l.workspace_id AND dept.id = l.department_id
 WHERE p.workspace_id = :workspaceId!
   AND i.kind = :kind!
   AND (:itemId::uuid IS NULL OR p.item_id = :itemId::uuid)
@@ -777,55 +782,34 @@ SET archived_at = now()
 WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND id = :id! AND archived_at IS NULL
 RETURNING id;
 
-/* @name listDestinations */
-SELECT id, name
-FROM inventory.destinations
-WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND archived_at IS NULL
-ORDER BY lower(name), id;
+/* @name stockedItemsByArea */
+-- Cifras de Áreas (ADR 0024): ítems distintos del tipo con existencias en cada área, en todos sus niveles.
+SELECT la.area_id AS "area_id!", count(DISTINCT p.item_id)::integer AS "count!"
+FROM inventory.positions AS p
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+JOIN core.location_areas AS la ON la.workspace_id = p.workspace_id AND la.location_id = p.location_id
+WHERE p.workspace_id = :workspaceId! AND i.kind = :kind! AND p.balance > 0
+GROUP BY la.area_id;
 
-/* @name insertDestination */
-WITH inserted AS (
-  INSERT INTO inventory.destinations (workspace_id, item_kind, name)
-  VALUES (:workspaceId!, :itemKind!, :name!)
-  ON CONFLICT (workspace_id, item_kind, lower(name)) WHERE archived_at IS NULL DO NOTHING
-  RETURNING id, name
-)
-SELECT id AS "id!", name AS "name!" FROM inserted
-UNION ALL
-SELECT id, name FROM inventory.destinations
-WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND lower(name) = lower(:name!) AND archived_at IS NULL
-  AND NOT EXISTS (SELECT 1 FROM inserted);
+/* @name stockedItemsByDepartment */
+-- Ítems distintos del tipo con existencias en lotes de cada departamento.
+SELECT l.department_id AS "department_id!", count(DISTINCT p.item_id)::integer AS "count!"
+FROM inventory.positions AS p
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+WHERE p.workspace_id = :workspaceId! AND i.kind = :kind! AND p.balance > 0 AND l.department_id IS NOT NULL
+GROUP BY l.department_id;
 
-/* @name archiveDestination */
-UPDATE inventory.destinations
-SET archived_at = now()
-WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND id = :id! AND archived_at IS NULL
-RETURNING id;
-
-/* @name listAreas */
-SELECT id, name
-FROM inventory.areas
-WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND archived_at IS NULL
-ORDER BY lower(name), id;
-
-/* @name insertArea */
-WITH inserted AS (
-  INSERT INTO inventory.areas (workspace_id, item_kind, name)
-  VALUES (:workspaceId!, :itemKind!, :name!)
-  ON CONFLICT (workspace_id, item_kind, lower(name)) WHERE archived_at IS NULL DO NOTHING
-  RETURNING id, name
-)
-SELECT id AS "id!", name AS "name!" FROM inserted
-UNION ALL
-SELECT id, name FROM inventory.areas
-WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND lower(name) = lower(:name!) AND archived_at IS NULL
-  AND NOT EXISTS (SELECT 1 FROM inserted);
-
-/* @name archiveArea */
-UPDATE inventory.areas
-SET archived_at = now()
-WHERE workspace_id = :workspaceId! AND item_kind = :itemKind! AND id = :id! AND archived_at IS NULL
-RETURNING id;
+/* @name stockAt */
+-- ¿Hay existencias del tipo en alguna de estas ubicaciones? Lo pregunta el archivo de un área (ADR 0024),
+-- con las ubicaciones ya bloqueadas.
+SELECT EXISTS (
+  SELECT 1
+  FROM inventory.positions AS p
+  JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+  WHERE p.workspace_id = :workspaceId! AND i.kind = :kind! AND p.balance > 0
+    AND p.location_id = ANY (:locationIds!::uuid[])
+) AS "stocked!";
 
 /* @name listBrands */
 -- Marcas ya usadas en lotes del tipo del módulo (ADR 0015): una por nombre, la más reciente primero.
@@ -946,3 +930,12 @@ WHERE a.workspace_id = :workspaceId!
   AND i.kind = :kind!
   AND a.status = 'held'
   AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid);
+
+/* @name lockPositionPlace */
+-- La ubicación activa de una posición, bloqueada (compartida) hasta el final: un movimiento que suma no deja
+-- existencias en un lugar archivado y archivarlo espera a que termine (ADR 0024).
+SELECT l.id
+FROM inventory.positions AS p
+JOIN core.locations AS l ON l.workspace_id = p.workspace_id AND l.id = p.location_id
+WHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND l.archived_at IS NULL
+FOR SHARE OF l;

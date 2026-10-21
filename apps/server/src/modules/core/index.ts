@@ -1,19 +1,16 @@
 /** Interfaz pública de Core: los módulos solo importan desde aquí (02 §3). */
 export {
   hasPermission,
+  listActiveMembers,
   requirePermission,
   withModuleAccess,
   withWorkspaceAccess,
   type WorkspaceAccess,
 } from './application/access.js';
 export { recordAudit, type AuditEntry } from './application/audit.js';
-export {
-  activeLocations,
-  assignAreaManager,
-  createAuditedLocation,
-  type ActiveLocation,
-  type LocationRecord,
-} from './application/locations.js';
+export { activeDepartments, requireActiveDepartment } from './application/departments.js';
+export { activeLocations, type ActiveLocation } from './application/locations.js';
+export type { AreaContribution } from './application/organization.js';
 export {
   moduleCommand,
   moduleQuery,

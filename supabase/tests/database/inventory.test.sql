@@ -75,9 +75,8 @@ set constraints all immediate;
 -- ---------------------------------------------------------------------------
 
 select tables_are('inventory',
-  array['units', 'items', 'lots', 'positions', 'operations', 'entries', 'containers', 'reasons', 'destinations',
-        'allocations', 'areas'],
-  'inventory contiene las tablas de R-00 y de R-01A');
+  array['units', 'items', 'lots', 'positions', 'operations', 'entries', 'containers', 'reasons', 'allocations'],
+  'inventory contiene las tablas de R-00 y de R-01A; destinos y áreas pasaron a core.departments (ADR 0024)');
 select tables_are('reagents', array['products', 'safety_sheets'], 'reagents contiene el detalle químico y las fichas de seguridad (ADR 0017)');
 
 select is(

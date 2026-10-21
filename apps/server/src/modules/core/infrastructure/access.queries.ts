@@ -231,6 +231,82 @@ const admitModuleIR: any = {"usedParamSet":{"moduleCode":true,"alsoModule":true,
 export const admitModule = new PreparedQuery<IAdmitModuleParams,IAdmitModuleResult>(admitModuleIR);
 
 
+/** 'AdmitAnyModule' parameters type */
+export interface IAdmitAnyModuleParams {
+  actionClass: string;
+  moduleCodes: stringArray;
+  subject: string;
+  workspaceId: string;
+}
+
+/** 'AdmitAnyModule' return type */
+export interface IAdmitAnyModuleResult {
+  code: string;
+  decision: string;
+  display_name: string;
+  identity_id: string;
+  is_owner: boolean;
+  membership_id: string;
+  module_code: string;
+  name: string;
+  principal_id: string;
+  status: string;
+  time_zone: string;
+  workspace_classes: stringArray;
+  workspace_id: string;
+}
+
+/** 'AdmitAnyModule' query type */
+export interface IAdmitAnyModuleQuery {
+  params: IAdmitAnyModuleParams;
+  result: IAdmitAnyModuleResult;
+}
+
+const admitAnyModuleIR: any = {"usedParamSet":{"actionClass":true,"moduleCodes":true,"workspaceId":true,"subject":true},"params":[{"name":"actionClass","required":true,"transform":{"type":"scalar"},"locs":[{"a":651,"b":663}]},{"name":"moduleCodes","required":true,"transform":{"type":"scalar"},"locs":[{"a":1017,"b":1029}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1344,"b":1356}]},{"name":"subject","required":true,"transform":{"type":"scalar"},"locs":[{"a":1441,"b":1449}]}],"statement":"-- Áreas y departamentos (ADR 0024): Core no tiene derecho propio; los admite algún módulo que los declara\n-- en su manifiesto. Una fila por derecho de :moduleCodes con su decisión; espacio, derechos y membresía\n-- quedan bloqueados (FOR SHARE) en la misma consulta que decide, en orden de módulo.\nSELECT\n  w.id AS workspace_id,\n  w.code,\n  w.name,\n  w.status,\n  w.time_zone,\n  i.id AS identity_id,\n  i.display_name,\n  m.id AS membership_id,\n  p.id AS principal_id,\n  (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS \"is_owner!\",\n  core.workspace_axis(w.status, w.suspension_reason) AS \"workspace_classes!\",\n  e.module_code,\n  core.admission(\n    :actionClass!,\n    core.workspace_axis(w.status, w.suspension_reason),\n    core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,\n                     md.stage, e.contract_kind, env.data_class, now())\n  ) AS \"decision!\"\nFROM core.workspaces AS w\nJOIN core.workspace_entitlements AS e ON e.workspace_id = w.id AND e.module_code = ANY (:moduleCodes!::text[])\nJOIN core.module_definitions AS md ON md.code = e.module_code\nJOIN core.memberships AS m ON m.workspace_id = w.id\nJOIN core.identities AS i ON i.id = m.identity_id\nJOIN core.principals AS p ON p.workspace_id = m.workspace_id AND p.membership_id = m.id\nCROSS JOIN platform.environment AS env\nWHERE w.id = :workspaceId!\n  AND m.status = 'active'\n  AND i.provider = 'supabase'\n  AND i.provider_subject = :subject!\nORDER BY e.module_code\nFOR SHARE OF w, e, m"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Áreas y departamentos (ADR 0024): Core no tiene derecho propio; los admite algún módulo que los declara
+ * -- en su manifiesto. Una fila por derecho de :moduleCodes con su decisión; espacio, derechos y membresía
+ * -- quedan bloqueados (FOR SHARE) en la misma consulta que decide, en orden de módulo.
+ * SELECT
+ *   w.id AS workspace_id,
+ *   w.code,
+ *   w.name,
+ *   w.status,
+ *   w.time_zone,
+ *   i.id AS identity_id,
+ *   i.display_name,
+ *   m.id AS membership_id,
+ *   p.id AS principal_id,
+ *   (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS "is_owner!",
+ *   core.workspace_axis(w.status, w.suspension_reason) AS "workspace_classes!",
+ *   e.module_code,
+ *   core.admission(
+ *     :actionClass!,
+ *     core.workspace_axis(w.status, w.suspension_reason),
+ *     core.module_axis(e.status, e.valid_from, e.valid_until, e.closing_until, e.read_until,
+ *                      md.stage, e.contract_kind, env.data_class, now())
+ *   ) AS "decision!"
+ * FROM core.workspaces AS w
+ * JOIN core.workspace_entitlements AS e ON e.workspace_id = w.id AND e.module_code = ANY (:moduleCodes!::text[])
+ * JOIN core.module_definitions AS md ON md.code = e.module_code
+ * JOIN core.memberships AS m ON m.workspace_id = w.id
+ * JOIN core.identities AS i ON i.id = m.identity_id
+ * JOIN core.principals AS p ON p.workspace_id = m.workspace_id AND p.membership_id = m.id
+ * CROSS JOIN platform.environment AS env
+ * WHERE w.id = :workspaceId!
+ *   AND m.status = 'active'
+ *   AND i.provider = 'supabase'
+ *   AND i.provider_subject = :subject!
+ * ORDER BY e.module_code
+ * FOR SHARE OF w, e, m
+ * ```
+ */
+export const admitAnyModule = new PreparedQuery<IAdmitAnyModuleParams,IAdmitAnyModuleResult>(admitAnyModuleIR);
+
+
 /** 'FindMembershipClasses' parameters type */
 export interface IFindMembershipClassesParams {
   subject: string;
@@ -388,5 +464,39 @@ const listMemberRolesIR: any = {"usedParamSet":{"workspaceId":true,"principalId"
  * ```
  */
 export const listMemberRoles = new PreparedQuery<IListMemberRolesParams,IListMemberRolesResult>(listMemberRolesIR);
+
+
+/** 'ListActiveMembers' parameters type */
+export interface IListActiveMembersParams {
+  workspaceId: string;
+}
+
+/** 'ListActiveMembers' return type */
+export interface IListActiveMembersResult {
+  id: string;
+  name: string;
+}
+
+/** 'ListActiveMembers' query type */
+export interface IListActiveMembersQuery {
+  params: IListActiveMembersParams;
+  result: IListActiveMembersResult;
+}
+
+const listActiveMembersIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":354,"b":366}]}],"statement":"-- Miembros activos del espacio, por nombre: responsables de un equipo y encargados de un área (ADR 0019, 0024).\nSELECT pr.id, ident.display_name AS name\nFROM core.principals AS pr\nJOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nJOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE pr.workspace_id = :workspaceId! AND pr.kind = 'member' AND m.status = 'active'\nORDER BY inventory.fold_text(ident.display_name), pr.id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Miembros activos del espacio, por nombre: responsables de un equipo y encargados de un área (ADR 0019, 0024).
+ * SELECT pr.id, ident.display_name AS name
+ * FROM core.principals AS pr
+ * JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+ * JOIN core.identities AS ident ON ident.id = m.identity_id
+ * WHERE pr.workspace_id = :workspaceId! AND pr.kind = 'member' AND m.status = 'active'
+ * ORDER BY inventory.fold_text(ident.display_name), pr.id
+ * ```
+ */
+export const listActiveMembers = new PreparedQuery<IListActiveMembersParams,IListActiveMembersResult>(listActiveMembersIR);
 
 

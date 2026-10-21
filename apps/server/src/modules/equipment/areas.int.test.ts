@@ -28,7 +28,7 @@ beforeAll(async () => {
 
 const areas = async (subject = lab.adminMember.subject) => areaList.parse((await call(subject, `${lab.base}/areas`)).body).items;
 const assign = (subject: string, areaId: string, managerId: string | null) =>
-  call(subject, `${lab.base}/areas/${areaId}/manager`, { method: 'PUT', body: { managerId } });
+  call(subject, `/workspaces/${lab.workspace.id}/areas/${areaId}/manager`, { method: 'PUT', body: { managerId } });
 const setCondition = (assetId: string, condition: string) =>
   call(lab.adminMember.subject, `${lab.base}/assets/${assetId}/condition`, { method: 'POST', body: { condition, reason: 'Prueba' } });
 
@@ -151,14 +151,13 @@ describe('estado físico', () => {
 
 describe('nombres de ubicación', () => {
   it('no se repiten en el mismo nivel sin distinguir tildes ni mayúsculas, pero sí en otra área', async () => {
-    const create = async (name: string, parentId: string) => {
-      const created = await call(lab.adminMember.subject, `${lab.base}/locations`, { method: 'POST', body: { name, parentId } });
-      expect(created.status).toBe(201);
-      return (created.body as { id: string }).id;
-    };
-    const first = await create('Mesón 2', lab.lab);
-    expect(await create('  meson   2 ', lab.lab)).toBe(first);
-    expect(await create('Mesón 2', lab.otherLab)).not.toBe(first);
+    const create = (name: string, parentId: string) =>
+      call(lab.adminMember.subject, `/workspaces/${lab.workspace.id}/locations`, { method: 'POST', body: { name, parentId } });
+    expect((await create('Mesón 2', lab.lab)).status).toBe(201);
+    const repeated = await create('  meson   2 ', lab.lab);
+    expect(repeated.status).toBe(409);
+    expect(errorCode(repeated.body)).toBe('NAME_TAKEN');
+    expect((await create('Mesón 2', lab.otherLab)).status).toBe(201);
   });
 });
 

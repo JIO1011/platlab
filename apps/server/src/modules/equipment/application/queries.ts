@@ -12,14 +12,24 @@ import type {
 } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
 import { decodeCursor, encodeCursor } from '../../../platform/http/cursor.js';
-import { activeLocations, hasPermission, type HomeContribution, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import {
+  activeLocations,
+  hasPermission,
+  listActiveMembers,
+  type AreaContribution,
+  type HomeContribution,
+  type QueryRequest,
+  type WorkspaceAccess,
+} from '../../core/index.js';
+import {
+  activeAssetAt,
+  assetsByArea,
+  assetsByDepartment,
   assetTotals,
   equipmentSummary,
   listAssetHistory,
   listAssets as listAssetsQuery,
   listAssetTypes,
-  listResponsibles as listResponsiblesQuery,
   type IListAssetHistoryResult,
   type IListAssetsResult,
 } from '../infrastructure/assets.queries.js';
@@ -54,6 +64,7 @@ export const toAsset = (row: IListAssetsResult): Asset => ({
   warrantyUntil: row.warranty_until,
   usefulLifeYears: row.useful_life_years,
   replacementValue: row.replacement_value,
+  department: row.department_id && row.department_name ? { id: row.department_id, name: row.department_name } : null,
   photoUrl: row.photo_url,
   createdAt: row.created_at.toISOString(),
 });
@@ -155,7 +166,7 @@ export function listTypes(pool: pg.Pool, request: QueryRequest): Promise<AssetTy
 /** Miembros activos que pueden ser responsables de un equipo. */
 export function listResponsibles(pool: pg.Pool, request: QueryRequest): Promise<ResponsibleList> {
   return runQuery(pool, request, async (access) => ({
-    items: await listResponsiblesQuery.run({ workspaceId: access.workspace.id }, access.client),
+    items: await listActiveMembers(access),
   }));
 }
 
@@ -193,3 +204,24 @@ export async function equipmentHomeSummary(access: WorkspaceAccess): Promise<Hom
 export function getSummary(pool: pg.Pool, request: QueryRequest): Promise<HomeContribution> {
   return runQuery(pool, request, equipmentHomeSummary);
 }
+
+/**
+ * Aporte de Equipos a Áreas (ADR 0024): equipos que no están dados de baja por área y por departamento, y
+ * si queda alguno en unas ubicaciones. Quien lo llama ya autorizó.
+ */
+export const equipmentAreaContribution: AreaContribution = {
+  counts: async (access) => {
+    const [areas, departments] = await Promise.all([
+      assetsByArea.run({ workspaceId: access.workspace.id }, access.client),
+      assetsByDepartment.run({ workspaceId: access.workspace.id }, access.client),
+    ]);
+    return {
+      byArea: Object.fromEntries(areas.map((row) => [row.area_id, row.count])),
+      byDepartment: Object.fromEntries(departments.map((row) => [row.department_id, row.count])),
+    };
+  },
+  occupies: async (access, locationIds) => {
+    const [row] = await activeAssetAt.run({ workspaceId: access.workspace.id, locationIds }, access.client);
+    return row?.placed ?? false;
+  },
+};

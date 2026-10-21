@@ -7,6 +7,7 @@ import {
   positionList,
   reagentsSummary,
   entryList,
+  departmentList,
 } from '@platlab/contracts';
 import { addMember, setModuleStatus, uniqueSuffix } from '../../testing/core-fixtures.js';
 import {
@@ -20,6 +21,7 @@ import {
   listEntry,
   receivedPosition,
   count,
+  createDepartment,
 } from './reagents.fixtures.js';
 
 describe('R-01A · motivos y destinos (ADR 0012)', () => {
@@ -48,10 +50,9 @@ describe('R-01A · motivos y destinos (ADR 0012)', () => {
     });
     expect(denied.status).toBe(403);
 
-    const destination = listEntry.parse(
-      (await call(lab.adminMember.subject, `${lab.base}/destinations`, { method: 'POST', body: { name: 'Laboratorio 1' } })).body,
-    );
-    expect(entryList.parse((await call(lab.operator.subject, `${lab.base}/destinations`)).body).items).toEqual([destination]);
+    // Los destinos son los departamentos del Núcleo (ADR 0024): el Operador los consulta.
+    const destination = await createDepartment(lab, 'Laboratorio 1');
+    expect(departmentList.parse((await call(lab.operator.subject, `/workspaces/${lab.workspace.id}/departments`)).body).items).toEqual([destination]);
 
     expect((await call(lab.adminMember.subject, `${lab.base}/reasons/${reason.id}/archive`, { method: 'POST' })).status).toBe(200);
     expect(entryList.parse((await call(lab.operator.subject, `${lab.base}/reasons?kind=issue`)).body).items).toEqual([]);
@@ -60,7 +61,8 @@ describe('R-01A · motivos y destinos (ADR 0012)', () => {
     // Archivar dos veces, o desde otro espacio, no encuentra nada.
     expect((await call(lab.adminMember.subject, `${lab.base}/reasons/${reason.id}/archive`, { method: 'POST' })).status).toBe(404);
     const other = await createLab();
-    expect((await call(other.adminMember.subject, `${other.base}/destinations/${destination.id}/archive`, { method: 'POST' })).status).toBe(404);
+    const crossed = `/workspaces/${other.workspace.id}/departments/${destination.id}/archive`;
+    expect((await call(other.adminMember.subject, crossed, { method: 'POST' })).status).toBe(404);
   });
 });
 

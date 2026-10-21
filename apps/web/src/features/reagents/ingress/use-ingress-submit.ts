@@ -38,7 +38,7 @@ function receiptBody({ entry, lookup, review }: Pick<SubmitInput, 'entry' | 'loo
     quantity: normalizeDecimalInput(form.quantity),
     unit,
     codes: lookup.codes,
-    area: form.area.trim() || null,
+    departmentId: form.departmentId || null,
     locationId: form.placeId,
     // Uno nuevo pesa con la densidad de su ficha; uno existente, con la escrita para estos frascos.
     weight: review.weight.tare

@@ -2,9 +2,9 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import type { HealthResponse } from '@platlab/contracts';
 import { coreRoutes } from './modules/core/index.js';
-import { equipmentHomeSummary, equipmentRoutes } from './modules/equipment/index.js';
+import { equipmentAreaContribution, equipmentHomeSummary, equipmentRoutes } from './modules/equipment/index.js';
 import { maintenanceHomeSummary, maintenanceRoutes } from './modules/maintenance/index.js';
-import { reagentsHomeSummary, reagentsRoutes } from './modules/reagents/index.js';
+import { reagentsAreaContribution, reagentsHomeSummary, reagentsRoutes } from './modules/reagents/index.js';
 import type { TokenVerifier } from './platform/auth/jwt.js';
 import { requireAuthentication } from './platform/http/auth.js';
 import { registerErrorHandling } from './platform/http/errors.js';
@@ -29,7 +29,11 @@ export function buildApp({ pool, verifyToken, publicFiles }: AppDependencies): F
     async (v1) => {
       requireAuthentication(v1, verifyToken);
       await v1.register(
-        coreRoutes({ pool, homeSummaries: { reagents: reagentsHomeSummary, equipment: equipmentHomeSummary, maintenance: maintenanceHomeSummary } }),
+        coreRoutes({
+          pool,
+          homeSummaries: { reagents: reagentsHomeSummary, equipment: equipmentHomeSummary, maintenance: maintenanceHomeSummary },
+          areaContributions: { reagents: reagentsAreaContribution, equipment: equipmentAreaContribution },
+        }),
       );
       await v1.register(reagentsRoutes({ pool, publicFiles }), { prefix: '/workspaces/:workspaceId/reagents' });
       await v1.register(equipmentRoutes({ pool, publicFiles }), { prefix: '/workspaces/:workspaceId/equipment' });
