@@ -3,6 +3,7 @@ import { Button, Skeleton, toast } from '@platlab/ui';
 import { Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmArchive } from '../../app/confirm-archive';
+import { CodeTag } from '../../app/code-tag';
 import { QueryErrorState } from '../../app/states';
 import { useLabsAccess } from './area-access';
 import { ClosuresList } from './closures';
@@ -37,7 +38,7 @@ function ArchiveSpace({ workspaceId, space, areaName, onCancel }: { workspaceId:
   );
 }
 
-/** Aforo y horario semanal del espacio; quien administra los edita o archiva. */
+/** Sigla, aforo y horario semanal del espacio; quien administra los edita o archiva. */
 function SpaceDetails({ workspaceId, space, areaName, canManage, onEdit }: { workspaceId: string; space: Space; areaName: string; canManage: boolean; onEdit: () => void }) {
   const [archiving, setArchiving] = useState(false);
   const hours = hoursSummary(space.weeklyHours);
@@ -45,7 +46,13 @@ function SpaceDetails({ workspaceId, space, areaName, canManage, onEdit }: { wor
     <div className="grid gap-3">
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <div className="grid gap-1 text-sm">
-          <p className="tabular-nums text-ink">{space.capacity === 1 ? 'Aforo: 1 persona' : `Aforo: ${space.capacity} personas`}</p>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums text-ink">
+            <span>{space.capacity === 1 ? 'Aforo: 1 persona' : `Aforo: ${space.capacity} personas`}</span>
+            <span className="inline-flex items-center gap-1.5">
+              Sigla
+              <CodeTag>{space.abbreviation}</CodeTag>
+            </span>
+          </p>
           {hours.length === 0 ? (
             <p className="text-ink-muted">Sin horario: no se puede agendar ningún día.</p>
           ) : (
@@ -74,7 +81,7 @@ function SpaceDetails({ workspaceId, space, areaName, canManage, onEdit }: { wor
 }
 
 /**
- * El panel «Laboratorio» de la hoja de un área (ADR 0023): si el área está habilitada para prácticas, su aforo, su horario
+ * El panel «Laboratorio» de la hoja de un área (ADR 0023): si el área está habilitada para prácticas, su sigla, su aforo, su horario
  * semanal y sus cierres; si no, «Habilitar para prácticas» a quien administra. Lo confirmado por el servidor es lo único que se muestra.
  */
 export function AreaLabPanel({ areaId, areaName }: { areaId: string; areaName: string }) {
@@ -127,6 +134,7 @@ export function AreaLabPanel({ areaId, areaName }: { areaId: string; areaName: s
           areaId={areaId}
           areaName={areaName}
           space={space}
+          takenAbbreviations={spaces.data.items.filter((entry) => entry.areaId !== areaId).map((entry) => entry.abbreviation)}
         />
       ) : null}
     </>

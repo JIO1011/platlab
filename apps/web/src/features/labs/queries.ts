@@ -1,4 +1,4 @@
-import { closureList, formList, labsForm, labsSettings, spaceList } from '@platlab/contracts';
+import { closureList, formList, labsForm, labsSettings, periodList, spaceList } from '@platlab/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
@@ -27,6 +27,16 @@ export function useSpaces(workspaceId: string) {
   return useQuery({
     queryKey: [...labsKey(user, workspaceId), 'spaces'],
     queryFn: () => api(`${base(workspaceId)}/spaces`, { schema: spaceList }),
+    refetchInterval: jitteredPoll,
+  });
+}
+
+/** Los períodos: los activos por fecha de inicio y después los archivados. */
+export function usePeriods(workspaceId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...labsKey(user, workspaceId), 'periods'],
+    queryFn: () => api(`${base(workspaceId)}/periods`, { schema: periodList }),
     refetchInterval: jitteredPoll,
   });
 }

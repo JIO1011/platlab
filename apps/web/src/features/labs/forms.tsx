@@ -9,7 +9,8 @@ import { QueryErrorState } from '../../app/states';
 import { useLabs } from './context';
 import { NewFormSheet } from './form-new-sheet';
 import { LeadDaysSection } from './lead-days';
-import { useLabsForms, useLabsSettings } from './queries';
+import { PeriodsSection } from './periods';
+import { useLabsForms, useLabsSettings, usePeriods } from './queries';
 
 /** Un formato en la lista: su nombre, el título que lleva la hoja y su última revisión; abre su hoja. */
 function FormCard({ form, workspaceId, timeZone }: { form: FormSummary; workspaceId: string; timeZone: string }) {
@@ -35,12 +36,13 @@ function FormCard({ form, workspaceId, timeZone }: { form: FormSummary; workspac
 /**
  * Formatos de Laboratorios (ADR 0023): los formatos de solicitud del espacio de trabajo, cada uno con su nombre y su última
  * revisión; los archivados, aparte y plegados. El Administrador crea formatos nuevos; quien llena solo ve los activos.
- * Al pie, la anticipación del pedido, que es una regla del pedido y la fija el Administrador.
+ * Al pie, la anticipación del pedido y los períodos, que son reglas del pedido y las fija el Administrador.
  */
 export function LabsFormsPage() {
   const { workspaceId, me, canManageForm, canManageSpaces } = useLabs();
   const forms = useLabsForms(workspaceId);
   const settings = useLabsSettings(workspaceId);
+  const periods = usePeriods(workspaceId);
   /** La hoja «Nuevo formato»: `n` la monta de nuevo en cada apertura. */
   const [sheet, setSheet] = useState<{ n: number; open: boolean } | null>(null);
   const openSheet = () => setSheet({ n: (sheet?.n ?? 0) + 1, open: true });
@@ -58,7 +60,7 @@ export function LabsFormsPage() {
 
   return (
     <>
-      <SectionHeader title="Formatos" updatedAt={Math.min(forms.dataUpdatedAt, settings.dataUpdatedAt)} actions={create} />
+      <SectionHeader title="Formatos" updatedAt={Math.min(forms.dataUpdatedAt, settings.dataUpdatedAt, periods.dataUpdatedAt)} actions={create} />
       <div className="mt-6 grid gap-8">
         <div className="grid gap-4">
           {forms.isPending ? (
@@ -110,6 +112,7 @@ export function LabsFormsPage() {
           )}
         </div>
         <LeadDaysSection workspaceId={workspaceId} settings={settings} canManage={canManageSpaces} />
+        <PeriodsSection workspaceId={workspaceId} periods={periods} timeZone={timeZone} canManage={canManageSpaces} />
       </div>
       {sheet ? <NewFormSheet key={sheet.n} workspaceId={workspaceId} open={sheet.open} onOpenChange={(open) => setSheet((current) => (current ? { ...current, open } : current))} forms={items} /> : null}
     </>

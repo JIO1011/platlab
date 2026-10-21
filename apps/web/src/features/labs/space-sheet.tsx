@@ -6,12 +6,14 @@ import { isApiError } from '../../app/api';
 import { FormSheet, type SheetBaseProps } from '../../app/form-sheet';
 import { labsErrorMessage, useCreateSpace, useUpdateSpace, useVersionConflict } from './commands';
 import { HoursEditor } from './hours-editor';
+import { suggestAbbreviation } from './space-abbreviation';
 import { capacityOf, closedWeek, spaceIssues, type SpaceIssues } from './space-form';
 
 /**
- * «Habilitar para prácticas» y «Editar espacio» (Administrador), desde el panel de su área en «Áreas»: el aforo y el
- * horario semanal del área, que es siempre la misma. Un espacio archivado se reactiva con estos datos. Al editar, solo
- * viaja lo que cambió, con la versión que se vio.
+ * «Habilitar para prácticas» y «Editar espacio» (Administrador), desde el panel de su área en «Áreas»: la sigla que
+ * identifica el área en el código de cada práctica, el aforo y el horario semanal, que es siempre el mismo. Al habilitar,
+ * la sigla se sugiere desde el nombre del área; un espacio archivado se reactiva con sus datos. Al editar, solo viaja lo
+ * que cambió, con la versión que se vio.
  */
 export function SpaceSheet({
   workspaceId,
@@ -20,9 +22,12 @@ export function SpaceSheet({
   areaId,
   areaName,
   space,
+  takenAbbreviations,
 }: SheetBaseProps & {
   areaId: string;
   areaName: string;
+  /** Las siglas de los demás espacios: la sugerida no las repite. */
+  takenAbbreviations: string[];
   /** El espacio que se edita; si está archivado, sus datos prellenan al habilitarlo de nuevo. */
   space?: Space | undefined;
 }) {
@@ -30,12 +35,15 @@ export function SpaceSheet({
   const create = useCreateSpace(workspaceId);
   const update = useUpdateSpace(workspaceId, areaId);
   const conflict = useVersionConflict(workspaceId);
+  const [initialAbbreviation] = useState(() => space?.abbreviation ?? suggestAbbreviation(areaName, takenAbbreviations));
+  const [abbreviation, setAbbreviation] = useState(initialAbbreviation);
   const [capacity, setCapacity] = useState(space ? String(space.capacity) : '');
   const [hours, setHours] = useState<WeeklyHours>(space?.weeklyHours ?? closedWeek);
   const [issues, setIssues] = useState<SpaceIssues>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
 
   const people = capacityOf(capacity);
+  const abbreviationChanged = abbreviation.trim().toUpperCase() !== initialAbbreviation;
   const capacityChanged = space ? people !== space.capacity : capacity !== '';
   const hoursChanged = JSON.stringify(hours) !== JSON.stringify(space?.weeklyHours ?? closedWeek);
 
@@ -46,7 +54,10 @@ export function SpaceSheet({
       setIssues({ capacity: 'Escribe cuántas personas caben a la vez (1 o más).' });
       return;
     }
-    const changes = { ...(capacityChanged ? { capacity: people } : {}), ...(hoursChanged ? { weeklyHours: hours } : {}) };
+    const changes = {
+      ...(abbreviationChanged ? { abbreviation } : {}),
+      ...(capacityChanged ? { capacity: people } : {}), ...(hoursChanged ? { weeklyHours: hours } : {}),
+    };
     if (editing && Object.keys(changes).length === 0) {
       setGeneralError('No cambiaste nada.');
       return;
@@ -54,7 +65,7 @@ export function SpaceSheet({
     const parsed =
       editing && space
         ? updateSpaceRequest.safeParse({ ...changes, expectedVersion: space.version })
-        : createSpaceRequest.safeParse({ areaId, capacity: people, weeklyHours: hours });
+        : createSpaceRequest.safeParse({ areaId, abbreviation, capacity: people, weeklyHours: hours });
     if (!parsed.success) {
       setIssues(spaceIssues(parsed.error));
       return;
@@ -69,6 +80,10 @@ export function SpaceSheet({
       }
       onOpenChange(false);
     } catch (error) {
+      if (isApiError(error, 'CODE_TAKEN')) {
+        setIssues({ abbreviation: 'Otro espacio ya usa esa sigla. Elige otra.' });
+        return;
+      }
       if (isApiError(error, 'VERSION_CONFLICT')) {
         void conflict('este espacio');
         onOpenChange(false);
@@ -82,21 +97,38 @@ export function SpaceSheet({
     <FormSheet
       icon={DoorOpen}
       title={editing ? 'Editar espacio' : 'Habilitar para prácticas'}
-      description={editing ? `Ajusta el aforo y el horario de ${areaName}.` : `${areaName} se podrá agendar, con su aforo y su horario semanal.`}
+      description={editing ? `Ajusta la sigla, el aforo y el horario de ${areaName}.` : `${areaName} se podrá agendar, con su sigla, su aforo y su horario semanal.`}
       open={open}
       onOpenChange={onOpenChange}
       submitLabel={editing ? 'Guardar cambios' : 'Habilitar'}
       pending={create.isPending || update.isPending}
       generalError={generalError}
       onSubmit={() => void submit()}
-      dirty={capacityChanged || hoursChanged}
+      dirty={abbreviationChanged || capacityChanged || hoursChanged}
       required
       fullscreenMobile
       sections
       focusFirst
       pendingText="Guardando el espacio…"
     >
-      <section aria-label="Aforo" className="grid gap-4">
+      <section aria-label="Sigla y aforo" className="grid gap-4">
+        <Field
+          label="Sigla"
+          required
+          hint="De 2 a 5 letras o números. Identifica el área en el código de cada práctica, como ANT en P1-S12-ANT03."
+          error={issues.abbreviation}
+        >
+          <Input
+            maxLength={5}
+            autoComplete="off"
+            className="h-11 font-mono uppercase tabular-nums sm:h-10"
+            value={abbreviation}
+            onChange={(event) => {
+              setAbbreviation(event.target.value);
+              setIssues((current) => ({ ...current, abbreviation: undefined }));
+            }}
+          />
+        </Field>
         <Field label="Aforo" required hint="Las personas que caben a la vez en el área." error={issues.capacity}>
           <Input
             type="number"

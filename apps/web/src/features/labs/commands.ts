@@ -1,4 +1,4 @@
-import { closure, labsForm, labsSettings, space } from '@platlab/contracts';
+import { closure, labsForm, labsSettings, period, space } from '@platlab/contracts';
 import { toast } from '@platlab/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { isApiError } from '../../app/api';
@@ -29,6 +29,16 @@ export function useUpdateSpace(workspaceId: string, areaId: string) {
 /** Archivar un espacio: deja de agendarse y sus cierres siguen; el área sigue en «Áreas». */
 export function useArchiveSpace(workspaceId: string, areaId: string) {
   return useModuleCommand(workspaceId, `/labs/spaces/${areaId}/archive`, space, useLabsKey(workspaceId));
+}
+
+/** «Nuevo período» (sin `periodId`) o editar uno con la versión que se vio. */
+export function useSavePeriod(workspaceId: string, periodId?: string) {
+  return useModuleCommand(workspaceId, periodId ? `/labs/periods/${periodId}` : '/labs/periods', period, useLabsKey(workspaceId), periodId ? 'PATCH' : 'POST');
+}
+
+/** Archivar un período: deja de contar para agendar y no se borra; las solicitudes que ya lo llevan en su código siguen. */
+export function useArchivePeriod(workspaceId: string, periodId: string) {
+  return useModuleCommand(workspaceId, `/labs/periods/${periodId}/archive`, period, useLabsKey(workspaceId));
 }
 
 /** «Nuevo cierre»: de un espacio o, sin área, un feriado común a todos. */
@@ -80,6 +90,6 @@ export function labsErrorMessage(error: unknown): string {
   if (isApiError(error, 'MODULE_READ_ONLY', 'MODULE_UNAVAILABLE', 'WORKSPACE_RESTRICTED')) {
     return 'Laboratorios no admite cambios en este momento. Puedes consultar.';
   }
-  if (isApiError(error, 'NOT_FOUND')) return 'Ese espacio, ese cierre o ese formato ya no está disponible en este espacio.';
+  if (isApiError(error, 'NOT_FOUND')) return 'Ese espacio, ese cierre, ese período o ese formato ya no está disponible en este espacio.';
   return commonErrorMessage(error);
 }
