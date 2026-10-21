@@ -603,7 +603,7 @@ update equipment.assets set department_id = 'daa00000-0000-4000-8000-00000000000
 
 -- ---------------------------------------------------------------------------
 -- Laboratorios de A (ADR 0023): dos áreas habilitadas como espacios, un feriado común y un cierre por
--- mantenimiento del Laboratorio de Física, uno anulado, y la primera versión del Formato. La
+-- mantenimiento del Laboratorio de Física, uno anulado, y dos formatos con su primera revisión. La
 -- anticipación queda en los 7 días por defecto (sin fila de ajustes).
 -- ---------------------------------------------------------------------------
 
@@ -633,12 +633,49 @@ insert into labs.closures
 values ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000003', current_date + 5, current_date + 5,
         'Fumigación (reprogramada)', now(), 'da200000-0000-4000-8000-000000000001', 'da200000-0000-4000-8000-000000000001');
 
-insert into labs.form_versions
-  (workspace_id, version, title, document_code, subject_label, unit_label, fields, published_by_principal_id) values
-  ('da000000-0000-4000-8000-00000000000a', 1, 'Solicitud de práctica de laboratorio', 'LAB-FR-01', 'Asignatura', 'Carrera',
-   '[{"key": "colaborador", "label": "Colaborador de cátedra", "type": "text", "required": false},
-     {"key": "curso_paralelo", "label": "Curso-paralelo", "type": "text", "required": false},
-     {"key": "practica_n", "label": "Práctica Nº", "type": "number", "required": false},
-     {"key": "requiere_epp", "label": "¿Requiere bata y gafas?", "type": "boolean", "required": false}]',
+-- Dos formatos: «Práctica académica» es la plantilla estándar (la P69) con un dato extra; «Servicio
+-- externo» no pide reactivos ni asignatura y lo firma el cliente.
+insert into labs.forms (id, workspace_id, name, created_by_principal_id) values
+  ('dad00000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'Práctica académica',
+   'da200000-0000-4000-8000-000000000001'),
+  ('dad00000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'Servicio externo',
+   'da200000-0000-4000-8000-000000000001');
+
+insert into labs.form_revisions
+  (workspace_id, form_id, revision, title, document_code, layout, published_by_principal_id) values
+  ('da000000-0000-4000-8000-00000000000a', 'dad00000-0000-4000-8000-000000000001', 1,
+   'Solicitud de práctica de laboratorio', 'LAB-FR-01',
+   '{"rows": [
+      {"kind": "section", "title": "I. Datos de la actividad"},
+      {"kind": "row", "fields": [{"key": "titulo", "label": "Título de la práctica"}]},
+      {"kind": "row", "fields": [{"key": "docente", "label": "Docente"}, {"key": "tipo", "label": "Tipo de actividad"}]},
+      {"kind": "row", "fields": [{"key": "asignatura", "label": "Asignatura"}, {"key": "carrera", "label": "Carrera"}]},
+      {"kind": "row", "fields": [{"key": "fecha", "label": "Fecha(s) programada(s)"}, {"key": "horario", "label": "Horario"}]},
+      {"kind": "row", "fields": [{"key": "participantes", "label": "Nº alumnos"}, {"key": "grupos", "label": "Nº grupos"}]},
+      {"kind": "row", "fields": [
+        {"key": "colaborador", "label": "Colaborador de cátedra", "type": "text", "required": false},
+        {"key": "curso_paralelo", "label": "Curso-paralelo", "type": "text", "required": false},
+        {"key": "practica_n", "label": "Práctica Nº", "type": "number", "required": false}]},
+      {"kind": "row", "fields": [{"key": "requiere_epp", "label": "¿Requiere bata y gafas?", "type": "boolean", "required": false}]}],
+     "resources": [{"kind": "reagents", "label": "Reactivos"}, {"kind": "equipment", "label": "Equipos"},
+                   {"kind": "materials", "label": "Materiales"}],
+     "equipmentCode": true,
+     "notes": true,
+     "signatures": [{"label": "Asistente de laboratorio", "requester": false}, {"label": "Docente", "requester": true}]}',
+   'da200000-0000-4000-8000-000000000001'),
+  ('da000000-0000-4000-8000-00000000000a', 'dad00000-0000-4000-8000-000000000002', 1,
+   'Solicitud de servicio externo', 'LAB-FR-02',
+   '{"rows": [
+      {"kind": "section", "title": "Datos del servicio"},
+      {"kind": "row", "fields": [{"key": "titulo", "label": "Servicio solicitado"}]},
+      {"kind": "row", "fields": [
+        {"key": "empresa", "label": "Empresa o cliente", "type": "text", "required": true},
+        {"key": "docente", "label": "Responsable"}]},
+      {"kind": "row", "fields": [{"key": "fecha", "label": "Fecha(s)"}, {"key": "horario", "label": "Horario"},
+                                 {"key": "participantes", "label": "Nº personas"}]}],
+     "resources": [{"kind": "equipment", "label": "Equipos"}, {"kind": "materials", "label": "Materiales"}],
+     "equipmentCode": false,
+     "notes": true,
+     "signatures": [{"label": "Técnico responsable", "requester": false}, {"label": "Cliente", "requester": true}]}',
    'da200000-0000-4000-8000-000000000001');
 commit;

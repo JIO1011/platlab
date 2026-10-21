@@ -195,7 +195,8 @@ En L-01b las tablas `practices.*` de abajo pasan al esquema `labs` ([ADR 0023](0
 | `labs.settings` | Una fila por espacio de trabajo: anticipación en días (7 por defecto) |
 | `labs.spaces` | Área del Núcleo habilitada para agendar (FK compuesta a `core.location_areas`, sin duplicarla): aforo, horario semanal (franjas `[apertura, cierre)` por día, ordenadas y sin solaparse, validadas en SQL), versión y archivo |
 | `labs.closures` | Cierres por fechas con motivo; sin área es un feriado común. Se anulan, no se borran |
-| `labs.form_versions` | Formato del espacio: título y campos libres (texto, número, fecha, lista, sí/no; obligatorio u opcional). Cada guardado es una versión nueva e inmutable; el núcleo es fijo y no se guarda |
+| `labs.forms` | Formatos del espacio («Práctica académica», «Servicio externo»…): nombre único entre los activos; se renombran y se archivan, no se borran |
+| `labs.form_revisions` | Cada guardado de un formato es una revisión nueva e inmutable: título, código y la hoja (`layout`: filas de 1 a 3 datos con los cinco esenciales, columnas de recursos, observaciones y firmas), validada por `labs.form_layout_valid`. Las solicitudes guardan formato y revisión |
 | `scheduling.lab_bookings`, `equipment_bookings`, `material_bookings` | Reservas `[inicio, fin)` con exclusión GiST por espacio y recurso |
 | `practices.templates`, `template_versions` | Plantillas con versiones publicadas inmutables |
 | `practices.participations` | Estudiante: docente responsable, ámbito y vigencia |

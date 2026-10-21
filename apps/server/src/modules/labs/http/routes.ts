@@ -4,15 +4,18 @@ import {
   closureListQuery,
   closureParams,
   createClosureRequest,
+  createFormRequest,
   createSpaceRequest,
+  formParams,
   publishFormRequest,
   spaceParams,
+  updateFormRequest,
   updateLabsSettingsRequest,
   updateSpaceRequest,
 } from '@platlab/contracts';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import { createClosure, listClosures, voidClosure } from '../application/closures.js';
-import { getForm, publishForm } from '../application/form.js';
+import { archiveForm, createForm, getForm, listForms, publishForm, updateForm } from '../application/form.js';
 import { getSettings, updateSettings } from '../application/settings.js';
 import { archiveSpace, createSpace, listSpaces, updateSpace } from '../application/spaces.js';
 
@@ -55,12 +58,28 @@ export function labsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync {
       voidClosure(pool, commandRequest(request), closureParams.parse(request.params).closureId),
     );
 
-    // Formato de solicitud: cada guardado publica una versión nueva.
-    app.get('/form', async (request) => getForm(pool, queryRequest(request)));
+    // Formatos de solicitud: los activos los ve quien llena; cada guardado publica una revisión nueva.
+    app.get('/forms', async (request) => listForms(pool, queryRequest(request)));
 
-    app.post('/form', async (request, reply) => {
+    app.post('/forms', async (request, reply) => {
+      const input = createFormRequest.parse(request.body);
+      return reply.status(201).send(await createForm(pool, commandRequest(request), input));
+    });
+
+    app.get('/forms/:formId', async (request) => getForm(pool, queryRequest(request), formParams.parse(request.params).formId));
+
+    app.patch('/forms/:formId', async (request) =>
+      updateForm(pool, commandRequest(request), formParams.parse(request.params).formId, updateFormRequest.parse(request.body)),
+    );
+
+    app.post('/forms/:formId/archive', async (request) =>
+      archiveForm(pool, commandRequest(request), formParams.parse(request.params).formId),
+    );
+
+    app.post('/forms/:formId/revisions', async (request, reply) => {
+      const { formId } = formParams.parse(request.params);
       const input = publishFormRequest.parse(request.body);
-      return reply.status(201).send(await publishForm(pool, commandRequest(request), input));
+      return reply.status(201).send(await publishForm(pool, commandRequest(request), formId, input));
     });
   };
 }

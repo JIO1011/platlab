@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { closure, closureList, FORM_STANDARD_FIELDS, labsForm, labsSettings, space, spaceList } from '@platlab/contracts';
+import { closure, closureList, FORM_STANDARD_LAYOUT, formList, labsForm, labsSettings, space, spaceList, type FormLayout } from '@platlab/contracts';
 import { admin, call, count, errorCode } from '../../testing/api.js';
 import { addLocation, addMember, seedWorkspace, uniqueSuffix } from '../../testing/core-fixtures.js';
 
 /**
- * L-01a (ADR 0023): Espacios, cierres, anticipación y Formato por HTTP, con el rol de runtime. El
+ * L-01a (ADR 0023): Espacios, cierres, anticipación y Formatos por HTTP, con el rol de runtime. El
  * Administrador configura; el Operador y el Docente consultan; el Estudiante no entra.
  */
 
@@ -42,8 +42,6 @@ const key = () => `labs-${uniqueSuffix()}`;
 const send = (target: LabsLab, method: 'POST' | 'PATCH' | 'PUT', path: string, body?: unknown, subject = target.adminMember.subject, idempotencyKey = key()) =>
   call(subject, `${target.base}${path}`, { method, ...(body === undefined ? {} : { body }), key: idempotencyKey });
 
-/** Membrete mínimo de un formato: sin código y con los nombres por defecto. */
-const header = { documentCode: null, subjectLabel: 'Asignatura', unitLabel: 'Carrera' };
 const closed = { '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [] };
 const weekdays = { ...closed, '1': [{ opens: '07:00', closes: '13:00' }, { opens: '14:00', closes: '18:00' }], '5': [{ opens: '08:00', closes: '12:00' }] };
 
@@ -55,7 +53,7 @@ async function enable(target: LabsLab, areaId: string, capacity = 20) {
 
 describe('roles', () => {
   it('el Estudiante no entra a Laboratorios', async () => {
-    for (const path of ['/settings', '/spaces', '/closures?from=2026-01-01&to=2026-12-31', '/form']) {
+    for (const path of ['/settings', '/spaces', '/closures?from=2026-01-01&to=2026-12-31', '/forms']) {
       const response = await call(lab.student.subject, `${lab.base}${path}`);
       expect(response.status).toBe(403);
       expect(errorCode(response.body)).toBe('ACCESS_DENIED');
@@ -65,14 +63,14 @@ describe('roles', () => {
   it('el Operador y el Docente consultan, pero no configuran', async () => {
     const area = await addLocation(admin, lab.workspace.id, { kind: 'room', parentId: lab.site });
     for (const member of [lab.operator, lab.teacher]) {
-      for (const path of ['/settings', '/spaces', '/closures?from=2026-01-01&to=2026-12-31', '/form']) {
+      for (const path of ['/settings', '/spaces', '/closures?from=2026-01-01&to=2026-12-31', '/forms']) {
         expect((await call(member.subject, `${lab.base}${path}`)).status).toBe(200);
       }
       const denied = [
         await send(lab, 'PUT', '/settings', { leadDays: 3 }, member.subject),
         await send(lab, 'POST', '/spaces', { areaId: area, capacity: 10, weeklyHours: weekdays }, member.subject),
         await send(lab, 'POST', '/closures', { startsOn: '2026-12-25', endsOn: '2026-12-25', reason: 'Navidad' }, member.subject),
-        await send(lab, 'POST', '/form', { ...header, title: 'Solicitud', fields: [], expectedVersion: 0 }, member.subject),
+        await send(lab, 'POST', '/forms', { name: 'Práctica' }, member.subject),
       ];
       for (const response of denied) {
         expect(response.status).toBe(403);
@@ -232,81 +230,119 @@ describe('cierres', () => {
   });
 });
 
-describe('formato', () => {
-  const fields = [
-    { key: 'asignatura', label: 'Asignatura', type: 'text', required: true },
-    { key: 'tipo', label: 'Tipo de práctica', type: 'list', required: true, options: ['Docencia', 'Tesis'] },
-  ];
+describe('formatos', () => {
+  /** Crea un formato desde la plantilla estándar (o duplicando `from`) y devuelve su respuesta. */
+  async function createForm(target: LabsLab, name: string, from?: string) {
+    const created = await send(target, 'POST', '/forms', { name, ...(from ? { from } : {}) });
+    expect(created.status).toBe(201);
+    return labsForm.parse(created.body);
+  }
+  const publish = (target: LabsLab, formId: string, body: Record<string, unknown>) =>
+    send(target, 'POST', `/forms/${formId}/revisions`, { title: 'Solicitud', documentCode: null, layout: FORM_STANDARD_LAYOUT, ...body });
+  /** La plantilla con una fila más al final de la Sección I. */
+  const withRow = (fields: unknown[]) => ({ ...FORM_STANDARD_LAYOUT, rows: [...FORM_STANDARD_LAYOUT.rows, { kind: 'row', fields }] });
 
-  it('sin publicar es la versión 0; cada guardado publica la siguiente y la anterior queda intacta', async () => {
+  it('uno nuevo parte de la plantilla estándar; cada guardado publica la revisión siguiente y la anterior queda intacta', async () => {
     const target = await createLabsLab();
-    expect(labsForm.parse((await call(target.teacher.subject, `${target.base}/form`)).body)).toMatchObject({
-      version: 0,
-      title: null,
-      documentCode: null,
-      subjectLabel: 'Asignatura',
-      unitLabel: 'Carrera',
-      fields: FORM_STANDARD_FIELDS,
-    });
+    const form = await createForm(target, 'Práctica académica');
+    expect(form).toMatchObject({ name: 'Práctica académica', version: 1, archivedAt: null, revision: 1, title: 'Práctica académica', documentCode: null });
+    expect(form.layout).toEqual(FORM_STANDARD_LAYOUT);
 
-    const first = await send(target, 'POST', '/form', {
-      ...header,
-      title: 'Solicitud',
-      documentCode: 'LAB-FR-01',
-      subjectLabel: 'Proyecto',
-      unitLabel: 'Cliente',
-      fields,
-      expectedVersion: 0,
-    });
-    expect(first.status).toBe(201);
-    expect(labsForm.parse(first.body)).toMatchObject({
-      version: 1,
-      title: 'Solicitud',
-      documentCode: 'LAB-FR-01',
-      subjectLabel: 'Proyecto',
-      unitLabel: 'Cliente',
-      fields,
-    });
+    const layout: FormLayout = {
+      ...FORM_STANDARD_LAYOUT,
+      resources: [{ kind: 'equipment', label: 'Equipos' }],
+      equipmentCode: false,
+      signatures: [{ label: 'Cliente', requester: true }],
+    };
+    const second = await publish(target, form.id, { title: 'Solicitud de práctica', documentCode: 'LAB-FR-01', layout, expectedRevision: 1 });
+    expect(second.status).toBe(201);
+    expect(labsForm.parse(second.body)).toMatchObject({ revision: 2, title: 'Solicitud de práctica', documentCode: 'LAB-FR-01', layout });
+    expect(labsForm.parse((await call(target.teacher.subject, `${target.base}/forms/${form.id}`)).body).revision).toBe(2);
+    expect(await count('select count(*) as n from labs.form_revisions where form_id = $1 and revision = 1 and jsonb_array_length(layout -> \'resources\') = 3', [form.id])).toBe(1);
 
-    const second = await send(target, 'POST', '/form', { ...header, title: 'Solicitud de práctica', fields: fields.slice(0, 1), expectedVersion: 1 });
-    expect(labsForm.parse(second.body).version).toBe(2);
-    expect(labsForm.parse((await call(target.teacher.subject, `${target.base}/form`)).body).version).toBe(2);
-    expect(await count('select count(*) as n from labs.form_versions where workspace_id = $1 and version = 1 and jsonb_array_length(fields) = 2', [target.workspace.id])).toBe(1);
-
-    const stale = await send(target, 'POST', '/form', { ...header, title: 'Tarde', fields, expectedVersion: 1 });
+    const stale = await publish(target, form.id, { expectedRevision: 1 });
     expect(stale.status).toBe(409);
     expect(errorCode(stale.body)).toBe('VERSION_CONFLICT');
   });
 
-  it('dos publicaciones a la vez sobre la misma versión: solo una gana', async () => {
+  it('dos publicaciones a la vez sobre la misma revisión: solo una gana', async () => {
     const target = await createLabsLab();
-    const results = await Promise.all([
-      send(target, 'POST', '/form', { ...header, title: 'Una', fields, expectedVersion: 0 }),
-      send(target, 'POST', '/form', { ...header, title: 'Otra', fields, expectedVersion: 0 }),
-    ]);
+    const form = await createForm(target, 'Práctica');
+    const results = await Promise.all([publish(target, form.id, { title: 'Una', expectedRevision: 1 }), publish(target, form.id, { title: 'Otra', expectedRevision: 1 })]);
     expect(results.map((result) => result.status).sort()).toEqual([201, 409]);
-    expect(await count('select count(*) as n from labs.form_versions where workspace_id = $1', [target.workspace.id])).toBe(1);
+    expect(await count('select count(*) as n from labs.form_revisions where form_id = $1', [form.id])).toBe(2);
   });
 
-  it('rechaza listas sin opciones, opciones fuera de una lista, claves repetidas y más de 30 campos', async () => {
-    const field = (index: number) => ({ key: `campo_${index}`, label: `Campo ${index}`, type: 'text', required: false });
+  it('duplicar copia la última revisión de otro formato del espacio, y no uno de otro espacio', async () => {
+    const target = await createLabsLab();
+    const source = await createForm(target, 'Práctica académica');
+    const layout = withRow([{ key: 'empresa', label: 'Empresa', type: 'text', required: true }]);
+    expect((await publish(target, source.id, { title: 'Solicitud de servicio', documentCode: 'LAB-FR-02', layout, expectedRevision: 1 })).status).toBe(201);
+
+    const copy = await createForm(target, 'Servicio externo', source.id);
+    expect(copy).toMatchObject({ name: 'Servicio externo', revision: 1, title: 'Solicitud de servicio', documentCode: 'LAB-FR-02', layout });
+    expect(copy.id).not.toBe(source.id);
+
+    const foreign = await send(other, 'POST', '/forms', { name: 'Ajeno', from: source.id });
+    expect(foreign.status).toBe(404);
+    expect((await call(other.adminMember.subject, `${other.base}/forms/${source.id}`)).status).toBe(404);
+  });
+
+  it('el nombre activo no se repite; se renombra con la versión vista y archivar lo saca de quien llena', async () => {
+    const target = await createLabsLab();
+    const form = await createForm(target, 'Práctica académica');
+    const repeated = await send(target, 'POST', '/forms', { name: ' práctica ACADEMICA ' });
+    expect(repeated.status).toBe(409);
+    expect(errorCode(repeated.body)).toBe('NAME_TAKEN');
+
+    const renamed = await send(target, 'PATCH', `/forms/${form.id}`, { name: 'Prácticas', expectedVersion: 1 });
+    expect(labsForm.parse(renamed.body)).toMatchObject({ name: 'Prácticas', version: 2, revision: 1 });
+    const stale = await send(target, 'PATCH', `/forms/${form.id}`, { name: 'Otra', expectedVersion: 1 });
+    expect(errorCode(stale.body)).toBe('VERSION_CONFLICT');
+    const second = await createForm(target, 'Servicio externo');
+    const taken = await send(target, 'PATCH', `/forms/${second.id}`, { name: 'prácticas', expectedVersion: 1 });
+    expect(errorCode(taken.body)).toBe('NAME_TAKEN');
+
+    const archived = await send(target, 'POST', `/forms/${form.id}/archive`);
+    expect(labsForm.parse(archived.body).archivedAt).not.toBeNull();
+    const teacherList = formList.parse((await call(target.teacher.subject, `${target.base}/forms`)).body);
+    expect(teacherList.items.map((item) => item.id)).toEqual([second.id]);
+    expect((await call(target.teacher.subject, `${target.base}/forms/${form.id}`)).status).toBe(404);
+    const adminList = formList.parse((await call(target.adminMember.subject, `${target.base}/forms`)).body);
+    expect(adminList.items.map((item) => item.id)).toEqual([second.id, form.id]);
+
+    for (const response of [
+      await publish(target, form.id, { expectedRevision: 1 }),
+      await send(target, 'PATCH', `/forms/${form.id}`, { name: 'Otra', expectedVersion: 3 }),
+      await send(target, 'POST', `/forms/${form.id}/archive`),
+    ]) {
+      expect(errorCode(response.body)).toBe('VALIDATION_FAILED');
+    }
+    expect((await createForm(target, 'Prácticas')).name).toBe('Prácticas');
+  });
+
+  it('rechaza una hoja sin esenciales, filas de más de 3 datos, claves del sistema en un dato libre y dos firmas del solicitante', async () => {
+    const target = await createLabsLab();
+    const form = await createForm(target, 'Práctica');
+    const withoutTitle: FormLayout = {
+      ...FORM_STANDARD_LAYOUT,
+      rows: FORM_STANDARD_LAYOUT.rows.filter((row) => !(row.kind === 'row' && row.fields.some((field) => field.key === 'titulo'))),
+    };
+    const text = (key: string) => ({ key, label: key, type: 'text', required: false });
     const invalid = [
-      [{ key: 'tipo', label: 'Tipo', type: 'list', required: true }],
-      [{ key: 'tipo', label: 'Tipo', type: 'list', required: true, options: [] }],
-      [{ key: 'tipo', label: 'Tipo', type: 'list', required: true, options: ['A', 'A'] }],
-      [{ ...field(1), options: ['A'] }],
-      [field(1), { ...field(2), key: 'campo_1' }],
-      [{ ...field(1), key: 'Campo 1' }],
-      [{ ...field(1), type: 'file' }],
-      Array.from({ length: 31 }, (_, index) => field(index)),
+      withoutTitle,
+      withRow([text('a'), text('b'), text('c'), text('d')]),
+      withRow([]),
+      withRow([{ key: 'grupos', label: 'Grupos', type: 'number', required: false }]),
+      withRow([{ key: 'docente', label: 'Otra vez' }]),
+      withRow([{ key: 'tipo_practica', label: 'Tipo', type: 'list', required: true }]),
+      { ...FORM_STANDARD_LAYOUT, resources: [] },
+      { ...FORM_STANDARD_LAYOUT, signatures: [{ label: 'Docente', requester: true }, { label: 'Cliente', requester: true }] },
     ];
-    for (const value of invalid) {
-      const rejected = await send(lab, 'POST', '/form', { ...header, title: 'Solicitud', fields: value, expectedVersion: 0 });
+    for (const layout of invalid) {
+      const rejected = await publish(target, form.id, { layout, expectedRevision: 1 });
       expect(rejected.status).toBe(400);
     }
-    const blankLabel = await send(lab, 'POST', '/form', { ...header, title: 'Solicitud', subjectLabel: ' ', fields: [], expectedVersion: 0 });
-    expect(blankLabel.status).toBe(400);
-    const thirty = await send(other, 'POST', '/form', { ...header, title: 'Solicitud', fields: Array.from({ length: 30 }, (_, index) => field(index)), expectedVersion: 0 });
-    expect(thirty.status).toBe(201);
+    expect(await count('select count(*) as n from labs.form_revisions where form_id = $1', [form.id])).toBe(1);
   });
 });
