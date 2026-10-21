@@ -42,7 +42,10 @@ insert into labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_
    '{"1": [], "2": [], "3": [], "4": [], "5": [], "6": [], "7": []}', 'b2000000-0000-4000-8000-000000000001');
 insert into labs.closures (id, workspace_id, area_id, starts_on, ends_on, reason, created_by_principal_id) values
   ('b6000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', null, '2027-01-01', '2027-01-01',
-   'Feriado de B', 'b2000000-0000-4000-8000-000000000001');
+   'Feriado de B', 'b2000000-0000-4000-8000-000000000001'),
+  -- El cierre de A que la prueba anula: el runtime no elige el id.
+  ('a6000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-00000000000a', 'a3000000-0000-4000-8000-000000000001',
+   '2027-01-04', '2027-01-05', 'Fumigación', 'a2000000-0000-4000-8000-000000000001');
 
 -- ---------------------------------------------------------------------------
 -- Validadores: funciones puras, sin contexto
@@ -102,7 +105,7 @@ select set_config('platlab.workspace_id', 'a0000000-0000-4000-8000-00000000000a'
 select set_config('platlab.principal_id', 'a2000000-0000-4000-8000-000000000001', true);
 
 select is((select count(*)::int from labs.spaces), 1, 'RLS: el runtime solo ve los espacios de su espacio de trabajo');
-select is((select count(*)::int from labs.closures), 0, 'RLS: no ve los cierres de otro espacio de trabajo');
+select is((select count(*)::int from labs.closures), 1, 'RLS: no ve los cierres de otro espacio de trabajo');
 
 select lives_ok(
   $$ insert into labs.spaces (workspace_id, area_id, capacity, weekly_hours, created_by_principal_id)
@@ -128,9 +131,9 @@ select throws_ok(
   '23514', null, 'un cierre empieza antes de terminar');
 
 select lives_ok(
-  $$ insert into labs.closures (id, workspace_id, area_id, starts_on, ends_on, reason, created_by_principal_id)
-     values ('a6000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-00000000000a',
-             'a3000000-0000-4000-8000-000000000001', '2027-01-04', '2027-01-05', 'Fumigación', 'a2000000-0000-4000-8000-000000000001') $$,
+  $$ insert into labs.closures (workspace_id, area_id, starts_on, ends_on, reason, created_by_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a3000000-0000-4000-8000-000000000001', '2027-02-01', '2027-02-01',
+             'Pintura', 'a2000000-0000-4000-8000-000000000001') $$,
   'el runtime registra un cierre de su espacio');
 
 select lives_ok(

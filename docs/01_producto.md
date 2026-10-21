@@ -278,7 +278,9 @@ Lecciones de ReactiLab (`/home/jio/Documentos/Inventario_V1`):
   - Ajuste sin signo, ubicación en texto libre y traslados sin traza.
   - Borrado usado como baja y un «FIFO» basado en la menor cantidad.
   - Tarjetas como única vista y botones visibles sin permiso.
+  - Su baseline y su historia de migraciones.
   - ReactiLab no tiene importación: el asistente de PlatLab se diseña desde cero.
+- **Licencia:** aclarar titularidad y licencia (README MIT frente a términos de software propietario) antes de copiar código.
 
 ## 8. Fuera del alcance inicial
 
