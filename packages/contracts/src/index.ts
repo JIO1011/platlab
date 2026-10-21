@@ -285,6 +285,7 @@ export {
   formFieldType,
   FORM_DEFAULT_LABELS,
   FORM_MAX_FIELDS,
+  FORM_STANDARD_FIELDS,
   LEAD_DAYS_DEFAULT,
   labsForm,
   labsSettings,

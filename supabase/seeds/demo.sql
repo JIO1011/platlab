@@ -636,8 +636,9 @@ values ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-0000000
 insert into labs.form_versions
   (workspace_id, version, title, document_code, subject_label, unit_label, fields, published_by_principal_id) values
   ('da000000-0000-4000-8000-00000000000a', 1, 'Solicitud de práctica de laboratorio', 'LAB-FR-01', 'Asignatura', 'Carrera',
-   '[{"key": "paralelo", "label": "Curso y paralelo", "type": "text", "required": false},
-     {"key": "parcial", "label": "Parcial", "type": "list", "required": false, "options": ["1", "2", "3"]},
+   '[{"key": "colaborador", "label": "Colaborador de cátedra", "type": "text", "required": false},
+     {"key": "curso_paralelo", "label": "Curso-paralelo", "type": "text", "required": false},
+     {"key": "practica_n", "label": "Práctica Nº", "type": "number", "required": false},
      {"key": "requiere_epp", "label": "¿Requiere bata y gafas?", "type": "boolean", "required": false}]',
    'da200000-0000-4000-8000-000000000001');
 commit;

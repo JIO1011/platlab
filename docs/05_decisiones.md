@@ -854,13 +854,19 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
   - **Membrete:** logo y nombre de la institución, nombre del formato, código del documento y revisión, que es la versión publicada. El número de solicitud y la fecha los pone el sistema. Logo y nombre son del espacio de trabajo y sirven a todas las impresiones: llegan con una pieza del Core; hasta entonces se muestra el nombre del espacio.
   - **Cuatro bloques fijos:**
     1. Actividad: tipo (práctica, investigación o tesis, servicio, capacitación), título, asignatura y carrera. El Administrador renombra «Asignatura» y «Carrera», por ejemplo a «Proyecto» y «Cliente».
-    2. Fecha: fecha deseada, hora de inicio y fin, y área opcional.
+    2. Fecha: una o varias fechas sueltas (nunca un rango), hora de inicio y fin, y área opcional. Cada fecha es una actividad de un día: un bloque y un código propios en el Cronograma.
     3. Participantes: número de participantes y de grupos (1 por defecto).
     4. Recursos del inventario. El solicitante sale de la sesión.
   - **Asignatura y carrera se eligen de una lista** que se arma al usarlas, nunca como texto libre: de ellas salen las métricas (L-01b).
   - **Cantidades** (L-01b): equipos y materiales con «por grupo / total», y se guarda el total (2 por grupo × 8 grupos = 16). Los equipos se piden por tipo y el Administrador asigna los concretos al programar. Los reactivos van siempre en total, con unidad y cantidad exacta.
   - **Campos libres y observaciones**, solo para lo propio de cada cliente; no entran en las métricas.
-  - **Hoja A4 que se edita en el mismo lugar:** el formato se ve como la hoja impresa (tabla compacta con bordes, membrete en una franja y recursos en tres columnas) y el Administrador lo edita sobre ella. Renombra en la hoja; los bloques fijos llevan candado; «+ Agregar campo» elige el tipo con íconos; los campos se reordenan arrastrando o con flechas. Imprime en A4.
+  - **Plantilla estándar, no de diseño libre** (21-10-2026): una hoja A4 como la P69, con la misma estructura para todos los clientes. El Administrador solo ajusta, sobre la hoja: título y código; los nombres de asignatura y carrera; y los datos extra de la Sección I (colaborador, curso-paralelo y práctica Nº vienen precargados y se pueden renombrar, quitar u ordenar).
+    - **Encabezado:** espacio, revisión, título y la casilla del código de la solicitud.
+    - **Sección I, Datos de la actividad:** filas «etiqueta | valor», dos por fila. Primero los datos del sistema (docente, título, tipo, asignatura, carrera, fecha, horario, nº de alumnos y nº de grupos) y después los extra.
+    - **Recursos:** Reactivos (cantidad total), Equipos (por curso, por grupo y código) y Materiales (por curso y por grupo). Por curso = por grupo × nº de grupos. Se imprimen filas vacías hasta llenar la hoja.
+    - **Observaciones** al final.
+    - **Entrega / Recepción:** firmas físicas del asistente de laboratorio y del docente; bajo la firma del docente se imprime su nombre.
+    - La columna «Código» de equipos lleva el código del equipo asignado, o queda en blanco para escribirlo a mano. Esto está por confirmar con el cliente.
   - **Código de la solicitud programada** (L-01b y L-01c), por ejemplo `P1-S12-ANT03`: período, semana del período, sigla del área y secuencia. ANT01, ANT02 y ANT03 son la primera, la segunda y la tercera de Anatomía en esa semana.
     - Se asigna al programar, con el número siguiente del área en esa semana. Los números no se reutilizan. Antes de programar, la solicitud lleva un número fijo (`SOL-0042`).
     - Se programa y se mueve solo hacia el futuro. Al moverla, toma el número siguiente de su nueva semana, y el código anterior queda en el historial.

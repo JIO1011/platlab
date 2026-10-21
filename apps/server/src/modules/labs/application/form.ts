@@ -1,6 +1,6 @@
 import type pg from 'pg';
 import type { z } from 'zod';
-import { FORM_DEFAULT_LABELS, type FormField, type LabsForm, type publishFormRequest } from '@platlab/contracts';
+import { FORM_DEFAULT_LABELS, FORM_STANDARD_FIELDS, type FormField, type LabsForm, type publishFormRequest } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
 import { recordAudit, requires, type CommandRequest, type QueryRequest } from '../../core/index.js';
 import { insertFormVersion, latestForm, type ILatestFormResult } from '../infrastructure/form.queries.js';
@@ -8,7 +8,7 @@ import { FORM_MANAGE, runCommand, runQuery } from './command.js';
 
 /**
  * Formato de solicitud (ADR 0023): uno por espacio de trabajo. Cada guardado publica una versión nueva e
- * inmutable; sin ninguna, el formato está vacío en la versión 0.
+ * inmutable; sin ninguna, la versión 0 es la plantilla estándar sin título.
  */
 
 const toForm = (row: ILatestFormResult | undefined): LabsForm =>
@@ -22,7 +22,7 @@ const toForm = (row: ILatestFormResult | undefined): LabsForm =>
         fields: row.fields as FormField[],
         publishedAt: row.published_at.toISOString(),
       }
-    : { version: 0, title: null, documentCode: null, ...FORM_DEFAULT_LABELS, fields: [], publishedAt: null };
+    : { version: 0, title: null, documentCode: null, ...FORM_DEFAULT_LABELS, fields: FORM_STANDARD_FIELDS, publishedAt: null };
 
 const versionConflict = () => new AppError('VERSION_CONFLICT', 'Otra persona publicó el formato mientras editabas: vuelve a cargarlo');
 

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { closure, closureList, labsForm, labsSettings, space, spaceList } from '@platlab/contracts';
+import { closure, closureList, FORM_STANDARD_FIELDS, labsForm, labsSettings, space, spaceList } from '@platlab/contracts';
 import { admin, call, count, errorCode } from '../../testing/api.js';
 import { addLocation, addMember, seedWorkspace, uniqueSuffix } from '../../testing/core-fixtures.js';
 
@@ -246,7 +246,7 @@ describe('formato', () => {
       documentCode: null,
       subjectLabel: 'Asignatura',
       unitLabel: 'Carrera',
-      fields: [],
+      fields: FORM_STANDARD_FIELDS,
     });
 
     const first = await send(target, 'POST', '/form', {

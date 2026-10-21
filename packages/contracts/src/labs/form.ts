@@ -34,12 +34,22 @@ export const formField = z.union([
   z.object({ ...fieldBase, type: formFieldType.exclude(['list']) }).strict(),
 ]);
 
+/**
+ * Los datos extra con que arranca la plantilla estándar (ADR 0023): el Administrador los renombra, quita u ordena.
+ * Se escriben con la forma de `formField` para que GET /form los devuelva tal cual en la versión 0.
+ */
+export const FORM_STANDARD_FIELDS: FormField[] = [
+  { key: 'colaborador', label: 'Colaborador de cátedra', type: 'text', required: false },
+  { key: 'curso_paralelo', label: 'Curso-paralelo', type: 'text', required: false },
+  { key: 'practica_n', label: 'Práctica Nº', type: 'number', required: false },
+];
+
 const fields = z
   .array(formField)
   .max(FORM_MAX_FIELDS)
   .refine((values) => new Set(values.map((field) => field.key)).size === values.length, 'Las claves no se repiten');
 
-/** GET /form: la última versión; sin ninguna publicada, la versión 0 sin título ni campos y con los nombres por defecto. */
+/** GET /form: la última versión; sin ninguna publicada, la versión 0 sin título, con los nombres por defecto y la plantilla estándar. */
 export const labsForm = z.object({
   version: z.number().int().nonnegative(),
   title: z.string().nullable(),
