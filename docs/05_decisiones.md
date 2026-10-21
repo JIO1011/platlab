@@ -835,6 +835,10 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
   - **Espacios** (Administrador):
     - las áreas del Core ([03](03_datos.md), `core.location_areas`), sin duplicarlas, con aforo, horario semanal y cierres;
     - el plazo de anticipación, 7 días por defecto. Lo que llega tarde no se bloquea: entra marcado «fuera de plazo» y el Administrador decide.
+    - **Sin sección propia** (decisión del usuario, 21-10-2026, «siempre conservando simplicidad»). Laboratorios queda con Formato, Solicitudes y Cronograma. Los datos siguen en `labs`, y Áreas ([ADR 0024](#adr-0024)) los muestra por un punto de extensión, solo si el espacio tiene Laboratorios:
+      - **en cada área**, un panel «Laboratorio» con aforo, horario semanal y cierres, y en su cuadro la marca 🕒 «Habilitada para prácticas»;
+      - **en la cabecera de Áreas**, «Feriados», con los cierres comunes;
+      - **en Formato**, la anticipación, porque es una regla del pedido.
 - **Lista blanca:** es invitar con el rol Docente. Las invitaciones reales dependen de T-03B, y por CSV y con Google o Microsoft llegan en F3. La demo usa las cuentas sembradas.
 - **Entregas** ([04](04_roadmap.md), L-01):
   - **L-01a:** Espacios y Formatos.
