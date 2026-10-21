@@ -8,7 +8,7 @@ import type { WebModule } from '../../app/web-module';
 export const labsWebModule: WebModule = {
   code: 'labs',
   Icon: CalendarRange,
-  sectionIcons: { espacios: DoorOpen, formato: ClipboardList },
+  sectionIcons: { espacios: DoorOpen, formatos: ClipboardList },
   home: {
     counters: [],
     trendNoun: { one: 'solicitud', many: 'solicitudes' },

@@ -19,7 +19,7 @@ const systemKeys: readonly string[] = [...FORM_ESSENTIAL_KEYS, ...FORM_OPTIONAL_
 export const formFieldType = z.enum(['text', 'number', 'date', 'list', 'boolean']);
 
 /** Un dato del sistema: conserva su clave en todos los formatos (las métricas siguen comparables) y solo se renombra. */
-export const formSystemField = z.object({ key: z.enum([...FORM_ESSENTIAL_KEYS, ...FORM_OPTIONAL_KEYS]), label: text(80) }).strict();
+const formSystemField = z.object({ key: z.enum([...FORM_ESSENTIAL_KEYS, ...FORM_OPTIONAL_KEYS]), label: text(80) }).strict();
 
 const freeBase = {
   /** Clave estable de la respuesta, en minúsculas y distinta de las del sistema: la usan las solicitudes de L-01b. */
@@ -39,7 +39,7 @@ const options = z
   .refine((values) => new Set(values).size === values.length, 'Las opciones no se repiten');
 
 /** Un dato libre: solo la lista lleva opciones, y en ella son obligatorias. */
-export const formFreeField = z.union([
+const formFreeField = z.union([
   z.object({ ...freeBase, type: z.literal('list'), options }).strict(),
   z.object({ ...freeBase, type: formFieldType.exclude(['list']) }).strict(),
 ]);
@@ -48,7 +48,7 @@ export const formFreeField = z.union([
 export const formField = z.union([formSystemField, formFreeField]);
 
 /** La Sección I: títulos de sección opcionales y filas de 1 a 3 datos «etiqueta | valor». */
-export const formRow = z.discriminatedUnion('kind', [
+const formRow = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('section'), title: text(80) }).strict(),
   z.object({ kind: z.literal('row'), fields: z.array(formField).min(1).max(3) }).strict(),
 ]);
@@ -127,7 +127,7 @@ export const FORM_STANDARD_LAYOUT: FormLayout = {
 export const formParams = z.object({ formId: z.uuid() });
 
 /** Un formato en la lista: su nombre, su estado y su última revisión. */
-export const formSummary = z.object({
+const formSummary = z.object({
   id: z.uuid(),
   name: z.string(),
   /** La de las ediciones del formato (nombre y archivo); la de la hoja es `revision`. */

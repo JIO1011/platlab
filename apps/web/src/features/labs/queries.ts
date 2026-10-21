@@ -1,4 +1,4 @@
-import { closureList, labsForm, labsSettings, spaceList } from '@platlab/contracts';
+import { closureList, formList, labsForm, labsSettings, spaceList } from '@platlab/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
@@ -41,11 +41,21 @@ export function useClosures(workspaceId: string, from: string, to: string) {
   });
 }
 
-/** La versión vigente del Formato; sin ninguna publicada, la versión 0 sin título ni campos. */
-export function useLabsForm(workspaceId: string) {
+/** Los formatos del espacio de trabajo, activos primero y luego los archivados, con su última revisión. */
+export function useLabsForms(workspaceId: string) {
   const user = useUserKey();
   return useQuery({
-    queryKey: [...labsKey(user, workspaceId), 'form'],
-    queryFn: () => api(`${base(workspaceId)}/form`, { schema: labsForm }),
+    queryKey: [...labsKey(user, workspaceId), 'forms'],
+    queryFn: () => api(`${base(workspaceId)}/forms`, { schema: formList }),
+    refetchInterval: jitteredPoll,
+  });
+}
+
+/** Un formato con su última revisión completa: la hoja. */
+export function useLabsForm(workspaceId: string, formId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...labsKey(user, workspaceId), 'forms', formId],
+    queryFn: () => api(`${base(workspaceId)}/forms/${formId}`, { schema: labsForm }),
   });
 }

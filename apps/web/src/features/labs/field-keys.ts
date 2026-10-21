@@ -19,10 +19,11 @@ export function fieldKey(label: string): string {
 
 /**
  * Las claves de una lista de campos, en su orden. Los que ya tienen clave (los publicados) la conservan: las solicitudes
- * guardan sus respuestas con ella. Los nuevos derivan la suya de la etiqueta y, si ya existe, añaden «_2», «_3»…
+ * guardan sus respuestas con ella. Los nuevos derivan la suya de la etiqueta y, si ya existe o es una de `reserved` (las
+ * de los datos del sistema, que el contrato no admite en un dato libre), añaden «_2», «_3»…
  */
-export function assignKeys(fields: ReadonlyArray<{ label: string; key?: string | undefined }>): string[] {
-  const taken = new Set(fields.flatMap((field) => (field.key ? [field.key] : [])));
+export function assignKeys(fields: ReadonlyArray<{ label: string; key?: string | undefined }>, reserved: readonly string[] = []): string[] {
+  const taken = new Set([...reserved, ...fields.flatMap((field) => (field.key ? [field.key] : []))]);
   return fields.map((field) => {
     if (field.key) return field.key;
     const base = fieldKey(field.label);

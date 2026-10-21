@@ -1,11 +1,10 @@
-import type { FormField } from '@platlab/contracts';
 import { cn } from '@platlab/ui';
-import { CalendarDays, Hash, ListChecks, Lock, ToggleLeft, Type, type LucideIcon } from 'lucide-react';
+import { CalendarDays, Hash, ListChecks, ToggleLeft, Type, type LucideIcon } from 'lucide-react';
 import { useId, type KeyboardEventHandler, type ReactNode } from 'react';
-import { optionsOf, typeLabels, type DraftField } from './form-draft';
+import { optionsOf, typeLabels, type DraftFreeField, type FieldType } from './form-draft';
 
-/** El ícono de cada tipo de campo: el mismo en la elección al agregar, en los ajustes y en la hoja. */
-export const typeIcons: Record<FormField['type'], LucideIcon> = {
+/** El ícono de cada tipo de dato: el mismo en la elección al agregar, en los ajustes y en la hoja. */
+export const typeIcons: Record<FieldType, LucideIcon> = {
   text: Type,
   number: Hash,
   date: CalendarDays,
@@ -13,27 +12,26 @@ export const typeIcons: Record<FormField['type'], LucideIcon> = {
   boolean: ToggleLeft,
 };
 
-export const fieldTypes = Object.keys(typeLabels) as Array<FormField['type']>;
+export const fieldTypes = Object.keys(typeLabels) as FieldType[];
 
 /** Las filas de la hoja son tablas de rejilla: el color de fondo asoma como línea fina entre las celdas (`gap-px`). */
 export const sheetGrid = 'grid gap-px bg-line-strong';
 
 /**
- * La rejilla de la Sección I: dos datos por fila (etiqueta, valor, etiqueta, valor); en el móvil, uno por fila. Cada dato
- * es una subrejilla que ocupa su mitad (`half`) o la fila entera (`full`, solo el título de la práctica), para que las etiquetas queden alineadas.
+ * Las columnas de una fila de la Sección I según sus datos (1 a 3): cada dato es etiqueta y valor, y el valor es algo
+ * más ancho. En el móvil, un dato por fila. Cada dato es una subrejilla de dos columnas (`datumRoot`), para que las
+ * etiquetas de una fila queden alineadas con sus valores.
  */
-export const dataGrid = cn(
-  sheetGrid,
-  'grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.5fr)]',
-);
+const rowColumns = [
+  'sm:grid-cols-[minmax(0,1fr)_minmax(0,4fr)]',
+  'sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.5fr)]',
+  'sm:grid-cols-[repeat(3,minmax(0,1fr)_minmax(0,1.2fr))]',
+] as const;
 
-type Span = 'half' | 'full';
+export const dataRowGrid = (count: number) => cn(sheetGrid, 'grid-cols-[minmax(0,2fr)_minmax(0,3fr)]', rowColumns[Math.min(Math.max(count, 1), 3) - 1]);
 
 /** La subrejilla de un dato; `gap-y-px` separa el aviso que a veces lleva debajo. */
-export const datumRoot = (span: Span) => cn('grid grid-cols-subgrid gap-y-px', span === 'full' ? 'col-span-2 sm:col-span-4' : 'col-span-2');
-
-/** La celda del valor de un dato a lo ancho ocupa lo que la etiqueta no. */
-const datumValue = (span: Span) => (span === 'full' ? 'sm:col-span-3' : undefined);
+export const datumRoot = 'col-span-2 grid grid-cols-subgrid gap-y-px';
 
 export const cellKinds = {
   /** La etiqueta de un dato: fondo gris suave, mayúsculas y negrita como en la plantilla. */
@@ -63,42 +61,14 @@ export function Ghost({ note = false, className, children }: { note?: boolean; c
   return <span className={cn('text-ink-subtle', note ? 'print:hidden' : 'print:invisible', className)}>{children}</span>;
 }
 
-/** Un dato del sistema: etiqueta con candado (solo al editar; en papel no va) y su valor de ejemplo. */
-export function SystemDatum({ span = 'half', editable, label, example }: { span?: Span; editable: boolean; label: string; example: string }) {
-  return (
-    <Datum
-      span={span}
-      label={
-        <span className="flex items-center gap-1">
-          {editable ? <Lock className="size-3 shrink-0 text-ink-subtle print:hidden" aria-hidden /> : null}
-          {label}
-        </span>
-      }
-      value={<Ghost>{example}</Ghost>}
-    />
-  );
-}
-
 /** Un dato de la Sección I: etiqueta | valor. */
-export function Datum({
-  span = 'half',
-  label,
-  value,
-  labelClassName,
-}: {
-  span?: Span;
-  label: ReactNode;
-  value: ReactNode;
-  labelClassName?: string | undefined;
-}) {
+export function Datum({ label, value, labelClassName }: { label: ReactNode; value: ReactNode; labelClassName?: string | undefined }) {
   return (
-    <div className={datumRoot(span)}>
+    <div className={datumRoot}>
       <Cell kind="label" dense className={labelClassName}>
         {label}
       </Cell>
-      <Cell dense className={datumValue(span)}>
-        {value}
-      </Cell>
+      <Cell dense>{value}</Cell>
     </div>
   );
 }
@@ -157,8 +127,8 @@ export function EditableText({
   );
 }
 
-/** Lo que el solicitante llenará en un dato extra, dicho con su ícono: el tipo, si es una lista sus opciones, y si es obligatorio. */
-export function FieldSummary({ field, className }: { field: DraftField; className?: string }) {
+/** Lo que el solicitante llenará en un dato libre, dicho con su ícono: el tipo, si es una lista sus opciones, y si es obligatorio. */
+export function FieldSummary({ field, className }: { field: DraftFreeField; className?: string }) {
   const Icon = typeIcons[field.type];
   const options = field.type === 'list' ? optionsOf(field.options).join(', ') : '';
   return (

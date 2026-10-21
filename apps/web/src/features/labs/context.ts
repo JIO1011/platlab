@@ -5,7 +5,7 @@ import type { ModuleContext } from '../../app/module-app';
 export interface LabsContext extends ModuleContext {
   /** Habilita, edita y archiva espacios y carga cierres (`labs.space.manage`, Administrador). */
   canManageSpaces: boolean;
-  /** Publica versiones del Formato (`labs.form.manage`, Administrador). */
+  /** Crea, renombra y archiva formatos y publica sus revisiones (`labs.form.manage`, Administrador). */
   canManageForm: boolean;
 }
 

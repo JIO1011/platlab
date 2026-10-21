@@ -13,23 +13,21 @@ const MM = {
   slack: 6,
 } as const;
 
-/** Los datos del sistema que van de a dos por fila: asignatura, carrera, tipo, docente, fecha, horario, alumnos y grupos. */
-const SYSTEM_DATA = 8;
-
-/** Las filas que siempre se reservan en Recursos; si la hoja no las deja, pasa a una segunda página. */
+/** Las filas de la tabla de Recursos que siempre se reservan; si la hoja no las deja, pasa a una segunda página. */
 export const MIN_RESOURCE_ROWS = 30;
 
-/** Las filas de la Sección I: el título de la práctica a lo ancho y los demás datos, de a dos. */
-const dataRows = (extras: number): number => 1 + Math.ceil((SYSTEM_DATA + extras) / 2);
-
-/** Con datos impares, la última fila de la Sección I queda con media celda libre. */
-export const hasTrailingGap = (extras: number): boolean => (SYSTEM_DATA + extras) % 2 === 1;
+/** Lo que de la hoja cambia su presupuesto: las filas de la Sección I (títulos y datos) y si lleva Observaciones. */
+interface SheetShape {
+  rows: ReadonlyArray<{ kind: 'section' | 'row' }>;
+  notes: boolean;
+}
 
 /**
  * Las filas de la tabla de Recursos al imprimir: las que llenan lo que sobra de la hoja, y nunca menos de
- * `MIN_RESOURCE_ROWS` (con muchos datos extra, el resto pasa a otra página). Las dos filas de encabezado van aparte.
+ * `MIN_RESOURCE_ROWS` (con muchas filas en la Sección I, el resto pasa a otra página). Cada título y cada fila de datos
+ * ocupa una línea; las dos filas de encabezado de Recursos van aparte.
  */
-export function resourceRows(extras: number): number {
-  const fixed = MM.masthead + (1 + dataRows(extras) + 2) * MM.row + MM.observations + MM.signatures + MM.slack;
+export function resourceRows({ rows, notes }: SheetShape): number {
+  const fixed = MM.masthead + (rows.length + 2) * MM.row + (notes ? MM.observations : 0) + MM.signatures + MM.slack;
   return Math.max(MIN_RESOURCE_ROWS, Math.floor((MM.page - fixed) / MM.row));
 }

@@ -41,9 +41,24 @@ export function useVoidClosure(workspaceId: string, closureId: string) {
   return useModuleCommand(workspaceId, `/labs/closures/${closureId}/void`, closure, useLabsKey(workspaceId));
 }
 
-/** «Publicar versión»: la versión siguiente e inmutable del Formato. */
-export function usePublishForm(workspaceId: string) {
-  return useModuleCommand(workspaceId, '/labs/form', labsForm, useLabsKey(workspaceId));
+/** «Nuevo formato»: parte de la plantilla estándar o duplica la última revisión de otro. */
+export function useCreateForm(workspaceId: string) {
+  return useModuleCommand(workspaceId, '/labs/forms', labsForm, useLabsKey(workspaceId));
+}
+
+/** Renombrar un formato con la versión que se vio. */
+export function useRenameForm(workspaceId: string, formId: string) {
+  return useModuleCommand(workspaceId, `/labs/forms/${formId}`, labsForm, useLabsKey(workspaceId), 'PATCH');
+}
+
+/** Archivar un formato: deja de ofrecerse para llenar y no se borra; sus revisiones y solicitudes siguen. */
+export function useArchiveForm(workspaceId: string, formId: string) {
+  return useModuleCommand(workspaceId, `/labs/forms/${formId}/archive`, labsForm, useLabsKey(workspaceId));
+}
+
+/** «Publicar revisión»: la revisión siguiente e inmutable de la hoja del formato. */
+export function usePublishForm(workspaceId: string, formId: string) {
+  return useModuleCommand(workspaceId, `/labs/forms/${formId}/revisions`, labsForm, useLabsKey(workspaceId));
 }
 
 /**

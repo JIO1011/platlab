@@ -1,30 +1,29 @@
+import { FORM_STANDARD_LAYOUT } from '@platlab/contracts';
 import { describe, expect, it } from 'vitest';
-import { MIN_RESOURCE_ROWS, hasTrailingGap, resourceRows } from './form-sheet';
+import { MIN_RESOURCE_ROWS, resourceRows } from './form-sheet';
+
+const standard = { rows: FORM_STANDARD_LAYOUT.rows, notes: FORM_STANDARD_LAYOUT.notes };
+const rowsOf = (count: number) => Array.from({ length: count }, () => ({ kind: 'row' as const }));
 
 describe('resourceRows', () => {
-  it('con los tres datos extra de la plantilla rellena lo que sobra de la hoja', () => {
-    // 265 − (14 + (1 + 7 + 2) × 4,5 + 12 + 18 + 6) = 170 mm → 37 filas de 4,5 mm.
-    expect(resourceRows(3)).toBe(37);
+  it('con la plantilla estándar rellena lo que sobra de la hoja', () => {
+    // 7 elementos en la Sección I (un título y seis filas): 265 − (14 + (7 + 2) × 4,5 + 12 + 18 + 6) = 174,5 mm → 38 filas de 4,5 mm.
+    expect(resourceRows(standard)).toBe(38);
   });
 
-  it('más datos extra dejan menos filas de relleno', () => {
-    expect(resourceRows(5)).toBeLessThan(resourceRows(3));
-    expect(resourceRows(0)).toBeGreaterThan(resourceRows(3));
+  it('sin Observaciones sobra más hoja', () => {
+    expect(resourceRows({ ...standard, notes: false })).toBeGreaterThan(resourceRows(standard));
+  });
+
+  it('más filas en la Sección I dejan menos filas de relleno', () => {
+    expect(resourceRows({ rows: rowsOf(10), notes: true })).toBeLessThan(resourceRows({ rows: rowsOf(7), notes: true }));
   });
 
   it('nunca baja de la capacidad mínima, aunque la hoja pase a otra página', () => {
-    expect(resourceRows(30)).toBe(MIN_RESOURCE_ROWS);
+    expect(resourceRows({ rows: rowsOf(60), notes: true })).toBe(MIN_RESOURCE_ROWS);
   });
 
-  it('con los datos de la plantilla caben al menos las filas mínimas', () => {
-    expect(resourceRows(3)).toBeGreaterThanOrEqual(MIN_RESOURCE_ROWS);
-  });
-});
-
-describe('hasTrailingGap', () => {
-  it('los datos extra impares dejan media celda libre al final', () => {
-    expect(hasTrailingGap(3)).toBe(true);
-    expect(hasTrailingGap(0)).toBe(false);
-    expect(hasTrailingGap(4)).toBe(false);
+  it('con la plantilla estándar caben al menos las filas mínimas', () => {
+    expect(resourceRows(standard)).toBeGreaterThanOrEqual(MIN_RESOURCE_ROWS);
   });
 });

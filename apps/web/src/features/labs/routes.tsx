@@ -17,7 +17,8 @@ export const labsRoutes: ModuleRoutes = {
       children: [
         { index: true, element: <Navigate to="espacios" replace /> },
         { path: 'espacios', lazy: async () => ({ Component: (await pages()).LabsSpacesPage }) },
-        { path: 'formato', lazy: async () => ({ Component: (await pages()).LabsFormPage }) },
+        { path: 'formatos', lazy: async () => ({ Component: (await pages()).LabsFormsPage }) },
+        { path: 'formatos/:formId', lazy: async () => ({ Component: (await pages()).LabsFormPage }) },
       ],
     },
   ],
