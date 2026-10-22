@@ -1,6 +1,9 @@
 import { Button } from '@platlab/ui';
 
-/** El motivo de archivar, a la vista y con su confirmación aquí mismo: archivar no se deshace desde esta pantalla. */
+/**
+ * El motivo de archivar (o cancelar), a la vista y con su confirmación aquí mismo: no se deshace desde esta pantalla.
+ * `dismiss` es el texto de salir sin hacerlo: «Cancelar» por defecto; si la acción misma es cancelar algo, otro.
+ */
 export function ConfirmArchive({
   label,
   text,
@@ -9,6 +12,7 @@ export function ConfirmArchive({
   error,
   onConfirm,
   onCancel,
+  dismiss = 'Cancelar',
 }: {
   label: string;
   text: string;
@@ -17,6 +21,7 @@ export function ConfirmArchive({
   error: string | null;
   onConfirm: () => void;
   onCancel: () => void;
+  dismiss?: string;
 }) {
   return (
     <div role="group" aria-label={label} className="grid gap-3 rounded-control bg-surface-sunken p-3">
@@ -31,7 +36,7 @@ export function ConfirmArchive({
           {action}
         </Button>
         <Button variant="ghost" className="h-11 sm:h-10" disabled={pending} onClick={onCancel} autoFocus>
-          Cancelar
+          {dismiss}
         </Button>
       </div>
     </div>

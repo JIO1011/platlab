@@ -1,4 +1,4 @@
-import { CalendarRange, ClipboardList } from 'lucide-react';
+import { CalendarRange, ClipboardList, FilePenLine, Inbox } from 'lucide-react';
 import type { WebModule } from '../../app/web-module';
 
 /** Las extensiones se descargan aparte, al mostrarse en Áreas (ver `extension-pages.ts`). */
@@ -11,7 +11,7 @@ const extensionPages = () => import('./extension-pages');
 export const labsWebModule: WebModule = {
   code: 'labs',
   Icon: CalendarRange,
-  sectionIcons: { formatos: ClipboardList },
+  sectionIcons: { solicitudes: FilePenLine, recibidas: Inbox, formatos: ClipboardList },
   home: {
     counters: [],
     trendNoun: { one: 'solicitud', many: 'solicitudes' },
