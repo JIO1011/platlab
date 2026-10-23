@@ -14,25 +14,28 @@ const statuses: Record<RequestStatus, { label: string; tone: Tone }> = {
   cancelled: { label: 'Cancelada', tone: 'neutral' },
 };
 
-/** El estado de una solicitud con su nombre en español y, si entró fuera de la anticipación, «Fuera de plazo». */
-export function RequestBadges({ status, late }: { status: RequestStatus; late: boolean }) {
+/**
+ * El estado de una solicitud con su nombre en español y, si entró fuera de la anticipación, «Fuera de plazo». Con
+ * `hideStatus` (una lista que ya es de un solo estado) solo queda lo que no repite el título.
+ */
+export function RequestBadges({ status, late, hideStatus = false }: { status: RequestStatus; late: boolean; hideStatus?: boolean }) {
   const { label, tone } = statuses[status];
   return (
     <>
-      <Badge tone={tone}>{label}</Badge>
+      {hideStatus ? null : <Badge tone={tone}>{label}</Badge>}
       {late ? <Badge tone="warning">Fuera de plazo</Badge> : null}
     </>
   );
 }
 
-/** La solicitud abierta: su código, su estado y el formato con que se llenó; `children` son las acciones a su lado. */
+/** La solicitud abierta: su código, su estado y el formato con que se llenó; `children` son lo que va a su lado (quién la pide, acciones). */
 export function RequestHeading({ request, children }: { request: RequestView; children?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
       <CodeTag>{request.code}</CodeTag>
       <RequestBadges status={request.status} late={request.late} />
       <span className="min-w-0 break-words text-sm text-ink-muted">
-        {request.formTitle} · revisión {request.formRevision}
+        {request.formName} · revisión {request.formRevision}
       </span>
       {children}
     </div>

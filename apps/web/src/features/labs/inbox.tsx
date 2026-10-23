@@ -11,7 +11,7 @@ import { exceptionsText, filterInbox, firstDateText, inboxCounts, type InboxFilt
 
 /** Lo que dice la lista de cada filtro: su título, la frase bajo él y qué decir si no hay ninguna. */
 const filterTexts: Record<InboxFilter, { title: string; hint: string; empty: string }> = {
-  submitted: { title: 'Por revisar', hint: 'Esperan tu respuesta, con lo más urgente primero.', empty: 'No hay solicitudes por revisar' },
+  submitted: { title: 'Por revisar', hint: 'Lo más urgente primero.', empty: 'No hay solicitudes por revisar' },
   late: { title: 'Fuera de plazo', hint: 'Entraron sin la anticipación que pide el espacio y aún esperan respuesta.', empty: 'Ninguna solicitud está fuera de plazo' },
   resources: { title: 'Con recursos por revisar', hint: 'Tienen líneas con aviso o error en sus recursos.', empty: 'Ninguna solicitud tiene recursos por revisar' },
   changes: { title: 'Cambios pedidos', hint: 'Esperan a que quien las pidió las corrija y las vuelva a enviar.', empty: 'Ninguna solicitud espera cambios' },
@@ -20,7 +20,7 @@ const filterTexts: Record<InboxFilter, { title: string; hint: string; empty: str
 
 const figureSkeleton = [0, 1, 2, 3];
 
-/** Una cifra con su filtro: la de estado en ámbar y solo si hay algo que atender; sin nada, el texto lo dice. */
+/** Una cifra con su filtro: ámbar solo la que avisa de algo fuera de lo normal (`attention`) y solo si hay algo; sin nada, el texto lo dice. */
 function Figure({
   filter,
   active,
@@ -92,7 +92,7 @@ export function LabsInboxPage() {
         ) : (
           <>
             <section aria-label="Filtros por cifra" className="grid grid-cols-2 gap-4 sm:gap-6 xl:grid-cols-4">
-              <Figure filter="submitted" active={filter} onPress={setFilter} count={counts.submitted} idle="Al día" hint="Esperan tu respuesta" icon={Clock} idleIcon={CircleCheck} />
+              <Figure filter="submitted" active={filter} onPress={setFilter} count={counts.submitted} idle="Al día" hint="Esperan tu respuesta" icon={Clock} idleIcon={CircleCheck} attention={false} />
               <Figure filter="late" active={filter} onPress={setFilter} count={counts.late} idle="Ninguna" hint="Sin la anticipación pedida" icon={CalendarX} />
               <Figure filter="resources" active={filter} onPress={setFilter} count={counts.resources} idle="Ninguna" hint="Con líneas por mirar" icon={TriangleAlert} />
               <Figure filter="changes" active={filter} onPress={setFilter} count={counts.changes} idle="Ninguna" hint="Esperan al solicitante" icon={FilePenLine} attention={false} />
@@ -129,6 +129,7 @@ export function LabsInboxPage() {
                           key={request.id}
                           to={`/e/${workspaceId}/laboratorios/recibidas/${request.id}`}
                           request={request}
+                          hideStatus={filter === 'submitted'}
                           facts={[request.requesterName, request.formName, firstDateText(request)]}
                           badges={pending ? <Badge tone="warning">{pending}</Badge> : undefined}
                         />

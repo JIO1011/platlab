@@ -14,10 +14,11 @@ function InboxSheet({ request }: { request: RequestView }) {
 
   return (
     <div className="grid gap-4">
-      <RequestHeading request={request} />
-      <p className="break-words text-sm text-ink-muted">
-        Pedida por <span className="font-medium text-ink">{request.requesterName}</span>
-      </p>
+      <RequestHeading request={request}>
+        <span className="min-w-0 break-words text-sm text-ink-muted">
+          Pedida por <span className="font-medium text-ink">{request.requesterName}</span>
+        </span>
+      </RequestHeading>
       {canReview && request.status === 'submitted' ? <ResolveRequest workspaceId={workspaceId} request={request} /> : null}
       <FilledRequest request={request} />
     </div>

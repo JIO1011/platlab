@@ -35,11 +35,11 @@ export function FilledRequest({ request }: { request: RequestView }) {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className="flex items-center justify-between gap-x-4 gap-y-2">
         <p className="min-w-0 break-words text-sm text-ink-muted">
           Área: <span className="font-medium text-ink">{area?.areaName ?? 'Sin área'}</span>
         </p>
-        <Button className="h-11 sm:h-10" onClick={() => setPrinting(true)}>
+        <Button variant="secondary" className="h-11 shrink-0 sm:h-10" onClick={() => setPrinting(true)}>
           <Printer aria-hidden />
           Imprimir
         </Button>

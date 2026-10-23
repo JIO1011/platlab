@@ -89,7 +89,7 @@ function NameCell({ label, picker, toggle, line, index, props, remove }: { label
       {toggle}
       {verdict ? (
         <div className="pt-0.5 text-[11px] print:hidden">
-          <LineCheck line={verdict} />
+          <LineCheck line={verdict} compact />
         </div>
       ) : null}
       <CellNote>{props.issues.lines[index]}</CellNote>
@@ -315,7 +315,7 @@ function viewCells(found: { line: DraftLine; index: number } | undefined, { pape
       <span className="break-words">{line.name}</span>
       {verdict ? (
         <div className="pt-0.5 text-[11px] print:hidden">
-          <LineCheck line={verdict} />
+          <LineCheck line={verdict} compact />
         </div>
       ) : null}
     </td>,

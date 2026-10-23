@@ -1,6 +1,6 @@
 import type { RequestSummary } from '@platlab/contracts';
 import { Button, Skeleton, StatePanel, toast } from '@platlab/ui';
-import { Copy, FilePenLine, FilePlus2 } from 'lucide-react';
+import { Copy, FilePenLine } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { QuickActions, quickActionSecondary } from '../../app/quick-actions';
 import { SectionHeader } from '../../app/section-header';
@@ -42,11 +42,10 @@ function NewRequestBand({ workspaceId, forms }: { workspaceId: string; forms: Re
     <QuickActions
       moduleCode="labs"
       title="Nueva solicitud"
-      badge={{ icon: FilePlus2, label: 'Elige un formato' }}
       description={
         none
           ? 'Todavía no hay formatos para llenar. Quien administra el espacio los crea; cuando existan, podrás empezar aquí.'
-          : 'Elige un formato y se abre un borrador. Lo llenas en tres pasos y, al enviarlo, el laboratorio lo revisa y te responde aquí.'
+          : 'Elige un formato y se abre un borrador sobre la hoja. Lo llenas ahí, lo envías y el laboratorio te responde aquí.'
       }
     >
       {forms.isPending ? (
@@ -99,7 +98,7 @@ function MineRows({ label, workspaceId, items, canRequest, note }: { label: stri
 /**
  * Mis solicitudes (ADR 0023, L-01b): las que la persona ha llenado, agrupadas por lo que le toca hacer: las que piden
  * cambios, los borradores, las enviadas y, plegadas al final, las cerradas. «Nueva solicitud» parte de un formato
- * activo y «Duplicar» de otra solicitud propia; las dos dejan un borrador que se llena en tres pasos.
+ * activo y «Duplicar» de otra solicitud propia; las dos dejan un borrador que se llena sobre la hoja.
  */
 export function LabsRequestsPage() {
   const { workspaceId, canRequest } = useLabs();

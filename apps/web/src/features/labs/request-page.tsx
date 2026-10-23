@@ -64,7 +64,7 @@ export function OpenRequest({ parent, children }: { parent: 'solicitudes' | 'rec
 
   return (
     <WithBack parent={`/e/${workspaceId}/laboratorios/${parent}`}>
-      <SectionHeader title={request.data?.code ?? 'Solicitud'} updatedAt={request.dataUpdatedAt} />
+      <SectionHeader title={request.data?.title ?? request.data?.formName ?? 'Solicitud'} updatedAt={request.dataUpdatedAt} />
       <div className="mt-6">
         {request.isPending ? (
           <div aria-busy="true">

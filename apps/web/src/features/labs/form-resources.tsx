@@ -11,7 +11,7 @@ const SAMPLE_ROWS = 3;
 
 /** El ancho relativo de las columnas de cada recurso: su nombre y sus cantidades. Se reparten a 100 % entre las que se muestran. */
 const columnWeights = (kind: ResourceKind, equipmentCode: boolean): number[] => {
-  if (kind === 'reagents') return [17.2, 8.6];
+  if (kind === 'reagents') return [19, 7.5];
   return kind === 'equipment' ? [17.2, 7.5, 7.5, ...(equipmentCode ? [9.7] : [])] : [17.2, 7.5, 7.5];
 };
 

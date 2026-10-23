@@ -23,21 +23,20 @@ interface Edit {
 const alertClass = 'rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger';
 const NO_AREA = 'none';
 
-/** El área, que la hoja no tiene donde poner: opcional y sobre ella, junto a lo demás de la solicitud. */
+/** El área, que la hoja no tiene donde poner: una fila delgada y opcional sobre ella; su ayuda va como texto para lectores de pantalla. */
 function AreaBar({ draft, spaces, error, onChange }: { draft: RequestDraft; spaces: readonly Space[]; error: string | undefined; onChange: (areaId: string | null) => void }) {
   const areas = spaces.filter((space) => space.archivedAt === null && !space.areaArchived);
   return (
-    <div className="rounded-card bg-surface px-4 py-3 shadow-raised">
-      <Field label="Área" optional error={error} hint="Dónde se hará la actividad, entre las áreas habilitadas para prácticas." className="max-w-md">
-        <Select
-          value={draft.areaId ?? NO_AREA}
-          onValueChange={(value) => onChange(value === NO_AREA ? null : value)}
-          placeholder="Sin área"
-          triggerClassName={filled}
-          options={[{ value: NO_AREA, label: 'Sin área' }, ...areas.map((space) => ({ value: space.areaId, label: space.areaName, ...(space.groupName ? { detail: space.groupName } : {}) }))]}
-        />
-      </Field>
-    </div>
+    <Field label="Área" optional error={error} className="w-64 max-w-full">
+      <Select
+        value={draft.areaId ?? NO_AREA}
+        onValueChange={(value) => onChange(value === NO_AREA ? null : value)}
+        placeholder="Sin área"
+        triggerClassName={filled}
+        options={[{ value: NO_AREA, label: 'Sin área' }, ...areas.map((space) => ({ value: space.areaId, label: space.areaName, ...(space.groupName ? { detail: space.groupName } : {}) }))]}
+      />
+      <span className="sr-only">Dónde se hará la actividad, entre las áreas habilitadas para prácticas.</span>
+    </Field>
   );
 }
 
@@ -146,7 +145,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
   const status = dirty ? (hasLines ? 'Cambios sin guardar · guarda para comprobar si lo pedido alcanza' : 'Cambios sin guardar') : 'Sin cambios por guardar';
 
   return (
-    <div className="grid gap-4 pb-28 md:pb-0">
+    <div className="grid gap-4 pb-28 md:pb-0 [&_button]:scroll-mb-24 [&_input]:scroll-mb-24 [&_textarea]:scroll-mb-24">
       {error ? (
         <p role="alert" className={alertClass}>
           {error}
@@ -155,7 +154,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
       <AreaBar draft={shown} spaces={spaces} error={issues.fields['areaId']} onChange={(areaId) => change({ areaId })} />
       <FormPaper mode="fill" draft={paper} workspaceName={me.workspace.name} revision={request.formRevision} slots={slots} />
       <RequestHistory events={request.events} timeZone={me.workspace.timeZone} />
-      <div className="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line bg-surface/90 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md md:sticky md:inset-x-auto md:bottom-3 md:rounded-control md:border md:px-4 md:py-2 md:shadow-float">
+      <div className="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line bg-surface px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:sticky md:inset-x-auto md:bottom-3 md:rounded-control md:border md:px-4 md:py-2 md:shadow-float">
         {cancelling ? (
           <div className="w-full">
             <CancelRequest workspaceId={workspaceId} request={request} onDismiss={() => setCancelling(false)} />

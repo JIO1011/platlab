@@ -89,7 +89,7 @@ export function RequestList({ label, children }: { label: string; children: Reac
 
 /**
  * Una fila de solicitud: código, título (el enlace que abre la hoja, extendido a toda la fila), datos y, a la derecha,
- * la pastilla de estado, «Fuera de plazo» y lo que sume `badges`. `action` (p. ej. «Duplicar») queda sobre el enlace.
+ * la pastilla de estado (salvo `hideStatus`), «Fuera de plazo» y lo que sume `badges`. `action` (p. ej. «Duplicar») queda sobre el enlace.
  */
 export function RequestItem({
   to,
@@ -98,6 +98,7 @@ export function RequestItem({
   note,
   badges,
   action,
+  hideStatus = false,
 }: {
   to: string;
   request: RequestSummary;
@@ -105,6 +106,8 @@ export function RequestItem({
   note?: string;
   badges?: ReactNode;
   action?: ReactNode;
+  /** Quita la pastilla de estado cuando toda la lista es del mismo estado; «Fuera de plazo» y `badges` se quedan. */
+  hideStatus?: boolean;
 }) {
   return (
     <li className="relative flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-5 py-3.5 transition-colors hover:bg-surface-sunken/40 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-action sm:px-6">
@@ -122,7 +125,7 @@ export function RequestItem({
         {note ? <p className="text-sm text-ink">{note}</p> : null}
       </div>
       <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-        <RequestBadges status={request.status} late={request.late} />
+        <RequestBadges status={request.status} late={request.late} hideStatus={hideStatus} />
         {badges}
         {action ? <span className="relative z-10">{action}</span> : null}
       </div>
