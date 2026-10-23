@@ -1,8 +1,9 @@
-import { closure, labsForm, labsRequest, labsSettings, period, space } from '@platlab/contracts';
+import { closure, formLogo, labsForm, labsRequest, labsSettings, period, space } from '@platlab/contracts';
 import { toast } from '@platlab/ui';
-import { useQueryClient } from '@tanstack/react-query';
-import { isApiError } from '../../app/api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { api, isApiError } from '../../app/api';
 import { commonErrorMessage, useModuleCommand } from '../../app/commands';
+import type { LogoFile } from './form-logo';
 import { useLabsKey } from './queries';
 
 /**
@@ -99,6 +100,17 @@ export function useRequestChanges(workspaceId: string, requestId: string) {
 /** «Rechazar»: la solicitud enviada queda rechazada, con el motivo. */
 export function useRejectRequest(workspaceId: string, requestId: string) {
   return useModuleCommand(workspaceId, `/labs/requests/${requestId}/reject`, labsRequest, useLabsKey(workspaceId));
+}
+
+/**
+ * Sube el logo del membrete del formato (ADR 0023): el cuerpo es la imagen y devuelve su dirección, que va en el borrador
+ * y se publica con la revisión siguiente. No cambia nada visible hasta publicar, así que no refresca la caché.
+ */
+export function useUploadFormLogo(workspaceId: string, formId: string) {
+  return useMutation({
+    mutationFn: (logo: LogoFile) =>
+      api(`/workspaces/${workspaceId}/labs/forms/${formId}/logo`, { method: 'PUT', file: logo, idempotencyKey: crypto.randomUUID(), schema: formLogo }),
+  });
 }
 
 /** Vuelve a pedir lo de Laboratorios para que la pantalla muestre lo vigente. */

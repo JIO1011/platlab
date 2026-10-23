@@ -74,6 +74,22 @@ describe('publishPayload', () => {
     expect(publishPayload(draft({ resources })).layout.resources.map((resource) => resource.kind)).toEqual(['reagents', 'equipment']);
   });
 
+  it('el membrete llega de la revisión al borrador y de ahí al cuerpo de publicar', () => {
+    const header = { logoUrl: 'https://platlab.test/logos/ups.png', lines: ['Universidad Politécnica Salesiana', 'Facultad de Ingeniería'] };
+    const layout: FormLayout = { ...FORM_STANDARD_LAYOUT, header };
+    expect(draftFrom({ ...published, layout }).header).toEqual(header);
+    const payload = publishPayload(draftFrom({ ...published, layout }));
+    expect(payload.layout.header).toEqual(header);
+    expect(publishFormRequest.safeParse(payload).success).toBe(true);
+  });
+
+  it('las líneas del membrete se recortan y las vacías no se publican; el logo se quita con null', () => {
+    const header = { logoUrl: null, lines: ['  Facultad de Ingeniería ', '', '   '] };
+    const payload = publishPayload(draft({ header }));
+    expect(payload.layout.header).toEqual({ logoUrl: null, lines: ['Facultad de Ingeniería'] });
+    expect(publishFormRequest.safeParse(payload).success).toBe(true);
+  });
+
   it('las opciones de una lista salen una por línea, sin líneas vacías', () => {
     const field = { ...newField('list'), label: 'Norma', options: 'ISO 9001\n\nASTM E8\n' };
     const payload = publishPayload(draft({ rows: addField(draft().rows, field) }));

@@ -25,7 +25,7 @@ export function FormPrint({ draft, workspaceName, revision, onDone }: { draft: D
   return createPortal(
     <div data-print-root className="hidden print:block">
       <div className="print-report">
-        <FormPaper draft={draft} workspaceName={workspaceName} revision={revision} />
+        <FormPaper mode="view" draft={draft} workspaceName={workspaceName} revision={revision} />
       </div>
     </div>,
     document.body,

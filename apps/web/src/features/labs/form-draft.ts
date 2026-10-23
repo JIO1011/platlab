@@ -158,7 +158,7 @@ export function publishPayload(draft: Draft) {
     documentCode: draft.documentCode.trim() === '' ? null : draft.documentCode,
     expectedRevision: draft.baseRevision,
     layout: {
-      header: draft.header,
+      header: { logoUrl: draft.header.logoUrl, lines: draft.header.lines.map((line) => line.trim()).filter((line) => line !== '') },
       rows,
       resources: draft.resources.filter((resource) => resource.shown).map(({ kind, label }) => ({ kind, label })),
       equipmentCode: draft.equipmentCode,
