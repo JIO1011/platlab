@@ -835,6 +835,10 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
   - **Espacios** (Administrador):
     - las áreas del Core ([03](03_datos.md), `core.location_areas`), sin duplicarlas, con aforo, horario semanal y cierres;
     - el plazo de anticipación, 7 días por defecto. Lo que llega tarde no se bloquea: entra marcado «fuera de plazo» y el Administrador decide.
+    - **Sin sección propia** (decisión del usuario, 21-10-2026, «siempre conservando simplicidad»). Laboratorios queda con Formato, Solicitudes y Cronograma. Los datos siguen en `labs`, y Áreas ([ADR 0024](#adr-0024)) los muestra por un punto de extensión, solo si el espacio tiene Laboratorios:
+      - **en cada área**, un panel «Laboratorio» con aforo, horario semanal y cierres, y en su cuadro la marca 🕒 «Habilitada para prácticas»;
+      - **en la cabecera de Áreas**, «Feriados», con los cierres comunes;
+      - **en Formato**, la anticipación, porque es una regla del pedido.
 - **Lista blanca:** es invitar con el rol Docente. Las invitaciones reales dependen de T-03B, y por CSV y con Google o Microsoft llegan en F3. La demo usa las cuentas sembradas.
 - **Entregas** ([04](04_roadmap.md), L-01):
   - **L-01a:** Espacios y Formatos.
@@ -844,6 +848,47 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
   - **L-01e:** preparación y cierre. El consumo real y la devolución mueven el inventario de Reactivos, como operaciones distintas de reservar ([03](03_datos.md)); también la impresión.
   - L-01a a L-01c son el mínimo que se muestra al cliente. Después viene su G0.
 - **Se valida con el cliente** antes de cerrar cada regla (Pendientes, «Reglas de Laboratorios»): lo dudoso no se programa.
+- **Reglas de L-01a** (confirmadas por el usuario, 21-10-2026):
+  - se agenda el **área completa**: cada área del Núcleo con horario es una fila del Cronograma; si un laboratorio tiene salas, se crean como áreas en «Áreas»;
+  - **horario semanal y cierres por área**, y **feriados comunes** que se cargan una vez para todo el espacio;
+  - **anticipación de 7 días**, configurable por el Administrador para todo el espacio;
+  - **sin áreas exclusivas** por ahora: toda área con horario es solicitable y el Administrador decide al programar.
+  - **Formato:** cada guardado publica una versión nueva e inmutable. Ya no es uno por espacio: ver «Diseño por filas y varios formatos».
+- **Formato estándar** (decisión del usuario, 21-10-2026): un formato general para universidades, laboratorios y empresas, que el Administrador ajusta sin diseñarlo. Es rápido de llenar y deja métricas comparables.
+  - **Membrete:** logo y nombre de la institución, nombre del formato, código del documento y revisión, que es la versión publicada. El número de solicitud y la fecha los pone el sistema. Logo y nombre son del espacio de trabajo y sirven a todas las impresiones: llegan con una pieza del Core; hasta entonces se muestra el nombre del espacio.
+  - **Cuatro bloques fijos:**
+    1. Actividad: tipo (práctica, investigación o tesis, servicio, capacitación), título, asignatura y carrera. El Administrador renombra «Asignatura» y «Carrera», por ejemplo a «Proyecto» y «Cliente».
+    2. Fecha: una o varias fechas sueltas (nunca un rango), hora de inicio y fin, y área opcional. Cada fecha es una actividad de un día: un bloque y un código propios en el Cronograma.
+    3. Participantes: número de participantes y de grupos (1 por defecto).
+    4. Recursos del inventario. El solicitante sale de la sesión.
+  - **Asignatura y carrera se eligen de una lista** que se arma al usarlas, nunca como texto libre: de ellas salen las métricas (L-01b).
+  - **Cantidades** (L-01b): equipos y materiales con «por grupo / total», y se guarda el total (2 por grupo × 8 grupos = 16). Los equipos se piden por tipo y el Administrador asigna los concretos al programar. Los reactivos van siempre en total, con unidad y cantidad exacta.
+  - **Campos libres y observaciones**, solo para lo propio de cada cliente; no entran en las métricas.
+  - **Plantilla estándar** (21-10-2026; la hace editable «Diseño por filas y varios formatos»): una hoja A4 como la P69, que es el punto de partida de todo formato nuevo. Antes el Administrador solo ajustaba, sobre la hoja: título y código; los nombres de asignatura y carrera; y los datos extra de la Sección I (colaborador, curso-paralelo y práctica Nº vienen precargados y se pueden renombrar, quitar u ordenar).
+    - **Encabezado:** espacio, revisión, título y la casilla del código de la solicitud.
+    - **Sección I, Datos de la actividad:** filas «etiqueta | valor», dos por fila. Primero los datos del sistema (docente, título, tipo, asignatura, carrera, fecha, horario, nº de alumnos y nº de grupos) y después los extra.
+    - **Recursos:** Reactivos (cantidad total), Equipos (por curso, por grupo y código) y Materiales (por curso y por grupo). Por curso = por grupo × nº de grupos. Se imprimen filas vacías hasta llenar la hoja.
+    - **Observaciones** al final.
+    - **Entrega / Recepción:** firmas físicas del asistente de laboratorio y del docente; bajo la firma del docente se imprime su nombre.
+    - La columna «Código» de equipos lleva el código del equipo asignado, o queda en blanco para escribirlo a mano. Esto está por confirmar con el cliente.
+  - **Diseño por filas y varios formatos** (decisión del usuario, 21-10-2026). Sirve a universidades, empresas y otros usuarios sin un lienzo libre: posicionar a mano rompería la impresión y el móvil.
+    - **Toda la plantilla se edita sobre la hoja, sin candados.** La Sección I es una lista de filas de 1 a 3 datos «etiqueta | valor». Los títulos de sección son opcionales: se agregan, renombran y quitan. Cada dato se mueve entre filas.
+    - **Cinco datos esenciales:** docente, título, fecha, horario y nº de participantes. Se renombran y se mueven, pero no se quitan, porque el Cronograma y el aforo los usan. Al intentarlo, un aviso lo explica.
+    - **Datos del sistema opcionales:** asignatura, carrera, tipo y nº de grupos. Se pueden quitar; sin ellos se pierde esa métrica. Por dentro conservan su clave en todos los formatos, así que las métricas siguen siendo comparables.
+    - **Recursos:** Reactivos, Equipos y Materiales se pueden renombrar u ocultar (al menos uno queda), y la columna «Código» de equipos se puede quitar.
+    - **Observaciones**, opcionales.
+    - **Firmas:** de 1 a 3 con nombre libre. Una puede ser la del solicitante, que imprime su nombre.
+    - **Varios formatos** («Práctica académica», «Servicio externo»…). Cada uno tiene su nombre y sus versiones, se archiva y no se borra, y uno nuevo parte de la plantilla estándar o duplica otro. La sección pasa a llamarse «Formatos».
+    - **Quién llena:** el docente, y quien esté en la lista blanca, ve los formatos activos y llena el que necesite. Cada solicitud guarda el formato y la versión con que se llenó.
+  - **Código de la solicitud programada** (L-01b y L-01c), por ejemplo `P1-S12-ANT03`: período, semana del período, sigla del área y secuencia. ANT01, ANT02 y ANT03 son la primera, la segunda y la tercera de Anatomía en esa semana.
+    - Se asigna al programar, con el número siguiente del área en esa semana. Los números no se reutilizan. Antes de programar, la solicitud lleva un número fijo (`SOL-0042`).
+    - Se programa y se mueve solo hacia el futuro. Al moverla, toma el número siguiente de su nueva semana, y el código anterior queda en el historial.
+    - Período, semana, área y secuencia se guardan por separado para filtrar; el código solo se muestra.
+    - Requiere, antes de L-01b, los períodos del espacio (por ejemplo «P1: 01-04 al 15-08»; la semana se calcula desde su inicio) y la sigla de cada área en Áreas.
+    - **Períodos y sigla** (decisión del usuario, 21-10-2026). El período solo identifica la actividad en el código, y fuera de todo período no se agenda.
+      - Los períodos son de Laboratorios y se editan junto a la anticipación: un código corto («P1») y sus fechas, sin solaparse; se archivan, no se borran.
+      - La sigla (2 a 5 letras, única en el espacio) se guarda con el aforo del área, en `labs.spaces`, y se edita en su panel «Laboratorio» de Áreas. Se sugiere desde el nombre («Anatomía» → ANT) y el Administrador la cambia. No toca el Núcleo: solo Laboratorios la usa.
+  - **Métricas previstas:** horas de uso por área, solicitudes y participantes por carrera, asignatura y tipo, consumo de reactivos y uso de equipos por carrera y por práctica, pedidos fuera de plazo, rechazos y tiempo de respuesta.
 
 ## ADR 0024 — Áreas y departamentos en una sección propia
 
@@ -885,7 +930,7 @@ Estado: aceptada (20-10-2026; idea del usuario: cuadros que la app dibuja como u
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Equipos | ¿Qué campos de la ficha y qué documentos considera necesarios el cliente? ¿Qué valores de alimentación usa? ¿Quiere un aviso al pesar en Reactivos con una balanza de calibración vencida? ([ADR 0019](#adr-0019)) | F0, antes de E-01 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
-| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿Se agenda por área o por sala dentro del área? ¿El Estudiante (tesista) también solicita desde el inicio? ¿Horario y cierres por laboratorio, y feriados comunes? ¿Bastan 7 días de anticipación? ¿Cancelaciones con qué plazo? ¿El responsable del bloque es siempre un técnico (Operador)? ¿Salas exclusivas? ¿Devoluciones químicas y quién declara el consumo al cerrar? | P-04, antes de L-01a (lo del cierre, antes de L-01e) |
+| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿El Estudiante (tesista) también solicita desde el inicio? ¿Cancelaciones con qué plazo? ¿El responsable del bloque es siempre un técnico (Operador)? ¿Devoluciones químicas y quién declara el consumo al cerrar? | P-04, antes de L-01b (lo del cierre, antes de L-01e) |
 | Inicio | Propuesta del 20-10-2026 en espera: el usuario tiene otras ideas. «Por atender» de todos los módulos (rojo antes que ámbar, con su enlace filtrado), tres tarjetas por fila con gráfico solo si hay datos (Equipos hoy dice siempre «Sin cambios»), «Por atender» primero en el móvil y avisos declarados por cada módulo en su `module.tsx` | Al terminar los módulos, con las ideas del usuario |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |

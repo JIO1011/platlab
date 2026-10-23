@@ -49,6 +49,7 @@ export function Room({
   filter,
   counts,
   onOpen,
+  marks,
   actions,
 }: {
   name: string;
@@ -57,6 +58,8 @@ export function Room({
   filter: AreaFilter;
   counts: Record<string, number>;
   onOpen?: () => void;
+  /** Marcas pequeñas bajo el subtítulo: las que otros módulos aportan (ADR 0020). */
+  marks?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
@@ -79,6 +82,7 @@ export function Room({
             )}
           </h3>
           {subtitle}
+          {marks}
         </div>
         {actions ? <div className="relative z-10 -mr-2 -mt-2 shrink-0">{actions}</div> : null}
       </div>

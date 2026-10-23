@@ -1,10 +1,11 @@
 import { Eye, RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { formatAgo } from './format';
+import { useModuleContext } from './module-app';
 import { useNow } from './use-now';
 
-/** Lo que cada módulo pasa a su cabecera de sección: el título, la marca de lo que muestra y sus acciones. */
-export interface SectionHeaderProps {
+/** Lo que cada sección pasa a su cabecera: el título, la marca de lo que muestra y sus acciones. */
+interface SectionHeaderProps {
   title: string;
   updatedAt: number;
   actions?: ReactNode;
@@ -14,20 +15,10 @@ export interface SectionHeaderProps {
  * Cabecera de una sección de un módulo (ADR 0022): el título Display y «Actualizado hace…» (la marca más antigua de lo
  * que la sección muestra) con «Actualizar»; a la derecha, las acciones de la sección si las hay (en el móvil,
  * debajo, a todo el ancho). En modo consulta (`canOperate` falso), el aviso `readOnlyNotice` de que no se registran
- * cambios. El título admite el foco de respaldo al cambiar de sección (`data-focus-fallback`).
+ * cambios. El estado y el aviso salen del contexto de la app del módulo (`ModuleOutlet`). El título admite el foco de respaldo al cambiar de sección (`data-focus-fallback`).
  */
-export function SectionHeader({
-  title,
-  updatedAt,
-  actions,
-  canOperate,
-  freshness,
-  readOnlyNotice,
-}: SectionHeaderProps & {
-  canOperate: boolean;
-  freshness: { refreshing: boolean; refresh: () => void };
-  readOnlyNotice: string;
-}) {
+export function SectionHeader({ title, updatedAt, actions }: SectionHeaderProps) {
+  const { canOperate, freshness, readOnlyNotice } = useModuleContext();
   const now = useNow(15_000);
   return (
     <>

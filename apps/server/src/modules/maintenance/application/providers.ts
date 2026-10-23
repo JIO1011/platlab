@@ -2,7 +2,7 @@ import type pg from 'pg';
 import type { z } from 'zod';
 import type { createProviderRequest, Provider, ProviderList, updateProviderRequest } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
-import { recordAudit, requires, type CommandRequest, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
+import { recordAudit, requireEditable, requires, type CommandRequest, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import {
   archiveProvider as archiveProviderQuery,
   insertProvider,
@@ -11,7 +11,7 @@ import {
   updateProvider as updateProviderQuery,
   type IListProvidersResult,
 } from '../infrastructure/providers.queries.js';
-import { PLAN_MANAGE, requireEditable, runCommand, runQuery } from './command.js';
+import { PLAN_MANAGE, runCommand, runQuery } from './command.js';
 
 /** Proveedores de servicio (ADR 0020): los crea, edita y archiva el Administrador; quien registra los elige. */
 

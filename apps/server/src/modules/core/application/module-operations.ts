@@ -1,4 +1,5 @@
 import type pg from 'pg';
+import { AppError } from '../../../platform/errors.js';
 import { withIdempotency } from '../../../platform/idempotency/idempotency.js';
 import { requirePermission, withModuleAccess, type WorkspaceAccess } from './access.js';
 
@@ -62,4 +63,19 @@ export function moduleQuery(moduleCode: string, readPermission: string) {
       return work(access);
     });
   };
+}
+
+/**
+ * Edición con la versión que la persona vio (02): un recurso archivado no se modifica, y uno que otra
+ * persona cambió antes responde VERSION_CONFLICT.
+ */
+export function requireEditable(
+  row: { archived_at: Date | null; version: number } | undefined,
+  expectedVersion?: number,
+): asserts row is { archived_at: null; version: number } {
+  if (!row) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
+  if (row.archived_at) throw new AppError('VALIDATION_FAILED', 'Lo archivado no se modifica');
+  if (expectedVersion !== undefined && row.version !== expectedVersion) {
+    throw new AppError('VERSION_CONFLICT', 'Otra persona lo cambió mientras editabas: vuelve a cargarlo');
+  }
 }

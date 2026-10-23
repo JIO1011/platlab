@@ -2,6 +2,7 @@ import { Button } from '@platlab/ui';
 import { Suspense, lazy, useState } from 'react';
 import { useParams } from 'react-router';
 import { useWorkspaceMe } from '../../app/queries';
+import { canOperateModule } from '../../app/module-access';
 
 /** La hoja de registro se descarga al abrirla: la hoja del incidente no carga el formulario. */
 const RecordSheet = lazy(async () => ({ default: (await import('./record-sheet')).RecordSheet }));
@@ -15,7 +16,7 @@ export function RepairAction({ faultId, assetId }: { faultId: string; assetId: s
   const me = useWorkspaceMe(workspaceId);
   // `n` monta la hoja de nuevo en cada apertura: formulario limpio y clave idempotente nueva.
   const [sheet, setSheet] = useState<{ n: number; open: boolean } | null>(null);
-  const canRecord = me.data?.modules.find((entry) => entry.code === 'maintenance')?.access.includes('new_operation') ?? false;
+  const canRecord = canOperateModule(me.data, 'maintenance');
   if (!me.data || !canRecord) return null;
   return (
     <>

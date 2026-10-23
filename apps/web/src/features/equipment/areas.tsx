@@ -12,7 +12,7 @@ import { useEquipment } from './context';
 import { emptyAssetQuery } from './asset-filters';
 import { EquipmentScan } from './equipment-scan';
 import { useAreas, useAssets } from './queries';
-import { SectionHeader } from './section-header';
+import { SectionHeader } from '../../app/section-header';
 import { RegisterAssetButton } from './sheets/register-asset';
 
 const number = new Intl.NumberFormat('es-EC');

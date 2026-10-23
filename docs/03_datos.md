@@ -35,9 +35,8 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 | `reagents` | Módulo Reactivos | Datos químicos y perfil fiscalizado | R-00; F2 + REG-02 |
 | `equipment` | Módulo Equipos | Tipos de equipo, activos con su foto, condición, ubicación y documentos | F2 |
 | `incidents` | Capacidad incidencias | Fallas de los recursos de cada módulo | F2 |
-| `laboratories` | Módulo Laboratorios | Capacidad, horarios y excepciones | F3 |
-| `scheduling` | Capacidad agenda | Reservas de laboratorios, equipos y materiales | F3 |
-| `practices` | Módulo Prácticas | Plantillas, actividades, revisiones, decisiones y vínculos | F3 |
+| `labs` | Módulo Laboratorios ([ADR 0023](05_decisiones.md#adr-0023)) | Espacios (aforo, horario y cierres de las áreas), formato, solicitudes, revisiones, decisiones y vínculos | L-01 |
+| `scheduling` | Capacidad agenda (dueño técnico: `labs`) | Reservas de áreas, equipos y materiales | L-01c–d |
 | `materials` | Módulo Materiales | Consumibles, reutilizables y préstamos | F4, o un mínimo en F3 si P-04 lo exige |
 | `maintenance` | Módulo Mantenimiento | Planes, registros y órdenes | M-01 en F2; F5 |
 | `analytics` | Módulo Analítica | Indicadores y alertas avanzadas | F5 |
@@ -45,7 +44,7 @@ Revisión: 30 de septiembre de 2026. Es el modelo objetivo por fases: cada migra
 - Solo el propietario técnico escribe en su esquema.
 - Una capacidad no se contrata: su código existe para los módulos que la usan.
   - Inventario: Reactivos, Materiales y Prácticas.
-  - Agenda: Equipos, Laboratorios, Prácticas, Materiales y Mantenimiento.
+  - Agenda: Equipos, Laboratorios, Materiales y Mantenimiento.
   - Incidencias: Equipos y los módulos que reportan.
 - Compartir una capacidad no comparte derechos. Cada operación se autoriza contra el módulo dueño del recurso (`inventory.items.kind`), con rutas y permisos de ese módulo ([02 §4](02_arquitectura.md#4-contrato-de-módulo)). Tener Materiales no habilita Reactivos.
 
@@ -189,10 +188,15 @@ Reglas:
 
 ## 6. Laboratorios, agenda y prácticas
 
+En L-01b las tablas `practices.*` de abajo pasan al esquema `labs` ([ADR 0023](05_decisiones.md#adr-0023)).
+
 | Tabla | Esencial |
 |---|---|
-| `laboratories.labs` | Ubicación única, código, capacidad, responsable y política de anticipación |
-| `laboratories.opening_hours`, `calendar_exceptions` | Horarios, cierres y excepciones |
+| `labs.settings` | Una fila por espacio de trabajo: anticipación en días (7 por defecto) |
+| `labs.spaces` | Área del Núcleo habilitada para agendar (FK compuesta a `core.location_areas`, sin duplicarla): aforo, horario semanal (franjas `[apertura, cierre)` por día, ordenadas y sin solaparse, validadas en SQL), versión y archivo |
+| `labs.closures` | Cierres por fechas con motivo; sin área es un feriado común. Se anulan, no se borran |
+| `labs.forms` | Formatos del espacio («Práctica académica», «Servicio externo»…): nombre único entre los activos; se renombran y se archivan, no se borran |
+| `labs.form_revisions` | Cada guardado de un formato es una revisión nueva e inmutable: título, código y la hoja (`layout`: filas de 1 a 3 datos con los cinco esenciales, columnas de recursos, observaciones y firmas), validada por `labs.form_layout_valid`. Las solicitudes guardan formato y revisión |
 | `scheduling.lab_bookings`, `equipment_bookings`, `material_bookings` | Reservas `[inicio, fin)` con exclusión GiST por espacio y recurso |
 | `practices.templates`, `template_versions` | Plantillas con versiones publicadas inmutables |
 | `practices.participations` | Estudiante: docente responsable, ámbito y vigencia |

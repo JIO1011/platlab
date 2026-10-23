@@ -1,9 +1,8 @@
 import { z } from 'zod';
-import { list, many, money, page, text } from '../common.js';
+import { expectedVersion, list, many, money, page, text } from '../common.js';
 import { assetCondition, assetConservation } from '../equipment/catalog.js';
 import { faultType } from '../equipment/faults.js';
 import { maintenanceAssetRef, planRef, workKind } from './plans.js';
-import { expectedVersion } from './providers.js';
 
 /**
  * Trabajo de Mantenimiento (ADR 0020): «Por hacer» se calcula desde los planes al consultar; el registro

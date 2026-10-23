@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { text } from '../common.js';
-import { expectedVersion } from './providers.js';
+import { expectedVersion, text } from '../common.js';
 
 /**
  * Planes de Mantenimiento (ADR 0020): por tipo de equipo, que cubre todas sus unidades y las nuevas, o

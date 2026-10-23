@@ -15,7 +15,7 @@ import { emptyHistoryFilters, historySearch, INTERNAL, isHistoryFiltered, parseH
 import { HistoryFilterBar } from './history-filter-bar';
 import { recordsText, type HistoryNames } from './history-text';
 import { useMaintenanceAreas, useProviders, useRecords } from './queries';
-import { SectionHeader } from './section-header';
+import { SectionHeader } from '../../app/section-header';
 import { VoidSheet } from './void-sheet';
 import { kindLabels, resultLabels } from './work-text';
 

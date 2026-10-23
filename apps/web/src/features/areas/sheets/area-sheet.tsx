@@ -2,6 +2,7 @@ import { Button, Sheet, sectionLabel } from '@platlab/ui';
 import { Archive, Building2, Pencil, Plus } from 'lucide-react';
 import { ManagerLine } from '../../../app/manager-line';
 import type { AreaTarget } from '../commands';
+import { AreaPanels } from '../extensions';
 import { shelfRows, type WorkspaceArea } from '../plan-model';
 
 /** Lo que se puede hacer desde la hoja de un área; la página abre la hoja que corresponde. */
@@ -16,7 +17,7 @@ const rowButton = 'size-11 sm:size-9';
 /**
  * Un área abierta (ADR 0024): su encargado y sus estantes. Cualquiera con acceso a Áreas la consulta; quien
  * administra además asigna el encargado, crea, renombra y archiva estantes, y renombra o archiva el área.
- * Cada acción abre su propia hoja y, al terminar, vuelve aquí.
+ * Cada acción abre su propia hoja y, al terminar, vuelve aquí. Los módulos suman sus paneles debajo (ADR 0020).
  */
 export function AreaSheet({
   area,
@@ -107,6 +108,8 @@ export function AreaSheet({
             </ul>
           )}
         </section>
+
+        <AreaPanels areaId={area.id} areaName={area.name} />
       </div>
     </Sheet>
   );

@@ -4,7 +4,7 @@ import { Building2, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { QueryErrorState } from '../../app/states';
 import { maintenanceErrorMessage, useArchiveProvider } from './commands';
-import { ConfirmArchive } from './confirm-archive';
+import { ConfirmArchive } from '../../app/confirm-archive';
 import { ProviderSheet } from './provider-sheet';
 import { useProviders } from './queries';
 

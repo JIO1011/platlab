@@ -14,7 +14,7 @@ import { AssetCards, AssetTable } from './asset-list';
 import { assetsText } from './asset-text';
 import { useEquipment } from './context';
 import { useAssets, useAssetTotals, useAssetTypes, useEquipmentLocations, useResponsibles } from './queries';
-import { SectionHeader } from './section-header';
+import { SectionHeader } from '../../app/section-header';
 import { ReportExport } from './report-export';
 import { RegisterAsset } from './sheets/register-asset';
 

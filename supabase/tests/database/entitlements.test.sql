@@ -85,8 +85,9 @@ select ok(
 
 select results_eq(
   'select code, stage from core.module_definitions order by code',
-  $$ values ('equipment'::text, 'development'::text), ('maintenance'::text, 'development'::text), ('reagents'::text, 'pilot'::text) $$,
-  'Reactivos está en etapa pilot (V-00); Equipos y Mantenimiento, en development (ADR 0019, 0020)');
+  $$ values ('equipment'::text, 'development'::text), ('labs'::text, 'development'::text), ('maintenance'::text, 'development'::text),
+    ('reagents'::text, 'pilot'::text) $$,
+  'Reactivos está en etapa pilot (V-00); Equipos, Laboratorios y Mantenimiento, en development (ADR 0019, 0020, 0023)');
 
 -- ---------------------------------------------------------------------------
 -- apply_contract_revision

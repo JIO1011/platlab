@@ -43,7 +43,7 @@ case $(jq -r '.tool_name // ""' <<<"$input") in
       exit 2
     fi
     if [ -n "$sonnet" ] && [[ $rel =~ ^(supabase|apps/server|packages/contracts|packages/modules)/ ]]; then
-      echo "Rechazado (ADR 0013): $rel es lógica delicada y le corresponde a platlab-implementer. No lo cambies por otra vía: detente y repórtalo como «Bloqueo»." >&2
+      echo "Rechazado (ADR 0013): $rel es lógica delicada y le corresponde a la sesión principal. No lo cambies por otra vía: detente y repórtalo como «Bloqueo»." >&2
       exit 2
     fi
     ;;

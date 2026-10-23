@@ -42,7 +42,7 @@ M1 es obligatorio. Cada módulo se contrata por espacio y funciona con sus depen
 | M1 Núcleo | Espacio, personas y control | Miembros, invitaciones, roles, ubicaciones, suscripción, documentos, auditoría y avisos | — | F1a |
 | M2 Reactivos | Qué hay, dónde y en qué estado | Catálogo químico (CAS, concentración, peligros, SDS), lotes, ingresos, salidas, ajustes, traslados y bajas (ajuste a cero con motivo); custodia y retorno; caducidad y mínimos; fiscalizados y su reporte | M1 | R-00 en F1a; F2 |
 | M3 Equipos | Activos y su estado | Resumen, Inventario por áreas con encargado, Informe exportable e Incidentes (fallas) ([ADR 0019](05_decisiones.md#adr-0019)); tipos de equipo; ficha con foto (código, marca, modelo, serie, alimentación, ubicación, responsable); condición, conservación y disponibilidad calculada; traslado trazado, fallas, QR, documentos, hoja de vida e historial; con M6, «Prestado» | M1 | F2 |
-| M4 Laboratorios ([ADR 0023](05_decisiones.md#adr-0023)) | Solicitudes y agenda de los espacios físicos | Solicitudes del Docente con formato del espacio (núcleo fijo y campos libres) y recursos vinculados a los inventarios; bandeja del Administrador; Cronograma de horas por áreas donde el Administrador programa cada solicitud y asigna su responsable, sin choques y con márgenes de preparación y limpieza; aforo, horarios, cierres y plazo de anticipación; después, reserva real, preparación, cierre con consumo y devolución, e impresión | M1 | F3 |
+| M4 Laboratorios ([ADR 0023](05_decisiones.md#adr-0023)) | Solicitudes y agenda de los espacios físicos | Solicitudes del Docente con formato del espacio (núcleo fijo y campos libres) y recursos vinculados a los inventarios; bandeja del Administrador; Cronograma de horas por áreas donde el Administrador programa cada solicitud y asigna su responsable, sin choques; aforo, horarios, cierres y plazo de anticipación; después, reserva real, preparación, cierre con consumo y devolución, e impresión | M1 | F3 |
 | M6 Materiales y Préstamos | Consumibles, reutilizables y préstamos | Existencias, préstamos de material y de equipos ([ADR 0019](05_decisiones.md#adr-0019)), devoluciones parciales, daños, pérdidas y transferencias | M1 | F4; un mínimo en F3 si P-04 lo exige |
 | M7 Mantenimiento | Continuidad de equipos | Planes preventivos y calibraciones con próxima fecha, registro con informe y costo, correctivo enlazado al incidente y aviso de reemplazo (M-01, tras E-01); después, órdenes asignadas, bloqueo de agenda y repuestos | M1 + M3 | F2 (M-01); F5 |
 | M8 Analítica y Alertas | Prevención y decisiones | Indicadores con periodo y fórmula, alertas configurables, resúmenes, escalamiento y reportes | M1 + un módulo operativo | F5 |
@@ -278,7 +278,9 @@ Lecciones de ReactiLab (`/home/jio/Documentos/Inventario_V1`):
   - Ajuste sin signo, ubicación en texto libre y traslados sin traza.
   - Borrado usado como baja y un «FIFO» basado en la menor cantidad.
   - Tarjetas como única vista y botones visibles sin permiso.
+  - Su baseline y su historia de migraciones.
   - ReactiLab no tiene importación: el asistente de PlatLab se diseña desde cero.
+- **Licencia:** aclarar titularidad y licencia (README MIT frente a términos de software propietario) antes de copiar código.
 
 ## 8. Fuera del alcance inicial
 

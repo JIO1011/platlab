@@ -11,7 +11,7 @@ import { placeLines } from './asset-text';
 import { useEquipment } from './context';
 import { faultStepParts, faultTypeLabel, faultViewFrom, faultViews, type FaultView } from './fault-text';
 import { useFaultCounts, useFaults } from './queries';
-import { SectionHeader } from './section-header';
+import { SectionHeader } from '../../app/section-header';
 import { FaultSheet } from './sheets/fault-sheet';
 import { ReportFaultSheet } from './sheets/report-fault-sheet';
 

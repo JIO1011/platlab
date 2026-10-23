@@ -1,4 +1,3 @@
-import { AppError } from '../../../platform/errors.js';
 import { moduleCommand, moduleQuery, type WorkspaceAccess } from '../../core/index.js';
 import { workspaceToday as workspaceTodayQuery } from '../infrastructure/work.queries.js';
 
@@ -31,19 +30,4 @@ export async function workspaceToday(access: WorkspaceAccess): Promise<string> {
   const [row] = await workspaceTodayQuery.run({ timeZone: access.workspace.timeZone }, access.client);
   // Un SELECT sin FROM devuelve siempre una fila.
   return row!.today;
-}
-
-/**
- * Edición con la versión que la persona vio (02): un recurso archivado no se modifica, y uno que otra
- * persona cambió antes responde VERSION_CONFLICT.
- */
-export function requireEditable(
-  row: { archived_at: Date | null; version: number } | undefined,
-  expectedVersion?: number,
-): asserts row is { archived_at: null; version: number } {
-  if (!row) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
-  if (row.archived_at) throw new AppError('VALIDATION_FAILED', 'Lo archivado no se modifica');
-  if (expectedVersion !== undefined && row.version !== expectedVersion) {
-    throw new AppError('VERSION_CONFLICT', 'Otra persona lo cambió mientras editabas: vuelve a cargarlo');
-  }
 }
