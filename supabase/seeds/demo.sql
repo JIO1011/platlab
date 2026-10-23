@@ -623,7 +623,7 @@ insert into labs.spaces (workspace_id, area_id, abbreviation, capacity, weekly_h
    'da200000-0000-4000-8000-000000000001');
 
 insert into labs.closures (workspace_id, area_id, starts_on, ends_on, reason, created_by_principal_id) values
-  ('da000000-0000-4000-8000-00000000000a', null, current_date + 20, current_date + 21, 'Feriado nacional',
+  ('da000000-0000-4000-8000-00000000000a', null, date_trunc('week', current_date + 14)::date + 4, date_trunc('week', current_date + 14)::date + 4, 'Feriado nacional',
    'da200000-0000-4000-8000-000000000001'),
   ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000004', current_date + 10, current_date + 12,
    'Mantenimiento de las mesas de trabajo', 'da200000-0000-4000-8000-000000000001');
@@ -695,7 +695,7 @@ insert into labs.list_values (id, workspace_id, kind, name, created_by_principal
   ('dae00000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'career', 'Ingeniería Química',
    'da200000-0000-4000-8000-000000000004');
 
-insert into labs.request_counters (workspace_id, last_number) values ('da000000-0000-4000-8000-00000000000a', 4);
+insert into labs.request_counters (workspace_id, last_number) values ('da000000-0000-4000-8000-00000000000a', 10);
 
 -- Entran como borrador, con sus recursos, y después pasan a su estado: enviada, los recursos ya no cambian.
 insert into labs.requests (id, workspace_id, number, form_id, form_revision, requester_principal_id, status, title,
@@ -704,7 +704,7 @@ insert into labs.requests (id, workspace_id, number, form_id, form_revision, req
   ('daf00000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 1,
    'dad00000-0000-4000-8000-000000000001', 1, 'da200000-0000-4000-8000-000000000004', 'draft',
    'Titulación ácido-base', 'Diego Docente', 'practice', 'dae00000-0000-4000-8000-000000000001',
-   'dae00000-0000-4000-8000-000000000003', array[current_date + 20, current_date + 27], '08:00', '10:00', 24, 6,
+   'dae00000-0000-4000-8000-000000000003', array[date_trunc('week', current_date + 14)::date, date_trunc('week', current_date + 14)::date + 7], '08:00', '10:00', 24, 6,
    'da300000-0000-4000-8000-000000000003', '{"practica_n": 3, "requiere_epp": true}', false, now() - interval '2 days'),
   ('daf00000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 2,
    'dad00000-0000-4000-8000-000000000001', 1, 'da200000-0000-4000-8000-000000000004', 'draft',
@@ -714,7 +714,7 @@ insert into labs.requests (id, workspace_id, number, form_id, form_revision, req
   ('daf00000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 3,
    'dad00000-0000-4000-8000-000000000001', 1, 'da200000-0000-4000-8000-000000000004', 'draft',
    'Cinética química', 'Diego Docente', 'practice', 'dae00000-0000-4000-8000-000000000001',
-   'dae00000-0000-4000-8000-000000000003', array[current_date + 25], '10:00', '12:00', 30, 5,
+   'dae00000-0000-4000-8000-000000000003', array[date_trunc('week', current_date + 14)::date + 2], '10:00', '12:00', 30, 5,
    null, '{}', false, now() - interval '1 day');
 insert into labs.requests (id, workspace_id, number, form_id, form_revision, requester_principal_id, title, teacher_name)
 values ('daf00000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 4,
@@ -741,16 +741,76 @@ from (values ('daf00000-0000-4000-8000-000000000001'::uuid, 'submitted'), ('daf0
              ('daf00000-0000-4000-8000-000000000003'::uuid, 'changes_requested')) as v (id, status)
 where q.id = v.id;
 
--- Cronograma (L-01c): la primera fecha de SOL-0001 ya tiene bloque en Química, a cargo de Óscar Operador.
-insert into labs.activity_sequences (workspace_id, period_id, week, area_id, last_number)
-select 'da000000-0000-4000-8000-00000000000a', id, 12, 'da300000-0000-4000-8000-000000000003', 1
-from labs.periods where workspace_id = 'da000000-0000-4000-8000-00000000000a' and code = 'P1';
-insert into labs.activities (workspace_id, request_id, on_date, area_id, starts_at, ends_at, responsible_principal_id,
-  period_id, week, sequence, code, created_by_principal_id)
-select 'da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000001', current_date + 20,
-  'da300000-0000-4000-8000-000000000003', '08:00', '10:00', 'da200000-0000-4000-8000-000000000002', id, 12, 1, 'P1-S12-QUI01',
+-- Cronograma (L-01c): seis áreas habilitadas y, el lunes de la semana que viene, la primera fecha de SOL-0001 y seis
+-- prácticas más ya programadas (SOL-0005 a SOL-0010), para ver la planilla llena.
+insert into core.locations (id, workspace_id, parent_id, kind, code, name) values
+  ('da300000-0000-4000-8000-000000000008', 'da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000001', 'room', 'LAB-MIC', 'Laboratorio de Microbiología'),
+  ('da300000-0000-4000-8000-000000000009', 'da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000001', 'room', 'LAB-ANT', 'Laboratorio de Anatomía'),
+  ('da300000-0000-4000-8000-00000000000a', 'da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000001', 'room', 'LAB-BIO', 'Laboratorio de Bioquímica'),
+  ('da300000-0000-4000-8000-00000000000b', 'da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000001', 'room', 'LAB-INS', 'Laboratorio de Instrumental');
+insert into labs.spaces (workspace_id, area_id, abbreviation, capacity, weekly_hours, created_by_principal_id)
+select 'da000000-0000-4000-8000-00000000000a', area, abbreviation, capacity,
+  '{"1": [{"opens": "07:00", "closes": "19:00"}], "2": [{"opens": "07:00", "closes": "19:00"}], "3": [{"opens": "07:00", "closes": "19:00"}],
+    "4": [{"opens": "07:00", "closes": "19:00"}], "5": [{"opens": "07:00", "closes": "19:00"}], "6": [], "7": []}',
   'da200000-0000-4000-8000-000000000001'
-from labs.periods where workspace_id = 'da000000-0000-4000-8000-00000000000a' and code = 'P1';
+from (values ('da300000-0000-4000-8000-000000000008'::uuid, 'MIC', 20), ('da300000-0000-4000-8000-000000000009'::uuid, 'ANT', 30),
+             ('da300000-0000-4000-8000-00000000000a'::uuid, 'BIO', 24), ('da300000-0000-4000-8000-00000000000b'::uuid, 'INS', 12))
+  as v (area, abbreviation, capacity);
+
+insert into labs.list_values (id, workspace_id, kind, name, created_by_principal_id) values
+  ('dae00000-0000-4000-8000-000000000005', 'da000000-0000-4000-8000-00000000000a', 'subject', 'Microbiología', 'da200000-0000-4000-8000-000000000004'),
+  ('dae00000-0000-4000-8000-000000000006', 'da000000-0000-4000-8000-00000000000a', 'subject', 'Histología', 'da200000-0000-4000-8000-000000000004'),
+  ('dae00000-0000-4000-8000-000000000007', 'da000000-0000-4000-8000-00000000000a', 'subject', 'Física I', 'da200000-0000-4000-8000-000000000004'),
+  ('dae00000-0000-4000-8000-000000000008', 'da000000-0000-4000-8000-00000000000a', 'career', 'Odontología', 'da200000-0000-4000-8000-000000000004'),
+  ('dae00000-0000-4000-8000-000000000009', 'da000000-0000-4000-8000-00000000000a', 'career', 'Biotecnología', 'da200000-0000-4000-8000-000000000004');
+
+do $$
+declare
+  monday constant date := date_trunc('week', current_date + 14)::date;
+  p1 record;
+  item record;
+  seq integer;
+begin
+  select id, code, starts_on into p1 from labs.periods
+  where workspace_id = 'da000000-0000-4000-8000-00000000000a' and code = 'P1';
+  -- Las prácticas programadas: número, título, asignatura, carrera, área, sigla, inicio y fin.
+  for item in
+    select * from (values
+      (1, null, null, null, 'da300000-0000-4000-8000-000000000003'::uuid, 'QUI', time '08:00', time '10:00'),
+      (5, 'Tinción de Gram', 'dae00000-0000-4000-8000-000000000005', 'dae00000-0000-4000-8000-000000000009', 'da300000-0000-4000-8000-000000000008'::uuid, 'MIC', time '09:00', time '11:00'),
+      (6, 'Cortes histológicos', 'dae00000-0000-4000-8000-000000000006', 'dae00000-0000-4000-8000-000000000008', 'da300000-0000-4000-8000-000000000009'::uuid, 'ANT', time '07:00', time '09:00'),
+      (7, 'Péndulo simple', 'dae00000-0000-4000-8000-000000000007', 'dae00000-0000-4000-8000-000000000004', 'da300000-0000-4000-8000-000000000004'::uuid, 'FIS', time '10:00', time '12:00'),
+      (8, 'Enzimas', 'dae00000-0000-4000-8000-000000000002', 'dae00000-0000-4000-8000-000000000003', 'da300000-0000-4000-8000-00000000000a'::uuid, 'BIO', time '13:30', time '15:30'),
+      (9, 'Calibración de pipetas', 'dae00000-0000-4000-8000-000000000001', 'dae00000-0000-4000-8000-000000000008', 'da300000-0000-4000-8000-000000000003'::uuid, 'QUI', time '15:30', time '17:30'),
+      (10, 'Espectrofotometría', 'dae00000-0000-4000-8000-000000000002', 'dae00000-0000-4000-8000-000000000009', 'da300000-0000-4000-8000-00000000000b'::uuid, 'INS', time '11:00', time '13:00')
+    ) as v (number, title, subject, career, area, abbreviation, starts_at, ends_at)
+  loop
+    if item.number <> 1 then
+      insert into labs.requests (id, workspace_id, number, form_id, form_revision, requester_principal_id, status, title,
+        teacher_name, activity_type, subject_id, career_id, dates, starts_at, ends_at, participants, groups, answers,
+        submitted_at)
+      values (('daf00000-0000-4000-8000-' || lpad(item.number::text, 12, '0'))::uuid, 'da000000-0000-4000-8000-00000000000a',
+        item.number, 'dad00000-0000-4000-8000-000000000001', 1, 'da200000-0000-4000-8000-000000000004', 'draft', item.title,
+        'Diego Docente', 'practice', item.subject::uuid, item.career::uuid, array[monday], item.starts_at, item.ends_at, 20, 4,
+        '{}', now() - interval '5 days');
+      update labs.requests set status = 'submitted' where number = item.number and workspace_id = 'da000000-0000-4000-8000-00000000000a';
+    end if;
+    insert into labs.activity_sequences (workspace_id, period_id, week, area_id, last_number)
+    values ('da000000-0000-4000-8000-00000000000a', p1.id, (monday - p1.starts_on) / 7 + 1, item.area, 1)
+    on conflict (workspace_id, period_id, week, area_id) do update set last_number = labs.activity_sequences.last_number + 1
+    returning last_number into seq;
+    insert into labs.activities (workspace_id, request_id, on_date, area_id, starts_at, ends_at, responsible_principal_id,
+      period_id, week, sequence, code, created_by_principal_id)
+    values ('da000000-0000-4000-8000-00000000000a', ('daf00000-0000-4000-8000-' || lpad(item.number::text, 12, '0'))::uuid,
+      monday, item.area, item.starts_at, item.ends_at, 'da200000-0000-4000-8000-000000000002', p1.id,
+      (monday - p1.starts_on) / 7 + 1, seq,
+      p1.code || '-S' || ((monday - p1.starts_on) / 7 + 1) || '-' || item.abbreviation || lpad(seq::text, 2, '0'),
+      'da200000-0000-4000-8000-000000000001');
+    if item.number <> 1 then
+      update labs.requests set status = 'scheduled' where number = item.number and workspace_id = 'da000000-0000-4000-8000-00000000000a';
+    end if;
+  end loop;
+end $$;
 
 insert into labs.request_events (workspace_id, request_id, action, reason, principal_id, created_at) values
   ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000001', 'submitted', null,

@@ -34,5 +34,8 @@ export const labsModule = defineModule({
     },
   ],
   homeCard: { permission: 'labs.space.manage' },
+  // Las áreas del Núcleo (ADR 0024): quien consulta Laboratorios las ve en el Cronograma (habilitadas o no) y el
+  // Administrador las habilita para prácticas desde Áreas, aunque el espacio solo tenga Laboratorios.
+  areas: { read: 'labs.read', manage: 'labs.space.manage' },
   stage: 'development',
 });
