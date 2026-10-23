@@ -8,6 +8,8 @@ import { useNow } from './use-now';
 interface SectionHeaderProps {
   title: string;
   updatedAt: number;
+  /** Una línea breve sobre lo que muestra la sección (por ejemplo, el período), antes de «Actualizado…». */
+  detail?: ReactNode;
   actions?: ReactNode;
 }
 
@@ -17,7 +19,7 @@ interface SectionHeaderProps {
  * debajo, a todo el ancho). En modo consulta (`canOperate` falso), el aviso `readOnlyNotice` de que no se registran
  * cambios. El estado y el aviso salen del contexto de la app del módulo (`ModuleOutlet`). El título admite el foco de respaldo al cambiar de sección (`data-focus-fallback`).
  */
-export function SectionHeader({ title, updatedAt, actions }: SectionHeaderProps) {
+export function SectionHeader({ title, updatedAt, detail, actions }: SectionHeaderProps) {
   const { canOperate, freshness, readOnlyNotice } = useModuleContext();
   const now = useNow(15_000);
   return (
@@ -27,7 +29,8 @@ export function SectionHeader({ title, updatedAt, actions }: SectionHeaderProps)
           <h1 tabIndex={-1} data-focus-fallback className="text-display text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action">
             {title}
           </h1>
-          <p className="mt-1 flex items-center gap-2 text-[13px] text-ink-muted">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted">
+            {detail}
             {updatedAt > 0 ? <span>Actualizado {formatAgo(updatedAt, now)}</span> : <span>Cargando…</span>}
             <button
               type="button"

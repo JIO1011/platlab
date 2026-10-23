@@ -1,104 +1,100 @@
 import type { RequestSummary } from '@platlab/contracts';
-import { Badge, Button, StatePanel, cn } from '@platlab/ui';
-import { CalendarPlus, CircleCheck, ExternalLink, GripVertical } from 'lucide-react';
-import { useId } from 'react';
-import { Link } from 'react-router';
+import { Button, cn } from '@platlab/ui';
+import { CalendarPlus, CircleCheck } from 'lucide-react';
+import { useId, type ReactNode } from 'react';
 import { exceptionsText } from './request-summary';
-import { blockFace, blockTextClass } from './schedule-block';
+import { blockFace, blockTextClass, lineClamp } from './schedule-block';
 import { careerTone } from './schedule-career-color';
 import { useSourceDrag, type DragSource } from './schedule-dnd';
-import { chipDateText, defaultDate, durationOf, pendingDates, progressText, requestBlockText } from './schedule-placement';
+import { cardWhenText, durationOf, pendingCards, requestBlockText, shortDateText, type PendingCard } from './schedule-placement';
 
 /** Lo que «Por programar» necesita del resto de la pantalla. */
 export interface TrayActions {
-  /** El Administrador programa; el Operador solo ve la franja. */
+  /** El Administrador programa; el Operador solo ve la bandeja. */
   canSchedule: boolean;
-  /** Se puede arrastrar (tabla visible, pantalla ancha). */
-  canDrag: boolean;
+  /** Pantalla ancha (con la tabla): una franja con tarjetas que se arrastran; si no, una lista con «Programar…». */
+  wide: boolean;
   today: string;
   /** El día que muestra la tabla. */
   visible: string;
-  /** Dónde se abre una solicitud en Recibidas. */
-  requestHref: (requestId: string) => string;
   /** Lleva la tabla a ese día. */
   onPickDate: (date: string) => void;
   /** Abre «Programar…» con esa fecha. */
   onSchedule: (request: RequestSummary, date: string) => void;
 }
 
-/** Una fecha pendiente: un clic lleva la tabla a ese día y, con ese día a la vista, el bloque se arrastra a un área y una hora. */
-function DateChip({ date, actions }: { date: string; actions: TrayActions }) {
-  const past = date <= actions.today;
-  const selected = date === actions.visible;
-  return (
-    <button
-      type="button"
-      onClick={() => actions.onPickDate(date)}
-      aria-pressed={selected}
-      aria-label={`${chipDateText(date)}${past ? ', ya pasó' : ''}${selected ? ', día que ves' : ''}`}
-      title={past ? 'Esa fecha ya pasó: solo se programa hacia el futuro' : 'Ver ese día en la tabla'}
-      className={cn(
-        'inline-flex h-11 select-none items-center rounded-full border px-3 text-[13px] font-medium tabular-nums transition-colors sm:h-8',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action',
-        selected ? 'border-action bg-action text-on-action' : 'border-line-strong bg-surface text-ink hover:bg-surface-sunken',
-        past && !selected && 'border-warning/40 bg-warning-soft text-warning',
-      )}
-    >
-      {chipDateText(date)}
-      {past ? <span className="text-[12px] font-normal"> · ya pasó</span> : null}
-    </button>
-  );
+/** Por qué una tarjeta pide atención: fuera de plazo o con recursos por revisar; vacío si no. */
+function warningsOf({ late, exceptions }: Pick<RequestSummary, 'late' | 'exceptions'>): string[] {
+  return [late ? 'Fuera de plazo' : null, exceptionsText(exceptions)].filter((text): text is string => text !== null);
 }
 
 /**
- * Una solicitud por programar, con el aspecto de un bloque de la tabla: «Materia - Carrera - Docente» sobre el color de su
- * carrera, su código con «1 de 2 programadas», la hora pedida, los avisos y sus fechas pendientes. Se arrastra a la tabla
- * cuando el día que se ve es una de sus fechas pendientes y futuras; «Programar…» hace lo mismo sin arrastrar.
+ * Una fecha por programar, con el aspecto de un bloque de la tabla («Materia - Carrera - Docente» sobre el color de su
+ * carrera) y, debajo, «lun 9 nov · 08:00–10:00» con un punto ámbar si está fuera de plazo o tiene recursos por revisar
+ * (el motivo, en texto para el lector de pantalla y en el título). En la franja, las del día que se ve van resaltadas:
+ * se arrastran a la tabla (si la fecha es futura) y un clic abre «Programar…»; las de otros días van atenuadas y un clic
+ * lleva la tabla a ese día. En la lista (pantalla estrecha), cada una trae su botón «Programar…».
  */
-function PendingBlock({ summary, actions }: { summary: RequestSummary; actions: TrayActions }) {
-  const pending = pendingDates(summary);
-  const duration = durationOf(summary);
-  const draggable = actions.canSchedule && actions.canDrag && pending.includes(actions.visible) && actions.visible > actions.today && duration !== null;
-  const source: DragSource = { kind: 'program', request: summary, date: actions.visible, duration: duration ?? 0 };
-  const drag = useSourceDrag(`card:${summary.id}`, source, !draggable);
-  const exceptions = exceptionsText(summary.exceptions);
+function PendingTile({ card, actions }: { card: PendingCard; actions: TrayActions }) {
+  const { request, date } = card;
+  const here = date === actions.visible;
+  const duration = durationOf(request);
+  const draggable = actions.canSchedule && actions.wide && here && date > actions.today && duration !== null;
+  const source: DragSource = { kind: 'program', request, date, duration: duration ?? 0 };
+  const drag = useSourceDrag(`card:${request.id}:${date}`, source, !draggable);
+  const warnings = warningsOf(request);
+  const past = date <= actions.today;
+  const text = requestBlockText(request);
+  const face = (
+    <>
+      <span className={cn(blockTextClass, 'block', actions.wide ? lineClamp[3] : 'text-sm')}>{text}</span>
+      <span className="mt-auto flex items-center gap-1.5 pt-0.5 text-[11px] leading-[14px] tabular-nums text-ink-muted">
+        {warnings.length > 0 ? (
+          <span title={warnings.join(' · ')} className="flex shrink-0 items-center">
+            <span aria-hidden className="size-2 rounded-full bg-warning" />
+            <span className="sr-only">{warnings.join('. ')}</span>
+          </span>
+        ) : null}
+        <span className="truncate">
+          {cardWhenText(card)}
+          {past ? ' · ya pasó' : ''}
+        </span>
+      </span>
+    </>
+  );
+  const inner = 'flex size-full flex-col px-2 py-1.5 text-left';
+  const control = (children: ReactNode) => {
+    const focus = 'focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-action';
+    if (!actions.wide) return <div className={cn(inner, 'min-h-11')}>{children}</div>;
+    if (here && !actions.canSchedule) return <div className={inner}>{children}</div>;
+    return here ? (
+      <button type="button" aria-label={`Programar… ${text}, ${cardWhenText(card)}`} onClick={() => actions.onSchedule(request, date)} className={cn(inner, focus)}>
+        {children}
+      </button>
+    ) : (
+      <button type="button" aria-label={`Ver ${shortDateText(date)} en el cronograma: ${text}`} onClick={() => actions.onPickDate(date)} className={cn(inner, focus)}>
+        {children}
+      </button>
+    );
+  };
   return (
     <li
       ref={drag.setNodeRef}
       {...(draggable ? drag.listeners : {})}
-      className={cn(blockFace, careerTone(summary.group), 'relative touch-manipulation p-3 text-center', draggable && 'cursor-grab select-none active:cursor-grabbing', drag.isDragging && 'opacity-40')}
+      className={cn(
+        blockFace,
+        careerTone(request.group),
+        'relative touch-manipulation',
+        actions.wide ? 'h-[4.75rem] w-56 shrink-0' : 'grid',
+        actions.wide && here && 'ring-2 ring-action ring-offset-1',
+        actions.wide && !here && 'opacity-75 transition-opacity hover:opacity-100',
+        draggable && 'cursor-grab select-none active:cursor-grabbing',
+        drag.isDragging && 'opacity-40',
+      )}
     >
-      <Link
-        to={actions.requestHref(summary.id)}
-        aria-label={`Abrir la solicitud ${summary.code}`}
-        title={`Abrir la solicitud ${summary.code}`}
-        className="absolute right-1 top-1 inline-flex size-9 items-center justify-center rounded-md text-ink hover:bg-white/60 focus-visible:outline-2 focus-visible:outline-action sm:size-7"
-      >
-        <ExternalLink aria-hidden className="size-4" />
-      </Link>
-      <p className={cn('px-7 text-sm', blockTextClass)}>
-        {draggable ? <GripVertical aria-hidden className="-ml-1 mr-0.5 inline size-3.5 align-text-bottom opacity-60" /> : null}
-        {requestBlockText(summary)}
-      </p>
-      <p className="mt-1 text-[13px] tabular-nums text-ink-muted">
-        {summary.code} · {progressText(summary)}
-        {summary.startsAt && summary.endsAt ? ` · ${summary.startsAt}–${summary.endsAt}` : ''}
-      </p>
-      {summary.late || exceptions ? (
-        <p className="mt-2 flex flex-wrap justify-center gap-1.5">
-          {summary.late ? <Badge tone="warning">Fuera de plazo</Badge> : null}
-          {exceptions ? <Badge tone="warning">{exceptions}</Badge> : null}
-        </p>
-      ) : null}
-      <ul aria-label="Fechas por programar" className="mt-2.5 flex flex-wrap justify-center gap-2">
-        {pending.map((date) => (
-          <li key={date}>
-            <DateChip date={date} actions={actions} />
-          </li>
-        ))}
-      </ul>
-      {actions.canSchedule && pending.length > 0 ? (
-        <Button size="sm" className="mt-2.5 h-11 bg-white/80 sm:h-8" onClick={() => actions.onSchedule(summary, defaultDate(pending, actions.visible, actions.today))}>
+      {control(face)}
+      {!actions.wide && actions.canSchedule ? (
+        <Button size="sm" className="m-2 mt-0 h-11 justify-self-start bg-white/80" onClick={() => actions.onSchedule(request, date)}>
           <CalendarPlus aria-hidden />
           Programar…
         </Button>
@@ -107,41 +103,41 @@ function PendingBlock({ summary, actions }: { summary: RequestSummary; actions: 
   );
 }
 
-/** Lo que la franja dice de cómo programar, según quién la ve y la pantalla. */
-function hintText({ canSchedule, canDrag }: Pick<TrayActions, 'canSchedule' | 'canDrag'>): string {
-  if (!canSchedule) return 'Lo más urgente primero.';
-  return canDrag
-    ? 'Lo más urgente primero. Elige una fecha para ver ese día y arrastra el bloque a un área y una hora, o usa «Programar…».'
-    : 'Lo más urgente primero. Usa «Programar…».';
-}
-
 /**
- * «Por programar» (ADR 0023, L-01c; decisión del usuario, 24-10-2026): bajo la tabla, las solicitudes enviadas con fechas
- * sin bloque como bloques con el aspecto de los de la tabla, lo urgente primero. Cada fecha pendiente es un botón que
- * lleva la tabla a ese día; el bloque se arrastra a su lugar y todos traen «Programar…». El Operador los ve sin acciones.
+ * «Por programar» (ADR 0023, L-01c; decisión del usuario, 24-10-2026): pegada al borde inferior del contenido, una
+ * franja de unos 110 px con una tarjeta por fecha pendiente de las solicitudes enviadas, las del día que se ve primero y
+ * resaltadas (se arrastran a la tabla) y las de otros días atenuadas (llevan a su día). En pantallas estrechas es una
+ * lista debajo del día, con «Programar…». El Operador las ve sin acciones de programar.
  */
 export function ScheduleTray({ items, pendingError, onRetry, actions }: { items: readonly RequestSummary[]; pendingError: boolean; onRetry: () => void; actions: TrayActions }) {
   const heading = useId();
+  const cards = pendingCards(items, actions.visible);
+  const here = cards.filter((card) => card.date === actions.visible).length;
+  const hint = !actions.wide ? null : here > 0 && actions.canSchedule ? 'Arrastra las resaltadas a la tabla, o haz clic para «Programar…»' : cards.length > 0 ? 'Haz clic en una para ver su día' : null;
   return (
-    <section aria-labelledby={heading} className="rounded-card bg-surface p-4 shadow-raised">
-      <h2 id={heading} className="flex items-center gap-2 text-lg font-bold text-ink">
-        Por programar
-        <Badge tone={items.length > 0 ? 'info' : 'neutral'}>{items.length}</Badge>
-      </h2>
-      <p className="mt-0.5 text-[13px] text-ink-muted">{hintText(actions)}</p>
+    <section aria-labelledby={heading} className={cn('rounded-card bg-surface px-3 pb-2.5 pt-2 shadow-raised', actions.wide && 'shrink-0')}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+        <h2 id={heading} className="text-sm font-bold text-ink">
+          Por programar · {cards.length}
+        </h2>
+        {hint ? <p className="text-xs text-ink-muted">{hint}</p> : null}
+      </div>
       {pendingError ? (
-        <p role="alert" className="mt-3 rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger">
+        <p role="alert" className="mt-2 rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">
           No se pudieron cargar las solicitudes.{' '}
           <button type="button" onClick={onRetry} className="font-semibold underline-offset-2 hover:underline">
             Reintentar
           </button>
         </p>
-      ) : items.length === 0 ? (
-        <StatePanel icon={CircleCheck} title="Todo programado" description="Las solicitudes enviadas con fechas sin bloque aparecerán aquí." className="py-8" />
+      ) : cards.length === 0 ? (
+        <p className="mt-1 flex items-center gap-2 text-sm text-ink-muted">
+          <CircleCheck aria-hidden className="size-4 text-success" />
+          Todo programado
+        </p>
       ) : (
-        <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3">
-          {items.map((summary) => (
-            <PendingBlock key={summary.id} summary={summary} actions={actions} />
+        <ul className={cn('mt-1.5', actions.wide ? 'flex gap-2 overflow-x-auto overscroll-x-contain pb-1' : 'grid gap-2')}>
+          {cards.map((card) => (
+            <PendingTile key={`${card.request.id}:${card.date}`} card={card} actions={actions} />
           ))}
         </ul>
       )}

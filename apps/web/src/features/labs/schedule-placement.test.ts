@@ -3,17 +3,17 @@ import { describe, expect, it } from 'vitest';
 import {
   blockingTexts,
   capacityText,
-  chipDateText,
+  cardWhenText,
   contextFor,
-  defaultDate,
   durationOf,
   endFor,
   isToSchedule,
   pendingDates,
   previewText,
-  progressText,
+  pendingCards,
   requestBlockText,
   scheduledMessage,
+  shortDateText,
   slotAt,
   snapTo,
   startAtOffset,
@@ -213,20 +213,23 @@ describe('bandeja Por programar', () => {
     expect(ordered.map((item) => item.id)).toEqual(['b', 'a']);
   });
 
-  it('dice cuántas van: 1 de 2 programadas', () => {
-    expect(progressText(summary({ scheduledCount: 1, dateCount: 2 }))).toBe('1 de 2 programadas');
-    expect(progressText(summary({ scheduledCount: 0, dateCount: 1 }))).toBe('0 de 1 programada');
+  it('hace una tarjeta por fecha pendiente, las del día que se ve primero y cada grupo en orden de urgencia', () => {
+    const urgent = summary({ id: 'urgente', dates: ['2026-10-26', '2026-10-28'], scheduledDates: ['2026-10-26'], scheduledCount: 1 });
+    const other = summary({ id: 'otra', dates: ['2026-10-26', '2026-10-30'] });
+    const cards = pendingCards([urgent, other], '2026-10-30');
+    expect(cards.map((card) => `${card.request.id}:${card.date}`)).toEqual(['otra:2026-10-30', 'urgente:2026-10-28', 'otra:2026-10-26']);
   });
 
-  it('abre «Programar…» en el día que se ve si está pendiente; si no, en la primera futura', () => {
-    expect(defaultDate(['2026-10-22', '2026-10-28', '2026-10-30'], '2026-10-30', '2026-10-23')).toBe('2026-10-30');
-    expect(defaultDate(['2026-10-22', '2026-10-28', '2026-10-30'], '2026-10-26', '2026-10-23')).toBe('2026-10-28');
-    expect(defaultDate(['2026-10-22'], '2026-10-26', '2026-10-23')).toBe('2026-10-22');
+  it('escribe la fecha con el día de la semana, sin coma', () => {
+    expect(shortDateText('2026-10-28')).toMatch(/^mi/i);
+    expect(shortDateText('2026-10-28')).toMatch(/28/);
+    expect(shortDateText('2026-10-28')).not.toContain(',');
   });
 
-  it('escribe el chip con el día de la semana', () => {
-    expect(chipDateText('2026-10-28')).toMatch(/mi/i);
-    expect(chipDateText('2026-10-28')).toMatch(/28/);
+  it('dice la fecha y el horario pedido de una tarjeta', () => {
+    const request = summary({ startsAt: '08:00', endsAt: '10:00' });
+    expect(cardWhenText({ request, date: '2026-10-28' })).toBe(`${shortDateText('2026-10-28')} · 08:00–10:00`);
+    expect(cardWhenText({ request: summary({ startsAt: null, endsAt: null }), date: '2026-10-28' })).toBe(shortDateText('2026-10-28'));
   });
 });
 

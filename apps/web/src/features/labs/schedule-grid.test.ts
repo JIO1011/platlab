@@ -4,9 +4,10 @@ import {
   activitiesOfArea,
   activityDetails,
   activityLabel,
-  areasOfDay,
+  blockLines,
   blockSpan,
   blockText,
+  boardColumns,
   boardRange,
   capacityWarning,
   closedAllDay,
@@ -22,6 +23,7 @@ import {
   placement,
   rowStarts,
   shiftMonth,
+  showsTime,
   timeText,
   toMinutes,
   weekDates,
@@ -131,8 +133,32 @@ describe('carga y áreas del día', () => {
     const active = space();
     const archived = space({ areaId: 'area-2', archivedAt: '2026-09-01T00:00:00Z' });
     const unlinked = space({ areaId: 'area-3', areaArchived: true });
-    expect(areasOfDay([active, archived, unlinked], [])).toEqual([active]);
-    expect(areasOfDay([active, archived, unlinked], [activity({ areaId: 'area-2' })])).toEqual([active, archived]);
+    const spaces = [active, archived, unlinked];
+    expect(boardColumns(null, spaces, []).map((column) => column.space)).toEqual([active]);
+    expect(boardColumns(null, spaces, [activity({ areaId: 'area-2' })]).map((column) => column.space)).toEqual([active, archived]);
+  });
+
+  it('suma al final las áreas del Núcleo sin horario, por edificio y nombre', () => {
+    const chemistry = space({ areaId: 'area-1', areaName: 'Química', groupName: 'Bloque B' });
+    const core = [
+      { id: 'area-9', name: 'Zoología', group: null },
+      { id: 'area-1', name: 'Química', group: { name: 'Bloque B' } },
+      { id: 'area-5', name: 'Anatomía', group: { name: 'Bloque A' } },
+      { id: 'area-6', name: 'Botánica', group: null },
+    ];
+    const columns = boardColumns(core, [chemistry], []);
+    expect(columns.map((column) => [column.areaId, column.space !== null])).toEqual([
+      ['area-1', true],
+      ['area-6', false],
+      ['area-9', false],
+      ['area-5', false],
+    ]);
+  });
+
+  it('conserva la columna de un área archivada con bloque aunque el Núcleo ya no la liste', () => {
+    const archived = space({ areaId: 'area-2', areaArchived: true });
+    const columns = boardColumns([], [archived], [activity({ areaId: 'area-2' })]);
+    expect(columns).toEqual([{ areaId: 'area-2', areaName: 'Química analítica', groupName: null, space: archived }]);
   });
 
   it('ordena los bloques de un área por hora', () => {
@@ -140,6 +166,16 @@ describe('carga y áreas del día', () => {
     const early = activity({ id: 'early' });
     const other = activity({ id: 'other', areaId: 'area-2' });
     expect(activitiesOfArea([late, other, early], 'area-1').map((item) => item.id)).toEqual(['early', 'late']);
+  });
+});
+
+describe('tamaño de un bloque', () => {
+  it('da más líneas de texto a un bloque más largo', () => {
+    expect([30, 45, 60, 75, 90, 180].map(blockLines)).toEqual([1, 1, 2, 2, 3, 3]);
+  });
+
+  it('muestra la hora solo desde una hora de alto', () => {
+    expect([30, 45, 60, 120].map(showsTime)).toEqual([false, false, true, true]);
   });
 });
 

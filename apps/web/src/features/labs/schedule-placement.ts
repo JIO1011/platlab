@@ -131,19 +131,29 @@ export function toScheduleOrder(items: readonly RequestSummary[]): RequestSummar
     .map(({ item }) => item);
 }
 
-/** «lun, 26 oct»: la fecha de un chip de la bandeja. */
-export function chipDateText(date: string): string {
-  return new Intl.DateTimeFormat('es-EC', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`));
+/** «lun 9 nov»: la fecha de una tarjeta de la bandeja. */
+export function shortDateText(date: string): string {
+  return new Intl.DateTimeFormat('es-EC', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`)).replace(',', '');
 }
 
-/** La fecha con que «Programar…» abre: el día que se ve si está pendiente; si no, la primera futura y, al fin, la primera. */
-export function defaultDate(pending: readonly string[], visible: string, today: string): string {
-  return pending.includes(visible) ? visible : (pending.find((date) => date > today) ?? pending[0] ?? visible);
+/** Una fecha por programar de una solicitud: lo que dibuja una tarjeta de la bandeja. */
+export interface PendingCard {
+  request: RequestSummary;
+  date: string;
 }
 
-/** «1 de 2 programadas». */
-export function progressText({ scheduledCount, dateCount }: Pick<RequestSummary, 'scheduledCount' | 'dateCount'>): string {
-  return `${scheduledCount} de ${dateCount} ${dateCount === 1 ? 'programada' : 'programadas'}`;
+/**
+ * Las tarjetas de la bandeja, una por fecha pendiente: primero las del día que se ve (para arrastrarlas a la tabla) y,
+ * después, las de otros días; dentro de cada grupo, el orden de urgencia de `items` (ya ordenado por `toScheduleOrder`).
+ */
+export function pendingCards(items: readonly RequestSummary[], visible: string): PendingCard[] {
+  const cards = items.flatMap((request) => pendingDates(request).map((date) => ({ request, date })));
+  return [...cards.filter((card) => card.date === visible), ...cards.filter((card) => card.date !== visible)];
+}
+
+/** «lun 9 nov · 08:00–10:00»: cuándo se pidió la fecha; sin horario completo, solo la fecha. */
+export function cardWhenText({ request, date }: PendingCard): string {
+  return request.startsAt && request.endsAt ? `${shortDateText(date)} · ${request.startsAt}–${request.endsAt}` : shortDateText(date);
 }
 
 /** Lo que se avisa tras programar o mover: «P1-S12-QUI01 programado» y, si procede, el aforo. */

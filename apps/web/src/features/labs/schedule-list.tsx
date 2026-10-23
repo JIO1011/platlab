@@ -1,8 +1,9 @@
 import type { Activity, Closure, Space } from '@platlab/contracts';
 import { useId } from 'react';
+import { Link } from 'react-router';
 import { CodeTag } from '../../app/code-tag';
 import { ScheduleBlock, type BlockOpening } from './schedule-block';
-import { activitiesOfArea, closedAllDay, openSlots, timeText } from './schedule-grid';
+import { activitiesOfArea, closedAllDay, openSlots, timeText, type BoardColumn } from './schedule-grid';
 
 /** Un área del día: su nombre, aforo y horario, lo que la cierra si es el caso, y sus bloques por hora. */
 function AreaCard({ space, date, dayItems, closures, opening }: { space: Space; date: string; dayItems: readonly Activity[]; closures: readonly Closure[]; opening: BlockOpening }) {
@@ -45,16 +46,51 @@ function AreaCard({ space, date, dayItems, closures, opening }: { space: Space; 
   );
 }
 
+/** Un área del Núcleo sin horario: una línea atenuada, con «Habilitar» para quien administra espacios. */
+function IdleRow({ column, enableHref }: { column: BoardColumn; enableHref: string | undefined }) {
+  return (
+    <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-card bg-surface-sunken/60 px-4 py-2 text-sm text-ink-muted">
+      <p className="[overflow-wrap:anywhere]">
+        <span className="font-medium">{column.areaName}</span> · Sin horario
+      </p>
+      {enableHref ? (
+        <Link to={enableHref} className="inline-flex h-11 items-center rounded-control px-2 font-semibold text-action hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action">
+          Habilitar<span className="sr-only"> {column.areaName}</span>
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * El día como una lista por área, para pantallas estrechas (ADR 0023): sin tabla horizontal, cada área con su aforo y
- * horario y sus bloques por hora, con la hora a la izquierda como en la tabla y el mismo «Materia - Carrera - Docente».
+ * horario y sus bloques por hora, con la hora a la izquierda como en la tabla y el mismo «Materia - Carrera - Docente»;
+ * las áreas del Núcleo sin horario, al final y atenuadas.
  */
-export function ScheduleList({ areas, date, dayItems, closures, opening }: { areas: readonly Space[]; date: string; dayItems: readonly Activity[]; closures: readonly Closure[]; opening: BlockOpening }) {
+export function ScheduleList({
+  columns,
+  date,
+  dayItems,
+  closures,
+  opening,
+  enableHref,
+}: {
+  columns: readonly BoardColumn[];
+  date: string;
+  dayItems: readonly Activity[];
+  closures: readonly Closure[];
+  opening: BlockOpening;
+  enableHref: ((areaId: string) => string) | undefined;
+}) {
   return (
     <div className="grid gap-4">
-      {areas.map((space) => (
-        <AreaCard key={space.areaId} space={space} date={date} dayItems={dayItems} closures={closures} opening={opening} />
-      ))}
+      {columns.map((column) =>
+        column.space ? (
+          <AreaCard key={column.areaId} space={column.space} date={date} dayItems={dayItems} closures={closures} opening={opening} />
+        ) : (
+          <IdleRow key={column.areaId} column={column} enableHref={enableHref?.(column.areaId)} />
+        ),
+      )}
     </div>
   );
 }

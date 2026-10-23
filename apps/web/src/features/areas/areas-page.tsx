@@ -53,7 +53,11 @@ export function AreasPage() {
   const { workspaceId, me } = useShell();
   const overview = useAreasOverview(workspaceId, me.areas !== 'none');
   const [params, setParams] = useSearchParams();
-  const [dialog, setDialog] = useState<Dialog | null>(null);
+  // `?area=` abre la hoja de esa área al llegar (por ejemplo, desde «Habilitar» en el Cronograma de Laboratorios).
+  const [dialog, setDialog] = useState<Dialog | null>(() => {
+    const areaId = params.get('area');
+    return areaId ? { kind: 'area', areaId } : null;
+  });
   const view: View = params.get('vista') === 'departamentos' ? 'departamentos' : 'areas';
   const base = `/e/${workspaceId}`;
 

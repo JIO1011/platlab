@@ -2,7 +2,7 @@ import type { Activity, Space } from '@platlab/contracts';
 import { Button, Tooltip, cn } from '@platlab/ui';
 import { MoveVertical } from 'lucide-react';
 import { Link } from 'react-router';
-import { activityDetails, activityLabel, blockText, overCapacity } from './schedule-grid';
+import { activityDetails, activityLabel, blockLines, blockText, overCapacity, showsTime, toMinutes } from './schedule-grid';
 import { careerTone } from './schedule-career-color';
 
 /** Cómo se abre y se mueve un bloque: la solicitud para quien puede verla, un panel de solo lectura para los demás y, para quien programa, «Mover…». */
@@ -15,40 +15,52 @@ export interface BlockOpening {
   onMove?: ((activity: Activity) => void) | undefined;
 }
 
-/** La cara de un bloque (tabla, lista y «Por programar»): fondo suave por carrera, borde fino y texto de la planilla. */
-export const blockFace = 'overflow-hidden rounded-md border border-ink/15 text-ink';
+/**
+ * La cara de un bloque (tabla, lista y «Por programar»): fondo de tinte medio por carrera con su borde izquierdo de 3 px
+ * del mismo tono más oscuro (`careerTone` los pone) y el texto de la planilla.
+ */
+export const blockFace = 'overflow-hidden rounded-md border border-ink/10 border-l-[3px] text-ink';
 
-/** El texto de un bloque, centrado y ajustado al ancho; si no cabe, se corta por abajo y el tooltip lo dice entero. */
-export const blockTextClass = 'text-center font-medium leading-tight [overflow-wrap:anywhere]';
+/** El texto de un bloque: 12 px medium, a la izquierda y arriba; si no cabe, se corta con elipsis y el tooltip lo dice entero. */
+export const blockTextClass = 'text-left text-xs font-medium leading-[1.3] [overflow-wrap:anywhere]';
+
+/** Las líneas de texto que caben, con los nombres de clase escritos completos para que Tailwind los encuentre. */
+export const lineClamp = { 1: 'line-clamp-1', 2: 'line-clamp-2', 3: 'line-clamp-3' } as const;
 
 /** Los controles secundarios del bloque aparecen al pasar o enfocar; sin puntero (táctil), se ven siempre. */
 const reveal =
   '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/block:opacity-100 [@media(hover:hover)]:group-focus-within/block:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100';
 
 /**
- * Un bloque de la tabla o de la lista (decisión del usuario, 24-10-2026): solo «Materia - Carrera - Docente», centrado,
- * con el fondo de su carrera. La hora, el código y el responsable van al nombre accesible y al tooltip. Es un solo
- * control, un enlace a su solicitud o un botón que abre su panel; quien programa suma un botón pequeño «Mover…».
+ * Un bloque de la tabla o de la lista (decisión del usuario, 24-10-2026): «Materia - Carrera - Docente» arriba a la
+ * izquierda sobre el color de su carrera, en hasta tantas líneas como su alto permite; la hora, en una línea pequeña si
+ * mide al menos una hora. El código y el responsable van al nombre accesible y al tooltip. Es un solo control, un enlace
+ * a su solicitud o un botón que abre su panel; quien programa suma un botón pequeño «Mover…».
  */
 export function ScheduleBlock({ activity, space, opening, size }: { activity: Activity; space: Pick<Space, 'capacity'>; opening: BlockOpening; size: 'table' | 'list' }) {
   const to = opening.linkOf(activity);
   const text = blockText(activity);
+  const minutes = toMinutes(activity.endsAt) - toMinutes(activity.startsAt);
+  const table = size === 'table';
   const className = cn(
     blockFace,
     careerTone(activity.group),
     'relative block size-full transition-[filter] hover:brightness-95',
     'focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action',
-    size === 'list' && 'min-h-11',
+    !table && 'min-h-11',
   );
   const face = (
-    <>
-      <span className={cn('grid size-full [align-content:safe_center]', blockTextClass, size === 'list' ? 'px-3 py-2 text-sm' : 'px-1.5 py-0.5 text-xs')}>{text}</span>
-      {overCapacity(activity, space) ? (
-        <span aria-hidden className="absolute left-1 top-0 text-[11px] font-bold leading-none">
-          ⚠
+    <span className={cn('flex size-full flex-col items-start justify-start text-left', table ? 'px-2 py-1' : 'px-3 py-2')}>
+      <span className={cn(blockTextClass, table ? lineClamp[blockLines(minutes)] : 'text-sm')}>
+        {overCapacity(activity, space) ? <span aria-hidden>⚠ </span> : null}
+        {text}
+      </span>
+      {table && showsTime(minutes) ? (
+        <span aria-hidden className="text-[11px] leading-[14px] tabular-nums text-ink-muted">
+          {activity.startsAt}–{activity.endsAt}
         </span>
       ) : null}
-    </>
+    </span>
   );
   const label = activityLabel(activity, space);
   const tip = (

@@ -92,9 +92,37 @@ export function loadByDay(items: readonly Activity[], dates: readonly string[]):
   return load;
 }
 
-/** Las áreas del día: las habilitadas y, aunque se hayan archivado después, las que aún tienen un bloque ese día. */
-export function areasOfDay(spaces: readonly Space[], dayItems: readonly Activity[]): Space[] {
-  return spaces.filter((space) => (space.archivedAt === null && !space.areaArchived) || dayItems.some((item) => item.areaId === space.areaId));
+/** Un área del Núcleo, con lo que la tabla necesita para nombrarla. */
+export interface CoreArea {
+  id: string;
+  name: string;
+  group: { name: string } | null;
+}
+
+/** Una columna de la tabla: un área habilitada (con su espacio) o una del Núcleo que aún no tiene horario (`space` nulo). */
+export interface BoardColumn {
+  areaId: string;
+  areaName: string;
+  groupName: string | null;
+  space: Space | null;
+}
+
+const byPlace = (a: BoardColumn, b: BoardColumn) => (a.groupName ?? '').localeCompare(b.groupName ?? '', 'es') || a.areaName.localeCompare(b.areaName, 'es');
+
+/**
+ * Las columnas del día: primero las áreas habilitadas (y, aunque se hayan archivado después, las que aún tienen un bloque
+ * ese día) y después las demás áreas del Núcleo, sin horario; cada grupo por sede o edificio y nombre. Sin la lista del
+ * Núcleo (`areas` nulo), solo las habilitadas.
+ */
+export function boardColumns(areas: readonly CoreArea[] | null, spaces: readonly Space[], dayItems: readonly Activity[]): BoardColumn[] {
+  const shown = spaces.filter((space) => (space.archivedAt === null && !space.areaArchived) || dayItems.some((item) => item.areaId === space.areaId));
+  const enabled: BoardColumn[] = shown.map((space) => ({ areaId: space.areaId, areaName: space.areaName, groupName: space.groupName, space })).sort(byPlace);
+  const taken = new Set(spaces.map((space) => space.areaId));
+  const idle: BoardColumn[] = (areas ?? [])
+    .filter((area) => !taken.has(area.id))
+    .map((area) => ({ areaId: area.id, areaName: area.name, groupName: area.group?.name ?? null, space: null }))
+    .sort(byPlace);
+  return [...enabled, ...idle];
 }
 
 /** Los bloques de un área, por hora de inicio. */
@@ -159,6 +187,16 @@ export function closedSpans(space: Space, date: string, range: DayRange, closure
 // ---------------------------------------------------------------------------
 // Posiciones
 // ---------------------------------------------------------------------------
+
+/** Cuántas líneas de texto caben en un bloque de esa duración (en minutos): 1 hasta media hora, 2 con una hora, 3 desde hora y media. */
+export function blockLines(minutes: number): 1 | 2 | 3 {
+  return minutes >= 90 ? 3 : minutes >= 60 ? 2 : 1;
+}
+
+/** La hora va en el bloque solo si mide al menos una hora. */
+export function showsTime(minutes: number): boolean {
+  return minutes >= 60;
+}
 
 /** Dónde cae un tramo en la columna del día: su arranque y su alto, en porcentaje del rango. */
 export function placement(span: Span, range: DayRange): { top: number; height: number } {

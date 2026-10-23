@@ -115,7 +115,7 @@ function Ghost() {
       {source ? (
         <div className={cn('w-fit max-w-64 cursor-grabbing px-3 py-1.5 shadow-overlay', blockFace, careerTone(sourceGroup(source)))}>
           <p className={cn('text-sm', blockTextClass)}>{sourceLabel(source)}</p>
-          <p className="text-center text-[13px] tabular-nums text-ink-muted">
+          <p className="text-[13px] tabular-nums text-ink-muted">
             {sourceDetail(source)} · {sourceTimes(source)}
           </p>
         </div>

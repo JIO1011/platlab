@@ -625,7 +625,8 @@ insert into labs.spaces (workspace_id, area_id, abbreviation, capacity, weekly_h
 insert into labs.closures (workspace_id, area_id, starts_on, ends_on, reason, created_by_principal_id) values
   ('da000000-0000-4000-8000-00000000000a', null, date_trunc('week', current_date + 14)::date + 4, date_trunc('week', current_date + 14)::date + 4, 'Feriado nacional',
    'da200000-0000-4000-8000-000000000001'),
-  ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000004', current_date + 10, current_date + 12,
+  ('da000000-0000-4000-8000-00000000000a', 'da300000-0000-4000-8000-000000000004', date_trunc('week', current_date + 14)::date + 2,
+   date_trunc('week', current_date + 14)::date + 3,
    'Mantenimiento de las mesas de trabajo', 'da200000-0000-4000-8000-000000000001');
 
 insert into labs.closures
