@@ -221,3 +221,20 @@ JOIN core.workspaces AS w ON w.id = e.workspace_id
 JOIN core.module_definitions AS md ON md.code = e.module_code
 CROSS JOIN platform.environment AS env
 WHERE e.workspace_id = :workspaceId! AND e.module_code = :moduleCode!;
+
+/* @name listMembersWithPermission */
+-- Miembros activos con el permiso por un rol vigente (el propietario, por su Administrador implícito): a quién se le
+-- puede asignar algo que exige ese permiso, como el responsable de un bloque de Laboratorios (ADR 0023).
+SELECT DISTINCT pr.id, ident.display_name AS name, inventory.fold_text(ident.display_name) AS "sort_name!"
+FROM core.effective_role_assignments AS ra
+JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
+JOIN core.principals AS pr ON pr.workspace_id = ra.workspace_id AND pr.id = ra.principal_id
+JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+JOIN core.identities AS ident ON ident.id = m.identity_id
+WHERE ra.workspace_id = :workspaceId!
+  AND rp.permission_code = :permission!
+  AND ra.revoked_at IS NULL
+  AND ra.valid_from <= now()
+  AND (ra.valid_until IS NULL OR ra.valid_until > now())
+  AND pr.kind = 'member' AND m.status = 'active'
+ORDER BY "sort_name!", pr.id;

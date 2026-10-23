@@ -741,6 +741,17 @@ from (values ('daf00000-0000-4000-8000-000000000001'::uuid, 'submitted'), ('daf0
              ('daf00000-0000-4000-8000-000000000003'::uuid, 'changes_requested')) as v (id, status)
 where q.id = v.id;
 
+-- Cronograma (L-01c): la primera fecha de SOL-0001 ya tiene bloque en Química, a cargo de Óscar Operador.
+insert into labs.activity_sequences (workspace_id, period_id, week, area_id, last_number)
+select 'da000000-0000-4000-8000-00000000000a', id, 12, 'da300000-0000-4000-8000-000000000003', 1
+from labs.periods where workspace_id = 'da000000-0000-4000-8000-00000000000a' and code = 'P1';
+insert into labs.activities (workspace_id, request_id, on_date, area_id, starts_at, ends_at, responsible_principal_id,
+  period_id, week, sequence, code, created_by_principal_id)
+select 'da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000001', current_date + 20,
+  'da300000-0000-4000-8000-000000000003', '08:00', '10:00', 'da200000-0000-4000-8000-000000000002', id, 12, 1, 'P1-S12-QUI01',
+  'da200000-0000-4000-8000-000000000001'
+from labs.periods where workspace_id = 'da000000-0000-4000-8000-00000000000a' and code = 'P1';
+
 insert into labs.request_events (workspace_id, request_id, action, reason, principal_id, created_at) values
   ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000001', 'submitted', null,
    'da200000-0000-4000-8000-000000000004', now() - interval '2 days'),

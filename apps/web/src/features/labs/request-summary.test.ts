@@ -15,6 +15,7 @@ const summary = (number: number, status: RequestSummary['status'], extra: Partia
   dateCount: 0,
   late: false,
   exceptions: 0,
+  scheduledCount: 0,
   submittedAt: null,
   version: 1,
   ...extra,

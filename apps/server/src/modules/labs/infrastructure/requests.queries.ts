@@ -179,6 +179,7 @@ export interface IListRequestsResult {
   participants: number | null;
   requester_name: string;
   requester_principal_id: string;
+  scheduled_count: number;
   starts_at: string | null;
   status: string;
   subject: string | null;
@@ -194,7 +195,7 @@ export interface IListRequestsQuery {
   result: IListRequestsResult;
 }
 
-const listRequestsIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true,"requesterId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1474,"b":1486}]},{"name":"requestId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1505,"b":1514},{"a":1546,"b":1555}]},{"name":"requesterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1580,"b":1591},{"a":1643,"b":1654}]}],"statement":"-- Con :requestId, solo esa (quién la ve lo decide el comando). Si no, con :requesterId, las de esa persona\n-- (borradores incluidos), o las recibidas: sin borradores. Activas primero y, dentro, por la fecha más próxima.\nSELECT\n  q.id, q.number, q.status, q.form_id, q.form_revision, f.name AS form_name, r.title AS form_title, r.document_code,\n  r.layout, q.requester_principal_id, coalesce(ident.display_name, '') AS \"requester_name!\",\n  q.title, q.teacher_name, q.activity_type, subject.name AS \"subject?\", career.name AS \"career?\",\n  q.dates::text[] AS \"dates!\", to_char(q.starts_at, 'HH24:MI') AS starts_at, to_char(q.ends_at, 'HH24:MI') AS ends_at,\n  q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version\nFROM labs.requests AS q\nJOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id\nJOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision\nLEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id\nLEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = q.workspace_id AND pr.id = q.requester_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE q.workspace_id = :workspaceId!\n  AND (CASE WHEN :requestId::uuid IS NOT NULL THEN q.id = :requestId::uuid\n            WHEN :requesterId::uuid IS NOT NULL THEN q.requester_principal_id = :requesterId::uuid\n            ELSE q.status <> 'draft' END)\nORDER BY q.status IN ('rejected', 'cancelled'), q.dates[1] NULLS LAST, q.number DESC\nLIMIT 500"};
+const listRequestsIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true,"requesterId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1641,"b":1653}]},{"name":"requestId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1672,"b":1681},{"a":1713,"b":1722}]},{"name":"requesterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1747,"b":1758},{"a":1810,"b":1821}]}],"statement":"-- Con :requestId, solo esa (quién la ve lo decide el comando). Si no, con :requesterId, las de esa persona\n-- (borradores incluidos), o las recibidas: sin borradores. Activas primero y, dentro, por la fecha más próxima.\nSELECT\n  q.id, q.number, q.status, q.form_id, q.form_revision, f.name AS form_name, r.title AS form_title, r.document_code,\n  r.layout, q.requester_principal_id, coalesce(ident.display_name, '') AS \"requester_name!\",\n  q.title, q.teacher_name, q.activity_type, subject.name AS \"subject?\", career.name AS \"career?\",\n  q.dates::text[] AS \"dates!\", to_char(q.starts_at, 'HH24:MI') AS starts_at, to_char(q.ends_at, 'HH24:MI') AS ends_at,\n  q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version,\n  (SELECT count(*) FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL)::int AS \"scheduled_count!\"\nFROM labs.requests AS q\nJOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id\nJOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision\nLEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id\nLEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = q.workspace_id AND pr.id = q.requester_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE q.workspace_id = :workspaceId!\n  AND (CASE WHEN :requestId::uuid IS NOT NULL THEN q.id = :requestId::uuid\n            WHEN :requesterId::uuid IS NOT NULL THEN q.requester_principal_id = :requesterId::uuid\n            ELSE q.status <> 'draft' END)\nORDER BY q.status IN ('rejected', 'cancelled'), q.dates[1] NULLS LAST, q.number DESC\nLIMIT 500"};
 
 /**
  * Query generated from SQL:
@@ -206,7 +207,9 @@ const listRequestsIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true
  *   r.layout, q.requester_principal_id, coalesce(ident.display_name, '') AS "requester_name!",
  *   q.title, q.teacher_name, q.activity_type, subject.name AS "subject?", career.name AS "career?",
  *   q.dates::text[] AS "dates!", to_char(q.starts_at, 'HH24:MI') AS starts_at, to_char(q.ends_at, 'HH24:MI') AS ends_at,
- *   q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version
+ *   q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version,
+ *   (SELECT count(*) FROM labs.activities AS a
+ *     WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL)::int AS "scheduled_count!"
  * FROM labs.requests AS q
  * JOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id
  * JOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision
@@ -665,5 +668,77 @@ const datesOutsidePeriodsIR: any = {"usedParamSet":{"dates":true,"workspaceId":t
  * ```
  */
 export const datesOutsidePeriods = new PreparedQuery<IDatesOutsidePeriodsParams,IDatesOutsidePeriodsResult>(datesOutsidePeriodsIR);
+
+
+/** 'RequestBlocks' parameters type */
+export interface IRequestBlocksParams {
+  requestId: string;
+  workspaceId: string;
+}
+
+/** 'RequestBlocks' return type */
+export interface IRequestBlocksResult {
+  area_id: string;
+  area_name: string;
+  code: string;
+  date: string;
+  ends_at: string;
+  responsible_name: string;
+  starts_at: string;
+}
+
+/** 'RequestBlocks' query type */
+export interface IRequestBlocksQuery {
+  params: IRequestBlocksParams;
+  result: IRequestBlocksResult;
+}
+
+const requestBlocksIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":689,"b":701}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":722,"b":732}]}],"statement":"-- El bloque activo de cada fecha programada (L-01c).\nSELECT a.on_date::text AS \"date!\", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS \"starts_at!\",\n  to_char(a.ends_at, 'HH24:MI') AS \"ends_at!\", coalesce(ident.display_name, '') AS \"responsible_name!\"\nFROM labs.activities AS a\nJOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = a.workspace_id AND pr.id = a.responsible_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE a.workspace_id = :workspaceId! AND a.request_id = :requestId! AND a.cancelled_at IS NULL\nORDER BY a.on_date"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- El bloque activo de cada fecha programada (L-01c).
+ * SELECT a.on_date::text AS "date!", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS "starts_at!",
+ *   to_char(a.ends_at, 'HH24:MI') AS "ends_at!", coalesce(ident.display_name, '') AS "responsible_name!"
+ * FROM labs.activities AS a
+ * JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id
+ * LEFT JOIN core.principals AS pr ON pr.workspace_id = a.workspace_id AND pr.id = a.responsible_principal_id
+ * LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+ * LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
+ * WHERE a.workspace_id = :workspaceId! AND a.request_id = :requestId! AND a.cancelled_at IS NULL
+ * ORDER BY a.on_date
+ * ```
+ */
+export const requestBlocks = new PreparedQuery<IRequestBlocksParams,IRequestBlocksResult>(requestBlocksIR);
+
+
+/** 'ReleaseRequestBlocks' parameters type */
+export interface IReleaseRequestBlocksParams {
+  requestId: string;
+  workspaceId: string;
+}
+
+/** 'ReleaseRequestBlocks' return type */
+export type IReleaseRequestBlocksResult = void;
+
+/** 'ReleaseRequestBlocks' query type */
+export interface IReleaseRequestBlocksQuery {
+  params: IReleaseRequestBlocksParams;
+  result: IReleaseRequestBlocksResult;
+}
+
+const releaseRequestBlocksIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":205,"b":217}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":236,"b":246}]}],"statement":"-- Libera los bloques activos de la solicitud al cancelarla, rechazarla o pedir cambios; quedan en su historial.\nUPDATE labs.activities\nSET cancelled_at = now(), version = version + 1\nWHERE workspace_id = :workspaceId! AND request_id = :requestId! AND cancelled_at IS NULL"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Libera los bloques activos de la solicitud al cancelarla, rechazarla o pedir cambios; quedan en su historial.
+ * UPDATE labs.activities
+ * SET cancelled_at = now(), version = version + 1
+ * WHERE workspace_id = :workspaceId! AND request_id = :requestId! AND cancelled_at IS NULL
+ * ```
+ */
+export const releaseRequestBlocks = new PreparedQuery<IReleaseRequestBlocksParams,IReleaseRequestBlocksResult>(releaseRequestBlocksIR);
 
 

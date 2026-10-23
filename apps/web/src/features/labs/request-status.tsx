@@ -4,12 +4,13 @@ import type { ReactNode } from 'react';
 import { CodeTag } from '../../app/code-tag';
 import type { RequestView } from './request-draft';
 
-type Tone = 'neutral' | 'info' | 'warning' | 'danger';
+type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
 const statuses: Record<RequestStatus, { label: string; tone: Tone }> = {
   draft: { label: 'Borrador', tone: 'neutral' },
   submitted: { label: 'Enviada', tone: 'info' },
   changes_requested: { label: 'Cambios solicitados', tone: 'warning' },
+  scheduled: { label: 'Programada', tone: 'success' },
   rejected: { label: 'Rechazada', tone: 'danger' },
   cancelled: { label: 'Cancelada', tone: 'neutral' },
 };

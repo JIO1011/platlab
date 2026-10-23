@@ -35,7 +35,9 @@ SELECT
   r.layout, q.requester_principal_id, coalesce(ident.display_name, '') AS "requester_name!",
   q.title, q.teacher_name, q.activity_type, subject.name AS "subject?", career.name AS "career?",
   q.dates::text[] AS "dates!", to_char(q.starts_at, 'HH24:MI') AS starts_at, to_char(q.ends_at, 'HH24:MI') AS ends_at,
-  q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version
+  q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version,
+  (SELECT count(*) FROM labs.activities AS a
+    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL)::int AS "scheduled_count!"
 FROM labs.requests AS q
 JOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id
 JOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision
@@ -139,3 +141,21 @@ WHERE NOT EXISTS (
   WHERE p.workspace_id = :workspaceId! AND p.archived_at IS NULL AND d BETWEEN p.starts_on AND p.ends_on
 )
 ORDER BY d;
+
+/* @name requestBlocks */
+-- El bloque activo de cada fecha programada (L-01c).
+SELECT a.on_date::text AS "date!", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS "starts_at!",
+  to_char(a.ends_at, 'HH24:MI') AS "ends_at!", coalesce(ident.display_name, '') AS "responsible_name!"
+FROM labs.activities AS a
+JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id
+LEFT JOIN core.principals AS pr ON pr.workspace_id = a.workspace_id AND pr.id = a.responsible_principal_id
+LEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+LEFT JOIN core.identities AS ident ON ident.id = m.identity_id
+WHERE a.workspace_id = :workspaceId! AND a.request_id = :requestId! AND a.cancelled_at IS NULL
+ORDER BY a.on_date;
+
+/* @name releaseRequestBlocks */
+-- Libera los bloques activos de la solicitud al cancelarla, rechazarla o pedir cambios; quedan en su historial.
+UPDATE labs.activities
+SET cancelled_at = now(), version = version + 1
+WHERE workspace_id = :workspaceId! AND request_id = :requestId! AND cancelled_at IS NULL;

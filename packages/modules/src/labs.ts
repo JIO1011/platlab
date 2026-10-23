@@ -11,10 +11,10 @@ export const labsModule = defineModule({
   name: 'Laboratorios',
   requires: ['core'],
   integrates: [],
-  permissions: ['labs.read', 'labs.space.manage', 'labs.form.manage', 'labs.request.create', 'labs.request.view', 'labs.request.review'],
+  permissions: ['labs.read', 'labs.space.manage', 'labs.form.manage', 'labs.request.create', 'labs.request.view', 'labs.request.review', 'labs.schedule.manage', 'labs.schedule.lead'],
   roleGrants: {
-    admin: ['labs.read', 'labs.space.manage', 'labs.form.manage', 'labs.request.view', 'labs.request.review'],
-    operator: ['labs.read', 'labs.request.view'],
+    admin: ['labs.read', 'labs.space.manage', 'labs.form.manage', 'labs.request.view', 'labs.request.review', 'labs.schedule.manage', 'labs.schedule.lead'],
+    operator: ['labs.read', 'labs.request.view', 'labs.schedule.lead'],
     teacher: ['labs.read', 'labs.request.create'],
     // El tesista pide con su propio formato (ADR 0023, «Reglas de L-01b»).
     student: ['labs.read', 'labs.request.create'],
@@ -26,6 +26,7 @@ export const labsModule = defineModule({
       permission: 'labs.read',
       // Quien pide sigue las suyas; el Operador y el Administrador consultan las recibidas (L-01b).
       sections: [
+        { path: 'cronograma', label: 'Cronograma', permission: 'labs.read' },
         { path: 'solicitudes', label: 'Mis solicitudes', permission: 'labs.request.create' },
         { path: 'recibidas', label: 'Recibidas', permission: 'labs.request.view' },
         { path: 'formatos', label: 'Formatos', permission: 'labs.form.manage' },

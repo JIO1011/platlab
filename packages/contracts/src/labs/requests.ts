@@ -13,11 +13,11 @@ import type { FormFreeField, FormLayout } from './form.js';
 export const REQUEST_MAX_DATES = 20;
 export const REQUEST_MAX_LINES = 90;
 
-export const requestStatus = z.enum(['draft', 'submitted', 'changes_requested', 'rejected', 'cancelled']);
+export const requestStatus = z.enum(['draft', 'submitted', 'changes_requested', 'scheduled', 'rejected', 'cancelled']);
 /** Quien pide la edita en borrador y con cambios solicitados. */
 export const REQUEST_EDITABLE: readonly RequestStatus[] = ['draft', 'changes_requested'];
-/** Quien pide la cancela mientras no esté programada ni cerrada. */
-export const REQUEST_CANCELLABLE: readonly RequestStatus[] = ['draft', 'submitted', 'changes_requested'];
+/** Quien pide la cancela mientras no esté cerrada; programada, hasta el día anterior a su primer bloque (L-01c). */
+export const REQUEST_CANCELLABLE: readonly RequestStatus[] = ['draft', 'submitted', 'changes_requested', 'scheduled'];
 
 /** El tipo de actividad, dato del sistema «tipo». */
 export const activityType = z.enum(['practice', 'research', 'service', 'training']);
@@ -99,7 +99,7 @@ const requestLine = z.discriminatedUnion('kind', [
 ]);
 
 const requestEvent = z.object({
-  action: z.enum(['submitted', 'changes_requested', 'resubmitted', 'rejected', 'cancelled']),
+  action: z.enum(['submitted', 'changes_requested', 'resubmitted', 'scheduled', 'rejected', 'cancelled']),
   reason: z.string().nullable(),
   by: z.string(),
   at: z.string(),
@@ -119,6 +119,8 @@ export const requestSummary = z.object({
   late: z.boolean(),
   /** Líneas con ⚠ o ✖. */
   exceptions: z.number().int(),
+  /** Fechas que ya tienen bloque en el Cronograma (L-01c): «1 de 2 programadas». */
+  scheduledCount: z.number().int(),
   submittedAt: z.string().nullable(),
   version: z.number().int().positive(),
 });
@@ -147,6 +149,8 @@ export const labsRequest = requestSummary.extend({
   notes: z.string().nullable(),
   lines: z.array(requestLine),
   events: z.array(requestEvent),
+  /** El bloque de cada fecha programada: código, área, hora y responsable. */
+  blocks: z.array(z.object({ date: z.iso.date(), code: z.string(), areaId: z.uuid(), areaName: z.string(), startsAt: z.string(), endsAt: z.string(), responsibleName: z.string() })),
   /** Si quien mira la puede editar, enviar o cancelar (es suya y el estado lo admite). */
   mine: z.boolean(),
 });

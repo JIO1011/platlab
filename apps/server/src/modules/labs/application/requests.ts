@@ -9,6 +9,7 @@ import {
   requestAnswers,
   requestCode,
   type createRequestRequest,
+  type labCancelRequest as labCancelRequestSchema,
   type FormLayout,
   type LabsRequest,
   type RequestLine,
@@ -41,6 +42,8 @@ import {
   listValues,
   lockRequest,
   nextRequestNumber,
+  releaseRequestBlocks,
+  requestBlocks,
   requestEvents,
   requestLines,
   revisionLayout,
@@ -133,6 +136,7 @@ function toSummary(row: IListRequestsResult, lines: readonly RequestLine[]): Req
     dateCount: row.dates.length,
     late: row.late,
     exceptions: exceptionsOf(lines),
+    scheduledCount: row.scheduled_count,
     submittedAt: row.submitted_at?.toISOString() ?? null,
     version: row.version,
   };
@@ -169,6 +173,15 @@ async function visibleRequest(access: WorkspaceAccess, requestId: string): Promi
     notes: row.notes,
     lines,
     events: events.map((event) => ({ action: event.action as LabsRequest['events'][number]['action'], reason: event.reason, by: event.by, at: event.created_at.toISOString() })),
+    blocks: (await requestBlocks.run({ workspaceId, requestId }, access.client)).map((block) => ({
+      date: block.date,
+      code: block.code,
+      areaId: block.area_id,
+      areaName: block.area_name,
+      startsAt: block.starts_at,
+      endsAt: block.ends_at,
+      responsibleName: block.responsible_name,
+    })),
     mine,
   };
 }
@@ -413,6 +426,9 @@ export function cancelRequest(pool: pg.Pool, request: CommandRequest, requestId:
   return runCommand(pool, request, 'labs.request.cancel', { requestId, expectedVersion }, requires(REQUEST_CREATE), async (access) => {
     const current = await lockMine(access, requestId, expectedVersion);
     if (!REQUEST_CANCELLABLE.includes(current.status)) throw invalid('Esta solicitud ya no se cancela');
+    // Programada, quien la pidió la cancela hasta el día anterior a su primer bloque; después, el laboratorio.
+    const [first] = await requestBlocks.run({ workspaceId: access.workspace.id, requestId }, access.client);
+    if (first && first.date <= todayIn(access.workspace.timeZone)) throw invalid('Desde el día de la práctica la cancela el laboratorio');
     await resolve(access, requestId, 'cancelled', null);
     return visibleRequest(access, requestId);
   });
@@ -422,8 +438,10 @@ export function cancelRequest(pool: pg.Pool, request: CommandRequest, requestId:
 // Comandos del Administrador
 // ---------------------------------------------------------------------------
 
+/** Cambia el estado con su evento y su auditoría; los bloques que tuviera se liberan y quedan en su historial. */
 async function resolve(access: WorkspaceAccess, requestId: string, status: 'changes_requested' | 'rejected' | 'cancelled', reason: string | null) {
   const workspaceId = access.workspace.id;
+  await releaseRequestBlocks.run({ workspaceId, requestId }, access.client);
   await setRequestStatus.run({ workspaceId, requestId, status, late: null, submittedAt: null }, access.client);
   await insertRequestEvent.run({ workspaceId, requestId, action: status, reason, principalId: access.principalId }, access.client);
   await recordAudit(access, { action: `labs.request.${status}`, entityType: 'labs.request', entityId: requestId, changes: { reason } });
@@ -443,3 +461,15 @@ function review(status: 'changes_requested' | 'rejected') {
 
 export const requestChanges = review('changes_requested');
 export const rejectRequest = review('rejected');
+
+/** El laboratorio cancela una solicitud enviada o programada, siempre con motivo; sus bloques se liberan. */
+export function labCancelRequest(pool: pg.Pool, request: CommandRequest, requestId: string, { expectedVersion, reason }: z.infer<typeof labCancelRequestSchema>): Promise<LabsRequest> {
+  return runCommand(pool, request, 'labs.request.lab_cancel', { requestId, expectedVersion, reason }, requires(REQUEST_REVIEW), async (access) => {
+    const [current] = await lockRequest.run({ workspaceId: access.workspace.id, requestId }, access.client);
+    if (!current || current.status === 'draft') throw notFound();
+    if (current.status !== 'submitted' && current.status !== 'scheduled') throw new AppError('REQUEST_RESOLVED', 'Otra persona ya resolvió esta solicitud');
+    if (current.version !== expectedVersion) throw conflict();
+    await resolve(access, requestId, 'cancelled', reason);
+    return visibleRequest(access, requestId);
+  });
+}

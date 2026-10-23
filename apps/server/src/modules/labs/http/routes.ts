@@ -6,7 +6,12 @@ import {
   createClosureRequest,
   createFormRequest,
   createPeriodRequest,
+  activityParams,
   createRequestRequest,
+  labCancelRequest as labCancelRequestSchema,
+  scheduleActivityRequest,
+  scheduleQuery,
+  updateActivityRequest,
   createSpaceRequest,
   FORM_LOGO_MAX_BYTES,
   formParams,
@@ -34,12 +39,14 @@ import {
   createRequest,
   getRequest,
   getRequestOptions,
+  labCancelRequest,
   listRequests,
   rejectRequest,
   requestChanges,
   saveRequest,
   submitRequest,
 } from '../application/requests.js';
+import { listResponsibles, listSchedule, moveActivity, scheduleActivity } from '../application/schedule.js';
 import { getSettings, updateSettings } from '../application/settings.js';
 import { archiveSpace, createSpace, listSpaces, updateSpace } from '../application/spaces.js';
 
@@ -82,6 +89,24 @@ export function labsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: 
 
     app.post('/requests/:requestId/reject', async (request) =>
       rejectRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestReasonRequest.parse(request.body)),
+    );
+
+    app.post('/requests/:requestId/lab-cancel', async (request) =>
+      labCancelRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, labCancelRequestSchema.parse(request.body)),
+    );
+
+    // Cronograma (L-01c): todos los que consultan ven la tabla; el Administrador programa y mueve.
+    app.get('/schedule', async (request) => listSchedule(pool, queryRequest(request), scheduleQuery.parse(request.query)));
+
+    app.get('/schedule/responsibles', async (request) => listResponsibles(pool, queryRequest(request)));
+
+    app.post('/activities', async (request, reply) => {
+      const input = scheduleActivityRequest.parse(request.body);
+      return reply.status(201).send(await scheduleActivity(pool, commandRequest(request), input));
+    });
+
+    app.patch('/activities/:activityId', async (request) =>
+      moveActivity(pool, commandRequest(request), activityParams.parse(request.params).activityId, updateActivityRequest.parse(request.body)),
     );
 
     // Anticipación del espacio de trabajo.
