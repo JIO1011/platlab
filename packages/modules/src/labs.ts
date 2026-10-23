@@ -13,7 +13,7 @@ export const labsModule = defineModule({
   integrates: [],
   permissions: ['labs.read', 'labs.space.manage', 'labs.form.manage', 'labs.request.create', 'labs.request.view', 'labs.request.review'],
   roleGrants: {
-    admin: ['labs.read', 'labs.space.manage', 'labs.form.manage', 'labs.request.create', 'labs.request.view', 'labs.request.review'],
+    admin: ['labs.read', 'labs.space.manage', 'labs.form.manage', 'labs.request.view', 'labs.request.review'],
     operator: ['labs.read', 'labs.request.view'],
     teacher: ['labs.read', 'labs.request.create'],
     // El tesista pide con su propio formato (ADR 0023, «Reglas de L-01b»).

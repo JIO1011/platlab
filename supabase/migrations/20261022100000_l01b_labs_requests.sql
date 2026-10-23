@@ -4,6 +4,29 @@
 -- contra la revisión del formato. Validar los recursos no reserva nada: se calcula al leer.
 
 -- ---------------------------------------------------------------------------
+-- Membrete de la hoja (ADR 0023, «Membrete»): el logo subido por la API y hasta tres líneas. Las revisiones
+-- de L-01a no lo tienen; las nuevas lo pueden traer.
+-- ---------------------------------------------------------------------------
+
+create function labs.form_header_valid(header jsonb) returns boolean
+  language sql immutable parallel safe set search_path = ''
+  as $$
+    select header is null or coalesce(
+      jsonb_typeof(header) = 'object'
+      and header - 'logoUrl' - 'lines' = '{}'::jsonb
+      and (jsonb_typeof(header -> 'logoUrl') = 'null'
+           or (jsonb_typeof(header -> 'logoUrl') = 'string' and header ->> 'logoUrl' ~ '^https?://' and length(header ->> 'logoUrl') <= 500))
+      and jsonb_typeof(header -> 'lines') = 'array'
+      and jsonb_array_length(header -> 'lines') <= 3
+      and not exists (select 1 from jsonb_array_elements(header -> 'lines') as l (line) where not labs.json_text_valid(line, 120)),
+      false)
+  $$;
+
+alter table labs.form_revisions drop constraint form_revisions_layout_check;
+alter table labs.form_revisions add constraint form_revisions_layout_check
+  check (labs.form_layout_valid(layout - 'header') and labs.form_header_valid(layout -> 'header'));
+
+-- ---------------------------------------------------------------------------
 -- Listas de asignaturas y carreras: crecen al usarlas, nunca texto libre en la solicitud
 -- ---------------------------------------------------------------------------
 
@@ -244,8 +267,8 @@ create policy request_events_insert on labs.request_events for insert to platlab
     and principal_id = (select core.current_principal_id())
   );
 
-revoke execute on function labs.request_dates_valid(date[]) from public;
-grant execute on function labs.request_dates_valid(date[]) to platlab_api;
+revoke execute on function labs.request_dates_valid(date[]), labs.form_header_valid(jsonb) from public;
+grant execute on function labs.request_dates_valid(date[]), labs.form_header_valid(jsonb) to platlab_api;
 
 grant select on labs.list_values to platlab_api;
 grant insert (workspace_id, kind, name, created_by_principal_id) on labs.list_values to platlab_api;
@@ -280,10 +303,9 @@ insert into core.permissions (code, module_code) values
   ('labs.request.view', 'labs'),
   ('labs.request.review', 'labs');
 
--- ADR 0023, «Reglas de L-01b»: piden el Docente, el tesista y quien administra; el Operador consulta las
--- recibidas y el Administrador pide cambios o rechaza. El tesista lee los formatos activos para llenarlos.
+-- ADR 0023, «Reglas de L-01b»: piden solo el Docente y el tesista; el Operador consulta las recibidas y el
+-- Administrador (y el Propietario, que hereda) pide cambios o rechaza. El tesista lee los formatos activos.
 insert into core.role_permissions (role_code, permission_code) values
-  ('admin', 'labs.request.create'),
   ('admin', 'labs.request.view'),
   ('admin', 'labs.request.review'),
   ('operator', 'labs.request.view'),

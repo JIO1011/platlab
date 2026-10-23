@@ -126,6 +126,7 @@ export {
   type ActiveLocation,
   type Location,
   type LocationList,
+  imageTypes,
 } from './common.js';
 export {
   ASSET_DOCUMENT_MAX_BYTES,
@@ -293,7 +294,10 @@ export {
   FORM_ESSENTIAL_KEYS,
   FORM_MAX_FREE_FIELDS,
   FORM_MAX_PER_ROW,
+  FORM_LOGO_MAX_BYTES,
+  FORM_MAX_HEADER_LINES,
   FORM_MAX_SIGNATURES,
+  formLogo,
   FORM_OPTIONAL_KEYS,
   FORM_STANDARD_LAYOUT,
   LEAD_DAYS_DEFAULT,
@@ -344,6 +348,7 @@ export {
   type Closure,
   type ClosureList,
   type FormField,
+  type FormHeader,
   type FormFreeField,
   type FormLayout,
   type FormList,

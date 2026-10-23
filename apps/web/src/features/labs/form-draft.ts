@@ -4,6 +4,7 @@ import {
   FORM_STANDARD_LAYOUT,
   formResourceKind,
   type FormField,
+  type FormHeader,
   type FormFreeField,
   type FormLayout,
   type FormRow,
@@ -69,6 +70,8 @@ export interface DraftSignature {
 /** Lo que se edita del formato, sobre la revisión (`baseRevision`) en que se empezó: es la que el servidor compara. */
 export interface Draft {
   baseRevision: number;
+  /** Logo y líneas del membrete. */
+  header: FormHeader;
   /** El membrete: título del formato y código del documento (vacío si no lleva). */
   title: string;
   documentCode: string;
@@ -111,6 +114,7 @@ export function draftFrom(form: LabsForm): Draft {
   const hidden = formResourceKind.options.filter((kind) => !layout.resources.some((resource) => resource.kind === kind));
   return {
     baseRevision: form.revision,
+    header: layout.header,
     title: form.title,
     documentCode: form.documentCode ?? '',
     rows: layout.rows.map((row, at): DraftRow =>
@@ -154,6 +158,7 @@ export function publishPayload(draft: Draft) {
     documentCode: draft.documentCode.trim() === '' ? null : draft.documentCode,
     expectedRevision: draft.baseRevision,
     layout: {
+      header: draft.header,
       rows,
       resources: draft.resources.filter((resource) => resource.shown).map(({ kind, label }) => ({ kind, label })),
       equipmentCode: draft.equipmentCode,

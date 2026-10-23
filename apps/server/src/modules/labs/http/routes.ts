@@ -8,7 +8,9 @@ import {
   createPeriodRequest,
   createRequestRequest,
   createSpaceRequest,
+  FORM_LOGO_MAX_BYTES,
   formParams,
+  imageTypes,
   periodParams,
   publishFormRequest,
   requestListQuery,
@@ -23,8 +25,9 @@ import {
   updateSpaceRequest,
 } from '@platlab/contracts';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
+import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import { createClosure, listClosures, voidClosure } from '../application/closures.js';
-import { archiveForm, createForm, getForm, listForms, publishForm, updateForm } from '../application/form.js';
+import { archiveForm, createForm, getForm, listForms, publishForm, updateForm, uploadFormLogo } from '../application/form.js';
 import { archivePeriod, createPeriod, listPeriods, updatePeriod } from '../application/periods.js';
 import {
   cancelRequest,
@@ -44,8 +47,11 @@ import { archiveSpace, createSpace, listSpaces, updateSpace } from '../applicati
  * Rutas de Laboratorios bajo /v1/workspaces/:workspaceId/labs (ADR 0023), con permisos `labs.*`. Las
  * áreas son del Núcleo: Espacios solo les agrega aforo, horario y cierres.
  */
-export function labsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync {
+export function labsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: PublicFiles }): FastifyPluginAsync {
   return async (app) => {
+    // El logo del membrete llega como cuerpo binario, con su propio límite.
+    app.addContentTypeParser([...imageTypes], { parseAs: 'buffer', bodyLimit: FORM_LOGO_MAX_BYTES }, (_request, body, done) => done(null, body));
+
     // Solicitudes (L-01b): quien pide las suyas; el Operador y el Administrador, las recibidas.
     app.get('/requests', async (request) => listRequests(pool, queryRequest(request), requestListQuery.parse(request.query)));
 
@@ -145,10 +151,15 @@ export function labsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync {
       archiveForm(pool, commandRequest(request), formParams.parse(request.params).formId),
     );
 
+    // Logo del membrete: se sube aparte y entra en la hoja al publicar.
+    app.put('/forms/:formId/logo', async (request) =>
+      uploadFormLogo(pool, publicFiles, commandRequest(request), formParams.parse(request.params).formId, request.body),
+    );
+
     app.post('/forms/:formId/revisions', async (request, reply) => {
       const { formId } = formParams.parse(request.params);
       const input = publishFormRequest.parse(request.body);
-      return reply.status(201).send(await publishForm(pool, commandRequest(request), formId, input));
+      return reply.status(201).send(await publishForm(pool, publicFiles, commandRequest(request), formId, input));
     });
   };
 }

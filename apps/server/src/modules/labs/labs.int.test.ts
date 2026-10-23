@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { closure, closureList, FORM_STANDARD_LAYOUT, formList, labsForm, labsSettings, period, periodList, space, spaceList, type FormLayout } from '@platlab/contracts';
-import { admin, call, count, errorCode } from '../../testing/api.js';
+import { closure, closureList, FORM_STANDARD_LAYOUT, formList, formLogo, labsForm, labsSettings, period, periodList, space, spaceList, type FormLayout } from '@platlab/contracts';
+import { admin, call, count, errorCode, png, putBinary } from '../../testing/api.js';
 import { addLocation, addMember, seedWorkspace, uniqueSuffix } from '../../testing/core-fixtures.js';
 
 /**
@@ -317,6 +317,27 @@ describe('formatos', () => {
     const stale = await publish(target, form.id, { expectedRevision: 1 });
     expect(stale.status).toBe(409);
     expect(errorCode(stale.body)).toBe('VERSION_CONFLICT');
+  });
+
+  it('el membrete lleva un logo subido para el espacio y hasta tres líneas; uno ajeno no se publica', async () => {
+    const target = await createLabsLab();
+    const form = await createForm(target, 'Con membrete');
+    expect((await putBinary(target.operator.subject, `${target.base}/forms/${form.id}/logo`, png)).status).toBe(403);
+    expect((await putBinary(target.adminMember.subject, `${target.base}/forms/${form.id}/logo`, Buffer.from('no es imagen'))).status).toBe(400);
+    const uploaded = await putBinary(target.adminMember.subject, `${target.base}/forms/${form.id}/logo`, png);
+    expect(uploaded.status).toBe(200);
+    const { url } = formLogo.parse(uploaded.body);
+    expect(url).toMatch(new RegExp(`/${target.workspace.id}/labs/logos/[0-9a-f-]{36}\\.png$`));
+    const header = { logoUrl: url, lines: ['Universidad Demo', 'Facultad de Ciencias'] };
+    const published = await publish(target, form.id, { layout: { ...FORM_STANDARD_LAYOUT, header }, expectedRevision: 1 });
+    expect(published.status).toBe(201);
+    expect(labsForm.parse(published.body).layout.header).toEqual(header);
+    // El logo de otro espacio, o de afuera, no entra en la hoja.
+    const foreign = url.replace(target.workspace.id, other.workspace.id);
+    for (const logoUrl of [foreign, 'https://example.com/logo.png']) {
+      const rejected = await publish(target, form.id, { layout: { ...FORM_STANDARD_LAYOUT, header: { logoUrl, lines: [] } }, expectedRevision: 2 });
+      expect(rejected.status).toBe(400);
+    }
   });
 
   it('dos publicaciones a la vez sobre la misma revisión: solo una gana', async () => {

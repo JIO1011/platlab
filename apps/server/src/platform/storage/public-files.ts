@@ -16,6 +16,8 @@ const BUCKET = 'public-files';
 export interface PublicFiles {
   /** Sube un archivo nuevo en `path` y devuelve su enlace público permanente. */
   put(path: string, body: Uint8Array, contentType: string): Promise<string>;
+  /** El enlace público de `path`, subido o no: para comprobar que un enlace es de este bucket y de esa carpeta. */
+  urlFor(path: string): string;
 }
 
 export function publicFiles(config: StorageConfig): PublicFiles {
@@ -33,6 +35,9 @@ export function publicFiles(config: StorageConfig): PublicFiles {
         headers: { 'content-type': contentType },
       });
       if (!response.ok) throw new Error(`Storage respondió ${response.status} al subir ${path}`);
+      return `${config.publicUrl}/${BUCKET}/${path}`;
+    },
+    urlFor(path) {
       return `${config.publicUrl}/${BUCKET}/${path}`;
     },
   };

@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(35);
+select plan(38);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -83,6 +83,14 @@ select ok(not labs.request_dates_valid('{2027-03-08,2027-03-01}'), 'fechas desor
 select ok(not labs.request_dates_valid('{2027-03-01,2027-03-01}'), 'una fecha repetida: no');
 select ok(not labs.request_dates_valid(
   array(select '2027-01-01'::date + n from generate_series(0, 20) as n)), 'más de 20 fechas: no');
+
+-- Membrete: logo subido (o ninguno) y hasta tres líneas.
+select ok(labs.form_header_valid('{"logoUrl": null, "lines": ["Universidad Demo", "Facultad de Ciencias"]}')
+          and labs.form_header_valid(null), 'un membrete con líneas, o ninguno');
+select ok(not labs.form_header_valid('{"logoUrl": "javascript:alert(1)", "lines": []}')
+          and not labs.form_header_valid('{"logoUrl": null, "lines": ["a", "b", "c", "d"]}')
+          and not labs.form_header_valid('{"logoUrl": null, "lines": [], "color": "red"}'),
+  'el logo es un enlace, a lo sumo tres líneas y nada más');
 
 -- ---------------------------------------------------------------------------
 -- Bajo el runtime, como la Docente de A
@@ -247,6 +255,10 @@ select ok(
   exists (select 1 from core.role_permissions where role_code = 'student' and permission_code = 'labs.request.create')
   and not exists (select 1 from core.role_permissions where role_code = 'operator' and permission_code = 'labs.request.review'),
   'el tesista pide; el Operador no resuelve');
+select ok(
+  not exists (select 1 from core.role_permissions
+              where role_code in ('admin', 'operator') and permission_code = 'labs.request.create'),
+  'el Administrador y el Operador no piden: revisan');
 
 select * from finish();
 rollback;

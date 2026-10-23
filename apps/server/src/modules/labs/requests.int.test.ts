@@ -122,15 +122,17 @@ beforeAll(async () => {
 });
 
 describe('borrador', () => {
-  it('el Docente y el tesista piden con número fijo; el Operador no pide', async () => {
+  it('el Docente y el tesista piden con número fijo; el Administrador y el Operador no piden', async () => {
     const mine = await draft(lab);
     expect(mine).toMatchObject({ status: 'draft', teacherName: 'Docente Uno', formName: 'Práctica académica', mine: true, lines: [] });
     expect(mine.code).toBe(`SOL-${String(mine.number).padStart(4, '0')}`);
     const thesis = await draft(lab, lab.student.subject);
     expect(thesis.number).toBe(mine.number + 1);
-    const denied = await send(lab, 'POST', '/requests', { formId: lab.form.id }, lab.operator.subject);
-    expect(denied.status).toBe(403);
-    expect(errorCode(denied.body)).toBe('ACCESS_DENIED');
+    for (const subject of [lab.operator.subject, lab.adminMember.subject, lab.workspace.owner.subject]) {
+      const denied = await send(lab, 'POST', '/requests', { formId: lab.form.id }, subject);
+      expect(denied.status).toBe(403);
+      expect(errorCode(denied.body)).toBe('ACCESS_DENIED');
+    }
   });
 
   it('dos borradores a la vez toman números distintos y seguidos', async () => {

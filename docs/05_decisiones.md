@@ -895,6 +895,11 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
       - El tesista llena su propio formato (por ejemplo «Tesis», con «Docente» renombrado a «Tutor»): el dato esencial es un texto que, para el Docente, se llena con su nombre. El solicitante sale siempre de la sesión.
       - El Operador consulta las solicitudes recibidas; pedir cambios y rechazar son del Administrador.
       - Los equipos se piden solo por tipo; un caso especial va en Observaciones.
+    - **Ajustes de L-01b** (decisión del usuario, 23-10-2026; reemplaza «quien administra también puede llenarla» y que logo y nombre lleguen del espacio de trabajo).
+      - Piden solo el Docente y el tesista; la lista blanca es invitar con uno de esos roles. Propietario, Administrador y Operador revisan, no piden.
+      - Se llena sobre la hoja: la misma plantilla P69 sirve para diseñar, llenar, revisar en Recibidas e imprimir llena; en el móvil, un dato por fila.
+      - **Membrete** por formato: un logo subido para el espacio de trabajo (JPEG, PNG o WebP de hasta 512 KiB) y hasta tres líneas; sin líneas, el nombre del espacio. Va en la hoja y cambia con cada revisión.
+      - En Formatos, mover filas, datos y columnas de forma visible y un candado en los datos que no se quitan.
     - **Diseño de L-01b** (21-10-2026, sobre las reglas anteriores).
       - Estados de esta entrega: borrador → enviada, más cambios solicitados, rechazada y cancelada. «Programada» llega con el Cronograma (L-01c). El solicitante edita en borrador y en cambios solicitados, y cancela mientras no esté programada.
       - Número fijo `SOL-0042` desde el borrador, correlativo por espacio de trabajo y sin reutilizarse.
