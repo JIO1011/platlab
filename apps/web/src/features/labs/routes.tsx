@@ -5,7 +5,7 @@ const pages = () => import('./pages');
 
 /**
  * Rutas de la app de Laboratorios (ADR 0023). Sus secciones coinciden con las del manifiesto, que el servidor filtra
- * por permiso en /me. Hasta el Cronograma (L-01c) no hay Resumen: la raíz lleva a la primera sección del miembro.
+ * por permiso en /me. Sin Resumen: la raíz lleva a la primera sección del miembro, el Cronograma.
  */
 export const labsRoutes: ModuleRoutes = {
   top: [],
@@ -15,6 +15,7 @@ export const labsRoutes: ModuleRoutes = {
       lazy: async () => ({ Component: (await pages()).LabsLayout }),
       children: [
         { index: true, lazy: async () => ({ Component: (await pages()).LabsHome }) },
+        { path: 'cronograma', lazy: async () => ({ Component: (await pages()).LabsSchedulePage }) },
         { path: 'solicitudes', lazy: async () => ({ Component: (await pages()).LabsRequestsPage }) },
         { path: 'solicitudes/:requestId', lazy: async () => ({ Component: (await pages()).LabsRequestPage }) },
         { path: 'recibidas', lazy: async () => ({ Component: (await pages()).LabsInboxPage }) },

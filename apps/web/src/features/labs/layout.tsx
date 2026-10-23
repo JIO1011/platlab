@@ -30,7 +30,7 @@ export function LabsLayout() {
   );
 }
 
-/** La raíz de Laboratorios, hasta que haya Resumen (L-01c): lleva a la primera sección que el miembro tiene. */
+/** La raíz de Laboratorios, que no tiene Resumen: lleva a la primera sección que el miembro tiene, el Cronograma. */
 export function LabsHome() {
   const { workspaceId, me } = useShell();
   const app = moduleApps(me).find((entry) => entry.code === 'labs');

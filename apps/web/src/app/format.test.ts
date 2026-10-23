@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countText, daysBetween, formatShortDateTime, todayInZone } from './format';
+import { countText, daysBetween, formatFullDate, formatShortDateTime, formatWeekday, todayInZone } from './format';
 
 describe('formatShortDateTime', () => {
   const zone = 'America/Guayaquil';
@@ -51,5 +51,13 @@ describe('countText', () => {
     expect(countText(1, 'equipo', 'equipos')).toBe('1 equipo');
     expect(countText(0, 'equipo', 'equipos')).toBe('0 equipos');
     expect(countText(3, 'equipo', 'equipos')).toBe('3 equipos');
+  });
+});
+
+describe('formatFullDate y formatWeekday', () => {
+  it('ponen el día de la semana de la fecha civil, sin correrse por la zona', () => {
+    expect(formatFullDate('2026-10-23')).toBe('viernes, 23 de octubre de 2026');
+    expect(formatWeekday('2026-10-23', 'long')).toBe('viernes');
+    expect(formatWeekday('2026-10-26', 'short')).toMatch(/^lun/);
   });
 });

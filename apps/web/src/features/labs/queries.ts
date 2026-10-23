@@ -1,4 +1,4 @@
-import { closureList, formList, labsForm, labsRequest, labsSettings, periodList, requestList, requestOptions, spaceList } from '@platlab/contracts';
+import { closureList, formList, labsForm, labsRequest, labsSettings, periodList, requestList, requestOptions, scheduleList, spaceList } from '@platlab/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
@@ -71,10 +71,24 @@ export function useLabsForm(workspaceId: string, formId: string) {
   });
 }
 
-/** Las solicitudes: `mine`, las propias; `inbox`, las recibidas (para quien las consulta). */
-export function useRequests(workspaceId: string, scope: 'mine' | 'inbox') {
+/** Los bloques activos de las fechas dadas (AAAA-MM-DD, hasta seis semanas), de todas las áreas. */
+export function useSchedule(workspaceId: string, from: string, to: string) {
   const user = useUserKey();
   return useQuery({
+    queryKey: [...labsKey(user, workspaceId), 'schedule', from, to],
+    queryFn: () => api(`${base(workspaceId)}/schedule?${new URLSearchParams({ from, to })}`, { schema: scheduleList }),
+    refetchInterval: jitteredPoll,
+  });
+}
+
+/**
+ * Las solicitudes: `mine`, las propias; `inbox`, las recibidas (para quien las consulta). Con `enabled` falso no se
+ * pide (quien no puede tener solicitudes propias).
+ */
+export function useRequests(workspaceId: string, scope: 'mine' | 'inbox', enabled = true) {
+  const user = useUserKey();
+  return useQuery({
+    enabled,
     queryKey: [...labsKey(user, workspaceId), 'requests', scope],
     queryFn: () => api(`${base(workspaceId)}/requests?${new URLSearchParams({ scope })}`, { schema: requestList }),
     refetchInterval: jitteredPoll,

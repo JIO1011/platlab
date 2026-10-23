@@ -35,11 +35,24 @@ export function formatShortDateTime(iso: string, timeZone: string, alwaysYear = 
   }).format(date);
 }
 
-export function formatDate(isoDate: string): string {
+/** La fecha civil AAAA-MM-DD como un instante UTC a medianoche: se formatea con `timeZone: 'UTC'` y no se corre de día. */
+function civilDate(isoDate: string): Date {
   const [year, month, day] = isoDate.split('-').map(Number);
-  return new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium', timeZone: 'UTC' }).format(
-    new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1)),
-  );
+  return new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1));
+}
+
+export function formatDate(isoDate: string): string {
+  return new Intl.DateTimeFormat('es-EC', { dateStyle: 'medium', timeZone: 'UTC' }).format(civilDate(isoDate));
+}
+
+/** La fecha civil con su día de la semana, «jueves, 23 de octubre de 2026». */
+export function formatFullDate(isoDate: string): string {
+  return new Intl.DateTimeFormat('es-EC', { dateStyle: 'full', timeZone: 'UTC' }).format(civilDate(isoDate));
+}
+
+/** El día de la semana de una fecha civil: «lun» o «lunes». */
+export function formatWeekday(isoDate: string, style: 'short' | 'long'): string {
+  return new Intl.DateTimeFormat('es-EC', { weekday: style, timeZone: 'UTC' }).format(civilDate(isoDate));
 }
 
 /** Fecha civil corta, «31/12/2026»: para fichas donde «31 dic 2026» no cabe. */
