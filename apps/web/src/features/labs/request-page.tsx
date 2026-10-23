@@ -1,52 +1,17 @@
 import { REQUEST_CANCELLABLE, REQUEST_EDITABLE } from '@platlab/contracts';
-import { Button, Skeleton, toast } from '@platlab/ui';
-import { useMemo, useState, type ReactNode } from 'react';
+import { Button, Skeleton } from '@platlab/ui';
+import { useState, type ReactNode } from 'react';
 import { useParams } from 'react-router';
-import { isApiError } from '../../app/api';
 import { WithBack } from '../../app/back-button';
-import { ConfirmArchive } from '../../app/confirm-archive';
 import { SectionHeader } from '../../app/section-header';
 import { QueryErrorState } from '../../app/states';
-import { labsErrorMessage, useCancelRequest, useVersionConflict } from './commands';
 import { useLabs } from './context';
 import { useRequest, useSpaces } from './queries';
+import { CancelRequest } from './request-cancel';
 import { RequestEditor } from './request-editor';
-import { draftFrom, type RequestView } from './request-draft';
-import { ReviewStep } from './request-review-step';
+import type { RequestView } from './request-draft';
 import { RequestHeading } from './request-status';
-
-/** Cancelar la solicitud con su confirmación aquí mismo: no se deshace desde esta pantalla. */
-function CancelRequest({ workspaceId, request, onDismiss }: { workspaceId: string; request: RequestView; onDismiss: () => void }) {
-  const cancel = useCancelRequest(workspaceId, request.id);
-  const conflict = useVersionConflict(workspaceId);
-  const [error, setError] = useState<string | null>(null);
-  const confirm = async () => {
-    setError(null);
-    try {
-      await cancel.mutateAsync({ expectedVersion: request.version });
-      toast.success('Solicitud cancelada', { description: request.code });
-    } catch (failure) {
-      if (isApiError(failure, 'VERSION_CONFLICT')) {
-        void conflict('esta solicitud');
-        onDismiss();
-      } else {
-        setError(labsErrorMessage(failure));
-      }
-    }
-  };
-  return (
-    <ConfirmArchive
-      label={`Cancelar la solicitud ${request.code}`}
-      text={`${request.code} quedará cancelada y ya no se podrá abrir para editarla. Si después la necesitas, duplícala desde Mis solicitudes.`}
-      action="Cancelar solicitud"
-      dismiss="Conservarla"
-      pending={cancel.isPending}
-      error={error}
-      onConfirm={() => void confirm()}
-      onCancel={onDismiss}
-    />
-  );
-}
+import { FilledRequest } from './request-readonly';
 
 /** Lo que pidió quien revisó, arriba y a la vista, mientras la solicitud espera su corrección. */
 function ChangesNotice({ request }: { request: RequestView }) {
@@ -63,33 +28,27 @@ function ChangesNotice({ request }: { request: RequestView }) {
 
 /**
  * La solicitud abierta: su código y estado, el aviso de cambios solicitados y, si es de quien la mira y el estado lo
- * admite, el llenado en tres pasos; si no, el resumen de solo lectura con su historial.
+ * admite, la hoja del formato para llenarla; si no, la hoja llena de solo lectura, que también se imprime.
  */
 function RequestSheet({ request }: { request: RequestView }) {
-  const { workspaceId, me, canOperate } = useLabs();
+  const { workspaceId, canOperate } = useLabs();
   const spaces = useSpaces(workspaceId);
   const [cancelling, setCancelling] = useState(false);
   const editable = canOperate && request.mine && REQUEST_EDITABLE.includes(request.status);
   const cancellable = canOperate && request.mine && REQUEST_CANCELLABLE.includes(request.status);
-  const items = spaces.data?.items ?? [];
-  const stored = useMemo(() => draftFrom(request), [request]);
 
   return (
     <div className="grid gap-4">
       <RequestHeading request={request}>
-        {cancellable && !cancelling ? (
+        {cancellable && !editable && !cancelling ? (
           <Button variant="ghost" size="sm" className="h-11 sm:ml-auto sm:h-8" aria-haspopup="dialog" onClick={() => setCancelling(true)}>
             Cancelar solicitud
           </Button>
         ) : null}
       </RequestHeading>
-      {cancelling && cancellable ? <CancelRequest workspaceId={workspaceId} request={request} onDismiss={() => setCancelling(false)} /> : null}
+      {cancelling && cancellable && !editable ? <CancelRequest workspaceId={workspaceId} request={request} onDismiss={() => setCancelling(false)} /> : null}
       <ChangesNotice request={request} />
-      {editable ? (
-        <RequestEditor request={request} spaces={items} />
-      ) : (
-        <ReviewStep request={request} draft={stored} spaces={items} saved={request.lines} timeZone={me.workspace.timeZone} />
-      )}
+      {editable ? <RequestEditor request={request} spaces={spaces.data?.items ?? []} /> : <FilledRequest request={request} />}
     </div>
   );
 }
@@ -123,7 +82,7 @@ export function OpenRequest({ parent, children }: { parent: 'solicitudes' | 'rec
   );
 }
 
-/** La hoja de una solicitud propia (ADR 0023, L-01b): se llena en tres pasos, se guarda como borrador y se envía. */
+/** La hoja de una solicitud propia (ADR 0023, L-01b): se llena sobre la hoja del formato, se guarda como borrador y se envía. */
 export function LabsRequestPage() {
   return <OpenRequest parent="solicitudes">{(request) => <RequestSheet key={request.id} request={request} />}</OpenRequest>;
 }

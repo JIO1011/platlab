@@ -1,20 +1,16 @@
-import { useMemo } from 'react';
 import { useLabs } from './context';
 import { ResolveRequest } from './inbox-resolution';
-import { useSpaces } from './queries';
-import { draftFrom, type RequestView } from './request-draft';
+import type { RequestView } from './request-draft';
 import { OpenRequest } from './request-page';
-import { ReviewStep } from './request-review-step';
+import { FilledRequest } from './request-readonly';
 import { RequestHeading } from './request-status';
 
 /**
- * Una solicitud recibida, de solo lectura: quién la pide, lo que llenó, los recursos con su ✔ ⚠ ✖ y el historial. Al
- * Administrador, con la solicitud enviada, se le suman «Pedir cambios» y «Rechazar».
+ * Una solicitud recibida, de solo lectura: quién la pide y la hoja del formato llena, con los recursos y su ✔ ⚠ ✖, que se
+ * puede imprimir; el historial va al pie. Al Administrador, con la solicitud enviada, se le suman «Pedir cambios» y «Rechazar».
  */
 function InboxSheet({ request }: { request: RequestView }) {
-  const { workspaceId, me, canReview } = useLabs();
-  const spaces = useSpaces(workspaceId);
-  const stored = useMemo(() => draftFrom(request), [request]);
+  const { workspaceId, canReview } = useLabs();
 
   return (
     <div className="grid gap-4">
@@ -23,7 +19,7 @@ function InboxSheet({ request }: { request: RequestView }) {
         Pedida por <span className="font-medium text-ink">{request.requesterName}</span>
       </p>
       {canReview && request.status === 'submitted' ? <ResolveRequest workspaceId={workspaceId} request={request} /> : null}
-      <ReviewStep request={request} draft={stored} spaces={spaces.data?.items ?? []} saved={request.lines} timeZone={me.workspace.timeZone} />
+      <FilledRequest request={request} />
     </div>
   );
 }

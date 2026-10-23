@@ -1,23 +1,18 @@
 import { saveRequestRequest, type Space } from '@platlab/contracts';
-import { Button, Segmented, toast } from '@platlab/ui';
+import { Button, Field, Select, cn, toast } from '@platlab/ui';
 import { useMemo, useState } from 'react';
 import { isApiError } from '../../app/api';
+import { filled } from '../../app/filled';
 import { todayInZone } from '../../app/format';
 import { labsErrorMessage, useSaveRequest, useSubmitRequest, useVersionConflict } from './commands';
 import { useLabs } from './context';
+import { FormPaper, type PaperSlots } from './form-paper';
 import { useRequestOptions } from './queries';
-import { DataStep } from './request-data-step';
-import { draftFrom, noIssues, requestIssues, sameDraft, saveBody, type RequestDraft, type RequestIssues, type RequestView } from './request-draft';
-import { ResourcesStep } from './request-resources-step';
-import { ReviewStep } from './request-review-step';
-
-const steps = [
-  { value: 'datos', label: '1. Datos' },
-  { value: 'recursos', label: '2. Recursos' },
-  { value: 'revisar', label: '3. Revisar' },
-] as const;
-
-type Step = (typeof steps)[number]['value'];
+import { CancelRequest } from './request-cancel';
+import { CellNote, FillValue, bare, type FillState } from './request-cells';
+import { draftFrom, missingKeys, noIssues, paperOf, requestIssues, sameDraft, saveBody, type RequestDraft, type RequestIssues, type RequestView } from './request-draft';
+import { RequestHistory } from './request-history';
+import { FillRows } from './request-lines';
 
 /** Lo que se editó y la versión en que se empezó: es la que el servidor compara, aunque la pantalla se refresque. */
 interface Edit {
@@ -26,11 +21,31 @@ interface Edit {
 }
 
 const alertClass = 'rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger';
+const NO_AREA = 'none';
+
+/** El área, que la hoja no tiene donde poner: opcional y sobre ella, junto a lo demás de la solicitud. */
+function AreaBar({ draft, spaces, error, onChange }: { draft: RequestDraft; spaces: readonly Space[]; error: string | undefined; onChange: (areaId: string | null) => void }) {
+  const areas = spaces.filter((space) => space.archivedAt === null && !space.areaArchived);
+  return (
+    <div className="rounded-card bg-surface px-4 py-3 shadow-raised">
+      <Field label="Área" optional error={error} hint="Dónde se hará la actividad, entre las áreas habilitadas para prácticas." className="max-w-md">
+        <Select
+          value={draft.areaId ?? NO_AREA}
+          onValueChange={(value) => onChange(value === NO_AREA ? null : value)}
+          placeholder="Sin área"
+          triggerClassName={filled}
+          options={[{ value: NO_AREA, label: 'Sin área' }, ...areas.map((space) => ({ value: space.areaId, label: space.areaName, ...(space.groupName ? { detail: space.groupName } : {}) }))]}
+        />
+      </Field>
+    </div>
+  );
+}
 
 /**
- * El llenado de una solicitud en tres pasos (Datos, Recursos y Revisar) para quien puede editarla. Lo que se escribe es
- * un borrador en pantalla sobre la versión que se vio; nada cambia hasta que el servidor confirma «Guardar borrador» o
- * «Enviar», que guarda lo pendiente y envía. Si otra persona la cambió antes, el servidor lo rechaza y se carga la vigente.
+ * El llenado de una solicitud sobre la hoja del formato (ADR 0023): cada dato es un control dentro de su celda y los
+ * recursos, filas de la tabla. Lo que se escribe es un borrador en pantalla sobre la versión que se vio; nada cambia hasta
+ * que el servidor confirma «Guardar borrador» o «Enviar», que guarda lo pendiente y envía. Si otra persona la cambió antes,
+ * el servidor lo rechaza y se carga la vigente. Las obligatorias vacías se marcan solo al intentar enviar.
  */
 export function RequestEditor({ request, spaces }: { request: RequestView; spaces: readonly Space[] }) {
   const { workspaceId, me } = useLabs();
@@ -39,17 +54,17 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
   const submit = useSubmitRequest(workspaceId, request.id);
   const conflict = useVersionConflict(workspaceId);
   const stored = useMemo(() => draftFrom(request), [request]);
+  const paper = useMemo(() => paperOf(request), [request]);
   const [edit, setEdit] = useState<Edit | null>(null);
-  const [step, setStep] = useState<Step>('datos');
   const [issues, setIssues] = useState<RequestIssues>(noIssues);
   const [error, setError] = useState<string | null>(null);
+  const [attempted, setAttempted] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const shown = edit?.draft ?? stored;
   const dirty = edit !== null && !sameDraft(edit.draft, stored, request.layout);
   const busy = save.isPending || submit.isPending;
-  const at = steps.findIndex((entry) => entry.value === step);
-  const previous = steps[at - 1];
-  const next = steps[at + 1];
+  const missing = useMemo(() => (attempted ? missingKeys(shown, request.layout) : new Set<string>()), [attempted, shown, request.layout]);
 
   const change = (patch: Partial<RequestDraft>) => {
     setEdit({ draft: { ...shown, ...patch }, version: edit?.version ?? request.version });
@@ -72,9 +87,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
     if (!edit || !dirty) return request.version;
     const parsed = saveRequestRequest.safeParse(saveBody(edit.draft, request.layout, edit.version));
     if (!parsed.success) {
-      const found = requestIssues(parsed.error, edit.draft);
-      setIssues(found);
-      setStep(Object.keys(found.fields).length > 0 ? 'datos' : 'recursos');
+      setIssues(requestIssues(parsed.error, edit.draft));
       setError('Revisa lo que está marcado.');
       return null;
     }
@@ -93,6 +106,11 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
   };
 
   const send = async () => {
+    setAttempted(true);
+    if (missingKeys(shown, request.layout).size > 0) {
+      setError('Completa los datos marcados para enviar.');
+      return;
+    }
     const version = await persist();
     if (version === null) return;
     try {
@@ -103,46 +121,61 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
     }
   };
 
-  const checks = dirty ? null : request.lines;
+  const state: FillState = { draft: shown, options: options.data, today: todayInZone(me.workspace.timeZone), issues, missing, onChange: change };
+  const slots: PaperSlots = {
+    value: (field) => <FillValue field={field} state={state} />,
+    resourceRows: <FillRows paper={paper} draft={shown} layout={request.layout} saved={dirty ? null : request.lines} options={options.data} issues={issues} onChange={change} />,
+    notes: (
+      <>
+        <textarea
+          aria-label="Observaciones"
+          aria-invalid={issues.fields['notes'] !== undefined || undefined}
+          maxLength={2000}
+          placeholder="Un equipo o material especial que no está en las listas va aquí."
+          value={shown.notes}
+          onChange={(event) => change({ notes: event.target.value })}
+          className={cn(bare, '-mx-2 -my-1 min-h-14 w-[calc(100%+1rem)] resize-y px-2 py-1')}
+        />
+        <CellNote>{issues.fields['notes']}</CellNote>
+      </>
+    ),
+    requester: request.requesterName,
+  };
+
+  const hasLines = shown.lines.length > 0;
+  const status = dirty ? (hasLines ? 'Cambios sin guardar · guarda para comprobar si lo pedido alcanza' : 'Cambios sin guardar') : 'Sin cambios por guardar';
 
   return (
-    <div className="grid gap-4">
-      <Segmented label="Pasos de la solicitud" value={step} options={steps} onValueChange={setStep} className="max-sm:flex max-sm:[&>*]:flex-1 max-sm:[&>*]:px-2" />
+    <div className="grid gap-4 pb-28 md:pb-0">
       {error ? (
         <p role="alert" className={alertClass}>
           {error}
         </p>
       ) : null}
-      {step === 'datos' ? (
-        <DataStep draft={shown} layout={request.layout} options={options.data} spaces={spaces} issues={issues} today={todayInZone(me.workspace.timeZone)} onChange={change} />
-      ) : step === 'recursos' ? (
-        <ResourcesStep draft={shown} layout={request.layout} options={options.data} saved={checks} issues={issues} onChange={change} />
-      ) : (
-        <ReviewStep request={request} draft={shown} spaces={spaces} saved={checks} timeZone={me.workspace.timeZone} />
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-line pt-4">
-        <p role="status" className="text-sm text-ink-muted">
-          {dirty ? 'Cambios sin guardar' : 'Sin cambios por guardar'}
-        </p>
-        <div className="flex flex-wrap gap-2 max-sm:w-full max-sm:[&>*]:flex-1">
-          {previous ? (
-            <Button variant="ghost" className="h-11 sm:h-10" disabled={busy} onClick={() => setStep(previous.value)}>
-              Anterior
+      <AreaBar draft={shown} spaces={spaces} error={issues.fields['areaId']} onChange={(areaId) => change({ areaId })} />
+      <FormPaper mode="fill" draft={paper} workspaceName={me.workspace.name} revision={request.formRevision} slots={slots} />
+      <RequestHistory events={request.events} timeZone={me.workspace.timeZone} />
+      <div className="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line bg-surface/90 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md md:sticky md:inset-x-auto md:bottom-3 md:rounded-control md:border md:px-4 md:py-2 md:shadow-float">
+        {cancelling ? (
+          <div className="w-full">
+            <CancelRequest workspaceId={workspaceId} request={request} onDismiss={() => setCancelling(false)} />
+          </div>
+        ) : (
+          <>
+            <p role="status" className="min-w-0 flex-1 basis-40 text-[13px] text-ink-muted">
+              {status}
+            </p>
+            <Button variant="ghost" className="h-11 max-md:flex-1 md:h-10" disabled={busy} aria-haspopup="dialog" onClick={() => setCancelling(true)}>
+              Cancelar solicitud
             </Button>
-          ) : null}
-          <Button className="h-11 sm:h-10" loading={save.isPending} disabled={busy || !dirty} onClick={() => void saveDraft()}>
-            Guardar borrador
-          </Button>
-          {next ? (
-            <Button variant="primary" className="h-11 sm:h-10" disabled={busy} onClick={() => setStep(next.value)}>
-              Siguiente
+            <Button className="h-11 max-md:flex-1 md:h-10" loading={save.isPending} disabled={busy || !dirty} onClick={() => void saveDraft()}>
+              Guardar borrador
             </Button>
-          ) : (
-            <Button variant="primary" className="h-11 sm:h-10" loading={submit.isPending} disabled={busy} onClick={() => void send()}>
+            <Button variant="primary" className="h-11 max-md:flex-1 md:h-10" loading={submit.isPending} disabled={busy} onClick={() => void send()}>
               Enviar
             </Button>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

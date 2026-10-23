@@ -108,8 +108,8 @@ function draftField(field: FormField): DraftField {
   return { kind: 'free', id: field.key, key: field.key, label: field.label, type: field.type, required: field.required, options: field.type === 'list' ? field.options.join('\n') : '' };
 }
 
-/** El borrador de una revisión: las filas conservan su orden y las columnas ocultas se agregan al final con su nombre de siempre. */
-export function draftFrom(form: LabsForm): Draft {
+/** El borrador de una revisión (de un formato o de la que lleva una solicitud): las filas conservan su orden y las columnas ocultas se agregan al final con su nombre de siempre. */
+export function draftFrom(form: Pick<LabsForm, 'revision' | 'title' | 'documentCode' | 'layout'>): Draft {
   const { layout } = form;
   const hidden = formResourceKind.options.filter((kind) => !layout.resources.some((resource) => resource.kind === kind));
   return {

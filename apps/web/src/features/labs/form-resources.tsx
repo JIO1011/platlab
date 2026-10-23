@@ -21,7 +21,7 @@ const quantities = (kind: ResourceKind, equipmentCode: boolean): string[] => {
   return kind === 'equipment' ? ['Por curso', 'Por grupo', ...(equipmentCode ? ['Código'] : [])] : ['Por curso', 'Por grupo'];
 };
 
-const sheetCell = 'border-b border-r border-line-strong last:border-r-0';
+export const sheetCell = 'border-b border-r border-line-strong last:border-r-0';
 const smallIcon = 'size-6 sm:size-5';
 
 /**
@@ -103,7 +103,11 @@ export function ResourcesTable({ draft, issues, onChange, rows }: { draft: Draft
       >
         <table
           style={{ '--columns': weights.length } as CSSProperties}
-          className="w-full min-w-[calc(var(--columns)*4.5rem)] table-fixed border-separate border-spacing-0 text-[11px] print:min-w-0 print:text-[8pt]"
+          className={cn(
+            'w-full table-fixed border-separate border-spacing-0 text-[11px] print:min-w-0 print:text-[8pt]',
+            // Con controles dentro (al llenar) las columnas piden más ancho en el móvil, donde la tabla se desliza de lado.
+            rows ? 'min-w-[calc(var(--columns)*7rem)] sm:min-w-[calc(var(--columns)*4.5rem)]' : 'min-w-[calc(var(--columns)*4.5rem)]',
+          )}
         >
           <colgroup>
             {weights.map((weight, at) => (

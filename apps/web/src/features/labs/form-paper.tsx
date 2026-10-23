@@ -10,7 +10,7 @@ import { FormRowsEditor, SheetRows } from './form-rows';
 import { Signatures } from './form-signatures';
 
 /** Observaciones: un espacio en blanco al final de la hoja. Con edición, se quita o se vuelve a agregar. */
-function Observations({ draft, editable, set }: { draft: Draft; editable: boolean; set: (patch: Partial<Draft>) => void }) {
+function Observations({ draft, editable, set, content }: { draft: Draft; editable: boolean; set: (patch: Partial<Draft>) => void; content?: ReactNode }) {
   if (!draft.notes) {
     return editable ? (
       <div className="bg-white px-1 py-0.5 print:hidden">
@@ -31,7 +31,7 @@ function Observations({ draft, editable, set }: { draft: Draft; editable: boolea
           </Button>
         ) : null}
       </Cell>
-      <Cell className="min-h-14 print:h-[7.5mm] print:min-h-0" />
+      <Cell className="min-h-14 whitespace-pre-wrap print:h-[7.5mm] print:min-h-0 print:overflow-hidden">{content}</Cell>
     </section>
   );
 }
@@ -40,11 +40,15 @@ function Observations({ draft, editable, set }: { draft: Draft; editable: boolea
  * Lo que quien llena o revisa inyecta en la hoja (ADR 0023: llenar, revisar e imprimir usan esta misma hoja). Sin esto, la
  * hoja muestra los ejemplos en gris y filas de Recursos en blanco, que es la plantilla.
  */
-interface PaperSlots {
+export interface PaperSlots {
   /** Lo que va en el valor de cada dato de la Sección I: un campo al llenar, el valor enviado al revisar. */
   value?: (field: DraftField) => ReactNode;
   /** Las filas (`<tr>`) del cuerpo de Recursos, con una celda por columna que se muestra, en el orden de la hoja. */
   resourceRows?: ReactNode;
+  /** Lo que va en el espacio de Observaciones, si la hoja las tiene. */
+  notes?: ReactNode;
+  /** El nombre de quien solicita, que se imprime bajo su firma. */
+  requester?: string;
 }
 
 type PaperProps = {
@@ -80,8 +84,8 @@ export function FormPaper(props: PaperProps) {
       <Masthead draft={draft} workspaceName={workspaceName} revision={revision} {...(design ? { design: { issues, set, uploadLogo: design.uploadLogo } } : {})} />
       {design ? <FormRowsEditor rows={draft.rows} issues={issues} onChange={(rows) => set({ rows })} /> : <SheetRows rows={draft.rows} {...(slots?.value ? { renderValue: slots.value } : {})} />}
       <ResourcesTable draft={draft} issues={issues} {...(design ? { onChange: set } : {})} {...(slots?.resourceRows ? { rows: slots.resourceRows } : {})} />
-      <Observations draft={draft} editable={design !== undefined} set={set} />
-      <Signatures draft={draft} issues={issues} onChange={design ? (signatures) => set({ signatures }) : undefined} />
+      <Observations draft={draft} editable={design !== undefined} set={set} {...(slots?.notes ? { content: slots.notes } : {})} />
+      <Signatures draft={draft} issues={issues} onChange={design ? (signatures) => set({ signatures }) : undefined} {...(slots?.requester ? { requesterName: slots.requester } : {})} />
     </article>
   );
   // Al editar, el asa de cada fila vive en un margen a la izquierda de la hoja; el papel no lo tiene.

@@ -1,4 +1,5 @@
 import {
+  FORM_ESSENTIAL_KEYS,
   REQUEST_MAX_DATES,
   formLayout,
   type ActivityType,
@@ -13,6 +14,8 @@ import {
 import { multiplyDecimal, normalizeDecimalInput, toDecimalInput } from '@platlab/ui';
 import type { z } from 'zod';
 import { fieldErrors } from '../../app/commands';
+import { formatDate } from '../../app/format';
+import { draftFrom as sheetDraft, type Draft, type DraftField } from './form-draft';
 
 /** Cómo se llama cada tipo de actividad ante la persona. */
 export const activityLabels: Record<ActivityType, string> = {
@@ -26,6 +29,13 @@ export const activityLabels: Record<ActivityType, string> = {
 export type RequestView = Omit<LabsRequest, 'layout'> & { layout: FormLayout };
 
 export const viewOf = (request: LabsRequest): RequestView => ({ ...request, layout: formLayout.parse(request.layout) });
+
+/** La hoja de la revisión con que se llenó la solicitud (ADR 0023: se llena, se revisa y se imprime sobre ella). */
+export const paperOf = (request: RequestView): Draft =>
+  sheetDraft({ revision: request.formRevision, title: request.formTitle, documentCode: request.documentCode, layout: request.layout });
+
+/** La clave de un dato de la hoja: la del sistema o la del dato libre, con que se guarda su valor. */
+export const fieldKey = (field: DraftField): string => (field.kind === 'system' ? field.key : (field.key ?? field.id));
 
 /** Los datos que la revisión presenta, en el orden de la hoja. */
 const presentedFields = (layout: FormLayout): FormField[] => layout.rows.flatMap((row) => (row.kind === 'row' ? row.fields : []));
@@ -102,6 +112,68 @@ export const withDate = (dates: readonly string[], date: string): string[] => so
 export const withoutDate = (dates: readonly string[], date: string): string[] => dates.filter((entry) => entry !== date);
 
 export const canAddDate = (dates: readonly string[]): boolean => dates.length < REQUEST_MAX_DATES;
+
+const essentialKeys: readonly string[] = FORM_ESSENTIAL_KEYS;
+
+/** Si el dato esencial del sistema sigue sin llenar. */
+function systemEmpty(key: string, draft: RequestDraft): boolean {
+  switch (key) {
+    case 'titulo':
+      return draft.title.trim() === '';
+    case 'docente':
+      return draft.teacherName.trim() === '';
+    case 'fecha':
+      return draft.dates.length === 0;
+    case 'horario':
+      return draft.startsAt === '' || draft.endsAt === '';
+    case 'participantes':
+      return draft.participants.trim() === '';
+    default:
+      return false;
+  }
+}
+
+/**
+ * Las claves de los datos obligatorios que aún están vacíos: los esenciales del sistema y los libres marcados como
+ * obligatorios. Solo sirve para marcarlos al intentar enviar; quien valida es el servidor.
+ */
+export function missingKeys(draft: RequestDraft, layout: FormLayout): Set<string> {
+  const missing = new Set<string>();
+  for (const field of presentedFields(layout)) {
+    const empty = 'type' in field ? field.required && (draft.answers[field.key] ?? '').trim() === '' : essentialKeys.includes(field.key) && systemEmpty(field.key, draft);
+    if (empty) missing.add(field.key);
+  }
+  return missing;
+}
+
+/** Lo que se llenó de un dato, dicho para leerlo en la hoja; vacío si no se llenó. */
+export function valueText(field: DraftField, draft: RequestDraft, layout: FormLayout): string {
+  if (field.kind === 'free') {
+    const answer = draft.answers[fieldKey(field)] ?? '';
+    if (field.type === 'boolean') return answer === '' ? '' : answer === 'true' ? 'Sí' : 'No';
+    return field.type === 'date' && answer !== '' ? formatDate(answer) : answer;
+  }
+  switch (field.key) {
+    case 'titulo':
+      return draft.title;
+    case 'docente':
+      return draft.teacherName;
+    case 'tipo':
+      return draft.activityType ? activityLabels[draft.activityType] : '';
+    case 'asignatura':
+      return draft.subject;
+    case 'carrera':
+      return draft.career;
+    case 'fecha':
+      return draft.dates.map(formatDate).join(', ');
+    case 'horario':
+      return [draft.startsAt, draft.endsAt].filter((time) => time !== '').join(' – ');
+    case 'participantes':
+      return draft.participants;
+    case 'grupos':
+      return String(groupsOf(draft, layout));
+  }
+}
 
 const textOf = (value: unknown): string => (value === null || value === undefined ? '' : String(value));
 

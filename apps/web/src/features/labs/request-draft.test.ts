@@ -1,6 +1,7 @@
 import { FORM_OPTIONAL_KEYS, FORM_STANDARD_LAYOUT, REQUEST_MAX_DATES, saveRequestRequest, type FormLayout, type LabsRequest } from '@platlab/contracts';
 import { describe, expect, it } from 'vitest';
-import { canAddDate, draftFrom, groupsOf, saveBody, totalOf, viewOf, withDate, withoutDate, type RequestDraft } from './request-draft';
+import { fieldsOf } from './form-draft';
+import { canAddDate, draftFrom, fieldKey, groupsOf, missingKeys, paperOf, saveBody, totalOf, valueText, viewOf, withDate, withoutDate, type RequestDraft } from './request-draft';
 
 const reagentId = '5b2c7a10-1f3e-4a6b-8c9d-0e1f2a3b4c5d';
 const assetTypeId = '7c3d8b21-2a4f-4b7c-9dae-1f2a3b4c5d6e';
@@ -197,5 +198,75 @@ describe('fechas', () => {
     const dates = Array.from({ length: REQUEST_MAX_DATES }, (_, day) => `2026-12-${String(day + 1).padStart(2, '0')}`);
     expect(canAddDate(dates.slice(1))).toBe(true);
     expect(canAddDate(dates)).toBe(false);
+  });
+});
+
+describe('la hoja de la solicitud', () => {
+  it('lleva la revisión, el título y el código con que se llenó', () => {
+    const paper = paperOf(viewOf(request));
+    expect(paper).toMatchObject({ baseRevision: 2, title: 'Solicitud de laboratorio', documentCode: 'FOR-LAB-01' });
+    expect(fieldsOf(paper.rows).map(fieldKey)).toContain('docente');
+  });
+
+  it('cada dato dice lo que se llenó, para leerlo en la hoja', () => {
+    const paper = paperOf(viewOf(request));
+    const text = Object.fromEntries(fieldsOf(paper.rows).map((field) => [fieldKey(field), valueText(field, draftOf(), FORM_STANDARD_LAYOUT)]));
+    expect(text).toMatchObject({
+      titulo: 'Titulación ácido-base',
+      docente: 'Ana Paz',
+      tipo: 'Práctica',
+      asignatura: 'Química analítica',
+      horario: '08:00 – 10:00',
+      participantes: '24',
+      grupos: '3',
+      colaborador: 'Luis Mora',
+      curso_paralelo: '',
+      practica_n: '3',
+    });
+    expect(text['fecha']).toContain(',');
+  });
+
+  it('un dato sin llenar queda en blanco', () => {
+    const empty = draftOf(FORM_STANDARD_LAYOUT, {
+      title: null,
+      teacherName: null,
+      activityType: null,
+      subject: null,
+      career: null,
+      dates: [],
+      startsAt: null,
+      endsAt: null,
+      participants: null,
+      answers: {},
+    });
+    const text = fieldsOf(paperOf(viewOf(request)).rows).map((field) => [fieldKey(field), valueText(field, empty, FORM_STANDARD_LAYOUT)]);
+    // Los grupos siempre valen algo: lo demás queda en blanco.
+    expect(text.filter(([, value]) => value !== '')).toEqual([['grupos', '3']]);
+  });
+});
+
+describe('obligatorias vacías', () => {
+  it('con todo lo esencial lleno no falta nada', () => {
+    expect(missingKeys(draftOf(), FORM_STANDARD_LAYOUT).size).toBe(0);
+  });
+
+  it('un borrador vacío marca los cinco esenciales y no las opcionales', () => {
+    const empty = draftOf(FORM_STANDARD_LAYOUT, { title: null, teacherName: null, dates: [], startsAt: null, endsAt: null, participants: null, subject: null, answers: {} });
+    expect([...missingKeys(empty, FORM_STANDARD_LAYOUT)].sort()).toEqual(['docente', 'fecha', 'horario', 'participantes', 'titulo']);
+  });
+
+  it('el horario a medias cuenta como vacío', () => {
+    expect(missingKeys({ ...draftOf(), endsAt: '' }, FORM_STANDARD_LAYOUT).has('horario')).toBe(true);
+  });
+
+  it('un dato libre obligatorio vacío se marca', () => {
+    const layout: FormLayout = {
+      ...FORM_STANDARD_LAYOUT,
+      rows: FORM_STANDARD_LAYOUT.rows.map((row) =>
+        row.kind === 'row' ? { ...row, fields: row.fields.map((field) => (field.key === 'colaborador' && 'type' in field ? { ...field, required: true } : field)) } : row,
+      ),
+    };
+    const value = { ...draftOf(layout), answers: { colaborador: '  ' } };
+    expect([...missingKeys(value, layout)]).toEqual(['colaborador']);
   });
 });
