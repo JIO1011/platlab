@@ -1,15 +1,15 @@
-import type { FormSummary, RequestSummary } from '@platlab/contracts';
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Skeleton, StatePanel, toast } from '@platlab/ui';
-import { ChevronDown, Copy, FilePenLine, Plus } from 'lucide-react';
-import { Link, useNavigate } from 'react-router';
-import { CodeTag } from '../../app/code-tag';
+import type { RequestSummary } from '@platlab/contracts';
+import { Button, Skeleton, StatePanel, toast } from '@platlab/ui';
+import { Copy, FilePenLine, FilePlus2 } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { QuickActions, quickActionSecondary } from '../../app/quick-actions';
 import { SectionHeader } from '../../app/section-header';
 import { QueryErrorState } from '../../app/states';
 import { labsErrorMessage, useCreateRequest } from './commands';
 import { useLabs } from './context';
 import { useLabsForms, useRequests } from './queries';
-import { RequestBadges } from './request-status';
-import { firstDateText } from './request-summary';
+import { RequestItem, RequestList, RequestSection } from './request-list';
+import { firstDateText, groupMine } from './request-summary';
 
 /** Crea un borrador, o la copia de otra solicitud propia, y abre su hoja. Si falla, lo dice y se queda en la lista. */
 function useStartRequest(workspaceId: string) {
@@ -26,29 +26,44 @@ function useStartRequest(workspaceId: string) {
   return { start, pending: create.isPending };
 }
 
-/** «Nueva solicitud»: con un solo formato activo lo llena directo; con varios, se elige cuál. */
-function NewRequest({ workspaceId, forms, large = false }: { workspaceId: string; forms: readonly FormSummary[]; large?: boolean }) {
+/** Una opción de la banda: el nombre del formato y, debajo, su título. Un clic y se abre el borrador. */
+const formOption =
+  'inline-flex min-h-11 flex-col items-start justify-center rounded-control border border-white/40 px-4 py-2 text-left backdrop-blur-sm transition-[background-color,opacity] duration-150 hover:bg-white/10 disabled:pointer-events-none disabled:opacity-60 sm:max-w-72';
+
+/**
+ * «Nueva solicitud» (ADR 0023): la banda destacada de la página, con cada formato activo como opción a un clic y lo que
+ * pasa después. Sin formatos, lo dice; mientras cargan o si fallan, lo dice también.
+ */
+function NewRequestBand({ workspaceId, forms }: { workspaceId: string; forms: ReturnType<typeof useLabsForms> }) {
   const { start, pending } = useStartRequest(workspaceId);
-  const only = forms.length === 1 ? forms[0] : undefined;
-  const button = (
-    <Button variant="primary" className={large ? 'h-12 sm:h-10' : 'h-11 sm:h-10'} loading={pending} disabled={forms.length === 0} onClick={only ? () => void start({ formId: only.id }) : undefined}>
-      <Plus aria-hidden />
-      Nueva solicitud
-      {only || forms.length === 0 ? null : <ChevronDown className="-mr-1" aria-hidden />}
-    </Button>
-  );
-  if (only || forms.length === 0) return button;
+  const active = (forms.data?.items ?? []).filter((form) => form.archivedAt === null);
+  const none = forms.isSuccess && active.length === 0;
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
-        {forms.map((form) => (
-          <DropdownMenuItem key={form.id} className="h-11 sm:h-10" onSelect={() => void start({ formId: form.id })}>
-            {form.name}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <QuickActions
+      moduleCode="labs"
+      title="Nueva solicitud"
+      badge={{ icon: FilePlus2, label: 'Elige un formato' }}
+      description={
+        none
+          ? 'Todavía no hay formatos para llenar. Quien administra el espacio los crea; cuando existan, podrás empezar aquí.'
+          : 'Elige un formato y se abre un borrador. Lo llenas en tres pasos y, al enviarlo, el laboratorio lo revisa y te responde aquí.'
+      }
+    >
+      {forms.isPending ? (
+        <div role="status" aria-busy="true" aria-label="Cargando formatos" className="h-11 w-48 animate-pulse rounded-control bg-white/20 motion-reduce:animate-none" />
+      ) : forms.isError ? (
+        <button type="button" className={quickActionSecondary} onClick={() => void forms.refetch()}>
+          No se cargaron los formatos. Reintentar
+        </button>
+      ) : (
+        active.map((form) => (
+          <button key={form.id} type="button" className={formOption} disabled={pending} onClick={() => void start({ formId: form.id })}>
+            <span className="text-sm font-bold">{form.name}</span>
+            {form.title !== form.name ? <span className="break-words text-xs text-on-action">{form.title}</span> : null}
+          </button>
+        ))
+      )}
+    </QuickActions>
   );
 }
 
@@ -56,52 +71,48 @@ function NewRequest({ workspaceId, forms, large = false }: { workspaceId: string
 function DuplicateRequest({ workspaceId, request }: { workspaceId: string; request: RequestSummary }) {
   const { start, pending } = useStartRequest(workspaceId);
   return (
-    <Button size="sm" className="h-11 sm:h-8" loading={pending} aria-label={`Duplicar ${request.code}`} onClick={() => void start({ from: request.id })}>
+    <Button variant="ghost" size="sm" className="h-11 sm:h-8" loading={pending} aria-label={`Duplicar ${request.code}`} onClick={() => void start({ from: request.id })}>
       <Copy aria-hidden />
       Duplicar
     </Button>
   );
 }
 
-/** Una solicitud propia: código, título, formato, primera fecha y estado; abre su hoja. */
-function RequestRow({ workspaceId, request, canRequest }: { workspaceId: string; request: RequestSummary; canRequest: boolean }) {
+/** Las filas de un grupo: cada una abre su hoja; `note` es la frase bajo los datos de las que piden algo. */
+function MineRows({ label, workspaceId, items, canRequest, note }: { label: string; workspaceId: string; items: readonly RequestSummary[]; canRequest: boolean; note?: string }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-card bg-surface px-4 py-4 shadow-raised sm:px-5">
-      <Link
-        to={`/e/${workspaceId}/laboratorios/solicitudes/${request.id}`}
-        className="-m-2 grid min-w-0 flex-1 basis-64 gap-1.5 rounded-control p-2 transition-colors hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-      >
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-          <CodeTag>{request.code}</CodeTag>
-          <RequestBadges status={request.status} late={request.late} />
-        </span>
-        <span className={request.title ? 'break-words font-semibold text-ink' : 'text-ink-muted'}>{request.title ?? 'Sin título'}</span>
-        <span className="break-words text-sm text-ink-muted">
-          {request.formName} · {firstDateText(request)}
-        </span>
-      </Link>
-      {canRequest ? <DuplicateRequest workspaceId={workspaceId} request={request} /> : null}
-    </li>
+    <RequestList label={label}>
+      {items.map((request) => (
+        <RequestItem
+          key={request.id}
+          to={`/e/${workspaceId}/laboratorios/solicitudes/${request.id}`}
+          request={request}
+          facts={[request.formName, firstDateText(request)]}
+          {...(note ? { note } : {})}
+          action={canRequest ? <DuplicateRequest workspaceId={workspaceId} request={request} /> : undefined}
+        />
+      ))}
+    </RequestList>
   );
 }
 
 /**
- * Mis solicitudes (ADR 0023, L-01b): las que la persona ha llenado, con su estado. «Nueva solicitud» parte de un
- * formato activo y «Duplicar» de otra solicitud propia; las dos dejan un borrador que se llena en tres pasos.
+ * Mis solicitudes (ADR 0023, L-01b): las que la persona ha llenado, agrupadas por lo que le toca hacer: las que piden
+ * cambios, los borradores, las enviadas y, plegadas al final, las cerradas. «Nueva solicitud» parte de un formato
+ * activo y «Duplicar» de otra solicitud propia; las dos dejan un borrador que se llena en tres pasos.
  */
 export function LabsRequestsPage() {
   const { workspaceId, canRequest } = useLabs();
   const requests = useRequests(workspaceId, 'mine');
   const forms = useLabsForms(workspaceId);
-  const active = (forms.data?.items ?? []).filter((form) => form.archivedAt === null);
   const items = requests.data?.items ?? [];
-
-  const create = canRequest ? <NewRequest workspaceId={workspaceId} forms={active} large /> : undefined;
+  const groups = groupMine(items);
 
   return (
     <>
-      <SectionHeader title="Mis solicitudes" updatedAt={Math.min(requests.dataUpdatedAt, forms.dataUpdatedAt)} actions={create} />
-      <div className="mt-6">
+      <SectionHeader title="Mis solicitudes" updatedAt={Math.min(requests.dataUpdatedAt, forms.dataUpdatedAt)} />
+      <div className="mt-6 grid gap-5 sm:gap-6">
+        {canRequest ? <NewRequestBand workspaceId={workspaceId} forms={forms} /> : null}
         {requests.isPending ? (
           <div aria-busy="true">
             <Skeleton className="h-40 rounded-card" />
@@ -116,19 +127,35 @@ export function LabsRequestsPage() {
               icon={FilePenLine}
               title="Aún no tienes solicitudes"
               description={
-                forms.isSuccess && active.length === 0
-                  ? 'Todavía no hay formatos para llenar. Quien administra el espacio los crea; cuando existan, podrás empezar aquí.'
-                  : 'Elige un formato y llénalo en tres pasos: datos, recursos y revisión. Lo guardas como borrador y lo envías cuando esté listo.'
+                canRequest
+                  ? 'Cuando elijas un formato y lo llenes, tu solicitud aparecerá aquí con su estado: borrador, enviada o con cambios por hacer.'
+                  : 'Las solicitudes que llenes aparecerán aquí con su estado.'
               }
-              action={canRequest ? <NewRequest workspaceId={workspaceId} forms={active} /> : undefined}
             />
           </div>
         ) : (
-          <ul className="grid gap-3 sm:gap-4">
-            {items.map((request) => (
-              <RequestRow key={request.id} workspaceId={workspaceId} request={request} canRequest={canRequest} />
-            ))}
-          </ul>
+          <>
+            {groups.attention.length > 0 ? (
+              <RequestSection title="Necesitan tu atención" count={groups.attention.length} hint="El laboratorio pidió cambios. Corrígelos y vuelve a enviarlas.">
+                <MineRows label="Solicitudes con cambios solicitados" workspaceId={workspaceId} items={groups.attention} canRequest={canRequest} note="Abre la solicitud para ver qué cambios pidieron." />
+              </RequestSection>
+            ) : null}
+            {groups.drafts.length > 0 ? (
+              <RequestSection title="Borradores" count={groups.drafts.length} hint="Aún no se envían. Termínalos cuando estén listos.">
+                <MineRows label="Borradores" workspaceId={workspaceId} items={groups.drafts} canRequest={canRequest} />
+              </RequestSection>
+            ) : null}
+            {groups.sent.length > 0 ? (
+              <RequestSection title="Enviadas" count={groups.sent.length} hint="Esperan la respuesta del laboratorio.">
+                <MineRows label="Solicitudes enviadas" workspaceId={workspaceId} items={groups.sent} canRequest={canRequest} />
+              </RequestSection>
+            ) : null}
+            {groups.closed.length > 0 ? (
+              <RequestSection title="Cerradas" count={groups.closed.length} hint="Rechazadas y canceladas. Duplícalas para empezar de nuevo." collapsible>
+                <MineRows label="Solicitudes cerradas" workspaceId={workspaceId} items={groups.closed} canRequest={canRequest} />
+              </RequestSection>
+            ) : null}
+          </>
         )}
       </div>
     </>
