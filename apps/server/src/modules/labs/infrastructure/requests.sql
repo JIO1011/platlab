@@ -36,8 +36,8 @@ SELECT
   q.title, q.teacher_name, q.activity_type, subject.name AS "subject?", career.name AS "career?",
   q.dates::text[] AS "dates!", to_char(q.starts_at, 'HH24:MI') AS starts_at, to_char(q.ends_at, 'HH24:MI') AS ends_at,
   q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version,
-  (SELECT count(*) FROM labs.activities AS a
-    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL)::int AS "scheduled_count!"
+  ARRAY(SELECT a.on_date::text FROM labs.activities AS a
+    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "scheduled_dates!"
 FROM labs.requests AS q
 JOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id
 JOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision

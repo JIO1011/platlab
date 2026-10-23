@@ -1,4 +1,4 @@
-import { closureList, formList, labsForm, labsRequest, labsSettings, periodList, requestList, requestOptions, scheduleList, spaceList } from '@platlab/contracts';
+import { closureList, formList, labsForm, labsRequest, labsSettings, periodList, requestList, requestOptions, responsibleOptions, scheduleList, spaceList } from '@platlab/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
@@ -102,6 +102,30 @@ export function useRequest(workspaceId: string, requestId: string) {
     queryKey: [...labsKey(user, workspaceId), 'requests', 'one', requestId],
     queryFn: () => api(`${base(workspaceId)}/requests/${requestId}`, { schema: labsRequest }),
     select: viewOf,
+  });
+}
+
+/**
+ * Una solicitud tal como la guarda el servidor, para la bandeja «Por programar»: sus fechas, su horario y sus bloques.
+ * Comparte caché con `useRequest`, pero se vuelve a pedir sola: programar cambia sus bloques.
+ */
+export function useRequestDetail(workspaceId: string, requestId: string, enabled = true) {
+  const user = useUserKey();
+  return useQuery({
+    enabled,
+    queryKey: [...labsKey(user, workspaceId), 'requests', 'one', requestId],
+    queryFn: () => api(`${base(workspaceId)}/requests/${requestId}`, { schema: labsRequest }),
+    refetchInterval: jitteredPoll,
+  });
+}
+
+/** Quienes pueden llevar un bloque (Operadores y Administradores); solo lo pide quien programa. */
+export function useResponsibles(workspaceId: string, enabled: boolean) {
+  const user = useUserKey();
+  return useQuery({
+    enabled,
+    queryKey: [...labsKey(user, workspaceId), 'schedule', 'responsibles'],
+    queryFn: () => api(`${base(workspaceId)}/schedule/responsibles`, { schema: responsibleOptions }),
   });
 }
 

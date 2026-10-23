@@ -121,6 +121,14 @@ export const requestSummary = z.object({
   exceptions: z.number().int(),
   /** Fechas que ya tienen bloque en el Cronograma (L-01c): «1 de 2 programadas». */
   scheduledCount: z.number().int(),
+  /** Las fechas pedidas y las ya programadas, con el horario, los participantes y el grupo: la bandeja «Por programar». */
+  dates: z.array(z.iso.date()),
+  scheduledDates: z.array(z.iso.date()),
+  startsAt: z.string().nullable(),
+  endsAt: z.string().nullable(),
+  participants: z.number().int().nullable(),
+  /** El «Grupo» del bloque: la carrera, si la tiene. */
+  group: z.string().nullable(),
   submittedAt: z.string().nullable(),
   version: z.number().int().positive(),
 });

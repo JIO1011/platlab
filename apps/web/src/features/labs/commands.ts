@@ -1,4 +1,4 @@
-import { closure, formLogo, labsForm, labsRequest, labsSettings, period, space } from '@platlab/contracts';
+import { closure, formLogo, labsForm, labsRequest, labsSettings, period, scheduledActivity, space } from '@platlab/contracts';
 import { toast } from '@platlab/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, isApiError } from '../../app/api';
@@ -102,6 +102,16 @@ export function useRejectRequest(workspaceId: string, requestId: string) {
   return useModuleCommand(workspaceId, `/labs/requests/${requestId}/reject`, labsRequest, useLabsKey(workspaceId));
 }
 
+/** «Programar»: una fecha de una solicitud enviada pasa a ser un bloque, con la versión de la solicitud que se vio. */
+export function useScheduleActivity(workspaceId: string) {
+  return useModuleCommand(workspaceId, '/labs/activities', scheduledActivity, useLabsKey(workspaceId));
+}
+
+/** «Mover»: otra área, otra hora u otro responsable el mismo día, con la versión del bloque que se vio. */
+export function useMoveActivity(workspaceId: string, activityId: string) {
+  return useModuleCommand(workspaceId, `/labs/activities/${activityId}`, scheduledActivity, useLabsKey(workspaceId), 'PATCH');
+}
+
 /**
  * Sube el logo del membrete del formato (ADR 0023): el cuerpo es la imagen y devuelve su dirección, que va en el borrador
  * y se publica con la revisión siguiente. No cambia nada visible hasta publicar, así que no refresca la caché.
@@ -114,7 +124,7 @@ export function useUploadFormLogo(workspaceId: string, formId: string) {
 }
 
 /** Vuelve a pedir lo de Laboratorios para que la pantalla muestre lo vigente. */
-function useRefreshLabs(workspaceId: string) {
+export function useRefreshLabs(workspaceId: string) {
   const queryClient = useQueryClient();
   const labsKey = useLabsKey(workspaceId);
   return () => queryClient.invalidateQueries({ queryKey: labsKey });
