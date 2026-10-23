@@ -7,6 +7,10 @@ export interface LabsContext extends ModuleContext {
   canManageSpaces: boolean;
   /** Crea, renombra y archiva formatos y publica sus revisiones (`labs.form.manage`, Administrador). */
   canManageForm: boolean;
+  /** Llena y envía solicitudes propias (`labs.request.create`: Docente, tesista y Administrador). */
+  canRequest: boolean;
+  /** Pide cambios o rechaza las solicitudes enviadas (`labs.request.review`, Administrador). */
+  canReview: boolean;
 }
 
 export const useLabs = () => useOutletContext<LabsContext>();

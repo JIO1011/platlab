@@ -28,13 +28,13 @@ export function QuickActions({
 }: {
   moduleCode: string;
   title: string;
-  badge: { icon: LucideIcon; label: string };
+  /** Opcional: una pastilla junto al título; si repetiría la frase, se omite. */
+  badge?: { icon: LucideIcon; label: string };
   description: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
   const titleId = useId();
-  const BadgeIcon = badge.icon;
   return (
     <section
       aria-labelledby={titleId}
@@ -50,10 +50,12 @@ export function QuickActions({
             <h2 id={titleId} className="text-2xl font-bold tracking-tight">
               {title}
             </h2>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/20 px-2.5 py-0.5 text-xs font-medium backdrop-blur-md">
-              <BadgeIcon className="size-3.5" aria-hidden />
-              {badge.label}
-            </span>
+            {badge ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/20 px-2.5 py-0.5 text-xs font-medium backdrop-blur-md">
+                <badge.icon className="size-3.5" aria-hidden />
+                {badge.label}
+              </span>
+            ) : null}
           </div>
           <p className="mt-1 text-sm leading-relaxed text-on-action">{description}</p>
         </div>

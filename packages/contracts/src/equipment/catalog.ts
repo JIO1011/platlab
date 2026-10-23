@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { homeActivity, homeTrend } from '../access.js';
-import { code, list, many, money, page, text } from '../common.js';
+import { code, list, many, money, page, text, imageTypes } from '../common.js';
 import { memberList } from '../organization.js';
 
 // ---------------------------------------------------------------------------
@@ -19,7 +19,7 @@ export const assetAvailability = z.enum(['available', 'unavailable']);
 
 /** Foto del equipo (ADR 0019, 02 §12): la web la envía reducida; lo usan el servidor y la web. */
 export const ASSET_PHOTO_MAX_BYTES = 2 * 1024 * 1024;
-export const assetPhotoTypes = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export const assetPhotoTypes = imageTypes;
 
 // ---------------------------------------------------------------------------
 // Tipos de equipo

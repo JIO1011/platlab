@@ -197,6 +197,11 @@ En L-01b las tablas `practices.*` de abajo pasan al esquema `labs` ([ADR 0023](0
 | `labs.closures` | Cierres por fechas con motivo; sin área es un feriado común. Se anulan, no se borran |
 | `labs.forms` | Formatos del espacio («Práctica académica», «Servicio externo»…): nombre único entre los activos; se renombran y se archivan, no se borran |
 | `labs.form_revisions` | Cada guardado de un formato es una revisión nueva e inmutable: título, código y la hoja (`layout`: filas de 1 a 3 datos con los cinco esenciales, columnas de recursos, observaciones y firmas), validada por `labs.form_layout_valid`. Las solicitudes guardan formato y revisión |
+| `labs.list_values` | Asignaturas y carreras, que crecen al usarlas en una solicitud; únicas sin tildes ni mayúsculas |
+| `labs.request_counters` | Último número de solicitud del espacio (`SOL-0042`): correlativo y sin reutilizarse |
+| `labs.requests` | La solicitud con su formato y revisión, quien pide, estado (borrador, enviada, cambios solicitados, rechazada, cancelada), los datos del sistema en columnas, las fechas sueltas, los datos libres en `answers` y «fuera de plazo». Enviada, lo esencial está; rechazada y cancelada no cambian |
+| `labs.request_lines` | Recursos pedidos: reactivo del catálogo en su unidad base o no catalogado, tipo de equipo o no catalogado, y material en texto; total exacto y, si se pidió así, por grupo. Se reemplazan solo mientras quien pide edita |
+| `labs.request_events` | Historial visible de la solicitud: enviada, cambios y rechazo con motivo, reenviada y cancelada; solo crece |
 | `scheduling.lab_bookings`, `equipment_bookings`, `material_bookings` | Reservas `[inicio, fin)` con exclusión GiST por espacio y recurso |
 | `practices.templates`, `template_versions` | Plantillas con versiones publicadas inmutables |
 | `practices.participations` | Estudiante: docente responsable, ámbito y vigencia |

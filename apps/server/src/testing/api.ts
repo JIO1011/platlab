@@ -2,7 +2,7 @@ import { afterAll } from 'vitest';
 import { errorResponse } from '@platlab/contracts';
 import { buildApp } from '../app.js';
 import { createPool } from '../platform/db/pool.js';
-import { createAdminPool } from './core-fixtures.js';
+import { createAdminPool, uniqueSuffix } from './core-fixtures.js';
 import { localPublicFiles } from './storage.js';
 import { createTestSigner } from './tokens.js';
 
@@ -44,6 +44,20 @@ export async function call(subject: string, url: string, { method = 'GET', body,
   });
   return { status: response.statusCode, body: response.json() as unknown };
 }
+
+/** Un PUT con cuerpo binario (una foto o un logo), con su tipo declarado y una clave de idempotencia nueva. */
+export async function putBinary(subject: string, url: string, body: Buffer, contentType = 'image/png') {
+  const response = await app.inject({
+    method: 'PUT',
+    url: `/v1${url}`,
+    headers: { authorization: `Bearer ${await signer.sign(subject)}`, 'content-type': contentType, 'idempotency-key': `bin-${uniqueSuffix()}` },
+    payload: body,
+  });
+  return { status: response.statusCode, body: response.json() as unknown };
+}
+
+/** Un PNG mínimo: la API reconoce la imagen por su firma, no por el tipo declarado. */
+export const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64, 1)]);
 
 /** Una descarga (el Excel del Informe): estado, cabeceras y bytes, sin leerla como JSON. */
 export async function download(subject: string, url: string) {

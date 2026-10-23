@@ -6,10 +6,18 @@ import {
   createClosureRequest,
   createFormRequest,
   createPeriodRequest,
+  createRequestRequest,
   createSpaceRequest,
+  FORM_LOGO_MAX_BYTES,
   formParams,
+  imageTypes,
   periodParams,
   publishFormRequest,
+  requestListQuery,
+  requestParams,
+  requestReasonRequest,
+  requestVersionRequest,
+  saveRequestRequest,
   spaceParams,
   updateFormRequest,
   updatePeriodRequest,
@@ -17,9 +25,21 @@ import {
   updateSpaceRequest,
 } from '@platlab/contracts';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
+import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import { createClosure, listClosures, voidClosure } from '../application/closures.js';
-import { archiveForm, createForm, getForm, listForms, publishForm, updateForm } from '../application/form.js';
+import { archiveForm, createForm, getForm, listForms, publishForm, updateForm, uploadFormLogo } from '../application/form.js';
 import { archivePeriod, createPeriod, listPeriods, updatePeriod } from '../application/periods.js';
+import {
+  cancelRequest,
+  createRequest,
+  getRequest,
+  getRequestOptions,
+  listRequests,
+  rejectRequest,
+  requestChanges,
+  saveRequest,
+  submitRequest,
+} from '../application/requests.js';
 import { getSettings, updateSettings } from '../application/settings.js';
 import { archiveSpace, createSpace, listSpaces, updateSpace } from '../application/spaces.js';
 
@@ -27,8 +47,43 @@ import { archiveSpace, createSpace, listSpaces, updateSpace } from '../applicati
  * Rutas de Laboratorios bajo /v1/workspaces/:workspaceId/labs (ADR 0023), con permisos `labs.*`. Las
  * áreas son del Núcleo: Espacios solo les agrega aforo, horario y cierres.
  */
-export function labsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync {
+export function labsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: PublicFiles }): FastifyPluginAsync {
   return async (app) => {
+    // El logo del membrete llega como cuerpo binario, con su propio límite.
+    app.addContentTypeParser([...imageTypes], { parseAs: 'buffer', bodyLimit: FORM_LOGO_MAX_BYTES }, (_request, body, done) => done(null, body));
+
+    // Solicitudes (L-01b): quien pide las suyas; el Operador y el Administrador, las recibidas.
+    app.get('/requests', async (request) => listRequests(pool, queryRequest(request), requestListQuery.parse(request.query)));
+
+    app.get('/request-options', async (request) => getRequestOptions(pool, queryRequest(request)));
+
+    app.post('/requests', async (request, reply) => {
+      const input = createRequestRequest.parse(request.body);
+      return reply.status(201).send(await createRequest(pool, commandRequest(request), input));
+    });
+
+    app.get('/requests/:requestId', async (request) => getRequest(pool, queryRequest(request), requestParams.parse(request.params).requestId));
+
+    app.put('/requests/:requestId', async (request) =>
+      saveRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, saveRequestRequest.parse(request.body)),
+    );
+
+    app.post('/requests/:requestId/submit', async (request) =>
+      submitRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestVersionRequest.parse(request.body)),
+    );
+
+    app.post('/requests/:requestId/cancel', async (request) =>
+      cancelRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestVersionRequest.parse(request.body)),
+    );
+
+    app.post('/requests/:requestId/request-changes', async (request) =>
+      requestChanges(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestReasonRequest.parse(request.body)),
+    );
+
+    app.post('/requests/:requestId/reject', async (request) =>
+      rejectRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestReasonRequest.parse(request.body)),
+    );
+
     // Anticipación del espacio de trabajo.
     app.get('/settings', async (request) => getSettings(pool, queryRequest(request)));
 
@@ -96,10 +151,15 @@ export function labsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync {
       archiveForm(pool, commandRequest(request), formParams.parse(request.params).formId),
     );
 
+    // Logo del membrete: se sube aparte y entra en la hoja al publicar.
+    app.put('/forms/:formId/logo', async (request) =>
+      uploadFormLogo(pool, publicFiles, commandRequest(request), formParams.parse(request.params).formId, request.body),
+    );
+
     app.post('/forms/:formId/revisions', async (request, reply) => {
       const { formId } = formParams.parse(request.params);
       const input = publishFormRequest.parse(request.body);
-      return reply.status(201).send(await publishForm(pool, commandRequest(request), formId, input));
+      return reply.status(201).send(await publishForm(pool, publicFiles, commandRequest(request), formId, input));
     });
   };
 }

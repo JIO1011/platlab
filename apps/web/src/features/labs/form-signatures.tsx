@@ -17,11 +17,14 @@ function Signature({
   signature,
   error,
   canRemove,
+  requesterName,
   onChange,
 }: {
   signature: DraftSignature;
   error: string | undefined;
   canRemove: boolean;
+  /** Con la hoja llena, el nombre de quien solicita bajo su firma. */
+  requesterName?: string | undefined;
   onChange?: { rename: (label: string) => void; requester: (requester: boolean) => void; remove: () => void } | undefined;
 }) {
   return (
@@ -53,9 +56,13 @@ function Signature({
           signature.label.trim() || 'Firma'
         )}
       </div>
-      <Ghost note className="min-h-[0.875rem] text-center text-[11px] leading-tight">
-        {signature.requester ? 'Nombre de quien solicita (de su cuenta)' : undefined}
-      </Ghost>
+      {signature.requester && requesterName ? (
+        <p className="min-h-[0.875rem] break-words text-center text-[11px] leading-tight print:text-[8pt]">{requesterName}</p>
+      ) : (
+        <Ghost note className="min-h-[0.875rem] text-center text-[11px] leading-tight">
+          {signature.requester ? 'Nombre de quien solicita (de su cuenta)' : undefined}
+        </Ghost>
+      )}
     </div>
   );
 }
@@ -64,7 +71,17 @@ function Signature({
  * El pie «Entrega / Recepción» de la hoja: de una a tres firmas físicas con su nombre; a lo sumo una es la de quien
  * solicita, y bajo ella se imprime su nombre. Con `onChange` se renombran, se quitan (queda una) y se agregan.
  */
-export function Signatures({ draft, issues, onChange }: { draft: Draft; issues: FormIssues; onChange?: ((signatures: DraftSignature[]) => void) | undefined }) {
+export function Signatures({
+  draft,
+  issues,
+  requesterName,
+  onChange,
+}: {
+  draft: Draft;
+  issues: FormIssues;
+  requesterName?: string | undefined;
+  onChange?: ((signatures: DraftSignature[]) => void) | undefined;
+}) {
   const { signatures } = draft;
   const apply = (next: DraftSignature[] | undefined) => {
     if (next) onChange?.(next);
@@ -86,6 +103,7 @@ export function Signatures({ draft, issues, onChange }: { draft: Draft; issues: 
           signature={signature}
           error={issues.signatures[signature.id]}
           canRemove={signatures.length > 1}
+          requesterName={requesterName}
           onChange={
             onChange
               ? {

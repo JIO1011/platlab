@@ -14,6 +14,13 @@ export const typeIcons: Record<FieldType, LucideIcon> = {
 
 export const fieldTypes = Object.keys(typeLabels) as FieldType[];
 
+/**
+ * Los controles de edición secundarios (ajustes, mover con botones, quitar): con puntero aparecen al pasar sobre su
+ * elemento (`group/edit`) o al enfocarlos con el teclado, y no se van mientras un menú suyo está abierto; en una pantalla táctil, sin «pasar», se ven siempre.
+ */
+export const reveal =
+  '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-within:opacity-100 [@media(hover:hover)]:group-hover/edit:opacity-100 [@media(hover:hover)]:group-focus-within/edit:opacity-100 [@media(hover:hover)]:has-[[data-state=open]]:opacity-100';
+
 /** Las filas de la hoja son tablas de rejilla: el color de fondo asoma como línea fina entre las celdas (`gap-px`). */
 export const sheetGrid = 'grid gap-px bg-line-strong';
 

@@ -157,6 +157,21 @@ export function shiftField(rows: readonly DraftRow[], fieldId: string, direction
 export const renameResource = (resources: readonly DraftResource[], kind: ResourceKind, label: string): DraftResource[] =>
   resources.map((resource) => (resource.kind === kind ? { ...resource, label } : resource));
 
+/**
+ * Una columna de Recursos que se muestra pasa un lugar a la izquierda (`-1`) o a la derecha (`1`) entre las que se
+ * muestran; las ocultas conservan su lugar. `undefined` si ya está en el borde, o si está oculta.
+ */
+export function moveResource(resources: readonly DraftResource[], kind: ResourceKind, step: -1 | 1): DraftResource[] | undefined {
+  const shown = resources.flatMap((resource, at) => (resource.shown ? [at] : []));
+  const place = shown.findIndex((at) => resources[at]?.kind === kind);
+  const from = shown[place];
+  const to = shown[place + step];
+  if (place < 0 || from === undefined || to === undefined) return undefined;
+  const next = [...resources];
+  [next[from], next[to]] = [resources[to] as DraftResource, resources[from] as DraftResource];
+  return next;
+}
+
 export function setResourceShown(resources: readonly DraftResource[], kind: ResourceKind, shown: boolean): DraftResource[] | undefined {
   const next = resources.map((resource) => (resource.kind === kind ? { ...resource, shown } : resource));
   return next.some((resource) => resource.shown) ? next : undefined;

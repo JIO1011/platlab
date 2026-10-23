@@ -1,11 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { closure, closureList, FORM_STANDARD_LAYOUT, formList, labsForm, labsSettings, period, periodList, space, spaceList, type FormLayout } from '@platlab/contracts';
-import { admin, call, count, errorCode } from '../../testing/api.js';
+import { closure, closureList, FORM_STANDARD_LAYOUT, formList, formLogo, labsForm, labsSettings, period, periodList, space, spaceList, type FormLayout } from '@platlab/contracts';
+import { admin, call, count, errorCode, png, putBinary } from '../../testing/api.js';
 import { addLocation, addMember, seedWorkspace, uniqueSuffix } from '../../testing/core-fixtures.js';
 
 /**
  * L-01a (ADR 0023): Espacios, cierres, anticipación y Formatos por HTTP, con el rol de runtime. El
- * Administrador configura; el Operador y el Docente consultan; el Estudiante no entra.
+ * Administrador configura; el Operador, el Docente y el tesista consultan (L-01b: el tesista llena formatos).
  */
 
 /** Espacio con Laboratorios, una sede con dos áreas (una con un estante) y sus cuatro roles. */
@@ -55,17 +55,9 @@ async function enable(target: LabsLab, areaId: string, capacity = 20) {
 }
 
 describe('roles', () => {
-  it('el Estudiante no entra a Laboratorios', async () => {
-    for (const path of ['/settings', '/spaces', '/periods', '/closures?from=2026-01-01&to=2026-12-31', '/forms']) {
-      const response = await call(lab.student.subject, `${lab.base}${path}`);
-      expect(response.status).toBe(403);
-      expect(errorCode(response.body)).toBe('ACCESS_DENIED');
-    }
-  });
-
-  it('el Operador y el Docente consultan, pero no configuran', async () => {
+  it('el Operador, el Docente y el tesista consultan, pero no configuran', async () => {
     const area = await addLocation(admin, lab.workspace.id, { kind: 'room', parentId: lab.site });
-    for (const member of [lab.operator, lab.teacher]) {
+    for (const member of [lab.operator, lab.teacher, lab.student]) {
       for (const path of ['/settings', '/spaces', '/periods', '/closures?from=2026-01-01&to=2026-12-31', '/forms']) {
         expect((await call(member.subject, `${lab.base}${path}`)).status).toBe(200);
       }
@@ -325,6 +317,27 @@ describe('formatos', () => {
     const stale = await publish(target, form.id, { expectedRevision: 1 });
     expect(stale.status).toBe(409);
     expect(errorCode(stale.body)).toBe('VERSION_CONFLICT');
+  });
+
+  it('el membrete lleva un logo subido para el espacio y hasta tres líneas; uno ajeno no se publica', async () => {
+    const target = await createLabsLab();
+    const form = await createForm(target, 'Con membrete');
+    expect((await putBinary(target.operator.subject, `${target.base}/forms/${form.id}/logo`, png)).status).toBe(403);
+    expect((await putBinary(target.adminMember.subject, `${target.base}/forms/${form.id}/logo`, Buffer.from('no es imagen'))).status).toBe(400);
+    const uploaded = await putBinary(target.adminMember.subject, `${target.base}/forms/${form.id}/logo`, png);
+    expect(uploaded.status).toBe(200);
+    const { url } = formLogo.parse(uploaded.body);
+    expect(url).toMatch(new RegExp(`/${target.workspace.id}/labs/logos/[0-9a-f-]{36}\\.png$`));
+    const header = { logoUrl: url, lines: ['Universidad Demo', 'Facultad de Ciencias'] };
+    const published = await publish(target, form.id, { layout: { ...FORM_STANDARD_LAYOUT, header }, expectedRevision: 1 });
+    expect(published.status).toBe(201);
+    expect(labsForm.parse(published.body).layout.header).toEqual(header);
+    // El logo de otro espacio, o de afuera, no entra en la hoja.
+    const foreign = url.replace(target.workspace.id, other.workspace.id);
+    for (const logoUrl of [foreign, 'https://example.com/logo.png']) {
+      const rejected = await publish(target, form.id, { layout: { ...FORM_STANDARD_LAYOUT, header: { logoUrl, lines: [] } }, expectedRevision: 2 });
+      expect(rejected.status).toBe(400);
+    }
   });
 
   it('dos publicaciones a la vez sobre la misma revisión: solo una gana', async () => {

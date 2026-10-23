@@ -12,6 +12,9 @@ export const FORM_MAX_FREE_FIELDS = 30;
 /** Datos por fila de la Sección I y firmas al pie: de 1 a 3. */
 export const FORM_MAX_PER_ROW = 3;
 export const FORM_MAX_SIGNATURES = 3;
+/** Líneas del membrete bajo el logo (institución, facultad, área…) y el peso del logo. */
+export const FORM_MAX_HEADER_LINES = 3;
+export const FORM_LOGO_MAX_BYTES = 512 * 1024;
 
 /** Los datos del sistema que el Cronograma y el aforo usan: se renombran y se mueven, pero no se quitan. */
 export const FORM_ESSENTIAL_KEYS = ['docente', 'titulo', 'fecha', 'horario', 'participantes'] as const;
@@ -61,8 +64,18 @@ export const formResourceKind = z.enum(['reagents', 'equipment', 'materials']);
 /** Las firmas: de 1 a 3 con nombre libre; a lo sumo una es la del solicitante, que imprime su nombre. */
 const signature = z.object({ label: text(60), requester: z.boolean() }).strict();
 
+/**
+ * El membrete del formato (ADR 0023, «Membrete»): el logo que se subió con PUT /forms/:formId/logo (o ninguno) y hasta
+ * tres líneas a su lado; sin líneas se muestra el nombre del espacio de trabajo. Las revisiones anteriores no lo tienen:
+ * se leen sin logo ni líneas.
+ */
+const formHeader = z
+  .object({ logoUrl: z.url().max(500).nullable(), lines: z.array(text(120)).max(FORM_MAX_HEADER_LINES) })
+  .strict();
+
 export const formLayout = z
   .object({
+    header: formHeader.default({ logoUrl: null, lines: [] }),
     rows: z.array(formRow).min(1).max(60),
     /** Las columnas de Recursos que el formato muestra, de 1 a 3, cada una con su nombre. */
     resources: z
@@ -98,6 +111,7 @@ export const formLayout = z
  * asistente y del docente.
  */
 export const FORM_STANDARD_LAYOUT: FormLayout = {
+  header: { logoUrl: null, lines: [] },
   rows: [
     { kind: 'section', title: 'I. Datos de la actividad' },
     { kind: 'row', fields: [{ key: 'titulo', label: 'Título de la práctica' }] },
@@ -128,6 +142,9 @@ export const FORM_STANDARD_LAYOUT: FormLayout = {
 };
 
 export const formParams = z.object({ workspaceId: z.uuid(), formId: z.uuid() });
+
+/** PUT /forms/:formId/logo: la imagen subida; se usa al publicar la revisión siguiente con `header.logoUrl`. */
+export const formLogo = z.object({ url: z.url() });
 
 /** Un formato en la lista: su nombre, su estado y su última revisión. */
 const formSummary = z.object({
@@ -171,6 +188,7 @@ export type FormFreeField = z.infer<typeof formFreeField>;
 export type FormField = z.infer<typeof formField>;
 export type FormRow = z.infer<typeof formRow>;
 export type FormLayout = z.infer<typeof formLayout>;
+export type FormHeader = z.infer<typeof formHeader>;
 export type FormSummary = z.infer<typeof formSummary>;
 export type FormList = z.infer<typeof formList>;
 export type LabsForm = z.infer<typeof labsForm>;

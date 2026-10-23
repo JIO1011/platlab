@@ -1,18 +1,19 @@
-import { useShell } from '../../app/app-shell';
+import { Navigate } from 'react-router';
+import { moduleApps, useShell } from '../../app/app-shell';
 import { ModuleOutlet, useModuleApp } from '../../app/module-app';
 import type { LabsContext } from './context';
 import { useLabsKey } from './queries';
 
 /**
  * La app de Laboratorios (ADR 0023): el contenedor común de sus secciones y lo que comparten (espacio, permisos y
- * «Actualizar»). El Operador y el Docente no entran hasta que haya Cronograma: el servidor no les da sus secciones.
+ * «Actualizar»). Cada rol ve las secciones que el servidor le da en /me.
  */
 export function LabsLayout() {
   const { workspaceId, me } = useShell();
   const app = useModuleApp(
     'labs',
     useLabsKey(workspaceId),
-    'Laboratorios está en modo consulta: puedes ver los formatos, pero no registrar cambios.',
+    'Laboratorios está en modo consulta: puedes consultar, pero no registrar cambios.',
   );
   return (
     <ModuleOutlet
@@ -21,8 +22,19 @@ export function LabsLayout() {
           ...app,
           canManageSpaces: app.canOperate && me.permissions.includes('labs.space.manage'),
           canManageForm: app.canOperate && me.permissions.includes('labs.form.manage'),
+          canRequest: app.canOperate && me.permissions.includes('labs.request.create'),
+          canReview: app.canOperate && me.permissions.includes('labs.request.review'),
         } satisfies LabsContext
       }
     />
   );
+}
+
+/** La raíz de Laboratorios, hasta que haya Resumen (L-01c): lleva a la primera sección que el miembro tiene. */
+export function LabsHome() {
+  const { workspaceId, me } = useShell();
+  const app = moduleApps(me).find((entry) => entry.code === 'labs');
+  const first = app?.sections[0];
+  if (!app || !first) return null;
+  return <Navigate to={`/e/${workspaceId}/${app.path}/${first.path}`} replace />;
 }

@@ -1,8 +1,9 @@
-import { closure, labsForm, labsSettings, period, space } from '@platlab/contracts';
+import { closure, formLogo, labsForm, labsRequest, labsSettings, period, space } from '@platlab/contracts';
 import { toast } from '@platlab/ui';
-import { useQueryClient } from '@tanstack/react-query';
-import { isApiError } from '../../app/api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { api, isApiError } from '../../app/api';
 import { commonErrorMessage, useModuleCommand } from '../../app/commands';
+import type { LogoFile } from './form-logo';
 import { useLabsKey } from './queries';
 
 /**
@@ -71,16 +72,72 @@ export function usePublishForm(workspaceId: string, formId: string) {
   return useModuleCommand(workspaceId, `/labs/forms/${formId}/revisions`, labsForm, useLabsKey(workspaceId));
 }
 
+/** «Nueva solicitud» (`{ formId }`) o «Duplicar» (`{ from }`): un borrador con su número fijo. */
+export function useCreateRequest(workspaceId: string) {
+  return useModuleCommand(workspaceId, '/labs/requests', labsRequest, useLabsKey(workspaceId));
+}
+
+/** «Guardar borrador»: la solicitud entera, con la versión que la persona vio. */
+export function useSaveRequest(workspaceId: string, requestId: string) {
+  return useModuleCommand(workspaceId, `/labs/requests/${requestId}`, labsRequest, useLabsKey(workspaceId), 'PUT');
+}
+
+/** «Enviar»: el servidor valida lo esencial, las fechas y los períodos. */
+export function useSubmitRequest(workspaceId: string, requestId: string) {
+  return useModuleCommand(workspaceId, `/labs/requests/${requestId}/submit`, labsRequest, useLabsKey(workspaceId));
+}
+
+/** «Cancelar solicitud»: mientras no esté programada ni cerrada. */
+export function useCancelRequest(workspaceId: string, requestId: string) {
+  return useModuleCommand(workspaceId, `/labs/requests/${requestId}/cancel`, labsRequest, useLabsKey(workspaceId));
+}
+
+/** «Pedir cambios»: la solicitud enviada vuelve a quien la pidió, con el motivo. */
+export function useRequestChanges(workspaceId: string, requestId: string) {
+  return useModuleCommand(workspaceId, `/labs/requests/${requestId}/request-changes`, labsRequest, useLabsKey(workspaceId));
+}
+
+/** «Rechazar»: la solicitud enviada queda rechazada, con el motivo. */
+export function useRejectRequest(workspaceId: string, requestId: string) {
+  return useModuleCommand(workspaceId, `/labs/requests/${requestId}/reject`, labsRequest, useLabsKey(workspaceId));
+}
+
+/**
+ * Sube el logo del membrete del formato (ADR 0023): el cuerpo es la imagen y devuelve su dirección, que va en el borrador
+ * y se publica con la revisión siguiente. No cambia nada visible hasta publicar, así que no refresca la caché.
+ */
+export function useUploadFormLogo(workspaceId: string, formId: string) {
+  return useMutation({
+    mutationFn: (logo: LogoFile) =>
+      api(`/workspaces/${workspaceId}/labs/forms/${formId}/logo`, { method: 'PUT', file: logo, idempotencyKey: crypto.randomUUID(), schema: formLogo }),
+  });
+}
+
+/** Vuelve a pedir lo de Laboratorios para que la pantalla muestre lo vigente. */
+function useRefreshLabs(workspaceId: string) {
+  const queryClient = useQueryClient();
+  const labsKey = useLabsKey(workspaceId);
+  return () => queryClient.invalidateQueries({ queryKey: labsKey });
+}
+
 /**
  * Otra persona cambió lo mismo mientras se editaba (VERSION_CONFLICT): avisa y vuelve a pedir lo de Laboratorios, para
  * que la pantalla muestre la versión vigente. Lo editado no se aplica sobre ella a ciegas.
  */
 export function useVersionConflict(workspaceId: string) {
-  const queryClient = useQueryClient();
-  const labsKey = useLabsKey(workspaceId);
+  const refresh = useRefreshLabs(workspaceId);
   return (what: string) => {
     toast.error(`Otra persona cambió ${what}`, { description: 'Se cargó la versión vigente: revísala y vuelve a editar.' });
-    return queryClient.invalidateQueries({ queryKey: labsKey });
+    return refresh();
+  };
+}
+
+/** Otra persona ya resolvió la solicitud (REQUEST_RESOLVED): avisa y carga su estado vigente. */
+export function useRequestResolved(workspaceId: string) {
+  const refresh = useRefreshLabs(workspaceId);
+  return () => {
+    toast.error('Otra persona ya resolvió esta solicitud', { description: 'Se cargó su estado vigente.' });
+    return refresh();
   };
 }
 
@@ -90,6 +147,6 @@ export function labsErrorMessage(error: unknown): string {
   if (isApiError(error, 'MODULE_READ_ONLY', 'MODULE_UNAVAILABLE', 'WORKSPACE_RESTRICTED')) {
     return 'Laboratorios no admite cambios en este momento. Puedes consultar.';
   }
-  if (isApiError(error, 'NOT_FOUND')) return 'Ese espacio, ese cierre, ese período o ese formato ya no está disponible en este espacio.';
+  if (isApiError(error, 'NOT_FOUND')) return 'Ese espacio, cierre, período, formato o solicitud ya no está disponible en este espacio.';
   return commonErrorMessage(error);
 }

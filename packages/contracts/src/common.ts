@@ -60,3 +60,6 @@ export const locationList = z.object({ items: z.array(activeLocation) });
 export type Location = z.infer<typeof location>;
 export type ActiveLocation = z.infer<typeof activeLocation>;
 export type LocationList = z.infer<typeof locationList>;
+
+/** Las imágenes que la API acepta como cuerpo binario (fotos, logos): el servidor las reconoce por su contenido. */
+export const imageTypes = ['image/jpeg', 'image/png', 'image/webp'] as const;

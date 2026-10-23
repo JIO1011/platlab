@@ -12,6 +12,7 @@ import {
   findIdentity,
   findMembershipClasses,
   listActiveMembers as listActiveMembersQuery,
+  moduleAdmits as moduleAdmitsQuery,
   listMemberRoles as listMemberRolesQuery,
   listMyWorkspaces as listMyWorkspacesQuery,
   listPermissionCodes,
@@ -249,4 +250,13 @@ export async function requirePermission(access: WorkspaceAccess, permission: str
   if (!(await hasPermission(access, permission))) {
     throw new AppError('ACCESS_DENIED', 'No tienes permiso para esta acción');
   }
+}
+
+/**
+ * ¿Admite hoy el módulo esta clase de acción en el espacio? Sin bloquear su derecho: solo para mostrar lo que un
+ * módulo consulta de otro sin decidir nada con ello (ADR 0023). Lo que escribe en dos módulos usa `alsoModule`.
+ */
+export async function moduleAdmits(access: WorkspaceAccess, moduleCode: string, actionClass: ActionClass): Promise<boolean> {
+  const [row] = await moduleAdmitsQuery.run({ workspaceId: access.workspace.id, moduleCode, actionClass }, access.client);
+  return row?.admitted ?? false;
 }

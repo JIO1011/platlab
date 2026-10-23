@@ -1,9 +1,9 @@
 import { Button, cn } from '@platlab/ui';
-import { Eye, EyeOff, Plus, X } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import { ArrowLeft, ArrowRight, Eye, EyeOff, Plus, X } from 'lucide-react';
+import type { CSSProperties, ReactNode } from 'react';
 import { RESOURCE_LABELS, type Draft, type DraftResource, type FormIssues, type ResourceKind } from './form-draft';
-import { renameResource, setResourceShown } from './form-edit';
-import { EditableText, cellKinds, denseCell } from './form-parts';
+import { moveResource, renameResource, setResourceShown } from './form-edit';
+import { EditableText, cellKinds, denseCell, reveal } from './form-parts';
 import { resourceRows } from './form-sheet';
 
 /** Las filas de muestra de Recursos en pantalla; al imprimir van las que llenan la hoja (`resourceRows`). */
@@ -11,7 +11,7 @@ const SAMPLE_ROWS = 3;
 
 /** El ancho relativo de las columnas de cada recurso: su nombre y sus cantidades. Se reparten a 100 % entre las que se muestran. */
 const columnWeights = (kind: ResourceKind, equipmentCode: boolean): number[] => {
-  if (kind === 'reagents') return [17.2, 8.6];
+  if (kind === 'reagents') return [19, 7.5];
   return kind === 'equipment' ? [17.2, 7.5, 7.5, ...(equipmentCode ? [9.7] : [])] : [17.2, 7.5, 7.5];
 };
 
@@ -21,7 +21,7 @@ const quantities = (kind: ResourceKind, equipmentCode: boolean): string[] => {
   return kind === 'equipment' ? ['Por curso', 'Por grupo', ...(equipmentCode ? ['Código'] : [])] : ['Por curso', 'Por grupo'];
 };
 
-const sheetCell = 'border-b border-r border-line-strong last:border-r-0';
+export const sheetCell = 'border-b border-r border-line-strong last:border-r-0';
 const smallIcon = 'size-6 sm:size-5';
 
 /**
@@ -29,9 +29,10 @@ const smallIcon = 'size-6 sm:size-5';
  * la llena con lo que elige del inventario. Es una tabla real para que, si no cabe en la hoja, su cabecera se repita en la
  * página siguiente. Al imprimir lleva las filas vacías que llenan lo que sobra (`resourceRows`); en pantalla, tres de
  * muestra. Con `onChange` se renombran las columnas, se ocultan (queda al menos una) y se quita o se pone el «Código» de
- * los equipos.
+ * los equipos, y se cambia el orden de las columnas con las flechas. `rows` reemplaza las filas de muestra por las que inyecta
+ * quien llena o revisa la hoja.
  */
-export function ResourcesTable({ draft, issues, onChange }: { draft: Draft; issues: FormIssues; onChange?: ((patch: Partial<Draft>) => void) | undefined }) {
+export function ResourcesTable({ draft, issues, onChange, rows }: { draft: Draft; issues: FormIssues; onChange?: ((patch: Partial<Draft>) => void) | undefined; rows?: ReactNode }) {
   const editable = onChange !== undefined;
   const shown = draft.resources.filter((resource) => resource.shown);
   const hidden = draft.resources.filter((resource) => !resource.shown);
@@ -43,7 +44,7 @@ export function ResourcesTable({ draft, issues, onChange }: { draft: Draft; issu
   const heading = (resource: DraftResource) => (
     <th key={resource.kind} rowSpan={2} className={cn(head, editable && 'p-0.5')}>
       {onChange ? (
-        <span className="flex items-center gap-0.5">
+        <span className="group/edit grid gap-0.5">
           <EditableText
             label={`Nombre de la columna ${RESOURCE_LABELS[resource.kind]}`}
             value={resource.label}
@@ -53,19 +54,38 @@ export function ResourcesTable({ draft, issues, onChange }: { draft: Draft; issu
             className="text-center uppercase placeholder:normal-case sm:min-h-5 sm:py-0"
             onChange={(label) => onChange({ resources: renameResource(draft.resources, resource.kind, label) })}
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(smallIcon, 'shrink-0')}
-            aria-label={`Ocultar la columna ${RESOURCE_LABELS[resource.kind]}`}
-            disabled={shown.length === 1}
-            onClick={() => {
-              const resources = setResourceShown(draft.resources, resource.kind, false);
-              if (resources) onChange({ resources });
-            }}
-          >
-            <EyeOff aria-hidden />
-          </Button>
+          <span role="group" aria-label={`Columna ${RESOURCE_LABELS[resource.kind]}`} className={cn('flex items-center justify-center gap-0.5', reveal)}>
+            {([-1, 1] as const).map((step) => {
+              const moved = moveResource(draft.resources, resource.kind, step);
+              const Icon = step < 0 ? ArrowLeft : ArrowRight;
+              return (
+                <Button
+                  key={step}
+                  variant="ghost"
+                  size="icon"
+                  className={cn(smallIcon, 'shrink-0')}
+                  aria-label={`${step < 0 ? 'Mover a la izquierda' : 'Mover a la derecha'} la columna ${RESOURCE_LABELS[resource.kind]}`}
+                  disabled={!moved}
+                  onClick={() => moved && onChange({ resources: moved })}
+                >
+                  <Icon aria-hidden />
+                </Button>
+              );
+            })}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(smallIcon, 'shrink-0')}
+              aria-label={`Ocultar la columna ${RESOURCE_LABELS[resource.kind]}`}
+              disabled={shown.length === 1}
+              onClick={() => {
+                const resources = setResourceShown(draft.resources, resource.kind, false);
+                if (resources) onChange({ resources });
+              }}
+            >
+              <EyeOff aria-hidden />
+            </Button>
+          </span>
         </span>
       ) : (
         resource.label.trim() || RESOURCE_LABELS[resource.kind]
@@ -83,7 +103,11 @@ export function ResourcesTable({ draft, issues, onChange }: { draft: Draft; issu
       >
         <table
           style={{ '--columns': weights.length } as CSSProperties}
-          className="w-full min-w-[calc(var(--columns)*4.5rem)] table-fixed border-separate border-spacing-0 text-[11px] print:min-w-0 print:text-[8pt]"
+          className={cn(
+            'w-full table-fixed border-separate border-spacing-0 text-[11px] print:min-w-0 print:text-[8pt]',
+            // Con controles dentro (al llenar) las columnas piden más ancho en el móvil, donde la tabla se desliza de lado.
+            rows ? 'min-w-[calc(var(--columns)*7rem)] sm:min-w-[calc(var(--columns)*4.5rem)]' : 'min-w-[calc(var(--columns)*4.5rem)]',
+          )}
         >
           <colgroup>
             {weights.map((weight, at) => (
@@ -125,13 +149,14 @@ export function ResourcesTable({ draft, issues, onChange }: { draft: Draft; issu
             </tr>
           </thead>
           <tbody className="[&>tr:last-child>td]:border-b-0">
-            {Array.from({ length: resourceRows(draft) }, (_, line) => (
-              <tr key={line} className={cn('print:break-inside-avoid', line >= SAMPLE_ROWS && 'hidden print:table-row')}>
-                {weights.map((_weight, column) => (
-                  <td key={column} className={cn(sheetCell, denseCell, 'bg-white')} />
-                ))}
-              </tr>
-            ))}
+            {rows ??
+              Array.from({ length: resourceRows(draft) }, (_, line) => (
+                <tr key={line} className={cn('print:break-inside-avoid', line >= SAMPLE_ROWS && 'hidden print:table-row')}>
+                  {weights.map((_weight, column) => (
+                    <td key={column} className={cn(sheetCell, denseCell, 'bg-white')} />
+                  ))}
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>

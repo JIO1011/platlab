@@ -1,7 +1,8 @@
-import { closureList, formList, labsForm, labsSettings, periodList, spaceList } from '@platlab/contracts';
+import { closureList, formList, labsForm, labsRequest, labsSettings, periodList, requestList, requestOptions, spaceList } from '@platlab/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
+import { viewOf } from './request-draft';
 
 const labsKey = (user: string, workspaceId: string) => [...workspaceKey(user, workspaceId), 'labs'] as const;
 
@@ -67,5 +68,34 @@ export function useLabsForm(workspaceId: string, formId: string) {
   return useQuery({
     queryKey: [...labsKey(user, workspaceId), 'forms', formId],
     queryFn: () => api(`${base(workspaceId)}/forms/${formId}`, { schema: labsForm }),
+  });
+}
+
+/** Las solicitudes: `mine`, las propias; `inbox`, las recibidas (para quien las consulta). */
+export function useRequests(workspaceId: string, scope: 'mine' | 'inbox') {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...labsKey(user, workspaceId), 'requests', scope],
+    queryFn: () => api(`${base(workspaceId)}/requests?${new URLSearchParams({ scope })}`, { schema: requestList }),
+    refetchInterval: jitteredPoll,
+  });
+}
+
+/** Una solicitud con la hoja de su revisión. No se vuelve a pedir sola: lo que se edita parte de la versión que se vio. */
+export function useRequest(workspaceId: string, requestId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...labsKey(user, workspaceId), 'requests', 'one', requestId],
+    queryFn: () => api(`${base(workspaceId)}/requests/${requestId}`, { schema: labsRequest }),
+    select: viewOf,
+  });
+}
+
+/** Lo que se puede pedir y las listas de asignaturas y carreras, con lo disponible hoy. */
+export function useRequestOptions(workspaceId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...labsKey(user, workspaceId), 'request-options'],
+    queryFn: () => api(`${base(workspaceId)}/request-options`, { schema: requestOptions }),
   });
 }

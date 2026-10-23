@@ -6,6 +6,7 @@ import {
   addSignature,
   canAddFree,
   moveItem,
+  moveResource,
   placeInNewRow,
   placeInRow,
   removeField,
@@ -188,6 +189,32 @@ describe('Recursos', () => {
     const two = one && setResourceShown(one, 'equipment', false);
     expect(two?.filter((resource) => resource.shown).map((resource) => resource.kind)).toEqual(['materials']);
     expect(two && setResourceShown(two, 'materials', false)).toBeUndefined();
+  });
+});
+
+describe('moveResource', () => {
+  const kinds = (resources: readonly { kind: string }[] | undefined) => resources?.map((resource) => resource.kind);
+
+  it('pasa una columna a la derecha y a la izquierda', () => {
+    expect(kinds(moveResource(base.resources, 'reagents', 1))).toEqual(['equipment', 'reagents', 'materials']);
+    expect(kinds(moveResource(base.resources, 'materials', -1))).toEqual(['reagents', 'materials', 'equipment']);
+  });
+
+  it('en los bordes no hay a dónde', () => {
+    expect(moveResource(base.resources, 'reagents', -1)).toBeUndefined();
+    expect(moveResource(base.resources, 'materials', 1)).toBeUndefined();
+  });
+
+  it('salta las columnas ocultas y no las mueve de lugar', () => {
+    const hidden = setResourceShown(base.resources, 'equipment', false) ?? [];
+    expect(kinds(moveResource(hidden, 'reagents', 1))).toEqual(['materials', 'equipment', 'reagents']);
+    expect(moveResource(hidden, 'equipment', 1)).toBeUndefined();
+  });
+
+  it('el orden nuevo es el que se publica', () => {
+    const resources = moveResource(base.resources, 'materials', -1) ?? [];
+    const order = publishPayload({ ...base, resources }).layout.resources.map((resource) => resource.kind);
+    expect(order).toEqual(['reagents', 'materials', 'equipment']);
   });
 });
 

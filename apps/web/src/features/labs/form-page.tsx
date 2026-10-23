@@ -9,7 +9,7 @@ import { ConfirmArchive } from '../../app/confirm-archive';
 import { formatDateTime } from '../../app/format';
 import { SectionHeader } from '../../app/section-header';
 import { QueryErrorState } from '../../app/states';
-import { labsErrorMessage, useArchiveForm, usePublishForm, useRenameForm, useVersionConflict } from './commands';
+import { labsErrorMessage, useArchiveForm, usePublishForm, useRenameForm, useUploadFormLogo, useVersionConflict } from './commands';
 import { useLabs } from './context';
 import { draftFrom, formIssues, noIssues, publishPayload, type Draft, type FormIssues } from './form-draft';
 import { FormPaper } from './form-paper';
@@ -107,6 +107,7 @@ export function LabsFormPage() {
   const { workspaceId, me, canManageForm } = useLabs();
   const form = useLabsForm(workspaceId, formId);
   const publish = usePublishForm(workspaceId, formId);
+  const uploadLogo = useUploadFormLogo(workspaceId, formId);
   const conflict = useVersionConflict(workspaceId);
   // Sin edición en curso (`null`), la pantalla muestra la revisión vigente.
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -215,7 +216,7 @@ export function LabsFormPage() {
             ) : null}
             {editable ? (
               <p className="text-sm text-ink-muted">
-                Edita sobre la hoja: haz clic en un texto para cambiarlo y arrastra el asa de un dato para moverlo entre filas. Nada se guarda hasta que publicas la revisión.
+                Edita sobre la hoja: haz clic en un texto para cambiarlo. Mueve un dato o una fila arrastrando su asa, o con el botón «Mover» de cada dato si prefieres el teclado. El candado marca los datos que no se quitan. Nada se guarda hasta que publicas la revisión.
               </p>
             ) : null}
             {generalError ? (
@@ -228,7 +229,19 @@ export function LabsFormPage() {
                 {issues.general}
               </p>
             ) : null}
-            <FormPaper draft={shown} workspaceName={me.workspace.name} revision={revision} issues={issues} {...(editable ? { onChange: edit } : {})} />
+            {editable ? (
+              <FormPaper
+                mode="design"
+                draft={shown}
+                workspaceName={me.workspace.name}
+                revision={revision}
+                issues={issues}
+                onChange={edit}
+                uploadLogo={async (logo) => (await uploadLogo.mutateAsync(logo)).url}
+              />
+            ) : (
+              <FormPaper mode="view" draft={shown} workspaceName={me.workspace.name} revision={revision} />
+            )}
             {printing ? <FormPrint draft={shown} workspaceName={me.workspace.name} revision={revision} onDone={donePrinting} /> : null}
           </>
         ) : null}

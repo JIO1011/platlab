@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { asset as assetContract, assetHistory, assetList, assetTypeList, responsibleList } from '@platlab/contracts';
-import { app, signer } from '../../testing/api.js';
+import { png, putBinary } from '../../testing/api.js';
 import { addMember, revokeMembership, seedWorkspace, uniqueSuffix } from '../../testing/core-fixtures.js';
 import {
   admin,
@@ -276,27 +276,10 @@ describe('condición, traslados e historial', () => {
 });
 
 /** Sube un cuerpo binario como lo hace la web: tipo de imagen y clave idempotente. */
-async function putPhoto(subject: string, url: string, body: Buffer, contentType = 'image/png') {
-  const response = await app.inject({
-    method: 'PUT',
-    url: `/v1${url}`,
-    headers: {
-      authorization: `Bearer ${await signer.sign(subject)}`,
-      'content-type': contentType,
-      'idempotency-key': `foto-${uniqueSuffix()}`,
-    },
-    payload: body,
-  });
-  return { status: response.statusCode, body: response.json() as unknown };
-}
-
-/** Un PNG mínimo: la API reconoce la imagen por su firma, no por el tipo declarado. */
-const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64, 1)]);
-
 describe('foto del equipo', () => {
   it('el Administrador sube la foto, el equipo apunta a ella y el inventario la muestra', async () => {
     const asset = await createAsset(lab);
-    const uploaded = await putPhoto(lab.adminMember.subject, `${lab.base}/assets/${asset.id}/photo`, png);
+    const uploaded = await putBinary(lab.adminMember.subject, `${lab.base}/assets/${asset.id}/photo`, png);
     expect(uploaded.status).toBe(200);
     const photoUrl = assetContract.parse(uploaded.body).photoUrl;
     expect(photoUrl).toMatch(new RegExp(`/${lab.workspace.id}/equipment/[0-9a-f-]{36}\\.png$`));
@@ -304,20 +287,20 @@ describe('foto del equipo', () => {
     expect(listed.items.find((item) => item.id === asset.id)?.photoUrl).toBe(photoUrl);
 
     // Una foto nueva no borra la anterior: queda en el historial de fotos.
-    await putPhoto(lab.adminMember.subject, `${lab.base}/assets/${asset.id}/photo`, png);
+    await putBinary(lab.adminMember.subject, `${lab.base}/assets/${asset.id}/photo`, png);
     expect(await count('select count(*) as n from equipment.asset_photos where asset_id = $1', [asset.id])).toBe(2);
   });
 
   it('rechaza lo que no es imagen, al Operador y al equipo dado de baja, sin subir nada', async () => {
     const asset = await createAsset(lab);
     const url = `${lab.base}/assets/${asset.id}/photo`;
-    expect((await putPhoto(lab.adminMember.subject, url, Buffer.from('%PDF-1.4 no es imagen'))).status).toBe(400);
-    expect((await putPhoto(lab.operator.subject, url, png)).status).toBe(403);
+    expect((await putBinary(lab.adminMember.subject, url, Buffer.from('%PDF-1.4 no es imagen'))).status).toBe(400);
+    expect((await putBinary(lab.operator.subject, url, png)).status).toBe(403);
     await call(lab.adminMember.subject, `${lab.base}/assets/${asset.id}/condition`, {
       method: 'POST',
       body: { condition: 'retired', reason: 'Obsoleto' },
     });
-    expect((await putPhoto(lab.adminMember.subject, url, png)).status).toBe(400);
+    expect((await putBinary(lab.adminMember.subject, url, png)).status).toBe(400);
     expect(await count('select count(*) as n from equipment.asset_photos where asset_id = $1', [asset.id])).toBe(0);
   });
 });

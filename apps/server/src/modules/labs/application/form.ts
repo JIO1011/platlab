@@ -1,6 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
 import type { z } from 'zod';
 import {
+  FORM_LOGO_MAX_BYTES,
   FORM_STANDARD_LAYOUT,
   type createFormRequest,
   type FormLayout,
@@ -11,7 +13,9 @@ import {
   type updateFormRequest,
 } from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
-import { hasPermission, recordAudit, requireEditable, requires, type CommandRequest, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
+import { imageBody } from '../../../platform/storage/image.js';
+import type { PublicFiles } from '../../../platform/storage/public-files.js';
+import { hasPermission, recordAudit, withModuleAccess, requireEditable, requires, type CommandRequest, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import {
   archiveForm as archiveFormQuery,
   formById as formByIdQuery,
@@ -125,10 +129,31 @@ export function archiveForm(pool: pg.Pool, request: CommandRequest, formId: stri
   });
 }
 
+/** La carpeta del bucket público con los logos de los membretes del espacio. */
+const logoFolder = (workspaceId: string) => `${workspaceId}/labs/logos/`;
+
+/**
+ * Sube el logo del membrete (ADR 0023, «Membrete») y devuelve su enlace; queda en la hoja al publicar la revisión
+ * siguiente. Como la foto del equipo: se autoriza con el formato activo, la subida va fuera de la transacción y un
+ * logo que no se publica queda sin referencia en el bucket.
+ */
+export async function uploadFormLogo(pool: pg.Pool, files: PublicFiles, request: CommandRequest, formId: string, body: unknown): Promise<{ url: string }> {
+  const { image, format } = imageBody(body, FORM_LOGO_MAX_BYTES, 'El logo debe ser una imagen JPEG, PNG o WebP de hasta 512 KiB');
+  await withModuleAccess(pool, { subject: request.subject, workspaceId: request.workspaceId, moduleCode: 'labs', actionClass: 'new_operation' }, async (access) => {
+    await requires(FORM_MANAGE)(access);
+    const [current] = await lockForm.run({ workspaceId: access.workspace.id, formId }, access.client);
+    requireEditable(current);
+  });
+  return { url: await files.put(`${logoFolder(request.workspaceId)}${randomUUID()}.${format.extension}`, image, format.type) };
+}
+
 /** Publica la revisión siguiente a la que la persona vio, con el formato bloqueado; si ya no es la última, VERSION_CONFLICT. */
-export function publishForm(pool: pg.Pool, request: CommandRequest, formId: string, input: z.infer<typeof publishFormRequest>): Promise<LabsForm> {
+export function publishForm(pool: pg.Pool, files: PublicFiles, request: CommandRequest, formId: string, input: z.infer<typeof publishFormRequest>): Promise<LabsForm> {
   return runCommand(pool, request, 'labs.form.publish', { formId, ...input }, requires(FORM_MANAGE), async (access) => {
     const workspaceId = access.workspace.id;
+    // El logo es uno subido para este espacio: la hoja no apunta a imágenes de afuera.
+    const logo = input.layout.header.logoUrl;
+    if (logo !== null && !logo.startsWith(files.urlFor(logoFolder(workspaceId)))) throw new AppError('VALIDATION_FAILED', 'Sube el logo desde el formato');
     const [current] = await lockForm.run({ workspaceId, formId }, access.client);
     requireEditable(current);
     const [last] = await lastRevision.run({ workspaceId, formId }, access.client);

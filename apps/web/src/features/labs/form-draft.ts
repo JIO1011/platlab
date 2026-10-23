@@ -4,6 +4,7 @@ import {
   FORM_STANDARD_LAYOUT,
   formResourceKind,
   type FormField,
+  type FormHeader,
   type FormFreeField,
   type FormLayout,
   type FormRow,
@@ -69,6 +70,8 @@ export interface DraftSignature {
 /** Lo que se edita del formato, sobre la revisión (`baseRevision`) en que se empezó: es la que el servidor compara. */
 export interface Draft {
   baseRevision: number;
+  /** Logo y líneas del membrete. */
+  header: FormHeader;
   /** El membrete: título del formato y código del documento (vacío si no lleva). */
   title: string;
   documentCode: string;
@@ -105,12 +108,13 @@ function draftField(field: FormField): DraftField {
   return { kind: 'free', id: field.key, key: field.key, label: field.label, type: field.type, required: field.required, options: field.type === 'list' ? field.options.join('\n') : '' };
 }
 
-/** El borrador de una revisión: las filas conservan su orden y las columnas ocultas se agregan al final con su nombre de siempre. */
-export function draftFrom(form: LabsForm): Draft {
+/** El borrador de una revisión (de un formato o de la que lleva una solicitud): las filas conservan su orden y las columnas ocultas se agregan al final con su nombre de siempre. */
+export function draftFrom(form: Pick<LabsForm, 'revision' | 'title' | 'documentCode' | 'layout'>): Draft {
   const { layout } = form;
   const hidden = formResourceKind.options.filter((kind) => !layout.resources.some((resource) => resource.kind === kind));
   return {
     baseRevision: form.revision,
+    header: layout.header,
     title: form.title,
     documentCode: form.documentCode ?? '',
     rows: layout.rows.map((row, at): DraftRow =>
@@ -154,6 +158,7 @@ export function publishPayload(draft: Draft) {
     documentCode: draft.documentCode.trim() === '' ? null : draft.documentCode,
     expectedRevision: draft.baseRevision,
     layout: {
+      header: { logoUrl: draft.header.logoUrl, lines: draft.header.lines.map((line) => line.trim()).filter((line) => line !== '') },
       rows,
       resources: draft.resources.filter((resource) => resource.shown).map(({ kind, label }) => ({ kind, label })),
       equipmentCode: draft.equipmentCode,

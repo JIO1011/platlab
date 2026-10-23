@@ -683,4 +683,73 @@ insert into labs.form_revisions
      "notes": true,
      "signatures": [{"label": "Técnico responsable", "requester": false}, {"label": "Cliente", "requester": true}]}',
    'da200000-0000-4000-8000-000000000001');
+-- Solicitudes (L-01b): Diego Docente pide con «Práctica académica». Una enviada a tiempo, otra fuera de plazo
+-- y con un reactivo que no alcanza, una con cambios pedidos y un borrador.
+insert into labs.list_values (id, workspace_id, kind, name, created_by_principal_id) values
+  ('dae00000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'subject', 'Química General',
+   'da200000-0000-4000-8000-000000000004'),
+  ('dae00000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 'subject', 'Química Analítica',
+   'da200000-0000-4000-8000-000000000004'),
+  ('dae00000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 'career', 'Bioquímica',
+   'da200000-0000-4000-8000-000000000004'),
+  ('dae00000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 'career', 'Ingeniería Química',
+   'da200000-0000-4000-8000-000000000004');
+
+insert into labs.request_counters (workspace_id, last_number) values ('da000000-0000-4000-8000-00000000000a', 4);
+
+-- Entran como borrador, con sus recursos, y después pasan a su estado: enviada, los recursos ya no cambian.
+insert into labs.requests (id, workspace_id, number, form_id, form_revision, requester_principal_id, status, title,
+  teacher_name, activity_type, subject_id, career_id, dates, starts_at, ends_at, participants, groups, area_id, answers,
+  late, submitted_at) values
+  ('daf00000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 1,
+   'dad00000-0000-4000-8000-000000000001', 1, 'da200000-0000-4000-8000-000000000004', 'draft',
+   'Titulación ácido-base', 'Diego Docente', 'practice', 'dae00000-0000-4000-8000-000000000001',
+   'dae00000-0000-4000-8000-000000000003', array[current_date + 20, current_date + 27], '08:00', '10:00', 24, 6,
+   'da300000-0000-4000-8000-000000000003', '{"practica_n": 3, "requiere_epp": true}', false, now() - interval '2 days'),
+  ('daf00000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 2,
+   'dad00000-0000-4000-8000-000000000001', 1, 'da200000-0000-4000-8000-000000000004', 'draft',
+   'Preparación de soluciones', 'Diego Docente', 'practice', 'dae00000-0000-4000-8000-000000000002',
+   'dae00000-0000-4000-8000-000000000004', array[current_date + 3], '14:00', '16:00', 18, 3,
+   null, '{"curso_paralelo": "3-A"}', true, now() - interval '3 hours'),
+  ('daf00000-0000-4000-8000-000000000003', 'da000000-0000-4000-8000-00000000000a', 3,
+   'dad00000-0000-4000-8000-000000000001', 1, 'da200000-0000-4000-8000-000000000004', 'draft',
+   'Cinética química', 'Diego Docente', 'practice', 'dae00000-0000-4000-8000-000000000001',
+   'dae00000-0000-4000-8000-000000000003', array[current_date + 25], '10:00', '12:00', 30, 5,
+   null, '{}', false, now() - interval '1 day');
+insert into labs.requests (id, workspace_id, number, form_id, form_revision, requester_principal_id, title, teacher_name)
+values ('daf00000-0000-4000-8000-000000000004', 'da000000-0000-4000-8000-00000000000a', 4,
+  'dad00000-0000-4000-8000-000000000001', 1, 'da200000-0000-4000-8000-000000000004', 'Espectrofotometría UV-Vis',
+  'Diego Docente');
+
+insert into labs.request_lines (workspace_id, request_id, line, kind, item_id, asset_type_id, description, quantity,
+  per_group, unit) values
+  ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000001', 1, 'reagent',
+   'da600000-0000-4000-8000-000000000003', null, null, 30, null, 'g'),
+  ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000001', 2, 'equipment', null,
+   'da910000-0000-4000-8000-000000000002', null, 6, 1, null),
+  ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000001', 3, 'material', null, null,
+   'Bureta de 50 mL', 6, 1, null),
+  ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000002', 1, 'reagent',
+   'da600000-0000-4000-8000-000000000002', null, null, 5000, null, 'mL'),
+  ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000002', 2, 'reagent', null, null,
+   'Fenolftaleína 1 %', 50, null, 'mL'),
+  ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000003', 1, 'equipment', null,
+   'da910000-0000-4000-8000-000000000003', null, 5, 1, null);
+
+update labs.requests as q set status = v.status
+from (values ('daf00000-0000-4000-8000-000000000001'::uuid, 'submitted'), ('daf00000-0000-4000-8000-000000000002'::uuid, 'submitted'),
+             ('daf00000-0000-4000-8000-000000000003'::uuid, 'changes_requested')) as v (id, status)
+where q.id = v.id;
+
+insert into labs.request_events (workspace_id, request_id, action, reason, principal_id, created_at) values
+  ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000001', 'submitted', null,
+   'da200000-0000-4000-8000-000000000004', now() - interval '2 days'),
+  ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000002', 'submitted', null,
+   'da200000-0000-4000-8000-000000000004', now() - interval '3 hours'),
+  ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000003', 'submitted', null,
+   'da200000-0000-4000-8000-000000000004', now() - interval '1 day'),
+  ('da000000-0000-4000-8000-00000000000a', 'daf00000-0000-4000-8000-000000000003', 'changes_requested',
+   'Indica el área: el Laboratorio de Física no tiene campana', 'da200000-0000-4000-8000-000000000001',
+   now() - interval '20 hours');
+
 commit;

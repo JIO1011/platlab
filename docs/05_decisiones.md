@@ -888,6 +888,26 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
     - **Períodos y sigla** (decisión del usuario, 21-10-2026). El período solo identifica la actividad en el código, y fuera de todo período no se agenda.
       - Los períodos son de Laboratorios y se editan junto a la anticipación: un código corto («P1») y sus fechas, sin solaparse; se archivan, no se borran.
       - La sigla (2 a 5 letras, única en el espacio) se guarda con el aforo del área, en `labs.spaces`, y se edita en su panel «Laboratorio» de Áreas. Se sugiere desde el nombre («Anatomía» → ANT) y el Administrador la cambia. No toca el Núcleo: solo Laboratorios la usa.
+    - **Reglas de L-01b** (decisión del usuario, 21-10-2026).
+      - Solicitan el Docente y el Estudiante (tesista) desde el inicio; cada uno ve solo sus solicitudes.
+      - El solicitante cancela una solicitud aprobada hasta el día anterior; después solo la cancela el laboratorio (Administrador u Operador).
+      - Los materiales que se entregan y se devuelven se piden como texto libre con cantidad; sin inventario ni devolución controlada hasta un Materiales mínimo.
+      - El tesista llena su propio formato (por ejemplo «Tesis», con «Docente» renombrado a «Tutor»): el dato esencial es un texto que, para el Docente, se llena con su nombre. El solicitante sale siempre de la sesión.
+      - El Operador consulta las solicitudes recibidas; pedir cambios y rechazar son del Administrador.
+      - Los equipos se piden solo por tipo; un caso especial va en Observaciones.
+    - **Ajustes de L-01b** (decisión del usuario, 23-10-2026; reemplaza «quien administra también puede llenarla» y que logo y nombre lleguen del espacio de trabajo).
+      - Piden solo el Docente y el tesista; la lista blanca es invitar con uno de esos roles. Propietario, Administrador y Operador revisan, no piden.
+      - Se llena sobre la hoja: la misma plantilla P69 sirve para diseñar, llenar, revisar en Recibidas e imprimir llena; en el móvil, un dato por fila.
+      - **Membrete** por formato: un logo subido para el espacio de trabajo (JPEG, PNG o WebP de hasta 512 KiB) y hasta tres líneas; sin líneas, el nombre del espacio. Va en la hoja y cambia con cada revisión.
+      - En Formatos, mover filas, datos y columnas de forma visible y un candado en los datos que no se quitan.
+    - **Diseño de L-01b** (21-10-2026, sobre las reglas anteriores).
+      - Estados de esta entrega: borrador → enviada, más cambios solicitados, rechazada y cancelada. «Programada» llega con el Cronograma (L-01c). El solicitante edita en borrador y en cambios solicitados, y cancela mientras no esté programada.
+      - Número fijo `SOL-0042` desde el borrador, correlativo por espacio de trabajo y sin reutilizarse.
+      - Los datos del sistema se guardan en columnas (título, docente, tipo, asignatura, carrera, horario, participantes, grupos) para las métricas; los datos libres, en un `jsonb` que el servidor valida contra la revisión del formato al enviar. Asignatura y carrera son listas de Laboratorios que crecen al usarlas.
+      - Una o varias fechas sueltas con un mismo horario. Al enviar, toda fecha debe ser futura y estar dentro de un período activo («fuera de ellos no se agenda»); si la primera cae antes de la anticipación, entra «fuera de plazo» y no se bloquea. Horario del área, cierres y choques se validan al programar (L-01c).
+      - Recursos en una sola tabla de líneas: reactivo del catálogo en su unidad base o «no catalogado» con unidad; tipo de equipo o «no catalogado», con por grupo y total; material como texto con cantidad. Validar no reserva: ✔ si el stock usable de reactivos o los equipos operativos del tipo alcanzan, ⚠ si no, ✖ si no está catalogado o es material. Se calcula al leer, por la interfaz pública de Reactivos y Equipos, y solo si ese módulo admite consulta.
+      - Historial visible de la solicitud (enviada, cambios con motivo, reenviada, rechazada con motivo, cancelada), aparte de la auditoría.
+      - Bandeja del Administrador: lo excepcional primero (fuera de plazo y líneas con ⚠ o ✖), luego por la fecha más próxima.
   - **Métricas previstas:** horas de uso por área, solicitudes y participantes por carrera, asignatura y tipo, consumo de reactivos y uso de equipos por carrera y por práctica, pedidos fuera de plazo, rechazos y tiempo de respuesta.
 
 ## ADR 0024 — Áreas y departamentos en una sección propia
@@ -930,7 +950,7 @@ Estado: aceptada (20-10-2026; idea del usuario: cuadros que la app dibuja como u
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Equipos | ¿Qué campos de la ficha y qué documentos considera necesarios el cliente? ¿Qué valores de alimentación usa? ¿Quiere un aviso al pesar en Reactivos con una balanza de calibración vencida? ([ADR 0019](#adr-0019)) | F0, antes de E-01 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
-| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿El Estudiante (tesista) también solicita desde el inicio? ¿Cancelaciones con qué plazo? ¿El responsable del bloque es siempre un técnico (Operador)? ¿Devoluciones químicas y quién declara el consumo al cerrar? | P-04, antes de L-01b (lo del cierre, antes de L-01e) |
+| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿El responsable del bloque es siempre un técnico (Operador)? ¿Devoluciones químicas y quién declara el consumo al cerrar? (Solicitantes, cancelación y materiales, decididos el 21-10-2026) | P-04, antes de L-01c (lo del cierre, antes de L-01e) |
 | Inicio | Propuesta del 20-10-2026 en espera: el usuario tiene otras ideas. «Por atender» de todos los módulos (rojo antes que ámbar, con su enlace filtrado), tres tarjetas por fila con gráfico solo si hay datos (Equipos hoy dice siempre «Sin cambios»), «Por atender» primero en el móvil y avisos declarados por cada módulo en su `module.tsx` | Al terminar los módulos, con las ideas del usuario |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
