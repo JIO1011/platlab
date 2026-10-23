@@ -1,6 +1,6 @@
 import { scheduleCheck, type Activity, type Closure, type RequestSummary, type Space } from '@platlab/contracts';
 import { Skeleton, StatePanel, toast } from '@platlab/ui';
-import { CalendarOff, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { todayInZone } from '../../app/format';
@@ -13,7 +13,7 @@ import { ActivitySheet } from './schedule-block-sheet';
 import type { BlockOpening } from './schedule-block';
 import { ScheduleDayBar } from './schedule-day-bar';
 import { ScheduleDnd, type DragPreview, type DragSource } from './schedule-dnd';
-import { activitiesOn, areasOfDay, dayRange, holidayOn, loadByDay, parseDay, periodOn, toMinutes, weekDates } from './schedule-grid';
+import { activitiesOn, areasOfDay, boardRange, holidayOn, loadByDay, parseDay, periodOn, toMinutes, weekDates } from './schedule-grid';
 import { ScheduleList } from './schedule-list';
 import { contextFor, endFor, pendingDates, slotAt, toScheduleOrder } from './schedule-placement';
 import { PlacementSheet, type PlacementTarget } from './schedule-placement-sheet';
@@ -23,13 +23,12 @@ import { ScheduleTray, type TrayActions } from './schedule-tray';
 /** La tabla de horas desde 1024 px; por debajo, una lista por área (ADR 0023). */
 const wideQuery = '(min-width: 1024px)';
 
-/** El día en la tabla o en la lista, o por qué no hay nada que mostrar: ninguna área habilitada o ninguna que abra ese día. */
+/** El día en la tabla o en la lista, o por qué no hay nada que mostrar: ninguna área habilitada. */
 function DayBoard({
   date,
   areas,
   dayItems,
   closures,
-  holiday,
   opening,
   wide,
   canSchedule,
@@ -38,12 +37,10 @@ function DayBoard({
   areas: readonly Space[];
   dayItems: readonly Activity[];
   closures: readonly Closure[];
-  holiday: Closure | null;
   opening: BlockOpening;
   wide: boolean;
   canSchedule: boolean;
 }) {
-  const range = dayRange(areas, dayItems, date);
   if (areas.length === 0) {
     return (
       <div className="rounded-card bg-surface shadow-raised">
@@ -51,15 +48,8 @@ function DayBoard({
       </div>
     );
   }
-  if (!range) {
-    return (
-      <div className="rounded-card bg-surface shadow-raised">
-        <StatePanel icon={CalendarOff} title="Sin atención este día" description={holiday ? `Feriado: ${holiday.reason}.` : 'Ninguna área abre este día según su horario semanal.'} />
-      </div>
-    );
-  }
   return wide ? (
-    <ScheduleTable areas={areas} date={date} range={range} dayItems={dayItems} closures={closures} opening={opening} canSchedule={canSchedule} />
+    <ScheduleTable areas={areas} date={date} range={boardRange(dayItems)} dayItems={dayItems} closures={closures} opening={opening} canSchedule={canSchedule} />
   ) : (
     <ScheduleList areas={areas} date={date} dayItems={dayItems} closures={closures} opening={opening} />
   );
@@ -73,11 +63,12 @@ interface PlacementOpen {
 }
 
 /**
- * Cronograma (ADR 0023, L-01c): la tabla de horas por áreas de un día y la bandeja «Por programar». La ven todos los que
- * consultan Laboratorios; el día vive en la URL (`?dia=`), con «Hoy» por omisión. Un clic en un bloque abre su solicitud
- * para quien puede verla (el Operador, en Recibidas; el Docente, la suya) o su panel. El Administrador
- * (`labs.schedule.manage`) programa arrastrando una fecha de la bandeja a un área y una hora, o con «Programar…», y
- * mueve un bloque el mismo día arrastrándolo o con «Mover…»; el Operador ve la bandeja sin acciones y el Docente, sin bandeja.
+ * Cronograma (ADR 0023, L-01c; vista decidida el 24-10-2026): la tabla del día a todo el ancho, con las áreas como
+ * columnas y las horas como filas, y «Por programar» debajo. La ven todos los que consultan Laboratorios; el día vive en
+ * la URL (`?dia=`), con «Hoy» por omisión. Un clic en un bloque abre su solicitud llena para quien puede verla (quien
+ * recibe, en Recibidas; el Docente, la suya) o, si no, su panel de solo lectura. El Administrador (`labs.schedule.manage`)
+ * programa arrastrando una solicitud de «Por programar» a un área y una hora, o con «Programar…», y mueve un bloque el
+ * mismo día arrastrándolo o con «Mover…»; el Operador ve «Por programar» sin acciones y el Docente, sin esa franja.
  */
 export function LabsSchedulePage() {
   const { workspaceId, me, canSchedule } = useLabs();
@@ -106,9 +97,10 @@ export function LabsSchedulePage() {
   const [sheet, setSheet] = useState<{ activity: Activity; open: boolean } | null>(null);
   const [placement, setPlacement] = useState<PlacementOpen | null>(null);
   const opening: BlockOpening = {
-    // Quien programa abre el panel del bloque (con «Mover…» y el enlace a la solicitud); el Operador, la solicitud.
-    linkOf: (activity) => (canSchedule ? null : canReceive ? requestHref(activity.requestId) : mineIds.has(activity.requestId) ? `${base}/solicitudes/${activity.requestId}` : null),
+    // Quien recibe abre la solicitud en Recibidas; el Docente, la suya; el bloque ajeno abre su panel de solo lectura.
+    linkOf: (activity) => (canReceive ? requestHref(activity.requestId) : mineIds.has(activity.requestId) ? `${base}/solicitudes/${activity.requestId}` : null),
     onInspect: (activity) => setSheet({ activity, open: true }),
+    onMove: canSchedule ? (activity) => openPlacement({ kind: 'move', activity, areaId: activity.areaId, start: toMinutes(activity.startsAt) }) : undefined,
   };
 
   const dayItems = schedule.data ? activitiesOn(schedule.data.items, date) : [];
@@ -163,32 +155,30 @@ export function LabsSchedulePage() {
     <>
       <SectionHeader title="Cronograma" updatedAt={Math.min(...queries.map((query) => query.dataUpdatedAt))} />
       <ScheduleDnd previewOf={previewOf} onDrop={dropped}>
-        <div className={canReceive ? 'mt-6 grid gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start' : 'mt-6 grid gap-5 sm:gap-6'}>
-          <div className="grid min-w-0 gap-5 sm:gap-6">
-            <ScheduleDayBar
-              date={date}
-              today={today}
-              load={schedule.data ? loadByDay(schedule.data.items, week) : null}
-              period={periods.data ? periodOn(periods.data.items, date) : undefined}
-              holiday={closures.data ? holidayOn(dayClosures, date) : null}
-              onPick={goTo}
-            />
-            {failed ? (
-              <div className="rounded-card bg-surface shadow-raised">
-                <QueryErrorState error={failed.error} onRetry={() => queries.forEach((query) => void query.refetch())} />
-              </div>
-            ) : queries.some((query) => query.isPending) ? (
-              <div role="status" aria-busy="true" aria-label="Cargando">
-                <Skeleton className="h-96 rounded-card" />
-              </div>
-            ) : (
-              <DayBoard date={date} areas={areas} dayItems={dayItems} closures={dayClosures} holiday={holidayOn(dayClosures, date)} opening={opening} wide={wide} canSchedule={canSchedule && wide} />
-            )}
-          </div>
+        <div className="mt-4 grid gap-4">
+          <ScheduleDayBar
+            date={date}
+            today={today}
+            load={schedule.data ? loadByDay(schedule.data.items, week) : null}
+            period={periods.data ? periodOn(periods.data.items, date) : undefined}
+            holiday={closures.data ? holidayOn(dayClosures, date) : null}
+            onPick={goTo}
+          />
+          {failed ? (
+            <div className="rounded-card bg-surface shadow-raised">
+              <QueryErrorState error={failed.error} onRetry={() => queries.forEach((query) => void query.refetch())} />
+            </div>
+          ) : queries.some((query) => query.isPending) ? (
+            <div role="status" aria-busy="true" aria-label="Cargando">
+              <Skeleton className="h-96 rounded-card" />
+            </div>
+          ) : (
+            <DayBoard date={date} areas={areas} dayItems={dayItems} closures={dayClosures} opening={opening} wide={wide} canSchedule={canSchedule && wide} />
+          )}
           {canReceive ? (
             inbox.isPending ? (
-              <div role="status" aria-busy="true" aria-label="Cargando la bandeja">
-                <Skeleton className="h-64 rounded-card" />
+              <div role="status" aria-busy="true" aria-label="Cargando «Por programar»">
+                <Skeleton className="h-40 rounded-card" />
               </div>
             ) : (
               <ScheduleTray items={toScheduleOrder(inbox.data?.items ?? [])} pendingError={inbox.isError} onRetry={() => void inbox.refetch()} actions={tray} />
@@ -203,15 +193,6 @@ export function LabsSchedulePage() {
           space={spaces.data?.items.find((space) => space.areaId === sheet.activity.areaId)}
           open={sheet.open}
           onOpenChange={(open) => setSheet({ ...sheet, open })}
-          onMove={
-            canSchedule
-              ? () => {
-                  setSheet({ ...sheet, open: false });
-                  openPlacement({ kind: 'move', activity: sheet.activity, areaId: sheet.activity.areaId, start: toMinutes(sheet.activity.startsAt) });
-                }
-              : undefined
-          }
-          requestHref={canReceive ? requestHref(sheet.activity.requestId) : undefined}
         />
       ) : null}
       {placement && responsibles.data ? (

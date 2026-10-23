@@ -124,20 +124,22 @@ export function closedAllDay(space: Space, date: string, closures: readonly Clos
   return openSlots(space, date).length === 0 ? dayClosedText : null;
 }
 
+/** Lo que dura cada fila de la tabla: media hora. */
+export const ROW_MINUTES = 30;
+
+/** Las filas fijas de la tabla: de 07:00 a 19:00, como la planilla que se usa. */
+const BOARD_START = 7 * 60;
+const BOARD_END = 19 * 60;
+
 /**
- * Lo que se ve del día: de la primera hora entera en que abre alguna área a la última en que cierra, ampliado a la
- * hora de cualquier bloque que quedó fuera (por ejemplo, tras cambiar el horario). Nulo si ninguna área abre ni hay bloques.
+ * Lo que se ve de un día: siempre de 07:00 a 19:00, ampliado a la media hora de cualquier bloque que quedó fuera (por
+ * ejemplo, tras cambiar el horario de un área), para que ningún bloque se esconda.
  */
-export function dayRange(areas: readonly Space[], dayItems: readonly Activity[], date: string): DayRange | null {
-  const spans: Span[] = [
-    ...areas.flatMap((space) => openSlots(space, date)),
-    ...dayItems.map((item) => ({ from: toMinutes(item.startsAt), to: toMinutes(item.endsAt) })),
-  ];
-  if (spans.length === 0) return null;
-  return {
-    start: Math.floor(Math.min(...spans.map((span) => span.from)) / 60) * 60,
-    end: Math.ceil(Math.max(...spans.map((span) => span.to)) / 60) * 60,
-  };
+export function boardRange(dayItems: readonly Pick<Activity, 'startsAt' | 'endsAt'>[]): DayRange {
+  const spans = dayItems.map(blockSpan);
+  const earliest = Math.min(BOARD_START, ...spans.map((span) => Math.floor(span.from / ROW_MINUTES) * ROW_MINUTES));
+  const latest = Math.max(BOARD_END, ...spans.map((span) => Math.ceil(span.to / ROW_MINUTES) * ROW_MINUTES));
+  return { start: earliest, end: latest };
 }
 
 /** Lo cerrado del área dentro del rango del día: todo el rango si hay cierre o feriado, o lo que su horario deja fuera. */
@@ -171,31 +173,43 @@ export function blockSpan(block: Pick<Activity, 'startsAt' | 'endsAt'>): Span {
   return { from: toMinutes(block.startsAt), to: toMinutes(block.endsAt) };
 }
 
-/** Las horas enteras del rango, de la primera a la última (ambas incluidas): las líneas y rótulos del eje. */
-export function hourMarks(range: DayRange): number[] {
-  return Array.from({ length: (range.end - range.start) / 60 + 1 }, (_, index) => range.start + index * 60);
+/** El inicio de cada fila (media hora) del rango: las filas y los rótulos del eje. */
+export function rowStarts(range: DayRange): number[] {
+  return Array.from({ length: (range.end - range.start) / ROW_MINUTES }, (_, index) => range.start + index * ROW_MINUTES);
 }
 
 // ---------------------------------------------------------------------------
 // Texto de un bloque
 // ---------------------------------------------------------------------------
 
-/** Las partes de «Actividad · Solicitante · Grupo»; sin grupo, solo las dos primeras. */
-export function activityParts(block: Pick<Activity, 'title' | 'requesterName' | 'group'>): string[] {
-  return [block.title, block.requesterName, block.group].filter((part): part is string => Boolean(part));
+/**
+ * Lo que dice un bloque: «Materia - Carrera - Docente». Sin materia, el título de la solicitud; sin carrera, se omite.
+ * Sirve igual a un bloque de la tabla y a una solicitud por programar.
+ */
+export function blockText(block: Pick<Activity, 'title' | 'subject' | 'group' | 'requesterName'>): string {
+  return [block.subject || block.title, block.group, block.requesterName].filter(Boolean).join(' - ');
 }
 
-/** «Actividad · Solicitante · Grupo» en una línea. */
-export function activityLine(block: Pick<Activity, 'title' | 'requesterName' | 'group'>): string {
-  return activityParts(block).join(' · ');
-}
-
-/** Lo que un lector de pantalla oye de un bloque: su línea, hora, código y responsable. */
-export function activityLabel(block: Activity): string {
-  return `${activityLine(block)}, de ${block.startsAt} a ${block.endsAt}, ${block.code}, responsable ${block.responsibleName}`;
+/** «Supera el aforo (30 / 24)»: el aviso de aforo, que solo avisa. */
+export function capacityWarning(participants: number, capacity: number): string {
+  return `Supera el aforo (${participants} / ${capacity})`;
 }
 
 /** El aforo se supera (solo avisa): «⚠ 30 / 24». */
 export function overCapacity(block: Pick<Activity, 'participants'>, space: Pick<Space, 'capacity'>): boolean {
   return block.participants > space.capacity;
+}
+
+/** Lo que un bloque guarda para el nombre accesible y el tooltip: hora, código, responsable y, si procede, el aforo. */
+export function activityDetails(block: Activity, space?: Pick<Space, 'capacity'>): string[] {
+  return [
+    `${block.startsAt}–${block.endsAt} · ${block.code}`,
+    `Responsable: ${block.responsibleName}`,
+    ...(space && overCapacity(block, space) ? [capacityWarning(block.participants, space.capacity)] : []),
+  ];
+}
+
+/** Lo que un lector de pantalla oye de un bloque: su texto, hora, código, responsable y aforo si se supera. */
+export function activityLabel(block: Activity, space?: Pick<Space, 'capacity'>): string {
+  return [blockText(block), ...activityDetails(block, space)].join(', ');
 }

@@ -12,6 +12,7 @@ import {
   pendingDates,
   previewText,
   progressText,
+  requestBlockText,
   scheduledMessage,
   slotAt,
   snapTo,
@@ -52,6 +53,7 @@ const activity = (overrides: Partial<Activity> = {}): Activity => ({
   requestCode: 'SOL-0001',
   title: 'Titulación',
   requesterName: 'Ana Pérez',
+  subject: null,
   group: null,
   participants: 20,
   date: '2026-10-28',
@@ -83,6 +85,7 @@ const summary = (overrides: Partial<RequestSummary> = {}): RequestSummary => ({
   startsAt: '08:00',
   endsAt: '10:00',
   participants: 20,
+  subject: null,
   group: null,
   submittedAt: '2026-10-20T10:00:00Z',
   version: 1,
@@ -176,6 +179,12 @@ describe('bandeja Por programar', () => {
     expect(pendingDates(summary({ dates: ['2026-10-30', '2026-10-28'], scheduledDates: ['2026-10-28'] }))).toEqual(['2026-10-30']);
     expect(pendingDates(summary({ dates: ['2026-10-28'], scheduledDates: ['2026-10-28'] }))).toEqual([]);
     expect(pendingDates(summary({ dates: ['2026-10-30', '2026-10-28'] }))).toEqual(['2026-10-28', '2026-10-30']);
+  });
+
+  it('cada solicitud dice «Materia - Carrera - Docente» como lo dirá su bloque', () => {
+    expect(requestBlockText(summary({ subject: 'Histología', group: 'Odontología' }))).toBe('Histología - Odontología - Ana Pérez');
+    expect(requestBlockText(summary())).toBe('Titulación - Ana Pérez');
+    expect(requestBlockText(summary({ title: null }))).toBe('SOL-0001 - Ana Pérez');
   });
 
   it('solo cuentan las enviadas con fechas sin bloque', () => {

@@ -1,8 +1,7 @@
 import type { Activity, Closure, Space } from '@platlab/contracts';
-import { cn } from '@platlab/ui';
 import { useId } from 'react';
 import { CodeTag } from '../../app/code-tag';
-import { BlockBody, BlockTarget, type BlockOpening } from './schedule-block';
+import { ScheduleBlock, type BlockOpening } from './schedule-block';
 import { activitiesOfArea, closedAllDay, openSlots, timeText } from './schedule-grid';
 
 /** Un área del día: su nombre, aforo y horario, lo que la cierra si es el caso, y sus bloques por hora. */
@@ -30,17 +29,12 @@ function AreaCard({ space, date, dayItems, closures, opening }: { space: Space; 
       {blocks.length > 0 ? (
         <ul className="mt-3 grid gap-2">
           {blocks.map((activity) => (
-            <li key={activity.id}>
-              <BlockTarget
-                activity={activity}
-                opening={opening}
-                className={cn(
-                  'block min-h-11 w-full rounded-control border border-action/25 border-l-4 border-l-action bg-action-soft px-3 py-2.5 text-left transition-colors',
-                  'hover:border-action/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action',
-                )}
-              >
-                <BlockBody activity={activity} space={space} />
-              </BlockTarget>
+            <li key={activity.id} className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-stretch gap-2">
+              <span aria-hidden className="pt-3 text-right text-[13px] font-medium tabular-nums text-ink">
+                {activity.startsAt}
+                <span className="block text-xs font-normal text-ink-muted">{activity.endsAt}</span>
+              </span>
+              <ScheduleBlock activity={activity} space={space} opening={opening} size="list" />
             </li>
           ))}
         </ul>
@@ -53,7 +47,7 @@ function AreaCard({ space, date, dayItems, closures, opening }: { space: Space; 
 
 /**
  * El día como una lista por área, para pantallas estrechas (ADR 0023): sin tabla horizontal, cada área con su aforo y
- * horario y sus bloques por hora. Lo mismo que dice la tabla, en el mismo orden.
+ * horario y sus bloques por hora, con la hora a la izquierda como en la tabla y el mismo «Materia - Carrera - Docente».
  */
 export function ScheduleList({ areas, date, dayItems, closures, opening }: { areas: readonly Space[]; date: string; dayItems: readonly Activity[]; closures: readonly Closure[]; opening: BlockOpening }) {
   return (

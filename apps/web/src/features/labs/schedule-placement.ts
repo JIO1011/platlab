@@ -9,7 +9,7 @@ import {
   type ScheduleSlot,
   type Space,
 } from '@platlab/contracts';
-import { timeText, toMinutes, type DayRange } from './schedule-grid';
+import { blockText, capacityWarning, timeText, toMinutes, type DayRange } from './schedule-grid';
 
 /**
  * La lógica pura de programar y mover bloques (ADR 0023, L-01c): de la posición del puntero a una hora, el contexto de
@@ -93,12 +93,17 @@ export function blockingTexts(check: ScheduleCheck): string[] {
 
 /** «Supera el aforo (30 / 24)» si hay aviso de aforo; nulo si no. */
 export function capacityText(check: ScheduleCheck, participants: number, capacity: number): string | null {
-  return check.warnings.includes('capacity') ? `Supera el aforo (${participants} / ${capacity})` : null;
+  return check.warnings.includes('capacity') ? capacityWarning(participants, capacity) : null;
 }
 
 /** Lo que se dice de un lugar mientras se arrastra: «Libre», o el primer motivo que lo impide. */
 export function previewText(check: ScheduleCheck): string {
   return check.blocking.length > 0 ? blockingTexts(check)[0]! : 'Libre';
+}
+
+/** «Materia - Carrera - Docente» de una solicitud por programar: el mismo texto que tendrá su bloque. */
+export function requestBlockText(request: Pick<RequestSummary, 'code' | 'title' | 'subject' | 'group' | 'requesterName'>): string {
+  return blockText({ ...request, title: request.title ?? request.code });
 }
 
 /** Las fechas de la solicitud que aún no tienen bloque, en orden. */
@@ -144,5 +149,5 @@ export function progressText({ scheduledCount, dateCount }: Pick<RequestSummary,
 /** Lo que se avisa tras programar o mover: «P1-S12-QUI01 programado» y, si procede, el aforo. */
 export function scheduledMessage(code: string, verb: 'programado' | 'movido', warnings: readonly string[], participants: number, capacity: number | undefined): { title: string; description?: string } {
   const title = `${code} ${verb}`;
-  return warnings.includes('capacity') && capacity !== undefined ? { title, description: `Supera el aforo (${participants} / ${capacity})` } : { title };
+  return warnings.includes('capacity') && capacity !== undefined ? { title, description: capacityWarning(participants, capacity) } : { title };
 }

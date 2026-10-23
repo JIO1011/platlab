@@ -2,16 +2,17 @@ import type { Activity, Closure, Period, Space, WeeklyHours } from '@platlab/con
 import { describe, expect, it } from 'vitest';
 import {
   activitiesOfArea,
+  activityDetails,
   activityLabel,
-  activityLine,
   areasOfDay,
   blockSpan,
+  blockText,
+  boardRange,
+  capacityWarning,
   closedAllDay,
   closedSpans,
   dayClosedText,
-  dayRange,
   holidayOn,
-  hourMarks,
   loadByDay,
   monthWeeks,
   openSlots,
@@ -19,6 +20,7 @@ import {
   parseDay,
   periodOn,
   placement,
+  rowStarts,
   shiftMonth,
   timeText,
   toMinutes,
@@ -48,6 +50,7 @@ const activity = (overrides: Partial<Activity> = {}): Activity => ({
   requestCode: 'SOL-0001',
   title: 'Titulación ácido-base',
   requesterName: 'Ana Pérez',
+  subject: null,
   group: 'Química',
   participants: 20,
   date: '2026-10-26',
@@ -141,24 +144,19 @@ describe('carga y áreas del día', () => {
 });
 
 describe('rango del día', () => {
-  it('va de la primera hora que abre alguna área a la última que cierra', () => {
-    const early = space({ weeklyHours: hours([{ opens: '07:30', closes: '12:00' }]) });
-    const late = space({ areaId: 'area-2', weeklyHours: hours([{ opens: '14:00', closes: '18:20' }]) });
-    expect(dayRange([early, late], [], '2026-10-26')).toEqual({ start: 420, end: 1140 });
+  it('es fijo, de 07:00 a 19:00, aunque no haya bloques', () => {
+    expect(boardRange([])).toEqual({ start: 420, end: 1140 });
+    expect(boardRange([activity()])).toEqual({ start: 420, end: 1140 });
   });
 
-  it('se amplía a un bloque que quedó fuera del horario', () => {
-    const dawn = activity({ startsAt: '05:30', endsAt: '06:30' });
-    expect(dayRange([space()], [dawn], '2026-10-26')).toEqual({ start: 300, end: 1080 });
+  it('se amplía a la media hora de un bloque que quedó fuera', () => {
+    expect(boardRange([activity({ startsAt: '05:45', endsAt: '06:30' })])).toEqual({ start: 330, end: 1140 });
+    expect(boardRange([activity({ startsAt: '18:00', endsAt: '19:20' })])).toEqual({ start: 420, end: 1170 });
   });
 
-  it('es nulo si ninguna área abre y no hay bloques', () => {
-    expect(dayRange([space()], [], '2026-10-31')).toBeNull();
-    expect(dayRange([], [], '2026-10-26')).toBeNull();
-  });
-
-  it('marca cada hora entera, de la primera a la última', () => {
-    expect(hourMarks({ start: 420, end: 600 })).toEqual([420, 480, 540, 600]);
+  it('tiene una fila por cada media hora', () => {
+    expect(rowStarts({ start: 420, end: 540 })).toEqual([420, 450, 480, 510]);
+    expect(rowStarts(boardRange([]))).toHaveLength(24);
   });
 });
 
@@ -218,17 +216,31 @@ describe('posiciones', () => {
 });
 
 describe('texto del bloque', () => {
-  it('dice «Actividad · Solicitante · Grupo» y omite el grupo que falta', () => {
-    expect(activityLine(activity())).toBe('Titulación ácido-base · Ana Pérez · Química');
-    expect(activityLine(activity({ group: null }))).toBe('Titulación ácido-base · Ana Pérez');
+  it('dice «Materia - Carrera - Docente»', () => {
+    expect(blockText(activity({ subject: 'Bioquímica General' }))).toBe('Bioquímica General - Química - Ana Pérez');
+  });
+
+  it('sin materia dice el título y sin carrera omite la carrera', () => {
+    expect(blockText(activity())).toBe('Titulación ácido-base - Química - Ana Pérez');
+    expect(blockText(activity({ subject: '', group: null }))).toBe('Titulación ácido-base - Ana Pérez');
+    expect(blockText(activity({ subject: 'Histología', group: null }))).toBe('Histología - Ana Pérez');
+  });
+
+  it('deja la hora, el código y el responsable para los detalles', () => {
+    expect(activityDetails(activity(), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora']);
+  });
+
+  it('suma el aforo a los detalles solo cuando se supera', () => {
+    expect(activityDetails(activity({ participants: 30 }), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora', 'Supera el aforo (30 / 24)']);
   });
 
   it('suma hora, código y responsable para el lector de pantalla', () => {
-    expect(activityLabel(activity())).toBe('Titulación ácido-base · Ana Pérez · Química, de 08:00 a 10:00, P1-S12-ANT01, responsable Luis Mora');
+    expect(activityLabel(activity({ subject: 'Bioquímica General' }), space())).toBe('Bioquímica General - Química - Ana Pérez, 08:00–10:00 · P1-S12-ANT01, Responsable: Luis Mora');
   });
 
   it('avisa del aforo solo cuando se supera', () => {
     expect(overCapacity(activity({ participants: 24 }), space())).toBe(false);
     expect(overCapacity(activity({ participants: 30 }), space())).toBe(true);
+    expect(capacityWarning(30, 24)).toBe('Supera el aforo (30 / 24)');
   });
 });
