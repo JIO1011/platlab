@@ -13,7 +13,7 @@ import {
   type DragMoveEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import type { Activity, LabsRequest, ScheduleCheck } from '@platlab/contracts';
+import type { Activity, RequestSummary, ScheduleCheck } from '@platlab/contracts';
 import { cn, toast } from '@platlab/ui';
 import { createContext, useContext, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { formatDate } from '../../app/format';
@@ -31,7 +31,7 @@ import { blockingTexts, startAtOffset } from './schedule-placement';
 
 /** Lo que se arrastra: una fecha por programar o un bloque que se mueve ese mismo día. */
 export type DragSource =
-  | { kind: 'program'; request: LabsRequest; date: string; duration: number }
+  | { kind: 'program'; request: RequestSummary; date: string; duration: number }
   | { kind: 'move'; activity: Activity; duration: number };
 
 /** Dónde caería lo que se arrastra y qué dice `scheduleCheck` de ese lugar. */

@@ -1,4 +1,4 @@
-import { scheduleActivityRequest, scheduleCheck, updateActivityRequest, type Activity, type LabsRequest, type Space } from '@platlab/contracts';
+import { scheduleActivityRequest, scheduleCheck, updateActivityRequest, type Activity, type RequestSummary, type Space } from '@platlab/contracts';
 import { Badge, Field, Input, Select, toast, type SelectOption } from '@platlab/ui';
 import { CalendarCheck, CalendarPlus } from 'lucide-react';
 import { useState } from 'react';
@@ -7,7 +7,7 @@ import { isApiError } from '../../app/api';
 import { FormSheet } from '../../app/form-sheet';
 import { formatFullDate } from '../../app/format';
 import { labsErrorMessage, useMoveActivity, useRefreshLabs, useRequestResolved, useScheduleActivity, useVersionConflict } from './commands';
-import { useClosures, usePeriods, useSchedule } from './queries';
+import { useClosures, usePeriods, useRequestDetail, useSchedule } from './queries';
 import { timeText, toMinutes, weekDates } from './schedule-grid';
 import { blockingTexts, capacityText, contextFor, durationOf, endFor, scheduledMessage } from './schedule-placement';
 
@@ -16,7 +16,7 @@ import { blockingTexts, capacityText, contextFor, durationOf, endFor, scheduledM
  * área y hora ya puestas, o desde «Programar…», con la hora pedida) o mover un bloque el mismo día.
  */
 export type PlacementTarget =
-  | { kind: 'program'; request: LabsRequest; pending: string[]; date: string; areaId: string | null; start: number | null }
+  | { kind: 'program'; request: RequestSummary; pending: string[]; date: string; areaId: string | null; start: number | null }
   | { kind: 'move'; activity: Activity; areaId: string; start: number };
 
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -35,7 +35,7 @@ export function PlacementSheet({
   today,
   spaces,
   responsibles,
-  meName,
+  meId,
   requestHref,
   onDone,
 }: {
@@ -47,8 +47,8 @@ export function PlacementSheet({
   /** Las áreas habilitadas (y, al mover, la que ya tiene el bloque). */
   spaces: readonly Space[];
   responsibles: ReadonlyArray<{ id: string; name: string }>;
-  /** Quien programa: si está entre los responsables, es el de por defecto. */
-  meName: string;
+  /** El principal de quien programa: si está entre los responsables, es el de por defecto. */
+  meId: string;
   /** Dónde está la solicitud del bloque en Recibidas (para pedir cambios de día). */
   requestHref: string;
   /** Tras confirmar el servidor: el día del bloque, para que la tabla lo muestre. */
@@ -61,11 +61,15 @@ export function PlacementSheet({
   const end0 = program && target.start === null && target.request.endsAt ? toMinutes(target.request.endsAt) : endFor(start0, duration);
 
   const [date, setDate] = useState(program ? target.date : target.activity.date);
-  const [areaId, setAreaId] = useState(target.areaId ?? '');
+  // El área que pidió el docente solo viene en el detalle de la solicitud: se pide únicamente la que está abierta.
+  const detail = useRequestDetail(workspaceId, program ? target.request.id : '', program);
+  const asked = program ? spaces.find((item) => item.areaId === detail.data?.areaId) : undefined;
+  const [areaChoice, setAreaChoice] = useState<string | null>(null);
+  const areaId = areaChoice ?? target.areaId ?? asked?.areaId ?? '';
   const [startsAt, setStartsAt] = useState(timeText(start0));
   const [endsAt, setEndsAt] = useState(timeText(end0));
   const [responsibleId, setResponsibleId] = useState(
-    program ? (responsibles.find((option) => option.name === meName)?.id ?? '') : target.activity.responsibleId,
+    program ? (responsibles.find((option) => option.id === meId)?.id ?? '') : target.activity.responsibleId,
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -147,7 +151,6 @@ export function PlacementSheet({
     }
   };
 
-  const asked = program && target.request.areaId ? spaces.find((item) => item.areaId === target.request.areaId) : undefined;
   const orderWrong = timePattern.test(startsAt) && timePattern.test(endsAt) && startsAt >= endsAt;
   const capacity = check && space ? capacityText(check, participants, space.capacity) : null;
 
@@ -181,7 +184,7 @@ export function PlacementSheet({
         </p>
       )}
       <Field label="Área" required hint={asked ? `El docente pidió ${asked.areaName}.` : undefined}>
-        <Select value={areaId} onValueChange={setAreaId} options={areaOptions} placeholder="Elige el área" triggerClassName="h-11 sm:h-10" />
+        <Select value={areaId} onValueChange={setAreaChoice} options={areaOptions} placeholder="Elige el área" triggerClassName="h-11 sm:h-10" />
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Inicio" required>

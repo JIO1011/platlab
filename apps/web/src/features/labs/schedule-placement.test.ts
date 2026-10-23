@@ -1,4 +1,4 @@
-import { scheduleCheck, type Activity, type Closure, type LabsRequest, type Period, type RequestSummary, type Space, type WeeklyHours } from '@platlab/contracts';
+import { scheduleCheck, type Activity, type Closure, type Period, type RequestSummary, type Space, type WeeklyHours } from '@platlab/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   blockingTexts,
@@ -78,6 +78,12 @@ const summary = (overrides: Partial<RequestSummary> = {}): RequestSummary => ({
   late: false,
   exceptions: 0,
   scheduledCount: 0,
+  dates: ['2026-10-28', '2026-10-30'],
+  scheduledDates: [],
+  startsAt: '08:00',
+  endsAt: '10:00',
+  participants: 20,
+  group: null,
   submittedAt: '2026-10-20T10:00:00Z',
   version: 1,
   ...overrides,
@@ -166,14 +172,10 @@ describe('contexto de scheduleCheck', () => {
 });
 
 describe('bandeja Por programar', () => {
-  const request = (dates: string[], blocks: string[]): Pick<LabsRequest, 'dates' | 'blocks'> => ({
-    dates,
-    blocks: blocks.map((date) => ({ date, code: 'P1-S5-ANT01', areaId: 'area-1', areaName: 'Anatomía', startsAt: '08:00', endsAt: '10:00', responsibleName: 'Luis Mora' })),
-  });
-
   it('las fechas pendientes son las que no tienen bloque', () => {
-    expect(pendingDates(request(['2026-10-30', '2026-10-28'], ['2026-10-28']))).toEqual(['2026-10-30']);
-    expect(pendingDates(request(['2026-10-28'], ['2026-10-28']))).toEqual([]);
+    expect(pendingDates(summary({ dates: ['2026-10-30', '2026-10-28'], scheduledDates: ['2026-10-28'] }))).toEqual(['2026-10-30']);
+    expect(pendingDates(summary({ dates: ['2026-10-28'], scheduledDates: ['2026-10-28'] }))).toEqual([]);
+    expect(pendingDates(summary({ dates: ['2026-10-30', '2026-10-28'] }))).toEqual(['2026-10-28', '2026-10-30']);
   });
 
   it('solo cuentan las enviadas con fechas sin bloque', () => {
@@ -185,13 +187,21 @@ describe('bandeja Por programar', () => {
 
   it('pone primero lo fuera de plazo, luego los recursos que faltan y la fecha más próxima', () => {
     const ordered = toScheduleOrder([
-      summary({ id: 'tarde-fecha', firstDate: '2026-11-10' }),
-      summary({ id: 'temprano', firstDate: '2026-10-26' }),
-      summary({ id: 'recursos', firstDate: '2026-11-20', exceptions: 2 }),
-      summary({ id: 'plazo', firstDate: '2026-12-01', late: true }),
+      summary({ id: 'tarde-fecha', dates: ['2026-11-10'] }),
+      summary({ id: 'temprano', dates: ['2026-10-26'] }),
+      summary({ id: 'recursos', dates: ['2026-11-20'], exceptions: 2 }),
+      summary({ id: 'plazo', dates: ['2026-12-01'], late: true }),
       summary({ id: 'programada', status: 'scheduled', scheduledCount: 2 }),
     ]);
     expect(ordered.map((item) => item.id)).toEqual(['plazo', 'recursos', 'temprano', 'tarde-fecha']);
+  });
+
+  it('a igual urgencia manda la primera fecha pendiente, no la primera pedida', () => {
+    const ordered = toScheduleOrder([
+      summary({ id: 'a', dates: ['2026-10-26', '2026-11-20'], scheduledDates: ['2026-10-26'], scheduledCount: 1 }),
+      summary({ id: 'b', dates: ['2026-11-02'] }),
+    ]);
+    expect(ordered.map((item) => item.id)).toEqual(['b', 'a']);
   });
 
   it('dice cuántas van: 1 de 2 programadas', () => {

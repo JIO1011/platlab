@@ -2,7 +2,6 @@ import {
   scheduleProblemText,
   type Activity,
   type Closure,
-  type LabsRequest,
   type Period,
   type RequestSummary,
   type ScheduleCheck,
@@ -40,7 +39,7 @@ export function startAtOffset({ offset, height, range, duration }: { offset: num
 }
 
 /** Cuántos minutos dura el horario pedido; nulo si la solicitud no lo trae completo. */
-export function durationOf(request: Pick<LabsRequest, 'startsAt' | 'endsAt'>): number | null {
+export function durationOf(request: Pick<RequestSummary, 'startsAt' | 'endsAt'>): number | null {
   if (!request.startsAt || !request.endsAt) return null;
   const minutes = toMinutes(request.endsAt) - toMinutes(request.startsAt);
   return minutes > 0 ? minutes : null;
@@ -103,8 +102,8 @@ export function previewText(check: ScheduleCheck): string {
 }
 
 /** Las fechas de la solicitud que aún no tienen bloque, en orden. */
-export function pendingDates(request: Pick<LabsRequest, 'dates' | 'blocks'>): string[] {
-  const scheduled = new Set(request.blocks.map((block) => block.date));
+export function pendingDates(request: Pick<RequestSummary, 'dates' | 'scheduledDates'>): string[] {
+  const scheduled = new Set(request.scheduledDates);
   return request.dates.filter((date) => !scheduled.has(date)).sort();
 }
 
@@ -115,14 +114,15 @@ export function isToSchedule(item: Pick<RequestSummary, 'status' | 'dateCount' |
 
 /**
  * La bandeja «Por programar», lo urgente primero: fuera de plazo, luego con recursos que faltan y, a igual urgencia, la
- * fecha más próxima. Conserva el orden del servidor entre iguales.
+ * primera fecha pendiente más próxima. Conserva el orden del servidor entre iguales.
  */
 export function toScheduleOrder(items: readonly RequestSummary[]): RequestSummary[] {
   const rank = (item: RequestSummary) => (item.late ? 0 : item.exceptions > 0 ? 1 : 2);
+  const nextDate = (item: RequestSummary) => pendingDates(item)[0] ?? '9999';
   return items
-    .map((item, index) => ({ item, index }))
-    .filter(({ item }) => isToSchedule(item))
-    .sort((a, b) => rank(a.item) - rank(b.item) || (a.item.firstDate ?? '9999').localeCompare(b.item.firstDate ?? '9999') || a.index - b.index)
+    .filter((item) => isToSchedule(item))
+    .map((item, index) => ({ item, index, next: nextDate(item) }))
+    .sort((a, b) => rank(a.item) - rank(b.item) || a.next.localeCompare(b.next) || a.index - b.index)
     .map(({ item }) => item);
 }
 

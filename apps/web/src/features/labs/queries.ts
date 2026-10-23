@@ -106,8 +106,8 @@ export function useRequest(workspaceId: string, requestId: string) {
 }
 
 /**
- * Una solicitud tal como la guarda el servidor, para la bandeja «Por programar»: sus fechas, su horario y sus bloques.
- * Comparte caché con `useRequest`, pero se vuelve a pedir sola: programar cambia sus bloques.
+ * Una solicitud tal como la guarda el servidor, para la hoja «Programar…»: el área que pidió el docente, que el resumen
+ * de las listas no trae. Solo se pide la solicitud abierta. Comparte caché con `useRequest`, pero se vuelve a pedir sola: programar cambia sus bloques.
  */
 export function useRequestDetail(workspaceId: string, requestId: string, enabled = true) {
   const user = useUserKey();

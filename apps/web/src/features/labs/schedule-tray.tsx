@@ -1,9 +1,8 @@
-import type { LabsRequest, RequestSummary } from '@platlab/contracts';
-import { Badge, Button, Skeleton, StatePanel, cn } from '@platlab/ui';
+import type { RequestSummary } from '@platlab/contracts';
+import { Badge, Button, StatePanel, cn } from '@platlab/ui';
 import { CalendarPlus, CircleCheck, ExternalLink, GripVertical } from 'lucide-react';
 import { useId } from 'react';
 import { Link } from 'react-router';
-import { useRequestDetail } from './queries';
 import { exceptionsText } from './request-summary';
 import { useSourceDrag, type DragSource } from './schedule-dnd';
 import { activityLine } from './schedule-grid';
@@ -18,17 +17,16 @@ export interface TrayActions {
   today: string;
   /** El día que muestra la tabla. */
   visible: string;
-  workspaceId: string;
   /** Dónde se abre una solicitud en Recibidas. */
   requestHref: (requestId: string) => string;
   /** Lleva la tabla a ese día. */
   onPickDate: (date: string) => void;
   /** Abre «Programar…» con esa fecha. */
-  onSchedule: (request: LabsRequest, date: string) => void;
+  onSchedule: (request: RequestSummary, date: string) => void;
 }
 
 /** Una fecha pendiente: un clic lleva la tabla a ese día y, con ese día a la vista, arrastrarla la lleva a un área y una hora. */
-function DateChip({ request, date, duration, actions }: { request: LabsRequest; date: string; duration: number | null; actions: TrayActions }) {
+function DateChip({ request, date, duration, actions }: { request: RequestSummary; date: string; duration: number | null; actions: TrayActions }) {
   const past = date <= actions.today;
   const selected = date === actions.visible;
   // Solo la fecha del día que se ve se arrastra: la tabla muestra ese día; las demás se eligen con un clic primero.
@@ -62,17 +60,15 @@ function DateChip({ request, date, duration, actions }: { request: LabsRequest; 
 
 /** Una solicitud por programar: «Actividad · Solicitante · Grupo», cuántas fechas van, sus fechas pendientes y «Programar…». */
 function TrayCard({ summary, actions }: { summary: RequestSummary; actions: TrayActions }) {
-  const detail = useRequestDetail(actions.workspaceId, summary.id);
-  const request = detail.data;
-  const pending = request ? pendingDates(request) : [];
-  const duration = request ? durationOf(request) : null;
+  const pending = pendingDates(summary);
+  const duration = durationOf(summary);
   const visibleIsPending = pending.includes(actions.visible);
   // La tarjeta entera sirve de asa cuando el día que se ve es una de sus fechas pendientes (no una fecha ya pasada).
-  const cardDraggable = Boolean(request) && actions.canSchedule && actions.canDrag && visibleIsPending && actions.visible > actions.today && duration !== null;
-  const cardSource: DragSource | null = request ? { kind: 'program', request, date: actions.visible, duration: duration ?? 0 } : null;
+  const cardDraggable = actions.canSchedule && actions.canDrag && visibleIsPending && actions.visible > actions.today && duration !== null;
+  const cardSource: DragSource = { kind: 'program', request: summary, date: actions.visible, duration: duration ?? 0 };
   const drag = useSourceDrag(`card:${summary.id}`, cardSource, !cardDraggable);
   const exceptions = exceptionsText(summary.exceptions);
-  const line = activityLine({ title: request?.title ?? summary.title ?? summary.code, requesterName: summary.requesterName, group: request?.career ?? null });
+  const line = activityLine({ title: summary.title ?? summary.code, requesterName: summary.requesterName, group: summary.group });
   return (
     <li className={cn('rounded-control border border-line bg-surface p-3', drag.isDragging && 'opacity-40')}>
       <div className="flex items-start gap-2">
@@ -100,32 +96,19 @@ function TrayCard({ summary, actions }: { summary: RequestSummary; actions: Tray
           {exceptions ? <Badge tone="warning">{exceptions}</Badge> : null}
         </p>
       ) : null}
-      {detail.isPending ? (
-        <Skeleton className="mt-3 h-8 rounded-full" />
-      ) : detail.isError || !request ? (
-        <p className="mt-3 text-[13px] text-ink-muted">
-          No se cargaron sus fechas.{' '}
-          <button type="button" onClick={() => void detail.refetch()} className="font-medium text-action underline-offset-2 hover:underline">
-            Reintentar
-          </button>
-        </p>
-      ) : (
-        <>
-          <ul aria-label="Fechas por programar" className="mt-3 flex flex-wrap gap-2">
-            {pending.map((date) => (
-              <li key={date}>
-                <DateChip request={request} date={date} duration={duration} actions={actions} />
-              </li>
-            ))}
-          </ul>
-          {actions.canSchedule && pending.length > 0 ? (
-            <Button size="sm" className="mt-3 h-11 sm:h-8" onClick={() => actions.onSchedule(request, defaultDate(pending, actions.visible, actions.today))}>
-              <CalendarPlus aria-hidden />
-              Programar…
-            </Button>
-          ) : null}
-        </>
-      )}
+      <ul aria-label="Fechas por programar" className="mt-3 flex flex-wrap gap-2">
+        {pending.map((date) => (
+          <li key={date}>
+            <DateChip request={summary} date={date} duration={duration} actions={actions} />
+          </li>
+        ))}
+      </ul>
+      {actions.canSchedule && pending.length > 0 ? (
+        <Button size="sm" className="mt-3 h-11 sm:h-8" onClick={() => actions.onSchedule(summary, defaultDate(pending, actions.visible, actions.today))}>
+          <CalendarPlus aria-hidden />
+          Programar…
+        </Button>
+      ) : null}
     </li>
   );
 }

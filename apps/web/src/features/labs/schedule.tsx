@@ -1,4 +1,4 @@
-import { scheduleCheck, type Activity, type Closure, type LabsRequest, type Space } from '@platlab/contracts';
+import { scheduleCheck, type Activity, type Closure, type RequestSummary, type Space } from '@platlab/contracts';
 import { Skeleton, StatePanel, toast } from '@platlab/ui';
 import { CalendarOff, MapPin } from 'lucide-react';
 import { useState } from 'react';
@@ -143,15 +143,14 @@ export function LabsSchedulePage() {
         ? { kind: 'move', activity: source.activity, areaId: preview.areaId, start: preview.start }
         : { kind: 'program', request: source.request, pending: pendingDates(source.request), date: source.date, areaId: preview.areaId, start: preview.start },
     );
-  const programFrom = (request: LabsRequest, day: string) =>
-    openPlacement({ kind: 'program', request, pending: pendingDates(request), date: day, areaId: areas.some((space) => space.areaId === request.areaId) ? request.areaId : null, start: null });
+  const programFrom = (request: RequestSummary, day: string) =>
+    openPlacement({ kind: 'program', request, pending: pendingDates(request), date: day, areaId: null, start: null });
 
   const tray: TrayActions = {
     canSchedule,
     canDrag: wide,
     today,
     visible: date,
-    workspaceId,
     requestHref,
     onPickDate: goTo,
     onSchedule: programFrom,
@@ -225,7 +224,7 @@ export function LabsSchedulePage() {
           today={today}
           spaces={placementSpaces(placement.target)}
           responsibles={responsibles.data.items}
-          meName={me.member.displayName}
+          meId={me.member.principalId}
           requestHref={requestHref(placement.target.kind === 'move' ? placement.target.activity.requestId : placement.target.request.id)}
           onDone={goTo}
         />
