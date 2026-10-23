@@ -151,19 +151,19 @@ export function valueText(field: DraftField, draft: RequestDraft, layout: FormLa
   if (field.kind === 'free') {
     const answer = draft.answers[fieldKey(field)] ?? '';
     if (field.type === 'boolean') return answer === '' ? '' : answer === 'true' ? 'Sí' : 'No';
-    return field.type === 'date' && answer !== '' ? formatDate(answer) : answer;
+    return field.type === 'date' && answer !== '' ? formatDate(answer) : answer.trim();
   }
   switch (field.key) {
     case 'titulo':
-      return draft.title;
+      return draft.title.trim();
     case 'docente':
-      return draft.teacherName;
+      return draft.teacherName.trim();
     case 'tipo':
       return draft.activityType ? activityLabels[draft.activityType] : '';
     case 'asignatura':
-      return draft.subject;
+      return draft.subject.trim();
     case 'carrera':
-      return draft.career;
+      return draft.career.trim();
     case 'fecha':
       return draft.dates.map(formatDate).join(', ');
     case 'horario':
