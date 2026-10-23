@@ -142,6 +142,7 @@ function toSummary(row: IListRequestsResult, lines: readonly RequestLine[]): Req
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     participants: row.participants,
+    subject: row.subject,
     group: row.career,
     submittedAt: row.submitted_at?.toISOString() ?? null,
     version: row.version,

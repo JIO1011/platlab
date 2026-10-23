@@ -51,6 +51,7 @@ const toActivity = (row: IListActivitiesResult): Activity => ({
   requestCode: requestCode(row.request_number),
   title: row.title,
   requesterName: row.requester_name,
+  subject: row.subject,
   group: row.group,
   participants: row.participants,
   date: row.date,

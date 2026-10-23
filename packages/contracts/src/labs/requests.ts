@@ -127,7 +127,8 @@ export const requestSummary = z.object({
   startsAt: z.string().nullable(),
   endsAt: z.string().nullable(),
   participants: z.number().int().nullable(),
-  /** El «Grupo» del bloque: la carrera, si la tiene. */
+  /** La materia y el «Grupo» del bloque: la asignatura y la carrera, si las tiene. */
+  subject: z.string().nullable(),
   group: z.string().nullable(),
   submittedAt: z.string().nullable(),
   version: z.number().int().positive(),

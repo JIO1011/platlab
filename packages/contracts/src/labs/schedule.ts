@@ -89,13 +89,15 @@ export const scheduleQuery = z
   .strict()
   .refine((value) => value.from <= value.to && (Date.parse(value.to) - Date.parse(value.from)) / 86_400_000 < SCHEDULE_MAX_DAYS, 'Hasta seis semanas, en orden');
 
-/** Un bloque: «Actividad · Solicitante · Grupo» y lo que el Administrador necesita para moverlo. */
+/** Un bloque: «Materia - Carrera - Docente» (o el título sin materia) y lo que el Administrador necesita para moverlo. */
 export const activity = z.object({
   id: z.uuid(),
   requestId: z.uuid(),
   requestCode: z.string(),
   title: z.string(),
   requesterName: z.string(),
+  /** La asignatura de la solicitud, si el formato la pide. */
+  subject: z.string().nullable(),
   /** El «Grupo» del bloque: la carrera de la solicitud, si la tiene. */
   group: z.string().nullable(),
   participants: z.number().int(),

@@ -30,6 +30,7 @@ export interface IListActivitiesResult {
   responsible_name: string;
   responsible_principal_id: string;
   starts_at: string;
+  subject: string | null;
   title: string;
   version: number;
 }
@@ -40,18 +41,20 @@ export interface IListActivitiesQuery {
   result: IListActivitiesResult;
 }
 
-const listActivitiesIR: any = {"usedParamSet":{"workspaceId":true,"activityId":true,"from":true,"to":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1382,"b":1394}]},{"name":"activityId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1440,"b":1450},{"a":1482,"b":1492}]},{"name":"from","required":false,"transform":{"type":"scalar"},"locs":[{"a":1535,"b":1539}]},{"name":"to","required":false,"transform":{"type":"scalar"},"locs":[{"a":1551,"b":1553}]}],"statement":"-- Los bloques activos del rango (o solo :activityId), con lo que el bloque muestra: actividad, solicitante y grupo.\nSELECT a.id, a.request_id, q.number AS request_number, coalesce(q.title, '') AS \"title!\",\n  coalesce(requester.display_name, '') AS \"requester_name!\", career.name AS \"group?\", coalesce(q.participants, 0) AS \"participants!\",\n  a.on_date::text AS \"date!\", a.area_id, to_char(a.starts_at, 'HH24:MI') AS \"starts_at!\", to_char(a.ends_at, 'HH24:MI') AS \"ends_at!\",\n  a.responsible_principal_id, coalesce(responsible.display_name, '') AS \"responsible_name!\", a.code, a.version\nFROM labs.activities AS a\nJOIN labs.requests AS q ON q.workspace_id = a.workspace_id AND q.id = a.request_id\nLEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id\nLEFT JOIN core.principals AS rp ON rp.workspace_id = q.workspace_id AND rp.id = q.requester_principal_id\nLEFT JOIN core.memberships AS rm ON rm.workspace_id = rp.workspace_id AND rm.id = rp.membership_id\nLEFT JOIN core.identities AS requester ON requester.id = rm.identity_id\nLEFT JOIN core.principals AS pp ON pp.workspace_id = a.workspace_id AND pp.id = a.responsible_principal_id\nLEFT JOIN core.memberships AS pm ON pm.workspace_id = pp.workspace_id AND pm.id = pp.membership_id\nLEFT JOIN core.identities AS responsible ON responsible.id = pm.identity_id\nWHERE a.workspace_id = :workspaceId! AND a.cancelled_at IS NULL\n  AND (CASE WHEN :activityId::uuid IS NOT NULL THEN a.id = :activityId::uuid\n            ELSE a.on_date BETWEEN :from::date AND :to::date END)\nORDER BY a.on_date, a.starts_at, a.area_id"};
+const listActivitiesIR: any = {"usedParamSet":{"workspaceId":true,"activityId":true,"from":true,"to":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1521,"b":1533}]},{"name":"activityId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1579,"b":1589},{"a":1621,"b":1631}]},{"name":"from","required":false,"transform":{"type":"scalar"},"locs":[{"a":1674,"b":1678}]},{"name":"to","required":false,"transform":{"type":"scalar"},"locs":[{"a":1690,"b":1692}]}],"statement":"-- Los bloques activos del rango (o solo :activityId), con lo que el bloque muestra: actividad, solicitante y grupo.\nSELECT a.id, a.request_id, q.number AS request_number, coalesce(q.title, '') AS \"title!\",\n  coalesce(requester.display_name, '') AS \"requester_name!\", subject.name AS \"subject?\", career.name AS \"group?\",\n  coalesce(q.participants, 0) AS \"participants!\",\n  a.on_date::text AS \"date!\", a.area_id, to_char(a.starts_at, 'HH24:MI') AS \"starts_at!\", to_char(a.ends_at, 'HH24:MI') AS \"ends_at!\",\n  a.responsible_principal_id, coalesce(responsible.display_name, '') AS \"responsible_name!\", a.code, a.version\nFROM labs.activities AS a\nJOIN labs.requests AS q ON q.workspace_id = a.workspace_id AND q.id = a.request_id\nLEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id\nLEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id\nLEFT JOIN core.principals AS rp ON rp.workspace_id = q.workspace_id AND rp.id = q.requester_principal_id\nLEFT JOIN core.memberships AS rm ON rm.workspace_id = rp.workspace_id AND rm.id = rp.membership_id\nLEFT JOIN core.identities AS requester ON requester.id = rm.identity_id\nLEFT JOIN core.principals AS pp ON pp.workspace_id = a.workspace_id AND pp.id = a.responsible_principal_id\nLEFT JOIN core.memberships AS pm ON pm.workspace_id = pp.workspace_id AND pm.id = pp.membership_id\nLEFT JOIN core.identities AS responsible ON responsible.id = pm.identity_id\nWHERE a.workspace_id = :workspaceId! AND a.cancelled_at IS NULL\n  AND (CASE WHEN :activityId::uuid IS NOT NULL THEN a.id = :activityId::uuid\n            ELSE a.on_date BETWEEN :from::date AND :to::date END)\nORDER BY a.on_date, a.starts_at, a.area_id"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Los bloques activos del rango (o solo :activityId), con lo que el bloque muestra: actividad, solicitante y grupo.
  * SELECT a.id, a.request_id, q.number AS request_number, coalesce(q.title, '') AS "title!",
- *   coalesce(requester.display_name, '') AS "requester_name!", career.name AS "group?", coalesce(q.participants, 0) AS "participants!",
+ *   coalesce(requester.display_name, '') AS "requester_name!", subject.name AS "subject?", career.name AS "group?",
+ *   coalesce(q.participants, 0) AS "participants!",
  *   a.on_date::text AS "date!", a.area_id, to_char(a.starts_at, 'HH24:MI') AS "starts_at!", to_char(a.ends_at, 'HH24:MI') AS "ends_at!",
  *   a.responsible_principal_id, coalesce(responsible.display_name, '') AS "responsible_name!", a.code, a.version
  * FROM labs.activities AS a
  * JOIN labs.requests AS q ON q.workspace_id = a.workspace_id AND q.id = a.request_id
+ * LEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id
  * LEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id
  * LEFT JOIN core.principals AS rp ON rp.workspace_id = q.workspace_id AND rp.id = q.requester_principal_id
  * LEFT JOIN core.memberships AS rm ON rm.workspace_id = rp.workspace_id AND rm.id = rp.membership_id

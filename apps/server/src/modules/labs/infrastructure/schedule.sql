@@ -3,11 +3,13 @@
 /* @name listActivities */
 -- Los bloques activos del rango (o solo :activityId), con lo que el bloque muestra: actividad, solicitante y grupo.
 SELECT a.id, a.request_id, q.number AS request_number, coalesce(q.title, '') AS "title!",
-  coalesce(requester.display_name, '') AS "requester_name!", career.name AS "group?", coalesce(q.participants, 0) AS "participants!",
+  coalesce(requester.display_name, '') AS "requester_name!", subject.name AS "subject?", career.name AS "group?",
+  coalesce(q.participants, 0) AS "participants!",
   a.on_date::text AS "date!", a.area_id, to_char(a.starts_at, 'HH24:MI') AS "starts_at!", to_char(a.ends_at, 'HH24:MI') AS "ends_at!",
   a.responsible_principal_id, coalesce(responsible.display_name, '') AS "responsible_name!", a.code, a.version
 FROM labs.activities AS a
 JOIN labs.requests AS q ON q.workspace_id = a.workspace_id AND q.id = a.request_id
+LEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id
 LEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id
 LEFT JOIN core.principals AS rp ON rp.workspace_id = q.workspace_id AND rp.id = q.requester_principal_id
 LEFT JOIN core.memberships AS rm ON rm.workspace_id = rp.workspace_id AND rm.id = rp.membership_id
