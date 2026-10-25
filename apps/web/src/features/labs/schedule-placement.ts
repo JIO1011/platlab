@@ -161,3 +161,31 @@ export function scheduledMessage(code: string, verb: 'programado' | 'movido', wa
   const title = `${code} ${verb}`;
   return warnings.includes('capacity') && capacity !== undefined ? { title, description: capacityWarning(participants, capacity) } : { title };
 }
+
+/** Lo que el servidor recibe al soltar: programar una fecha (POST) o mover un bloque (PATCH), sin pasar por la hoja. */
+export type DropPlan =
+  | { kind: 'program'; body: { requestId: string; date: string; areaId: string; startsAt: string; endsAt: string; responsibleId: string; expectedVersion: number } }
+  | { kind: 'move'; activityId: string; body: { areaId: string; startsAt: string; endsAt: string; responsibleId: string; expectedVersion: number } };
+
+/**
+ * Quién lleva el bloque al programar sin la hoja: quien programa, si está entre los responsables; si no, el primero de la
+ * lista. Nulo si no hay ninguno.
+ */
+export function responsibleFor(responsibles: ReadonlyArray<{ id: string }>, meId: string): string | null {
+  return (responsibles.find((option) => option.id === meId) ?? responsibles[0])?.id ?? null;
+}
+
+/**
+ * El comando de soltar en un lugar válido: el área y la hora soltadas, a la duración de lo que se lleva. Un bloque que se
+ * mueve conserva su responsable y su versión; una fecha por programar lleva el responsable dado y la versión de la solicitud.
+ */
+export function dropPlan(
+  source: { kind: 'program'; request: Pick<RequestSummary, 'id' | 'version'>; date: string } | { kind: 'move'; activity: Pick<Activity, 'id' | 'responsibleId' | 'version'> },
+  place: { areaId: string; start: number; end: number },
+  responsibleId: string,
+): DropPlan {
+  const when = { areaId: place.areaId, startsAt: timeText(place.start), endsAt: timeText(place.end) };
+  return source.kind === 'move'
+    ? { kind: 'move', activityId: source.activity.id, body: { ...when, responsibleId: source.activity.responsibleId, expectedVersion: source.activity.version } }
+    : { kind: 'program', body: { requestId: source.request.id, date: source.date, ...when, responsibleId, expectedVersion: source.request.version } };
+}

@@ -12,11 +12,12 @@ import { timeText, toMinutes, weekDates } from './schedule-grid';
 import { blockingTexts, capacityText, contextFor, durationOf, endFor, scheduledMessage } from './schedule-placement';
 
 /**
- * Lo que la hoja de programar o mover parte sabiendo: programar una fecha pendiente de una solicitud (de un arrastre, con
- * área y hora ya puestas, o desde «Programar…», con la hora pedida) o mover un bloque el mismo día.
+ * Lo que la hoja de programar o mover parte sabiendo: programar una fecha pendiente de una solicitud (con la hora pedida)
+ * o mover un bloque el mismo día. Arrastrar guarda sin esta hoja; ella queda para el botón (teclado y móvil) y para
+ * cambiar el responsable.
  */
 export type PlacementTarget =
-  | { kind: 'program'; request: RequestSummary; pending: string[]; date: string; areaId: string | null; start: number | null }
+  | { kind: 'program'; request: RequestSummary; pending: string[]; date: string }
   | { kind: 'move'; activity: Activity; areaId: string; start: number };
 
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -57,15 +58,15 @@ export function PlacementSheet({
   const program = target.kind === 'program';
   const duration = program ? (durationOf(target.request) ?? fallbackMinutes) : toMinutes(target.activity.endsAt) - toMinutes(target.activity.startsAt);
   const participants = program ? (target.request.participants ?? 0) : target.activity.participants;
-  const start0 = program ? (target.start ?? (target.request.startsAt ? toMinutes(target.request.startsAt) : 8 * 60)) : target.start;
-  const end0 = program && target.start === null && target.request.endsAt ? toMinutes(target.request.endsAt) : endFor(start0, duration);
+  const start0 = program ? (target.request.startsAt ? toMinutes(target.request.startsAt) : 8 * 60) : target.start;
+  const end0 = program && target.request.endsAt ? toMinutes(target.request.endsAt) : endFor(start0, duration);
 
   const [date, setDate] = useState(program ? target.date : target.activity.date);
   // El área que pidió el docente solo viene en el detalle de la solicitud: se pide únicamente la que está abierta.
   const detail = useRequestDetail(workspaceId, program ? target.request.id : '', program);
   const asked = program ? spaces.find((item) => item.areaId === detail.data?.areaId) : undefined;
   const [areaChoice, setAreaChoice] = useState<string | null>(null);
-  const areaId = areaChoice ?? target.areaId ?? asked?.areaId ?? '';
+  const areaId = areaChoice ?? (program ? asked?.areaId : target.areaId) ?? '';
   const [startsAt, setStartsAt] = useState(timeText(start0));
   const [endsAt, setEndsAt] = useState(timeText(end0));
   const [responsibleId, setResponsibleId] = useState(

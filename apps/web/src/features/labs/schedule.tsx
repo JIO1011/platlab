@@ -2,6 +2,8 @@ import { scheduleCheck, type Activity, type Closure, type RequestSummary } from 
 import { Skeleton, StatePanel, cn, toast } from '@platlab/ui';
 import { MapPin } from 'lucide-react';
 import { useState } from 'react';
+import { isApiError } from '../../app/api';
+import { labsErrorMessage, useDropActivity, useRefreshLabs, useRequestResolved, useVersionConflict } from './commands';
 import { useSearchParams } from 'react-router';
 import { todayInZone } from '../../app/format';
 import { SectionHeader } from '../../app/section-header';
@@ -14,10 +16,10 @@ import { ActivitySheet } from './schedule-block-sheet';
 import type { BlockOpening } from './schedule-block';
 import { CareerToneProvider, careerTones } from './schedule-career-color';
 import { DayControls, DayDetail } from './schedule-day-bar';
-import { ScheduleDnd, type DragPreview, type DragSource } from './schedule-dnd';
+import { ScheduleDnd, type DragPreview, type DragSource, type SavingDrop } from './schedule-dnd';
 import { activitiesOn, boardColumns, boardRange, holidayOn, parseDay, periodOn, toMinutes, weekDates, type BoardColumn } from './schedule-grid';
 import { ScheduleList } from './schedule-list';
-import { contextFor, endFor, pendingDates, slotAt, toScheduleOrder } from './schedule-placement';
+import { contextFor, dropPlan, endFor, pendingDates, responsibleFor, scheduledMessage, slotAt, toScheduleOrder } from './schedule-placement';
 import { PlacementSheet, type PlacementTarget } from './schedule-placement-sheet';
 import { ScheduleTable } from './schedule-table';
 import { ScheduleTray, type TrayActions } from './schedule-tray';
@@ -34,6 +36,7 @@ function DayBoard({
   opening,
   wide,
   canSchedule,
+  saving,
   enableHref,
 }: {
   date: string;
@@ -43,6 +46,7 @@ function DayBoard({
   opening: BlockOpening;
   wide: boolean;
   canSchedule: boolean;
+  saving: SavingDrop | null;
   enableHref: ((areaId: string) => string) | undefined;
 }) {
   if (columns.length === 0) {
@@ -53,7 +57,7 @@ function DayBoard({
     );
   }
   return wide ? (
-    <ScheduleTable columns={columns} date={date} range={boardRange(dayItems)} dayItems={dayItems} closures={closures} opening={opening} canSchedule={canSchedule} enableHref={enableHref} />
+    <ScheduleTable columns={columns} date={date} range={boardRange(dayItems)} dayItems={dayItems} closures={closures} opening={opening} canSchedule={canSchedule} saving={saving} enableHref={enableHref} />
   ) : (
     <ScheduleList columns={columns} date={date} dayItems={dayItems} closures={closures} opening={opening} enableHref={enableHref} />
   );
@@ -72,8 +76,9 @@ interface PlacementOpen {
  * Núcleo como columnas y las horas como filas, y «Por programar» pegada abajo. La ven todos los que consultan Laboratorios; el día vive en
  * la URL (`?dia=`), con «Hoy» por omisión. Un clic en un bloque abre su solicitud llena para quien puede verla (quien
  * recibe, en Recibidas; el Docente, la suya) o, si no, su panel de solo lectura. El Administrador (`labs.schedule.manage`)
- * programa arrastrando una solicitud de «Por programar» a un área y una hora, o con «Programar…», y mueve un bloque el
- * mismo día arrastrándolo o con «Mover…»; el Operador ve «Por programar» sin acciones y el Docente, sin esa franja.
+ * programa arrastrando una solicitud de «Por programar» a un área y una hora, y mueve un bloque el mismo día arrastrándolo:
+ * al soltar se guarda directamente, con el destino marcado «Guardando» hasta que el servidor responde. «Programar…» y
+ * «Mover…» abren la hoja (teclado, móvil y cambio de responsable); el Operador ve «Por programar» sin acciones y el Docente, sin esa franja.
  */
 export function LabsSchedulePage() {
   const { workspaceId, me, canSchedule, canManageSpaces } = useLabs();
@@ -132,6 +137,12 @@ export function LabsSchedulePage() {
     return { areaId, start, end: endFor(start, source.duration), check, participants, capacity: space.capacity };
   };
 
+  const drop = useDropActivity(workspaceId);
+  const conflict = useVersionConflict(workspaceId);
+  const resolved = useRequestResolved(workspaceId);
+  const refresh = useRefreshLabs(workspaceId);
+  const [saving, setSaving] = useState<SavingDrop | null>(null);
+
   const openPlacement = (target: PlacementTarget) => {
     if (!responsibles.data) {
       toast.error('Aún no se cargaron los responsables', { description: 'Vuelve a intentarlo en un momento.' });
@@ -139,14 +150,39 @@ export function LabsSchedulePage() {
     }
     setPlacement((current) => ({ target, open: true, nonce: (current?.nonce ?? 0) + 1 }));
   };
-  const dropped = (source: DragSource, preview: DragPreview) =>
-    openPlacement(
-      source.kind === 'move'
-        ? { kind: 'move', activity: source.activity, areaId: preview.areaId, start: preview.start }
-        : { kind: 'program', request: source.request, pending: pendingDates(source.request), date: source.date, areaId: preview.areaId, start: preview.start },
-    );
+  /** Soltar en un lugar válido guarda directo: sin hoja, y el destino dice «Guardando» hasta que el servidor responde. */
+  const dropped = async (source: DragSource, preview: DragPreview) => {
+    if (drop.isPending) {
+      toast.error('Espera un momento', { description: 'Aún se guarda el cambio anterior.' });
+      return;
+    }
+    const responsibleId = source.kind === 'move' ? source.activity.responsibleId : responsibleFor(responsibles.data?.items ?? [], me.member.principalId);
+    if (!responsibleId) {
+      toast.error(responsibles.data ? 'No hay a quién asignar el bloque' : 'Aún no se cargaron los responsables', {
+        description: responsibles.data ? 'Programa con «Programar…» cuando haya un Operador o un Administrador.' : 'Vuelve a intentarlo en un momento.',
+      });
+      return;
+    }
+    const moving = source.kind === 'move';
+    setSaving({ areaId: preview.areaId, start: preview.start, end: preview.end });
+    try {
+      const result = await drop.mutateAsync(dropPlan(source, preview, responsibleId));
+      const message = scheduledMessage(result.activity.code, moving ? 'movido' : 'programado', result.warnings, preview.participants, preview.capacity);
+      toast.success(message.title, message.description ? { description: message.description } : undefined);
+      goTo(result.activity.date);
+    } catch (failure) {
+      if (isApiError(failure, 'VERSION_CONFLICT')) void conflict(moving ? 'este bloque' : 'esta solicitud');
+      else if (isApiError(failure, 'REQUEST_RESOLVED')) void resolved();
+      else {
+        toast.error(isApiError(failure, 'VALIDATION_FAILED') ? failure.message : labsErrorMessage(failure));
+        void refresh();
+      }
+    } finally {
+      setSaving(null);
+    }
+  };
   const programFrom = (request: RequestSummary, day: string) =>
-    openPlacement({ kind: 'program', request, pending: pendingDates(request), date: day, areaId: null, start: null });
+    openPlacement({ kind: 'program', request, pending: pendingDates(request), date: day });
 
   const tray: TrayActions = {
     canSchedule,
@@ -170,7 +206,7 @@ export function LabsSchedulePage() {
           detail={<DayDetail period={periods.data ? periodOn(periods.data.items, date) : undefined} holiday={closures.data ? holidayOn(dayClosures, date) : null} />}
           actions={<DayControls date={date} today={today} onPick={goTo} />}
         />
-        <ScheduleDnd previewOf={previewOf} onDrop={dropped}>
+        <ScheduleDnd previewOf={previewOf} onDrop={(source, preview) => void dropped(source, preview)}>
           <div className={cn('mt-4 grid gap-4', wide && 'mt-3 flex min-h-0 flex-1 flex-col gap-3')}>
             {failed ? (
               <div className="rounded-card bg-surface shadow-raised">
@@ -189,6 +225,7 @@ export function LabsSchedulePage() {
                 opening={opening}
                 wide={wide}
                 canSchedule={canSchedule && wide}
+                saving={saving}
                 enableHref={canManageSpaces ? (areaId) => `/e/${workspaceId}/areas?area=${areaId}` : undefined}
               />
             )}

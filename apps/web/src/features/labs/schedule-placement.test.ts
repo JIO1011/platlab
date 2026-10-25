@@ -5,6 +5,7 @@ import {
   capacityText,
   cardWhenText,
   contextFor,
+  dropPlan,
   durationOf,
   endFor,
   isToSchedule,
@@ -12,6 +13,7 @@ import {
   previewText,
   pendingCards,
   requestBlockText,
+  responsibleFor,
   scheduledMessage,
   shortDateText,
   slotAt,
@@ -241,5 +243,32 @@ describe('aviso tras programar', () => {
       description: 'Supera el aforo (30 / 24)',
     });
     expect(scheduledMessage('P1-S12-QUI01', 'movido', [], 20, 24).title).toBe('P1-S12-QUI01 movido');
+  });
+});
+
+describe('soltar sin hoja', () => {
+  const area = { areaId: 'area-2', start: 540, end: 630 };
+
+  it('mueve el bloque con su responsable y su versión, a la hora soltada', () => {
+    const activity = { id: 'a-1', responsibleId: 'op-1', version: 3 };
+    expect(dropPlan({ kind: 'move', activity }, area, 'otro')).toEqual({
+      kind: 'move',
+      activityId: 'a-1',
+      body: { areaId: 'area-2', startsAt: '09:00', endsAt: '10:30', responsibleId: 'op-1', expectedVersion: 3 },
+    });
+  });
+
+  it('programa la fecha con quien programa y la versión de la solicitud', () => {
+    const request = { id: 'r-1', version: 5 };
+    expect(dropPlan({ kind: 'program', request, date: '2026-10-28' }, area, 'me')).toEqual({
+      kind: 'program',
+      body: { requestId: 'r-1', date: '2026-10-28', areaId: 'area-2', startsAt: '09:00', endsAt: '10:30', responsibleId: 'me', expectedVersion: 5 },
+    });
+  });
+
+  it('elige a quien programa si es responsable; si no, el primero; sin nadie, nulo', () => {
+    expect(responsibleFor([{ id: 'a' }, { id: 'me' }], 'me')).toBe('me');
+    expect(responsibleFor([{ id: 'a' }, { id: 'b' }], 'me')).toBe('a');
+    expect(responsibleFor([], 'me')).toBeNull();
   });
 });

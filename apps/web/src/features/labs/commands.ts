@@ -3,8 +3,11 @@ import { toast } from '@platlab/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, isApiError } from '../../app/api';
 import { commonErrorMessage, useModuleCommand } from '../../app/commands';
+import { workspaceKey } from '../../app/queries';
+import { useSession } from '../../app/session';
 import type { LogoFile } from './form-logo';
 import { useLabsKey } from './queries';
+import type { DropPlan } from './schedule-placement';
 
 /**
  * Comandos de Laboratorios (ADR 0023): cada hoja abre el suyo, con su clave idempotente, y la pantalla cambia solo con
@@ -110,6 +113,32 @@ export function useScheduleActivity(workspaceId: string) {
 /** «Mover»: otra área, otra hora u otro responsable el mismo día, con la versión del bloque que se vio. */
 export function useMoveActivity(workspaceId: string, activityId: string) {
   return useModuleCommand(workspaceId, `/labs/activities/${activityId}`, scheduledActivity, useLabsKey(workspaceId), 'PATCH');
+}
+
+/**
+ * Soltar un bloque o una solicitud en el Cronograma: programa (POST) o mueve (PATCH) sin hoja de confirmación. Cada soltar
+ * es un envío distinto, con su propia clave idempotente; la respuesta llega cuando la caché de Laboratorios y el Inicio ya
+ * muestran lo confirmado, sin pintar nada antes.
+ */
+export function useDropActivity(workspaceId: string) {
+  const queryClient = useQueryClient();
+  const labsKey = useLabsKey(workspaceId);
+  const user = useSession().session?.user.id ?? 'anónimo';
+  return useMutation({
+    mutationFn: (plan: DropPlan) =>
+      api(`/workspaces/${workspaceId}/labs/activities${plan.kind === 'move' ? `/${plan.activityId}` : ''}`, {
+        method: plan.kind === 'move' ? 'PATCH' : 'POST',
+        body: plan.body,
+        idempotencyKey: crypto.randomUUID(),
+        schema: scheduledActivity,
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: labsKey }),
+        queryClient.invalidateQueries({ queryKey: [...workspaceKey(user, workspaceId), 'home'] }),
+      ]);
+    },
+  });
 }
 
 /**

@@ -26,9 +26,10 @@ import { blockingTexts, requestBlockText, startAtOffset } from './schedule-place
 /**
  * Arrastrar en el Cronograma (ADR 0023, L-01c): una solicitud de «Por programar» o un bloque del mismo día se llevan a
  * un área y una hora de la tabla (dnd kit, como las filas de Formatos). Mientras se arrastra, la celda destino dice en
- * vivo si cabe (✔ / ✖ con el motivo) y si supera el aforo (⚠); soltar en un lugar válido abre la confirmación. Escape
- * interrumpe y el elemento vuelve a su sitio. Arrastrar es una comodidad del escritorio: «Programar…» y «Mover…» hacen
- * lo mismo con teclado y en el móvil.
+ * vivo si cabe (✔ / ✖ con el motivo) y si supera el aforo (⚠); soltar en un lugar válido lo guarda directamente, sin
+ * ventana de confirmación (la pantalla marca el destino «Guardando» hasta que el servidor responde). Escape interrumpe y
+ * el elemento vuelve a su sitio. Arrastrar es una comodidad del escritorio: «Programar…» y «Mover…» hacen lo mismo con
+ * teclado y en el móvil, y con ellas se cambia el responsable.
  */
 
 /** Lo que se arrastra: una fecha por programar o un bloque que se mueve ese mismo día. */
@@ -55,6 +56,13 @@ export interface ColumnData {
 interface DragState {
   source: DragSource;
   preview: DragPreview | null;
+}
+
+/** Lo que se está guardando tras soltar: el destino donde se marca «Guardando» hasta que el servidor responde. */
+export interface SavingDrop {
+  areaId: string;
+  start: number;
+  end: number;
 }
 
 const PreviewContext = createContext<DragState | null>(null);
@@ -101,7 +109,7 @@ const announcements: Announcements = {
     return source ? `Tomaste ${sourceLabel(source)}.` : undefined;
   },
   onDragOver: () => undefined,
-  onDragEnd: () => 'Soltaste. Si el lugar era válido, se abre la confirmación.',
+  onDragEnd: () => 'Soltaste. Si el lugar era válido, se guarda.',
   onDragCancel: () => 'Se canceló: nada cambió.',
 };
 
@@ -127,7 +135,7 @@ function Ghost() {
 
 /**
  * Envuelve la tabla y «Por programar». `previewOf` dice, con los datos cargados, qué pasaría al soltar en esa área a esa hora;
- * `onDrop` recibe un lugar válido. Un lugar que no cabe se explica y no abre nada.
+ * `onDrop` recibe un lugar válido y lo guarda. Un lugar que no cabe se explica y no hace nada.
  */
 export function ScheduleDnd({
   previewOf,

@@ -1,10 +1,11 @@
 import { useDroppable } from '@dnd-kit/core';
 import type { Activity, Closure, Space } from '@platlab/contracts';
 import { cn } from '@platlab/ui';
+import { LoaderCircle } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { ScheduleBlock, type BlockOpening } from './schedule-block';
-import { DraggableBlock, useDragPreview, type ColumnData } from './schedule-dnd';
+import { DraggableBlock, useDragPreview, type ColumnData, type SavingDrop } from './schedule-dnd';
 import { ROW_MINUTES, activitiesOfArea, blockSpan, closedSpans, placement, rowStarts, timeText, type BoardColumn, type DayRange } from './schedule-grid';
 import { blockingTexts, capacityText } from './schedule-placement';
 
@@ -80,6 +81,28 @@ function DropPreview({ range, space }: { range: DayRange; space: Space }) {
   );
 }
 
+/**
+ * El destino de lo que se soltó mientras el servidor responde: «Guardando» con el horario. El bloque sigue en su sitio
+ * hasta la respuesta; nada se pinta como hecho antes (sin UI optimista sobre lo programado).
+ */
+function SavingMark({ range, saving }: { range: DayRange; saving: SavingDrop }) {
+  return (
+    <div
+      role="status"
+      className="pointer-events-none absolute inset-x-0.5 z-10 grid content-center justify-items-center overflow-hidden rounded-md border-2 border-dashed border-line-strong bg-surface-sunken px-1.5 py-1 text-center text-xs leading-tight text-ink"
+      style={at({ from: saving.start, to: saving.end }, range)}
+    >
+      <p className="inline-flex items-center gap-1 font-semibold">
+        <LoaderCircle aria-hidden className="size-3.5 motion-safe:animate-spin" />
+        Guardando…
+      </p>
+      <p className="tabular-nums text-ink-muted">
+        {timeText(saving.start)}–{timeText(saving.end)}
+      </p>
+    </div>
+  );
+}
+
 /** Una columna de un área habilitada: las franjas cerradas atenuadas con su motivo y los bloques encima; destino de lo que se arrastra. */
 function AreaColumn({
   space,
@@ -89,6 +112,7 @@ function AreaColumn({
   closures,
   opening,
   canSchedule,
+  saving,
 }: {
   space: Space;
   date: string;
@@ -97,6 +121,7 @@ function AreaColumn({
   closures: readonly Closure[];
   opening: BlockOpening;
   canSchedule: boolean;
+  saving: SavingDrop | null;
 }) {
   const data: ColumnData = { range };
   const { setNodeRef } = useDroppable({ id: space.areaId, data, disabled: !canSchedule });
@@ -114,6 +139,7 @@ function AreaColumn({
         </DraggableBlock>
       ))}
       <DropPreview range={range} space={space} />
+      {saving && saving.areaId === space.areaId ? <SavingMark range={range} saving={saving} /> : null}
     </div>
   );
 }
@@ -169,7 +195,7 @@ function ColumnHeader({ column }: { column: BoardColumn }) {
  * filas son de media hora, de 07:00 a 19:00, con la hora solo en las horas en punto; llenan el alto disponible y, si no
  * caben a 22 px, se desplaza la tabla.
  * Lo cerrado del horario semanal, los cierres y los feriados se ven atenuados con su motivo. Quien programa
- * (`canSchedule`) lleva bloques y las solicitudes por programar a un área y una hora arrastrando; las columnas son los destinos.
+ * (`canSchedule`) lleva bloques y las solicitudes por programar a un área y una hora arrastrando, y soltar guarda directamente; las columnas son los destinos.
  */
 export function ScheduleTable({
   columns,
@@ -179,6 +205,7 @@ export function ScheduleTable({
   closures,
   opening,
   canSchedule,
+  saving,
   enableHref,
 }: {
   columns: readonly BoardColumn[];
@@ -189,6 +216,8 @@ export function ScheduleTable({
   opening: BlockOpening;
   /** El Administrador lleva bloques a otra área u hora arrastrándolos; para los demás, la tabla es de lectura. */
   canSchedule: boolean;
+  /** Lo que se soltó y el servidor aún no confirmó; su destino se marca «Guardando». */
+  saving: SavingDrop | null;
   /** Dónde se habilita un área sin horario; indefinido si la persona no administra espacios. */
   enableHref?: ((areaId: string) => string) | undefined;
 }) {
@@ -220,7 +249,7 @@ export function ScheduleTable({
         </div>
         {columns.map((column) =>
           column.space ? (
-            <AreaColumn key={column.areaId} space={column.space} date={date} range={range} dayItems={dayItems} closures={closures} opening={opening} canSchedule={canSchedule} />
+            <AreaColumn key={column.areaId} space={column.space} date={date} range={range} dayItems={dayItems} closures={closures} opening={opening} canSchedule={canSchedule} saving={saving} />
           ) : (
             <IdleColumn key={column.areaId} column={column} range={range} enableHref={enableHref?.(column.areaId)} />
           ),
