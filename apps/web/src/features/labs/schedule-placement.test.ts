@@ -65,6 +65,7 @@ const activity = (overrides: Partial<Activity> = {}): Activity => ({
   responsibleId: 'p-1',
   responsibleName: 'Luis Mora',
   code: 'P1-S5-ANT01',
+  complete: true,
   version: 1,
   ...overrides,
 });
@@ -243,6 +244,8 @@ describe('aviso tras programar', () => {
       description: 'Supera el aforo (30 / 24)',
     });
     expect(scheduledMessage('P1-S12-QUI01', 'movido', [], 20, 24).title).toBe('P1-S12-QUI01 movido');
+    expect(scheduledMessage('P1-S12-QUI01', 'programado', [], 20, 24, false)).toEqual({ title: 'P1-S12-QUI01 programado', description: 'Falta apartar recursos' });
+    expect(scheduledMessage('P1-S12-QUI01', 'programado', ['capacity'], 30, 24, false).description).toBe('Supera el aforo (30 / 24). Falta apartar recursos');
   });
 });
 

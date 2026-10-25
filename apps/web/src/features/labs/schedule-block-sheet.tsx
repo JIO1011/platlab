@@ -1,10 +1,10 @@
 import type { Activity, Space } from '@platlab/contracts';
 import { Badge, Sheet } from '@platlab/ui';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, PackageX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { CodeTag } from '../../app/code-tag';
 import { formatFullDate } from '../../app/format';
-import { blockText, overCapacity } from './schedule-grid';
+import { MISSING_HOLDS, blockText, overCapacity } from './schedule-grid';
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -57,6 +57,14 @@ export function ActivitySheet({
             </Badge>
           ) : null}
         </Fact>
+        {activity.complete ? null : (
+          <Fact label="Recursos">
+            <Badge tone="warning">
+              <PackageX aria-hidden className="size-3.5" />
+              {MISSING_HOLDS}
+            </Badge>
+          </Fact>
+        )}
         <Fact label="Código">
           <CodeTag>{activity.code}</CodeTag>
         </Fact>

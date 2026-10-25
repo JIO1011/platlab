@@ -62,6 +62,7 @@ const activity = (overrides: Partial<Activity> = {}): Activity => ({
   responsibleId: 'p-1',
   responsibleName: 'Luis Mora',
   code: 'P1-S12-ANT01',
+  complete: true,
   version: 1,
   ...overrides,
 });
@@ -268,6 +269,10 @@ describe('texto del bloque', () => {
 
   it('suma el aforo a los detalles solo cuando se supera', () => {
     expect(activityDetails(activity({ participants: 30 }), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora', 'Supera el aforo (30 / 24)']);
+  });
+
+  it('suma «Falta apartar recursos» a los detalles cuando lo apartado no alcanza', () => {
+    expect(activityDetails(activity({ complete: false }), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora', 'Falta apartar recursos']);
   });
 
   it('suma hora, código y responsable para el lector de pantalla', () => {

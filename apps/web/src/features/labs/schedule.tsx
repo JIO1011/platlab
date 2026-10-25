@@ -167,7 +167,7 @@ export function LabsSchedulePage() {
     setSaving({ areaId: preview.areaId, start: preview.start, end: preview.end });
     try {
       const result = await drop.mutateAsync(dropPlan(source, preview, responsibleId));
-      const message = scheduledMessage(result.activity.code, moving ? 'movido' : 'programado', result.warnings, preview.participants, preview.capacity);
+      const message = scheduledMessage(result.activity.code, moving ? 'movido' : 'programado', result.warnings, preview.participants, preview.capacity, result.activity.complete);
       toast.success(message.title, message.description ? { description: message.description } : undefined);
       goTo(result.activity.date);
     } catch (failure) {

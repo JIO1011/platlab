@@ -7,12 +7,13 @@ import { FormPrint } from './form-print';
 import { useSpaces } from './queries';
 import { draftFrom, paperOf, valueText, type RequestView } from './request-draft';
 import { RequestHistory } from './request-history';
+import { RequestHolds } from './request-holds';
 import { ViewRows } from './request-lines';
 
 /**
  * La solicitud llena, de solo lectura (ADR 0023): la misma hoja del formato con lo que se llenó, para quien la envió y para
- * quien revisa. Los datos vacíos quedan en blanco. El área, que la hoja no tiene, va sobre ella; el historial con sus
- * motivos, al pie, fuera de la hoja. «Imprimir» saca la hoja llena en A4, con su membrete y logo.
+ * quien revisa. Los datos vacíos quedan en blanco. El área, que la hoja no tiene, va sobre ella; lo apartado en cada fecha programada y el
+ * historial con sus motivos, al pie, fuera de la hoja. «Imprimir» saca la hoja llena en A4, con su membrete y logo.
  */
 export function FilledRequest({ request }: { request: RequestView }) {
   const { workspaceId, me } = useLabs();
@@ -45,6 +46,7 @@ export function FilledRequest({ request }: { request: RequestView }) {
         </Button>
       </div>
       <FormPaper mode="view" draft={paper} workspaceName={me.workspace.name} revision={request.formRevision} slots={slots} />
+      <RequestHolds request={request} />
       <RequestHistory events={request.events} timeZone={me.workspace.timeZone} />
       {printing ? <FormPrint draft={paper} workspaceName={me.workspace.name} revision={request.formRevision} slots={slots} onDone={donePrinting} /> : null}
     </div>

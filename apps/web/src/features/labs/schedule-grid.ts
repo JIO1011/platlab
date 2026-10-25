@@ -238,12 +238,16 @@ export function overCapacity(block: Pick<Activity, 'participants'>, space: Pick<
   return block.participants > space.capacity;
 }
 
+/** Lo que avisa un bloque cuyo apartado no alcanza todo lo pedido (L-01d, ADR 0023). */
+export const MISSING_HOLDS = 'Falta apartar recursos';
+
 /** Lo que un bloque guarda para el nombre accesible y el tooltip: hora, código, responsable y, si procede, el aforo. */
 export function activityDetails(block: Activity, space?: Pick<Space, 'capacity'>): string[] {
   return [
     `${block.startsAt}–${block.endsAt} · ${block.code}`,
     `Responsable: ${block.responsibleName}`,
     ...(space && overCapacity(block, space) ? [capacityWarning(block.participants, space.capacity)] : []),
+    ...(block.complete ? [] : [MISSING_HOLDS]),
   ];
 }
 

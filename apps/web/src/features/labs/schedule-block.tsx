@@ -1,8 +1,8 @@
 import type { Activity, Space } from '@platlab/contracts';
 import { Button, Tooltip, cn } from '@platlab/ui';
-import { MoveVertical, TriangleAlert } from 'lucide-react';
+import { MoveVertical, PackageX, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router';
-import { activityDetails, activityLabel, blockLines, blockText, capacityWarning, overCapacity, showsTime, toMinutes } from './schedule-grid';
+import { MISSING_HOLDS, activityDetails, activityLabel, blockLines, blockText, capacityWarning, overCapacity, showsTime, toMinutes } from './schedule-grid';
 import { useCareerTone } from './schedule-career-color';
 
 /** Cómo se abre y se mueve un bloque: la solicitud para quien puede verla, un panel de solo lectura para los demás y, para quien programa, «Mover…». */
@@ -42,6 +42,8 @@ const reveal =
  * izquierda sobre el color de su carrera, en hasta tantas líneas como su alto permite; la hora, en una línea pequeña si
  * mide al menos una hora y el alto del bloque sobra. El código y el responsable van al nombre accesible y al tooltip. Es un
  * solo control, un enlace a su solicitud o un botón que abre su panel; quien programa suma un botón pequeño «Mover…».
+ * Si lo apartado no alcanza (L-01d), el bloque suma un ícono en la tabla y la línea «Falta apartar recursos» en la lista; el texto
+ * accesible y el tooltip lo dicen siempre.
  */
 export function ScheduleBlock({ activity, space, opening, size }: { activity: Activity; space: Pick<Space, 'capacity'>; opening: BlockOpening; size: 'table' | 'list' }) {
   const toneOf = useCareerTone();
@@ -64,12 +66,19 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
     <span className={cn('flex size-full flex-col items-start justify-start text-left', table ? 'px-2 py-[3px] [container-type:size]' : 'px-3 py-2')}>
       <span className={cn(blockTextClass, table ? lineClamp[lines] : 'text-sm', clear)}>
         {over && table ? <TriangleAlert aria-hidden className="mr-1 inline size-3.5 align-[-2px]" /> : null}
+        {!activity.complete && table ? <PackageX aria-hidden className="mr-1 inline size-3.5 align-[-2px]" /> : null}
         {text}
       </span>
       {over && !table ? (
         <span className="mt-1 flex items-center gap-1 text-xs font-medium leading-4 tabular-nums">
           <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
           {capacityWarning(activity.participants, space.capacity)}
+        </span>
+      ) : null}
+      {!activity.complete && !table ? (
+        <span className="mt-1 flex items-center gap-1 text-xs font-medium leading-4">
+          <PackageX aria-hidden className="size-3.5 shrink-0" />
+          {MISSING_HOLDS}
         </span>
       ) : null}
       {table && showsTime(minutes) ? (
