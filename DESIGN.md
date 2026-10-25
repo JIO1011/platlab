@@ -94,18 +94,6 @@ components:
 - Gráficos de una sola serie, solo con datos reales y con lectura en texto.
 - El servidor confirma antes de que la pantalla cambie.
 
-### Reactivos: referencia visual de Apple (24-10-2026)
-
-La sección de Reactivos toma como referencia la composición de [apple.com/la/iphone](https://www.apple.com/la/iphone/): espacio entre grupos, títulos con jerarquía clara, superficies neutras y una acción reconocible. Conserva el flujo de trabajo del laboratorio y el índigo de su identidad. Estas reglas ajustan para Reactivos los patrones generales de este documento:
-
-- Lienzo `#f5f5f7`, tarjetas blancas, tinta neutra y sombra tenue sin halo de color. Los tokens viven en el bloque de Reactivos de `styles.css` y se heredan también en las hojas y menús. Los demás módulos conservan su tema.
-- El color de acción se reserva principalmente para botones, enlaces y selección. Las cantidades del catálogo y de los frascos se leen en tinta; los estados llevan color suave y texto. «Apartado» es informativo, no una advertencia.
-- Cabeceras con título amplio, una descripción corta y la fecha de actualización secundaria. Botones principales sólidos y redondos; las acciones de cabecera tienen áreas de al menos 44 px.
-- El Resumen usa indicadores de superficie neutra y cifras destacadas; su tarjeta de gestión rápida es clara, sin degradado ni marca de agua. Los avisos de ficha de seguridad y mínimo permanecen debajo del gráfico.
-- El catálogo tiene hasta tres columnas, tarjetas con más espacio, nombre y código legibles, existencia destacada y estados agrupados al pie. Sin marcas de agua ni desplazamiento de la tarjeta al pasar el puntero.
-- La ficha usa una cabecera blanca, sin vidrio ni botón degradado. Conserva el ancho máximo de 72 rem y los cuadros individuales de Existencia, Mínimo y Caducidad por fuera del margen derecho cuando caben; en ventanas menores se muestran debajo. Los cuadros compactan el relleno y mantienen legibles sus textos.
-- Movimientos y Solicitudes mantienen sus filtros y acciones, con más separación entre filas y grupos. La adaptación móvil, el foco visible y el movimiento reducido siguen siendo parte del diseño.
-
 ## Colors
 
 - **Acción** (`action` y variantes): una sola voz por contexto. Azul en la plataforma (Inicio, acceso); dentro de un módulo, su tema redefine los tokens, incluido `action-deep`. `action-soft` es el fondo de selección, chips de icono y lo informativo; el elemento activo del menú va relleno con `action`.
