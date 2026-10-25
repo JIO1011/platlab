@@ -4,7 +4,7 @@ import { CalendarPlus, CircleCheck } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { exceptionsText } from './request-summary';
 import { blockFace, blockTextClass, lineClamp } from './schedule-block';
-import { careerTone } from './schedule-career-color';
+import { useCareerTone } from './schedule-career-color';
 import { useSourceDrag, type DragSource } from './schedule-dnd';
 import { cardWhenText, durationOf, pendingCards, requestBlockText, shortDateText, type PendingCard } from './schedule-placement';
 
@@ -36,6 +36,7 @@ function warningsOf({ late, exceptions }: Pick<RequestSummary, 'late' | 'excepti
  * lleva la tabla a ese día. En la lista (pantalla estrecha), cada una trae su botón «Programar…».
  */
 function PendingTile({ card, actions }: { card: PendingCard; actions: TrayActions }) {
+  const toneOf = useCareerTone();
   const { request, date } = card;
   const here = date === actions.visible;
   const duration = durationOf(request);
@@ -83,7 +84,7 @@ function PendingTile({ card, actions }: { card: PendingCard; actions: TrayAction
       {...(draggable ? drag.listeners : {})}
       className={cn(
         blockFace,
-        careerTone(request.group),
+        toneOf(request.group),
         'relative touch-manipulation',
         actions.wide ? 'h-[4.75rem] w-56 shrink-0' : 'grid',
         actions.wide && here && 'ring-2 ring-action ring-offset-1',

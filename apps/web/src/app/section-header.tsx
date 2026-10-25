@@ -1,3 +1,4 @@
+import { cn } from '@platlab/ui';
 import { Eye, RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { formatAgo } from './format';
@@ -11,6 +12,8 @@ interface SectionHeaderProps {
   /** Una línea breve sobre lo que muestra la sección (por ejemplo, el período), antes de «Actualizado…». */
   detail?: ReactNode;
   actions?: ReactNode;
+  /** Pantallas que necesitan todo el alto (el Cronograma): el título más pequeño y el detalle en la misma fila, junto a las acciones. */
+  compact?: boolean;
 }
 
 /**
@@ -19,17 +22,21 @@ interface SectionHeaderProps {
  * debajo, a todo el ancho). En modo consulta (`canOperate` falso), el aviso `readOnlyNotice` de que no se registran
  * cambios. El estado y el aviso salen del contexto de la app del módulo (`ModuleOutlet`). El título admite el foco de respaldo al cambiar de sección (`data-focus-fallback`).
  */
-export function SectionHeader({ title, updatedAt, detail, actions }: SectionHeaderProps) {
+export function SectionHeader({ title, updatedAt, detail, actions, compact = false }: SectionHeaderProps) {
   const { canOperate, freshness, readOnlyNotice } = useModuleContext();
   const now = useNow(15_000);
   return (
     <>
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1 tabIndex={-1} data-focus-fallback className="text-display text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action">
+      <header className={cn('flex flex-wrap justify-between gap-4', compact ? 'items-center' : 'items-end')}>
+        <div className={cn('min-w-0', compact && 'flex flex-wrap items-center gap-x-5')}>
+          <h1
+            tabIndex={-1}
+            data-focus-fallback
+            className={cn('text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action', compact ? 'text-[1.75rem] font-bold leading-none tracking-[-0.03em]' : 'text-display')}
+          >
             {title}
           </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted">
+          <p className={cn('flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted', !compact && 'mt-1')}>
             {detail}
             {updatedAt > 0 ? <span>Actualizado {formatAgo(updatedAt, now)}</span> : <span>Cargando…</span>}
             <button

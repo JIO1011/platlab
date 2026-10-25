@@ -1,29 +1,43 @@
 import { describe, expect, it } from 'vitest';
-import { careerTone, careerTones, neutralTone } from './schedule-career-color';
+import { careerTones, neutralTone, tones } from './schedule-career-color';
 
-describe('careerTone', () => {
+const careers = ['Odontología', 'Biotecnología', 'Ingeniería Química', 'Medicina', 'Enfermería', 'Bioquímica', 'Fisioterapia', 'Nutrición'];
+
+describe('careerTones', () => {
   it('da el fondo neutro a un bloque sin carrera', () => {
-    expect(careerTone(null)).toBe(neutralTone);
-    expect(careerTone('')).toBe(neutralTone);
-    expect(careerTone('   ')).toBe(neutralTone);
+    const toneOf = careerTones(careers);
+    expect(toneOf(null)).toBe(neutralTone);
+    expect(toneOf('')).toBe(neutralTone);
+    expect(toneOf('   ')).toBe(neutralTone);
   });
 
-  it('da siempre el mismo tono a la misma carrera', () => {
-    expect(careerTone('Odontología')).toBe(careerTone('Odontología'));
+  it('da el mismo tono a la misma carrera sin importar el orden en que llegan', () => {
+    expect(careerTones(careers)('Odontología')).toBe(careerTones([...careers].reverse())('Odontología'));
   });
 
   it('ignora mayúsculas, tildes y espacios de más', () => {
-    expect(careerTone('  INGENIERÍA   Química ')).toBe(careerTone('ingenieria quimica'));
+    const toneOf = careerTones(['Ingeniería Química']);
+    expect(toneOf('  INGENIERÍA   Química ')).toBe(toneOf('ingenieria quimica'));
   });
 
   it('elige siempre un tono de la paleta', () => {
-    for (const career of ['Odontología', 'Biotecnología', 'Ingeniería Química', 'Medicina', 'Enfermería']) {
-      expect(careerTones).toContain(careerTone(career));
+    const toneOf = careerTones(careers);
+    for (const career of careers) expect(tones).toContain(toneOf(career));
+  });
+
+  it('no repite tono entre las carreras visibles hasta agotar la paleta', () => {
+    for (let count = 1; count <= tones.length; count += 1) {
+      const visible = careers.slice(0, count);
+      const toneOf = careerTones(visible);
+      expect(new Set(visible.map(toneOf)).size).toBe(count);
     }
   });
 
-  it('distingue carreras: varias no caen en un solo tono', () => {
-    const tones = new Set(['Odontología', 'Biotecnología', 'Ingeniería Química', 'Medicina', 'Enfermería', 'Bioquímica'].map(careerTone));
-    expect(tones.size).toBeGreaterThan(2);
+  it('con más carreras que tonos, las reparte por igual', () => {
+    const many = [...careers, 'Derecho', 'Psicología', 'Arquitectura'];
+    const toneOf = careerTones(many);
+    const counts = new Map<string, number>();
+    for (const career of many) counts.set(toneOf(career), (counts.get(toneOf(career)) ?? 0) + 1);
+    expect(Math.max(...counts.values())).toBeLessThanOrEqual(2);
   });
 });

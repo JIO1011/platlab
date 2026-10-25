@@ -9,14 +9,18 @@ import { ROW_MINUTES, activitiesOfArea, blockSpan, closedSpans, placement, rowSt
 import { blockingTexts, capacityText } from './schedule-placement';
 
 /**
- * El alto de una fila (media hora): reparte el alto de la tabla entre sus filas, sin bajar de 1.75 rem (28 px); si no
- * caben, la tabla se desplaza por dentro, no la página. `100cqh` es el alto de la tabla (su contenedor) y 3.5 rem, la
- * cabecera de áreas. Los bloques se colocan en porcentaje, así que siguen a la fila.
+ * El alto de una fila (media hora): reparte el alto de la tabla entre sus filas para que 07:00–19:00 se vea completo sin
+ * desplazar, sin bajar de 22 px; solo si ni así caben, la tabla se desplaza por dentro, no la página. `100cqh` es el alto
+ * de la tabla (su contenedor) y `--head`, la cabecera de áreas. Los bloques se colocan en porcentaje, así que siguen a la fila.
  */
-const ROW_HEIGHT = 'max(1.75rem, calc((100cqh - 3.5rem) / var(--rows)))';
+const ROW_HEIGHT = 'max(22px, calc((100cqh - var(--head)) / var(--rows)))';
 
-/** El ancho mínimo de una columna de área y el de la columna de horas. */
+/** El alto de la cabecera de las columnas. */
+const HEAD_HEIGHT = '3rem';
+
+/** El ancho mínimo de una columna de área habilitada, el de una sin horario y el de la columna de horas. */
 const COLUMN_MIN = '7rem';
+const IDLE_WIDTH = '5.5rem';
 const HOURS_WIDTH = '3.5rem';
 
 /** El alto de la columna del día: una fila por cada media hora del rango. */
@@ -118,7 +122,7 @@ function AreaColumn({
 function IdleColumn({ column, range, enableHref }: { column: BoardColumn; range: DayRange; enableHref: string | undefined }) {
   return (
     <div role="group" aria-label={`${column.areaName}: sin horario`} className="relative border-l border-line-strong bg-surface-sunken/40" style={{ height: columnHeight(range), backgroundImage: hatch }}>
-      <div className="sticky top-14 grid justify-items-center gap-1 px-2 pt-4 text-center">
+      <div className="sticky top-(--head) grid justify-items-center gap-1 px-2 pt-4 text-center">
         <p className="text-xs font-medium text-ink-muted">Sin horario</p>
         {enableHref ? (
           <Link
@@ -133,24 +137,24 @@ function IdleColumn({ column, range, enableHref }: { column: BoardColumn; range:
   );
 }
 
-/** La cabecera de una columna: la sigla grande, el nombre corto y el aforo; la de un área sin horario, solo su nombre, atenuado. */
+/**
+ * La cabecera de una columna: la sigla grande y el aforo (el nombre completo, en el título y para el lector de pantalla);
+ * la de un área sin horario, su nombre corto, atenuado.
+ */
 function ColumnHeader({ column }: { column: BoardColumn }) {
   const { space } = column;
   if (!space) {
     return (
-      <div title={column.areaName} className="sticky top-0 z-20 grid h-14 content-center border-b border-l border-line-strong bg-surface-sunken px-1.5 text-center">
-        <p className="line-clamp-2 text-xs font-medium leading-4 text-ink-muted [overflow-wrap:anywhere]">{column.areaName}</p>
+      <div title={column.areaName} className="sticky top-0 z-20 grid h-(--head) content-center border-b border-l border-line-strong bg-surface-sunken px-1 text-center">
+        <p className="line-clamp-2 text-[11px] font-medium leading-4 text-ink-muted [overflow-wrap:anywhere]">{column.areaName}</p>
       </div>
     );
   }
   return (
-    <div title={`${space.areaName}${space.groupName ? `, ${space.groupName}` : ''}, aforo ${space.capacity}`} className="sticky top-0 z-20 grid h-14 content-center border-b border-l border-line-strong bg-action-soft px-1.5 text-center">
-      <p className="truncate text-base font-bold leading-5 text-action-deep">
+    <div title={`${space.areaName}${space.groupName ? `, ${space.groupName}` : ''}, aforo ${space.capacity}`} className="sticky top-0 z-20 grid h-(--head) content-center border-b border-l border-line-strong bg-action-soft px-1.5 text-center">
+      <p className="truncate text-lg font-bold leading-6 text-action-deep">
         {space.abbreviation}
         <span className="sr-only">: {space.areaName}</span>
-      </p>
-      <p aria-hidden className="truncate text-[11px] leading-4 text-ink-muted">
-        {space.areaName}
       </p>
       <p className="text-[11px] leading-4 tabular-nums text-ink-muted">Aforo {space.capacity}</p>
     </div>
@@ -159,10 +163,11 @@ function ColumnHeader({ column }: { column: BoardColumn }) {
 
 /**
  * La tabla del día, como la planilla que ya se usa (ADR 0023; decisión del usuario, 24-10-2026): ocupa el alto que deja
- * la pantalla y todo el ancho. Una columna por cada área del Núcleo, de ancho igual (mínimo 7 rem; si no caben, se
- * desplaza en horizontal con las horas fijas): las habilitadas con la sigla grande, el nombre corto y el aforo, y las que
- * aún no tienen horario atenuadas con trama y «Sin horario» (con «Habilitar» para quien administra espacios). Las filas
- * son de media hora, de 07:00 a 19:00, con la hora solo en las horas en punto; si no caben a 28 px, se desplaza la tabla.
+ * la pantalla y todo el ancho. Una columna por cada área del Núcleo: las habilitadas, de ancho igual (mínimo 7 rem; si no
+ * caben, se desplaza en horizontal con las horas fijas), con la sigla grande y el aforo, y al final las que aún no tienen
+ * horario, angostas (5,5 rem), atenuadas con trama y «Sin horario» (con «Habilitar» para quien administra espacios). Las
+ * filas son de media hora, de 07:00 a 19:00, con la hora solo en las horas en punto; llenan el alto disponible y, si no
+ * caben a 22 px, se desplaza la tabla.
  * Lo cerrado del horario semanal, los cierres y los feriados se ven atenuados con su motivo. Quien programa
  * (`canSchedule`) lleva bloques y las solicitudes por programar a un área y una hora arrastrando; las columnas son los destinos.
  */
@@ -188,17 +193,21 @@ export function ScheduleTable({
   enableHref?: ((areaId: string) => string) | undefined;
 }) {
   const rows = (range.end - range.start) / ROW_MINUTES;
+  // Las habilitadas (de ancho igual, que se reparten el ancho) van primero; las sin horario, angostas, al final.
+  const enabled = columns.filter((column) => column.space).length;
+  const idle = columns.length - enabled;
   const style = {
     '--row': ROW_HEIGHT,
     '--rows': rows,
+    '--head': HEAD_HEIGHT,
     width: '100%',
-    minWidth: `calc(${HOURS_WIDTH} + ${columns.length} * ${COLUMN_MIN})`,
-    gridTemplateColumns: `${HOURS_WIDTH} repeat(${columns.length}, minmax(${COLUMN_MIN}, 1fr))`,
+    minWidth: `calc(${HOURS_WIDTH} + ${enabled} * ${COLUMN_MIN} + ${idle} * ${IDLE_WIDTH})`,
+    gridTemplateColumns: [HOURS_WIDTH, enabled > 0 ? `repeat(${enabled}, minmax(${COLUMN_MIN}, 1fr))` : null, idle > 0 ? `repeat(${idle}, ${IDLE_WIDTH})` : null].filter(Boolean).join(' '),
   } as CSSProperties;
   return (
     <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-card bg-surface shadow-raised [container-type:size]">
       <div className="grid" style={style}>
-        <div aria-hidden className="sticky left-0 top-0 z-30 h-14 border-b border-line-strong bg-surface-sunken" />
+        <div aria-hidden className="sticky left-0 top-0 z-30 h-(--head) border-b border-line-strong bg-surface-sunken" />
         {columns.map((column) => (
           <ColumnHeader key={column.areaId} column={column} />
         ))}

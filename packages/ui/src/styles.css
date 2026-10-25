@@ -50,24 +50,25 @@
   --color-danger-soft: #fcebe9;
 
   /* Fondos de tinte medio para distinguir carreras en el Cronograma (24-10-2026), cada uno con su borde izquierdo del
-     mismo tono más oscuro (`-edge`): ninguno es un estado. El texto es siempre `ink` (≥ 8:1, AA) y la carrera va
-     escrita en el bloque; los rojos se evitan porque `danger` los usa. */
-  --color-career-1: #c3daf3;
-  --color-career-1-edge: #2f6fb0;
-  --color-career-2: #d7ccf2;
-  --color-career-2-edge: #6b4fb8;
-  --color-career-3: #bfe5cd;
-  --color-career-3-edge: #2e8a55;
-  --color-career-4: #f3d89b;
-  --color-career-4-edge: #b07a0c;
-  --color-career-5: #f1c4de;
-  --color-career-5-edge: #b43d85;
-  --color-career-6: #b5e0e0;
-  --color-career-6-edge: #1f8585;
-  --color-career-7: #f6caa9;
-  --color-career-7-edge: #c2561a;
-  --color-career-8: #d3dca8;
-  --color-career-8-edge: #6b7c1e;
+     mismo tono más oscuro (`-edge`): ninguno es un estado. Ocho matices bien separados (azul, verde, ámbar, violeta,
+     teal, naranja, cian y lima); sin magenta ni rosa, que son el acento del módulo, ni rojos, que usa `danger`. El
+     texto es siempre `ink` (≥ 8,8:1) y el secundario `ink-muted` (≥ 4,6:1), ambos AA; la carrera va escrita en el bloque. */
+  --color-career-1: #bad0f6;
+  --color-career-1-edge: #2a5fc2;
+  --color-career-2: #b9e4bf;
+  --color-career-2-edge: #2b8a3c;
+  --color-career-3: #f8da7e;
+  --color-career-3-edge: #a47100;
+  --color-career-4: #d3c4f6;
+  --color-career-4-edge: #6841c4;
+  --color-career-5: #9fe0d2;
+  --color-career-5-edge: #0f7b69;
+  --color-career-6: #f9bd94;
+  --color-career-6-edge: #c24f14;
+  --color-career-7: #a6dcf3;
+  --color-career-7-edge: #077fa8;
+  --color-career-8: #d2ea86;
+  --color-career-8-edge: #66850a;
 
   /* Diseño de ReactiLab (ADR 0010, 04-10-2026): esquinas amplias, borde fino con sombra mínima y
      elevación al pasar el puntero. El borde va dentro de la sombra (un anillo de 1 px) para no

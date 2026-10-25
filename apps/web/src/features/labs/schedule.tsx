@@ -12,6 +12,7 @@ import { useLabs } from './context';
 import { useClosures, usePeriods, useRequests, useResponsibles, useSchedule, useSpaces } from './queries';
 import { ActivitySheet } from './schedule-block-sheet';
 import type { BlockOpening } from './schedule-block';
+import { CareerToneProvider, careerTones } from './schedule-career-color';
 import { DayControls, DayDetail } from './schedule-day-bar';
 import { ScheduleDnd, type DragPreview, type DragSource } from './schedule-dnd';
 import { activitiesOn, boardColumns, boardRange, holidayOn, parseDay, periodOn, toMinutes, weekDates, type BoardColumn } from './schedule-grid';
@@ -113,6 +114,8 @@ export function LabsSchedulePage() {
   const columns = spaces.data ? boardColumns(core.data?.areas ?? null, spaces.data.items, dayItems) : [];
   const boardSpaces = columns.flatMap((column) => (column.space ? [column.space] : []));
   const dayClosures = closures.data?.items ?? [];
+  // Los tonos se reparten entre las carreras que se ven: las del día y las de «Por programar».
+  const toneOf = careerTones([...dayItems.map((item) => item.group), ...(inbox.data?.items ?? []).map((request) => request.group)]);
   const goTo = (day: string) => setParams(day === today ? {} : { dia: day }, { replace: true });
 
   /** Qué pasaría al soltar lo que se arrastra en esa área a esa hora, con los datos ya cargados. */
@@ -158,16 +161,17 @@ export function LabsSchedulePage() {
     target.kind === 'move' ? (spaces.data?.items ?? []).filter((space) => enabledSpaces.includes(space) || space.areaId === target.activity.areaId) : enabledSpaces;
 
   return (
-    <>
+    <CareerToneProvider value={toneOf}>
       <div className={cn('flex flex-col', wide && 'h-[calc(100dvh-8.25rem)]')}>
         <SectionHeader
+          compact={wide}
           title="Cronograma"
           updatedAt={Math.min(...queries.map((query) => query.dataUpdatedAt))}
           detail={<DayDetail period={periods.data ? periodOn(periods.data.items, date) : undefined} holiday={closures.data ? holidayOn(dayClosures, date) : null} />}
           actions={<DayControls date={date} today={today} onPick={goTo} />}
         />
         <ScheduleDnd previewOf={previewOf} onDrop={dropped}>
-          <div className={cn('mt-4 grid gap-4', wide && 'flex min-h-0 flex-1 flex-col gap-3')}>
+          <div className={cn('mt-4 grid gap-4', wide && 'mt-3 flex min-h-0 flex-1 flex-col gap-3')}>
             {failed ? (
               <div className="rounded-card bg-surface shadow-raised">
                 <QueryErrorState error={failed.error} onRetry={() => queries.forEach((query) => void query.refetch())} />
@@ -224,6 +228,6 @@ export function LabsSchedulePage() {
           onDone={goTo}
         />
       ) : null}
-    </>
+    </CareerToneProvider>
   );
 }

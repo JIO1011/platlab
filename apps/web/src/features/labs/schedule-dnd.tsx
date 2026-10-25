@@ -19,7 +19,7 @@ import { createContext, useContext, useRef, useState, type CSSProperties, type R
 import { formatDate } from '../../app/format';
 import { useMediaQuery } from '../../app/use-media-query';
 import { blockFace, blockTextClass } from './schedule-block';
-import { careerTone } from './schedule-career-color';
+import { useCareerTone } from './schedule-career-color';
 import { blockText, toMinutes, type DayRange } from './schedule-grid';
 import { blockingTexts, requestBlockText, startAtOffset } from './schedule-placement';
 
@@ -108,12 +108,13 @@ const announcements: Announcements = {
 /** El indicador que sigue al puntero: qué se lleva y su horario. */
 function Ghost() {
   const { active } = useDndContext();
+  const toneOf = useCareerTone();
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const source = active ? sourceOf(active.data) : undefined;
   return (
     <DragOverlay dropAnimation={reduceMotion ? null : { duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
       {source ? (
-        <div className={cn('w-fit max-w-64 cursor-grabbing px-3 py-1.5 shadow-overlay', blockFace, careerTone(sourceGroup(source)))}>
+        <div className={cn('w-fit max-w-64 cursor-grabbing px-3 py-1.5 shadow-overlay', blockFace, toneOf(sourceGroup(source)))}>
           <p className={cn('text-sm', blockTextClass)}>{sourceLabel(source)}</p>
           <p className="text-[13px] tabular-nums text-ink-muted">
             {sourceDetail(source)} · {sourceTimes(source)}
