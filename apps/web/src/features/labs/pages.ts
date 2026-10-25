@@ -6,3 +6,4 @@ export { LabsRequestsPage } from './requests';
 export { LabsRequestPage } from './request-page';
 export { LabsInboxPage } from './inbox';
 export { LabsInboxRequestPage } from './inbox-page';
+export { LabsSchedulePage } from './schedule';

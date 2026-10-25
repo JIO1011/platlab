@@ -541,3 +541,47 @@ const moduleAdmitsIR: any = {"usedParamSet":{"actionClass":true,"workspaceId":tr
 export const moduleAdmits = new PreparedQuery<IModuleAdmitsParams,IModuleAdmitsResult>(moduleAdmitsIR);
 
 
+/** 'ListMembersWithPermission' parameters type */
+export interface IListMembersWithPermissionParams {
+  permission: string;
+  workspaceId: string;
+}
+
+/** 'ListMembersWithPermission' return type */
+export interface IListMembersWithPermissionResult {
+  id: string;
+  name: string;
+  sort_name: string;
+}
+
+/** 'ListMembersWithPermission' query type */
+export interface IListMembersWithPermissionQuery {
+  params: IListMembersWithPermissionParams;
+  result: IListMembersWithPermissionResult;
+}
+
+const listMembersWithPermissionIR: any = {"usedParamSet":{"workspaceId":true,"permission":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":703,"b":715}]},{"name":"permission","required":true,"transform":{"type":"scalar"},"locs":[{"a":744,"b":755}]}],"statement":"-- Miembros activos con el permiso por un rol vigente (el propietario, por su Administrador implícito): a quién se le\n-- puede asignar algo que exige ese permiso, como el responsable de un bloque de Laboratorios (ADR 0023).\nSELECT DISTINCT pr.id, ident.display_name AS name, inventory.fold_text(ident.display_name) AS \"sort_name!\"\nFROM core.effective_role_assignments AS ra\nJOIN core.role_permissions AS rp ON rp.role_code = ra.role_code\nJOIN core.principals AS pr ON pr.workspace_id = ra.workspace_id AND pr.id = ra.principal_id\nJOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nJOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE ra.workspace_id = :workspaceId!\n  AND rp.permission_code = :permission!\n  AND ra.revoked_at IS NULL\n  AND ra.valid_from <= now()\n  AND (ra.valid_until IS NULL OR ra.valid_until > now())\n  AND pr.kind = 'member' AND m.status = 'active'\nORDER BY \"sort_name!\", pr.id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Miembros activos con el permiso por un rol vigente (el propietario, por su Administrador implícito): a quién se le
+ * -- puede asignar algo que exige ese permiso, como el responsable de un bloque de Laboratorios (ADR 0023).
+ * SELECT DISTINCT pr.id, ident.display_name AS name, inventory.fold_text(ident.display_name) AS "sort_name!"
+ * FROM core.effective_role_assignments AS ra
+ * JOIN core.role_permissions AS rp ON rp.role_code = ra.role_code
+ * JOIN core.principals AS pr ON pr.workspace_id = ra.workspace_id AND pr.id = ra.principal_id
+ * JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id
+ * JOIN core.identities AS ident ON ident.id = m.identity_id
+ * WHERE ra.workspace_id = :workspaceId!
+ *   AND rp.permission_code = :permission!
+ *   AND ra.revoked_at IS NULL
+ *   AND ra.valid_from <= now()
+ *   AND (ra.valid_until IS NULL OR ra.valid_until > now())
+ *   AND pr.kind = 'member' AND m.status = 'active'
+ * ORDER BY "sort_name!", pr.id
+ * ```
+ */
+export const listMembersWithPermission = new PreparedQuery<IListMembersWithPermissionParams,IListMembersWithPermissionResult>(listMembersWithPermissionIR);
+
+

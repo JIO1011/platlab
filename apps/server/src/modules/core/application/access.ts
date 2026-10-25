@@ -12,6 +12,7 @@ import {
   findIdentity,
   findMembershipClasses,
   listActiveMembers as listActiveMembersQuery,
+  listMembersWithPermission as listMembersWithPermissionQuery,
   moduleAdmits as moduleAdmitsQuery,
   listMemberRoles as listMemberRolesQuery,
   listMyWorkspaces as listMyWorkspacesQuery,
@@ -229,6 +230,12 @@ export function listGrantedPermissions(access: WorkspaceAccess): Promise<string[
 /** Miembros activos del espacio, por nombre: a quién se asigna un equipo o el encargo de un área. */
 export function listActiveMembers(access: WorkspaceAccess): Promise<Array<{ id: string; name: string }>> {
   return listActiveMembersQuery.run({ workspaceId: access.workspace.id }, access.client);
+}
+
+/** Miembros activos que tienen hoy el permiso, por nombre: a quién se le puede asignar lo que lo exige. */
+export async function membersWithPermission(access: WorkspaceAccess, permission: string): Promise<Array<{ id: string; name: string }>> {
+  const rows = await listMembersWithPermissionQuery.run({ workspaceId: access.workspace.id, permission }, access.client);
+  return rows.map(({ id, name }) => ({ id, name }));
 }
 
 /** Nombres de los roles vigentes del miembro, para mostrarlos; no autorizan nada. */

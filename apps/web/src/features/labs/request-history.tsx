@@ -5,6 +5,7 @@ const eventLabels: Record<RequestView['events'][number]['action'], string> = {
   submitted: 'Enviada',
   changes_requested: 'Cambios solicitados',
   resubmitted: 'Reenviada',
+  scheduled: 'Programada',
   rejected: 'Rechazada',
   cancelled: 'Cancelada',
 };

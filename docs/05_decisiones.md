@@ -895,6 +895,16 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
       - El tesista llena su propio formato (por ejemplo «Tesis», con «Docente» renombrado a «Tutor»): el dato esencial es un texto que, para el Docente, se llena con su nombre. El solicitante sale siempre de la sesión.
       - El Operador consulta las solicitudes recibidas; pedir cambios y rechazar son del Administrador.
       - Los equipos se piden solo por tipo; un caso especial va en Observaciones.
+    - **Reglas y diseño de L-01c, Cronograma** (decisión del usuario, 23-10-2026).
+      - El responsable de un bloque es un Operador o el Administrador; por defecto, quien programa elige. El docente nunca.
+      - Cada fecha de la solicitud es un bloque. La solicitud queda «programada» cuando todas sus fechas tienen bloque; mientras tanto sigue en «Por programar» con «1 de 2 programadas». Programar es aprobar cada fecha.
+      - Al programar se valida: choque con otro bloque del área, horario semanal del área, cierres y feriados, período y que la fecha sea futura; todo eso bloquea. Superar el aforo solo avisa (⚠ 30 / 24) y el Administrador decide.
+      - El bloque ocupa la fecha pedida; el Administrador cambia el área, la hora o el responsable ese mismo día. Cambiar el día es pedir cambios al docente.
+      - Código `P1-S12-ANT03` al programar: el período de la fecha, la semana contada desde su inicio, la sigla del área y el número siguiente de esa área en esa semana. Si el bloque cambia de área o de semana, toma el número siguiente de la nueva y el anterior queda en su historial; los números no se reutilizan.
+      - Lo programa el Administrador (permiso propio); el Operador ve la tabla y la bandeja sin mover nada; el Docente y el tesista ven la tabla completa sin la bandeja.
+      - Las reglas se escriben una vez en el contrato y las usan la validación en vivo al arrastrar y el servidor, que decide; una exclusión GiST impide dos bloques activos que se crucen en el mismo área.
+      - Cancelar una solicitud programada: quien la pidió, hasta el día anterior a su primer bloque; el laboratorio, siempre y con motivo. Sus bloques se liberan y conservan su historial.
+    - **Vista del Cronograma** (decisión del usuario, 24-10-2026; ajusta «Cronograma» de «Cuatro secciones» y la bandeja al costado): una tabla al ancho de la ventana, como la planilla que ya usan, con todas las áreas habilitadas como columnas (sigla) y las horas de 07:00 a 19:00 como filas. Cada bloque dice solo «Materia - Carrera - Docente» y al pulsarlo abre la solicitud llena, lista para imprimir. «Por programar» queda debajo de la tabla, como bloques que se arrastran a su lugar.
     - **Ajustes de L-01b** (decisión del usuario, 23-10-2026; reemplaza «quien administra también puede llenarla» y que logo y nombre lleguen del espacio de trabajo).
       - Piden solo el Docente y el tesista; la lista blanca es invitar con uno de esos roles. Propietario, Administrador y Operador revisan, no piden.
       - Se llena sobre la hoja: la misma plantilla P69 sirve para diseñar, llenar, revisar en Recibidas e imprimir llena; en el móvil, un dato por fila.
@@ -950,7 +960,7 @@ Estado: aceptada (20-10-2026; idea del usuario: cuadros que la app dibuja como u
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Equipos | ¿Qué campos de la ficha y qué documentos considera necesarios el cliente? ¿Qué valores de alimentación usa? ¿Quiere un aviso al pesar en Reactivos con una balanza de calibración vencida? ([ADR 0019](#adr-0019)) | F0, antes de E-01 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
-| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿El responsable del bloque es siempre un técnico (Operador)? ¿Devoluciones químicas y quién declara el consumo al cerrar? (Solicitantes, cancelación y materiales, decididos el 21-10-2026) | P-04, antes de L-01c (lo del cierre, antes de L-01e) |
+| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿Devoluciones químicas y quién declara el consumo al cerrar? (Solicitantes, cancelación y materiales, 21-10-2026; responsable, fechas y aforo del Cronograma, 23-10-2026) | P-04, antes de L-01e |
 | Inicio | Propuesta del 20-10-2026 en espera: el usuario tiene otras ideas. «Por atender» de todos los módulos (rojo antes que ámbar, con su enlace filtrado), tres tarjetas por fila con gráfico solo si hay datos (Equipos hoy dice siempre «Sin cambios»), «Por atender» primero en el móvil y avisos declarados por cada módulo en su `module.tsx` | Al terminar los módulos, con las ideas del usuario |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |

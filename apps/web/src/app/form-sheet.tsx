@@ -52,6 +52,7 @@ export function FormSheet({
   dirty = false,
   fullscreenMobile = false,
   destructive = false,
+  submitDisabled = false,
   children,
 }: {
   title: string;
@@ -90,6 +91,8 @@ export function FormSheet({
   fullscreenMobile?: boolean;
   /** El botón principal es de una acción que no se deshace (anular): rojo, sin degradado. */
   destructive?: boolean;
+  /** Lo que se ve en vivo ya impide enviar (p. ej., un horario que choca): el botón principal queda inactivo. */
+  submitDisabled?: boolean;
   children: ReactNode;
 }) {
   const formId = `form-${title.replace(/\s+/g, '-').toLowerCase()}`;
@@ -150,6 +153,7 @@ export function FormSheet({
               form={formId}
               variant="primary"
               loading={pending}
+              disabled={submitDisabled}
               className={cn(
                 'h-12 w-full flex-1 rounded-2xl text-base font-bold',
                 destructive

@@ -59,6 +59,8 @@ export const workspaceMeResponse = z.object({
     timeZone: z.string(),
   }),
   member: z.object({
+    /** El principal del miembro en este espacio: para reconocerse en listas (p. ej., como responsable de un bloque). */
+    principalId: z.uuid(),
     displayName: z.string(),
     isOwner: z.boolean(),
     /** Nombres de sus roles vigentes, solo para mostrarlos; el servidor autoriza por permisos. */

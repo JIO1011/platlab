@@ -50,7 +50,7 @@ export function coreRoutes({
         { subject: verifiedSubject(request), workspaceId, actionClass: 'read_export' },
         async (access) => ({
           workspace: access.workspace,
-          member: { displayName: access.displayName, isOwner: access.isOwner, roles: await listMemberRoles(access) },
+          member: { principalId: access.principalId, displayName: access.displayName, isOwner: access.isOwner, roles: await listMemberRoles(access) },
           ...(await describeWorkspace(access)),
         }),
       );

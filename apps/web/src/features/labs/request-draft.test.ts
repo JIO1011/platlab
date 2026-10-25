@@ -19,6 +19,9 @@ const request: LabsRequest = {
   dateCount: 2,
   late: false,
   exceptions: 0,
+  scheduledCount: 0,
+  scheduledDates: [],
+  group: 'Ingeniería química',
   submittedAt: null,
   version: 3,
   formId: '3f1d2b5a-7c11-4d8f-8d4e-6a8c4f4e9d0b',
@@ -45,6 +48,7 @@ const request: LabsRequest = {
     { kind: 'material', name: 'Papel filtro', perGroup: '0.5', quantity: '1.5', check: 'unverified' },
   ],
   events: [],
+  blocks: [],
   mine: true,
 };
 

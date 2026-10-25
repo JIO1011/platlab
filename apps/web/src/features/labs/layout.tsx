@@ -24,13 +24,14 @@ export function LabsLayout() {
           canManageForm: app.canOperate && me.permissions.includes('labs.form.manage'),
           canRequest: app.canOperate && me.permissions.includes('labs.request.create'),
           canReview: app.canOperate && me.permissions.includes('labs.request.review'),
+          canSchedule: app.canOperate && me.permissions.includes('labs.schedule.manage'),
         } satisfies LabsContext
       }
     />
   );
 }
 
-/** La raíz de Laboratorios, hasta que haya Resumen (L-01c): lleva a la primera sección que el miembro tiene. */
+/** La raíz de Laboratorios, que no tiene Resumen: lleva a la primera sección que el miembro tiene, el Cronograma. */
 export function LabsHome() {
   const { workspaceId, me } = useShell();
   const app = moduleApps(me).find((entry) => entry.code === 'labs');

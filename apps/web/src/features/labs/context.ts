@@ -11,6 +11,8 @@ export interface LabsContext extends ModuleContext {
   canRequest: boolean;
   /** Pide cambios o rechaza las solicitudes enviadas (`labs.request.review`, Administrador). */
   canReview: boolean;
+  /** Programa y mueve bloques del Cronograma (`labs.schedule.manage`, Administrador); el Operador solo ve la tabla y la bandeja. */
+  canSchedule: boolean;
 }
 
 export const useLabs = () => useOutletContext<LabsContext>();

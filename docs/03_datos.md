@@ -202,6 +202,9 @@ En L-01b las tablas `practices.*` de abajo pasan al esquema `labs` ([ADR 0023](0
 | `labs.requests` | La solicitud con su formato y revisión, quien pide, estado (borrador, enviada, cambios solicitados, rechazada, cancelada), los datos del sistema en columnas, las fechas sueltas, los datos libres en `answers` y «fuera de plazo». Enviada, lo esencial está; rechazada y cancelada no cambian |
 | `labs.request_lines` | Recursos pedidos: reactivo del catálogo en su unidad base o no catalogado, tipo de equipo o no catalogado, y material en texto; total exacto y, si se pidió así, por grupo. Se reemplazan solo mientras quien pide edita |
 | `labs.request_events` | Historial visible de la solicitud: enviada, cambios y rechazo con motivo, reenviada y cancelada; solo crece |
+| `labs.activities` | Bloques del Cronograma: una fecha de una solicitud enviada en un área, a una hora y con su responsable (Operador o Administrador), con el código vigente `P1-S12-ANT03` y sus partes. Una exclusión GiST impide dos activos que se crucen en el área; se liberan, no se borran |
+| `labs.activity_sequences` | Último número de cada área en cada semana de un período: el «03» de ANT03, sin reutilizarse |
+| `labs.activity_codes` | Códigos que tuvo cada bloque, el vigente y los anteriores al cambiar de área; solo crece |
 | `scheduling.lab_bookings`, `equipment_bookings`, `material_bookings` | Reservas `[inicio, fin)` con exclusión GiST por espacio y recurso |
 | `practices.templates`, `template_versions` | Plantillas con versiones publicadas inmutables |
 | `practices.participations` | Estudiante: docente responsable, ámbito y vigencia |
