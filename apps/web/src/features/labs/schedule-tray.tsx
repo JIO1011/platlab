@@ -1,6 +1,6 @@
 import type { RequestSummary } from '@platlab/contracts';
 import { Button, cn } from '@platlab/ui';
-import { CalendarPlus, CircleCheck } from 'lucide-react';
+import { CalendarPlus, CircleCheck, TriangleAlert } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { exceptionsText } from './request-summary';
 import { blockFace, blockTextClass, lineClamp } from './schedule-block';
@@ -30,10 +30,12 @@ function warningsOf({ late, exceptions }: Pick<RequestSummary, 'late' | 'excepti
 
 /**
  * Una fecha por programar, con el aspecto de un bloque de la tabla («Materia - Carrera - Docente» sobre el color de su
- * carrera) y, debajo, «lun 9 nov · 08:00–10:00» con un punto ámbar si está fuera de plazo o tiene recursos por revisar
- * (el motivo, en texto para el lector de pantalla y en el título). En la franja, las del día que se ve van resaltadas:
- * se arrastran a la tabla (si la fecha es futura) y un clic abre «Programar…»; las de otros días van atenuadas y un clic
- * lleva la tabla a ese día. En la lista (pantalla estrecha), cada una trae su botón «Programar…».
+ * carrera) y, debajo, «lun 9 nov · 08:00–10:00» con un triángulo de alerta si está fuera de plazo o tiene recursos por
+ * revisar: en la lista (pantalla estrecha) con el motivo escrito al lado; en la franja, de 224 px, el motivo va en el título
+ * y para el lector de pantalla porque junto a la fecha no cabe. En la franja, las del día que se ve van resaltadas con un
+ * anillo: se arrastran a la tabla (si la fecha es futura) y un clic abre «Programar…»; las de otros días van con menos
+ * saturación en el fondo (el texto no pierde contraste) y un clic lleva la tabla a ese día. En la lista, cada una trae su
+ * botón «Programar…».
  */
 function PendingTile({ card, actions }: { card: PendingCard; actions: TrayActions }) {
   const toneOf = useCareerTone();
@@ -49,17 +51,23 @@ function PendingTile({ card, actions }: { card: PendingCard; actions: TrayAction
   const face = (
     <>
       <span className={cn(blockTextClass, 'block', actions.wide ? lineClamp[3] : 'text-sm')}>{text}</span>
-      <span className="mt-auto flex items-center gap-1.5 pt-0.5 text-[11px] leading-[14px] tabular-nums text-ink-muted">
-        {warnings.length > 0 ? (
-          <span title={warnings.join(' · ')} className="flex shrink-0 items-center">
-            <span aria-hidden className="size-2 rounded-full bg-warning" />
+      <span className={cn('mt-auto flex pt-0.5 tabular-nums text-ink-muted', actions.wide ? 'items-center gap-1.5 text-[11px] leading-[14px]' : 'flex-wrap items-center gap-x-3 gap-y-0.5 text-xs leading-4')}>
+        {warnings.length > 0 && actions.wide ? (
+          <span title={warnings.join(' · ')} className="flex shrink-0 items-center text-ink">
+            <TriangleAlert aria-hidden className="size-3.5" />
             <span className="sr-only">{warnings.join('. ')}</span>
           </span>
         ) : null}
-        <span className="truncate">
+        <span className={actions.wide ? 'truncate' : undefined}>
           {cardWhenText(card)}
           {past ? ' · ya pasó' : ''}
         </span>
+        {warnings.length > 0 && !actions.wide ? (
+          <span className="flex items-center gap-1 font-medium text-ink">
+            <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+            {warnings.join(' · ')}
+          </span>
+        ) : null}
       </span>
     </>
   );
@@ -88,7 +96,7 @@ function PendingTile({ card, actions }: { card: PendingCard; actions: TrayAction
         'relative touch-manipulation',
         actions.wide ? 'h-[4.75rem] w-56 shrink-0' : 'grid',
         actions.wide && here && 'ring-2 ring-action ring-offset-1',
-        actions.wide && !here && 'opacity-75 transition-opacity hover:opacity-100',
+        actions.wide && !here && 'saturate-50 transition-[filter] hover:saturate-100',
         draggable && 'cursor-grab select-none active:cursor-grabbing',
         drag.isDragging && 'opacity-40',
       )}
@@ -107,7 +115,7 @@ function PendingTile({ card, actions }: { card: PendingCard; actions: TrayAction
 /**
  * «Por programar» (ADR 0023, L-01c; decisión del usuario, 24-10-2026): pegada al borde inferior del contenido, una
  * franja de unos 110 px con una tarjeta por fecha pendiente de las solicitudes enviadas, las del día que se ve primero y
- * resaltadas (se arrastran a la tabla) y las de otros días atenuadas (llevan a su día). En pantallas estrechas es una
+ * resaltadas (se arrastran a la tabla) y las de otros días menos saturadas (llevan a su día). En pantallas estrechas es una
  * lista debajo del día, con «Programar…». El Operador las ve sin acciones de programar.
  */
 export function ScheduleTray({ items, pendingError, onRetry, actions }: { items: readonly RequestSummary[]; pendingError: boolean; onRetry: () => void; actions: TrayActions }) {

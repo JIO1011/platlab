@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core';
 import type { Activity, Closure, Space } from '@platlab/contracts';
 import { cn } from '@platlab/ui';
-import { LoaderCircle } from 'lucide-react';
+import { CircleCheck, CircleX, LoaderCircle, TriangleAlert } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { ScheduleBlock, type BlockOpening } from './schedule-block';
@@ -33,8 +33,8 @@ const at = (span: { from: number; to: number }, range: DayRange) => {
   return { top: `${top}%`, height: `${height}%` };
 };
 
-/** La línea que abre cada fila: marcada en las horas enteras y apenas visible en las medias. */
-const rowLine = (mark: number) => (mark % 60 === 0 ? 'border-line-strong' : 'border-line/50');
+/** La línea que abre cada fila: más fuerte en las horas enteras y suave en las medias. */
+const rowLine = (mark: number) => (mark % 60 === 0 ? 'border-line-strong' : 'border-line');
 
 /** La trama suave de una columna sin horario. */
 const hatch = 'repeating-linear-gradient(135deg, transparent 0 7px, color-mix(in oklab, var(--color-ink) 6%, transparent) 7px 8px)';
@@ -51,8 +51,8 @@ function RowLines({ range }: { range: DayRange }) {
 }
 
 /**
- * Dónde caería lo que se arrastra en esta columna, dicho con texto y con signo: ✔ si cabe, ✖ con el motivo si no, y ⚠
- * si supera el aforo (solo avisa). El lugar encaja a 15 min.
+ * Dónde caería lo que se arrastra en esta columna, dicho con texto y con ícono: «círculo con visto» si cabe, «círculo con
+ * cruz» y el motivo si no, y «triángulo de alerta» si supera el aforo (solo avisa). El lugar encaja a 15 min.
  */
 function DropPreview({ range, space }: { range: DayRange; space: Space }) {
   const drag = useDragPreview();
@@ -69,14 +69,19 @@ function DropPreview({ range, space }: { range: DayRange; space: Space }) {
       )}
       style={at({ from: preview.start, to: preview.end }, range)}
     >
-      <p className="font-semibold">
-        {blocked ? '✖ ' : '✔ '}
+      <p className="inline-flex items-center justify-center gap-1 font-semibold">
+        {blocked ? <CircleX aria-hidden className="size-3.5 shrink-0" /> : <CircleCheck aria-hidden className="size-3.5 shrink-0" />}
         <span className="tabular-nums">
           {timeText(preview.start)}–{timeText(preview.end)}
         </span>
       </p>
       <p>{blocked ? blockingTexts(preview.check).join(' · ') : 'Libre'}</p>
-      {!blocked && capacity ? <p className="font-medium text-warning">⚠ {capacity}</p> : null}
+      {!blocked && capacity ? (
+        <p className="inline-flex items-center justify-center gap-1 font-medium text-warning">
+          <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+          {capacity}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -171,13 +176,13 @@ function ColumnHeader({ column }: { column: BoardColumn }) {
   const { space } = column;
   if (!space) {
     return (
-      <div title={column.areaName} className="sticky top-0 z-20 grid h-(--head) content-center border-b border-l border-line-strong bg-surface-sunken px-1 text-center">
+      <div title={column.areaName} className="sticky top-0 z-20 grid h-(--head) content-center border-b-2 border-l border-line-strong bg-surface-sunken px-1 text-center">
         <p className="line-clamp-2 text-[11px] font-medium leading-4 text-ink-muted [overflow-wrap:anywhere]">{column.areaName}</p>
       </div>
     );
   }
   return (
-    <div title={`${space.areaName}${space.groupName ? `, ${space.groupName}` : ''}, aforo ${space.capacity}`} className="sticky top-0 z-20 grid h-(--head) content-center border-b border-l border-line-strong bg-action-soft px-1.5 text-center">
+    <div title={`${space.areaName}${space.groupName ? `, ${space.groupName}` : ''}, aforo ${space.capacity}`} className="sticky top-0 z-20 grid h-(--head) content-center border-b-2 border-l border-line-strong bg-surface px-1.5 text-center">
       <p className="truncate text-lg font-bold leading-6 text-action-deep">
         {space.abbreviation}
         <span className="sr-only">: {space.areaName}</span>
@@ -236,7 +241,7 @@ export function ScheduleTable({
   return (
     <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-card bg-surface shadow-raised [container-type:size]">
       <div className="grid" style={style}>
-        <div aria-hidden className="sticky left-0 top-0 z-30 h-(--head) border-b border-line-strong bg-surface-sunken" />
+        <div aria-hidden className="sticky left-0 top-0 z-30 h-(--head) border-b-2 border-line-strong bg-surface-sunken" />
         {columns.map((column) => (
           <ColumnHeader key={column.areaId} column={column} />
         ))}

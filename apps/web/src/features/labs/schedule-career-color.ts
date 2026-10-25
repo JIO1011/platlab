@@ -2,23 +2,23 @@ import { createContext, useContext } from 'react';
 
 /**
  * El color de fondo de un bloque del Cronograma según su carrera (decisión del usuario, 24-10-2026): ocho tonos de
- * tinte medio (`--color-career-N` y su borde `-edge`, texto `ink` con contraste AA) y un tono por carrera sin choques
+ * tinte medio (`--color-career-N` y su borde de 1 px `-edge`, texto `ink` con contraste AA) y un tono por carrera sin choques
  * entre las visibles (`careerTones`), así la misma carrera se ve igual en toda la tabla y en «Por programar». El color
  * solo distingue; la carrera va escrita en el bloque. Las clases se escriben completas para que Tailwind las encuentre.
  */
 export const tones = [
-  'bg-career-1 border-l-career-1-edge',
-  'bg-career-2 border-l-career-2-edge',
-  'bg-career-3 border-l-career-3-edge',
-  'bg-career-4 border-l-career-4-edge',
-  'bg-career-5 border-l-career-5-edge',
-  'bg-career-6 border-l-career-6-edge',
-  'bg-career-7 border-l-career-7-edge',
-  'bg-career-8 border-l-career-8-edge',
+  'bg-career-1 border-career-1-edge',
+  'bg-career-2 border-career-2-edge',
+  'bg-career-3 border-career-3-edge',
+  'bg-career-4 border-career-4-edge',
+  'bg-career-5 border-career-5-edge',
+  'bg-career-6 border-career-6-edge',
+  'bg-career-7 border-career-7-edge',
+  'bg-career-8 border-career-8-edge',
 ] as const;
 
 /** El fondo y el borde de un bloque sin carrera: los del módulo. */
-export const neutralTone = 'bg-action-soft border-l-action';
+export const neutralTone = 'bg-action-soft border-action';
 
 /** La carrera sin mayúsculas, tildes ni espacios de más: «Ingeniería  Química» y «ingenieria quimica» son la misma. */
 function normalized(career: string): string {

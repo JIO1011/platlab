@@ -26,7 +26,7 @@ import { blockingTexts, requestBlockText, startAtOffset } from './schedule-place
 /**
  * Arrastrar en el Cronograma (ADR 0023, L-01c): una solicitud de «Por programar» o un bloque del mismo día se llevan a
  * un área y una hora de la tabla (dnd kit, como las filas de Formatos). Mientras se arrastra, la celda destino dice en
- * vivo si cabe (✔ / ✖ con el motivo) y si supera el aforo (⚠); soltar en un lugar válido lo guarda directamente, sin
+ * vivo si cabe (ícono de visto, o de cruz con el motivo) y si supera el aforo (ícono de alerta); soltar en un lugar válido lo guarda directamente, sin
  * ventana de confirmación (la pantalla marca el destino «Guardando» hasta que el servidor responde). Escape interrumpe y
  * el elemento vuelve a su sitio. Arrastrar es una comodidad del escritorio: «Programar…» y «Mover…» hacen lo mismo con
  * teclado y en el móvil, y con ellas se cambia el responsable.

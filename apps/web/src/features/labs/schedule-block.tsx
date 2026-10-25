@@ -1,8 +1,8 @@
 import type { Activity, Space } from '@platlab/contracts';
 import { Button, Tooltip, cn } from '@platlab/ui';
-import { MoveVertical } from 'lucide-react';
+import { MoveVertical, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router';
-import { activityDetails, activityLabel, blockLines, blockText, overCapacity, showsTime, toMinutes } from './schedule-grid';
+import { activityDetails, activityLabel, blockLines, blockText, capacityWarning, overCapacity, showsTime, toMinutes } from './schedule-grid';
 import { useCareerTone } from './schedule-career-color';
 
 /** Cómo se abre y se mueve un bloque: la solicitud para quien puede verla, un panel de solo lectura para los demás y, para quien programa, «Mover…». */
@@ -16,10 +16,10 @@ export interface BlockOpening {
 }
 
 /**
- * La cara de un bloque (tabla, lista y «Por programar»): fondo de tinte medio por carrera con su borde izquierdo de 3 px
- * del mismo tono más oscuro (`careerTone` los pone) y el texto de la planilla.
+ * La cara de un bloque (tabla, lista y «Por programar»): fondo de tinte medio por carrera con un borde de 1 px en todo el
+ * perímetro del mismo tono más oscuro (`careerTone` los pone) y el texto de la planilla.
  */
-export const blockFace = 'overflow-hidden rounded-md border border-ink/10 border-l-[3px] text-ink';
+export const blockFace = 'overflow-hidden rounded-md border text-ink';
 
 /** El texto de un bloque: 12 px medium, a la izquierda y arriba; si no cabe, se corta con elipsis y el tooltip lo dice entero. */
 export const blockTextClass = 'text-left text-xs font-medium leading-[1.3] [overflow-wrap:anywhere]';
@@ -50,6 +50,9 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
   const minutes = toMinutes(activity.endsAt) - toMinutes(activity.startsAt);
   const table = size === 'table';
   const lines = blockLines(minutes);
+  const over = overCapacity(activity, space);
+  // Con «Mover…» en la tabla ancha, el texto y la hora dejan libre el lado derecho del botón.
+  const clear = table && opening.onMove ? 'pr-7' : null;
   const className = cn(
     blockFace,
     toneOf(activity.group),
@@ -59,12 +62,18 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
   );
   const face = (
     <span className={cn('flex size-full flex-col items-start justify-start text-left', table ? 'px-2 py-[3px] [container-type:size]' : 'px-3 py-2')}>
-      <span className={cn(blockTextClass, table ? lineClamp[lines] : 'text-sm')}>
-        {overCapacity(activity, space) ? <span aria-hidden>⚠ </span> : null}
+      <span className={cn(blockTextClass, table ? lineClamp[lines] : 'text-sm', clear)}>
+        {over && table ? <TriangleAlert aria-hidden className="mr-1 inline size-3.5 align-[-2px]" /> : null}
         {text}
       </span>
+      {over && !table ? (
+        <span className="mt-1 flex items-center gap-1 text-xs font-medium leading-4 tabular-nums">
+          <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
+          {capacityWarning(activity.participants, space.capacity)}
+        </span>
+      ) : null}
       {table && showsTime(minutes) ? (
-        <span aria-hidden className={cn('hidden text-[11px] leading-[14px] tabular-nums text-ink-muted', timeFits[lines])}>
+        <span aria-hidden className={cn('hidden text-[11px] leading-[14px] tabular-nums text-ink-muted', timeFits[lines], clear)}>
           {activity.startsAt}–{activity.endsAt}
         </span>
       ) : null}
@@ -98,7 +107,12 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
         <Tooltip label="Mover…" side="top">
           <Button
             size="icon"
-            className={cn('absolute right-0.5 top-0.5 size-9 rounded-md border-ink/20 bg-white/90 text-ink hover:bg-white lg:size-6 [&_svg]:size-3.5', reveal)}
+            className={cn(
+              'absolute right-0.5 top-0.5 size-9 rounded-md border-ink/20 bg-white/90 text-ink hover:bg-white [&_svg]:size-3.5',
+              // En la tabla, un bloque de menos de 45 min (una o dos filas) no alcanza para el botón de 24 px.
+              table && minutes < 45 ? 'lg:size-5' : 'lg:size-6',
+              reveal,
+            )}
             aria-label={`Mover… ${text}`}
             onClick={() => opening.onMove?.(activity)}
           >
