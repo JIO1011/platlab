@@ -32,7 +32,8 @@ import {
   type IListActivitiesResult,
 } from '../infrastructure/schedule.queries.js';
 import { insertRequestEvent } from '../infrastructure/requests.queries.js';
-import { runCommand, runQuery, SCHEDULE_LEAD, SCHEDULE_MANAGE } from './command.js';
+import { runQuery, runScheduleCommand, SCHEDULE_LEAD, SCHEDULE_MANAGE } from './command.js';
+import { blockHolds, holdBlock, rebookEquipment } from './holds.js';
 
 /**
  * Cronograma (ADR 0023, «Reglas y diseño de L-01c»): el Administrador programa cada fecha de una solicitud enviada en un
@@ -45,7 +46,7 @@ const notFound = () => new AppError('NOT_FOUND', 'Recurso no encontrado');
 const invalid = (message: string) => new AppError('VALIDATION_FAILED', message);
 const conflict = () => new AppError('VERSION_CONFLICT', 'Otra persona la cambió mientras la veías: vuelve a cargarla');
 
-const toActivity = (row: IListActivitiesResult): Activity => ({
+const toActivity = (row: IListActivitiesResult, complete: boolean): Activity => ({
   id: row.id,
   requestId: row.request_id,
   requestCode: requestCode(row.request_number),
@@ -61,13 +62,21 @@ const toActivity = (row: IListActivitiesResult): Activity => ({
   responsibleId: row.responsible_principal_id,
   responsibleName: row.responsible_name,
   code: row.code,
+  complete,
   version: row.version,
 });
+
+/** Los bloques con si lo apartado alcanza lo pedido (L-01d). */
+async function withHolds(access: WorkspaceAccess, rows: readonly IListActivitiesResult[]): Promise<Activity[]> {
+  const holds = await blockHolds(access, rows.map((row) => ({ activityId: row.id, requestId: row.request_id })));
+  return rows.map((row) => toActivity(row, (holds.get(row.id) ?? []).every((hold) => hold.complete)));
+}
 
 async function activityById(access: WorkspaceAccess, activityId: string): Promise<Activity> {
   const [row] = await listActivities.run({ workspaceId: access.workspace.id, activityId, from: null, to: null }, access.client);
   if (!row) throw notFound();
-  return toActivity(row);
+  const [activity] = await withHolds(access, [row]);
+  return activity!;
 }
 
 /** Dos bloques activos que se cruzan en un área (la exclusión GiST, también si otra persona programó a la vez). */
@@ -116,7 +125,7 @@ async function checkPlacement(access: WorkspaceAccess, placement: Placement) {
   });
   if (check.blocking.length > 0) throw invalid(check.blocking.map((problem) => scheduleProblemText[problem]).join('. '));
   const period = periods.find((item) => item.startsOn <= placement.date && placement.date <= item.endsOn)!;
-  return { period, week: periodWeek(period.startsOn, placement.date), abbreviation: context.abbreviation, warnings: check.warnings };
+  return { period, week: periodWeek(period.startsOn, placement.date), abbreviation: context.abbreviation, areaName: context.area_name, warnings: check.warnings };
 }
 
 /** El número siguiente del área en esa semana y el código que forma. */
@@ -137,7 +146,7 @@ async function nextCode(access: WorkspaceAccess, placed: Awaited<ReturnType<type
 export function listSchedule(pool: pg.Pool, request: QueryRequest, { from, to }: z.infer<typeof scheduleQuery>): Promise<ScheduleList> {
   return runQuery(pool, request, async (access) => {
     const rows = await listActivities.run({ workspaceId: access.workspace.id, activityId: null, from, to }, access.client);
-    return { items: rows.map(toActivity) };
+    return { items: await withHolds(access, rows) };
   });
 }
 
@@ -155,7 +164,7 @@ export function listResponsibles(pool: pg.Pool, request: QueryRequest): Promise<
 
 /** Programa una fecha de una solicitud enviada; con todas programadas, la solicitud queda «programada». */
 export function scheduleActivity(pool: pg.Pool, request: CommandRequest, input: z.infer<typeof scheduleActivityRequest>): Promise<ScheduledActivity> {
-  return runCommand(pool, request, 'labs.activity.schedule', input, requires(SCHEDULE_MANAGE), async (access) => {
+  return runScheduleCommand(pool, request, 'labs.activity.schedule', input, requires(SCHEDULE_MANAGE), async (access) => {
     const workspaceId = access.workspace.id;
     const [current] = await lockRequestForSchedule.run({ workspaceId, requestId: input.requestId }, access.client);
     if (!current || current.status === 'draft') throw notFound();
@@ -172,6 +181,8 @@ export function scheduleActivity(pool: pg.Pool, request: CommandRequest, input: 
     );
     const activityId = created!.id;
     await insertActivityCode.run({ workspaceId, activityId, code, principalId: access.principalId }, access.client);
+    // La reserva real (L-01d): este bloque aparta lo de su fecha; lo que no alcanza queda «Falta».
+    await holdBlock(access, { activityId, requestId: input.requestId, requestCode: requestCode(current.number), date: input.date, startsAt: input.startsAt, endsAt: input.endsAt, areaName: placed.areaName });
     const [complete] = await markScheduled.run({ workspaceId, requestId: input.requestId }, access.client);
     if (complete) {
       await insertRequestEvent.run({ workspaceId, requestId: input.requestId, action: 'scheduled', reason: null, principalId: access.principalId }, access.client);
@@ -188,7 +199,7 @@ export function scheduleActivity(pool: pg.Pool, request: CommandRequest, input: 
  * área en la semana y el código anterior queda en su historial.
  */
 export function moveActivity(pool: pg.Pool, request: CommandRequest, activityId: string, input: z.infer<typeof updateActivityRequest>): Promise<ScheduledActivity> {
-  return runCommand(pool, request, 'labs.activity.move', { activityId, ...input }, requires(SCHEDULE_MANAGE), async (access) => {
+  return runScheduleCommand(pool, request, 'labs.activity.move', { activityId, ...input }, requires(SCHEDULE_MANAGE), async (access) => {
     const workspaceId = access.workspace.id;
     const [current] = await lockActivity.run({ workspaceId, activityId }, access.client);
     if (!current || current.cancelled_at) throw notFound();
@@ -203,6 +214,10 @@ export function moveActivity(pool: pg.Pool, request: CommandRequest, activityId:
       ),
     );
     if (recoded.code !== current.code) await insertActivityCode.run({ workspaceId, activityId, code: recoded.code, principalId: access.principalId }, access.client);
+    // Otra franja u otra área: los equipos se vuelven a apartar para la nueva; los reactivos son del mismo día.
+    if (input.startsAt !== shown.startsAt || input.endsAt !== shown.endsAt) {
+      await rebookEquipment(access, { activityId, requestId: current.request_id, requestCode: shown.requestCode, date: current.on_date, startsAt: input.startsAt, endsAt: input.endsAt, areaName: placed.areaName });
+    }
     await recordAudit(access, { action: 'labs.activity.move', entityType: 'labs.activity', entityId: activityId, changes: { ...input, code: recoded.code, warnings: placed.warnings } });
     return { activity: await activityById(access, activityId), warnings: placed.warnings };
   });

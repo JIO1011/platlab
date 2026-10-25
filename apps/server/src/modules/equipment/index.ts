@@ -6,4 +6,4 @@ export { equipmentAreaContribution, equipmentHomeSummary } from './application/q
 export { equipmentRoutes } from './http/routes.js';
 export { recordConservation, requireActiveAsset } from './application/status.js';
 export { frequentFaultAssets, lockAssetFault, openFaultsOf, resolveAssetFault } from './application/faults.js';
-export { requestableAssetTypes, type RequestableAssetType } from './application/requestables.js';
+export { assetCodes, operationalAssetsOfTypes, requestableAssetTypes, type RequestableAssetType } from './application/requestables.js';

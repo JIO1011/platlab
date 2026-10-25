@@ -1,5 +1,5 @@
 export { healthResponse, type HealthResponse } from './health.js';
-export { compareDecimals, decimalString } from './decimal.js';
+export { compareDecimals, decimalString, sumDecimals } from './decimal.js';
 export { errorCodes, errorResponse, type ErrorCode, type ErrorResponse } from './errors.js';
 export {
   actionClass,

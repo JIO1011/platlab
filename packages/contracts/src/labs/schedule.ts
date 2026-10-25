@@ -108,6 +108,8 @@ export const activity = z.object({
   responsibleId: z.uuid(),
   responsibleName: z.string(),
   code: z.string(),
+  /** Lo apartado alcanza todo lo pedido (L-01d); si no, el bloque muestra «Falta». */
+  complete: z.boolean(),
   version: z.number().int().positive(),
 });
 

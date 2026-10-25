@@ -53,6 +53,8 @@ import {
   type IRequestLinesResult,
 } from '../infrastructure/requests.queries.js';
 import { REQUEST_CREATE, REQUEST_REVIEW, REQUEST_VIEW, runCommand, runQuery } from './command.js';
+import { blockHolds, releaseBlocks } from './holds.js';
+import { activeRequestActivities } from '../infrastructure/holds.queries.js';
 
 /**
  * Solicitudes (ADR 0023, «Diseño de L-01b»): quien pide (Docente, tesista o el Administrador) llena un formato activo,
@@ -180,7 +182,16 @@ async function visibleRequest(access: WorkspaceAccess, requestId: string): Promi
     notes: row.notes,
     lines,
     events: events.map((event) => ({ action: event.action as LabsRequest['events'][number]['action'], reason: event.reason, by: event.by, at: event.created_at.toISOString() })),
-    blocks: (await requestBlocks.run({ workspaceId, requestId }, access.client)).map((block) => ({
+    blocks: await blocksOf(access, requestId),
+    mine,
+  };
+}
+
+/** El bloque de cada fecha programada, con lo que apartó por línea (L-01d). */
+async function blocksOf(access: WorkspaceAccess, requestId: string): Promise<LabsRequest['blocks']> {
+  const rows = await requestBlocks.run({ workspaceId: access.workspace.id, requestId }, access.client);
+  const holds = await blockHolds(access, rows.map((row) => ({ activityId: row.id, requestId })));
+  return rows.map((block) => ({
       date: block.date,
       code: block.code,
       areaId: block.area_id,
@@ -188,9 +199,8 @@ async function visibleRequest(access: WorkspaceAccess, requestId: string): Promi
       startsAt: block.starts_at,
       endsAt: block.ends_at,
       responsibleName: block.responsible_name,
-    })),
-    mine,
-  };
+      holds: holds.get(block.id) ?? [],
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -445,9 +455,16 @@ export function cancelRequest(pool: pg.Pool, request: CommandRequest, requestId:
 // Comandos del Administrador
 // ---------------------------------------------------------------------------
 
-/** Cambia el estado con su evento y su auditoría; los bloques que tuviera se liberan y quedan en su historial. */
+const releaseReasons = { changes_requested: 'Se pidieron cambios', rejected: 'Solicitud rechazada', cancelled: 'Solicitud cancelada' } as const;
+
+/**
+ * Cambia el estado con su evento y su auditoría; los bloques que tuviera se liberan, con lo que apartaron (L-01d), y
+ * quedan en su historial.
+ */
 async function resolve(access: WorkspaceAccess, requestId: string, status: 'changes_requested' | 'rejected' | 'cancelled', reason: string | null) {
   const workspaceId = access.workspace.id;
+  const active = await activeRequestActivities.run({ workspaceId, requestId, activityId: null }, access.client);
+  await releaseBlocks(access, active.map((block) => block.id), reason ?? releaseReasons[status]);
   await releaseRequestBlocks.run({ workspaceId, requestId }, access.client);
   await setRequestStatus.run({ workspaceId, requestId, status, late: null, submittedAt: null }, access.client);
   await insertRequestEvent.run({ workspaceId, requestId, action: status, reason, principalId: access.principalId }, access.client);

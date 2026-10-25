@@ -59,7 +59,9 @@ FOR SHARE OF w, m;
 -- confirma mientras espera, PostgreSQL relee las filas y la decisión se recalcula con ellas.
 -- Sin derecho no devuelve filas: findMembershipClasses elige entonces el error. Con :alsoModule, una
 -- operación que toca dos módulos (ADR 0020) bloquea también ese derecho y decide con el primero que no
--- admita; sin él, e2 es el mismo derecho y la decisión no cambia.
+-- admita; sin él, e2 es el mismo derecho y la decisión no cambia. Con :optionalModule, una operación que usa
+-- otro módulo solo si está (Laboratorios aparta Reactivos, ADR 0023) bloquea también su derecho, si existe, y
+-- dice si admite la misma clase de acción; no cambia la decisión.
 SELECT
   w.id AS workspace_id,
   w.code,
@@ -72,7 +74,8 @@ SELECT
   p.id AS principal_id,
   (w.owner_membership_id IS NOT DISTINCT FROM m.id) AS "is_owner!",
   core.workspace_axis(w.status, w.suspension_reason) AS "workspace_classes!",
-  CASE WHEN d.owner_decision = 'admitted' THEN d.also_decision ELSE d.owner_decision END AS "decision!"
+  CASE WHEN d.owner_decision = 'admitted' THEN d.also_decision ELSE d.owner_decision END AS "decision!",
+  coalesce(o.decision = 'admitted', false) AS "optional_admitted!"
 FROM core.workspaces AS w
 JOIN core.workspace_entitlements AS e ON e.workspace_id = w.id AND e.module_code = :moduleCode!
 JOIN core.module_definitions AS md ON md.code = e.module_code
@@ -97,6 +100,19 @@ CROSS JOIN LATERAL (
                        md2.stage, e2.contract_kind, env.data_class, now())
     ) AS also_decision
 ) AS d
+-- El derecho opcional se bloquea dentro de su subconsulta: una fila ausente no impide la admisión.
+LEFT JOIN LATERAL (
+  SELECT core.admission(
+    :actionClass!,
+    core.workspace_axis(w.status, w.suspension_reason),
+    core.module_axis(eo.status, eo.valid_from, eo.valid_until, eo.closing_until, eo.read_until,
+                     mdo.stage, eo.contract_kind, env.data_class, now())
+  ) AS decision
+  FROM core.workspace_entitlements AS eo
+  JOIN core.module_definitions AS mdo ON mdo.code = eo.module_code
+  WHERE eo.workspace_id = w.id AND eo.module_code = :optionalModule
+  FOR SHARE OF eo
+) AS o ON true
 WHERE w.id = :workspaceId!
   AND m.status = 'active'
   AND i.provider = 'supabase'

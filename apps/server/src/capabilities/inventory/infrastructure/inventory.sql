@@ -864,7 +864,7 @@ SELECT a.id, a.position_id
 FROM inventory.allocations AS a
 JOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id
 JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
-WHERE a.workspace_id = :workspaceId! AND a.id = :allocationId! AND i.kind = :kind!;
+WHERE a.workspace_id = :workspaceId! AND a.id = :allocationId! AND i.kind = :kind! AND a.purpose = 'issue';
 
 /* @name lockAllocation */
 SELECT id, position_id, status, trim_scale(quantity) AS "quantity!", reason, destination, requested_by_principal_id
@@ -916,6 +916,7 @@ LEFT JOIN core.memberships AS dm ON dm.workspace_id = dp.workspace_id AND dm.id 
 LEFT JOIN core.identities AS decider ON decider.id = dm.identity_id
 WHERE a.workspace_id = :workspaceId!
   AND i.kind = :kind!
+  AND a.purpose = 'issue'
   AND (:status::text IS NULL OR a.status = :status::text)
   AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid)
 ORDER BY (a.status = 'held') DESC, a.created_at DESC, a.id DESC
@@ -928,6 +929,7 @@ JOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.po
 JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
 WHERE a.workspace_id = :workspaceId!
   AND i.kind = :kind!
+  AND a.purpose = 'issue'
   AND a.status = 'held'
   AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid);
 
@@ -939,3 +941,76 @@ FROM inventory.positions AS p
 JOIN core.locations AS l ON l.workspace_id = p.workspace_id AND l.id = p.location_id
 WHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND l.archived_at IS NULL
 FOR SHARE OF l;
+
+/* @name lockHoldablePositions */
+-- Lo apartable para un bloque (ADR 0023, L-01d): frascos usables del ítem en un lugar activo, con lote vigente el día
+-- de la práctica y algo disponible (saldo − reservado), bloqueados en orden fijo (el de su id).
+SELECT p.id
+FROM inventory.positions AS p
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+WHERE p.workspace_id = :workspaceId! AND p.item_id = :itemId! AND i.kind = :kind!
+  AND p.disposition = 'usable' AND loc.archived_at IS NULL
+  AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)
+  AND p.balance > p.reserved
+ORDER BY p.id
+FOR UPDATE OF p;
+
+/* @name holdForActivity */
+-- Aparta :quantity de los frascos ya bloqueados, primero los que vencen antes, en una sentencia y con numeric exacto:
+-- cada frasco da lo que le falta al total o lo que tiene disponible. Devuelve una reserva por frasco usado; lo que
+-- no alcanza no se aparta.
+WITH ranked AS (
+  SELECT p.id, p.balance - p.reserved AS available,
+    sum(p.balance - p.reserved) OVER (ORDER BY l.expires_on NULLS LAST, p.id) AS reached
+  FROM inventory.positions AS p
+  JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+  WHERE p.workspace_id = :workspaceId! AND p.id = ANY (:positionIds!::uuid[])
+),
+taken AS (
+  SELECT id, least(available, :quantity!::numeric - (reached - available)) AS quantity
+  FROM ranked
+  WHERE reached - available < :quantity!::numeric
+),
+reserved AS (
+  UPDATE inventory.positions AS p
+  SET reserved = p.reserved + taken.quantity, version = p.version + 1
+  FROM taken
+  WHERE p.workspace_id = :workspaceId! AND p.id = taken.id
+  RETURNING p.id
+)
+INSERT INTO inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id, purpose)
+SELECT :workspaceId!, taken.id, taken.quantity, :reason!, :destination!, :principalId!, 'activity'
+FROM taken
+JOIN reserved ON reserved.id = taken.id
+RETURNING id, trim_scale(quantity)::text AS "quantity!";
+
+/* @name releaseActivityHolds */
+-- Libera lo apartado para un bloque: devuelve la cantidad a cada frasco y deja la reserva liberada con su motivo. La
+-- sentencia de los frascos corre aunque nadie la lea (así trata PostgreSQL las escrituras en WITH), primero que las
+-- reservas: el mismo orden frasco → reserva de las salidas.
+WITH held AS (
+  SELECT id, position_id, quantity
+  FROM inventory.allocations
+  WHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held'
+),
+returned AS (
+  UPDATE inventory.positions AS p
+  SET reserved = p.reserved - per.quantity, version = p.version + 1
+  FROM (SELECT position_id, sum(quantity) AS quantity FROM held GROUP BY position_id) AS per
+  WHERE p.workspace_id = :workspaceId! AND p.id = per.position_id
+  RETURNING p.id
+)
+UPDATE inventory.allocations AS a
+SET status = 'released', decided_by_principal_id = :principalId!, decided_at = now(), decision_reason = :reason!,
+  version = a.version + 1
+FROM held
+WHERE a.workspace_id = :workspaceId! AND a.id = held.id
+RETURNING a.id;
+
+/* @name heldActivityQuantities */
+-- Lo que sigue apartado de esas reservas de bloque, por reserva.
+SELECT id, trim_scale(quantity)::text AS "quantity!"
+FROM inventory.allocations
+WHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held';

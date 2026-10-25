@@ -2255,7 +2255,7 @@ export interface IFindAllocationQuery {
   result: IFindAllocationResult;
 }
 
-const findAllocationIR: any = {"usedParamSet":{"workspaceId":true,"allocationId":true,"kind":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":336,"b":348}]},{"name":"allocationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":361,"b":374}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":389,"b":394}]}],"statement":"-- Sin bloqueo: solo para conocer el frasco, que se bloquea antes que la reserva.\nSELECT a.id, a.position_id\nFROM inventory.allocations AS a\nJOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nWHERE a.workspace_id = :workspaceId! AND a.id = :allocationId! AND i.kind = :kind!"};
+const findAllocationIR: any = {"usedParamSet":{"workspaceId":true,"allocationId":true,"kind":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":336,"b":348}]},{"name":"allocationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":361,"b":374}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":389,"b":394}]}],"statement":"-- Sin bloqueo: solo para conocer el frasco, que se bloquea antes que la reserva.\nSELECT a.id, a.position_id\nFROM inventory.allocations AS a\nJOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nWHERE a.workspace_id = :workspaceId! AND a.id = :allocationId! AND i.kind = :kind! AND a.purpose = 'issue'"};
 
 /**
  * Query generated from SQL:
@@ -2265,7 +2265,7 @@ const findAllocationIR: any = {"usedParamSet":{"workspaceId":true,"allocationId"
  * FROM inventory.allocations AS a
  * JOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id
  * JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
- * WHERE a.workspace_id = :workspaceId! AND a.id = :allocationId! AND i.kind = :kind!
+ * WHERE a.workspace_id = :workspaceId! AND a.id = :allocationId! AND i.kind = :kind! AND a.purpose = 'issue'
  * ```
  */
 export const findAllocation = new PreparedQuery<IFindAllocationParams,IFindAllocationResult>(findAllocationIR);
@@ -2384,7 +2384,7 @@ export interface IListAllocationsQuery {
   result: IListAllocationsResult;
 }
 
-const listAllocationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"status":true,"requestedBy":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1592,"b":1604}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1621,"b":1626}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":1635,"b":1641},{"a":1671,"b":1677}]},{"name":"requestedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":1693,"b":1704},{"a":1753,"b":1764}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":1843,"b":1849}]}],"statement":"-- Solicitudes del espacio; `requestedBy` acota a las de una persona.\nSELECT\n  a.id,\n  a.status,\n  trim_scale(a.quantity) AS \"quantity!\",\n  a.reason,\n  a.destination,\n  a.decision_reason,\n  a.created_at,\n  a.decided_at,\n  a.position_id,\n  a.requested_by_principal_id,\n  a.decided_by_principal_id,\n  requester.display_name AS requester_name,\n  decider.display_name AS decider_name,\n  i.id AS item_id,\n  i.name AS item_name,\n  i.base_unit,\n  l.code AS lot_code,\n  c.code AS container_code,\n  loc.code AS location_code,\n  loc.name AS location_name\nFROM inventory.allocations AS a\nJOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nLEFT JOIN core.principals AS rp ON rp.workspace_id = a.workspace_id AND rp.id = a.requested_by_principal_id\nLEFT JOIN core.memberships AS rm ON rm.workspace_id = rp.workspace_id AND rm.id = rp.membership_id\nLEFT JOIN core.identities AS requester ON requester.id = rm.identity_id\nLEFT JOIN core.principals AS dp ON dp.workspace_id = a.workspace_id AND dp.id = a.decided_by_principal_id\nLEFT JOIN core.memberships AS dm ON dm.workspace_id = dp.workspace_id AND dm.id = dp.membership_id\nLEFT JOIN core.identities AS decider ON decider.id = dm.identity_id\nWHERE a.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND (:status::text IS NULL OR a.status = :status::text)\n  AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid)\nORDER BY (a.status = 'held') DESC, a.created_at DESC, a.id DESC\nLIMIT :limit!"};
+const listAllocationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"status":true,"requestedBy":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1592,"b":1604}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1621,"b":1626}]},{"name":"status","required":false,"transform":{"type":"scalar"},"locs":[{"a":1661,"b":1667},{"a":1697,"b":1703}]},{"name":"requestedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":1719,"b":1730},{"a":1779,"b":1790}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":1869,"b":1875}]}],"statement":"-- Solicitudes del espacio; `requestedBy` acota a las de una persona.\nSELECT\n  a.id,\n  a.status,\n  trim_scale(a.quantity) AS \"quantity!\",\n  a.reason,\n  a.destination,\n  a.decision_reason,\n  a.created_at,\n  a.decided_at,\n  a.position_id,\n  a.requested_by_principal_id,\n  a.decided_by_principal_id,\n  requester.display_name AS requester_name,\n  decider.display_name AS decider_name,\n  i.id AS item_id,\n  i.name AS item_name,\n  i.base_unit,\n  l.code AS lot_code,\n  c.code AS container_code,\n  loc.code AS location_code,\n  loc.name AS location_name\nFROM inventory.allocations AS a\nJOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nLEFT JOIN core.principals AS rp ON rp.workspace_id = a.workspace_id AND rp.id = a.requested_by_principal_id\nLEFT JOIN core.memberships AS rm ON rm.workspace_id = rp.workspace_id AND rm.id = rp.membership_id\nLEFT JOIN core.identities AS requester ON requester.id = rm.identity_id\nLEFT JOIN core.principals AS dp ON dp.workspace_id = a.workspace_id AND dp.id = a.decided_by_principal_id\nLEFT JOIN core.memberships AS dm ON dm.workspace_id = dp.workspace_id AND dm.id = dp.membership_id\nLEFT JOIN core.identities AS decider ON decider.id = dm.identity_id\nWHERE a.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND a.purpose = 'issue'\n  AND (:status::text IS NULL OR a.status = :status::text)\n  AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid)\nORDER BY (a.status = 'held') DESC, a.created_at DESC, a.id DESC\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
@@ -2425,6 +2425,7 @@ const listAllocationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"
  * LEFT JOIN core.identities AS decider ON decider.id = dm.identity_id
  * WHERE a.workspace_id = :workspaceId!
  *   AND i.kind = :kind!
+ *   AND a.purpose = 'issue'
  *   AND (:status::text IS NULL OR a.status = :status::text)
  *   AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid)
  * ORDER BY (a.status = 'held') DESC, a.created_at DESC, a.id DESC
@@ -2452,7 +2453,7 @@ export interface ICountPendingAllocationsQuery {
   result: ICountPendingAllocationsResult;
 }
 
-const countPendingAllocationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"requestedBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":260,"b":272}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":289,"b":294}]},{"name":"requestedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":327,"b":338},{"a":387,"b":398}]}],"statement":"SELECT count(*)::int AS \"count!\"\nFROM inventory.allocations AS a\nJOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nWHERE a.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND a.status = 'held'\n  AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid)"};
+const countPendingAllocationsIR: any = {"usedParamSet":{"workspaceId":true,"kind":true,"requestedBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":260,"b":272}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":289,"b":294}]},{"name":"requestedBy","required":false,"transform":{"type":"scalar"},"locs":[{"a":353,"b":364},{"a":413,"b":424}]}],"statement":"SELECT count(*)::int AS \"count!\"\nFROM inventory.allocations AS a\nJOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nWHERE a.workspace_id = :workspaceId!\n  AND i.kind = :kind!\n  AND a.purpose = 'issue'\n  AND a.status = 'held'\n  AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid)"};
 
 /**
  * Query generated from SQL:
@@ -2463,6 +2464,7 @@ const countPendingAllocationsIR: any = {"usedParamSet":{"workspaceId":true,"kind
  * JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
  * WHERE a.workspace_id = :workspaceId!
  *   AND i.kind = :kind!
+ *   AND a.purpose = 'issue'
  *   AND a.status = 'held'
  *   AND (:requestedBy::uuid IS NULL OR a.requested_by_principal_id = :requestedBy::uuid)
  * ```
@@ -2502,5 +2504,188 @@ const lockPositionPlaceIR: any = {"usedParamSet":{"workspaceId":true,"positionId
  * ```
  */
 export const lockPositionPlace = new PreparedQuery<ILockPositionPlaceParams,ILockPositionPlaceResult>(lockPositionPlaceIR);
+
+
+/** 'LockHoldablePositions' parameters type */
+export interface ILockHoldablePositionsParams {
+  itemId: string;
+  kind: string;
+  validOn: string;
+  workspaceId: string;
+}
+
+/** 'LockHoldablePositions' return type */
+export interface ILockHoldablePositionsResult {
+  id: string;
+}
+
+/** 'LockHoldablePositions' query type */
+export interface ILockHoldablePositionsQuery {
+  params: ILockHoldablePositionsParams;
+  result: ILockHoldablePositionsResult;
+}
+
+const lockHoldablePositionsIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true,"kind":true,"validOn":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":534,"b":546}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":564,"b":571}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":586,"b":591}]},{"name":"validOn","required":true,"transform":{"type":"scalar"},"locs":[{"a":699,"b":707}]}],"statement":"-- Lo apartable para un bloque (ADR 0023, L-01d): frascos usables del ítem en un lugar activo, con lote vigente el día\n-- de la práctica y algo disponible (saldo − reservado), bloqueados en orden fijo (el de su id).\nSELECT p.id\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nWHERE p.workspace_id = :workspaceId! AND p.item_id = :itemId! AND i.kind = :kind!\n  AND p.disposition = 'usable' AND loc.archived_at IS NULL\n  AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)\n  AND p.balance > p.reserved\nORDER BY p.id\nFOR UPDATE OF p"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Lo apartable para un bloque (ADR 0023, L-01d): frascos usables del ítem en un lugar activo, con lote vigente el día
+ * -- de la práctica y algo disponible (saldo − reservado), bloqueados en orden fijo (el de su id).
+ * SELECT p.id
+ * FROM inventory.positions AS p
+ * JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+ * JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+ * JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+ * WHERE p.workspace_id = :workspaceId! AND p.item_id = :itemId! AND i.kind = :kind!
+ *   AND p.disposition = 'usable' AND loc.archived_at IS NULL
+ *   AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)
+ *   AND p.balance > p.reserved
+ * ORDER BY p.id
+ * FOR UPDATE OF p
+ * ```
+ */
+export const lockHoldablePositions = new PreparedQuery<ILockHoldablePositionsParams,ILockHoldablePositionsResult>(lockHoldablePositionsIR);
+
+
+/** 'HoldForActivity' parameters type */
+export interface IHoldForActivityParams {
+  destination: string;
+  positionIds: stringArray;
+  principalId: string;
+  quantity: string;
+  reason: string;
+  workspaceId: string;
+}
+
+/** 'HoldForActivity' return type */
+export interface IHoldForActivityResult {
+  id: string;
+  quantity: string;
+}
+
+/** 'HoldForActivity' query type */
+export interface IHoldForActivityQuery {
+  params: IHoldForActivityParams;
+  result: IHoldForActivityResult;
+}
+
+const holdForActivityIR: any = {"usedParamSet":{"workspaceId":true,"positionIds":true,"quantity":true,"reason":true,"destination":true,"principalId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":560,"b":572},{"a":937,"b":949},{"a":1126,"b":1138}]},{"name":"positionIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":590,"b":602}]},{"name":"quantity","required":true,"transform":{"type":"scalar"},"locs":[{"a":657,"b":666},{"a":758,"b":767}]},{"name":"reason","required":true,"transform":{"type":"scalar"},"locs":[{"a":1167,"b":1174}]},{"name":"destination","required":true,"transform":{"type":"scalar"},"locs":[{"a":1177,"b":1189}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1192,"b":1204}]}],"statement":"-- Aparta :quantity de los frascos ya bloqueados, primero los que vencen antes, en una sentencia y con numeric exacto:\n-- cada frasco da lo que le falta al total o lo que tiene disponible. Devuelve una reserva por frasco usado; lo que\n-- no alcanza no se aparta.\nWITH ranked AS (\n  SELECT p.id, p.balance - p.reserved AS available,\n    sum(p.balance - p.reserved) OVER (ORDER BY l.expires_on NULLS LAST, p.id) AS reached\n  FROM inventory.positions AS p\n  JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n  WHERE p.workspace_id = :workspaceId! AND p.id = ANY (:positionIds!::uuid[])\n),\ntaken AS (\n  SELECT id, least(available, :quantity!::numeric - (reached - available)) AS quantity\n  FROM ranked\n  WHERE reached - available < :quantity!::numeric\n),\nreserved AS (\n  UPDATE inventory.positions AS p\n  SET reserved = p.reserved + taken.quantity, version = p.version + 1\n  FROM taken\n  WHERE p.workspace_id = :workspaceId! AND p.id = taken.id\n  RETURNING p.id\n)\nINSERT INTO inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id, purpose)\nSELECT :workspaceId!, taken.id, taken.quantity, :reason!, :destination!, :principalId!, 'activity'\nFROM taken\nJOIN reserved ON reserved.id = taken.id\nRETURNING id, trim_scale(quantity)::text AS \"quantity!\""};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Aparta :quantity de los frascos ya bloqueados, primero los que vencen antes, en una sentencia y con numeric exacto:
+ * -- cada frasco da lo que le falta al total o lo que tiene disponible. Devuelve una reserva por frasco usado; lo que
+ * -- no alcanza no se aparta.
+ * WITH ranked AS (
+ *   SELECT p.id, p.balance - p.reserved AS available,
+ *     sum(p.balance - p.reserved) OVER (ORDER BY l.expires_on NULLS LAST, p.id) AS reached
+ *   FROM inventory.positions AS p
+ *   JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+ *   WHERE p.workspace_id = :workspaceId! AND p.id = ANY (:positionIds!::uuid[])
+ * ),
+ * taken AS (
+ *   SELECT id, least(available, :quantity!::numeric - (reached - available)) AS quantity
+ *   FROM ranked
+ *   WHERE reached - available < :quantity!::numeric
+ * ),
+ * reserved AS (
+ *   UPDATE inventory.positions AS p
+ *   SET reserved = p.reserved + taken.quantity, version = p.version + 1
+ *   FROM taken
+ *   WHERE p.workspace_id = :workspaceId! AND p.id = taken.id
+ *   RETURNING p.id
+ * )
+ * INSERT INTO inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id, purpose)
+ * SELECT :workspaceId!, taken.id, taken.quantity, :reason!, :destination!, :principalId!, 'activity'
+ * FROM taken
+ * JOIN reserved ON reserved.id = taken.id
+ * RETURNING id, trim_scale(quantity)::text AS "quantity!"
+ * ```
+ */
+export const holdForActivity = new PreparedQuery<IHoldForActivityParams,IHoldForActivityResult>(holdForActivityIR);
+
+
+/** 'ReleaseActivityHolds' parameters type */
+export interface IReleaseActivityHoldsParams {
+  allocationIds: stringArray;
+  principalId: string;
+  reason: string;
+  workspaceId: string;
+}
+
+/** 'ReleaseActivityHolds' return type */
+export interface IReleaseActivityHoldsResult {
+  id: string;
+}
+
+/** 'ReleaseActivityHolds' query type */
+export interface IReleaseActivityHoldsQuery {
+  params: IReleaseActivityHoldsParams;
+  result: IReleaseActivityHoldsResult;
+}
+
+const releaseActivityHoldsIR: any = {"usedParamSet":{"workspaceId":true,"allocationIds":true,"principalId":true,"reason":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":398,"b":410},{"a":733,"b":745},{"a":1000,"b":1012}]},{"name":"allocationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":426,"b":440}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":878,"b":890}]},{"name":"reason","required":true,"transform":{"type":"scalar"},"locs":[{"a":931,"b":938}]}],"statement":"-- Libera lo apartado para un bloque: devuelve la cantidad a cada frasco y deja la reserva liberada con su motivo. La\n-- sentencia de los frascos corre aunque nadie la lea (así trata PostgreSQL las escrituras en WITH), primero que las\n-- reservas: el mismo orden frasco → reserva de las salidas.\nWITH held AS (\n  SELECT id, position_id, quantity\n  FROM inventory.allocations\n  WHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held'\n),\nreturned AS (\n  UPDATE inventory.positions AS p\n  SET reserved = p.reserved - per.quantity, version = p.version + 1\n  FROM (SELECT position_id, sum(quantity) AS quantity FROM held GROUP BY position_id) AS per\n  WHERE p.workspace_id = :workspaceId! AND p.id = per.position_id\n  RETURNING p.id\n)\nUPDATE inventory.allocations AS a\nSET status = 'released', decided_by_principal_id = :principalId!, decided_at = now(), decision_reason = :reason!,\n  version = a.version + 1\nFROM held\nWHERE a.workspace_id = :workspaceId! AND a.id = held.id\nRETURNING a.id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Libera lo apartado para un bloque: devuelve la cantidad a cada frasco y deja la reserva liberada con su motivo. La
+ * -- sentencia de los frascos corre aunque nadie la lea (así trata PostgreSQL las escrituras en WITH), primero que las
+ * -- reservas: el mismo orden frasco → reserva de las salidas.
+ * WITH held AS (
+ *   SELECT id, position_id, quantity
+ *   FROM inventory.allocations
+ *   WHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held'
+ * ),
+ * returned AS (
+ *   UPDATE inventory.positions AS p
+ *   SET reserved = p.reserved - per.quantity, version = p.version + 1
+ *   FROM (SELECT position_id, sum(quantity) AS quantity FROM held GROUP BY position_id) AS per
+ *   WHERE p.workspace_id = :workspaceId! AND p.id = per.position_id
+ *   RETURNING p.id
+ * )
+ * UPDATE inventory.allocations AS a
+ * SET status = 'released', decided_by_principal_id = :principalId!, decided_at = now(), decision_reason = :reason!,
+ *   version = a.version + 1
+ * FROM held
+ * WHERE a.workspace_id = :workspaceId! AND a.id = held.id
+ * RETURNING a.id
+ * ```
+ */
+export const releaseActivityHolds = new PreparedQuery<IReleaseActivityHoldsParams,IReleaseActivityHoldsResult>(releaseActivityHoldsIR);
+
+
+/** 'HeldActivityQuantities' parameters type */
+export interface IHeldActivityQuantitiesParams {
+  allocationIds: stringArray;
+  workspaceId: string;
+}
+
+/** 'HeldActivityQuantities' return type */
+export interface IHeldActivityQuantitiesResult {
+  id: string;
+  quantity: string;
+}
+
+/** 'HeldActivityQuantities' query type */
+export interface IHeldActivityQuantitiesQuery {
+  params: IHeldActivityQuantitiesParams;
+  result: IHeldActivityQuantitiesResult;
+}
+
+const heldActivityQuantitiesIR: any = {"usedParamSet":{"workspaceId":true,"allocationIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":167,"b":179}]},{"name":"allocationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":195,"b":209}]}],"statement":"-- Lo que sigue apartado de esas reservas de bloque, por reserva.\nSELECT id, trim_scale(quantity)::text AS \"quantity!\"\nFROM inventory.allocations\nWHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held'"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Lo que sigue apartado de esas reservas de bloque, por reserva.
+ * SELECT id, trim_scale(quantity)::text AS "quantity!"
+ * FROM inventory.allocations
+ * WHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held'
+ * ```
+ */
+export const heldActivityQuantities = new PreparedQuery<IHeldActivityQuantitiesParams,IHeldActivityQuantitiesResult>(heldActivityQuantitiesIR);
 
 

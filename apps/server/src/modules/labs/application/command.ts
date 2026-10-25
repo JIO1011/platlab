@@ -20,5 +20,11 @@ export const SCHEDULE_LEAD = 'labs.schedule.lead';
 /** Comandos de Laboratorios: una transacción con su admisión, permiso, idempotencia y auditoría. */
 export const runCommand = moduleCommand('labs');
 
+/**
+ * Programar y mover bloques (L-01d): apartan reactivos por la interfaz de Reactivos solo si ese módulo admite la
+ * operación, con su derecho bloqueado en la misma admisión; sin él, se programa y lo pedido queda «Falta».
+ */
+export const runScheduleCommand = moduleCommand('labs', undefined, 'reagents');
+
 /** Consultas de Laboratorios: admisión de consulta y lectura de los espacios y los Formatos, que quien pide llena. */
 export const runQuery = moduleQuery('labs', READ);

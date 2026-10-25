@@ -22,3 +22,15 @@ export function compareDecimals(a: string, b: string): -1 | 0 | 1 {
   const [x, y] = scaled(a, b);
   return x < y ? -1 : x > y ? 1 : 0;
 }
+
+/** Suma exacta de `decimalString` no negativas, sin pasar por `number`; sin ceros de más («1.50» + «0.5» = «2»). */
+export function sumDecimals(values: readonly string[]): string {
+  const scale = Math.max(0, ...values.map((value) => value.split('.')[1]?.length ?? 0));
+  const total = values.reduce((sum, value) => {
+    const [int = '0', frac = ''] = value.split('.');
+    return sum + BigInt(int + frac.padEnd(scale, '0'));
+  }, 0n);
+  if (scale === 0) return total.toString();
+  const digits = total.toString().padStart(scale + 1, '0');
+  return `${digits.slice(0, -scale)}.${digits.slice(-scale)}`.replace(/\.?0+$/, '');
+}

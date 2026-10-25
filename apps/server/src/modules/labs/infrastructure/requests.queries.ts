@@ -683,6 +683,7 @@ export interface IRequestBlocksResult {
   code: string;
   date: string;
   ends_at: string;
+  id: string;
   responsible_name: string;
   starts_at: string;
 }
@@ -693,13 +694,13 @@ export interface IRequestBlocksQuery {
   result: IRequestBlocksResult;
 }
 
-const requestBlocksIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":689,"b":701}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":722,"b":732}]}],"statement":"-- El bloque activo de cada fecha programada (L-01c).\nSELECT a.on_date::text AS \"date!\", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS \"starts_at!\",\n  to_char(a.ends_at, 'HH24:MI') AS \"ends_at!\", coalesce(ident.display_name, '') AS \"responsible_name!\"\nFROM labs.activities AS a\nJOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = a.workspace_id AND pr.id = a.responsible_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE a.workspace_id = :workspaceId! AND a.request_id = :requestId! AND a.cancelled_at IS NULL\nORDER BY a.on_date"};
+const requestBlocksIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":695,"b":707}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":728,"b":738}]}],"statement":"-- El bloque activo de cada fecha programada (L-01c).\nSELECT a.id, a.on_date::text AS \"date!\", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS \"starts_at!\",\n  to_char(a.ends_at, 'HH24:MI') AS \"ends_at!\", coalesce(ident.display_name, '') AS \"responsible_name!\"\nFROM labs.activities AS a\nJOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = a.workspace_id AND pr.id = a.responsible_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE a.workspace_id = :workspaceId! AND a.request_id = :requestId! AND a.cancelled_at IS NULL\nORDER BY a.on_date"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- El bloque activo de cada fecha programada (L-01c).
- * SELECT a.on_date::text AS "date!", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS "starts_at!",
+ * SELECT a.id, a.on_date::text AS "date!", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS "starts_at!",
  *   to_char(a.ends_at, 'HH24:MI') AS "ends_at!", coalesce(ident.display_name, '') AS "responsible_name!"
  * FROM labs.activities AS a
  * JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id

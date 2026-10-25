@@ -159,7 +159,22 @@ export const labsRequest = requestSummary.extend({
   lines: z.array(requestLine),
   events: z.array(requestEvent),
   /** El bloque de cada fecha programada: código, área, hora y responsable. */
-  blocks: z.array(z.object({ date: z.iso.date(), code: z.string(), areaId: z.uuid(), areaName: z.string(), startsAt: z.string(), endsAt: z.string(), responsibleName: z.string() })),
+  blocks: z.array(
+    z.object({
+      date: z.iso.date(),
+      code: z.string(),
+      areaId: z.uuid(),
+      areaName: z.string(),
+      startsAt: z.string(),
+      endsAt: z.string(),
+      responsibleName: z.string(),
+      /**
+       * Lo apartado por línea reservable (L-01d): cantidad del reactivo o número de equipos, con sus códigos. Las
+       * cantidades son por fecha: si no alcanza lo pedido, «Falta».
+       */
+      holds: z.array(z.object({ line: z.number().int(), held: z.string(), assets: z.array(z.string()), complete: z.boolean() })),
+    }),
+  ),
   /** Si quien mira la puede editar, enviar o cancelar (es suya y el estado lo admite). */
   mine: z.boolean(),
 });

@@ -5,6 +5,7 @@
 export { createItem, hasMovements, lockItem, setMinimum, updateItemFields } from './application/catalog.js';
 export { suggestContainerCodes } from './application/codes.js';
 export type { InventoryContext } from './application/context.js';
+export { heldForActivity, holdForActivity, releaseActivityHolds } from './application/holds.js';
 export { addReason, brandsOf, reasonsOf, retireReason } from './application/lists.js';
 export {
   adjustByWeight,

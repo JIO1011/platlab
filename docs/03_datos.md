@@ -205,6 +205,8 @@ En L-01b las tablas `practices.*` de abajo pasan al esquema `labs` ([ADR 0023](0
 | `labs.activities` | Bloques del Cronograma: una fecha de una solicitud enviada en un área, a una hora y con su responsable (Operador o Administrador), con el código vigente `P1-S12-ANT03` y sus partes. Una exclusión GiST impide dos activos que se crucen en el área; se liberan, no se borran |
 | `labs.activity_sequences` | Último número de cada área en cada semana de un período: el «03» de ANT03, sin reutilizarse |
 | `labs.activity_codes` | Códigos que tuvo cada bloque, el vigente y los anteriores al cambiar de área; solo crece |
+| `labs.activity_allocations` | Lo que un bloque apartó de cada línea de reactivo: una reserva por frasco en `inventory.allocations` (propósito `activity`, fuera de la bandeja de salidas de Reactivos); se libera, no se borra |
+| `labs.activity_assets` | Equipos concretos apartados por un bloque y línea en su franja; una exclusión GiST impide que un equipo esté en dos bloques activos a la vez. Liberado, no cambia |
 | `scheduling.lab_bookings`, `equipment_bookings`, `material_bookings` | Reservas `[inicio, fin)` con exclusión GiST por espacio y recurso |
 | `practices.templates`, `template_versions` | Plantillas con versiones publicadas inmutables |
 | `practices.participations` | Estudiante: docente responsable, ámbito y vigencia |
