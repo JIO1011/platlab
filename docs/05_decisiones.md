@@ -904,6 +904,11 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
       - Lo programa el Administrador (permiso propio); el Operador ve la tabla y la bandeja sin mover nada; el Docente y el tesista ven la tabla completa sin la bandeja.
       - Las reglas se escriben una vez en el contrato y las usan la validación en vivo al arrastrar y el servidor, que decide; una exclusión GiST impide dos bloques activos que se crucen en el mismo área.
       - Cancelar una solicitud programada: quien la pidió, hasta el día anterior a su primer bloque; el laboratorio, siempre y con motivo. Sus bloques se liberan y conservan su historial.
+    - **Reglas de L-01d, reserva real** (decisión del usuario, 24-10-2026; ajusta «sin reservas parciales» del [ADR 0007](#adr-0007) para el Cronograma).
+      - Las cantidades de una solicitud son por fecha: cada bloque aparta lo suyo al programarse.
+      - Los reactivos se apartan solos, de los frascos usables que vencen antes y siguen vigentes el día de la práctica; el Administrador puede cambiarlos.
+      - Si no alcanza el stock o no hay equipos libres del tipo en esa franja, se programa igual, se aparta lo que hay y lo que falta queda marcado «Falta» para resolverlo.
+      - Las propuestas de cambio al docente (otra fecha, cantidades o sustitutos) vencen a las 48 horas; vencida, la solicitud vuelve a «Por programar». Aceptar confirma solo si todo sigue disponible.
     - **Vista del Cronograma** (decisión del usuario, 24-10-2026; ajusta «Cronograma» de «Cuatro secciones» y la bandeja al costado): una tabla al ancho de la ventana, como la planilla que ya usan, con todas las áreas habilitadas como columnas (sigla) y las horas de 07:00 a 19:00 como filas. Cada bloque dice solo «Materia - Carrera - Docente» y al pulsarlo abre la solicitud llena, lista para imprimir. «Por programar» queda debajo de la tabla, como bloques que se arrastran a su lugar.
     - **Ajustes de L-01b** (decisión del usuario, 23-10-2026; reemplaza «quien administra también puede llenarla» y que logo y nombre lleguen del espacio de trabajo).
       - Piden solo el Docente y el tesista; la lista blanca es invitar con uno de esos roles. Propietario, Administrador y Operador revisan, no piden.
