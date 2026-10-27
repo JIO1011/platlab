@@ -90,7 +90,8 @@ export function RequestList({ label, children }: { label: string; children: Reac
 
 /**
  * Una fila de solicitud: código, título (el enlace que abre la hoja, extendido a toda la fila), datos y, a la derecha,
- * la pastilla de estado (salvo `hideStatus`), «Fuera de plazo» y lo que sume `badges`. `action` (p. ej. «Duplicar») queda sobre el enlace.
+ * la pastilla de estado (salvo `hideStatus`), «Fuera de plazo» y lo que sume `badges`. `action` (p. ej. «Duplicar») y
+ * `leading` (la casilla de elegir la fila) quedan sobre el enlace.
  */
 export function RequestItem({
   to,
@@ -99,6 +100,7 @@ export function RequestItem({
   note,
   badges,
   action,
+  leading,
   hideStatus = false,
 }: {
   to: string;
@@ -107,11 +109,14 @@ export function RequestItem({
   note?: string;
   badges?: ReactNode;
   action?: ReactNode;
+  /** Va antes del código, a la izquierda: la casilla con que se elige la fila. */
+  leading?: ReactNode;
   /** Quita la pastilla de estado cuando toda la lista es del mismo estado; «Fuera de plazo» y `badges` se quedan. */
   hideStatus?: boolean;
 }) {
   return (
     <li className="relative flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-6 py-4 transition-colors hover:bg-action-soft/60 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-action sm:px-8">
+      {leading ? <span className="relative z-10 -my-2.5 -ml-2.5 shrink-0">{leading}</span> : null}
       <div className="grid min-w-0 flex-1 basis-56 gap-1.5">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <CodeTag>{request.code}</CodeTag>

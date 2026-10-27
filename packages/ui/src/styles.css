@@ -258,15 +258,35 @@
 
 [data-module='labs'] {
   /*
-   * Terracota de Laboratorios (ADR 0023, «Color de Laboratorios», decisión del usuario del 26-10-2026, que reemplaza
-   * el negro petróleo): cálido y sobrio, 5,6:1 con blanco; el texto #A0522D sobre #FBF1EC, 5,1:1. El degradado se
-   * oscurece hacia la arcilla #7A3B1E (8,5:1 con blanco), sin llegar al rojo ni al ámbar de los estados.
+   * Amarillo de Laboratorios (ADR 0023, «Color de Laboratorios», decisión del usuario del 26-10-2026, que reemplaza la
+   * terracota): #FFCB56 de fondo con texto casi negro #2B1F00 (10,7:1). Un amarillo no se lee como texto ni como
+   * borde sobre blanco (1,5:1): los textos, enlaces y focos del módulo van en el oro oscuro #7A5600 (6,7:1 con
+   * blanco), que es también el final del degradado.
    */
-  --color-action: #a0522d;
-  --color-action-hover: #8c4626;
-  --color-action-pressed: #7a3b1e;
-  --color-action-soft: #fbf1ec;
-  --color-action-deep: #7a3b1e;
+  --color-action: #ffcb56;
+  --color-action-hover: #f5bd3a;
+  --color-action-pressed: #e8ac1f;
+  --color-action-soft: #fff6e0;
+  --color-action-deep: #7a5600;
+  --color-on-action: #2b1f00;
+}
+
+/* Sobre blanco, lo que el módulo escribe o marca con su acento usa el oro oscuro: el amarillo solo es fondo. */
+[data-module='labs'] .text-action,
+[data-module='labs'] .hover\:text-action:hover {
+  color: var(--color-action-deep);
+}
+[data-module='labs'] .border-action,
+[data-module='labs'] .outline-action {
+  border-color: var(--color-action-deep);
+  outline-color: var(--color-action-deep);
+}
+[data-module='labs'] :focus-visible {
+  outline-color: var(--color-action-deep);
+}
+/* Los degradados del acento llevan texto oscuro: terminan en un ámbar claro (#F2B33D, 8,7:1 con #2B1F00), no en el oro. */
+[data-module='labs'] .to-action-deep {
+  --tw-gradient-to: #f2b33d;
 }
 
 /*

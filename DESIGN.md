@@ -31,9 +31,9 @@ colors:
   # Tema de Mantenimiento (petróleo): [data-module='maintenance'].
   maintenance-action: "#0e7490"
   maintenance-action-deep: "#0c4a6e"
-  # Tema de Laboratorios (terracota): [data-module='labs'].
-  labs-action: "#a0522d"
-  labs-action-deep: "#7a3b1e"
+  # Tema de Laboratorios (amarillo con texto oscuro): [data-module='labs'].
+  labs-action: "#ffcb56"
+  labs-action-deep: "#7a5600"
   success: "#1d7a46"
   success-soft: "#e5f3ea"
   warning: "#8a5a00"
@@ -101,7 +101,7 @@ components:
 - **Reactivos:** índigo (`reagents-*`) con `action-deep` violeta como extremo del degradado. El tema se activa con `[data-module]` en `<html>` para que lo hereden hojas, menús y avisos, que viven en portales.
 - **Equipos y Mantenimiento** (ADR 0021): con el mismo esquema. El degradado se oscurece hacia un tono vecino, para que se note como en Reactivos.
   - Equipos va del azul al azul real, sin llegar al índigo; Mantenimiento, del petróleo al azul petróleo, sin ir al verde de los estados. Los extremos pasan AA con texto blanco.
-  - Laboratorios usa terracota (`#a0522d`, 5,6:1 con blanco) y su degradado va a la arcilla `#7a3b1e`: cálido y sobrio, sin llegar al rojo ni al ámbar de los estados.
+  - Laboratorios usa amarillo `#ffcb56` como fondo de su acento, con texto casi negro `#2b1f00` (10,7:1); como texto, enlace o foco sobre blanco va el oro oscuro `#7a5600` (6,7:1), que cierra el degradado. Es el único módulo con texto oscuro sobre su acento (`--color-on-action`).
 - **Neutros** (pizarra): `canvas` (fondo plano de toda la app), `surface` (paneles), `surface-sunken` (pistas, hover, esqueletos), `ink` / `ink-muted` / `ink-subtle` (texto principal, atenuado, tenue), `line` / `line-strong` (divisores y bordes de campo).
 - **Estados:** `success`, `warning`, `danger`, cada uno como texto sobre su `-soft`.
   - Lo pendiente de decidir va en ámbar y solo si existe (pastilla, aviso del Resumen, píldora del Inicio, insignia).

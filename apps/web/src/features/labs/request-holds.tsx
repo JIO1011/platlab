@@ -14,8 +14,8 @@ export function RequestHolds({ request }: { request: RequestView }) {
   const blocks = request.blocks.filter((block) => block.holds.length > 0);
   if (blocks.length === 0) return null;
   return (
-    <section aria-label="Lo apartado" className={`${softCard} grid gap-6 p-6 sm:p-8 print:hidden`}>
-      <h2 className="text-xl font-bold tracking-tight text-ink">Lo apartado</h2>
+    <section aria-label="Lo apartado" className={`${softCard} grid gap-4 p-5 sm:p-6 print:hidden`}>
+      <h2 className="text-lg font-bold tracking-tight text-ink">Lo apartado</h2>
       <ul className="grid">
         {blocks.map((block) => {
           const rows = holdRows(request.lines, block);
