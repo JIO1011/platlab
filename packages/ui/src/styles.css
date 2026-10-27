@@ -258,15 +258,15 @@
 
 [data-module='labs'] {
   /*
-   * Negro petróleo de Laboratorios (ADR 0023, «Color de Laboratorios», 26-10-2026): 10,9:1 con blanco; el texto
-   * #1D4249 sobre #EDF3F3, 9,7:1. Formal y sobrio, lejos del petróleo claro de Mantenimiento (#0E7490). El degradado
-   * se oscurece hacia el casi negro #0B1F24 (17:1 con blanco), sin ir al verde de los estados.
+   * Terracota de Laboratorios (ADR 0023, «Color de Laboratorios», decisión del usuario del 26-10-2026, que reemplaza
+   * el negro petróleo): cálido y sobrio, 5,6:1 con blanco; el texto #A0522D sobre #FBF1EC, 5,1:1. El degradado se
+   * oscurece hacia la arcilla #7A3B1E (8,5:1 con blanco), sin llegar al rojo ni al ámbar de los estados.
    */
-  --color-action: #1d4249;
-  --color-action-hover: #163840;
-  --color-action-pressed: #102c32;
-  --color-action-soft: #edf3f3;
-  --color-action-deep: #0b1f24;
+  --color-action: #a0522d;
+  --color-action-hover: #8c4626;
+  --color-action-pressed: #7a3b1e;
+  --color-action-soft: #fbf1ec;
+  --color-action-deep: #7a3b1e;
 }
 
 /*
