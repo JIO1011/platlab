@@ -218,8 +218,8 @@ async function settleRequest(access: WorkspaceAccess, requestId: string): Promis
 export function scheduleActivity(pool: pg.Pool, request: CommandRequest, input: z.infer<typeof scheduleActivityRequest>): Promise<ScheduledActivity> {
   return runScheduleCommand(pool, request, 'labs.activity.schedule', input, requires(SCHEDULE_MANAGE), async (access) => {
     const current = await lockSubmitted(access, input.requestId, input.expectedVersion);
-    const { requestId, expectedVersion: _version, ...slot } = input;
-    const scheduled = await placeDate(access, current, requestId, slot);
+    const { requestId, date, areaId, startsAt, endsAt, responsibleId } = input;
+    const scheduled = await placeDate(access, current, requestId, { date, areaId, startsAt, endsAt, responsibleId });
     await settleRequest(access, requestId);
     return scheduled;
   });
