@@ -7,6 +7,7 @@ import { blockFace, blockTextClass, lineClamp } from './schedule-block';
 import { useCareerTone } from './schedule-career-color';
 import { useSourceDrag, type DragSource } from './schedule-dnd';
 import { cardWhenText, durationOf, pendingCards, requestBlockText, shortDateText, type PendingCard } from './schedule-placement';
+import { softCard } from './style';
 
 /** Lo que «Por programar» necesita del resto de la pantalla. */
 export interface TrayActions {
@@ -124,9 +125,9 @@ export function ScheduleTray({ items, pendingError, onRetry, actions }: { items:
   const here = cards.filter((card) => card.date === actions.visible).length;
   const hint = !actions.wide ? null : here > 0 && actions.canSchedule ? 'Arrastra las resaltadas a la tabla, o haz clic para «Programar…»' : cards.length > 0 ? 'Haz clic en una para ver su día' : null;
   return (
-    <section aria-labelledby={heading} className={cn('rounded-card bg-surface px-3 pb-2.5 pt-2 shadow-raised', actions.wide && 'shrink-0')}>
+    <section aria-labelledby={heading} className={cn(softCard, 'px-4 pb-3 pt-3', actions.wide && 'shrink-0')}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4">
-        <h2 id={heading} className="text-sm font-bold text-ink">
+        <h2 id={heading} className="text-base font-bold tracking-tight text-ink">
           Por programar · {cards.length}
         </h2>
         {hint ? <p className="text-xs text-ink-muted">{hint}</p> : null}

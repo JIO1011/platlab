@@ -19,7 +19,7 @@ export interface BlockOpening {
  * La cara de un bloque (tabla, lista y «Por programar»): fondo de tinte medio por carrera con un borde de 1 px en todo el
  * perímetro del mismo tono más oscuro (`careerTone` los pone) y el texto de la planilla.
  */
-export const blockFace = 'overflow-hidden rounded-md border text-ink';
+export const blockFace = 'overflow-hidden rounded-lg border text-ink shadow-[0_1px_2px_rgb(15_23_42/0.08)]';
 
 /** El texto de un bloque: 12 px medium, a la izquierda y arriba; si no cabe, se corta con elipsis y el tooltip lo dice entero. */
 export const blockTextClass = 'text-left text-xs font-medium leading-[1.3] [overflow-wrap:anywhere]';

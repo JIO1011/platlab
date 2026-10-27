@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { isApiError } from '../../app/api';
 import { labsErrorMessage, useRejectRequest, useRequestChanges, useRequestResolved, useVersionConflict } from './commands';
 import type { RequestView } from './request-draft';
+import { primaryGradient } from './style';
 
 type Resolution = 'changes' | 'reject';
 
@@ -88,7 +89,7 @@ function ReasonForm({ workspaceId, request, resolution, mutation, onDismiss }: R
         <Button
           type="submit"
           variant={resolution === 'reject' ? 'secondary' : 'primary'}
-          className={resolution === 'reject' ? 'h-11 border-transparent bg-danger text-white hover:bg-danger/90 sm:h-10' : 'h-11 sm:h-10'}
+          className={resolution === 'reject' ? 'h-11 border-transparent bg-danger text-white hover:bg-danger/90 sm:h-10' : `h-11 sm:h-10 ${primaryGradient}`}
           loading={mutation.isPending}
         >
           {copy.action}
@@ -123,7 +124,7 @@ export function ResolveRequest({ workspaceId, request }: { workspaceId: string; 
     );
   }
   return (
-    <div className="flex flex-wrap gap-2 max-sm:[&>*]:flex-1">
+    <div className="flex flex-wrap gap-3 max-sm:[&>*]:flex-1">
       {(Object.keys(resolutions) as Resolution[]).map((resolution) => (
         <Button key={resolution} className="h-11 sm:h-10" onClick={() => setOpen(resolution)}>
           {resolutions[resolution].trigger}

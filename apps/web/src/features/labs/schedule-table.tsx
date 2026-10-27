@@ -8,6 +8,7 @@ import { ScheduleBlock, type BlockOpening } from './schedule-block';
 import { DraggableBlock, useDragPreview, type ColumnData, type SavingDrop } from './schedule-dnd';
 import { ROW_MINUTES, activitiesOfArea, blockSpan, closedSpans, placement, rowStarts, timeText, type BoardColumn, type DayRange } from './schedule-grid';
 import { blockingTexts, capacityText } from './schedule-placement';
+import { softCard } from './style';
 
 /**
  * El alto de una fila (media hora): reparte el alto de la tabla entre sus filas para que 07:00–19:00 se vea completo sin
@@ -176,14 +177,14 @@ function ColumnHeader({ column }: { column: BoardColumn }) {
   const { space } = column;
   if (!space) {
     return (
-      <div title={column.areaName} className="sticky top-0 z-20 grid h-(--head) content-center border-b-2 border-l border-line-strong bg-surface-sunken px-1 text-center">
+      <div title={column.areaName} className="sticky top-0 z-20 grid h-(--head) content-center border-b border-l border-line-strong bg-surface-sunken px-1 text-center">
         <p className="line-clamp-2 text-[11px] font-medium leading-4 text-ink-muted [overflow-wrap:anywhere]">{column.areaName}</p>
       </div>
     );
   }
   return (
-    <div title={`${space.areaName}${space.groupName ? `, ${space.groupName}` : ''}, aforo ${space.capacity}`} className="sticky top-0 z-20 grid h-(--head) content-center border-b-2 border-l border-line-strong bg-surface px-1.5 text-center">
-      <p className="truncate text-lg font-bold leading-6 text-action-deep">
+    <div title={`${space.areaName}${space.groupName ? `, ${space.groupName}` : ''}, aforo ${space.capacity}`} className="sticky top-0 z-20 grid h-(--head) content-center border-b border-l border-line-strong bg-surface px-1.5 text-center">
+      <p className="truncate text-lg font-bold leading-6 tracking-tight text-action-deep">
         {space.abbreviation}
         <span className="sr-only">: {space.areaName}</span>
       </p>
@@ -239,9 +240,9 @@ export function ScheduleTable({
     gridTemplateColumns: [HOURS_WIDTH, enabled > 0 ? `repeat(${enabled}, minmax(${COLUMN_MIN}, 1fr))` : null, idle > 0 ? `repeat(${idle}, ${IDLE_WIDTH})` : null].filter(Boolean).join(' '),
   } as CSSProperties;
   return (
-    <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-card bg-surface shadow-raised [container-type:size]">
+    <div className={cn(softCard, 'min-h-0 flex-1 overflow-auto overscroll-contain [container-type:size]')}>
       <div className="grid" style={style}>
-        <div aria-hidden className="sticky left-0 top-0 z-30 h-(--head) border-b-2 border-line-strong bg-surface-sunken" />
+        <div aria-hidden className="sticky left-0 top-0 z-30 h-(--head) border-b border-line-strong bg-surface-sunken" />
         {columns.map((column) => (
           <ColumnHeader key={column.areaId} column={column} />
         ))}

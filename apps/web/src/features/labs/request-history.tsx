@@ -1,5 +1,6 @@
 import { formatDateTime } from '../../app/format';
 import type { RequestView } from './request-draft';
+import { softCard } from './style';
 
 const eventLabels: Record<RequestView['events'][number]['action'], string> = {
   submitted: 'Enviada',
@@ -13,8 +14,8 @@ const eventLabels: Record<RequestView['events'][number]['action'], string> = {
 /** El historial de la solicitud con sus motivos: va al pie, fuera de la hoja (la hoja es lo que se imprime). */
 export function RequestHistory({ events, timeZone }: { events: RequestView['events']; timeZone: string }) {
   return (
-    <section aria-label="Historial" className="grid gap-3 rounded-card bg-surface px-4 py-5 shadow-raised sm:px-5 print:hidden">
-      <h2 className="text-lg font-semibold text-ink">Historial</h2>
+    <section aria-label="Historial" className={`${softCard} grid gap-3 p-6 sm:p-8 print:hidden`}>
+      <h2 className="text-xl font-bold tracking-tight text-ink">Historial</h2>
       {events.length === 0 ? (
         <p className="text-sm text-ink-muted">Todavía no se envía.</p>
       ) : (

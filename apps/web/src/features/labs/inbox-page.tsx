@@ -2,24 +2,25 @@ import { useLabs } from './context';
 import { ResolveRequest } from './inbox-resolution';
 import type { RequestView } from './request-draft';
 import { OpenRequest } from './request-page';
+import { ReviewCard } from './request-review';
 import { FilledRequest } from './request-readonly';
 import { RequestHeading } from './request-status';
 
 /**
- * Una solicitud recibida, de solo lectura: quién la pide y la hoja del formato llena, con los recursos y su ✔ ⚠ ✖, que se
- * puede imprimir; el historial va al pie. Al Administrador, con la solicitud enviada, se le suman «Pedir cambios» y «Rechazar».
+ * Una solicitud recibida, de solo lectura: quién la pide, la tarjeta de revisión (lo que el servidor comprobó, ✔ ⚠ ✖, y, al
+ * Administrador con la solicitud enviada, «Pedir cambios» y «Rechazar») y la hoja del formato llena, que se puede imprimir; el historial va al pie.
  */
 function InboxSheet({ request }: { request: RequestView }) {
   const { workspaceId, canReview } = useLabs();
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       <RequestHeading request={request}>
         <span className="min-w-0 break-words text-sm text-ink-muted">
           Pedida por <span className="font-medium text-ink">{request.requesterName}</span>
         </span>
       </RequestHeading>
-      {canReview && request.status === 'submitted' ? <ResolveRequest workspaceId={workspaceId} request={request} /> : null}
+      <ReviewCard request={request}>{canReview && request.status === 'submitted' ? <ResolveRequest workspaceId={workspaceId} request={request} /> : null}</ReviewCard>
       <FilledRequest request={request} />
     </div>
   );

@@ -23,6 +23,7 @@ import { contextFor, dropPlan, endFor, pendingDates, responsibleFor, scheduledMe
 import { PlacementSheet, type PlacementTarget } from './schedule-placement-sheet';
 import { ScheduleTable } from './schedule-table';
 import { ScheduleTray, type TrayActions } from './schedule-tray';
+import { softCard } from './style';
 
 /** La tabla de horas desde 1024 px; por debajo, una lista por área (ADR 0023). */
 const wideQuery = '(min-width: 1024px)';
@@ -51,7 +52,7 @@ function DayBoard({
 }) {
   if (columns.length === 0) {
     return (
-      <div className="rounded-card bg-surface shadow-raised">
+      <div className={softCard}>
         <StatePanel icon={MapPin} title="Aún no hay áreas" description="Cuando el Administrador cree un área y la habilite con su aforo y horario, el cronograma la mostrará aquí." />
       </div>
     );
@@ -209,7 +210,7 @@ export function LabsSchedulePage() {
         <ScheduleDnd previewOf={previewOf} onDrop={(source, preview) => void dropped(source, preview)}>
           <div className={cn('mt-4 grid gap-4', wide && 'mt-3 flex min-h-0 flex-1 flex-col gap-3')}>
             {failed ? (
-              <div className="rounded-card bg-surface shadow-raised">
+              <div className={softCard}>
                 <QueryErrorState error={failed.error} onRetry={() => queries.forEach((query) => void query.refetch())} />
               </div>
             ) : queries.some((query) => query.isPending) || core.isLoading ? (
