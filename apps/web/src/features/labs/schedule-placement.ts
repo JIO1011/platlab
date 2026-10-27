@@ -9,7 +9,7 @@ import {
   type ScheduleSlot,
   type Space,
 } from '@platlab/contracts';
-import { MISSING_HOLDS, blockText, capacityWarning, timeText, toMinutes, type DayRange } from './schedule-grid';
+import { MISSING_HOLDS, blockParts, blockText, capacityWarning, timeText, toMinutes, type DayRange } from './schedule-grid';
 
 /**
  * La lógica pura de programar y mover bloques (ADR 0023, L-01c): de la posición del puntero a una hora, el contexto de
@@ -101,9 +101,16 @@ export function previewText(check: ScheduleCheck): string {
   return check.blocking.length > 0 ? blockingTexts(check)[0]! : 'Libre';
 }
 
+type BlockRequest = Pick<RequestSummary, 'code' | 'title' | 'subject' | 'group' | 'requesterName'>;
+
 /** «Materia - Carrera - Docente» de una solicitud por programar: el mismo texto que tendrá su bloque. */
-export function requestBlockText(request: Pick<RequestSummary, 'code' | 'title' | 'subject' | 'group' | 'requesterName'>): string {
+export function requestBlockText(request: BlockRequest): string {
   return blockText({ ...request, title: request.title ?? request.code });
+}
+
+/** La materia y «Carrera · Docente» de una solicitud por programar: las mismas líneas que tendrá su bloque. */
+export function requestBlockParts(request: BlockRequest): { subject: string; byline: string } {
+  return blockParts({ ...request, title: request.title ?? request.code });
 }
 
 /** Las fechas de la solicitud que aún no tienen bloque, en orden. */

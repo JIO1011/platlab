@@ -19,9 +19,13 @@ export interface DayRange {
   end: number;
 }
 
-/** Lo cerrado de un área ese día, con el motivo que se muestra. */
+/**
+ * Lo cerrado de un área ese día, con su motivo. El motivo se escribe una sola vez por área: solo el primer tramo de al
+ * menos una hora lleva `labeled`; los demás se ven como trama y el motivo queda en su nombre accesible.
+ */
 export interface ClosedSpan extends Span {
   reason: string;
+  labeled: boolean;
 }
 
 export const dayClosedText = 'Cerrada este día';
@@ -173,30 +177,23 @@ export function boardRange(dayItems: readonly Pick<Activity, 'startsAt' | 'endsA
 /** Lo cerrado del área dentro del rango del día: todo el rango si hay cierre o feriado, o lo que su horario deja fuera. */
 export function closedSpans(space: Space, date: string, range: DayRange, closures: readonly Closure[]): ClosedSpan[] {
   const whole = closedAllDay(space, date, closures);
-  if (whole) return [{ from: range.start, to: range.end, reason: whole }];
-  const spans: ClosedSpan[] = [];
-  let cursor = range.start;
-  for (const slot of openSlots(space, date)) {
-    if (slot.from > cursor) spans.push({ from: cursor, to: slot.from, reason: scheduleProblemText.hours });
-    cursor = Math.max(cursor, slot.to);
+  const spans: Span[] = [];
+  if (whole) spans.push({ from: range.start, to: range.end });
+  else {
+    let cursor = range.start;
+    for (const slot of openSlots(space, date)) {
+      if (slot.from > cursor) spans.push({ from: cursor, to: slot.from });
+      cursor = Math.max(cursor, slot.to);
+    }
+    if (cursor < range.end) spans.push({ from: cursor, to: range.end });
   }
-  if (cursor < range.end) spans.push({ from: cursor, to: range.end, reason: scheduleProblemText.hours });
-  return spans;
+  const first = spans.findIndex((span) => span.to - span.from >= 60);
+  return spans.map((span, index) => ({ ...span, reason: whole ?? scheduleProblemText.hours, labeled: index === first }));
 }
 
 // ---------------------------------------------------------------------------
 // Posiciones
 // ---------------------------------------------------------------------------
-
-/** Cuántas líneas de texto caben en un bloque de esa duración (en minutos): 1 hasta media hora, 2 con una hora, 3 desde hora y media. */
-export function blockLines(minutes: number): 1 | 2 | 3 {
-  return minutes >= 90 ? 3 : minutes >= 60 ? 2 : 1;
-}
-
-/** La hora va en el bloque solo si mide al menos una hora. */
-export function showsTime(minutes: number): boolean {
-  return minutes >= 60;
-}
 
 /** Dónde cae un tramo en la columna del día: su arranque y su alto, en porcentaje del rango. */
 export function placement(span: Span, range: DayRange): { top: number; height: number } {
@@ -216,16 +213,41 @@ export function rowStarts(range: DayRange): number[] {
   return Array.from({ length: (range.end - range.start) / ROW_MINUTES }, (_, index) => range.start + index * ROW_MINUTES);
 }
 
+/** Las horas en punto del rango: lo que rotula el eje. */
+export function hourMarks(range: DayRange): number[] {
+  return rowStarts(range).filter((mark) => mark % 60 === 0);
+}
+
+/** Las horas que llevan banda de fondo para seguir la fila con la vista: una de cada dos (las pares), recortadas al rango. */
+export function shadedHours(range: DayRange): Span[] {
+  return hourMarks(range)
+    .filter((mark) => (mark / 60) % 2 === 0)
+    .map((mark) => ({ from: mark, to: Math.min(mark + 60, range.end) }));
+}
+
+/** La hora del día en la zona del espacio de trabajo, en minutos desde la medianoche: la línea de «ahora». */
+export function nowMinutes(now: number, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(now));
+  const part = (type: string) => Number(parts.find((item) => item.type === type)?.value ?? 0);
+  return part('hour') * 60 + part('minute');
+}
+
 // ---------------------------------------------------------------------------
 // Texto de un bloque
 // ---------------------------------------------------------------------------
 
+/** Lo que dice un bloque, en dos partes: la materia (sin ella, el título de la solicitud) y «Carrera · Docente» (sin carrera, solo el docente). */
+export function blockParts(block: Pick<Activity, 'title' | 'subject' | 'group' | 'requesterName'>): { subject: string; byline: string } {
+  return { subject: block.subject || block.title, byline: [block.group, block.requesterName].filter(Boolean).join(' · ') };
+}
+
 /**
- * Lo que dice un bloque: «Materia - Carrera - Docente». Sin materia, el título de la solicitud; sin carrera, se omite.
+ * Lo que dice un bloque en una sola frase, «Materia - Carrera - Docente»: para el nombre accesible y el tooltip.
  * Sirve igual a un bloque de la tabla y a una solicitud por programar.
  */
 export function blockText(block: Pick<Activity, 'title' | 'subject' | 'group' | 'requesterName'>): string {
-  return [block.subject || block.title, block.group, block.requesterName].filter(Boolean).join(' - ');
+  const { subject } = blockParts(block);
+  return [subject, block.group, block.requesterName].filter(Boolean).join(' - ');
 }
 
 /** «Supera el aforo (30 / 24)»: el aviso de aforo, que solo avisa. */

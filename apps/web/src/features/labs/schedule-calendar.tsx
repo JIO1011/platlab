@@ -7,7 +7,6 @@ import { iconAction } from '../../app/glass';
 import { useLabs } from './context';
 import { useSchedule } from './queries';
 import { loadByDay, monthWeeks, shiftMonth, weekDates } from './schedule-grid';
-import { shortDateText } from './schedule-placement';
 
 /** Las iniciales de los días, de lunes a domingo, tomadas de una semana cualquiera. */
 const weekdayInitials = weekDates('2026-01-05').map((date) => formatWeekday(date, 'short').slice(0, 1).toUpperCase());
@@ -31,7 +30,7 @@ function MonthPicker({ date, today, onPick }: { date: string; today: string; onP
             <ChevronLeft aria-hidden />
           </Button>
         </Tooltip>
-        <p aria-live="polite" className="text-sm font-semibold capitalize text-ink">
+        <p aria-live="polite" className="text-sm font-semibold text-ink first-letter:uppercase">
           {monthName(month, 'long')}
         </p>
         <Tooltip label="Mes siguiente">
@@ -82,17 +81,18 @@ function MonthPicker({ date, today, onPick }: { date: string; today: string; onP
   );
 }
 
-/** La fecha elegida como botón («lun 9 nov»): abre el mes con la carga de cada día para elegir cualquier día; al elegir, se cierra. */
+/** El ícono del calendario: abre el mes del día elegido con la carga de cada día para elegir cualquier fecha; al elegir, se cierra. */
 export function CalendarPicker({ date, today, onPick }: { date: string; today: string; onPick: (date: string) => void }) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button className="h-11 sm:h-10" aria-label={`${formatFullDate(date)}. Elegir otro día`}>
-          <CalendarDays aria-hidden />
-          <span className="tabular-nums first-letter:uppercase">{shortDateText(date)}</span>
-        </Button>
-      </PopoverTrigger>
+      <Tooltip label="Calendario del mes">
+        <PopoverTrigger asChild>
+          <Button size="icon" className={iconAction} aria-label="Elegir otro día en el calendario">
+            <CalendarDays aria-hidden />
+          </Button>
+        </PopoverTrigger>
+      </Tooltip>
       <PopoverContent align="end" className="w-80 p-2">
         <MonthPicker
           date={date}
