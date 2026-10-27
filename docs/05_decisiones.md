@@ -908,7 +908,13 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
       - Las cantidades de una solicitud son por fecha: cada bloque aparta lo suyo al programarse.
       - Los reactivos se apartan solos, de los frascos usables que vencen antes y siguen vigentes el día de la práctica; el Administrador puede cambiarlos.
       - Si no alcanza el stock o no hay equipos libres del tipo en esa franja, se programa igual, se aparta lo que hay y lo que falta queda marcado «Falta» para resolverlo.
-      - Las propuestas de cambio al docente (otra fecha, cantidades o sustitutos) vencen a las 48 horas; vencida, la solicitud vuelve a «Por programar». Aceptar confirma solo si todo sigue disponible.
+      - ~~Propuestas de cambio con vencimiento~~ (descartadas el 26-10-2026, ver «Flujo de la Propuesta»).
+    - **Flujo de la Propuesta** (decisión del usuario, 26-10-2026, sobre `docs/antecedentes/Propuesta.pdf`; reemplaza las propuestas de cambio con vencimiento del [ADR 0007](#adr-0007) para Laboratorios).
+      - «Solicitar ajuste» es «Pedir cambios» con motivo; no hay contraofertas del laboratorio que el docente acepte.
+      - En Recibidas, «Aprobar» programa cada fecha en la hora y el laboratorio pedidos, con las mismas reglas y la reserva real, y el bloque aparece solo en el Cronograma; también varias a la vez, cada una en su transacción con su resultado. Si choca o no hay laboratorio pedido, se programa arrastrando.
+      - Antes de enviar, el sistema muestra al docente alternativas para lo que no alcanza: dónde hay stock del reactivo y qué equipo del mismo tipo está libre.
+      - L-01e: el técnico prepara con una lista de chequeo y marca «Lista»; la práctica pasa a «En ejecución» y se finaliza; al cerrar registra solicitado, utilizado (parte de lo solicitado) y devuelto, y lo devuelto vuelve al inventario. «Reportar incidencia» lleva el contexto de la práctica al equipo.
+    - **Color de Laboratorios** (decisión del usuario, 26-10-2026; reemplaza el fucsia): negro petróleo con su degradado, distinto del petróleo claro de Mantenimiento; estilo formal y elegante como la Propuesta.
     - **Vista del Cronograma** (decisión del usuario, 24-10-2026; ajusta «Cronograma» de «Cuatro secciones» y la bandeja al costado): una tabla al ancho de la ventana, como la planilla que ya usan, con todas las áreas habilitadas como columnas (sigla) y las horas de 07:00 a 19:00 como filas. Cada bloque dice solo «Materia - Carrera - Docente» y al pulsarlo abre la solicitud llena, lista para imprimir. «Por programar» queda debajo de la tabla, como bloques que se arrastran a su lugar.
     - **Ajustes de L-01b** (decisión del usuario, 23-10-2026; reemplaza «quien administra también puede llenarla» y que logo y nombre lleguen del espacio de trabajo).
       - Piden solo el Docente y el tesista; la lista blanca es invitar con uno de esos roles. Propietario, Administrador y Operador revisan, no piden.

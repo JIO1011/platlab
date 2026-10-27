@@ -31,9 +31,9 @@ colors:
   # Tema de Mantenimiento (petróleo): [data-module='maintenance'].
   maintenance-action: "#0e7490"
   maintenance-action-deep: "#0c4a6e"
-  # Tema de Laboratorios (fucsia): [data-module='labs'].
-  labs-action: "#a21caf"
-  labs-action-deep: "#701a75"
+  # Tema de Laboratorios (negro petróleo): [data-module='labs'].
+  labs-action: "#1d4249"
+  labs-action-deep: "#0b1f24"
   success: "#1d7a46"
   success-soft: "#e5f3ea"
   warning: "#8a5a00"
@@ -101,7 +101,7 @@ components:
 - **Reactivos:** índigo (`reagents-*`) con `action-deep` violeta como extremo del degradado. El tema se activa con `[data-module]` en `<html>` para que lo hereden hojas, menús y avisos, que viven en portales.
 - **Equipos y Mantenimiento** (ADR 0021): con el mismo esquema. El degradado se oscurece hacia un tono vecino, para que se note como en Reactivos.
   - Equipos va del azul al azul real, sin llegar al índigo; Mantenimiento, del petróleo al azul petróleo, sin ir al verde de los estados. Los extremos pasan AA con texto blanco.
-  - Laboratorios usa fucsia (`#a21caf`, 6,3:1 con blanco) y su degradado va al ciruela `#701a75`: ni el violeta de Reactivos ni el rojo de los estados.
+  - Laboratorios usa negro petróleo (`#1d4249`, 10,9:1 con blanco) y su degradado va al casi negro `#0b1f24`: formal y sobrio, lejos del petróleo claro de Mantenimiento y del verde de los estados.
 - **Neutros** (pizarra): `canvas` (fondo plano de toda la app), `surface` (paneles), `surface-sunken` (pistas, hover, esqueletos), `ink` / `ink-muted` / `ink-subtle` (texto principal, atenuado, tenue), `line` / `line-strong` (divisores y bordes de campo).
 - **Estados:** `success`, `warning`, `danger`, cada uno como texto sobre su `-soft`.
   - Lo pendiente de decidir va en ámbar y solo si existe (pastilla, aviso del Resumen, píldora del Inicio, insignia).
