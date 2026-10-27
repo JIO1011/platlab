@@ -7,6 +7,7 @@ import {
   createFormRequest,
   createPeriodRequest,
   activityParams,
+  approveRequestsRequest,
   createRequestRequest,
   labCancelRequest as labCancelRequestSchema,
   scheduleActivityRequest,
@@ -46,7 +47,7 @@ import {
   saveRequest,
   submitRequest,
 } from '../application/requests.js';
-import { listResponsibles, listSchedule, moveActivity, scheduleActivity } from '../application/schedule.js';
+import { approveRequest, approveRequests, listResponsibles, listSchedule, moveActivity, scheduleActivity } from '../application/schedule.js';
 import { getSettings, updateSettings } from '../application/settings.js';
 import { archiveSpace, createSpace, listSpaces, updateSpace } from '../application/spaces.js';
 
@@ -89,6 +90,15 @@ export function labsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: 
 
     app.post('/requests/:requestId/reject', async (request) =>
       rejectRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestReasonRequest.parse(request.body)),
+    );
+
+    // «Aprobar» (ADR 0023, «Flujo de la Propuesta»): programa donde y cuando se pidió; varias, cada una por separado.
+    app.post('/requests/approve', async (request) =>
+      approveRequests(pool, commandRequest(request), approveRequestsRequest.parse(request.body).items),
+    );
+
+    app.post('/requests/:requestId/approve', async (request) =>
+      approveRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestVersionRequest.parse(request.body).expectedVersion),
     );
 
     app.post('/requests/:requestId/lab-cancel', async (request) =>

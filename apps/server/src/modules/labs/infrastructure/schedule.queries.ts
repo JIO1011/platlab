@@ -119,9 +119,13 @@ export interface ILockRequestForScheduleParams {
 
 /** 'LockRequestForSchedule' return type */
 export interface ILockRequestForScheduleResult {
+  area_id: string | null;
   dates: stringArray;
+  ends_at: string | null;
   number: number;
   participants: number;
+  scheduled_dates: stringArray;
+  starts_at: string | null;
   status: string;
   version: number;
 }
@@ -132,13 +136,17 @@ export interface ILockRequestForScheduleQuery {
   result: ILockRequestForScheduleResult;
 }
 
-const lockRequestForScheduleIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":239,"b":251}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":262,"b":272}]}],"statement":"-- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.\nSELECT number, status, version, dates::text[] AS \"dates!\", coalesce(participants, 0) AS \"participants!\"\nFROM labs.requests\nWHERE workspace_id = :workspaceId! AND id = :requestId!\nFOR UPDATE"};
+const lockRequestForScheduleIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":541,"b":553}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":564,"b":574}]}],"statement":"-- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.\nSELECT number, status, version, dates::text[] AS \"dates!\", coalesce(participants, 0) AS \"participants!\", area_id,\n  to_char(starts_at, 'HH24:MI') AS starts_at, to_char(ends_at, 'HH24:MI') AS ends_at,\n  ARRAY(SELECT a.on_date::text FROM labs.activities AS a\n         WHERE a.workspace_id = labs.requests.workspace_id AND a.request_id = labs.requests.id AND a.cancelled_at IS NULL)\n    AS \"scheduled_dates!\"\nFROM labs.requests\nWHERE workspace_id = :workspaceId! AND id = :requestId!\nFOR UPDATE"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.
- * SELECT number, status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!"
+ * SELECT number, status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!", area_id,
+ *   to_char(starts_at, 'HH24:MI') AS starts_at, to_char(ends_at, 'HH24:MI') AS ends_at,
+ *   ARRAY(SELECT a.on_date::text FROM labs.activities AS a
+ *          WHERE a.workspace_id = labs.requests.workspace_id AND a.request_id = labs.requests.id AND a.cancelled_at IS NULL)
+ *     AS "scheduled_dates!"
  * FROM labs.requests
  * WHERE workspace_id = :workspaceId! AND id = :requestId!
  * FOR UPDATE

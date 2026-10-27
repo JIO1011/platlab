@@ -140,6 +140,17 @@ export const activityParams = z.object({ workspaceId: z.uuid(), activityId: z.uu
 /** La respuesta de programar o mover: el bloque y lo que solo avisa (superar el aforo). */
 export const scheduledActivity = z.object({ activity, warnings: z.array(scheduleProblem) });
 
+/** POST /requests/:requestId/approve: con la versión vista; programa cada fecha pendiente donde y cuando se pidió. */
+export const approvedRequest = z.object({ items: z.array(scheduledActivity) });
+
+/** POST /requests/approve: aprobar varias, cada una en su transacción y con su resultado. */
+export const approveRequestsRequest = z
+  .object({ items: z.array(z.object({ requestId: z.uuid(), expectedVersion })).min(1).max(50) })
+  .strict();
+export const approvalResults = z.object({
+  items: z.array(z.object({ requestId: z.uuid(), ok: z.boolean(), codes: z.array(z.string()), message: z.string().nullable() })),
+});
+
 /** GET /schedule/responsibles: quienes pueden llevar un bloque (Operadores y Administradores). */
 export const responsibleOptions = z.object({ items: z.array(z.object({ id: z.uuid(), name: z.string() })) });
 
@@ -149,4 +160,6 @@ export const labCancelRequest = z.object({ expectedVersion, reason: text(500) })
 export type Activity = z.infer<typeof activity>;
 export type ScheduleList = z.infer<typeof scheduleList>;
 export type ScheduledActivity = z.infer<typeof scheduledActivity>;
+export type ApprovedRequest = z.infer<typeof approvedRequest>;
+export type ApprovalResults = z.infer<typeof approvalResults>;
 export type ResponsibleOptions = z.infer<typeof responsibleOptions>;

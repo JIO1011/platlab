@@ -31,7 +31,11 @@ FOR UPDATE;
 
 /* @name lockRequestForSchedule */
 -- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.
-SELECT number, status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!"
+SELECT number, status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!", area_id,
+  to_char(starts_at, 'HH24:MI') AS starts_at, to_char(ends_at, 'HH24:MI') AS ends_at,
+  ARRAY(SELECT a.on_date::text FROM labs.activities AS a
+         WHERE a.workspace_id = labs.requests.workspace_id AND a.request_id = labs.requests.id AND a.cancelled_at IS NULL)
+    AS "scheduled_dates!"
 FROM labs.requests
 WHERE workspace_id = :workspaceId! AND id = :requestId!
 FOR UPDATE;

@@ -9,6 +9,8 @@ import {
   type Activity,
   type ResponsibleOptions,
   type scheduleActivityRequest,
+  type ApprovalResults,
+  type ApprovedRequest,
   type ScheduledActivity,
   type ScheduleList,
   type scheduleQuery,
@@ -162,36 +164,106 @@ export function listResponsibles(pool: pg.Pool, request: QueryRequest): Promise<
 // Comandos del Administrador
 // ---------------------------------------------------------------------------
 
+type LockedRequest = NonNullable<Awaited<ReturnType<typeof lockRequestForSchedule.run>>[number]>;
+
+/** La solicitud bloqueada que se programa: enviada, con la versión vista. */
+async function lockSubmitted(access: WorkspaceAccess, requestId: string, expectedVersion: number): Promise<LockedRequest> {
+  const [current] = await lockRequestForSchedule.run({ workspaceId: access.workspace.id, requestId }, access.client);
+  if (!current || current.status === 'draft') throw notFound();
+  if (current.version !== expectedVersion) throw conflict();
+  if (current.status !== 'submitted') throw new AppError('REQUEST_RESOLVED', 'Esta solicitud ya no se programa');
+  return current;
+}
+
+/**
+ * Programa una fecha de la solicitud ya bloqueada: valida el lugar, toma su código, aparta lo de esa fecha (L-01d) y
+ * deja la auditoría. No cambia el estado de la solicitud: eso lo hace `settleRequest` al final.
+ */
+async function placeDate(
+  access: WorkspaceAccess,
+  current: LockedRequest,
+  requestId: string,
+  slot: { date: string; areaId: string; startsAt: string; endsAt: string; responsibleId: string },
+): Promise<ScheduledActivity> {
+  const workspaceId = access.workspace.id;
+  if (!current.dates.includes(slot.date)) throw invalid('Esa fecha no es de la solicitud');
+  const placed = await checkPlacement(access, { ...slot, participants: current.participants, exceptId: null });
+  const { sequence, code } = await nextCode(access, placed, slot.areaId);
+  const [created] = await withoutOverlap(() =>
+    insertActivity.run(
+      { workspaceId, requestId, date: slot.date, areaId: slot.areaId, startsAt: slot.startsAt, endsAt: slot.endsAt, responsibleId: slot.responsibleId, periodId: placed.period.id, week: placed.week, sequence, code, createdBy: access.principalId },
+      access.client,
+    ),
+  );
+  const activityId = created!.id;
+  await insertActivityCode.run({ workspaceId, activityId, code, principalId: access.principalId }, access.client);
+  // La reserva real (L-01d): este bloque aparta lo de su fecha; lo que no alcanza queda «Falta».
+  await holdBlock(access, { activityId, requestId, requestCode: requestCode(current.number), date: slot.date, startsAt: slot.startsAt, endsAt: slot.endsAt, areaName: placed.areaName });
+  await recordAudit(access, { action: 'labs.activity.schedule', entityType: 'labs.activity', entityId: activityId, changes: { requestId, ...slot, code, warnings: placed.warnings } });
+  return { activity: await activityById(access, activityId), warnings: placed.warnings };
+}
+
+/** Con todas sus fechas programadas, la solicitud queda «programada» con su evento; si no, cambia su versión. */
+async function settleRequest(access: WorkspaceAccess, requestId: string): Promise<void> {
+  const workspaceId = access.workspace.id;
+  const [complete] = await markScheduled.run({ workspaceId, requestId }, access.client);
+  if (complete) {
+    await insertRequestEvent.run({ workspaceId, requestId, action: 'scheduled', reason: null, principalId: access.principalId }, access.client);
+  } else {
+    await bumpRequest.run({ workspaceId, requestId }, access.client);
+  }
+}
+
 /** Programa una fecha de una solicitud enviada; con todas programadas, la solicitud queda «programada». */
 export function scheduleActivity(pool: pg.Pool, request: CommandRequest, input: z.infer<typeof scheduleActivityRequest>): Promise<ScheduledActivity> {
   return runScheduleCommand(pool, request, 'labs.activity.schedule', input, requires(SCHEDULE_MANAGE), async (access) => {
-    const workspaceId = access.workspace.id;
-    const [current] = await lockRequestForSchedule.run({ workspaceId, requestId: input.requestId }, access.client);
-    if (!current || current.status === 'draft') throw notFound();
-    if (current.version !== input.expectedVersion) throw conflict();
-    if (current.status !== 'submitted') throw new AppError('REQUEST_RESOLVED', 'Esta solicitud ya no se programa');
-    if (!current.dates.includes(input.date)) throw invalid('Esa fecha no es de la solicitud');
-    const placed = await checkPlacement(access, { ...input, participants: current.participants, exceptId: null });
-    const { sequence, code } = await nextCode(access, placed, input.areaId);
-    const [created] = await withoutOverlap(() =>
-      insertActivity.run(
-        { workspaceId, requestId: input.requestId, date: input.date, areaId: input.areaId, startsAt: input.startsAt, endsAt: input.endsAt, responsibleId: input.responsibleId, periodId: placed.period.id, week: placed.week, sequence, code, createdBy: access.principalId },
-        access.client,
-      ),
-    );
-    const activityId = created!.id;
-    await insertActivityCode.run({ workspaceId, activityId, code, principalId: access.principalId }, access.client);
-    // La reserva real (L-01d): este bloque aparta lo de su fecha; lo que no alcanza queda «Falta».
-    await holdBlock(access, { activityId, requestId: input.requestId, requestCode: requestCode(current.number), date: input.date, startsAt: input.startsAt, endsAt: input.endsAt, areaName: placed.areaName });
-    const [complete] = await markScheduled.run({ workspaceId, requestId: input.requestId }, access.client);
-    if (complete) {
-      await insertRequestEvent.run({ workspaceId, requestId: input.requestId, action: 'scheduled', reason: null, principalId: access.principalId }, access.client);
-    } else {
-      await bumpRequest.run({ workspaceId, requestId: input.requestId }, access.client);
-    }
-    await recordAudit(access, { action: 'labs.activity.schedule', entityType: 'labs.activity', entityId: activityId, changes: { ...input, code, warnings: placed.warnings } });
-    return { activity: await activityById(access, activityId), warnings: placed.warnings };
+    const current = await lockSubmitted(access, input.requestId, input.expectedVersion);
+    const { requestId, expectedVersion: _version, ...slot } = input;
+    const scheduled = await placeDate(access, current, requestId, slot);
+    await settleRequest(access, requestId);
+    return scheduled;
   });
+}
+
+/**
+ * «Aprobar» (ADR 0023, «Flujo de la Propuesta»): programa cada fecha pendiente en el laboratorio y el horario pedidos,
+ * con quien aprueba como responsable (o, si no puede serlo, el primero de la lista). Todo o nada: si una fecha choca,
+ * no se programa ninguna y el motivo dice cuál; sin laboratorio pedido, se programa arrastrando.
+ */
+export function approveRequest(pool: pg.Pool, request: CommandRequest, requestId: string, expectedVersion: number): Promise<ApprovedRequest> {
+  return runScheduleCommand(pool, request, 'labs.request.approve', { requestId, expectedVersion }, requires(SCHEDULE_MANAGE), async (access) => {
+    const current = await lockSubmitted(access, requestId, expectedVersion);
+    if (!current.area_id || !current.starts_at || !current.ends_at) throw invalid('La solicitud no pide laboratorio: prográmala arrastrando en el Cronograma');
+    const leads = await membersWithPermission(access, SCHEDULE_LEAD);
+    const responsibleId = leads.some((member) => member.id === access.principalId) ? access.principalId : leads[0]?.id;
+    if (!responsibleId) throw invalid('No hay a quién asignar el bloque');
+    const items: ScheduledActivity[] = [];
+    for (const date of current.dates.filter((day) => !current.scheduled_dates.includes(day))) {
+      try {
+        items.push(await placeDate(access, current, requestId, { date, areaId: current.area_id, startsAt: current.starts_at, endsAt: current.ends_at, responsibleId }));
+      } catch (error) {
+        if (error instanceof AppError && error.code === 'VALIDATION_FAILED') throw invalid(`El ${date}: ${error.message}`);
+        throw error;
+      }
+    }
+    await settleRequest(access, requestId);
+    return { items };
+  });
+}
+
+/** Aprobar varias a la vez: cada una en su propia transacción y con su resultado; una que falla no frena a las demás. */
+export async function approveRequests(pool: pg.Pool, request: CommandRequest, items: ReadonlyArray<{ requestId: string; expectedVersion: number }>): Promise<ApprovalResults> {
+  const results: ApprovalResults['items'] = [];
+  for (const item of items) {
+    try {
+      const approved = await approveRequest(pool, { ...request, idempotencyKey: request.idempotencyKey && `${request.idempotencyKey}:${item.requestId}` }, item.requestId, item.expectedVersion);
+      results.push({ requestId: item.requestId, ok: true, codes: approved.items.map((scheduled) => scheduled.activity.code), message: null });
+    } catch (error) {
+      if (!(error instanceof AppError)) throw error;
+      results.push({ requestId: item.requestId, ok: false, codes: [], message: error.message });
+    }
+  }
+  return { items: results };
 }
 
 /**
