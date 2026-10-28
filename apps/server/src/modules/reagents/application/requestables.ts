@@ -1,4 +1,4 @@
-import { heldForActivity, holdForActivity, releaseActivityHolds } from '../../../capabilities/inventory/index.js';
+import { heldForActivity, holdableByArea, holdForActivity, releaseActivityHolds } from '../../../capabilities/inventory/index.js';
 import type { WorkspaceAccess } from '../../core/index.js';
 import { requestableReagents as requestableReagentsQuery } from '../infrastructure/requestables.queries.js';
 import { inventoryContext } from './command.js';
@@ -43,4 +43,9 @@ export function releaseReagentHolds(access: WorkspaceAccess, allocationIds: read
 /** Lo que sigue apartado de cada reserva de bloque, por reserva. */
 export function heldReagentQuantities(access: WorkspaceAccess, allocationIds: readonly string[]): Promise<Map<string, string>> {
   return heldForActivity({ client: access.client, workspaceId: access.workspace.id }, allocationIds);
+}
+
+/** Lo que se podría apartar de cada reactivo el día `validOn`, por área: las alternativas antes de enviar (ADR 0023). */
+export function reagentStockByArea(access: WorkspaceAccess, itemIds: readonly string[], validOn: string) {
+  return holdableByArea(inventoryContext(access), itemIds, validOn);
 }

@@ -2689,3 +2689,49 @@ const heldActivityQuantitiesIR: any = {"usedParamSet":{"workspaceId":true,"alloc
 export const heldActivityQuantities = new PreparedQuery<IHeldActivityQuantitiesParams,IHeldActivityQuantitiesResult>(heldActivityQuantitiesIR);
 
 
+/** 'HoldableByArea' parameters type */
+export interface IHoldableByAreaParams {
+  itemIds: stringArray;
+  kind: string;
+  validOn: string;
+  workspaceId: string;
+}
+
+/** 'HoldableByArea' return type */
+export interface IHoldableByAreaResult {
+  area_name: string | null;
+  available: string;
+  item_id: string;
+}
+
+/** 'HoldableByArea' query type */
+export interface IHoldableByAreaQuery {
+  params: IHoldableByAreaParams;
+  result: IHoldableByAreaResult;
+}
+
+const holdableByAreaIR: any = {"usedParamSet":{"workspaceId":true,"itemIds":true,"kind":true,"validOn":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":856,"b":868}]},{"name":"itemIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":891,"b":899}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":923,"b":928}]},{"name":"validOn","required":true,"transform":{"type":"scalar"},"locs":[{"a":1036,"b":1044}]}],"statement":"-- Lo que se podría apartar de cada ítem el día :validOn (ADR 0023, «Flujo de la Propuesta»), por área y sin bloquear:\n-- los mismos frascos que `lockHoldablePositions`, con saldo − reservado. Un lugar fuera de toda área va con área nula.\nSELECT p.item_id, area.name AS \"area_name?\", trim_scale(sum(p.balance - p.reserved))::text AS \"available!\"\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nLEFT JOIN core.location_areas AS la ON la.workspace_id = p.workspace_id AND la.location_id = p.location_id\nLEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id\nWHERE p.workspace_id = :workspaceId! AND p.item_id = ANY (:itemIds!::uuid[]) AND i.kind = :kind!\n  AND p.disposition = 'usable' AND loc.archived_at IS NULL\n  AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)\n  AND p.balance > p.reserved\nGROUP BY p.item_id, la.area_id, area.name\nORDER BY p.item_id, sum(p.balance - p.reserved) DESC, area.name"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Lo que se podría apartar de cada ítem el día :validOn (ADR 0023, «Flujo de la Propuesta»), por área y sin bloquear:
+ * -- los mismos frascos que `lockHoldablePositions`, con saldo − reservado. Un lugar fuera de toda área va con área nula.
+ * SELECT p.item_id, area.name AS "area_name?", trim_scale(sum(p.balance - p.reserved))::text AS "available!"
+ * FROM inventory.positions AS p
+ * JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+ * JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+ * JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+ * LEFT JOIN core.location_areas AS la ON la.workspace_id = p.workspace_id AND la.location_id = p.location_id
+ * LEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
+ * WHERE p.workspace_id = :workspaceId! AND p.item_id = ANY (:itemIds!::uuid[]) AND i.kind = :kind!
+ *   AND p.disposition = 'usable' AND loc.archived_at IS NULL
+ *   AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)
+ *   AND p.balance > p.reserved
+ * GROUP BY p.item_id, la.area_id, area.name
+ * ORDER BY p.item_id, sum(p.balance - p.reserved) DESC, area.name
+ * ```
+ */
+export const holdableByArea = new PreparedQuery<IHoldableByAreaParams,IHoldableByAreaResult>(holdableByAreaIR);
+
+

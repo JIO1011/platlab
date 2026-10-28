@@ -33,6 +33,7 @@ import {
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import { createClosure, listClosures, voidClosure } from '../application/closures.js';
+import { reviewRequest } from '../application/review.js';
 import { archiveForm, createForm, getForm, listForms, publishForm, updateForm, uploadFormLogo } from '../application/form.js';
 import { archivePeriod, createPeriod, listPeriods, updatePeriod } from '../application/periods.js';
 import {
@@ -71,6 +72,7 @@ export function labsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: 
     });
 
     app.get('/requests/:requestId', async (request) => getRequest(pool, queryRequest(request), requestParams.parse(request.params).requestId));
+    app.get('/requests/:requestId/review', async (request) => reviewRequest(pool, queryRequest(request), requestParams.parse(request.params).requestId));
 
     app.put('/requests/:requestId', async (request) =>
       saveRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, saveRequestRequest.parse(request.body)),

@@ -152,7 +152,7 @@ function toSummary(row: IListRequestsResult, lines: readonly RequestLine[]): Req
 }
 
 /** La solicitud que quien mira puede ver: la suya o, con permiso de consultar, una recibida (nunca un borrador ajeno). */
-async function visibleRequest(access: WorkspaceAccess, requestId: string): Promise<LabsRequest> {
+export async function visibleRequest(access: WorkspaceAccess, requestId: string): Promise<LabsRequest> {
   const workspaceId = access.workspace.id;
   const [row] = await listRequestsQuery.run({ workspaceId, requestId, requesterId: null }, access.client);
   if (!row) throw notFound();

@@ -1,5 +1,6 @@
 import {
   heldActivityQuantities,
+  holdableByArea as holdableByAreaQuery,
   holdForActivity as holdForActivityQuery,
   lockHoldablePositions,
   releaseActivityHolds as releaseQuery,
@@ -45,4 +46,18 @@ export async function heldForActivity(ctx: Pick<InventoryContext, 'client' | 'wo
   if (allocationIds.length === 0) return new Map();
   const rows = await heldActivityQuantities.run({ workspaceId: ctx.workspaceId, allocationIds: [...allocationIds] }, ctx.client);
   return new Map(rows.map((row) => [row.id, row.quantity]));
+}
+
+/**
+ * Lo que se podría apartar de cada ítem el día `validOn`, por área y sin bloquear ni reservar: la revisión antes de
+ * enviar una solicitud (ADR 0023, «Flujo de la Propuesta»). Cada fila es un ítem en un área (nula fuera de toda área).
+ */
+export async function holdableByArea(
+  ctx: Pick<InventoryContext, 'client' | 'workspaceId' | 'kind'>,
+  itemIds: readonly string[],
+  validOn: string,
+): Promise<Array<{ itemId: string; areaName: string | null; available: string }>> {
+  if (itemIds.length === 0) return [];
+  const rows = await holdableByAreaQuery.run({ workspaceId: ctx.workspaceId, itemIds: [...itemIds], kind: ctx.kind, validOn }, ctx.client);
+  return rows.map((row) => ({ itemId: row.item_id, areaName: row.area_name, available: row.available }));
 }

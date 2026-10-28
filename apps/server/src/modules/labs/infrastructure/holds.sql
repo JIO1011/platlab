@@ -36,3 +36,10 @@ FROM labs.activities AS a
 JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id
 WHERE a.workspace_id = :workspaceId! AND a.request_id = :requestId! AND a.cancelled_at IS NULL
   AND (:activityId::uuid IS NULL OR a.id = :activityId::uuid);
+
+/* @name assetBookingsOn */
+-- Las franjas ya apartadas de esos equipos ese día: lo que la revisión antes de enviar descuenta para ver qué hay libre.
+SELECT asset_id, to_char(lower(during), 'HH24:MI') AS "starts_at!", to_char(upper(during), 'HH24:MI') AS "ends_at!"
+FROM labs.activity_assets
+WHERE workspace_id = :workspaceId! AND asset_id = ANY (:assetIds!::uuid[]) AND released_at IS NULL
+  AND during && tsrange(:date!::date, :date!::date + 1);

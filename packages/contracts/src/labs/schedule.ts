@@ -23,6 +23,17 @@ export const periodWeek = (startsOn: string, date: string): number => Math.floor
 /** El día ISO de la semana (1 lunes … 7 domingo) de una fecha `YYYY-MM-DD`, sin depender de la zona. */
 export const isoWeekday = (date: string): number => ((new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7) + 1;
 
+/** Minutos desde la medianoche de una hora `HH:MM`. */
+export function toMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return (hours ?? 0) * 60 + (minutes ?? 0);
+}
+
+/** «08:00» para una hora en minutos. */
+export function timeText(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
 // ---------------------------------------------------------------------------
 // Reglas al programar
 // ---------------------------------------------------------------------------

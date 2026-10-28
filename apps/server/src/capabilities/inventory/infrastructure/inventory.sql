@@ -1014,3 +1014,20 @@ RETURNING a.id;
 SELECT id, trim_scale(quantity)::text AS "quantity!"
 FROM inventory.allocations
 WHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held';
+
+/* @name holdableByArea */
+-- Lo que se podría apartar de cada ítem el día :validOn (ADR 0023, «Flujo de la Propuesta»), por área y sin bloquear:
+-- los mismos frascos que `lockHoldablePositions`, con saldo − reservado. Un lugar fuera de toda área va con área nula.
+SELECT p.item_id, area.name AS "area_name?", trim_scale(sum(p.balance - p.reserved))::text AS "available!"
+FROM inventory.positions AS p
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+LEFT JOIN core.location_areas AS la ON la.workspace_id = p.workspace_id AND la.location_id = p.location_id
+LEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
+WHERE p.workspace_id = :workspaceId! AND p.item_id = ANY (:itemIds!::uuid[]) AND i.kind = :kind!
+  AND p.disposition = 'usable' AND loc.archived_at IS NULL
+  AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)
+  AND p.balance > p.reserved
+GROUP BY p.item_id, la.area_id, area.name
+ORDER BY p.item_id, sum(p.balance - p.reserved) DESC, area.name;

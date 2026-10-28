@@ -1,4 +1,4 @@
-import { isoWeekday, periodWeek, scheduleProblemText, type Activity, type Closure, type Period, type Space } from '@platlab/contracts';
+import { isoWeekday, periodWeek, scheduleProblemText, timeText, toMinutes, type Activity, type Closure, type Period, type Space } from '@platlab/contracts';
 import { addDays } from '../../app/format';
 
 /**
@@ -30,15 +30,7 @@ export interface ClosedSpan extends Span {
 
 export const dayClosedText = 'Cerrada este día';
 
-export function toMinutes(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number);
-  return (hours ?? 0) * 60 + (minutes ?? 0);
-}
-
-/** «08:00» para una hora en minutos. */
-export function timeText(minutes: number): string {
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-}
+export { timeText, toMinutes };
 
 // ---------------------------------------------------------------------------
 // Fechas

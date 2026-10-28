@@ -204,3 +204,38 @@ const activeRequestActivitiesIR: any = {"usedParamSet":{"workspaceId":true,"requ
 export const activeRequestActivities = new PreparedQuery<IActiveRequestActivitiesParams,IActiveRequestActivitiesResult>(activeRequestActivitiesIR);
 
 
+/** 'AssetBookingsOn' parameters type */
+export interface IAssetBookingsOnParams {
+  assetIds: stringArray;
+  date: string;
+  workspaceId: string;
+}
+
+/** 'AssetBookingsOn' return type */
+export interface IAssetBookingsOnResult {
+  asset_id: string;
+  ends_at: string;
+  starts_at: string;
+}
+
+/** 'AssetBookingsOn' query type */
+export interface IAssetBookingsOnQuery {
+  params: IAssetBookingsOnParams;
+  result: IAssetBookingsOnResult;
+}
+
+const assetBookingsOnIR: any = {"usedParamSet":{"workspaceId":true,"assetIds":true,"date":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":285,"b":297}]},{"name":"assetIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":319,"b":328}]},{"name":"date","required":true,"transform":{"type":"scalar"},"locs":[{"a":387,"b":392},{"a":401,"b":406}]}],"statement":"-- Las franjas ya apartadas de esos equipos ese día: lo que la revisión antes de enviar descuenta para ver qué hay libre.\nSELECT asset_id, to_char(lower(during), 'HH24:MI') AS \"starts_at!\", to_char(upper(during), 'HH24:MI') AS \"ends_at!\"\nFROM labs.activity_assets\nWHERE workspace_id = :workspaceId! AND asset_id = ANY (:assetIds!::uuid[]) AND released_at IS NULL\n  AND during && tsrange(:date!::date, :date!::date + 1)"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Las franjas ya apartadas de esos equipos ese día: lo que la revisión antes de enviar descuenta para ver qué hay libre.
+ * SELECT asset_id, to_char(lower(during), 'HH24:MI') AS "starts_at!", to_char(upper(during), 'HH24:MI') AS "ends_at!"
+ * FROM labs.activity_assets
+ * WHERE workspace_id = :workspaceId! AND asset_id = ANY (:assetIds!::uuid[]) AND released_at IS NULL
+ *   AND during && tsrange(:date!::date, :date!::date + 1)
+ * ```
+ */
+export const assetBookingsOn = new PreparedQuery<IAssetBookingsOnParams,IAssetBookingsOnResult>(assetBookingsOnIR);
+
+
