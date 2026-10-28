@@ -285,7 +285,7 @@ Cambios: 05-10, 06-10, 12-10-2026 (historial en git).
 ## ADR 0013 — Delegación por riesgo y puertas del harness
 
 - **Orquestador:** la sesión principal (Opus 5.5 en `xhigh`). Diseña datos, flujos e invariantes, define en el brief los casos de prueba (permisos, concurrencia, saldos), revisa lo delicado, confirma y sube. Lo trivial lo hace en línea.
-- **Reparto por riesgo, no por capa.** Todo cambio que pueda alterar saldos, permisos, datos, concurrencia o el contrato de la API va a `platlab-implementer` (Opus 5.5 en `high`), esté en SQL, en el servidor o en la web, y ese agente escribe también sus pruebas (revisado el 14-10-2026: ver «Quién implementa»). Lo demás va a Sonnet 5.5 en `high`: `platlab-ui-implementer` (presentación, movimiento, avisos y e2e de UI) y `platlab-assistant` (docs, cambios mecánicos y pruebas sin lógica nueva).
+- **Reparto por riesgo, no por capa.** Todo cambio que pueda alterar saldos, permisos, datos, concurrencia o el contrato de la API lo implementa la sesión principal en línea, esté en SQL, en el servidor o en la web, con sus pruebas (ver «Quién implementa»). Lo demás va a Sonnet 5.5 en `high`: `platlab-ui-implementer` (presentación, movimiento, avisos y e2e de UI) y `platlab-assistant` (docs, cambios mecánicos y pruebas sin lógica nueva).
 - **Escalada.** Un subagente no lanza otros. Un agente Sonnet se detiene y reporta «Bloqueo» si el cambio toca lo delicado, si la misma comprobación falla dos veces o si falta una decisión; el orquestador lo reasigna. Las correcciones siguen con el mismo agente (`SendMessage`).
 - **Puertas automáticas** (`.claude/settings.json` y `.claude/hooks/`):
   - Ningún implementador confirma, sube, abre PR ni edita `.claude/settings.json` o `.claude/hooks/`: `subagent-guard.sh` lo rechaza.
@@ -307,7 +307,7 @@ Cambios: 05-10, 06-10, 12-10-2026 (historial en git).
 
 - **Quién implementa (14-10-2026).** Medido en el paso 2 del [ADR 0016](#adr-0016): la sesión principal arranca con ~58k tokens y un subagente con ~31k. Los dos agentes Opus releyeron 5,8 M en 75 turnos; la orquestación, 7,8 M en 66, y unos 12 de esos turnos fueron solo avisos de un monitor de tokens. Lo caro es el contexto, que crece con cada lectura y razonamiento y se relee en cada turno; el brief pesa ~2k.
   - Lo delicado lo implementa la sesión principal en línea, con sus pruebas, justo después de ubicarlo: sin brief ni relectura. De Opus a Opus delegar no abarata el token; solo aísla el contexto.
-  - `platlab-implementer` queda para entregas delicadas grandes (más de ~25 turnos o mucha lectura de SQL), partidas desde el inicio en producción y pruebas, con `effort` `medium` en limpiezas y `high` en lógica nueva o concurrencia.
+  - Sin agente Opus delegado (28-10-2026, pedido del usuario: se eliminan `platlab-implementer` y `delegate-guard.sh`). Una entrega delicada grande se parte en base y API, lógica web y pantallas, y cada parte la hace la sesión principal.
   - Sonnet sigue con la UI, los docs y lo mecánico: su menor precio por token compensa el arranque.
   - La sesión principal trabaja en `high` al implementar y en `xhigh` solo para diseñar o decidir.
   - Código: codebase-memory primero. `read-guard.sh` rechaza un `Read` sin rango de un `.ts` o `.tsx` de más de 300 líneas, también en la sesión principal. El brief nombra las funciones por su nombre calificado.

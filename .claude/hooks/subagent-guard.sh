@@ -9,7 +9,6 @@ input=$(cat)
 agent=$(jq -r '.agent_type // ""' <<<"$input")
 
 case "$agent" in
-  platlab-implementer) sonnet="" ;;
   platlab-ui-implementer | platlab-assistant) sonnet=1 ;;
   *) exit 0 ;;
 esac

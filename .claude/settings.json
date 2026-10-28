@@ -52,16 +52,6 @@
             "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/read-guard.sh\""
           }
         ]
-      },
-      {
-        "matcher": "Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/delegate-guard.sh\"",
-            "timeout": 5
-          }
-        ]
       }
     ],
     "PostToolUse": [
@@ -103,7 +93,7 @@
     ],
     "SubagentStop": [
       {
-        "matcher": "platlab-implementer|platlab-ui-implementer|platlab-assistant",
+        "matcher": "platlab-ui-implementer|platlab-assistant",
         "hooks": [
           {
             "type": "command",
