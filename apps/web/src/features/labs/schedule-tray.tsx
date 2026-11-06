@@ -3,10 +3,11 @@ import { Button, cn } from '@platlab/ui';
 import { CalendarPlus, CircleCheck, TriangleAlert } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { exceptionsText } from './request-summary';
-import { blockFace, blockTextClass, lineClamp } from './schedule-block';
+import { BlockCopy, blockFace } from './schedule-block';
 import { useCareerTone } from './schedule-career-color';
 import { useSourceDrag, type DragSource } from './schedule-dnd';
-import { cardWhenText, durationOf, pendingCards, requestBlockText, shortDateText, type PendingCard } from './schedule-placement';
+import { cardWhenText, durationOf, pendingCards, requestBlockParts, requestBlockText, shortDateText, type PendingCard } from './schedule-placement';
+import { softCard } from './style';
 
 /** Lo que «Por programar» necesita del resto de la pantalla. */
 export interface TrayActions {
@@ -29,8 +30,8 @@ function warningsOf({ late, exceptions }: Pick<RequestSummary, 'late' | 'excepti
 }
 
 /**
- * Una fecha por programar, con el aspecto de un bloque de la tabla («Materia - Carrera - Docente» sobre el color de su
- * carrera) y, debajo, «lun 9 nov · 08:00–10:00» con un triángulo de alerta si está fuera de plazo o tiene recursos por
+ * Una fecha por programar, con el aspecto de un bloque de la tabla (la materia en negrita y «Carrera · Docente»
+ * debajo, sobre el color de su carrera) y, debajo, «lun 9 nov · 08:00–10:00» con un triángulo de alerta si está fuera de plazo o tiene recursos por
  * revisar: en la lista (pantalla estrecha) con el motivo escrito al lado; en la franja, de 224 px, el motivo va en el título
  * y para el lector de pantalla porque junto a la fecha no cabe. En la franja, las del día que se ve van resaltadas con un
  * anillo: se arrastran a la tabla (si la fecha es futura) y un clic abre «Programar…»; las de otros días van con menos
@@ -50,7 +51,7 @@ function PendingTile({ card, actions }: { card: PendingCard; actions: TrayAction
   const text = requestBlockText(request);
   const face = (
     <>
-      <span className={cn(blockTextClass, 'block', actions.wide ? lineClamp[3] : 'text-sm')}>{text}</span>
+      <BlockCopy parts={requestBlockParts(request)} variant={actions.wide ? 'tile' : 'list'} />
       <span className={cn('mt-auto flex pt-0.5 tabular-nums text-ink-muted', actions.wide ? 'items-center gap-1.5 text-[11px] leading-[14px]' : 'flex-wrap items-center gap-x-3 gap-y-0.5 text-xs leading-4')}>
         {warnings.length > 0 && actions.wide ? (
           <span title={warnings.join(' · ')} className="flex shrink-0 items-center text-ink">
@@ -124,9 +125,9 @@ export function ScheduleTray({ items, pendingError, onRetry, actions }: { items:
   const here = cards.filter((card) => card.date === actions.visible).length;
   const hint = !actions.wide ? null : here > 0 && actions.canSchedule ? 'Arrastra las resaltadas a la tabla, o haz clic para «Programar…»' : cards.length > 0 ? 'Haz clic en una para ver su día' : null;
   return (
-    <section aria-labelledby={heading} className={cn('rounded-card bg-surface px-3 pb-2.5 pt-2 shadow-raised', actions.wide && 'shrink-0')}>
+    <section aria-labelledby={heading} className={cn(softCard, 'px-4 pb-3 pt-3', actions.wide && 'shrink-0')}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4">
-        <h2 id={heading} className="text-sm font-bold text-ink">
+        <h2 id={heading} className="text-base font-bold tracking-tight text-ink">
           Por programar · {cards.length}
         </h2>
         {hint ? <p className="text-xs text-ink-muted">{hint}</p> : null}

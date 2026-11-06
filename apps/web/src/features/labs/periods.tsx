@@ -8,6 +8,7 @@ import { formatDate, todayInZone } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
 import { labsErrorMessage, useArchivePeriod } from './commands';
 import { PeriodSheet } from './period-sheet';
+import { softCard } from './style';
 
 /** Archivar un período con su confirmación aquí mismo: deja de contar para agendar y no se deshace desde esta pantalla. */
 function ArchivePeriod({ workspaceId, period, onCancel }: { workspaceId: string; period: Period; onCancel: () => void }) {
@@ -93,7 +94,7 @@ export function PeriodsSection({
   return (
     <section aria-labelledby="labs-periods" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <h2 id="labs-periods" className="text-lg font-semibold text-ink">
+        <h2 id="labs-periods" className="text-xl font-bold tracking-tight text-ink">
           Períodos
         </h2>
         {canManage ? (
@@ -103,7 +104,7 @@ export function PeriodsSection({
           </Button>
         ) : null}
       </div>
-      <div className="grid gap-3 rounded-card bg-surface px-4 py-4 shadow-raised sm:px-5">
+      <div className={`${softCard} grid gap-3 px-5 py-5 sm:px-6`}>
         <p className="text-sm text-ink-muted">Identifican cada práctica en su código (P1-S12-ANT03) y fuera de ellos no se agenda.</p>
         {periods.isPending ? (
           <div aria-busy="true">

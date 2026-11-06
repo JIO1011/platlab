@@ -1,5 +1,5 @@
 export { healthResponse, type HealthResponse } from './health.js';
-export { compareDecimals, decimalString } from './decimal.js';
+export { compareDecimals, decimalString, sumDecimals } from './decimal.js';
 export { errorCodes, errorResponse, type ErrorCode, type ErrorResponse } from './errors.js';
 export {
   actionClass,
@@ -318,6 +318,9 @@ export {
   weeklyHours,
   activity,
   activityCode,
+  approvalResults,
+  approvedRequest,
+  approveRequestsRequest,
   activityParams,
   activityType,
   createRequestRequest,
@@ -335,6 +338,8 @@ export {
   scheduleQuery,
   updateActivityRequest,
   type Activity,
+  type ApprovalResults,
+  type ApprovedRequest,
   type ResponsibleOptions,
   type ScheduleCheck,
   type ScheduleContext,
@@ -342,6 +347,8 @@ export {
   type ScheduleList,
   type ScheduleProblem,
   type ScheduleSlot,
+  timeText,
+  toMinutes,
   labsRequest,
   lineCheck,
   REQUEST_CANCELLABLE,
@@ -356,6 +363,7 @@ export {
   requestOptions,
   requestParams,
   requestReasonRequest,
+  requestReview,
   requestStatus,
   requestSummary,
   requestVersionRequest,
@@ -366,6 +374,7 @@ export {
   type RequestLineInput,
   type RequestList,
   type RequestOptions,
+  type RequestReview,
   type RequestStatus,
   type RequestSummary,
   type SaveRequest,

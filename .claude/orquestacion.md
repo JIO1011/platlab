@@ -12,7 +12,6 @@ Reparto por riesgo, no por capa: es delicado todo lo que pueda alterar saldos, p
 | Presentación | `platlab-ui-implementer`: Sonnet 5.5 en `high` | Pantallas, pulido, movimiento, avisos, móvil, e2e de UI y los comandos de ejecución de impeccable (`audit`, `harden`, `polish`, `animate`, `layout`…); la sesión principal solo usa `shape` |
 | Docs y mecánico | `platlab-assistant`: Sonnet 5.5 en `medium` | Docs y skills, renombrar y consolidar, pruebas sin lógica nueva |
 | Revisar acabado de UI | `impeccable-finish-reviewer`: Sonnet 5.5 en `high` | Correcciones ordenadas; no edita. Su paquete (DESIGN.md, ADR 0010, reglas del dominio) lo inyecta `subagent-gate.sh`; el brief solo añade capturas y archivos. Al actualizar impeccable, que conserve `model: claude-sonnet-5-5` |
-| Opus delegado | `platlab-implementer` | Solo si el usuario crea `.git/claude-delegar` (`delegate-guard.sh`): Opus → Opus no ahorra y duplica la lectura. Nunca `fork` para implementar |
 
 ## Entregas
 
@@ -55,7 +54,6 @@ Reparto por riesgo, no por capa: es delicado todo lo que pueda alterar saldos, p
 - `subagent-guard.sh`: los implementadores no confirman, suben, abren PR, tocan sus puertas ni la etapa; los agentes Sonnet no escriben en `supabase/`, `apps/server/`, `packages/contracts/` ni `packages/modules/`; en *cambios*, ningún agente corre pruebas.
 - `subagent-gate.sh`: al terminar, detecta lo delicado que un agente Sonnet cambió por otra vía y corre `typecheck`; en cierre, también `lint`, `deps` y `knip`, y exige capturas si cambió la interfaz. Devuelve el trabajo una vez.
 - `read-guard.sh`: rechaza leer sin rango un `.ts` o `.tsx` de más de 300 líneas, con `Read` o con `cat`.
-- `delegate-guard.sh`: rechaza `platlab-implementer` sin `.git/claude-delegar`.
 - `session-start.sh`: inyecta este archivo y el handoff pendiente.
 - El detector de impeccable corre al editar UI. Las escrituras remotas por MCP, `supabase link`, `db push` y `git push --force` se bloquean en local; en GitHub, una regla protege `main`.
 

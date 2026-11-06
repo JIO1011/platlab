@@ -3,26 +3,27 @@ import type { Activity, Closure, Space } from '@platlab/contracts';
 import { cn } from '@platlab/ui';
 import { CircleCheck, CircleX, LoaderCircle, TriangleAlert } from 'lucide-react';
 import type { CSSProperties } from 'react';
-import { Link } from 'react-router';
+import { countText } from '../../app/format';
+import { useNow } from '../../app/use-now';
 import { ScheduleBlock, type BlockOpening } from './schedule-block';
 import { DraggableBlock, useDragPreview, type ColumnData, type SavingDrop } from './schedule-dnd';
-import { ROW_MINUTES, activitiesOfArea, blockSpan, closedSpans, placement, rowStarts, timeText, type BoardColumn, type DayRange } from './schedule-grid';
+import { ROW_MINUTES, activitiesOfArea, blockSpan, closedSpans, hourMarks, nowMinutes, placement, rowStarts, shadedHours, timeText, type DayRange } from './schedule-grid';
 import { blockingTexts, capacityText } from './schedule-placement';
+import { softCard } from './style';
 
 /**
  * El alto de una fila (media hora): reparte el alto de la tabla entre sus filas para que 07:00–19:00 se vea completo sin
- * desplazar, sin bajar de 22 px; solo si ni así caben, la tabla se desplaza por dentro, no la página. `100cqh` es el alto
+ * desplazar, sin bajar de 20 px; solo si ni así caben, la tabla se desplaza por dentro, no la página. `100cqh` es el alto
  * de la tabla (su contenedor) y `--head`, la cabecera de áreas. Los bloques se colocan en porcentaje, así que siguen a la fila.
  */
-const ROW_HEIGHT = 'max(22px, calc((100cqh - var(--head)) / var(--rows)))';
+const ROW_HEIGHT = 'max(20px, calc((100cqh - var(--head)) / var(--rows)))';
 
 /** El alto de la cabecera de las columnas. */
-const HEAD_HEIGHT = '3rem';
+const HEAD_HEIGHT = '3.5rem';
 
-/** El ancho mínimo de una columna de área habilitada, el de una sin horario y el de la columna de horas. */
-const COLUMN_MIN = '7rem';
-const IDLE_WIDTH = '5.5rem';
-const HOURS_WIDTH = '3.5rem';
+/** El ancho mínimo de una columna de área y el de la columna de horas. */
+const COLUMN_MIN = '7.5rem';
+const HOURS_WIDTH = '3.75rem';
 
 /** El alto de la columna del día: una fila por cada media hora del rango. */
 const columnHeight = (range: DayRange) => `calc(var(--row) * ${(range.end - range.start) / ROW_MINUTES})`;
@@ -33,13 +34,24 @@ const at = (span: { from: number; to: number }, range: DayRange) => {
   return { top: `${top}%`, height: `${height}%` };
 };
 
-/** La línea que abre cada fila: más fuerte en las horas enteras y suave en las medias. */
-const rowLine = (mark: number) => (mark % 60 === 0 ? 'border-line-strong' : 'border-line');
+/** La línea que abre cada fila: marcada en las horas enteras y muy tenue en las medias. */
+const rowLine = (mark: number) => (mark % 60 === 0 ? 'border-line-strong' : 'border-line/50');
 
-/** La trama suave de una columna sin horario. */
-const hatch = 'repeating-linear-gradient(135deg, transparent 0 7px, color-mix(in oklab, var(--color-ink) 6%, transparent) 7px 8px)';
+/** La trama diagonal suave de lo cerrado. */
+const hatch = 'repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in oklab, var(--color-ink) 8%, transparent) 6px 7px)';
 
-/** Las líneas de cada fila de la columna, detrás de todo. */
+/** Las bandas suaves de una hora de cada dos, para seguir la fila con la vista; van detrás de todo, también en la columna de horas. */
+function Bands({ range }: { range: DayRange }) {
+  return (
+    <>
+      {shadedHours(range).map((span) => (
+        <span key={span.from} aria-hidden className="absolute inset-x-0 bg-ink/[0.035]" style={at(span, range)} />
+      ))}
+    </>
+  );
+}
+
+/** Las líneas de cada fila de la columna, sobre las bandas y detrás de todo lo demás. */
 function RowLines({ range }: { range: DayRange }) {
   return (
     <>
@@ -48,6 +60,12 @@ function RowLines({ range }: { range: DayRange }) {
       ))}
     </>
   );
+}
+
+/** La línea de «ahora» de una columna, cuando se mira hoy. */
+function NowLine({ now, range }: { now: number | null; range: DayRange }) {
+  if (now === null) return null;
+  return <span aria-hidden className="pointer-events-none absolute inset-x-0 z-10 -mt-px border-t-2 border-ink" style={{ top: `${placement({ from: now, to: now }, range).top}%` }} />;
 }
 
 /**
@@ -108,11 +126,15 @@ function SavingMark({ range, saving }: { range: DayRange; saving: SavingDrop }) 
   );
 }
 
-/** Una columna de un área habilitada: las franjas cerradas atenuadas con su motivo y los bloques encima; destino de lo que se arrastra. */
+/**
+ * Una columna de un área: las franjas cerradas con trama diagonal (el motivo, una sola vez en la primera franja de una
+ * hora o más, y en el título y el nombre accesible de cada una) y los bloques encima; destino de lo que se arrastra.
+ */
 function AreaColumn({
   space,
   date,
   range,
+  now,
   dayItems,
   closures,
   opening,
@@ -122,6 +144,7 @@ function AreaColumn({
   space: Space;
   date: string;
   range: DayRange;
+  now: number | null;
   dayItems: readonly Activity[];
   closures: readonly Closure[];
   opening: BlockOpening;
@@ -132,89 +155,64 @@ function AreaColumn({
   const { setNodeRef } = useDroppable({ id: space.areaId, data, disabled: !canSchedule });
   return (
     <div ref={setNodeRef} role="group" aria-label={`Bloques de ${space.areaName}`} className="relative border-l border-line-strong" style={{ height: columnHeight(range) }}>
+      <Bands range={range} />
       <RowLines range={range} />
       {closedSpans(space, date, range, closures).map((span) => (
-        <p key={`${span.from}-${span.to}`} className="absolute inset-x-0 overflow-hidden bg-surface-sunken px-1.5 py-1 text-center text-[11px] leading-tight text-ink-muted" style={at(span, range)}>
-          {span.reason}
-        </p>
+        <div key={`${span.from}-${span.to}`} role="img" aria-label={span.reason} title={span.reason} className="absolute inset-x-0 overflow-hidden bg-surface-sunken/60" style={{ ...at(span, range), backgroundImage: hatch }}>
+          {span.labeled ? <span className="mx-1.5 mt-1 inline-block max-w-[calc(100%-0.75rem)] truncate rounded-[4px] bg-surface-sunken px-1.5 text-[11px] font-medium leading-4 text-ink-muted">{span.reason}</span> : null}
+        </div>
       ))}
       {activitiesOfArea(dayItems, space.areaId).map((activity) => (
         <DraggableBlock key={activity.id} activity={activity} enabled={canSchedule} style={at(blockSpan(activity), range)}>
           <ScheduleBlock activity={activity} space={space} opening={opening} size="table" />
         </DraggableBlock>
       ))}
+      <NowLine now={now} range={range} />
       <DropPreview range={range} space={space} />
       {saving && saving.areaId === space.areaId ? <SavingMark range={range} saving={saving} /> : null}
     </div>
   );
 }
 
-/** Una columna de un área del Núcleo sin horario: atenuada con trama suave; quien administra espacios la habilita desde Áreas. */
-function IdleColumn({ column, range, enableHref }: { column: BoardColumn; range: DayRange; enableHref: string | undefined }) {
+/** La cabecera de una columna: la sigla en negrita, debajo el nombre del área (cortado con elipsis; entero en el título) y el aforo como chip. */
+function ColumnHeader({ space }: { space: Space }) {
   return (
-    <div role="group" aria-label={`${column.areaName}: sin horario`} className="relative border-l border-line-strong bg-surface-sunken/40" style={{ height: columnHeight(range), backgroundImage: hatch }}>
-      <div className="sticky top-(--head) grid justify-items-center gap-1 px-2 pt-4 text-center">
-        <p className="text-xs font-medium text-ink-muted">Sin horario</p>
-        {enableHref ? (
-          <Link
-            to={enableHref}
-            className="inline-flex h-8 items-center rounded-control px-2.5 text-xs font-semibold text-action transition-colors hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action"
-          >
-            Habilitar<span className="sr-only"> {column.areaName}</span>
-          </Link>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-/**
- * La cabecera de una columna: la sigla grande y el aforo (el nombre completo, en el título y para el lector de pantalla);
- * la de un área sin horario, su nombre corto, atenuado.
- */
-function ColumnHeader({ column }: { column: BoardColumn }) {
-  const { space } = column;
-  if (!space) {
-    return (
-      <div title={column.areaName} className="sticky top-0 z-20 grid h-(--head) content-center border-b-2 border-l border-line-strong bg-surface-sunken px-1 text-center">
-        <p className="line-clamp-2 text-[11px] font-medium leading-4 text-ink-muted [overflow-wrap:anywhere]">{column.areaName}</p>
-      </div>
-    );
-  }
-  return (
-    <div title={`${space.areaName}${space.groupName ? `, ${space.groupName}` : ''}, aforo ${space.capacity}`} className="sticky top-0 z-20 grid h-(--head) content-center border-b-2 border-l border-line-strong bg-surface px-1.5 text-center">
-      <p className="truncate text-lg font-bold leading-6 text-action-deep">
-        {space.abbreviation}
-        <span className="sr-only">: {space.areaName}</span>
-      </p>
-      <p className="text-[11px] leading-4 tabular-nums text-ink-muted">Aforo {space.capacity}</p>
+    <div title={`${space.areaName}${space.groupName ? `, ${space.groupName}` : ''}, aforo ${space.capacity}`} className="sticky top-0 z-20 grid h-(--head) content-center justify-items-center border-b border-l border-line-strong bg-surface px-2 text-center">
+      <p className="text-base font-bold leading-[18px] tracking-tight text-ink">{space.abbreviation}</p>
+      <p className="w-full truncate text-[11px] leading-4 text-ink-muted">{space.areaName}</p>
+      <p className="rounded-full bg-surface-sunken px-2 text-[11px] font-medium leading-4 tabular-nums text-ink-muted">{countText(space.capacity, 'persona', 'personas')}</p>
     </div>
   );
 }
 
 /**
  * La tabla del día, como la planilla que ya se usa (ADR 0023; decisión del usuario, 24-10-2026): ocupa el alto que deja
- * la pantalla y todo el ancho. Una columna por cada área del Núcleo: las habilitadas, de ancho igual (mínimo 7 rem; si no
- * caben, se desplaza en horizontal con las horas fijas), con la sigla grande y el aforo, y al final las que aún no tienen
- * horario, angostas (5,5 rem), atenuadas con trama y «Sin horario» (con «Habilitar» para quien administra espacios). Las
- * filas son de media hora, de 07:00 a 19:00, con la hora solo en las horas en punto; llenan el alto disponible y, si no
- * caben a 22 px, se desplaza la tabla.
- * Lo cerrado del horario semanal, los cierres y los feriados se ven atenuados con su motivo. Quien programa
- * (`canSchedule`) lleva bloques y las solicitudes por programar a un área y una hora arrastrando, y soltar guarda directamente; las columnas son los destinos.
+ * la pantalla y todo el ancho. Una columna por cada área con horario, de ancho igual (mínimo 7,5 rem; si no caben, se
+ * desplaza en horizontal con las horas fijas), con la sigla en negrita, el nombre del área y el aforo en un chip; las
+ * áreas sin horario no ocupan columna (su aviso va en el encabezado de la pantalla). Las filas son de media hora, de
+ * 07:00 a 19:00: la hora en punto, rotulada a la izquierda y alineada con su línea (marcada; la de la media hora, muy
+ * tenue), con una banda suave una hora de cada dos; llenan el alto disponible y, si no caben a 20 px, se desplaza la tabla.
+ * Lo cerrado del horario semanal, los cierres y los feriados llevan trama diagonal con su motivo una sola vez. Si se mira
+ * hoy, una línea marca «ahora» con la hora. Quien programa (`canSchedule`) lleva bloques y las solicitudes por programar
+ * a un área y una hora arrastrando, y soltar guarda directamente; las columnas son los destinos.
  */
 export function ScheduleTable({
-  columns,
+  spaces,
   date,
+  today,
+  timeZone,
   range,
   dayItems,
   closures,
   opening,
   canSchedule,
   saving,
-  enableHref,
 }: {
-  columns: readonly BoardColumn[];
+  spaces: readonly Space[];
   date: string;
+  /** Hoy en la zona del espacio de trabajo y esa zona: con ellas, si se mira hoy, se dibuja la línea de «ahora». */
+  today: string;
+  timeZone: string;
   range: DayRange;
   dayItems: readonly Activity[];
   closures: readonly Closure[];
@@ -223,42 +221,48 @@ export function ScheduleTable({
   canSchedule: boolean;
   /** Lo que se soltó y el servidor aún no confirmó; su destino se marca «Guardando». */
   saving: SavingDrop | null;
-  /** Dónde se habilita un área sin horario; indefinido si la persona no administra espacios. */
-  enableHref?: ((areaId: string) => string) | undefined;
 }) {
+  const clock = useNow(60_000);
+  const minutes = nowMinutes(clock, timeZone);
+  const now = date === today && minutes >= range.start && minutes < range.end ? minutes : null;
   const rows = (range.end - range.start) / ROW_MINUTES;
-  // Las habilitadas (de ancho igual, que se reparten el ancho) van primero; las sin horario, angostas, al final.
-  const enabled = columns.filter((column) => column.space).length;
-  const idle = columns.length - enabled;
   const style = {
     '--row': ROW_HEIGHT,
     '--rows': rows,
     '--head': HEAD_HEIGHT,
     width: '100%',
-    minWidth: `calc(${HOURS_WIDTH} + ${enabled} * ${COLUMN_MIN} + ${idle} * ${IDLE_WIDTH})`,
-    gridTemplateColumns: [HOURS_WIDTH, enabled > 0 ? `repeat(${enabled}, minmax(${COLUMN_MIN}, 1fr))` : null, idle > 0 ? `repeat(${idle}, ${IDLE_WIDTH})` : null].filter(Boolean).join(' '),
+    minWidth: `calc(${HOURS_WIDTH} + ${spaces.length} * ${COLUMN_MIN})`,
+    gridTemplateColumns: `${HOURS_WIDTH} repeat(${spaces.length}, minmax(${COLUMN_MIN}, 1fr))`,
   } as CSSProperties;
   return (
-    <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-card bg-surface shadow-raised [container-type:size]">
+    <div className={cn(softCard, 'min-h-0 flex-1 overflow-auto overscroll-contain [container-type:size]')}>
       <div className="grid" style={style}>
-        <div aria-hidden className="sticky left-0 top-0 z-30 h-(--head) border-b-2 border-line-strong bg-surface-sunken" />
-        {columns.map((column) => (
-          <ColumnHeader key={column.areaId} column={column} />
+        <div aria-hidden className="sticky left-0 top-0 z-30 h-(--head) border-b border-line-strong bg-surface" />
+        {spaces.map((space) => (
+          <ColumnHeader key={space.areaId} space={space} />
         ))}
         <div aria-hidden className="sticky left-0 z-20 bg-surface" style={{ height: columnHeight(range) }}>
-          {rowStarts(range).map((mark, index) => (
-            <div key={mark} className={cn('h-(--row) px-2 pt-1 text-right text-[11px] leading-none tabular-nums', index > 0 && 'border-t', rowLine(mark), mark % 60 === 0 && 'font-semibold text-ink')}>
-              {mark % 60 === 0 ? timeText(mark) : null}
-            </div>
-          ))}
+          <div className="relative size-full">
+            <Bands range={range} />
+            {hourMarks(range).map((mark, index) => (
+              <span
+                key={mark}
+                className={cn('absolute right-2 text-[11px] font-medium leading-none tabular-nums text-ink-muted', index === 0 ? 'mt-1' : '-translate-y-1/2')}
+                style={{ top: `${placement({ from: mark, to: mark }, range).top}%` }}
+              >
+                {timeText(mark)}
+              </span>
+            ))}
+            {now === null ? null : (
+              <span className="absolute right-1 z-10 -translate-y-1/2 rounded-[4px] bg-ink px-1 text-[11px] font-semibold leading-4 tabular-nums text-surface" style={{ top: `${placement({ from: now, to: now }, range).top}%` }}>
+                {timeText(now)}
+              </span>
+            )}
+          </div>
         </div>
-        {columns.map((column) =>
-          column.space ? (
-            <AreaColumn key={column.areaId} space={column.space} date={date} range={range} dayItems={dayItems} closures={closures} opening={opening} canSchedule={canSchedule} saving={saving} />
-          ) : (
-            <IdleColumn key={column.areaId} column={column} range={range} enableHref={enableHref?.(column.areaId)} />
-          ),
-        )}
+        {spaces.map((space) => (
+          <AreaColumn key={space.areaId} space={space} date={date} range={range} now={now} dayItems={dayItems} closures={closures} opening={opening} canSchedule={canSchedule} saving={saving} />
+        ))}
       </div>
     </div>
   );

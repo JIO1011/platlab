@@ -1,6 +1,6 @@
 ---
 name: platlab-assistant
-description: Hace el trabajo sin lógica delicada de PlatLab a partir de un brief de la sesión principal. Úsalo para docs y skills, cambios mecánicos (renombrar, mover, consolidar) y ajustes de pruebas sin lógica nueva. Lo que pueda alterar saldos, permisos, datos o el contrato de la API va a platlab-implementer.
+description: Hace el trabajo sin lógica delicada de PlatLab a partir de un brief de la sesión principal. Úsalo para docs y skills, cambios mecánicos (renombrar, mover, consolidar) y ajustes de pruebas sin lógica nueva. Lo que pueda alterar saldos, permisos, datos o el contrato de la API lo implementa la sesión principal.
 model: claude-sonnet-5-5
 effort: medium
 tools: Read, Edit, Write, Bash, Grep, Glob, Skill, mcp__codebase-memory-mcp, mcp__claude_ai_Context7

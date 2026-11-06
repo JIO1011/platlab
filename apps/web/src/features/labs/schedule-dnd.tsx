@@ -18,7 +18,7 @@ import { cn, toast } from '@platlab/ui';
 import { createContext, useContext, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { formatDate } from '../../app/format';
 import { useMediaQuery } from '../../app/use-media-query';
-import { blockFace, blockTextClass } from './schedule-block';
+import { blockFace } from './schedule-block';
 import { useCareerTone } from './schedule-career-color';
 import { blockText, toMinutes, type DayRange } from './schedule-grid';
 import { blockingTexts, requestBlockText, startAtOffset } from './schedule-placement';
@@ -123,7 +123,7 @@ function Ghost() {
     <DragOverlay dropAnimation={reduceMotion ? null : { duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
       {source ? (
         <div className={cn('w-fit max-w-64 cursor-grabbing px-3 py-1.5 shadow-overlay', blockFace, toneOf(sourceGroup(source)))}>
-          <p className={cn('text-sm', blockTextClass)}>{sourceLabel(source)}</p>
+          <p className="text-left text-sm font-medium leading-[1.3] [overflow-wrap:anywhere]">{sourceLabel(source)}</p>
           <p className="text-[13px] tabular-nums text-ink-muted">
             {sourceDetail(source)} · {sourceTimes(source)}
           </p>

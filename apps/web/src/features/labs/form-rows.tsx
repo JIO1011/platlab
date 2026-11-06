@@ -163,7 +163,7 @@ function Gap({ index, last }: { index: number; last: boolean }) {
           isOver ? 'h-1 opacity-100' : dragging ? 'h-0.5 opacity-30' : 'h-0.5 opacity-0',
         )}
       />
-      {isOver ? <span className="absolute left-2 top-1/2 -translate-y-full rounded-[4px] bg-action px-1.5 text-[11px] font-medium leading-4 text-white">Fila nueva aquí</span> : null}
+      {isOver ? <span className="absolute left-2 top-1/2 -translate-y-full rounded-[4px] bg-action px-1.5 text-[11px] font-medium leading-4 text-on-action">Fila nueva aquí</span> : null}
     </div>
   );
 }
@@ -331,7 +331,7 @@ function FieldDatum(props: FieldProps) {
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(datumRoot, 'group/edit relative', isDragging && 'z-20 shadow-float ring-2 ring-action', isOver && !isDragging && 'outline-2 -outline-offset-2 outline-action')}
     >
-      {isOver && !isDragging ? <span aria-hidden className="pointer-events-none absolute -top-2.5 left-2 z-10 rounded-[4px] bg-action px-1.5 text-[11px] font-medium leading-4 text-white">Soltar aquí</span> : null}
+      {isOver && !isDragging ? <span aria-hidden className="pointer-events-none absolute -top-2.5 left-2 z-10 rounded-[4px] bg-action px-1.5 text-[11px] font-medium leading-4 text-on-action">Soltar aquí</span> : null}
       <Cell kind="label" dense className="flex items-stretch gap-0 p-0">
         <button
           type="button"

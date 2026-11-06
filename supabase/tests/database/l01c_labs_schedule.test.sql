@@ -84,7 +84,7 @@ insert into labs.requests (id, workspace_id, number, form_id, form_revision, req
    'a2000000-0000-4000-8000-000000000001', 'Titulación', 'Docente A', '{2027-03-01,2027-03-08}', '08:00', '10:00', 20),
   ('a8000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-00000000000a', 2, 'a7000000-0000-4000-8000-000000000001', 1,
    'a2000000-0000-4000-8000-000000000001', 'Borrador', 'Docente A', '{2027-03-01}', '08:00', '10:00', 20);
-update labs.requests set status = 'submitted', submitted_at = now() where number = 1;
+update labs.requests set status = 'submitted', submitted_at = now() where number = 1 and workspace_id = 'a0000000-0000-4000-8000-00000000000a';
 
 -- Bajo el runtime, como la Administradora de A.
 set local role platlab_api;
@@ -114,7 +114,7 @@ insert into labs.requests (id, workspace_id, number, form_id, form_revision, req
   dates, starts_at, ends_at, participants, status, submitted_at) values
   ('a8000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-00000000000a', 3, 'a7000000-0000-4000-8000-000000000001', 1,
    'a2000000-0000-4000-8000-000000000001', 'Otra', 'Docente A', '{2027-03-01}', '09:00', '11:00', 10, 'draft', null);
-update labs.requests set status = 'submitted', submitted_at = now() where number = 3;
+update labs.requests set status = 'submitted', submitted_at = now() where number = 3 and workspace_id = 'a0000000-0000-4000-8000-00000000000a';
 set local role platlab_api;
 select throws_ok($$ select pg_temp.place('a8000000-0000-4000-8000-000000000003', '2027-03-01', '09:00', '11:00', 2) $$,
   '23P01', null, 'dos bloques activos no se cruzan en el área');

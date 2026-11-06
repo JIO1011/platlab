@@ -1,4 +1,4 @@
-import { closureList, formList, labsForm, labsRequest, labsSettings, periodList, requestList, requestOptions, responsibleOptions, scheduleList, spaceList } from '@platlab/contracts';
+import { closureList, formList, labsForm, labsRequest, labsSettings, periodList, requestList, requestOptions, requestReview, responsibleOptions, scheduleList, spaceList } from '@platlab/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
@@ -137,3 +137,7 @@ export function useRequestOptions(workspaceId: string) {
     queryFn: () => api(`${base(workspaceId)}/request-options`, { schema: requestOptions }),
   });
 }
+
+/** La revisión antes de enviar (ADR 0023): se pide al momento de enviar, ya guardado el borrador, sin caché. */
+export const fetchRequestReview = (workspaceId: string, requestId: string) =>
+  api(`${base(workspaceId)}/requests/${requestId}/review`, { schema: requestReview });

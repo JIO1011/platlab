@@ -4,7 +4,7 @@ import {
   activitiesOfArea,
   activityDetails,
   activityLabel,
-  blockLines,
+  blockParts,
   blockSpan,
   blockText,
   boardColumns,
@@ -14,16 +14,18 @@ import {
   closedSpans,
   dayClosedText,
   holidayOn,
+  hourMarks,
   loadByDay,
   monthWeeks,
+  nowMinutes,
   openSlots,
   overCapacity,
   parseDay,
   periodOn,
   placement,
   rowStarts,
+  shadedHours,
   shiftMonth,
-  showsTime,
   timeText,
   toMinutes,
   weekDates,
@@ -62,6 +64,7 @@ const activity = (overrides: Partial<Activity> = {}): Activity => ({
   responsibleId: 'p-1',
   responsibleName: 'Luis Mora',
   code: 'P1-S12-ANT01',
+  complete: true,
   version: 1,
   ...overrides,
 });
@@ -169,16 +172,6 @@ describe('carga y áreas del día', () => {
   });
 });
 
-describe('tamaño de un bloque', () => {
-  it('da más líneas de texto a un bloque más largo', () => {
-    expect([30, 45, 60, 75, 90, 180].map(blockLines)).toEqual([1, 1, 2, 2, 3, 3]);
-  });
-
-  it('muestra la hora solo desde una hora de alto', () => {
-    expect([30, 45, 60, 120].map(showsTime)).toEqual([false, false, true, true]);
-  });
-});
-
 describe('rango del día', () => {
   it('es fijo, de 07:00 a 19:00, aunque no haya bloques', () => {
     expect(boardRange([])).toEqual({ start: 420, end: 1140 });
@@ -194,6 +187,27 @@ describe('rango del día', () => {
     expect(rowStarts({ start: 420, end: 540 })).toEqual([420, 450, 480, 510]);
     expect(rowStarts(boardRange([]))).toHaveLength(24);
   });
+
+  it('rotula solo las horas en punto', () => {
+    expect(hourMarks({ start: 420, end: 540 })).toEqual([420, 480]);
+    expect(hourMarks({ start: 390, end: 510 })).toEqual([420, 480]);
+  });
+
+  it('sombrea una hora de cada dos, recortada al rango', () => {
+    expect(shadedHours({ start: 420, end: 720 })).toEqual([
+      { from: 480, to: 540 },
+      { from: 600, to: 660 },
+    ]);
+    expect(shadedHours({ start: 420, end: 510 })).toEqual([{ from: 480, to: 510 }]);
+  });
+
+  it('dice la hora del día en la zona del espacio de trabajo', () => {
+    // 15:30 UTC es 10:30 en Guayaquil (UTC−5) y 16:30 en Madrid en invierno.
+    const instant = Date.UTC(2026, 10, 2, 15, 30);
+    expect(nowMinutes(instant, 'America/Guayaquil')).toBe(630);
+    expect(nowMinutes(instant, 'Europe/Madrid')).toBe(990);
+    expect(nowMinutes(Date.UTC(2026, 10, 2, 5, 5), 'America/Guayaquil')).toBe(0 * 60 + 5);
+  });
 });
 
 describe('lo cerrado', () => {
@@ -201,11 +215,16 @@ describe('lo cerrado', () => {
 
   it('deja fuera del horario lo que el área no abre, también al inicio y al final', () => {
     const partial = space({ weeklyHours: hours([{ opens: '08:00', closes: '12:00' }, { opens: '14:00', closes: '17:00' }]) });
-    expect(closedSpans(partial, '2026-10-26', range, [])).toEqual([
+    expect(closedSpans(partial, '2026-10-26', range, []).map(({ from, to, reason }) => ({ from, to, reason }))).toEqual([
       { from: 420, to: 480, reason: 'Fuera del horario del área' },
       { from: 720, to: 840, reason: 'Fuera del horario del área' },
       { from: 1020, to: 1080, reason: 'Fuera del horario del área' },
     ]);
+  });
+
+  it('escribe el motivo una sola vez: en el primer tramo de al menos una hora', () => {
+    const partial = space({ weeklyHours: hours([{ opens: '07:30', closes: '12:00' }, { opens: '14:00', closes: '17:00' }]) });
+    expect(closedSpans(partial, '2026-10-26', range, []).map((span) => span.labeled)).toEqual([false, true, false]);
   });
 
   it('no marca nada si el área abre todo el rango', () => {
@@ -214,7 +233,7 @@ describe('lo cerrado', () => {
   });
 
   it('cierra todo el rango con el motivo del cierre o feriado, sea del área o común', () => {
-    expect(closedSpans(space(), '2026-10-26', range, [closure()])).toEqual([{ from: 420, to: 1080, reason: 'Feriado local' }]);
+    expect(closedSpans(space(), '2026-10-26', range, [closure()])).toEqual([{ from: 420, to: 1080, reason: 'Feriado local', labeled: true }]);
     expect(closedAllDay(space(), '2026-10-26', [closure({ areaId: 'area-1', reason: 'Mantenimiento' })])).toBe('Mantenimiento');
     expect(closedAllDay(space(), '2026-10-26', [closure({ areaId: 'area-2' })])).toBeNull();
   });
@@ -252,6 +271,12 @@ describe('posiciones', () => {
 });
 
 describe('texto del bloque', () => {
+  it('parte el bloque en materia y «Carrera · Docente»', () => {
+    expect(blockParts(activity({ subject: 'Bioquímica General' }))).toEqual({ subject: 'Bioquímica General', byline: 'Química · Ana Pérez' });
+    expect(blockParts(activity())).toEqual({ subject: 'Titulación ácido-base', byline: 'Química · Ana Pérez' });
+    expect(blockParts(activity({ subject: '', group: null }))).toEqual({ subject: 'Titulación ácido-base', byline: 'Ana Pérez' });
+  });
+
   it('dice «Materia - Carrera - Docente»', () => {
     expect(blockText(activity({ subject: 'Bioquímica General' }))).toBe('Bioquímica General - Química - Ana Pérez');
   });
@@ -268,6 +293,10 @@ describe('texto del bloque', () => {
 
   it('suma el aforo a los detalles solo cuando se supera', () => {
     expect(activityDetails(activity({ participants: 30 }), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora', 'Supera el aforo (30 / 24)']);
+  });
+
+  it('suma «Falta apartar recursos» a los detalles cuando lo apartado no alcanza', () => {
+    expect(activityDetails(activity({ complete: false }), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora', 'Falta apartar recursos']);
   });
 
   it('suma hora, código y responsable para el lector de pantalla', () => {

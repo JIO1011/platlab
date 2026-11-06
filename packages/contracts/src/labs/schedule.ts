@@ -23,6 +23,17 @@ export const periodWeek = (startsOn: string, date: string): number => Math.floor
 /** El día ISO de la semana (1 lunes … 7 domingo) de una fecha `YYYY-MM-DD`, sin depender de la zona. */
 export const isoWeekday = (date: string): number => ((new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7) + 1;
 
+/** Minutos desde la medianoche de una hora `HH:MM`. */
+export function toMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return (hours ?? 0) * 60 + (minutes ?? 0);
+}
+
+/** «08:00» para una hora en minutos. */
+export function timeText(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
 // ---------------------------------------------------------------------------
 // Reglas al programar
 // ---------------------------------------------------------------------------
@@ -108,6 +119,8 @@ export const activity = z.object({
   responsibleId: z.uuid(),
   responsibleName: z.string(),
   code: z.string(),
+  /** Lo apartado alcanza todo lo pedido (L-01d); si no, el bloque muestra «Falta». */
+  complete: z.boolean(),
   version: z.number().int().positive(),
 });
 
@@ -138,6 +151,17 @@ export const activityParams = z.object({ workspaceId: z.uuid(), activityId: z.uu
 /** La respuesta de programar o mover: el bloque y lo que solo avisa (superar el aforo). */
 export const scheduledActivity = z.object({ activity, warnings: z.array(scheduleProblem) });
 
+/** POST /requests/:requestId/approve: con la versión vista; programa cada fecha pendiente donde y cuando se pidió. */
+export const approvedRequest = z.object({ items: z.array(scheduledActivity) });
+
+/** POST /requests/approve: aprobar varias, cada una en su transacción y con su resultado. */
+export const approveRequestsRequest = z
+  .object({ items: z.array(z.object({ requestId: z.uuid(), expectedVersion })).min(1).max(50) })
+  .strict();
+export const approvalResults = z.object({
+  items: z.array(z.object({ requestId: z.uuid(), ok: z.boolean(), codes: z.array(z.string()), message: z.string().nullable() })),
+});
+
 /** GET /schedule/responsibles: quienes pueden llevar un bloque (Operadores y Administradores). */
 export const responsibleOptions = z.object({ items: z.array(z.object({ id: z.uuid(), name: z.string() })) });
 
@@ -147,4 +171,6 @@ export const labCancelRequest = z.object({ expectedVersion, reason: text(500) })
 export type Activity = z.infer<typeof activity>;
 export type ScheduleList = z.infer<typeof scheduleList>;
 export type ScheduledActivity = z.infer<typeof scheduledActivity>;
+export type ApprovedRequest = z.infer<typeof approvedRequest>;
+export type ApprovalResults = z.infer<typeof approvalResults>;
 export type ResponsibleOptions = z.infer<typeof responsibleOptions>;

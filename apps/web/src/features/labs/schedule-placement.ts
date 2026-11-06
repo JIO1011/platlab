@@ -9,7 +9,7 @@ import {
   type ScheduleSlot,
   type Space,
 } from '@platlab/contracts';
-import { blockText, capacityWarning, timeText, toMinutes, type DayRange } from './schedule-grid';
+import { MISSING_HOLDS, blockParts, blockText, capacityWarning, timeText, toMinutes, type DayRange } from './schedule-grid';
 
 /**
  * La lógica pura de programar y mover bloques (ADR 0023, L-01c): de la posición del puntero a una hora, el contexto de
@@ -101,9 +101,16 @@ export function previewText(check: ScheduleCheck): string {
   return check.blocking.length > 0 ? blockingTexts(check)[0]! : 'Libre';
 }
 
+type BlockRequest = Pick<RequestSummary, 'code' | 'title' | 'subject' | 'group' | 'requesterName'>;
+
 /** «Materia - Carrera - Docente» de una solicitud por programar: el mismo texto que tendrá su bloque. */
-export function requestBlockText(request: Pick<RequestSummary, 'code' | 'title' | 'subject' | 'group' | 'requesterName'>): string {
+export function requestBlockText(request: BlockRequest): string {
   return blockText({ ...request, title: request.title ?? request.code });
+}
+
+/** La materia y «Carrera · Docente» de una solicitud por programar: las mismas líneas que tendrá su bloque. */
+export function requestBlockParts(request: BlockRequest): { subject: string; byline: string } {
+  return blockParts({ ...request, title: request.title ?? request.code });
 }
 
 /** Las fechas de la solicitud que aún no tienen bloque, en orden. */
@@ -156,10 +163,18 @@ export function cardWhenText({ request, date }: PendingCard): string {
   return request.startsAt && request.endsAt ? `${shortDateText(date)} · ${request.startsAt}–${request.endsAt}` : shortDateText(date);
 }
 
-/** Lo que se avisa tras programar o mover: «P1-S12-QUI01 programado» y, si procede, el aforo. */
-export function scheduledMessage(code: string, verb: 'programado' | 'movido', warnings: readonly string[], participants: number, capacity: number | undefined): { title: string; description?: string } {
+/** Lo que se avisa tras programar o mover: «P1-S12-QUI01 programado» y, si procede, el aforo y «Falta apartar recursos» (L-01d). */
+export function scheduledMessage(
+  code: string,
+  verb: 'programado' | 'movido',
+  warnings: readonly string[],
+  participants: number,
+  capacity: number | undefined,
+  complete = true,
+): { title: string; description?: string } {
   const title = `${code} ${verb}`;
-  return warnings.includes('capacity') && capacity !== undefined ? { title, description: capacityWarning(participants, capacity) } : { title };
+  const notes = [...(warnings.includes('capacity') && capacity !== undefined ? [capacityWarning(participants, capacity)] : []), ...(complete ? [] : [MISSING_HOLDS])];
+  return notes.length > 0 ? { title, description: notes.join('. ') } : { title };
 }
 
 /** Lo que el servidor recibe al soltar: programar una fecha (POST) o mover un bloque (PATCH), sin pasar por la hoja. */

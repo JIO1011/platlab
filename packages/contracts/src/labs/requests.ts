@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { expectedVersion, text } from '../common.js';
 import { decimalString } from '../decimal.js';
 import type { FormFreeField, FormLayout } from './form.js';
+import { scheduleProblem } from './schedule.js';
 
 /**
  * Solicitudes de Laboratorios (ADR 0023, «Diseño de L-01b»): el Docente o el tesista llena un formato activo, la guarda
@@ -159,7 +160,22 @@ export const labsRequest = requestSummary.extend({
   lines: z.array(requestLine),
   events: z.array(requestEvent),
   /** El bloque de cada fecha programada: código, área, hora y responsable. */
-  blocks: z.array(z.object({ date: z.iso.date(), code: z.string(), areaId: z.uuid(), areaName: z.string(), startsAt: z.string(), endsAt: z.string(), responsibleName: z.string() })),
+  blocks: z.array(
+    z.object({
+      date: z.iso.date(),
+      code: z.string(),
+      areaId: z.uuid(),
+      areaName: z.string(),
+      startsAt: z.string(),
+      endsAt: z.string(),
+      responsibleName: z.string(),
+      /**
+       * Lo apartado por línea reservable (L-01d): cantidad del reactivo o número de equipos, con sus códigos. Las
+       * cantidades son por fecha: si no alcanza lo pedido, «Falta».
+       */
+      holds: z.array(z.object({ line: z.number().int(), held: z.string(), assets: z.array(z.string()), complete: z.boolean() })),
+    }),
+  ),
   /** Si quien mira la puede editar, enviar o cancelar (es suya y el estado lo admite). */
   mine: z.boolean(),
 });
@@ -173,6 +189,44 @@ export const requestOptions = z.object({
   equipmentTypes: z.array(z.object({ id: z.uuid(), name: z.string(), available: z.number().int() })),
   subjects: z.array(z.string()),
   careers: z.array(z.string()),
+});
+
+/**
+ * GET /requests/:requestId/review: lo que se revisa antes de enviar (ADR 0023, «Flujo de la Propuesta»), contra todo el
+ * espacio y sin apartar nada. Por fecha pendiente, el laboratorio pedido y los equipos libres en la franja; por
+ * reactivo, lo pedido en todas esas fechas frente a lo apartable. Lo que no alcanza trae sus alternativas. `line` es la
+ * posición de la línea en `lines` de la solicitud.
+ */
+export const requestReview = z.object({
+  dates: z.array(
+    z.object({
+      date: z.iso.date(),
+      /** El laboratorio pedido y lo que impide o advierte programarlo; nulo sin laboratorio u horario pedidos. */
+      area: z.object({ name: z.string(), problems: z.array(scheduleProblem) }).nullable(),
+      equipment: z.array(
+        z.object({
+          line: z.number().int(),
+          name: z.string(),
+          wanted: z.number().int(),
+          free: z.number().int(),
+          /** Si no alcanza: otras franjas de ese día, de la misma duración, con suficientes equipos libres. */
+          alternatives: z.array(z.object({ startsAt: z.string(), endsAt: z.string() })),
+        }),
+      ),
+    }),
+  ),
+  reagents: z.array(
+    z.object({
+      line: z.number().int(),
+      name: z.string(),
+      unit: z.string(),
+      /** Lo pedido por fecha, por el número de fechas pendientes. */
+      needed: z.string(),
+      available: z.string(),
+      /** Dónde está lo apartable, de más a menos; `null`, fuera de toda área. */
+      areas: z.array(z.object({ name: z.string().nullable(), available: z.string() })),
+    }),
+  ),
 });
 
 /** Los datos libres de una revisión: cada respuesta con su tipo y las obligatorias presentes. */
@@ -204,4 +258,5 @@ export type RequestSummary = z.infer<typeof requestSummary>;
 export type RequestList = z.infer<typeof requestList>;
 export type LabsRequest = z.infer<typeof labsRequest>;
 export type RequestOptions = z.infer<typeof requestOptions>;
+export type RequestReview = z.infer<typeof requestReview>;
 export type SaveRequest = z.infer<typeof saveRequestRequest>;

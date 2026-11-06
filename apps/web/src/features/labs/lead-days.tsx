@@ -4,6 +4,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { QueryErrorState } from '../../app/states';
 import { labsErrorMessage, useSaveSettings } from './commands';
+import { softCard } from './style';
 
 /** Los días de anticipación como los escribió la persona: vacío o con letras, `NaN`, que el contrato rechaza. */
 const daysOf = (text: string) => (text.trim() === '' ? Number.NaN : Number(text));
@@ -48,10 +49,10 @@ export function LeadDaysSection({
 
   return (
     <section aria-labelledby="labs-lead-days" className="grid gap-4">
-      <h2 id="labs-lead-days" className="text-lg font-semibold text-ink">
+      <h2 id="labs-lead-days" className="text-xl font-bold tracking-tight text-ink">
         Anticipación
       </h2>
-      <div className="rounded-card bg-surface px-4 py-4 shadow-raised sm:px-5">
+      <div className={`${softCard} px-5 py-5 sm:px-6`}>
         {settings.isPending ? (
           <Skeleton className="h-20" />
         ) : settings.isError ? (

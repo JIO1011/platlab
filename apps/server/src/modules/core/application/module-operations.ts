@@ -21,9 +21,10 @@ export const requires = (permission: string) => (access: WorkspaceAccess) => req
  * el permiso, la clave idempotente, el negocio y la auditoría; se confirma o revierte todo junto. El
  * permiso se comprueba antes de la clave, así un reintento también revalida el acceso. Los roles
  * valen para todo el espacio (ADR 0008): la ubicación la valida la operación, no el permiso. Con
- * `alsoModule`, el comando escribe también por la interfaz de ese módulo y se admite con los dos.
+ * `alsoModule`, el comando escribe también por la interfaz de ese módulo y se admite con los dos; con
+ * `optionalModule`, lo usa solo si admite la operación (`access.optionalAdmitted`), sin depender de él.
  */
-export function moduleCommand(moduleCode: string, alsoModule?: string) {
+export function moduleCommand(moduleCode: string, alsoModule?: string, optionalModule?: string) {
   return function runCommand<T>(
     pool: pg.Pool,
     request: CommandRequest,
@@ -36,7 +37,7 @@ export function moduleCommand(moduleCode: string, alsoModule?: string) {
   ): Promise<T> {
     return withModuleAccess(
       pool,
-      { subject: request.subject, workspaceId: request.workspaceId, moduleCode, alsoModule, actionClass },
+      { subject: request.subject, workspaceId: request.workspaceId, moduleCode, alsoModule, optionalModule, actionClass },
       async (access) => {
         await authorize(access);
         return withIdempotency(

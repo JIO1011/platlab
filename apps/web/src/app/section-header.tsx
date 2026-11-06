@@ -8,11 +8,10 @@ import { useNow } from './use-now';
 /** Lo que cada sección pasa a su cabecera: el título, la marca de lo que muestra y sus acciones. */
 interface SectionHeaderProps {
   title: string;
-  updatedAt: number;
-  /** Una línea breve sobre lo que muestra la sección (por ejemplo, el período), antes de «Actualizado…». */
-  detail?: ReactNode;
+  /** La marca de lo que muestra la sección; sin ella (el Cronograma, que lo dice su barra del día), la cabecera es solo el título. */
+  updatedAt?: number;
   actions?: ReactNode;
-  /** Pantallas que necesitan todo el alto (el Cronograma): el título más pequeño y el detalle en la misma fila, junto a las acciones. */
+  /** Pantallas que necesitan todo el alto (el Cronograma): el título más pequeño, en una sola fila con las acciones. */
   compact?: boolean;
 }
 
@@ -22,7 +21,7 @@ interface SectionHeaderProps {
  * debajo, a todo el ancho). En modo consulta (`canOperate` falso), el aviso `readOnlyNotice` de que no se registran
  * cambios. El estado y el aviso salen del contexto de la app del módulo (`ModuleOutlet`). El título admite el foco de respaldo al cambiar de sección (`data-focus-fallback`).
  */
-export function SectionHeader({ title, updatedAt, detail, actions, compact = false }: SectionHeaderProps) {
+export function SectionHeader({ title, updatedAt, actions, compact = false }: SectionHeaderProps) {
   const { canOperate, freshness, readOnlyNotice } = useModuleContext();
   const now = useNow(15_000);
   return (
@@ -36,18 +35,19 @@ export function SectionHeader({ title, updatedAt, detail, actions, compact = fal
           >
             {title}
           </h1>
-          <p className={cn('flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted', !compact && 'mt-1')}>
-            {detail}
-            {updatedAt > 0 ? <span>Actualizado {formatAgo(updatedAt, now)}</span> : <span>Cargando…</span>}
-            <button
-              type="button"
-              onClick={freshness.refresh}
-              className="-my-3 inline-flex min-h-11 items-center gap-1 rounded-[6px] px-1.5 py-1.5 font-medium text-action transition-colors hover:bg-action-soft sm:-my-1 sm:min-h-0"
-            >
-              <RefreshCw className="size-3.5" aria-hidden />
-              {freshness.refreshing ? 'Actualizando…' : 'Actualizar'}
-            </button>
-          </p>
+          {updatedAt === undefined ? null : (
+            <p className={cn('flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted', !compact && 'mt-1')}>
+              {updatedAt > 0 ? <span>Actualizado {formatAgo(updatedAt, now)}</span> : <span>Cargando…</span>}
+              <button
+                type="button"
+                onClick={freshness.refresh}
+                className="-my-3 inline-flex min-h-11 items-center gap-1 rounded-[6px] px-1.5 py-1.5 font-medium text-action transition-colors hover:bg-action-soft sm:-my-1 sm:min-h-0"
+              >
+                <RefreshCw className="size-3.5" aria-hidden />
+                {freshness.refreshing ? 'Actualizando…' : 'Actualizar'}
+              </button>
+            </p>
+          )}
         </div>
         {actions ? <div className="grid w-full gap-2 sm:flex sm:w-auto">{actions}</div> : null}
       </header>

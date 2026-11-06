@@ -10,6 +10,7 @@ import { useLabs } from './context';
 import { useLabsForms, useRequests } from './queries';
 import { RequestItem, RequestList, RequestSection } from './request-list';
 import { firstDateText, groupMine } from './request-summary';
+import { softCard } from './style';
 
 /** Crea un borrador, o la copia de otra solicitud propia, y abre su hoja. Si falla, lo dice y se queda en la lista. */
 function useStartRequest(workspaceId: string) {
@@ -28,7 +29,7 @@ function useStartRequest(workspaceId: string) {
 
 /** Una opción de la banda: el nombre del formato y, debajo, su título. Un clic y se abre el borrador. */
 const formOption =
-  'inline-flex min-h-11 flex-col items-start justify-center rounded-control border border-white/40 px-4 py-2 text-left backdrop-blur-sm transition-[background-color,opacity] duration-150 hover:bg-white/10 disabled:pointer-events-none disabled:opacity-60 sm:max-w-72';
+  'inline-flex min-h-11 flex-col items-start justify-center rounded-control border border-white/30 px-4 py-2 text-left transition-[background-color,opacity] duration-150 hover:bg-white/10 disabled:pointer-events-none disabled:opacity-60 sm:max-w-72';
 
 /**
  * «Nueva solicitud» (ADR 0023): la banda destacada de la página, con cada formato activo como opción a un clic y lo que
@@ -110,18 +111,18 @@ export function LabsRequestsPage() {
   return (
     <>
       <SectionHeader title="Mis solicitudes" updatedAt={Math.min(requests.dataUpdatedAt, forms.dataUpdatedAt)} />
-      <div className="mt-6 grid gap-5 sm:gap-6">
+      <div className="mt-8 grid gap-6 sm:gap-8">
         {canRequest ? <NewRequestBand workspaceId={workspaceId} forms={forms} /> : null}
         {requests.isPending ? (
           <div aria-busy="true">
             <Skeleton className="h-40 rounded-card" />
           </div>
         ) : requests.isError ? (
-          <div className="rounded-card bg-surface shadow-raised">
+          <div className={softCard}>
             <QueryErrorState error={requests.error} onRetry={() => void requests.refetch()} />
           </div>
         ) : items.length === 0 ? (
-          <div className="rounded-card bg-surface shadow-raised">
+          <div className={softCard}>
             <StatePanel
               icon={FilePenLine}
               title="Aún no tienes solicitudes"

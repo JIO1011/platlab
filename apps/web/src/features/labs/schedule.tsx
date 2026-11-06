@@ -15,21 +15,25 @@ import { useClosures, usePeriods, useRequests, useResponsibles, useSchedule, use
 import { ActivitySheet } from './schedule-block-sheet';
 import type { BlockOpening } from './schedule-block';
 import { CareerToneProvider, careerTones } from './schedule-career-color';
-import { DayControls, DayDetail } from './schedule-day-bar';
+import { DayBar } from './schedule-day-bar';
 import { ScheduleDnd, type DragPreview, type DragSource, type SavingDrop } from './schedule-dnd';
-import { activitiesOn, boardColumns, boardRange, holidayOn, parseDay, periodOn, toMinutes, weekDates, type BoardColumn } from './schedule-grid';
+import { activitiesOn, boardColumns, boardRange, holidayOn, loadByDay, parseDay, periodOn, toMinutes, weekDates, type BoardColumn } from './schedule-grid';
+import { IdleAreas } from './schedule-idle';
 import { ScheduleList } from './schedule-list';
 import { contextFor, dropPlan, endFor, pendingDates, responsibleFor, scheduledMessage, slotAt, toScheduleOrder } from './schedule-placement';
 import { PlacementSheet, type PlacementTarget } from './schedule-placement-sheet';
 import { ScheduleTable } from './schedule-table';
 import { ScheduleTray, type TrayActions } from './schedule-tray';
+import { softCard } from './style';
 
 /** La tabla de horas desde 1024 px; por debajo, una lista por área (ADR 0023). */
 const wideQuery = '(min-width: 1024px)';
 
-/** El día en la tabla o en la lista, o por qué no hay nada que mostrar: ninguna área en el Núcleo. */
+/** El día en la tabla o en la lista, o por qué no hay nada que mostrar: ninguna área con horario en la tabla. */
 function DayBoard({
   date,
+  today,
+  timeZone,
   columns,
   dayItems,
   closures,
@@ -40,6 +44,8 @@ function DayBoard({
   enableHref,
 }: {
   date: string;
+  today: string;
+  timeZone: string;
   columns: readonly BoardColumn[];
   dayItems: readonly Activity[];
   closures: readonly Closure[];
@@ -49,15 +55,16 @@ function DayBoard({
   saving: SavingDrop | null;
   enableHref: ((areaId: string) => string) | undefined;
 }) {
-  if (columns.length === 0) {
+  const spaces = columns.flatMap((column) => (column.space ? [column.space] : []));
+  if (wide ? spaces.length === 0 : columns.length === 0) {
     return (
-      <div className="rounded-card bg-surface shadow-raised">
+      <div className={softCard}>
         <StatePanel icon={MapPin} title="Aún no hay áreas" description="Cuando el Administrador cree un área y la habilite con su aforo y horario, el cronograma la mostrará aquí." />
       </div>
     );
   }
   return wide ? (
-    <ScheduleTable columns={columns} date={date} range={boardRange(dayItems)} dayItems={dayItems} closures={closures} opening={opening} canSchedule={canSchedule} saving={saving} enableHref={enableHref} />
+    <ScheduleTable spaces={spaces} date={date} today={today} timeZone={timeZone} range={boardRange(dayItems)} dayItems={dayItems} closures={closures} opening={opening} canSchedule={canSchedule} saving={saving} />
   ) : (
     <ScheduleList columns={columns} date={date} dayItems={dayItems} closures={closures} opening={opening} enableHref={enableHref} />
   );
@@ -71,9 +78,9 @@ interface PlacementOpen {
 }
 
 /**
- * Cronograma (ADR 0023, L-01c; vista decidida el 24-10-2026): una cabecera de una barra (título y período a la izquierda;
- * ‹ Hoy › y la fecha con su calendario a la derecha), la tabla del día que llena el alto de la ventana, con las áreas del
- * Núcleo como columnas y las horas como filas, y «Por programar» pegada abajo. La ven todos los que consultan Laboratorios; el día vive en
+ * Cronograma (ADR 0023, L-01c; vista decidida el 24-10-2026): el título arriba (y, a la derecha, el aviso de las áreas sin
+ * horario), una barra del día (‹ ›, la fecha completa con su período, la semana, «Hoy» y el calendario), la tabla del día
+ * que llena el alto de la ventana, con las áreas con horario como columnas y las horas como filas, y «Por programar» pegada abajo. La ven todos los que consultan Laboratorios; el día vive en
  * la URL (`?dia=`), con «Hoy» por omisión. Un clic en un bloque abre su solicitud llena para quien puede verla (quien
  * recibe, en Recibidas; el Docente, la suya) o, si no, su panel de solo lectura. El Administrador (`labs.schedule.manage`)
  * programa arrastrando una solicitud de «Por programar» a un área y una hora, y mueve un bloque el mismo día arrastrándolo:
@@ -117,6 +124,9 @@ export function LabsSchedulePage() {
 
   const dayItems = schedule.data ? activitiesOn(schedule.data.items, date) : [];
   const columns = spaces.data ? boardColumns(core.data?.areas ?? null, spaces.data.items, dayItems) : [];
+  // Las áreas del Núcleo sin horario no ocupan columna: su aviso va en el encabezado (y su fila, en la lista del móvil).
+  const idleColumns = columns.filter((column) => column.space === null);
+  const enableHref = canManageSpaces ? (areaId: string) => `/e/${workspaceId}/areas?area=${areaId}` : undefined;
   const boardSpaces = columns.flatMap((column) => (column.space ? [column.space] : []));
   const dayClosures = closures.data?.items ?? [];
   // Los tonos se reparten entre las carreras que se ven: las del día y las de «Por programar».
@@ -167,7 +177,7 @@ export function LabsSchedulePage() {
     setSaving({ areaId: preview.areaId, start: preview.start, end: preview.end });
     try {
       const result = await drop.mutateAsync(dropPlan(source, preview, responsibleId));
-      const message = scheduledMessage(result.activity.code, moving ? 'movido' : 'programado', result.warnings, preview.participants, preview.capacity);
+      const message = scheduledMessage(result.activity.code, moving ? 'movido' : 'programado', result.warnings, preview.participants, preview.capacity, result.activity.complete);
       toast.success(message.title, message.description ? { description: message.description } : undefined);
       goTo(result.activity.date);
     } catch (failure) {
@@ -199,17 +209,21 @@ export function LabsSchedulePage() {
   return (
     <CareerToneProvider value={toneOf}>
       <div className={cn('flex flex-col', wide && 'h-[calc(100dvh-8.25rem)]')}>
-        <SectionHeader
-          compact={wide}
-          title="Cronograma"
-          updatedAt={Math.min(...queries.map((query) => query.dataUpdatedAt))}
-          detail={<DayDetail period={periods.data ? periodOn(periods.data.items, date) : undefined} holiday={closures.data ? holidayOn(dayClosures, date) : null} />}
-          actions={<DayControls date={date} today={today} onPick={goTo} />}
-        />
+        <SectionHeader compact={wide} title="Cronograma" actions={wide ? <IdleAreas columns={idleColumns} enableHref={enableHref} /> : undefined} />
+        <div className="mt-2">
+          <DayBar
+            date={date}
+            today={today}
+            period={periods.data ? periodOn(periods.data.items, date) : undefined}
+            holiday={closures.data ? holidayOn(dayClosures, date) : null}
+            load={schedule.data ? loadByDay(schedule.data.items, week) : null}
+            onPick={goTo}
+          />
+        </div>
         <ScheduleDnd previewOf={previewOf} onDrop={(source, preview) => void dropped(source, preview)}>
-          <div className={cn('mt-4 grid gap-4', wide && 'mt-3 flex min-h-0 flex-1 flex-col gap-3')}>
+          <div className={cn('mt-3 grid gap-4', wide && 'mt-2 flex min-h-0 flex-1 flex-col gap-3')}>
             {failed ? (
-              <div className="rounded-card bg-surface shadow-raised">
+              <div className={softCard}>
                 <QueryErrorState error={failed.error} onRetry={() => queries.forEach((query) => void query.refetch())} />
               </div>
             ) : queries.some((query) => query.isPending) || core.isLoading ? (
@@ -219,6 +233,8 @@ export function LabsSchedulePage() {
             ) : (
               <DayBoard
                 date={date}
+                today={today}
+                timeZone={me.workspace.timeZone}
                 columns={columns}
                 dayItems={dayItems}
                 closures={dayClosures}
@@ -226,7 +242,7 @@ export function LabsSchedulePage() {
                 wide={wide}
                 canSchedule={canSchedule && wide}
                 saving={saving}
-                enableHref={canManageSpaces ? (areaId) => `/e/${workspaceId}/areas?area=${areaId}` : undefined}
+                enableHref={enableHref}
               />
             )}
             {canReceive ? (

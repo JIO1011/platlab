@@ -132,7 +132,7 @@ export function PlacementSheet({
         if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? 'Revisa los datos.');
         result = await moveCommand.mutateAsync(parsed.data);
       }
-      const message = scheduledMessage(result.activity.code, program ? 'programado' : 'movido', result.warnings, participants, space?.capacity);
+      const message = scheduledMessage(result.activity.code, program ? 'programado' : 'movido', result.warnings, participants, space?.capacity, result.activity.complete);
       toast.success(message.title, message.description ? { description: message.description } : undefined);
       onDone(result.activity.date);
       onOpenChange(false);

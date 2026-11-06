@@ -7,6 +7,7 @@ import {
   createFormRequest,
   createPeriodRequest,
   activityParams,
+  approveRequestsRequest,
   createRequestRequest,
   labCancelRequest as labCancelRequestSchema,
   scheduleActivityRequest,
@@ -32,6 +33,7 @@ import {
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import { createClosure, listClosures, voidClosure } from '../application/closures.js';
+import { reviewRequest } from '../application/review.js';
 import { archiveForm, createForm, getForm, listForms, publishForm, updateForm, uploadFormLogo } from '../application/form.js';
 import { archivePeriod, createPeriod, listPeriods, updatePeriod } from '../application/periods.js';
 import {
@@ -46,7 +48,7 @@ import {
   saveRequest,
   submitRequest,
 } from '../application/requests.js';
-import { listResponsibles, listSchedule, moveActivity, scheduleActivity } from '../application/schedule.js';
+import { approveRequest, approveRequests, listResponsibles, listSchedule, moveActivity, scheduleActivity } from '../application/schedule.js';
 import { getSettings, updateSettings } from '../application/settings.js';
 import { archiveSpace, createSpace, listSpaces, updateSpace } from '../application/spaces.js';
 
@@ -70,6 +72,7 @@ export function labsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: 
     });
 
     app.get('/requests/:requestId', async (request) => getRequest(pool, queryRequest(request), requestParams.parse(request.params).requestId));
+    app.get('/requests/:requestId/review', async (request) => reviewRequest(pool, queryRequest(request), requestParams.parse(request.params).requestId));
 
     app.put('/requests/:requestId', async (request) =>
       saveRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, saveRequestRequest.parse(request.body)),
@@ -89,6 +92,15 @@ export function labsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: 
 
     app.post('/requests/:requestId/reject', async (request) =>
       rejectRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestReasonRequest.parse(request.body)),
+    );
+
+    // «Aprobar» (ADR 0023, «Flujo de la Propuesta»): programa donde y cuando se pidió; varias, cada una por separado.
+    app.post('/requests/approve', async (request) =>
+      approveRequests(pool, commandRequest(request), approveRequestsRequest.parse(request.body).items),
+    );
+
+    app.post('/requests/:requestId/approve', async (request) =>
+      approveRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestVersionRequest.parse(request.body).expectedVersion),
     );
 
     app.post('/requests/:requestId/lab-cancel', async (request) =>

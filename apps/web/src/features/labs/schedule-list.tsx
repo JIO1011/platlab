@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { CodeTag } from '../../app/code-tag';
 import { ScheduleBlock, type BlockOpening } from './schedule-block';
 import { activitiesOfArea, closedAllDay, openSlots, timeText, type BoardColumn } from './schedule-grid';
+import { softCard } from './style';
 
 /** Un área del día: su nombre, aforo y horario, lo que la cierra si es el caso, y sus bloques por hora. */
 function AreaCard({ space, date, dayItems, closures, opening }: { space: Space; date: string; dayItems: readonly Activity[]; closures: readonly Closure[]; opening: BlockOpening }) {
@@ -14,7 +15,7 @@ function AreaCard({ space, date, dayItems, closures, opening }: { space: Space; 
     .map((slot) => `${timeText(slot.from)}–${timeText(slot.to)}`)
     .join(' · ');
   return (
-    <section aria-labelledby={id} className="rounded-card bg-surface p-4 shadow-raised">
+    <section aria-labelledby={id} className={`${softCard} p-4`}>
       <h3 id={id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-bold text-ink">
         <span className="[overflow-wrap:anywhere]">{space.areaName}</span>
         <CodeTag>{space.abbreviation}</CodeTag>

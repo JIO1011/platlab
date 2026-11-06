@@ -1,6 +1,6 @@
 ---
 name: platlab-ui-implementer
-description: Implementa mejoras de presentación de PlatLab (apps/web, apps/console, packages/ui) a partir de un brief aprobado por la sesión principal, usando las skills de diseño del proyecto. Úsalo para pantallas, pulido visual, movimiento, avisos, adaptación móvil y e2e de UI una vez decidida la propuesta. Lo que pueda alterar saldos, permisos, datos o el contrato de la API va a platlab-implementer.
+description: Implementa mejoras de presentación de PlatLab (apps/web, apps/console, packages/ui) a partir de un brief aprobado por la sesión principal, usando las skills de diseño del proyecto. Úsalo para pantallas, pulido visual, movimiento, avisos, adaptación móvil y e2e de UI una vez decidida la propuesta. Lo que pueda alterar saldos, permisos, datos o el contrato de la API lo implementa la sesión principal.
 model: claude-sonnet-5-5
 effort: high
 tools: Read, Edit, Write, Bash, Grep, Glob, Skill, mcp__codebase-memory-mcp, mcp__claude_ai_Context7

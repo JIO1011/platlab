@@ -11,6 +11,7 @@ import { SectionHeader } from '../../app/section-header';
 import { QueryErrorState } from '../../app/states';
 import { labsErrorMessage, useArchiveForm, usePublishForm, useRenameForm, useUploadFormLogo, useVersionConflict } from './commands';
 import { useLabs } from './context';
+import { softCard } from './style';
 import { draftFrom, formIssues, noIssues, publishPayload, type Draft, type FormIssues } from './form-draft';
 import { FormPaper } from './form-paper';
 import { FormPrint } from './form-print';
@@ -166,7 +167,7 @@ export function LabsFormPage() {
             <Skeleton className="h-64 rounded-card" />
           </div>
         ) : form.isError ? (
-          <div className="rounded-card bg-surface shadow-raised">
+          <div className={softCard}>
             <QueryErrorState error={form.error} onRetry={() => void form.refetch()} />
           </div>
         ) : current && shown ? (

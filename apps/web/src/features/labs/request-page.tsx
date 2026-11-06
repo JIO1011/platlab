@@ -12,6 +12,7 @@ import { RequestEditor } from './request-editor';
 import type { RequestView } from './request-draft';
 import { RequestHeading } from './request-status';
 import { FilledRequest } from './request-readonly';
+import { softCard } from './style';
 
 /** Lo que pidió quien revisó, arriba y a la vista, mientras la solicitud espera su corrección. */
 function ChangesNotice({ request }: { request: RequestView }) {
@@ -38,7 +39,7 @@ function RequestSheet({ request }: { request: RequestView }) {
   const cancellable = canOperate && request.mine && REQUEST_CANCELLABLE.includes(request.status);
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       <RequestHeading request={request}>
         {cancellable && !editable && !cancelling ? (
           <Button variant="ghost" size="sm" className="h-11 sm:ml-auto sm:h-8" aria-haspopup="dialog" onClick={() => setCancelling(true)}>
@@ -54,24 +55,33 @@ function RequestSheet({ request }: { request: RequestView }) {
 }
 
 /**
- * Abre una solicitud por su id en la sección de la que viene (`parent`): su código, la carga y el error. Quien la usa
- * pone lo que se ve de la solicitud ya leída.
+ * Abre una solicitud por su id en la sección de la que viene (`parent`): su título, la carga y el error. Quien la usa
+ * pone lo que se ve de la solicitud ya leída y, si quiere, sus acciones junto al título.
  */
-export function OpenRequest({ parent, children }: { parent: 'solicitudes' | 'recibidas'; children: (request: RequestView) => ReactNode }) {
+export function OpenRequest({
+  parent,
+  actions,
+  children,
+}: {
+  parent: 'solicitudes' | 'recibidas';
+  /** Lo que va a la derecha del título, con la solicitud ya leída (en la bandeja, las acciones de quien revisa). */
+  actions?: (request: RequestView) => ReactNode;
+  children: (request: RequestView) => ReactNode;
+}) {
   const { requestId = '' } = useParams();
   const { workspaceId } = useLabs();
   const request = useRequest(workspaceId, requestId);
 
   return (
     <WithBack parent={`/e/${workspaceId}/laboratorios/${parent}`}>
-      <SectionHeader title={request.data?.title ?? request.data?.formName ?? 'Solicitud'} updatedAt={request.dataUpdatedAt} />
-      <div className="mt-6">
+      <SectionHeader title={request.data?.title ?? request.data?.formName ?? 'Solicitud'} updatedAt={request.dataUpdatedAt} actions={request.data ? actions?.(request.data) : undefined} />
+      <div className="mt-8">
         {request.isPending ? (
           <div aria-busy="true">
             <Skeleton className="h-64 rounded-card" />
           </div>
         ) : request.isError ? (
-          <div className="rounded-card bg-surface shadow-raised">
+          <div className={softCard}>
             <QueryErrorState error={request.error} onRetry={() => void request.refetch()} />
           </div>
         ) : (

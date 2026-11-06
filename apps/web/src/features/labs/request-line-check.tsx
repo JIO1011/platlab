@@ -2,7 +2,7 @@ import type { RequestLine } from '@platlab/contracts';
 import { Badge, Quantity } from '@platlab/ui';
 import { Check, TriangleAlert, X } from 'lucide-react';
 
-const checks = {
+export const lineChecks = {
   ok: { Icon: Check, label: 'Alcanza', tone: 'success' },
   short: { Icon: TriangleAlert, label: 'No alcanza', tone: 'warning' },
   unverified: { Icon: X, label: 'Sin verificar', tone: 'neutral' },
@@ -10,7 +10,7 @@ const checks = {
 
 /** Lo que dijo el servidor de una línea al guardar: ✔ alcanza, ⚠ no alcanza, ✖ sin inventario que lo verifique, con lo disponible. */
 export function LineCheck({ line, compact = false }: { line: RequestLine; compact?: boolean }) {
-  const { Icon, label, tone } = checks[line.check];
+  const { Icon, label, tone } = lineChecks[line.check];
   const note = compact ? 'text-[11px] whitespace-nowrap text-ink-muted' : 'text-[13px] text-ink-muted';
   return (
     <span className={compact ? 'flex flex-col items-start gap-0.5' : 'flex flex-wrap items-center gap-x-2 gap-y-1'}>

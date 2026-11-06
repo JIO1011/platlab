@@ -7,12 +7,14 @@ import { todayInZone } from '../../app/format';
 import { labsErrorMessage, useSaveRequest, useSubmitRequest, useVersionConflict } from './commands';
 import { useLabs } from './context';
 import { FormPaper, type PaperSlots } from './form-paper';
-import { useRequestOptions } from './queries';
+import { fetchRequestReview, useRequestOptions } from './queries';
 import { CancelRequest } from './request-cancel';
 import { CellNote, FillValue, bare, type FillState } from './request-cells';
 import { draftFrom, missingKeys, noIssues, paperOf, requestIssues, sameDraft, saveBody, type RequestDraft, type RequestIssues, type RequestView } from './request-draft';
 import { RequestHistory } from './request-history';
 import { FillRows } from './request-lines';
+import { reviewRows, type ReviewRow } from './send-review';
+import { SendReviewSheet } from './send-review-sheet';
 
 /** Lo que se editó y la versión en que se empezó: es la que el servidor compara, aunque la pantalla se refresque. */
 interface Edit {
@@ -59,10 +61,13 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
   const [error, setError] = useState<string | null>(null);
   const [attempted, setAttempted] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  /** Lo que no alcanza, mostrado antes de enviar, con la versión ya guardada que se enviaría. */
+  const [review, setReview] = useState<{ rows: ReviewRow[]; version: number } | null>(null);
+  const [reviewing, setReviewing] = useState(false);
 
   const shown = edit?.draft ?? stored;
   const dirty = edit !== null && !sameDraft(edit.draft, stored, request.layout);
-  const busy = save.isPending || submit.isPending;
+  const busy = save.isPending || submit.isPending || reviewing;
   const missing = useMemo(() => (attempted ? missingKeys(shown, request.layout) : new Set<string>()), [attempted, shown, request.layout]);
 
   const change = (patch: Partial<RequestDraft>) => {
@@ -112,10 +117,26 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
     }
     const version = await persist();
     if (version === null) return;
+    // La revisión solo informa (ADR 0023): si algo no alcanza se muestra con sus alternativas; si no se pudo revisar, se envía igual.
+    setReviewing(true);
+    const rows = await fetchRequestReview(workspaceId, request.id)
+      .then(reviewRows)
+      .catch((): ReviewRow[] => []);
+    setReviewing(false);
+    if (rows.some((row) => !row.ok)) {
+      setReview({ rows, version });
+      return;
+    }
+    await confirmSend(version);
+  };
+
+  const confirmSend = async (version: number) => {
     try {
       await submit.mutateAsync({ expectedVersion: version });
+      setReview(null);
       toast.success('Solicitud enviada', { description: request.code });
     } catch (failure) {
+      setReview(null);
       fail(failure);
     }
   };
@@ -154,6 +175,13 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
       <AreaBar draft={shown} spaces={spaces} error={issues.fields['areaId']} onChange={(areaId) => change({ areaId })} />
       <FormPaper mode="fill" draft={paper} workspaceName={me.workspace.name} revision={request.formRevision} slots={slots} />
       <RequestHistory events={request.events} timeZone={me.workspace.timeZone} />
+      <SendReviewSheet
+        rows={review?.rows ?? []}
+        open={review !== null}
+        sending={submit.isPending}
+        onBack={() => setReview(null)}
+        onSend={() => void (review && confirmSend(review.version))}
+      />
       <div className="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line bg-surface px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:sticky md:inset-x-auto md:bottom-3 md:rounded-control md:border md:px-4 md:py-2 md:shadow-float">
         {cancelling ? (
           <div className="w-full">
@@ -170,7 +198,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
             <Button className="h-11 max-md:flex-1 md:h-10" loading={save.isPending} disabled={busy || !dirty} onClick={() => void saveDraft()}>
               Guardar borrador
             </Button>
-            <Button variant="primary" className="h-11 max-md:flex-1 md:h-10" loading={submit.isPending} disabled={busy} onClick={() => void send()}>
+            <Button variant="primary" className="h-11 max-md:flex-1 md:h-10" loading={submit.isPending || reviewing} disabled={busy} onClick={() => void send()}>
               Enviar
             </Button>
           </>

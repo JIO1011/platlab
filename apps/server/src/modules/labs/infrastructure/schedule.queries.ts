@@ -119,8 +119,13 @@ export interface ILockRequestForScheduleParams {
 
 /** 'LockRequestForSchedule' return type */
 export interface ILockRequestForScheduleResult {
+  area_id: string | null;
   dates: stringArray;
+  ends_at: string | null;
+  number: number;
   participants: number;
+  scheduled_dates: stringArray;
+  starts_at: string | null;
   status: string;
   version: number;
 }
@@ -131,13 +136,17 @@ export interface ILockRequestForScheduleQuery {
   result: ILockRequestForScheduleResult;
 }
 
-const lockRequestForScheduleIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":231,"b":243}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":254,"b":264}]}],"statement":"-- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.\nSELECT status, version, dates::text[] AS \"dates!\", coalesce(participants, 0) AS \"participants!\"\nFROM labs.requests\nWHERE workspace_id = :workspaceId! AND id = :requestId!\nFOR UPDATE"};
+const lockRequestForScheduleIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":541,"b":553}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":564,"b":574}]}],"statement":"-- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.\nSELECT number, status, version, dates::text[] AS \"dates!\", coalesce(participants, 0) AS \"participants!\", area_id,\n  to_char(starts_at, 'HH24:MI') AS starts_at, to_char(ends_at, 'HH24:MI') AS ends_at,\n  ARRAY(SELECT a.on_date::text FROM labs.activities AS a\n         WHERE a.workspace_id = labs.requests.workspace_id AND a.request_id = labs.requests.id AND a.cancelled_at IS NULL)\n    AS \"scheduled_dates!\"\nFROM labs.requests\nWHERE workspace_id = :workspaceId! AND id = :requestId!\nFOR UPDATE"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.
- * SELECT status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!"
+ * SELECT number, status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!", area_id,
+ *   to_char(starts_at, 'HH24:MI') AS starts_at, to_char(ends_at, 'HH24:MI') AS ends_at,
+ *   ARRAY(SELECT a.on_date::text FROM labs.activities AS a
+ *          WHERE a.workspace_id = labs.requests.workspace_id AND a.request_id = labs.requests.id AND a.cancelled_at IS NULL)
+ *     AS "scheduled_dates!"
  * FROM labs.requests
  * WHERE workspace_id = :workspaceId! AND id = :requestId!
  * FOR UPDATE
@@ -157,6 +166,7 @@ export interface IScheduleContextParams {
 /** 'ScheduleContext' return type */
 export interface IScheduleContextResult {
   abbreviation: string;
+  area_name: string;
   capacity: number;
   closures: Json;
   others: Json;
@@ -170,7 +180,7 @@ export interface IScheduleContextQuery {
   result: IScheduleContextResult;
 }
 
-const scheduleContextIR: any = {"usedParamSet":{"date":true,"exceptId":true,"workspaceId":true,"areaId":true},"params":[{"name":"date","required":false,"transform":{"type":"scalar"},"locs":[{"a":765,"b":769},{"a":1085,"b":1089}]},{"name":"exceptId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1156,"b":1164}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1231,"b":1243}]},{"name":"areaId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1261,"b":1268}]}],"statement":"-- Lo que decide si se puede programar en el área ese día, leído en la misma transacción: aforo y horario del área\n-- activa, períodos activos, cierres vigentes (del área y comunes) y los demás bloques activos del área.\nSELECT s.capacity, s.weekly_hours, s.abbreviation,\n  (SELECT coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'code', p.code, 'startsOn', p.starts_on, 'endsOn', p.ends_on)), '[]')\n     FROM labs.periods AS p WHERE p.workspace_id = s.workspace_id AND p.archived_at IS NULL) AS \"periods!\",\n  (SELECT coalesce(jsonb_agg(jsonb_build_object('startsOn', c.starts_on, 'endsOn', c.ends_on)), '[]')\n     FROM labs.closures AS c\n    WHERE c.workspace_id = s.workspace_id AND c.voided_at IS NULL AND (c.area_id IS NULL OR c.area_id = s.area_id)\n      AND :date::date BETWEEN c.starts_on AND c.ends_on) AS \"closures!\",\n  (SELECT coalesce(jsonb_agg(jsonb_build_object('startsAt', to_char(a.starts_at, 'HH24:MI'), 'endsAt', to_char(a.ends_at, 'HH24:MI'))), '[]')\n     FROM labs.activities AS a\n    WHERE a.workspace_id = s.workspace_id AND a.area_id = s.area_id AND a.on_date = :date::date AND a.cancelled_at IS NULL\n      AND a.id IS DISTINCT FROM :exceptId::uuid) AS \"others!\"\nFROM labs.spaces AS s\nWHERE s.workspace_id = :workspaceId! AND s.area_id = :areaId! AND s.archived_at IS NULL"};
+const scheduleContextIR: any = {"usedParamSet":{"date":true,"exceptId":true,"workspaceId":true,"areaId":true},"params":[{"name":"date","required":false,"transform":{"type":"scalar"},"locs":[{"a":882,"b":886},{"a":1202,"b":1206}]},{"name":"exceptId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1273,"b":1281}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1348,"b":1360}]},{"name":"areaId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1378,"b":1385}]}],"statement":"-- Lo que decide si se puede programar en el área ese día, leído en la misma transacción: aforo y horario del área\n-- activa, períodos activos, cierres vigentes (del área y comunes) y los demás bloques activos del área.\nSELECT s.capacity, s.weekly_hours, s.abbreviation,\n  (SELECT name FROM core.locations AS l WHERE l.workspace_id = s.workspace_id AND l.id = s.area_id) AS \"area_name!\",\n  (SELECT coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'code', p.code, 'startsOn', p.starts_on, 'endsOn', p.ends_on)), '[]')\n     FROM labs.periods AS p WHERE p.workspace_id = s.workspace_id AND p.archived_at IS NULL) AS \"periods!\",\n  (SELECT coalesce(jsonb_agg(jsonb_build_object('startsOn', c.starts_on, 'endsOn', c.ends_on)), '[]')\n     FROM labs.closures AS c\n    WHERE c.workspace_id = s.workspace_id AND c.voided_at IS NULL AND (c.area_id IS NULL OR c.area_id = s.area_id)\n      AND :date::date BETWEEN c.starts_on AND c.ends_on) AS \"closures!\",\n  (SELECT coalesce(jsonb_agg(jsonb_build_object('startsAt', to_char(a.starts_at, 'HH24:MI'), 'endsAt', to_char(a.ends_at, 'HH24:MI'))), '[]')\n     FROM labs.activities AS a\n    WHERE a.workspace_id = s.workspace_id AND a.area_id = s.area_id AND a.on_date = :date::date AND a.cancelled_at IS NULL\n      AND a.id IS DISTINCT FROM :exceptId::uuid) AS \"others!\"\nFROM labs.spaces AS s\nWHERE s.workspace_id = :workspaceId! AND s.area_id = :areaId! AND s.archived_at IS NULL"};
 
 /**
  * Query generated from SQL:
@@ -178,6 +188,7 @@ const scheduleContextIR: any = {"usedParamSet":{"date":true,"exceptId":true,"wor
  * -- Lo que decide si se puede programar en el área ese día, leído en la misma transacción: aforo y horario del área
  * -- activa, períodos activos, cierres vigentes (del área y comunes) y los demás bloques activos del área.
  * SELECT s.capacity, s.weekly_hours, s.abbreviation,
+ *   (SELECT name FROM core.locations AS l WHERE l.workspace_id = s.workspace_id AND l.id = s.area_id) AS "area_name!",
  *   (SELECT coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'code', p.code, 'startsOn', p.starts_on, 'endsOn', p.ends_on)), '[]')
  *      FROM labs.periods AS p WHERE p.workspace_id = s.workspace_id AND p.archived_at IS NULL) AS "periods!",
  *   (SELECT coalesce(jsonb_agg(jsonb_build_object('startsOn', c.starts_on, 'endsOn', c.ends_on)), '[]')

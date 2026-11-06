@@ -46,7 +46,7 @@ case "$event:$agent" in
     jq -n --arg c "$reviewer" '{hookSpecificOutput: {hookEventName: "SubagentStart", additionalContext: $c}}'
     exit 0
     ;;
-  SubagentStop:platlab-implementer | SubagentStop:platlab-ui-implementer | SubagentStop:platlab-assistant) ;;
+  SubagentStop:platlab-ui-implementer | SubagentStop:platlab-assistant) ;;
   *) exit 0 ;;
 esac
 

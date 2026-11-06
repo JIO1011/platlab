@@ -4,6 +4,7 @@ import { Fragment, useId, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { CodeTag } from '../../app/code-tag';
 import { RequestBadges } from './request-status';
+import { softCard } from './style';
 
 /** Un dato por línea en el móvil y todos en una, separados por puntos, desde `sm`. */
 function Facts({ facts }: { facts: readonly string[] }) {
@@ -45,31 +46,31 @@ export function RequestSection({
   const id = useId();
   const heading = (
     <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
-      <h2 id={id} className="text-lg font-bold text-ink">
+      <h2 id={id} className="text-xl font-bold tracking-tight text-ink">
         {title}
       </h2>
-      <span className="text-sm font-medium text-ink-muted tabular-nums">{count === 1 ? '1 solicitud' : `${count} solicitudes`}</span>
+      <span className="text-sm text-ink-muted tabular-nums">{count === 1 ? '1 solicitud' : `${count} solicitudes`}</span>
     </span>
   );
-  const hinted = hint ? <span className="mt-0.5 block text-sm text-ink-muted">{hint}</span> : null;
-  const card = 'min-w-0 rounded-card bg-surface shadow-raised';
+  const hinted = hint ? <span className="mt-1 block text-sm text-ink-muted">{hint}</span> : null;
+  const card = `min-w-0 ${softCard}`;
 
   if (collapsible) {
     return (
       <details className={`group ${card}`}>
-        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-card p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:p-6 [&::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-card p-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action sm:p-8 [&::-webkit-details-marker]:hidden">
           <span className="min-w-0">
             {heading}
             {hinted}
           </span>
           <ChevronDown className="size-5 shrink-0 text-ink-muted transition-transform group-open:rotate-180" aria-hidden />
         </summary>
-        <div className="px-5 pb-5 sm:px-6 sm:pb-6">{children}</div>
+        <div className="px-6 pb-6 sm:px-8 sm:pb-8">{children}</div>
       </details>
     );
   }
   return (
-    <article aria-labelledby={id} className={`${card} p-5 sm:p-6`}>
+    <article aria-labelledby={id} className={`${card} p-6 sm:p-8`}>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
           {heading}
@@ -84,12 +85,13 @@ export function RequestSection({
 
 /** Las filas de una sección, con divisor; llegan al borde de la tarjeta para que el foco ocupe todo el ancho. */
 export function RequestList({ label, children }: { label: string; children: ReactNode }) {
-  return <ul aria-label={label} className="-mx-5 mt-3 divide-y divide-line sm:-mx-6">{children}</ul>;
+  return <ul aria-label={label} className="-mx-6 -mb-3 mt-4 divide-y divide-line sm:-mx-8">{children}</ul>;
 }
 
 /**
  * Una fila de solicitud: código, título (el enlace que abre la hoja, extendido a toda la fila), datos y, a la derecha,
- * la pastilla de estado (salvo `hideStatus`), «Fuera de plazo» y lo que sume `badges`. `action` (p. ej. «Duplicar») queda sobre el enlace.
+ * la pastilla de estado (salvo `hideStatus`), «Fuera de plazo» y lo que sume `badges`. `action` (p. ej. «Duplicar») y
+ * `leading` (la casilla de elegir la fila) quedan sobre el enlace.
  */
 export function RequestItem({
   to,
@@ -98,6 +100,7 @@ export function RequestItem({
   note,
   badges,
   action,
+  leading,
   hideStatus = false,
 }: {
   to: string;
@@ -106,17 +109,20 @@ export function RequestItem({
   note?: string;
   badges?: ReactNode;
   action?: ReactNode;
+  /** Va antes del código, a la izquierda: la casilla con que se elige la fila. */
+  leading?: ReactNode;
   /** Quita la pastilla de estado cuando toda la lista es del mismo estado; «Fuera de plazo» y `badges` se quedan. */
   hideStatus?: boolean;
 }) {
   return (
-    <li className="relative flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-5 py-3.5 transition-colors hover:bg-surface-sunken/40 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-action sm:px-6">
-      <div className="grid min-w-0 flex-1 basis-56 gap-1">
+    <li className="relative flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-6 py-4 transition-colors hover:bg-action-soft/60 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-action sm:px-8">
+      {leading ? <span className="relative z-10 -my-2.5 -ml-2.5 shrink-0">{leading}</span> : null}
+      <div className="grid min-w-0 flex-1 basis-56 gap-1.5">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <CodeTag>{request.code}</CodeTag>
           <Link
             to={to}
-            className={`min-w-0 break-words after:absolute after:inset-0 focus-visible:outline-none ${request.title ? 'font-semibold text-ink' : 'text-ink-muted'}`}
+            className={`min-w-0 break-words after:absolute after:inset-0 focus-visible:outline-none ${request.title ? 'text-[15px] font-semibold text-ink' : 'text-ink-muted'}`}
           >
             {request.title ?? 'Sin título'}
           </Link>

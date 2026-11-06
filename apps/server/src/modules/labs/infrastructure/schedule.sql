@@ -31,7 +31,11 @@ FOR UPDATE;
 
 /* @name lockRequestForSchedule */
 -- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.
-SELECT status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!"
+SELECT number, status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!", area_id,
+  to_char(starts_at, 'HH24:MI') AS starts_at, to_char(ends_at, 'HH24:MI') AS ends_at,
+  ARRAY(SELECT a.on_date::text FROM labs.activities AS a
+         WHERE a.workspace_id = labs.requests.workspace_id AND a.request_id = labs.requests.id AND a.cancelled_at IS NULL)
+    AS "scheduled_dates!"
 FROM labs.requests
 WHERE workspace_id = :workspaceId! AND id = :requestId!
 FOR UPDATE;
@@ -40,6 +44,7 @@ FOR UPDATE;
 -- Lo que decide si se puede programar en el área ese día, leído en la misma transacción: aforo y horario del área
 -- activa, períodos activos, cierres vigentes (del área y comunes) y los demás bloques activos del área.
 SELECT s.capacity, s.weekly_hours, s.abbreviation,
+  (SELECT name FROM core.locations AS l WHERE l.workspace_id = s.workspace_id AND l.id = s.area_id) AS "area_name!",
   (SELECT coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'code', p.code, 'startsOn', p.starts_on, 'endsOn', p.ends_on)), '[]')
      FROM labs.periods AS p WHERE p.workspace_id = s.workspace_id AND p.archived_at IS NULL) AS "periods!",
   (SELECT coalesce(jsonb_agg(jsonb_build_object('startsOn', c.starts_on, 'endsOn', c.ends_on)), '[]')
