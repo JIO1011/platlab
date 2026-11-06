@@ -1,4 +1,4 @@
-import { Button } from '@platlab/ui';
+import { Button, Select } from '@platlab/ui';
 import { Printer } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useLabs } from './context';
@@ -9,6 +9,8 @@ import { draftFrom, paperOf, valueText, type RequestView } from './request-draft
 import { RequestHistory } from './request-history';
 import { RequestHolds } from './request-holds';
 import { ViewRows } from './request-lines';
+import { blockAssets } from './practice-assets';
+import { shortDateText } from './schedule-placement';
 
 /**
  * La hoja del formato con lo que se llenó, de solo lectura (ADR 0023): para quien la envió y para quien revisa. Los datos
@@ -22,16 +24,20 @@ export function PaperSheet({ request, showFormat = false }: { request: RequestVi
   const donePrinting = useCallback(() => setPrinting(false), []);
   const paper = useMemo(() => paperOf(request), [request]);
   const draft = useMemo(() => draftFrom(request), [request]);
+  // La columna «Código» lleva los equipos apartados del bloque que se imprime; con varias fechas con equipos, se elige cuál.
+  const withAssets = request.blocks.filter((item) => blockAssets(request.lines, item).length > 0);
+  const [blockId, setBlockId] = useState<string | undefined>(undefined);
+  const block = withAssets.find((item) => item.activityId === blockId) ?? withAssets[0];
   const area = spaces.data?.items.find((space) => space.areaId === request.areaId);
 
   const slots = useMemo<PaperSlots>(
     () => ({
       value: (field) => valueText(field, draft, request.layout),
-      resourceRows: <ViewRows paper={paper} draft={draft} layout={request.layout} saved={request.lines} />,
+      resourceRows: <ViewRows paper={paper} draft={draft} layout={request.layout} saved={request.lines} block={block} />,
       notes: draft.notes,
       requester: request.requesterName,
     }),
-    [paper, draft, request],
+    [paper, draft, request, block],
   );
 
   return (
@@ -40,10 +46,25 @@ export function PaperSheet({ request, showFormat = false }: { request: RequestVi
         <p className="min-w-0 break-words text-sm text-ink-muted">
           {showFormat ? `${request.formName} · revisión ${request.formRevision} · ` : null}Área: <span className="font-medium text-ink">{area?.areaName ?? 'Sin área'}</span>
         </p>
-        <Button variant="secondary" className="h-11 shrink-0 sm:h-10" onClick={() => setPrinting(true)}>
-          <Printer aria-hidden />
-          Imprimir
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {paper.equipmentCode && withAssets.length > 1 && block ? (
+            <div className="w-44">
+              <Select
+                standalone
+                aria-label="Fecha de los códigos de equipos que se imprimen"
+                value={block.activityId}
+                onValueChange={setBlockId}
+                placeholder="Fecha"
+                triggerClassName="max-sm:h-11"
+                options={withAssets.map((item) => ({ value: item.activityId, label: `Códigos: ${shortDateText(item.date)}` }))}
+              />
+            </div>
+          ) : null}
+          <Button variant="secondary" className="h-11 shrink-0 sm:h-10" onClick={() => setPrinting(true)}>
+            <Printer aria-hidden />
+            Imprimir
+          </Button>
+        </div>
       </div>
       <FormPaper mode="view" draft={paper} workspaceName={me.workspace.name} revision={request.formRevision} slots={slots} />
       {printing ? <FormPrint draft={paper} workspaceName={me.workspace.name} revision={request.formRevision} slots={slots} onDone={donePrinting} /> : null}

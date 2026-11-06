@@ -13,6 +13,8 @@ export interface LabsContext extends ModuleContext {
   canReview: boolean;
   /** Programa y mueve bloques del Cronograma (`labs.schedule.manage`, Administrador); el Operador solo ve la tabla y la bandeja. */
   canSchedule: boolean;
+  /** Prepara, inicia y cierra los bloques y reporta incidencias de la práctica (`labs.schedule.lead`: Operador y Administrador, L-01e). */
+  canLead: boolean;
 }
 
 export const useLabs = () => useOutletContext<LabsContext>();

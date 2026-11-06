@@ -42,7 +42,7 @@ export function holdRows(lines: readonly Line[], block: Pick<Block, 'holds'>): H
       return [
         {
           line: hold.line,
-          text: `${line.name}: ${hold.assets.length > 0 ? hold.assets.join(', ') : 'ninguno apartado'}`,
+          text: `${line.name}: ${hold.assets.length > 0 ? hold.assets.map((asset) => asset.code).join(', ') : 'ninguno apartado'}`,
           missing: hold.complete ? null : left > 0 ? missingEquipment(line.name, left) : 'Falta',
         },
       ];

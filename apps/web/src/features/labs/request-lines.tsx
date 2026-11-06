@@ -1,4 +1,4 @@
-import { REQUEST_MAX_LINES, type FormLayout, type RequestLine, type RequestOptions } from '@platlab/contracts';
+import { REQUEST_MAX_LINES, type FormLayout, type LabsRequest, type RequestLine, type RequestOptions } from '@platlab/contracts';
 import { cn, formatDecimal, normalizeDecimalInput } from '@platlab/ui';
 import { Plus, X } from 'lucide-react';
 import { Fragment, type ReactElement, type ReactNode } from 'react';
@@ -7,6 +7,7 @@ import type { Draft, ResourceKind } from './form-draft';
 import { sheetCell } from './form-resources';
 import { resourceRows } from './form-sheet';
 import { denseCell } from './form-parts';
+import { lineCodes } from './practice-assets';
 import { CellNote, Frame, bare } from './request-cells';
 import { CatalogPicker } from './request-catalog-picker';
 import { LineCheck } from './request-line-check';
@@ -21,8 +22,8 @@ import {
   type DraftMaterial,
   type DraftReagent,
   type RequestDraft,
-  type RequestIssues,
 } from './request-draft';
+import type { RequestIssues } from './request-draft-issues';
 
 /** Cuántas celdas ocupa cada recurso en la tabla de la hoja: su nombre y sus cantidades (y el código de los equipos). */
 const cellCount = (kind: ResourceKind, equipmentCode: boolean): number => (kind === 'reagents' ? 2 : kind === 'equipment' ? 3 + (equipmentCode ? 1 : 0) : 3);
@@ -44,6 +45,8 @@ interface TableProps {
   layout: FormLayout;
   /** Lo que el servidor dijo de cada línea al guardar; con cambios sin guardar es `null`. */
   saved: readonly RequestLine[] | null;
+  /** El bloque de la hoja que se imprime: sus equipos apartados llenan la columna «Código» (L-01e). Sin bloque, queda en blanco. */
+  block?: Pick<LabsRequest['blocks'][number], 'holds'> | undefined;
 }
 
 /** Las columnas de Recursos que la hoja muestra, en su orden, y cuántas filas de líneas hacen falta para el recurso con más. */
@@ -300,7 +303,7 @@ function viewAmounts(line: DraftLine, groups: number): [course: string, group: s
 const viewCell = cn(sheetCell, denseCell, 'bg-white');
 
 /** Una línea en la hoja de solo lectura: su nombre con su ✔ ⚠ ✖ (que no se imprime) y sus cantidades, o las celdas en blanco. */
-function viewCells(found: { line: DraftLine; index: number } | undefined, { paper, draft, layout, saved }: TableProps, kind: ResourceKind, prefix: string): ReactElement[] {
+function viewCells(found: { line: DraftLine; index: number } | undefined, { paper, draft, layout, saved, block }: TableProps, kind: ResourceKind, prefix: string): ReactElement[] {
   if (!found) return Array.from({ length: cellCount(kind, paper.equipmentCode) }, (_, at) => <td key={`${prefix}-${at}`} className={viewCell} />);
   const { line, index } = found;
   const verdict = saved?.[index];
@@ -319,7 +322,7 @@ function viewCells(found: { line: DraftLine; index: number } | undefined, { pape
         </div>
       ) : null}
     </td>,
-    ...(line.kind === 'reagent' ? [quantity('total', course)] : [quantity('course', course), quantity('group', group), ...(kind === 'equipment' && paper.equipmentCode ? [quantity('code', '')] : [])]),
+    ...(line.kind === 'reagent' ? [quantity('total', course)] : [quantity('course', course), quantity('group', group), ...(kind === 'equipment' && paper.equipmentCode ? [quantity('code', lineCodes(block, index + 1))] : [])]),
   ];
 }
 

@@ -14,6 +14,8 @@ declare module '../../app/web-module' {
     'equipment.asset-next': { assetId: string; assetIds: string[] };
     /** Una acción de la hoja de un incidente reportado o en reparación, para quien lo atiende. */
     'equipment.fault-action': { faultId: string; assetId: string };
+    /** Contexto de un incidente que otro módulo conoce (L-01e: la práctica en que se reportó); pinta algo o nada. */
+    'equipment.fault-context': { faultId: string };
     /** Una línea de estado en la cabecera de la ficha, bajo el estado del equipo (M-01d: la calibración). */
     'equipment.asset-status': { assetId: string };
     /**
@@ -27,5 +29,6 @@ declare module '../../app/web-module' {
 export const ASSET_TAB = 'equipment.asset-tab';
 export const ASSET_NEXT = 'equipment.asset-next';
 export const FAULT_ACTION = 'equipment.fault-action';
+export const FAULT_CONTEXT = 'equipment.fault-context';
 export const ASSET_STATUS = 'equipment.asset-status';
 export const ASSET_EVENTS = 'equipment.asset-events';
