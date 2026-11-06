@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado del proyecto
 
-PlatLab es un SaaS modular para laboratorios. Está hecho el primer incremento (monorepo pnpm con `apps/server`, `apps/web`, `packages/contracts`, `packages/modules` y `packages/ui`; Core, admisión de dos ejes, capacidad `inventory`, módulo `reagents`, web) y el módulo Reactivos está en etapa `pilot`. No hay infraestructura desplegada. El estado, lo que sigue y las decisiones cerradas están en [docs/README.md](docs/README.md).
+PlatLab es un SaaS modular para laboratorios. Está hecho el primer incremento (monorepo pnpm con `apps/server`, `apps/web`, `packages/contracts`, `packages/modules` y `packages/ui`; Core, admisión de dos ejes, capacidad `inventory`, módulo `reagents`, web) y los módulos Reactivos y Laboratorios están en etapa `pilot`. No hay infraestructura desplegada. El estado, lo que sigue y las decisiones cerradas están en [docs/README.md](docs/README.md).
 
 ## Comandos
 

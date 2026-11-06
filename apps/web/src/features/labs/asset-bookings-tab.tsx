@@ -1,10 +1,9 @@
 import { Skeleton } from '@platlab/ui';
 import { useParams } from 'react-router';
 import { QueryErrorState } from '../../app/states';
-import { Pill } from './request-status';
 import { useAssetBookings } from './queries';
-import { stageLabels, stageTones } from './practice-stage';
 import { shortDateText } from './schedule-placement';
+import { StagePill } from './stage-pill';
 
 /**
  * La pestaña «Reservas» de la ficha del equipo (L-01e, ADR 0023; punto de extensión de Equipos): las próximas reservas
@@ -13,7 +12,12 @@ import { shortDateText } from './schedule-placement';
 export function AssetBookingsTab({ assetId }: { assetId: string }) {
   const { workspaceId = '' } = useParams();
   const bookings = useAssetBookings(workspaceId, assetId);
-  if (bookings.isPending) return <Skeleton className="h-32" />;
+  if (bookings.isPending)
+    return (
+      <div role="status" aria-busy="true" aria-label="Cargando reservas">
+        <Skeleton className="h-32" />
+      </div>
+    );
   if (bookings.isError) return <QueryErrorState error={bookings.error} onRetry={() => void bookings.refetch()} />;
 
   const { items } = bookings.data;
@@ -36,7 +40,7 @@ export function AssetBookingsTab({ assetId }: { assetId: string }) {
                   {item.startsAt}–{item.endsAt}
                 </span>
                 <span className="font-mono text-[13px] tabular-nums text-ink-muted">{item.code}</span>
-                <Pill tone={stageTones[item.stage]}>{stageLabels[item.stage]}</Pill>
+                <StagePill stage={item.stage} />
               </p>
               <p className="break-words text-[13px] text-ink-muted">
                 {item.areaName} · {item.requesterName}

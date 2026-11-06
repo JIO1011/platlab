@@ -17,7 +17,7 @@ function CoverageBar({ row }: { row: ResourceRow }) {
   if (row.percent === null) return <span aria-hidden className="h-2 rounded-full border border-dashed border-line-strong" />;
   return (
     <span role="img" aria-label={`Cubre el ${row.percent} % de lo pedido`} className="h-2 overflow-hidden rounded-full bg-ink/10">
-      <span className={cn('block h-full rounded-full transition-[width] duration-300', tones[row.tone].bar)} style={{ width: row.percent === 0 ? '4px' : `${row.percent}%` }} />
+      <span className={cn('block h-full rounded-full', tones[row.tone].bar)} style={{ width: row.percent === 0 ? '4px' : `${row.percent}%` }} />
     </span>
   );
 }

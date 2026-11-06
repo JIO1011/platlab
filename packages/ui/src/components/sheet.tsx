@@ -19,6 +19,8 @@ export interface SheetProps {
   wide?: boolean | 'xl';
   /** Quién recibe el foco al abrir; por omisión, el primer control tabulable (Radix). */
   initialFocus?: RefObject<HTMLElement | null> | undefined;
+  /** A quién vuelve el foco al cerrar cuando no es quien abrió (p. ej., el botón desapareció con el cambio que la hoja confirmó); `null`, quien abrió. */
+  returnFocus?: (() => HTMLElement | null) | undefined;
   /** En pantallas de menos de 640 px ocupa toda la pantalla (formularios largos); desde ahí, igual que las demás. */
   fullscreenMobile?: boolean;
   /** Sin `initialFocus`, abre en el primer campo del cuerpo (o su primer botón) y no en «Cerrar». */
@@ -36,7 +38,7 @@ const firstControl = 'button:not(:disabled), a[href]';
  * Material (ADR 0010, 13-10-2026): vidrio esmerilado, blanco al 80 % con desenfoque y saturación
  * sobre un velo claro; sin `backdrop-filter`, superficie sólida.
  */
-export function Sheet({ open, onOpenChange, title, description, icon: Icon, children, footer, wide = false, initialFocus, fullscreenMobile = false, focusFirst = false }: SheetProps) {
+export function Sheet({ open, onOpenChange, title, description, icon: Icon, children, footer, wide = false, initialFocus, returnFocus, fullscreenMobile = false, focusFirst = false }: SheetProps) {
   // Quien abrió la hoja recibe el foco al cerrarla; si ya no está (la fila desapareció), el encabezado de la página.
   const content = useRef<HTMLDivElement | null>(null);
   const bodyNode = useRef<HTMLDivElement | null>(null);
@@ -74,7 +76,7 @@ export function Sheet({ open, onOpenChange, title, description, icon: Icon, chil
           }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            const target = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>('[data-focus-fallback]');
+            const target = returnFocus?.() ?? (opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>('[data-focus-fallback]'));
             target?.focus();
           }}
           onEscapeKeyDown={(event) => {

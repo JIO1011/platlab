@@ -281,6 +281,13 @@
   border-color: var(--color-action-deep);
   outline-color: var(--color-action-deep);
 }
+/* Las variantes de estado (foco de Input y Select; pestaña activa de Tabs) también pintan el borde en oro oscuro. */
+[data-module='labs'] .focus-visible\:border-action:focus-visible {
+  border-color: var(--color-action-deep);
+}
+[data-module='labs'] .data-\[state\=active\]\:border-action[data-state='active'] {
+  border-color: var(--color-action-deep);
+}
 [data-module='labs'] :focus-visible {
   outline-color: var(--color-action-deep);
 }

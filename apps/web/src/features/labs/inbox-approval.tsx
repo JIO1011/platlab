@@ -8,7 +8,7 @@ import { softCard } from './style';
 export function RowCheckbox({ code, checked, onChange }: { code: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <label className="flex size-11 cursor-pointer items-center justify-center">
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} aria-label={`Elegir ${code}`} className="size-5 cursor-pointer accent-action" />
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} aria-label={`Elegir ${code}`} className="size-5 cursor-pointer accent-action-deep" />
     </label>
   );
 }
@@ -21,13 +21,13 @@ export function ApprovalSummaryCard({ summary, onDismiss }: { summary: ReturnTyp
   const id = useId();
   const { lines, programmed, failed } = summary;
   return (
-    <section aria-labelledby={id} role="status" className={cn(softCard, 'grid gap-4 p-5 sm:p-6')}>
+    <section aria-labelledby={id} className={cn(softCard, 'grid gap-4 p-5 sm:p-6')}>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div>
           <h2 id={id} className="text-lg font-bold tracking-tight text-ink">
             Resultado de la aprobación
           </h2>
-          <p className="mt-0.5 text-sm text-ink-muted">
+          <p role="status" className="mt-0.5 text-sm text-ink-muted">
             {programmed === 1 ? '1 solicitud programada' : `${programmed} solicitudes programadas`}
             {failed > 0 ? ` · ${failed === 1 ? '1 sin programar' : `${failed} sin programar`}` : ''}
           </p>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blockAssets, lineCodes } from './practice-assets';
-import { canReportIncident, checklistNote, isChangeable, startBlockedReason, toggleLine, uncheckedCount } from './practice-stage';
+import { canReportIncident, checklistNote, isChangeable, stageMarks, stageTones, startBlockedReason, toggleLine, uncheckedCount } from './practice-stage';
 
 describe('etapas de un bloque', () => {
   it('cambia y marca la lista solo antes de empezar', () => {
@@ -9,6 +9,15 @@ describe('etapas de un bloque', () => {
 
   it('reporta incidencias solo en curso o cerrada', () => {
     expect(['scheduled', 'ready', 'running', 'closed'].map((stage) => canReportIncident(stage as 'scheduled'))).toEqual([false, false, true, true]);
+  });
+
+  it('reserva el ámbar para lo pendiente de decidir: ninguna etapa lo usa', () => {
+    expect(Object.values(stageTones)).not.toContain('warning');
+    expect(stageTones).toEqual({ scheduled: 'neutral', ready: 'neutral', running: 'strong', closed: 'success' });
+  });
+
+  it('marca con un ícono cada etapa distinta de «Programada»', () => {
+    expect(Object.keys(stageMarks)).toEqual(['ready', 'running', 'closed']);
   });
 
   it('marca y desmarca líneas sin repetirlas y en orden', () => {

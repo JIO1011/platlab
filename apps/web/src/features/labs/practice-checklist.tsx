@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { isApiError } from '../../app/api';
 import { labsErrorMessage, useVersionConflict } from './commands';
 import { lineCodes } from './practice-assets';
-import { useSaveChecklist } from './practice-commands';
+import type { useSaveChecklist } from './practice-commands';
 import { toggleLine } from './practice-stage';
 import type { RequestView } from './request-draft';
 
@@ -18,15 +18,27 @@ function lineDetail(line: Line, block: Block, number: number): string {
 
 /**
  * La lista de chequeo de un bloque (L-01e): una casilla por línea de la solicitud, mientras el bloque no empieza. Cada
- * casilla guarda al marcarse y cambia solo con lo que el servidor confirma; mientras guarda, las demás esperan para no
- * pisar la versión del bloque. No bloquea «Marcar lista».
+ * casilla guarda al marcarse y cambia solo con lo que el servidor confirma; mientras guarda (o mientras se marca lista o
+ * se inicia, `locked`), las demás esperan para no pisar la versión del bloque. No bloquea «Marcar lista».
  */
-export function PracticeChecklist({ workspaceId, request, block }: { workspaceId: string; request: RequestView; block: Block }) {
-  const save = useSaveChecklist(workspaceId, block.activityId);
+export function PracticeChecklist({
+  workspaceId,
+  request,
+  block,
+  save,
+  locked,
+}: {
+  workspaceId: string;
+  request: RequestView;
+  block: Block;
+  save: ReturnType<typeof useSaveChecklist>;
+  locked: boolean;
+}) {
   const conflict = useVersionConflict(workspaceId);
   const [error, setError] = useState<string | null>(null);
 
   const toggle = async (number: number, checked: boolean) => {
+    if (save.isPending || locked) return;
     setError(null);
     try {
       await save.mutateAsync({ expectedVersion: block.version, lines: toggleLine(block.preparedLines, number, checked) });
@@ -49,9 +61,9 @@ export function PracticeChecklist({ workspaceId, request, block }: { workspaceId
               <label className="flex min-h-11 cursor-pointer items-start gap-3 py-2 text-sm text-ink sm:min-h-9 sm:py-1.5">
                 <input
                   type="checkbox"
-                  className="mt-0.5 size-5 shrink-0 cursor-pointer accent-action sm:mt-px sm:size-4"
+                  className="mt-0.5 size-5 shrink-0 cursor-pointer accent-action-deep sm:mt-px sm:size-4"
                   checked={block.preparedLines.includes(number)}
-                  disabled={save.isPending}
+                  disabled={save.isPending || locked}
                   onChange={(event) => void toggle(number, event.target.checked)}
                 />
                 <span className="min-w-0 break-words">

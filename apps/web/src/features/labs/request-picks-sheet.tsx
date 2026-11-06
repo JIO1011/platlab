@@ -1,4 +1,4 @@
-import { toast, Input, formatDecimal } from '@platlab/ui';
+import { Button, toast, Input, formatDecimal } from '@platlab/ui';
 import { FlaskConical } from 'lucide-react';
 import { useState } from 'react';
 import { isApiError } from '../../app/api';
@@ -44,7 +44,7 @@ export function RequestPicksSheet({
   };
 
   const submit = async () => {
-    if (!summary?.canSave) return;
+    if (!summary?.canSave || save.isPending) return;
     setGeneralError(null);
     try {
       await save.mutateAsync({ expectedVersion: block.version, picks: summary.picks });
@@ -88,11 +88,16 @@ export function RequestPicksSheet({
       }
     >
       {options.isPending ? (
-        <p className="text-sm text-ink-muted">Cargando los frascos…</p>
-      ) : !data ? (
-        <p role="alert" className="text-sm text-danger">
-          No se pudieron cargar los frascos. Cierra la hoja e inténtalo de nuevo.
+        <p role="status" className="text-sm text-ink-muted">
+          Cargando los frascos…
         </p>
+      ) : !data ? (
+        <div role="alert" className="grid justify-items-start gap-2.5 text-sm text-danger">
+          <p>No se pudieron cargar los frascos.</p>
+          <Button size="sm" variant="secondary" loading={options.isFetching} onClick={() => void options.refetch()}>
+            Reintentar
+          </Button>
+        </div>
       ) : data.items.length === 0 ? (
         <p className="text-sm text-ink-muted">No hay frascos disponibles para esta fecha.</p>
       ) : (

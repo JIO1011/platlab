@@ -61,6 +61,7 @@ export function PracticeIncidentSheet({
   };
 
   const submit = async () => {
+    if (report.isPending) return;
     const found: Errors = {};
     if (!assetId) found.assetId = 'Elige el equipo con el incidente.';
     if (!values.faultType) found.faultType = 'Elige el tipo de falla.';

@@ -1,14 +1,11 @@
 import type { Activity, Space } from '@platlab/contracts';
 import { Button, Tooltip, cn } from '@platlab/ui';
-import { CircleCheck, Lock, MoveVertical, PackageX, Play, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { MoveVertical, PackageX, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { MISSING_HOLDS, activityDetails, activityLabel, blockParts, blockText, capacityWarning, overCapacity, toMinutes } from './schedule-grid';
-import { stageLabels } from './practice-stage';
+import { stageLabels, stageMarks } from './practice-stage';
 import { useCareerTone } from './schedule-career-color';
-
-/** La marca de cada etapa distinta de «Programada» (L-01e): un ícono en la tabla y su texto en la lista; el color no la dice. */
-const stageMarks: Record<Exclude<Activity['stage'], 'scheduled'>, LucideIcon> = { ready: CircleCheck, running: Play, closed: Lock };
 
 /** Cómo se abre y se mueve un bloque: la solicitud para quien puede verla, un panel de solo lectura para los demás y, para quien programa, «Mover…». */
 export interface BlockOpening {
@@ -76,7 +73,7 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
   const className = cn(
     blockFace,
     toneOf(activity.group),
-    'relative block size-full transition-[filter] hover:brightness-95',
+    'relative block size-full [@media(hover:hover)]:transition-[filter] [@media(hover:hover)]:hover:brightness-95',
     'focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action',
     !table && 'min-h-11',
   );
@@ -113,6 +110,7 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
       {table ? (
         <span aria-hidden className={cn('hidden text-[11px] leading-[14px] tabular-nums text-ink-muted [@container(min-height:44px)]:block', clear)}>
           {activity.startsAt}–{activity.endsAt}
+          {activity.stage === 'scheduled' ? null : ` · ${stageLabels[activity.stage]}`}
         </span>
       ) : null}
     </span>

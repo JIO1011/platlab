@@ -1,4 +1,5 @@
 import { ACTIVITY_CHANGEABLE, type ActivityStage } from '@platlab/contracts';
+import { CircleCheck, Lock, Play, type LucideIcon } from 'lucide-react';
 import type { Tone } from './request-status';
 import { shortDateText } from './schedule-placement';
 
@@ -10,12 +11,16 @@ export const stageLabels: Record<ActivityStage, string> = {
   closed: 'Cerrada',
 };
 
+/** El ámbar queda para lo pendiente de decidir: «En curso» es una pastilla de tinta sólida y «Cerrada», verde. */
 export const stageTones: Record<ActivityStage, Tone> = {
   scheduled: 'neutral',
-  ready: 'info',
-  running: 'warning',
+  ready: 'neutral',
+  running: 'strong',
   closed: 'success',
 };
+
+/** La marca de cada etapa distinta de «Programada» (L-01e): un ícono con su texto, igual en la solicitud, el Cronograma y «Reservas»; el color no la dice. */
+export const stageMarks: Record<Exclude<ActivityStage, 'scheduled'>, LucideIcon> = { ready: CircleCheck, running: Play, closed: Lock };
 
 /** Mover, cancelar y cambiar los frascos, solo antes de empezar. */
 export const isChangeable = (stage: ActivityStage): boolean => ACTIVITY_CHANGEABLE.includes(stage);

@@ -27,7 +27,7 @@ export interface FillState {
  * se resalta suave (al pasar y al enfocar) y una celda por completar se marca con `aria-invalid`.
  */
 export const bare =
-  'block h-auto min-h-11 w-full min-w-0 rounded-[3px] border-0 bg-transparent px-1.5 py-1 text-[12px] leading-snug text-ink shadow-none outline-none transition-colors placeholder:text-ink-subtle sm:min-h-6 sm:py-0.5 ' +
+  'block h-auto min-h-11 w-full min-w-0 rounded-[3px] border-0 bg-transparent px-1.5 py-1 text-[12px] leading-snug text-ink shadow-none outline-none transition-colors placeholder:text-ink-subtle sm:min-h-[24px] sm:py-0.5 ' +
   'hover:bg-action-soft/70 focus-visible:bg-action-soft focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-action aria-[invalid=true]:bg-danger-soft';
 
 /** El control ocupa toda la celda de la hoja: se come su relleno (`px-1.5 py-0.5`) para que el resalte llegue a los bordes. */
@@ -114,13 +114,13 @@ function DatesCell({ label, state, invalid }: { label: string; state: FillState;
   return (
     <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1">
       {draft.dates.map((date) => (
-        <span key={date} className="inline-flex min-h-8 items-center gap-0.5 rounded-full bg-action-soft pl-2 pr-0.5 text-[11.5px] tabular-nums text-ink sm:min-h-5">
+        <span key={date} className="inline-flex min-h-8 items-center gap-0.5 rounded-full bg-action-soft pl-2 pr-0.5 text-[11.5px] tabular-nums text-ink sm:min-h-[24px]">
           {formatDate(date)}
           <button
             type="button"
             aria-label={`Quitar ${formatDate(date)}`}
             onClick={() => onChange({ dates: withoutDate(draft.dates, date) })}
-            className="flex size-7 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-white hover:text-ink focus-visible:outline-2 focus-visible:outline-action sm:size-5"
+            className="flex size-7 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-white hover:text-ink focus-visible:outline-2 focus-visible:outline-action sm:size-[24px]"
           >
             <X className="size-3.5" aria-hidden />
           </button>
@@ -143,7 +143,7 @@ function DatesCell({ label, state, invalid }: { label: string; state: FillState;
           onChange({ dates: withDate(draft.dates, picked) });
           setPicked('');
         }}
-        className="flex size-11 shrink-0 items-center justify-center rounded-[3px] bg-action-soft text-action transition-colors hover:bg-action hover:text-on-action focus-visible:outline-2 focus-visible:outline-action disabled:pointer-events-none disabled:opacity-40 sm:size-6"
+        className="flex size-11 shrink-0 items-center justify-center rounded-[3px] bg-action-soft text-action transition-colors hover:bg-action hover:text-on-action focus-visible:outline-2 focus-visible:outline-action disabled:pointer-events-none disabled:opacity-40 sm:size-[24px]"
       >
         <Plus className="size-4" aria-hidden />
       </button>

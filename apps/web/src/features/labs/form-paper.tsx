@@ -27,7 +27,7 @@ function Observations({ draft, editable, set, content }: { draft: Draft; editabl
       <Cell kind="label" dense className="flex items-center justify-between gap-1 py-0 pr-0.5">
         Observaciones
         {editable ? (
-          <Button variant="ghost" size="icon" className="size-11 sm:size-6 print:hidden" aria-label="Quitar Observaciones" onClick={() => set({ notes: false })}>
+          <Button variant="ghost" size="icon" className="size-11 sm:size-[24px] print:hidden" aria-label="Quitar Observaciones" onClick={() => set({ notes: false })}>
             <Trash2 aria-hidden />
           </Button>
         ) : null}

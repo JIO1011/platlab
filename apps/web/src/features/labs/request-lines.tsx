@@ -84,7 +84,7 @@ function NameCell({ label, picker, toggle, line, index, props, remove }: { label
           type="button"
           aria-label={`Quitar ${line.name || label}`}
           onClick={remove}
-          className="flex size-11 shrink-0 items-center justify-center rounded-[3px] text-ink-subtle transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-action sm:size-6"
+          className="flex size-11 shrink-0 items-center justify-center rounded-[3px] text-ink-subtle transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-action sm:size-[24px]"
         >
           <X className="size-3.5" aria-hidden />
         </button>
@@ -104,7 +104,7 @@ function NameCell({ label, picker, toggle, line, index, props, remove }: { label
 function CatalogToggle({ catalog, enabled, onToggle }: { catalog: boolean; enabled: boolean; onToggle: () => void }) {
   if (!enabled) return null;
   return (
-    <button type="button" onClick={onToggle} className="-mx-1 min-h-11 rounded-[3px] px-1 text-left text-[11px] font-medium text-action underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-action sm:min-h-5">
+    <button type="button" onClick={onToggle} className="-mx-1 mt-1 min-h-11 rounded-[3px] px-1 text-left text-[11px] font-medium text-action underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-action sm:min-h-[24px]">
       {catalog ? 'No está en el catálogo' : 'Elegir del catálogo'}
     </button>
   );
@@ -278,7 +278,7 @@ export function FillRows(props: FillProps) {
                 aria-label={`Agregar a ${label}`}
                 disabled={!options || draft.lines.length >= REQUEST_MAX_LINES}
                 onClick={() => add(kind)}
-                className="-mx-1 flex min-h-11 items-center gap-1 rounded-[3px] px-1 text-[11px] font-semibold text-action transition-colors hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-action disabled:pointer-events-none disabled:opacity-40 sm:min-h-6"
+                className="-mx-1 flex min-h-11 items-center gap-1 rounded-[3px] px-1 text-[11px] font-semibold text-action transition-colors hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-action disabled:pointer-events-none disabled:opacity-40 sm:min-h-[24px]"
               >
                 <Plus className="size-3.5" aria-hidden />
                 Agregar
