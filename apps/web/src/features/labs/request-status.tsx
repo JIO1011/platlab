@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { CodeTag } from '../../app/code-tag';
 import type { RequestView } from './request-draft';
 
-export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+export type Tone = 'neutral' | 'info' | 'strong' | 'success' | 'warning' | 'danger';
 
 const statuses: Record<RequestStatus, { label: string; tone: Tone }> = {
   draft: { label: 'Borrador', tone: 'neutral' },

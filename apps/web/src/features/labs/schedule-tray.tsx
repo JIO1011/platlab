@@ -97,7 +97,7 @@ function PendingTile({ card, actions }: { card: PendingCard; actions: TrayAction
         'relative touch-manipulation',
         actions.wide ? 'h-[4.75rem] w-56 shrink-0' : 'grid',
         actions.wide && here && 'ring-2 ring-action ring-offset-1',
-        actions.wide && !here && 'saturate-50 transition-[filter] hover:saturate-100',
+        actions.wide && !here && 'saturate-50 [@media(hover:hover)]:transition-[filter] [@media(hover:hover)]:hover:saturate-100',
         draggable && 'cursor-grab select-none active:cursor-grabbing',
         drag.isDragging && 'opacity-40',
       )}

@@ -46,6 +46,7 @@ export function FormSheet({
   required = false,
   status,
   initialFocus,
+  returnFocus,
   focusFirst = false,
   pendingText = 'Guardando…',
   announcement,
@@ -79,6 +80,8 @@ export function FormSheet({
   /** Lo que falta o «Listo», en una línea sobre el botón principal. */
   status?: ReactNode;
   initialFocus?: RefObject<HTMLElement | null>;
+  /** A quién vuelve el foco al cerrar si no es quien abrió la hoja (p. ej., su botón desapareció con lo que confirmó). */
+  returnFocus?: (() => HTMLElement | null) | undefined;
   /** Sin `initialFocus`, el foco abre en el primer campo del formulario y no en «Cerrar». */
   focusFirst?: boolean;
   /** Lo que se anuncia a lectores de pantalla mientras `pending` (una sola vez, sin repetirse). */
@@ -117,6 +120,7 @@ export function FormSheet({
       wide={wide}
       fullscreenMobile={fullscreenMobile}
       initialFocus={initialFocus}
+      returnFocus={returnFocus}
       focusFirst={focusFirst}
       footer={
         confirming ? (

@@ -23,9 +23,15 @@ export function PracticeCloseSheet({
   onOpenChange,
   request,
   block,
+  onClosed,
+  returnFocus,
 }: SheetBaseProps & {
   request: RequestView;
   block: RequestView['blocks'][number];
+  /** Se avisa cuando el servidor confirma el cierre, antes de cerrar la hoja. */
+  onClosed?: (() => void) | undefined;
+  /** A dónde vuelve el foco al cerrar la hoja tras el cierre: el botón «Cerrar práctica» ya no existe. */
+  returnFocus?: (() => HTMLElement | null) | undefined;
 }) {
   const close = useClosePractice(workspaceId, block.activityId);
   const conflict = useVersionConflict(workspaceId);
@@ -47,12 +53,14 @@ export function PracticeCloseSheet({
   };
 
   const submit = async () => {
+    if (close.isPending) return;
     setAttempted(true);
     if (!summary.canClose) return;
     setGeneralError(null);
     try {
       await close.mutateAsync({ expectedVersion: block.version, usage: summary.usage, notes: notes.trim() || null });
       toast.success('Práctica cerrada', { description: `${block.code} · lo utilizado salió del inventario.` });
+      onClosed?.();
       dismiss();
     } catch (error) {
       if (isApiError(error, 'VERSION_CONFLICT')) {
@@ -68,7 +76,7 @@ export function PracticeCloseSheet({
     <FormSheet
       icon={ClipboardCheck}
       title="Cerrar práctica"
-      description={`${block.code} · ${shortDateText(block.date)}. Cerrar es definitivo: lo utilizado sale del inventario y lo demás vuelve a estar disponible.`}
+      description={`${block.code} · ${shortDateText(block.date)}`}
       open={open}
       onOpenChange={(next) => (next ? onOpenChange(true) : dismiss())}
       submitLabel="Cerrar práctica"
@@ -76,6 +84,7 @@ export function PracticeCloseSheet({
       generalError={generalError}
       onSubmit={() => void submit()}
       dirty={notes !== '' || Object.values(inputs).some((value) => value !== '')}
+      returnFocus={returnFocus}
       focusFirst
       pendingText="Cerrando la práctica…"
       status={attempted && blank > 0 ? (blank === 1 ? 'Falta indicar lo utilizado de 1 reactivo' : `Falta indicar lo utilizado de ${blank} reactivos`) : undefined}
@@ -124,6 +133,9 @@ export function PracticeCloseSheet({
       <Field label="Observaciones" optional hint={`Qué pasó con los materiales y equipos, o lo que quien sigue debe saber. Hasta ${NOTES_MAX} caracteres.`}>
         <Textarea rows={3} maxLength={NOTES_MAX} value={notes} onChange={(event) => setNotes(event.target.value)} />
       </Field>
+      <p className="text-sm font-semibold text-ink">
+        {rows.length > 0 ? 'Cerrar es definitivo y no se puede deshacer: lo utilizado sale del inventario.' : 'Cerrar es definitivo y no se puede deshacer; no se registra consumo.'}
+      </p>
     </FormSheet>
   );
 }

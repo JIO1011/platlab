@@ -7,6 +7,7 @@ const badgeStyles = cva('inline-flex items-center gap-1 rounded-full px-2 py-0.5
     tone: {
       neutral: 'bg-surface-sunken text-ink-muted',
       info: 'bg-action-soft text-action',
+      strong: 'bg-ink text-surface',
       success: 'bg-success-soft text-success',
       warning: 'bg-warning-soft text-warning',
       danger: 'bg-danger-soft text-danger',
