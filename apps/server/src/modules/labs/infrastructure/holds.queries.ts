@@ -178,6 +178,7 @@ export interface IActiveRequestActivitiesResult {
   date: string;
   ends_at: string;
   id: string;
+  stage: string;
   starts_at: string;
 }
 
@@ -187,13 +188,13 @@ export interface IActiveRequestActivitiesQuery {
   result: IActiveRequestActivitiesResult;
 }
 
-const activeRequestActivitiesIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true,"activityId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":397,"b":409}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":430,"b":440}]},{"name":"activityId","required":false,"transform":{"type":"scalar"},"locs":[{"a":476,"b":486},{"a":512,"b":522}]}],"statement":"-- Los bloques activos de una solicitud, con su fecha, hora y área: lo que se aparta o se libera.\nSELECT a.id, a.on_date::text AS \"date!\", to_char(a.starts_at, 'HH24:MI') AS \"starts_at!\", to_char(a.ends_at, 'HH24:MI') AS \"ends_at!\",\n  area.name AS area_name\nFROM labs.activities AS a\nJOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id\nWHERE a.workspace_id = :workspaceId! AND a.request_id = :requestId! AND a.cancelled_at IS NULL\n  AND (:activityId::uuid IS NULL OR a.id = :activityId::uuid)"};
+const activeRequestActivitiesIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true,"activityId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":406,"b":418}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":439,"b":449}]},{"name":"activityId","required":false,"transform":{"type":"scalar"},"locs":[{"a":485,"b":495},{"a":521,"b":531}]}],"statement":"-- Los bloques activos de una solicitud, con su fecha, hora y área: lo que se aparta o se libera.\nSELECT a.id, a.stage, a.on_date::text AS \"date!\", to_char(a.starts_at, 'HH24:MI') AS \"starts_at!\", to_char(a.ends_at, 'HH24:MI') AS \"ends_at!\",\n  area.name AS area_name\nFROM labs.activities AS a\nJOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id\nWHERE a.workspace_id = :workspaceId! AND a.request_id = :requestId! AND a.cancelled_at IS NULL\n  AND (:activityId::uuid IS NULL OR a.id = :activityId::uuid)"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Los bloques activos de una solicitud, con su fecha, hora y área: lo que se aparta o se libera.
- * SELECT a.id, a.on_date::text AS "date!", to_char(a.starts_at, 'HH24:MI') AS "starts_at!", to_char(a.ends_at, 'HH24:MI') AS "ends_at!",
+ * SELECT a.id, a.stage, a.on_date::text AS "date!", to_char(a.starts_at, 'HH24:MI') AS "starts_at!", to_char(a.ends_at, 'HH24:MI') AS "ends_at!",
  *   area.name AS area_name
  * FROM labs.activities AS a
  * JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id

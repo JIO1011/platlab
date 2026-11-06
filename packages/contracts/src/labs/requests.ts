@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { expectedVersion, text } from '../common.js';
 import { positiveQuantity } from '../decimal.js';
 import type { FormFreeField, FormLayout } from './form.js';
+import { activityStage, practiceUsage } from './practice.js';
 import { scheduleProblem } from './schedule.js';
 
 /**
@@ -14,7 +15,7 @@ import { scheduleProblem } from './schedule.js';
 export const REQUEST_MAX_DATES = 20;
 export const REQUEST_MAX_LINES = 90;
 
-export const requestStatus = z.enum(['draft', 'submitted', 'changes_requested', 'scheduled', 'rejected', 'cancelled']);
+export const requestStatus = z.enum(['draft', 'submitted', 'changes_requested', 'scheduled', 'completed', 'rejected', 'cancelled']);
 /** Quien pide la edita en borrador y con cambios solicitados. */
 export const REQUEST_EDITABLE: readonly RequestStatus[] = ['draft', 'changes_requested'];
 /** Quien pide la cancela mientras no esté cerrada; programada, hasta el día anterior a su primer bloque (L-01c). */
@@ -99,7 +100,7 @@ const requestLine = z.discriminatedUnion('kind', [
 ]);
 
 const requestEvent = z.object({
-  action: z.enum(['submitted', 'changes_requested', 'resubmitted', 'scheduled', 'rejected', 'cancelled']),
+  action: z.enum(['submitted', 'changes_requested', 'resubmitted', 'scheduled', 'completed', 'rejected', 'cancelled']),
   reason: z.string().nullable(),
   by: z.string(),
   at: z.string(),
@@ -164,6 +165,11 @@ export const labsRequest = requestSummary.extend({
       activityId: z.uuid(),
       /** La versión del bloque: la que comparan los comandos sobre él, como cambiar los frascos. */
       version: z.number().int().positive(),
+      /** Su etapa (L-01e), la lista de chequeo marcada y, cerrado, lo utilizado y sus observaciones. */
+      stage: activityStage,
+      preparedLines: z.array(z.number().int()),
+      closingNotes: z.string().nullable(),
+      usage: z.array(practiceUsage),
       date: z.iso.date(),
       code: z.string(),
       areaId: z.uuid(),
@@ -175,7 +181,7 @@ export const labsRequest = requestSummary.extend({
        * Lo apartado por línea reservable (L-01d): cantidad del reactivo o número de equipos, con sus códigos. Las
        * cantidades son por fecha: si no alcanza lo pedido, «Falta».
        */
-      holds: z.array(z.object({ line: z.number().int(), held: z.string(), assets: z.array(z.string()), complete: z.boolean() })),
+      holds: z.array(z.object({ line: z.number().int(), held: z.string(), assets: z.array(z.object({ id: z.uuid(), code: z.string() })), complete: z.boolean() })),
     }),
   ),
   /** Si quien mira la puede editar, enviar o cancelar (es suya y el estado lo admite). */

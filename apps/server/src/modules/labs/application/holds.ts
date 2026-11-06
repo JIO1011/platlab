@@ -9,6 +9,7 @@ import {
   insertActivityAllocation,
   releaseActivityAssets,
 } from '../infrastructure/holds.queries.js';
+import { activityUsage } from '../infrastructure/practice.queries.js';
 import { requestLines, type IRequestLinesResult } from '../infrastructure/requests.queries.js';
 
 /**
@@ -28,11 +29,11 @@ export interface BlockSlot {
   areaName: string;
 }
 
-/** Lo que cada línea de un bloque tiene apartado: cantidad de reactivo o equipos, con sus códigos. */
+/** Lo que cada línea de un bloque tiene apartado: cantidad de reactivo o equipos, con su id y su código. */
 export interface LineHold {
   line: number;
   held: string;
-  assets: string[];
+  assets: Array<{ id: string; code: string }>;
   /** Lo apartado alcanza lo pedido. */
   complete: boolean;
 }
@@ -91,21 +92,23 @@ export async function releaseBlocks(access: WorkspaceAccess, activityIds: readon
 }
 
 /**
- * Lo apartado por cada bloque y línea reservable, frente a lo pedido. `requests` trae las líneas de las solicitudes
- * de esos bloques; una línea sin nada apartado aparece con «0».
+ * Lo apartado por cada bloque y línea reservable, frente a lo pedido; una línea sin nada apartado aparece con «0». Un
+ * bloque cerrado (L-01e) muestra lo que tenía apartado al cerrar y ya no le falta nada.
  */
 export async function blockHolds(
   access: WorkspaceAccess,
-  blocks: ReadonlyArray<{ activityId: string; requestId: string }>,
+  blocks: ReadonlyArray<{ activityId: string; requestId: string; closed: boolean }>,
 ): Promise<Map<string, LineHold[]>> {
   const result = new Map<string, LineHold[]>();
   if (blocks.length === 0) return result;
   const workspaceId = access.workspace.id;
   const activityIds = blocks.map((block) => block.activityId);
-  const [lines, allocations, assets] = await Promise.all([
+  const closedIds = blocks.filter((block) => block.closed).map((block) => block.activityId);
+  const [lines, allocations, assets, usage] = await Promise.all([
     requestLines.run({ workspaceId, requestIds: [...new Set(blocks.map((block) => block.requestId))] }, access.client),
     activityAllocations.run({ workspaceId, activityIds }, access.client),
     activityAssets.run({ workspaceId, activityIds }, access.client),
+    closedIds.length === 0 ? [] : activityUsage.run({ workspaceId, activityIds: closedIds }, access.client),
   ]);
   const held = await heldReagentQuantities(access, allocations.map((row) => row.allocation_id));
   const codes = await assetCodes(access, assets.map((row) => row.asset_id));
@@ -114,8 +117,12 @@ export async function blockHolds(
       .filter((line) => line.request_id === block.requestId && reservable(line))
       .map((line): LineHold => {
         if (line.kind === 'equipment') {
-          const booked = assets.filter((row) => row.activity_id === block.activityId && row.line === line.line).map((row) => codes.get(row.asset_id) ?? '');
-          return { line: line.line, held: String(booked.length), assets: booked, complete: booked.length >= Number(line.quantity) };
+          const booked = assets.filter((row) => row.activity_id === block.activityId && row.line === line.line).map((row) => ({ id: row.asset_id, code: codes.get(row.asset_id) ?? '' }));
+          return { line: line.line, held: String(booked.length), assets: booked, complete: block.closed || booked.length >= Number(line.quantity) };
+        }
+        if (block.closed) {
+          const closing = usage.find((row) => row.activity_id === block.activityId && row.line === line.line);
+          return { line: line.line, held: closing?.held ?? '0', assets: [], complete: true };
         }
         const parts = allocations.filter((row) => row.activity_id === block.activityId && row.line === line.line).map((row) => held.get(row.allocation_id) ?? '0');
         const total = sumDecimals(parts);

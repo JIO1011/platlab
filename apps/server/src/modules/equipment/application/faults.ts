@@ -111,37 +111,42 @@ const typeText: Record<Fault['faultType'], string> = {
 };
 
 /**
- * Reporta una falla (01 §6.3). Si el equipo no se puede seguir usando y estaba operativo o con
- * restricción, pasa a fuera de servicio en la misma transacción, ligado a la falla: es la regla del
- * reporte, así que basta el permiso de reportar.
+ * Reporta una falla (01 §6.3) en la transacción de quien llama, también la de otro módulo admitido con Equipos (el
+ * incidente de una práctica, ADR 0023): Equipos autoriza con su permiso. Si el equipo no se puede seguir usando y
+ * estaba operativo o con restricción, pasa a fuera de servicio, ligado a la falla: es la regla del reporte, así que
+ * basta el permiso de reportar.
  */
-export function reportFault(pool: pg.Pool, request: CommandRequest, input: z.infer<typeof reportFaultRequest>): Promise<Fault> {
-  return runCommand(pool, request, 'equipment.fault.report', input, requires(FAULT_REPORT), async (access) => {
-    const asset = await lockActiveAsset(access, input.assetId);
-    const caseId = await reportCase(incidents(access), input);
-    if (!input.usable && asset.condition !== 'faulted') {
-      await changeAssetCondition.run(
-        {
-          workspaceId: access.workspace.id,
-          assetId: input.assetId,
-          fromCondition: asset.condition,
-          toCondition: 'faulted',
-          reason: `Falla ${typeText[input.faultType]} reportada: no se puede usar`,
-          result: null,
-          actorId: access.principalId,
-          caseId,
-        },
-        access.client,
-      );
-    }
-    await recordAudit(access, {
-      action: 'equipment.fault.report',
-      entityType: 'incidents.case',
-      entityId: caseId,
-      changes: { ...input, condition: !input.usable && asset.condition !== 'faulted' ? { from: asset.condition, to: 'faulted' } : null },
-    });
-    return faultById(access, caseId);
+export async function reportAssetFault(access: WorkspaceAccess, input: z.infer<typeof reportFaultRequest>): Promise<Fault> {
+  await requirePermission(access, FAULT_REPORT);
+  const asset = await lockActiveAsset(access, input.assetId);
+  const caseId = await reportCase(incidents(access), input);
+  if (!input.usable && asset.condition !== 'faulted') {
+    await changeAssetCondition.run(
+      {
+        workspaceId: access.workspace.id,
+        assetId: input.assetId,
+        fromCondition: asset.condition,
+        toCondition: 'faulted',
+        reason: `Falla ${typeText[input.faultType]} reportada: no se puede usar`,
+        result: null,
+        actorId: access.principalId,
+        caseId,
+      },
+      access.client,
+    );
+  }
+  await recordAudit(access, {
+    action: 'equipment.fault.report',
+    entityType: 'incidents.case',
+    entityId: caseId,
+    changes: { ...input, condition: !input.usable && asset.condition !== 'faulted' ? { from: asset.condition, to: 'faulted' } : null },
   });
+  return faultById(access, caseId);
+}
+
+/** «Reportar falla» en Equipos. */
+export function reportFault(pool: pg.Pool, request: CommandRequest, input: z.infer<typeof reportFaultRequest>): Promise<Fault> {
+  return runCommand(pool, request, 'equipment.fault.report', input, requires(FAULT_REPORT), (access) => reportAssetFault(access, input));
 }
 
 /** Abierta → en atención, con quien la toma. Atender es resolver un pendiente (ADR 0009). */

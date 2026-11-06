@@ -21,7 +21,7 @@ export async function labsHomeSummary(access: WorkspaceAccess): Promise<HomeCont
     listActivities.run({ workspaceId, activityId: null, from: today, to: addDays(today, SHORT_DAYS - 1) }, access.client),
     requestsSentPerDay.run({ workspaceId, today, days: TREND_DAYS, timeZone: access.workspace.timeZone }, access.client),
   ]);
-  const holds = await blockHolds(access, blocks.map((block) => ({ activityId: block.id, requestId: block.request_id })));
+  const holds = await blockHolds(access, blocks.map((block) => ({ activityId: block.id, requestId: block.request_id, closed: block.stage === 'closed' })));
   const short = blocks.filter((block) => !(holds.get(block.id) ?? []).every((hold) => hold.complete)).length;
   return {
     summary: { pendingRequests: counts?.pending ?? 0, late: counts?.late ?? 0, short },

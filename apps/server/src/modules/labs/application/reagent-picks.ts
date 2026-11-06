@@ -1,5 +1,14 @@
 import type pg from 'pg';
-import { compareDecimals, requestCode, sumDecimals, type Activity, type ReagentPickOptions, type ReagentPicksRequest } from '@platlab/contracts';
+import {
+  ACTIVITY_CHANGEABLE,
+  compareDecimals,
+  requestCode,
+  sumDecimals,
+  type Activity,
+  type ActivityStage,
+  type ReagentPickOptions,
+  type ReagentPicksRequest,
+} from '@platlab/contracts';
 import { AppError } from '../../../platform/errors.js';
 import { moduleAdmits, recordAudit, requirePermission, requires, type CommandRequest, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import { reagentHoldOptions, reholdReagentForActivity } from '../../reagents/index.js';
@@ -40,7 +49,7 @@ export function reagentPickOptions(pool: pg.Pool, request: QueryRequest, activit
 
 /**
  * Aparta de los frascos elegidos y libera lo anterior, en una transacción con la versión del bloque que se vio. Solo
- * en un bloque activo; lo elegido no supera lo pedido.
+ * en un bloque programado o listo; lo elegido no supera lo pedido.
  */
 export function changeReagentPicks(pool: pg.Pool, request: CommandRequest, activityId: string, line: number, input: ReagentPicksRequest): Promise<Activity> {
   return runScheduleCommand(pool, request, 'labs.activity.reagents', { activityId, line, ...input }, requires(SCHEDULE_MANAGE), async (access) => {
@@ -49,6 +58,7 @@ export function changeReagentPicks(pool: pg.Pool, request: CommandRequest, activ
     const [locked] = await lockActivity.run({ workspaceId, activityId }, access.client);
     if (!locked || locked.cancelled_at) throw notFound();
     if (locked.version !== input.expectedVersion) throw new AppError('VERSION_CONFLICT', 'Otra persona cambió el bloque mientras lo veías: vuelve a cargarlo');
+    if (!ACTIVITY_CHANGEABLE.includes(locked.stage as ActivityStage)) throw invalid('Los frascos se cambian antes de iniciar la práctica');
     const current = await reagentLine(access, activityId, line);
     if (compareDecimals(sumDecimals(input.picks.map((pick) => pick.quantity)), current.quantity) > 0) throw invalid('Lo elegido supera lo pedido para esta fecha');
     const held = await reholdReagentForActivity(access, {

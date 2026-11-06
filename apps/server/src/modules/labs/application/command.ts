@@ -26,5 +26,11 @@ export const runCommand = moduleCommand('labs');
  */
 export const runScheduleCommand = moduleCommand('labs', undefined, 'reagents');
 
+/**
+ * El incidente de un equipo en una práctica (L-01e): nace en Equipos, por su interfaz y con su permiso, así que el
+ * comando se admite con los dos módulos.
+ */
+export const runIncidentCommand = moduleCommand('labs', 'equipment');
+
 /** Consultas de Laboratorios: admisión de consulta y lectura de los espacios y los Formatos, que quien pide llena. */
 export const runQuery = moduleQuery('labs', READ);

@@ -2,6 +2,12 @@ import type { FastifyPluginAsync } from 'fastify';
 import type pg from 'pg';
 import {
   activityLineParams,
+  assetBookingParams,
+  closePracticeRequest,
+  incidentPracticeParams,
+  practiceChecklistRequest,
+  practiceIncidentRequest,
+  practiceStepRequest,
   reagentPicksRequest,
   closureListQuery,
   closureParams,
@@ -35,6 +41,8 @@ import {
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import { createClosure, listClosures, voidClosure } from '../application/closures.js';
+import { getRequest, getRequestOptions, listRequests } from '../application/request-view.js';
+import { assetBookingsOf, closePractice, incidentPracticeOf, markReady, reportPracticeIncident, setChecklist, startPractice } from '../application/practice.js';
 import { changeReagentPicks, reagentPickOptions } from '../application/reagent-picks.js';
 import { reviewRequest } from '../application/review.js';
 import { archiveForm, createForm, getForm, listForms, publishForm, updateForm, uploadFormLogo } from '../application/form.js';
@@ -42,10 +50,7 @@ import { archivePeriod, createPeriod, listPeriods, updatePeriod } from '../appli
 import {
   cancelRequest,
   createRequest,
-  getRequest,
-  getRequestOptions,
   labCancelRequest,
-  listRequests,
   rejectRequest,
   requestChanges,
   saveRequest,
@@ -134,6 +139,35 @@ export function labsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: 
       const { activityId, line } = activityLineParams.parse(request.params);
       return changeReagentPicks(pool, commandRequest(request), activityId, line, reagentPicksRequest.parse(request.body));
     });
+
+    // Preparación y cierre de la práctica (L-01e).
+    app.put('/activities/:activityId/checklist', async (request) =>
+      setChecklist(pool, commandRequest(request), activityParams.parse(request.params).activityId, practiceChecklistRequest.parse(request.body)),
+    );
+
+    app.post('/activities/:activityId/ready', async (request) =>
+      markReady(pool, commandRequest(request), activityParams.parse(request.params).activityId, practiceStepRequest.parse(request.body)),
+    );
+
+    app.post('/activities/:activityId/start', async (request) =>
+      startPractice(pool, commandRequest(request), activityParams.parse(request.params).activityId, practiceStepRequest.parse(request.body)),
+    );
+
+    app.post('/activities/:activityId/close', async (request) =>
+      closePractice(pool, commandRequest(request), activityParams.parse(request.params).activityId, closePracticeRequest.parse(request.body)),
+    );
+
+    app.post('/activities/:activityId/incidents', async (request, reply) => {
+      const input = practiceIncidentRequest.parse(request.body);
+      return reply.status(201).send(await reportPracticeIncident(pool, commandRequest(request), activityParams.parse(request.params).activityId, input));
+    });
+
+    // Lo que Equipos muestra por sus puntos de extensión: «Reservado» y la práctica de un incidente.
+    app.get('/assets/:assetId/bookings', async (request) => assetBookingsOf(pool, queryRequest(request), assetBookingParams.parse(request.params).assetId));
+
+    app.get('/incidents/:faultId/practice', async (request) =>
+      incidentPracticeOf(pool, queryRequest(request), incidentPracticeParams.parse(request.params).faultId),
+    );
 
     // Anticipación del espacio de trabajo.
     app.get('/settings', async (request) => getSettings(pool, queryRequest(request)));

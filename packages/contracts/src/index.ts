@@ -1,5 +1,5 @@
 export { healthResponse, type HealthResponse } from './health.js';
-export { compareDecimals, decimalString, positiveQuantity, sumDecimals } from './decimal.js';
+export { compareDecimals, decimalString, nonNegativeQuantity, positiveQuantity, sumDecimals } from './decimal.js';
 export { errorCodes, errorResponse, type ErrorCode, type ErrorResponse } from './errors.js';
 export {
   actionClass,
@@ -400,6 +400,23 @@ export {
   reagentPicksRequest,
   type ReagentPickOptions,
   type ReagentPicksRequest,
+  ACTIVITY_CHANGEABLE,
+  activityStage,
+  assetBookingParams,
+  assetBookings,
+  closePracticeRequest,
+  incidentPractice,
+  incidentPracticeParams,
+  practiceChecklistRequest,
+  practiceIncidentRequest,
+  practiceStepRequest,
+  practiceUsage,
+  type ActivityStage,
+  type AssetBookings,
+  type ClosePracticeRequest,
+  type IncidentPractice,
+  type PracticeChecklistRequest,
+  type PracticeUsage,
 } from './labs.js';
 export { bottleCodes, codeFromName, firstFreeCode, freeSeries, nextCode, seriesFromName } from './codes.js';
 export { EXPIRING_DAYS, SAFETY_SHEET_MAX_BYTES } from './reagents.js';

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { expectedVersion, text } from '../common.js';
+import { activityStage } from './practice.js';
 import type { WeeklyHours } from './spaces.js';
 
 /**
@@ -119,6 +120,8 @@ export const activity = z.object({
   responsibleId: z.uuid(),
   responsibleName: z.string(),
   code: z.string(),
+  /** Programada, lista, en curso o cerrada (L-01e). */
+  stage: activityStage,
   /** Lo apartado alcanza todo lo pedido (L-01d); si no, el bloque muestra «Falta». */
   complete: z.boolean(),
   version: z.number().int().positive(),

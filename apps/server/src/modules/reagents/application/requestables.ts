@@ -1,5 +1,6 @@
 import {
   activityHoldOptions,
+  consumeActivityHolds,
   heldForActivity,
   holdableByArea,
   holdForActivity,
@@ -69,4 +70,9 @@ export function reagentHoldOptions(
 /** Cambia lo apartado de un reactivo para un bloque por los frascos que eligió el Administrador (ADR 0023). */
 export function reholdReagentForActivity(access: WorkspaceAccess, input: Parameters<typeof reholdForActivity>[1]): Promise<Array<{ allocationId: string; quantity: string }>> {
   return reholdForActivity(inventoryContext(access), input);
+}
+
+/** Cierra lo apartado para un bloque: lo utilizado sale como salida de Reactivos y lo demás vuelve a estar disponible. */
+export function consumeReagentHolds(access: WorkspaceAccess, input: Parameters<typeof consumeActivityHolds>[1]): Promise<string[]> {
+  return consumeActivityHolds(inventoryContext(access), input);
 }

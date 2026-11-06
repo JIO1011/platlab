@@ -7,7 +7,7 @@ import { reagentStockByArea } from '../../reagents/index.js';
 import { assetBookingsOn } from '../infrastructure/holds.queries.js';
 import { scheduleContext } from '../infrastructure/schedule.queries.js';
 import { runQuery } from './command.js';
-import { visibleRequest } from './requests.js';
+import { visibleRequest } from './request-view.js';
 
 /**
  * Revisión antes de enviar (ADR 0023, «Flujo de la Propuesta»): contra todo el espacio, como la reserva real, y sin

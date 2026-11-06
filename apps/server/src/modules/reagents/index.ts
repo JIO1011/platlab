@@ -2,6 +2,7 @@
 export { reagentsAreaContribution, reagentsHomeSummary } from './application/queries.js';
 export { reagentsRoutes } from './http/routes.js';
 export {
+  consumeReagentHolds,
   heldReagentQuantities,
   holdReagentForActivity,
   reagentHoldOptions,

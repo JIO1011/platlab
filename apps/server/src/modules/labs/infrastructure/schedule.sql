@@ -6,7 +6,7 @@ SELECT a.id, a.request_id, q.number AS request_number, coalesce(q.title, '') AS 
   coalesce(requester.display_name, '') AS "requester_name!", subject.name AS "subject?", career.name AS "group?",
   coalesce(q.participants, 0) AS "participants!",
   a.on_date::text AS "date!", a.area_id, to_char(a.starts_at, 'HH24:MI') AS "starts_at!", to_char(a.ends_at, 'HH24:MI') AS "ends_at!",
-  a.responsible_principal_id, coalesce(responsible.display_name, '') AS "responsible_name!", a.code, a.version
+  a.responsible_principal_id, coalesce(responsible.display_name, '') AS "responsible_name!", a.code, a.stage, a.version
 FROM labs.activities AS a
 JOIN labs.requests AS q ON q.workspace_id = a.workspace_id AND q.id = a.request_id
 LEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id
@@ -24,7 +24,7 @@ ORDER BY a.on_date, a.starts_at, a.area_id;
 
 /* @name lockActivity */
 -- Lo último del orden de bloqueo: el bloque que se mueve.
-SELECT request_id, on_date::text AS "on_date!", area_id, period_id, week, sequence, code, version, cancelled_at
+SELECT request_id, on_date::text AS "on_date!", area_id, period_id, week, sequence, code, stage, version, cancelled_at
 FROM labs.activities
 WHERE workspace_id = :workspaceId! AND id = :activityId!
 FOR UPDATE;

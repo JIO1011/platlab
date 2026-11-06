@@ -1088,3 +1088,23 @@ INSERT INTO inventory.allocations (workspace_id, position_id, quantity, reason, 
 SELECT :workspaceId!, reserved.id, :quantity!::numeric, :reason!, :destination!, :principalId!, 'activity'
 FROM reserved
 RETURNING id, trim_scale(quantity)::text AS "quantity!";
+
+/* @name activityHoldTakes */
+-- Cómo se reparte :used entre lo que sigue apartado en esas reservas de bloque: primero lo de los frascos que vencen
+-- antes. Exacto en numeric; un frasco con dos reservas suma lo de ambas. Solo los frascos de los que algo sale.
+WITH held AS (
+  SELECT a.id, a.position_id, a.quantity, l.expires_on
+  FROM inventory.allocations AS a
+  JOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id
+  JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+  WHERE a.workspace_id = :workspaceId! AND a.id = ANY (:allocationIds!::uuid[]) AND a.purpose = 'activity' AND a.status = 'held'
+),
+running AS (
+  SELECT position_id, quantity, sum(quantity) OVER (ORDER BY expires_on NULLS LAST, id) - quantity AS before
+  FROM held
+)
+SELECT position_id, trim_scale(sum(least(quantity, greatest(:used!::numeric - before, 0))))::text AS "quantity!"
+FROM running
+GROUP BY position_id
+HAVING sum(least(quantity, greatest(:used!::numeric - before, 0))) > 0
+ORDER BY position_id;
