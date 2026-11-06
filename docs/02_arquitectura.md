@@ -86,7 +86,7 @@ defineModule({
   code: 'reagents',            // estable; coincide con core.module_definitions.code
   name: 'Reactivos',
   requires: ['core'],          // dependencias obligatorias
-  integrates: ['practices'],   // integraciones opcionales
+  integrates: ['labs'],   // integraciones opcionales
   permissions: ['reagents.catalog.read', 'reagents.issue.create', 'reagents.adjust.create' /* … */],
   roleGrants: { admin: [/* … */], operator: [/* … */], teacher: ['reagents.requestable.read'] },
   nav: [{                      // la app del módulo (ADR 0011): entrada y secciones con su permiso

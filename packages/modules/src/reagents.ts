@@ -9,7 +9,7 @@ export const reagentsModule = defineModule({
   code: 'reagents',
   name: 'Reactivos',
   requires: ['core'],
-  integrates: ['practices'],
+  integrates: ['labs'],
   permissions: [
     'reagents.catalog.read',
     'reagents.catalog.manage',

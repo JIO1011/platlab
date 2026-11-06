@@ -156,21 +156,22 @@ Fiscalizados: cada producto regulado tiene perfil, autorizaciones, sitios y cupo
 
 En Laboratorios ([ADR 0023](05_decisiones.md#adr-0023)), con los inventarios habilitados. Todo entra por solicitud: el Administrador la programa en el Cronograma y programarla es aprobarla.
 
-1. **Docente o Estudiante.** Llena el formato del espacio (o duplica una solicitud anterior) con la fecha, la franja y las condiciones. Agrega reactivos y materiales del catálogo solicitable, y equipos por tipo y características (un equipo concreto solo con justificación). Si algo no existe, agrega una línea «no catalogada». No elige la sala definitiva.
+1. **Docente o Estudiante.** Llena uno de los formatos del espacio (o duplica una solicitud anterior) con las fechas, la franja y el laboratorio que prefiere. Agrega reactivos del catálogo, equipos por tipo (un caso especial va en Observaciones) y materiales como texto con cantidad. Si algo no existe, agrega una línea «no catalogada».
 2. **Sistema.** Valida cada línea: ✔ disponible, ⚠ insuficiente o en conflicto, ✖ no existe o no verificado. Validar no reserva nada.
-3. **Administrador.** Revisa su bandeja con las excepciones primero. En el Cronograma arrastra el bloque de la solicitud al área y la hora, y le asigna su responsable; desde la reserva real (L-01d), también los lotes y el equipo concreto de cada tipo pedido. Resuelve los faltantes: traslado desde otro laboratorio, preparación, mover un equipo o cambiar sala u hora. Luego decide:
-   - **Aprobar.** Si respeta lo solicitado, confirma y reserva todo en una transacción.
-   - **Proponer ajuste.** Si cambia fecha, cantidades, sustitutos o condiciones, el solicitante acepta o declina esa revisión. Aceptar confirma solo si todo sigue disponible ([ADR 0007](05_decisiones.md#adr-0007)).
-   - **Pedir cambios o rechazar**, siempre con motivo.
-4. **Operador.** Prepara y entrega a custodia, marca la actividad como lista y la inicia. Al cerrar registra el consumo real, la devolución verificada y las incidencias.
-5. **Sistema.** Actualiza inventario, agenda e historial. Lo que no se concilia sigue visible como pendiente.
+3. **Docente o Estudiante.** Antes de enviar, ve lo que no alcanza contra todo el espacio y sus alternativas; solo informa.
+4. **Administrador.** Revisa Recibidas con las excepciones primero y decide:
+   - **Aprobar.** Programa cada fecha donde y cuando se pidió y aparta en una transacción los reactivos (los frascos que vencen antes y siguen vigentes ese día) y los equipos concretos del tipo. Lo que no alcanza se programa igual y queda «Falta». Puede aprobar varias: cada una se confirma por separado y se informa su resultado.
+   - **Programar arrastrando** en el Cronograma, si choca o no hay laboratorio pedido, con su responsable. Cambia los frascos apartados si hace falta.
+   - **Pedir cambios o rechazar**, siempre con motivo. No hay contraofertas que el solicitante acepte ([ADR 0023](05_decisiones.md#adr-0023), «Flujo de la Propuesta»).
+5. **Operador o Administrador responsable.** Prepara con la lista de chequeo y marca «Lista»; el día de la práctica la inicia y al terminar la cierra con lo utilizado de cada reactivo. Lo utilizado sale del inventario y lo demás vuelve a estar disponible. Si un equipo falla, reporta el incidente con el contexto de la práctica.
+6. **Sistema.** Actualiza inventario, agenda e historial; con todos sus bloques cerrados, la solicitud queda «Finalizada».
 
-Estados: borrador → enviada → programada → en preparación → lista → en curso → cierre → finalizada. También existen cambios solicitados, rechazada y cancelada.
+Estados de la solicitud: borrador → enviada → programada → finalizada, más cambios solicitados, rechazada y cancelada. Cada fecha programada es un bloque: programada → lista → en curso → cerrada.
 
 Casos especiales:
 
-- El Administrador puede reubicar a una sala equivalente con aviso al solicitante, sin pedir otra aceptación.
-- Las solicitudes sin excepciones aparecen como «listas para confirmar». Se aprueban en un paso, una a una o en lote; en el lote cada solicitud se confirma por separado y se informa su resultado.
+- El Administrador cambia el área, la hora o el responsable el mismo día; cambiar el día es pedir cambios al solicitante.
+- Mover y cancelar, solo antes de iniciar la práctica.
 - La autoconfirmación sin revisión humana no está en el alcance.
 
 ### 6.3 Equipos (M3, M7)
