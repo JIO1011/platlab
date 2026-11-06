@@ -7,6 +7,7 @@ export { suggestContainerCodes } from './application/codes.js';
 export type { InventoryContext } from './application/context.js';
 export {
   activityHoldOptions,
+  consumeActivityHolds,
   heldForActivity,
   holdableByArea,
   holdForActivity,

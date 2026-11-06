@@ -5,5 +5,5 @@
 export { equipmentAreaContribution, equipmentHomeSummary } from './application/queries.js';
 export { equipmentRoutes } from './http/routes.js';
 export { recordConservation, requireActiveAsset } from './application/status.js';
-export { frequentFaultAssets, lockAssetFault, openFaultsOf, resolveAssetFault } from './application/faults.js';
+export { frequentFaultAssets, lockAssetFault, openFaultsOf, reportAssetFault, resolveAssetFault } from './application/faults.js';
 export { assetCodes, operationalAssetsOfTypes, requestableAssetTypes, type RequestableAssetType } from './application/requestables.js';

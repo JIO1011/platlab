@@ -26,6 +26,10 @@ describe('tabla de recursos', () => {
     const block = (date: string, held: string, assets: string[], complete: boolean) => ({
       activityId: '00000000-0000-4000-8000-000000000001',
       version: 1,
+      stage: 'scheduled' as const,
+      preparedLines: [],
+      closingNotes: null,
+      usage: [],
       date,
       code: 'P1-S1-QUI01',
       areaId: 'a',
@@ -35,7 +39,7 @@ describe('tabla de recursos', () => {
       responsibleName: 'Óscar',
       holds: [
         { line: 1, held, assets: [], complete },
-        { line: 2, held: String(assets.length), assets, complete },
+        { line: 2, held: String(assets.length), assets: assets.map((code) => ({ id: code, code })), complete },
       ],
     });
     const rows = resourceRows({ lines, blocks: [block('2026-11-02', '5000', ['BAL-01', 'BAL-02'], true), block('2026-11-09', '2500', ['BAL-01'], false)] });
@@ -95,7 +99,7 @@ describe('comprobaciones de la revisión', () => {
   });
 
   it('suma «Apartado» solo si hay fechas con lo apartado', () => {
-    const block = { activityId: '00000000-0000-4000-8000-000000000002', version: 1, date: '2026-11-02', code: 'C', areaId: 'a', areaName: 'A', startsAt: '08:00', endsAt: '10:00', responsibleName: 'R', holds: [{ line: 1, held: '0', assets: [], complete: false }] };
+    const block = { activityId: '00000000-0000-4000-8000-000000000002', version: 1, stage: 'scheduled' as const, preparedLines: [], closingNotes: null, usage: [], date: '2026-11-02', code: 'C', areaId: 'a', areaName: 'A', startsAt: '08:00', endsAt: '10:00', responsibleName: 'R', holds: [{ line: 1, held: '0', assets: [], complete: false }] };
     const items = reviewItems({ lines: [], late: false, blocks: [block], areaId: 'a', startsAt: null, endsAt: null });
     expect(items.at(-1)).toMatchObject({ key: 'apartado', text: 'Falta apartar', detail: '0 de 1 fecha' });
     expect(items[1]).toMatchObject({ label: 'Horario', text: 'Sin horario' });

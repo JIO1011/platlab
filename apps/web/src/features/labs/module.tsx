@@ -44,5 +44,17 @@ export const labsWebModule: WebModule = {
       permission: 'labs.space.manage',
       load: async () => (await extensionPages()).HolidaysAction,
     },
+    {
+      point: 'equipment.asset-tab',
+      label: 'Reservas',
+      permission: 'labs.request.view',
+      load: async () => (await extensionPages()).AssetBookingsTab,
+    },
+    {
+      point: 'equipment.fault-context',
+      label: 'Práctica del incidente',
+      permission: 'labs.request.view',
+      load: async () => (await extensionPages()).FaultPractice,
+    },
   ],
 };

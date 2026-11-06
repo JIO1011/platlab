@@ -1,10 +1,14 @@
 import type { Activity, Space } from '@platlab/contracts';
 import { Button, Tooltip, cn } from '@platlab/ui';
-import { MoveVertical, PackageX, TriangleAlert } from 'lucide-react';
+import { CircleCheck, Lock, MoveVertical, PackageX, Play, TriangleAlert, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { MISSING_HOLDS, activityDetails, activityLabel, blockParts, blockText, capacityWarning, overCapacity, toMinutes } from './schedule-grid';
+import { stageLabels } from './practice-stage';
 import { useCareerTone } from './schedule-career-color';
+
+/** La marca de cada etapa distinta de «Programada» (L-01e): un ícono en la tabla y su texto en la lista; el color no la dice. */
+const stageMarks: Record<Exclude<Activity['stage'], 'scheduled'>, LucideIcon> = { ready: CircleCheck, running: Play, closed: Lock };
 
 /** Cómo se abre y se mueve un bloque: la solicitud para quien puede verla, un panel de solo lectura para los demás y, para quien programa, «Mover…». */
 export interface BlockOpening {
@@ -76,9 +80,11 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
     'focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action',
     !table && 'min-h-11',
   );
+  const StageMark = activity.stage === 'scheduled' ? null : stageMarks[activity.stage];
   const icons =
-    table && (over || !activity.complete) ? (
+    table && (over || !activity.complete || StageMark) ? (
       <>
+        {StageMark ? <StageMark aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
         {over ? <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
         {!activity.complete ? <PackageX aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
       </>
@@ -86,6 +92,12 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
   const face = (
     <span className={cn('flex size-full flex-col justify-start text-left', table ? 'px-2 py-[2px] [container-type:size]' : 'gap-0.5 px-3 py-2')}>
       <BlockCopy parts={blockParts(activity)} variant={table ? 'table' : 'list'} icons={icons} clear={clear} />
+      {StageMark && !table ? (
+        <span className="mt-1 flex items-center gap-1 text-xs font-medium leading-4">
+          <StageMark aria-hidden className="size-3.5 shrink-0" />
+          {stageLabels[activity.stage]}
+        </span>
+      ) : null}
       {over && !table ? (
         <span className="mt-1 flex items-center gap-1 text-xs font-medium leading-4 tabular-nums">
           <TriangleAlert aria-hidden className="size-3.5 shrink-0" />
@@ -105,11 +117,12 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
       ) : null}
     </span>
   );
-  const label = activityLabel(activity, space);
+  const stage = activity.stage === 'scheduled' ? [] : [`Etapa: ${stageLabels[activity.stage]}`];
+  const label = [activityLabel(activity, space), ...stage].join(', ');
   const tip = (
     <span className="grid gap-0.5">
       <span>{text}</span>
-      {activityDetails(activity, space).map((line) => (
+      {[...activityDetails(activity, space), ...stage].map((line) => (
         <span key={line} className="font-normal tabular-nums">
           {line}
         </span>

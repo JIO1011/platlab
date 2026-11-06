@@ -1,6 +1,8 @@
 import {
+  assetBookings,
   closureList,
   formList,
+  incidentPractice,
   labsForm,
   labsRequest,
   labsSettings,
@@ -167,5 +169,24 @@ export function useReagentPickOptions(workspaceId: string, activityId: string, l
     queryKey: [...labsKey(user, workspaceId), 'reagent-options', activityId, line],
     queryFn: () => api(`${base(workspaceId)}/activities/${activityId}/lines/${line}/reagent-options`, { schema: reagentPickOptions }),
     gcTime: 0,
+  });
+}
+
+/** Las próximas reservas de un equipo en el Cronograma («Reservado» en Equipos): con quién, cuándo, en qué área y en qué etapa. */
+export function useAssetBookings(workspaceId: string, assetId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...labsKey(user, workspaceId), 'asset-bookings', assetId],
+    queryFn: () => api(`${base(workspaceId)}/assets/${assetId}/bookings`, { schema: assetBookings }),
+    refetchInterval: jitteredPoll,
+  });
+}
+
+/** La práctica en que se reportó un incidente, si nació de una (la hoja del incidente en Equipos). */
+export function useIncidentPractice(workspaceId: string, faultId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...labsKey(user, workspaceId), 'incident-practice', faultId],
+    queryFn: () => api(`${base(workspaceId)}/incidents/${faultId}/practice`, { schema: incidentPractice }),
   });
 }

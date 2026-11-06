@@ -6,7 +6,8 @@ import type { LogoFile } from './form-logo';
 import { Masthead } from './form-masthead';
 import { Cell, sheetGrid } from './form-parts';
 import { ResourcesTable } from './form-resources';
-import { FormRowsEditor, SheetRows } from './form-rows';
+import { SheetRows } from './form-rows';
+import { FormRowsEditor } from './form-rows-editor';
 import { Signatures } from './form-signatures';
 
 /** Observaciones: un espacio en blanco al final de la hoja. Con edición, se quita o se vuelve a agregar. */

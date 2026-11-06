@@ -2,6 +2,7 @@ import { AppError } from '../../../platform/errors.js';
 import {
   activityHoldOptions as activityHoldOptionsQuery,
   activityHoldPositions,
+  activityHoldTakes,
   heldActivityQuantities,
   holdableByArea as holdableByAreaQuery,
   holdForActivity as holdForActivityQuery,
@@ -11,6 +12,7 @@ import {
   releaseActivityHolds as releaseQuery,
 } from '../infrastructure/inventory.queries.js';
 import type { InventoryContext } from './context.js';
+import { applyMovement, lockExistingPosition } from './movements.js';
 
 /**
  * Lo apartado para un bloque de Laboratorios (ADR 0023, L-01d), en la misma transacción admitida del módulo que lo
@@ -148,4 +150,25 @@ export async function reholdForActivity(
     held.push({ allocationId: row.id, quantity: row.quantity });
   }
   return held;
+}
+
+/**
+ * Cierra lo apartado para un bloque (ADR 0023, «Cierre de Laboratorios»): `used` sale como salida, primero de los frascos
+ * que vencen antes, y lo demás vuelve a estar disponible. Libera antes de descontar, así lo reservado nunca supera el
+ * saldo; los frascos quedan bloqueados en orden fijo desde la liberación. Devuelve las operaciones de salida.
+ */
+export async function consumeActivityHolds(
+  ctx: InventoryContext,
+  input: { allocationIds: readonly string[]; used: string; reason: string; destination: string; releaseReason: string },
+): Promise<string[]> {
+  if (input.allocationIds.length === 0) return [];
+  const takes = await activityHoldTakes.run({ workspaceId: ctx.workspaceId, allocationIds: [...input.allocationIds], used: input.used }, ctx.client);
+  await releaseActivityHolds(ctx, input.allocationIds, input.releaseReason);
+  const operations: string[] = [];
+  for (const take of takes) {
+    const position = await lockExistingPosition(ctx, take.position_id);
+    const issued = await applyMovement(ctx, position, { type: 'issue', quantity: take.quantity, unit: position.baseUnit, reason: input.reason, destination: input.destination });
+    operations.push(issued.operationId);
+  }
+  return operations;
 }

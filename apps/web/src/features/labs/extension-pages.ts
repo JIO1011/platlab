@@ -3,6 +3,8 @@
  * páginas del módulo. Aparte de `pages.ts` también por las fronteras: las páginas importan el shell, que importa el
  * registro de módulos, y el descriptor no puede volver a ellas.
  */
+export { AssetBookingsTab } from './asset-bookings-tab';
+export { FaultPractice } from './fault-practice';
 export { AreaLabMark } from './area-lab-mark';
 export { AreaLabPanel } from './area-lab-panel';
 export { HolidaysAction } from './holidays-action';

@@ -25,6 +25,7 @@ export function LabsLayout() {
           canRequest: app.canOperate && me.permissions.includes('labs.request.create'),
           canReview: app.canOperate && me.permissions.includes('labs.request.review'),
           canSchedule: app.canOperate && me.permissions.includes('labs.schedule.manage'),
+          canLead: app.canOperate && me.permissions.includes('labs.schedule.lead'),
         } satisfies LabsContext
       }
     />

@@ -7,6 +7,7 @@ const eventLabels: Record<RequestView['events'][number]['action'], string> = {
   changes_requested: 'Cambios solicitados',
   resubmitted: 'Reenviada',
   scheduled: 'Programada',
+  completed: 'Finalizada',
   rejected: 'Rechazada',
   cancelled: 'Cancelada',
 };
@@ -16,6 +17,7 @@ const eventDots: Record<RequestView['events'][number]['action'], string> = {
   changes_requested: 'bg-warning',
   resubmitted: 'bg-action',
   scheduled: 'bg-success',
+  completed: 'bg-success',
   rejected: 'bg-danger',
   cancelled: 'bg-ink-subtle',
 };

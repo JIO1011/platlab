@@ -5,6 +5,8 @@ export type DateOrString = Date | string;
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
+export type numberArray = (number)[];
+
 export type stringArray = (string)[];
 
 /** 'NextRequestNumber' parameters type */
@@ -680,11 +682,14 @@ export interface IRequestBlocksParams {
 export interface IRequestBlocksResult {
   area_id: string;
   area_name: string;
+  closing_notes: string | null;
   code: string;
   date: string;
   ends_at: string;
   id: string;
+  prepared_lines: numberArray;
   responsible_name: string;
+  stage: string;
   starts_at: string;
   version: number;
 }
@@ -695,13 +700,13 @@ export interface IRequestBlocksQuery {
   result: IRequestBlocksResult;
 }
 
-const requestBlocksIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":706,"b":718}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":739,"b":749}]}],"statement":"-- El bloque activo de cada fecha programada (L-01c).\nSELECT a.id, a.version, a.on_date::text AS \"date!\", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS \"starts_at!\",\n  to_char(a.ends_at, 'HH24:MI') AS \"ends_at!\", coalesce(ident.display_name, '') AS \"responsible_name!\"\nFROM labs.activities AS a\nJOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = a.workspace_id AND pr.id = a.responsible_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE a.workspace_id = :workspaceId! AND a.request_id = :requestId! AND a.cancelled_at IS NULL\nORDER BY a.on_date"};
+const requestBlocksIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":771,"b":783}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":804,"b":814}]}],"statement":"-- El bloque activo de cada fecha programada (L-01c).\nSELECT a.id, a.version, a.stage, a.prepared_lines AS \"prepared_lines!\", a.closing_notes, a.on_date::text AS \"date!\", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS \"starts_at!\",\n  to_char(a.ends_at, 'HH24:MI') AS \"ends_at!\", coalesce(ident.display_name, '') AS \"responsible_name!\"\nFROM labs.activities AS a\nJOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = a.workspace_id AND pr.id = a.responsible_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE a.workspace_id = :workspaceId! AND a.request_id = :requestId! AND a.cancelled_at IS NULL\nORDER BY a.on_date"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- El bloque activo de cada fecha programada (L-01c).
- * SELECT a.id, a.version, a.on_date::text AS "date!", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS "starts_at!",
+ * SELECT a.id, a.version, a.stage, a.prepared_lines AS "prepared_lines!", a.closing_notes, a.on_date::text AS "date!", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS "starts_at!",
  *   to_char(a.ends_at, 'HH24:MI') AS "ends_at!", coalesce(ident.display_name, '') AS "responsible_name!"
  * FROM labs.activities AS a
  * JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id

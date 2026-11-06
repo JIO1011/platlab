@@ -8,6 +8,8 @@ const lines: LabsRequest['lines'] = [
   { kind: 'material', name: 'Guantes', perGroup: null, quantity: '10', check: 'unverified' },
 ];
 
+const asset = (code: string) => ({ id: '00000000-0000-4000-8000-000000000001', code });
+
 describe('lo apartado por línea', () => {
   it('dice cuánto se apartó y cuánto falta, con restas exactas', () => {
     const rows = holdRows(lines, { holds: [{ line: 1, held: '30', assets: [], complete: false }] });
@@ -20,8 +22,8 @@ describe('lo apartado por línea', () => {
   });
 
   it('lista los códigos de los equipos y cuántos faltan', () => {
-    expect(holdRows(lines, { holds: [{ line: 2, held: '2', assets: ['BAL-01', 'BAL-02'], complete: true }] })).toEqual([{ line: 2, text: 'Balanza: BAL-01, BAL-02', missing: null }]);
-    expect(holdRows(lines, { holds: [{ line: 2, held: '1', assets: ['BAL-01'], complete: false }] })[0]?.missing).toBe('Falta 1 balanza');
+    expect(holdRows(lines, { holds: [{ line: 2, held: '2', assets: [asset('BAL-01'), asset('BAL-02')], complete: true }] })).toEqual([{ line: 2, text: 'Balanza: BAL-01, BAL-02', missing: null }]);
+    expect(holdRows(lines, { holds: [{ line: 2, held: '1', assets: [asset('BAL-01')], complete: false }] })[0]?.missing).toBe('Falta 1 balanza');
     expect(holdRows(lines, { holds: [{ line: 2, held: '0', assets: [], complete: false }] })[0]).toEqual({ line: 2, text: 'Balanza: ninguno apartado', missing: 'Faltan 2 de balanza' });
   });
 

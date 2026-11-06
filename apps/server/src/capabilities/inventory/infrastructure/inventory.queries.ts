@@ -2909,3 +2909,50 @@ const holdPositionForActivityIR: any = {"usedParamSet":{"quantity":true,"workspa
 export const holdPositionForActivity = new PreparedQuery<IHoldPositionForActivityParams,IHoldPositionForActivityResult>(holdPositionForActivityIR);
 
 
+/** 'ActivityHoldTakes' parameters type */
+export interface IActivityHoldTakesParams {
+  allocationIds: stringArray;
+  used: string;
+  workspaceId: string;
+}
+
+/** 'ActivityHoldTakes' return type */
+export interface IActivityHoldTakesResult {
+  position_id: string;
+  quantity: string;
+}
+
+/** 'ActivityHoldTakes' query type */
+export interface IActivityHoldTakesQuery {
+  params: IActivityHoldTakesParams;
+  result: IActivityHoldTakesResult;
+}
+
+const activityHoldTakesIR: any = {"usedParamSet":{"workspaceId":true,"allocationIds":true,"used":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":534,"b":546}]},{"name":"allocationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":564,"b":578}]},{"name":"used","required":true,"transform":{"type":"scalar"},"locs":[{"a":837,"b":842},{"a":960,"b":965}]}],"statement":"-- Cómo se reparte :used entre lo que sigue apartado en esas reservas de bloque: primero lo de los frascos que vencen\n-- antes. Exacto en numeric; un frasco con dos reservas suma lo de ambas. Solo los frascos de los que algo sale.\nWITH held AS (\n  SELECT a.id, a.position_id, a.quantity, l.expires_on\n  FROM inventory.allocations AS a\n  JOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id\n  JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\n  WHERE a.workspace_id = :workspaceId! AND a.id = ANY (:allocationIds!::uuid[]) AND a.purpose = 'activity' AND a.status = 'held'\n),\nrunning AS (\n  SELECT position_id, quantity, sum(quantity) OVER (ORDER BY expires_on NULLS LAST, id) - quantity AS before\n  FROM held\n)\nSELECT position_id, trim_scale(sum(least(quantity, greatest(:used!::numeric - before, 0))))::text AS \"quantity!\"\nFROM running\nGROUP BY position_id\nHAVING sum(least(quantity, greatest(:used!::numeric - before, 0))) > 0\nORDER BY position_id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Cómo se reparte :used entre lo que sigue apartado en esas reservas de bloque: primero lo de los frascos que vencen
+ * -- antes. Exacto en numeric; un frasco con dos reservas suma lo de ambas. Solo los frascos de los que algo sale.
+ * WITH held AS (
+ *   SELECT a.id, a.position_id, a.quantity, l.expires_on
+ *   FROM inventory.allocations AS a
+ *   JOIN inventory.positions AS p ON p.workspace_id = a.workspace_id AND p.id = a.position_id
+ *   JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+ *   WHERE a.workspace_id = :workspaceId! AND a.id = ANY (:allocationIds!::uuid[]) AND a.purpose = 'activity' AND a.status = 'held'
+ * ),
+ * running AS (
+ *   SELECT position_id, quantity, sum(quantity) OVER (ORDER BY expires_on NULLS LAST, id) - quantity AS before
+ *   FROM held
+ * )
+ * SELECT position_id, trim_scale(sum(least(quantity, greatest(:used!::numeric - before, 0))))::text AS "quantity!"
+ * FROM running
+ * GROUP BY position_id
+ * HAVING sum(least(quantity, greatest(:used!::numeric - before, 0))) > 0
+ * ORDER BY position_id
+ * ```
+ */
+export const activityHoldTakes = new PreparedQuery<IActivityHoldTakesParams,IActivityHoldTakesResult>(activityHoldTakesIR);
+
+

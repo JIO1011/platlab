@@ -14,7 +14,7 @@ import { QueryErrorState } from '../../../app/states';
 import { AssetThumb } from '../asset-list';
 import { placeLines } from '../asset-text';
 import { equipmentErrorMessage, useFaultStep } from '../commands';
-import { FAULT_ACTION } from '../extension-points';
+import { FAULT_ACTION, FAULT_CONTEXT } from '../extension-points';
 import { FaultSteps } from '../fault-steps';
 import { faultSteps, faultTypeLabel, personText, usableText, warrantyNotice } from '../fault-text';
 import { useEquipmentKey, useFault } from '../queries';
@@ -114,6 +114,16 @@ function FaultExtensionActions({ me, faultId, assetId, hidden }: { me: Workspace
       ))}
     </div>
   );
+}
+
+/** El contexto que otros módulos dan al incidente (ADR 0020): Laboratorios dice la práctica en que se reportó. */
+function FaultExtensionContext({ me, faultId }: { me: WorkspaceMeResponse; faultId: string }) {
+  const contexts = useExtensions(FAULT_CONTEXT, me);
+  return contexts.map(({ code, label, Component }) => (
+    <Suspense key={`${code}-${label}`} fallback={null}>
+      <Component faultId={faultId} />
+    </Suspense>
+  ));
 }
 
 /**
@@ -284,6 +294,7 @@ export function FaultSheet({
             </p>
           ) : null}
           <FaultAsset fault={data} fichaTo={fichaBase ? `${fichaBase}/${data.asset.id}` : null} />
+          {me.data ? <FaultExtensionContext me={me.data} faultId={faultId} /> : null}
           {resolving ? (
             <form
               id={formId}

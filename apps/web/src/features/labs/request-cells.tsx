@@ -4,8 +4,9 @@ import { Plus, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Combobox, type ComboOption } from '../../app/combobox';
 import { addDays, formatDate } from '../../app/format';
-import { optionsOf, type DraftField } from './form-draft';
-import { activityLabels, canAddDate, fieldKey, withDate, withoutDate, type RequestDraft, type RequestIssues } from './request-draft';
+import { optionsOf, type DraftField, type SystemKey } from './form-draft';
+import { activityLabels, canAddDate, fieldKey, withDate, withoutDate, type RequestDraft } from './request-draft';
+import type { RequestIssues } from './request-draft-issues';
 
 /**
  * Lo que un control de la hoja necesita para leer y cambiar la solicitud: el borrador, las listas del laboratorio, lo que el
@@ -197,50 +198,47 @@ function FreeCell({ field, state, invalid }: { field: Extract<DraftField, { kind
   );
 }
 
+interface SystemCellProps {
+  label: string;
+  state: FillState;
+  invalid: boolean;
+}
+
+/** El control de cada dato del sistema al llenar la hoja. */
+const systemCells: Record<SystemKey, (props: SystemCellProps) => ReactNode> = {
+  titulo: ({ label, state, invalid }) => <TextCell label={label} value={state.draft.title} maxLength={200} invalid={invalid} onChange={(title) => state.onChange({ title })} />,
+  docente: ({ label, state, invalid }) => <TextCell label={label} value={state.draft.teacherName} maxLength={120} invalid={invalid} onChange={(teacherName) => state.onChange({ teacherName })} />,
+  tipo: ({ label, state, invalid }) => (
+    <ChoiceCell
+      label={label}
+      value={state.draft.activityType ?? ''}
+      choices={activityType.options.map((value) => ({ value, label: activityLabels[value] }))}
+      invalid={invalid}
+      onChange={(value) => state.onChange({ activityType: activityType.parse(value) })}
+    />
+  ),
+  asignatura: ({ label, state, invalid }) => <ListedCell label={label} value={state.draft.subject} list={state.options?.subjects ?? []} invalid={invalid} onChange={(subject) => state.onChange({ subject })} />,
+  carrera: ({ label, state, invalid }) => <ListedCell label={label} value={state.draft.career} list={state.options?.careers ?? []} invalid={invalid} onChange={(career) => state.onChange({ career })} />,
+  fecha: ({ label, state, invalid }) => <DatesCell label={label} state={state} invalid={invalid} />,
+  horario: ({ state, invalid }) => <TimesCell state={state} invalid={invalid} />,
+  participantes: ({ label, state, invalid }) => (
+    <TextCell label={label} value={state.draft.participants} maxLength={4} inputMode="numeric" invalid={invalid} onChange={(participants) => state.onChange({ participants })} />
+  ),
+  grupos: ({ label, state, invalid }) => <TextCell label={label} value={state.draft.groups} maxLength={3} inputMode="numeric" invalid={invalid} onChange={(groups) => state.onChange({ groups })} />,
+};
+
 /**
  * El valor de un dato de la Sección I al llenar la hoja: el control que le toca dentro de su celda, con su etiqueta
  * accesible (la visible está en la celda de al lado), el aviso del servidor y la marca de «falta» al intentar enviar.
  */
 export function FillValue({ field, state }: { field: DraftField; state: FillState }) {
-  const { draft, options, issues, missing, onChange } = state;
-  const key = fieldKey(field);
+  const { issues, missing } = state;
   const serverNote = field.kind === 'system' ? issueKeys[field.key]?.map((name) => issues.fields[name]).find((note) => note !== undefined) : undefined;
-  const absent = missing.has(key);
+  const absent = missing.has(fieldKey(field));
   const invalid = absent || serverNote !== undefined;
-  const control = (() => {
-    if (field.kind === 'free') return <FreeCell field={field} state={state} invalid={invalid} />;
-    switch (field.key) {
-      case 'titulo':
-        return <TextCell label={field.label} value={draft.title} maxLength={200} invalid={invalid} onChange={(title) => onChange({ title })} />;
-      case 'docente':
-        return <TextCell label={field.label} value={draft.teacherName} maxLength={120} invalid={invalid} onChange={(teacherName) => onChange({ teacherName })} />;
-      case 'tipo':
-        return (
-          <ChoiceCell
-            label={field.label}
-            value={draft.activityType ?? ''}
-            choices={activityType.options.map((value) => ({ value, label: activityLabels[value] }))}
-            invalid={invalid}
-            onChange={(value) => onChange({ activityType: activityType.parse(value) })}
-          />
-        );
-      case 'asignatura':
-        return <ListedCell label={field.label} value={draft.subject} list={options?.subjects ?? []} invalid={invalid} onChange={(subject) => onChange({ subject })} />;
-      case 'carrera':
-        return <ListedCell label={field.label} value={draft.career} list={options?.careers ?? []} invalid={invalid} onChange={(career) => onChange({ career })} />;
-      case 'fecha':
-        return <DatesCell label={field.label} state={state} invalid={invalid} />;
-      case 'horario':
-        return <TimesCell state={state} invalid={invalid} />;
-      case 'participantes':
-        return <TextCell label={field.label} value={draft.participants} maxLength={4} inputMode="numeric" invalid={invalid} onChange={(participants) => onChange({ participants })} />;
-      case 'grupos':
-        return <TextCell label={field.label} value={draft.groups} maxLength={3} inputMode="numeric" invalid={invalid} onChange={(groups) => onChange({ groups })} />;
-    }
-  })();
   return (
     <>
-      {control}
+      {field.kind === 'free' ? <FreeCell field={field} state={state} invalid={invalid} /> : systemCells[field.key]({ label: field.label, state, invalid })}
       <CellNote>{serverNote ?? (absent ? 'Falta completar.' : undefined)}</CellNote>
     </>
   );

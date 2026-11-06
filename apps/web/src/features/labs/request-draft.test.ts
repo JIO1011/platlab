@@ -1,7 +1,8 @@
 import { FORM_OPTIONAL_KEYS, FORM_STANDARD_LAYOUT, REQUEST_MAX_DATES, saveRequestRequest, type FormLayout, type LabsRequest } from '@platlab/contracts';
 import { describe, expect, it } from 'vitest';
 import { fieldsOf } from './form-draft';
-import { canAddDate, draftFrom, fieldKey, groupsOf, missingKeys, paperOf, saveBody, totalOf, valueText, viewOf, withDate, withoutDate, type RequestDraft } from './request-draft';
+import { canAddDate, draftFrom, fieldKey, groupsOf, paperOf, saveBody, totalOf, valueText, viewOf, withDate, withoutDate, type RequestDraft } from './request-draft';
+import { missingKeys } from './request-draft-issues';
 
 const reagentId = '5b2c7a10-1f3e-4a6b-8c9d-0e1f2a3b4c5d';
 const assetTypeId = '7c3d8b21-2a4f-4b7c-9dae-1f2a3b4c5d6e';

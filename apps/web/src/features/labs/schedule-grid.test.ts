@@ -64,6 +64,7 @@ const activity = (overrides: Partial<Activity> = {}): Activity => ({
   responsibleId: 'p-1',
   responsibleName: 'Luis Mora',
   code: 'P1-S12-ANT01',
+  stage: 'scheduled',
   complete: true,
   version: 1,
   ...overrides,

@@ -13,6 +13,9 @@ export const positiveQuantity = z
   .string()
   .regex(/^(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal mayor que cero');
 
+/** Cantidad de cero o más, con la misma escala: un conteo o lo utilizado de lo apartado. */
+export const nonNegativeQuantity = z.string().regex(/^\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal de cero o más');
+
 /** Escala dos decimales al mismo número de cifras como enteros exactos (BigInt), sin pasar por `number`. */
 function scaled(a: string, b: string): [bigint, bigint] {
   const [aInt = '0', aFrac = ''] = a.replace('-', '').split('.');

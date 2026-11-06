@@ -199,14 +199,16 @@ En L-01b las tablas `practices.*` de abajo pasan al esquema `labs` ([ADR 0023](0
 | `labs.form_revisions` | Cada guardado de un formato es una revisión nueva e inmutable: título, código y la hoja (`layout`: filas de 1 a 3 datos con los cinco esenciales, columnas de recursos, observaciones y firmas), validada por `labs.form_layout_valid`. Las solicitudes guardan formato y revisión |
 | `labs.list_values` | Asignaturas y carreras, que crecen al usarlas en una solicitud; únicas sin tildes ni mayúsculas |
 | `labs.request_counters` | Último número de solicitud del espacio (`SOL-0042`): correlativo y sin reutilizarse |
-| `labs.requests` | La solicitud con su formato y revisión, quien pide, estado (borrador, enviada, cambios solicitados, rechazada, cancelada), los datos del sistema en columnas, las fechas sueltas, los datos libres en `answers` y «fuera de plazo». Enviada, lo esencial está; rechazada y cancelada no cambian |
+| `labs.requests` | La solicitud con su formato y revisión, quien pide, estado (borrador, enviada, cambios solicitados, programada, finalizada, rechazada, cancelada), los datos del sistema en columnas, las fechas sueltas, los datos libres en `answers` y «fuera de plazo». Enviada, lo esencial está; se finaliza solo programada; finalizada, rechazada y cancelada no cambian |
 | `labs.request_lines` | Recursos pedidos: reactivo del catálogo en su unidad base o no catalogado, tipo de equipo o no catalogado, y material en texto; total exacto y, si se pidió así, por grupo. Se reemplazan solo mientras quien pide edita |
-| `labs.request_events` | Historial visible de la solicitud: enviada, cambios y rechazo con motivo, reenviada y cancelada; solo crece |
-| `labs.activities` | Bloques del Cronograma: una fecha de una solicitud enviada en un área, a una hora y con su responsable (Operador o Administrador), con el código vigente `P1-S12-ANT03` y sus partes. Una exclusión GiST impide dos activos que se crucen en el área; se liberan, no se borran |
+| `labs.request_events` | Historial visible de la solicitud: enviada, cambios y rechazo con motivo, reenviada, programada, finalizada y cancelada; solo crece |
+| `labs.activities` | Bloques del Cronograma: una fecha de una solicitud enviada en un área, a una hora y con su responsable (Operador o Administrador), con el código vigente `P1-S12-ANT03` y sus partes. Una exclusión GiST impide dos activos que se crucen en el área; se liberan, no se borran. Etapa (L-01e): programada → lista → en curso → cerrada, de a un paso y con quién y cuándo; la lista de chequeo (`prepared_lines`) y las observaciones del cierre. En curso no se mueve ni se libera; cerrada no cambia |
 | `labs.activity_sequences` | Último número de cada área en cada semana de un período: el «03» de ANT03, sin reutilizarse |
 | `labs.activity_codes` | Códigos que tuvo cada bloque, el vigente y los anteriores al cambiar de área; solo crece |
 | `labs.activity_allocations` | Lo que un bloque apartó de cada línea de reactivo: una reserva por frasco en `inventory.allocations` (propósito `activity`, fuera de la bandeja de salidas de Reactivos); se libera, no se borra |
 | `labs.activity_assets` | Equipos concretos apartados por un bloque y línea en su franja; una exclusión GiST impide que un equipo esté en dos bloques activos a la vez. Liberado, no cambia |
+| `labs.activity_usage` | Al cerrar, por línea de reactivo: lo apartado, lo utilizado (≤ apartado, sale como salida) y lo devuelto (columna generada); solo se agrega |
+| `labs.activity_incidents` | En qué práctica se reportó un incidente de Equipos (`incidents.cases`); solo se agrega |
 | `scheduling.lab_bookings`, `equipment_bookings`, `material_bookings` | Reservas `[inicio, fin)` con exclusión GiST por espacio y recurso |
 | `practices.templates`, `template_versions` | Plantillas con versiones publicadas inmutables |
 | `practices.participations` | Estudiante: docente responsable, ámbito y vigencia |
@@ -242,6 +244,7 @@ Reglas:
 - **Preparar y entregar.** Pasar de almacén a custodia y resolver la reserva; la existencia institucional no cambia.
 - **Cerrar.** Cada entrega termina consumida, devuelta (a cuarentena si no se verifica), dispuesta o como pendiente explícito. Mientras tanto, la actividad sigue en `closing`.
 - **Cancelar.** Antes de entregar libera las reservas; después exige conciliar las custodias.
+- **Cambiar frascos y cerrar una práctica (L-01e, [ADR 0023](05_decisiones.md#adr-0023)).** Orden de bloqueo: solicitud (al avanzar la etapa), bloque y frascos por id. Cambiar frascos libera lo anterior y aparta lo elegido. Cerrar libera lo apartado y saca lo utilizado como salida, primero de los frascos que vencen antes; luego guarda lo utilizado y la etapa, y finaliza la solicitud si era su último bloque. Todo en una transacción.
 - **Transferir.** Despachar de origen a tránsito y recibir de tránsito a destino, registrando diferencias.
 - **Corregir.** Siempre con una operación compensatoria autorizada.
 

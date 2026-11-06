@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { decimalString } from '../decimal.js';
+import { decimalString, nonNegativeQuantity } from '../decimal.js';
 import { newProduct } from './catalog.js';
 import { code, list, page, text } from '../common.js';
 import { adjustmentQuantity, operationType, positiveQuantity, sdsKind, unit } from './shared.js';
@@ -127,7 +127,6 @@ export const transferResponse = z.object({
 });
 
 /** Cantidad contada o vista: cero o más, con hasta 15 enteros y 9 decimales. */
-const countQuantity = z.string().regex(/^\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal de cero o más');
 
 /**
  * Conteo de una ubicación (ADR 0012, entrega 4): por frasco, el saldo que se vio al contar y lo que
@@ -137,7 +136,7 @@ export const countRequest = z
   .object({
     locationId: z.uuid(),
     lines: z
-      .array(z.object({ positionId: z.uuid(), expected: countQuantity, counted: countQuantity }).strict())
+      .array(z.object({ positionId: z.uuid(), expected: nonNegativeQuantity, counted: nonNegativeQuantity }).strict())
       .min(1)
       .max(200)
       .refine((lines) => new Set(lines.map((line) => line.positionId)).size === lines.length, 'Cada frasco se cuenta una vez'),

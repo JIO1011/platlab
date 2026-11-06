@@ -30,7 +30,7 @@ WHERE workspace_id = :workspaceId! AND activity_id = ANY (:activityIds!::uuid[])
 
 /* @name activeRequestActivities */
 -- Los bloques activos de una solicitud, con su fecha, hora y área: lo que se aparta o se libera.
-SELECT a.id, a.on_date::text AS "date!", to_char(a.starts_at, 'HH24:MI') AS "starts_at!", to_char(a.ends_at, 'HH24:MI') AS "ends_at!",
+SELECT a.id, a.stage, a.on_date::text AS "date!", to_char(a.starts_at, 'HH24:MI') AS "starts_at!", to_char(a.ends_at, 'HH24:MI') AS "ends_at!",
   area.name AS area_name
 FROM labs.activities AS a
 JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id

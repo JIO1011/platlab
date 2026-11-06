@@ -1,12 +1,14 @@
 import type pg from 'pg';
 import type { z } from 'zod';
 import {
+  ACTIVITY_CHANGEABLE,
   activityCode,
   periodWeek,
   requestCode,
   scheduleCheck,
   scheduleProblemText,
   type Activity,
+  type ActivityStage,
   type ResponsibleOptions,
   type scheduleActivityRequest,
   type ApprovalResults,
@@ -64,13 +66,14 @@ const toActivity = (row: IListActivitiesResult, complete: boolean): Activity => 
   responsibleId: row.responsible_principal_id,
   responsibleName: row.responsible_name,
   code: row.code,
+  stage: row.stage as ActivityStage,
   complete,
   version: row.version,
 });
 
 /** Los bloques con si lo apartado alcanza lo pedido (L-01d). */
 async function withHolds(access: WorkspaceAccess, rows: readonly IListActivitiesResult[]): Promise<Activity[]> {
-  const holds = await blockHolds(access, rows.map((row) => ({ activityId: row.id, requestId: row.request_id })));
+  const holds = await blockHolds(access, rows.map((row) => ({ activityId: row.id, requestId: row.request_id, closed: row.stage === 'closed' })));
   return rows.map((row) => toActivity(row, (holds.get(row.id) ?? []).every((hold) => hold.complete)));
 }
 
@@ -277,6 +280,7 @@ export function moveActivity(pool: pg.Pool, request: CommandRequest, activityId:
     const [current] = await lockActivity.run({ workspaceId, activityId }, access.client);
     if (!current || current.cancelled_at) throw notFound();
     if (current.version !== input.expectedVersion) throw conflict();
+    if (!ACTIVITY_CHANGEABLE.includes(current.stage as ActivityStage)) throw invalid('Una práctica que empezó no se mueve');
     const shown = await activityById(access, activityId);
     const placed = await checkPlacement(access, { ...input, date: current.on_date, participants: shown.participants, exceptId: activityId });
     const recoded = input.areaId === current.area_id ? { sequence: current.sequence, code: current.code } : await nextCode(access, placed, input.areaId);
