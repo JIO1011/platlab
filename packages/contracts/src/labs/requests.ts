@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { expectedVersion, text } from '../common.js';
-import { decimalString } from '../decimal.js';
+import { positiveQuantity } from '../decimal.js';
 import type { FormFreeField, FormLayout } from './form.js';
 import { scheduleProblem } from './schedule.js';
 
@@ -27,7 +27,6 @@ export const activityType = z.enum(['practice', 'research', 'service', 'training
 export const requestCode = (number: number): string => `SOL-${String(number).padStart(4, '0')}`;
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora HH:MM');
-const positive = decimalString.refine((value) => !value.startsWith('-') && /[1-9]/.test(value), 'Debe ser mayor que cero');
 const count = z.number().int().min(1).max(10_000);
 
 /**
@@ -37,14 +36,14 @@ const count = z.number().int().min(1).max(10_000);
  */
 export const requestLineInput = z.discriminatedUnion('kind', [
   z
-    .object({ kind: z.literal('reagent'), itemId: z.uuid().nullable(), description: text(200).nullable(), quantity: positive, unit: z.string().regex(/^[A-Za-z]{1,10}$/) })
+    .object({ kind: z.literal('reagent'), itemId: z.uuid().nullable(), description: text(200).nullable(), quantity: positiveQuantity, unit: z.string().regex(/^[A-Za-z]{1,10}$/) })
     .strict()
     .refine((line) => (line.itemId === null) !== (line.description === null), 'Del catálogo o no catalogado'),
   z
     .object({ kind: z.literal('equipment'), assetTypeId: z.uuid().nullable(), description: text(200).nullable(), perGroup: count.nullable(), quantity: count })
     .strict()
     .refine((line) => (line.assetTypeId === null) !== (line.description === null), 'Por tipo o no catalogado'),
-  z.object({ kind: z.literal('material'), description: text(200), perGroup: positive.nullable(), quantity: positive }).strict(),
+  z.object({ kind: z.literal('material'), description: text(200), perGroup: positiveQuantity.nullable(), quantity: positiveQuantity }).strict(),
 ]);
 
 /**
@@ -162,6 +161,9 @@ export const labsRequest = requestSummary.extend({
   /** El bloque de cada fecha programada: código, área, hora y responsable. */
   blocks: z.array(
     z.object({
+      activityId: z.uuid(),
+      /** La versión del bloque: la que comparan los comandos sobre él, como cambiar los frascos. */
+      version: z.number().int().positive(),
       date: z.iso.date(),
       code: z.string(),
       areaId: z.uuid(),

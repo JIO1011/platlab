@@ -1,6 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type pg from 'pg';
 import {
+  activityLineParams,
+  reagentPicksRequest,
   closureListQuery,
   closureParams,
   createClosureRequest,
@@ -33,6 +35,7 @@ import {
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import type { PublicFiles } from '../../../platform/storage/public-files.js';
 import { createClosure, listClosures, voidClosure } from '../application/closures.js';
+import { changeReagentPicks, reagentPickOptions } from '../application/reagent-picks.js';
 import { reviewRequest } from '../application/review.js';
 import { archiveForm, createForm, getForm, listForms, publishForm, updateForm, uploadFormLogo } from '../application/form.js';
 import { archivePeriod, createPeriod, listPeriods, updatePeriod } from '../application/periods.js';
@@ -120,6 +123,17 @@ export function labsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: 
     app.patch('/activities/:activityId', async (request) =>
       moveActivity(pool, commandRequest(request), activityParams.parse(request.params).activityId, updateActivityRequest.parse(request.body)),
     );
+
+    // Cambiar los frascos apartados de un reactivo del bloque (ADR 0023, «Cierre de Laboratorios»).
+    app.get('/activities/:activityId/lines/:line/reagent-options', async (request) => {
+      const { activityId, line } = activityLineParams.parse(request.params);
+      return reagentPickOptions(pool, queryRequest(request), activityId, line);
+    });
+
+    app.put('/activities/:activityId/lines/:line/reagents', async (request) => {
+      const { activityId, line } = activityLineParams.parse(request.params);
+      return changeReagentPicks(pool, commandRequest(request), activityId, line, reagentPicksRequest.parse(request.body));
+    });
 
     // Anticipación del espacio de trabajo.
     app.get('/settings', async (request) => getSettings(pool, queryRequest(request)));

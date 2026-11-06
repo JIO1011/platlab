@@ -9,7 +9,7 @@ export const equipmentModule = defineModule({
   code: 'equipment',
   name: 'Equipos',
   requires: ['core'],
-  integrates: ['practices', 'maintenance'],
+  integrates: ['labs', 'maintenance'],
   permissions: [
     'equipment.catalog.read',
     'equipment.catalog.manage',

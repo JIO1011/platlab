@@ -10,7 +10,7 @@ export const labsModule = defineModule({
   code: 'labs',
   name: 'Laboratorios',
   requires: ['core'],
-  integrates: [],
+  integrates: ['reagents', 'equipment'],
   permissions: ['labs.read', 'labs.space.manage', 'labs.form.manage', 'labs.request.create', 'labs.request.view', 'labs.request.review', 'labs.schedule.manage', 'labs.schedule.lead'],
   roleGrants: {
     admin: ['labs.read', 'labs.space.manage', 'labs.form.manage', 'labs.request.view', 'labs.request.review', 'labs.schedule.manage', 'labs.schedule.lead'],

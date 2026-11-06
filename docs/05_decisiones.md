@@ -844,8 +844,8 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
   - **L-01a:** Espacios y Formatos.
   - **L-01b:** Solicitudes, con los recursos validados y la bandeja.
   - **L-01c:** Cronograma.
-  - **L-01d:** reserva real. Al programar se apartan el stock y los equipos concretos en una sola transacción, y el docente puede aceptar las propuestas de cambio ([ADR 0007](#adr-0007)).
-  - **L-01e:** preparación y cierre. El consumo real y la devolución mueven el inventario de Reactivos, como operaciones distintas de reservar ([03](03_datos.md)); también la impresión.
+  - **L-01d:** reserva real. Al programar se apartan el stock y los equipos concretos en una sola transacción; «Aprobar» desde Recibidas y la revisión antes de enviar («Flujo de la Propuesta»), y el Administrador cambia los frascos apartados («Cierre de Laboratorios»).
+  - **L-01e:** preparación y cierre. El consumo real y la devolución mueven el inventario de Reactivos, como operaciones distintas de reservar ([03](03_datos.md)); también la impresión, el incidente con el contexto de la práctica y «Reservado» en Equipos («Cierre de Laboratorios»).
   - L-01a a L-01c son el mínimo que se muestra al cliente. Después viene su G0.
 - **Se valida con el cliente** antes de cerrar cada regla (Pendientes, «Reglas de Laboratorios»): lo dudoso no se programa.
 - **Reglas de L-01a** (confirmadas por el usuario, 21-10-2026):
@@ -914,6 +914,21 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
       - En Recibidas, «Aprobar» programa cada fecha en la hora y el laboratorio pedidos, con las mismas reglas y la reserva real, y el bloque aparece solo en el Cronograma; también varias a la vez, cada una en su transacción con su resultado. Si choca o no hay laboratorio pedido, se programa arrastrando.
       - Antes de enviar, el sistema muestra al docente alternativas para lo que no alcanza (28-10-2026: contra todo el espacio, como la reserva). Por fecha revisa el laboratorio pedido (libre, en horario y sin cierre), cada reactivo (lo pedido en todas las fechas frente a lo usable sin apartar) y cada tipo de equipo (libres en la franja). Si falta, muestra cuánto hay y en qué áreas está el reactivo, y las horas libres de ese día para el equipo. Solo informa: no aparta ni impide enviar.
       - L-01e: el técnico prepara con una lista de chequeo y marca «Lista»; la práctica pasa a «En ejecución» y se finaliza; al cerrar registra solicitado, utilizado (parte de lo solicitado) y devuelto, y lo devuelto vuelve al inventario. «Reportar incidencia» lleva el contexto de la práctica al equipo.
+    - **Cierre de Laboratorios** (decisión del usuario, 05-11-2026, sobre la evaluación del módulo; lo marcado «por confirmar» se valida con el cliente en P-04 y se ajusta sin rehacer el flujo).
+      - **Formatos:** el editor se queda, para que el Administrador ajuste sin pedir soporte. En la incorporación, el Equipo PlatLab arma el primer formato con el Administrador, desde la cuenta de él y a partir de su formato en papel, sin acceso privilegiado ([ADR 0004](#adr-0004)). Un formato que sirva a otros clientes se vuelve plantilla del producto; no hay formatos a medida por cliente.
+      - **Cambiar los frascos apartados:** en «Lo apartado» de un bloque programado o listo, el Administrador elige por reactivo de qué frascos usables y vigentes ese día sale cada cantidad, hasta lo pedido; lo que no cubre queda «Falta». En una transacción: libera lo anterior y aparta lo elegido.
+      - **Preparación y cierre (L-01e)**, por bloque: programada → lista → en curso → cerrada. Lo lleva quien tenga `labs.schedule.lead` (el Operador o el Administrador).
+        - La lista de chequeo son los recursos del bloque. Marcarla no bloquea «Lista», que muestra cuántos quedan (por confirmar).
+        - «Iniciar», desde el día de la práctica. Mover y cancelar, solo programada o lista.
+        - «Cerrar» registra por reactivo lo utilizado, hasta lo apartado: sale del inventario como salida «Práctica P1-S12-ANT03» hacia el área. El resto, lo devuelto, vuelve a estar disponible (por confirmar: quién declara el consumo y si se devuelve el químico abierto). Materiales y equipos llevan observaciones.
+        - Con todos sus bloques cerrados, la solicitud pasa a «Finalizada».
+        - «Reportar incidencia», desde un bloque en curso o cerrado: se elige un equipo apartado y el incidente nace en Equipos, autorizado por Equipos, con el vínculo a la práctica (código, solicitante y horario), que guarda Laboratorios y Equipos muestra por un punto de extensión.
+        - La hoja impresa desde un bloque lleva en «Código» los equipos apartados.
+      - **«Reservado» en Equipos:** la ficha del equipo muestra sus próximas reservas del Cronograma por un punto de extensión de Laboratorios; Equipos no depende de Laboratorios.
+      - **Inicio:** la tarjeta cuenta lo que espera programarse, lo fuera de plazo y los bloques de los próximos 7 días con «Falta», y grafica las solicitudes enviadas por día.
+      - **Métricas:** van con Analítica (M8); los datos ya se guardan en columnas.
+      - **Avisos al solicitante:** sin correo hasta el outbox (T-07, [ADR 0017](#adr-0017)); sigue el estado y el historial en «Mis solicitudes».
+      - **G0 de Laboratorios:** demo sintética con solicitudes en cada estado y bloques con lo apartado coherente; pgTAP, integración y concurrencia de reservar, cambiar frascos y cerrar; e2e del flujo solicitante → Administrador → responsable, con axe; auditoría de la interfaz. Superado, pasa a etapa `pilot`.
     - **Color de Laboratorios** (decisión del usuario, 26-10-2026; reemplaza el fucsia y, el mismo día, el negro petróleo): amarillo `#FFCB56` (pedido por el usuario el mismo día, en lugar de la terracota) como fondo, con texto casi negro encima y el oro oscuro `#7A5600` para textos, enlaces y focos sobre blanco; estilo formal y elegante como la Propuesta.
     - **Vista del Cronograma** (decisión del usuario, 24-10-2026; ajusta «Cronograma» de «Cuatro secciones» y la bandeja al costado): una tabla al ancho de la ventana, como la planilla que ya usan, con todas las áreas habilitadas como columnas (sigla) y las horas de 07:00 a 19:00 como filas. Cada bloque dice solo «Materia - Carrera - Docente» y al pulsarlo abre la solicitud llena, lista para imprimir. «Por programar» queda debajo de la tabla, como bloques que se arrastran a su lugar.
     - **Ajustes de L-01b** (decisión del usuario, 23-10-2026; reemplaza «quien administra también puede llenarla» y que logo y nombre lleguen del espacio de trabajo).
@@ -929,7 +944,9 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
       - Recursos en una sola tabla de líneas: reactivo del catálogo en su unidad base o «no catalogado» con unidad; tipo de equipo o «no catalogado», con por grupo y total; material como texto con cantidad. Validar no reserva: ✔ si el stock usable de reactivos o los equipos operativos del tipo alcanzan, ⚠ si no, ✖ si no está catalogado o es material. Se calcula al leer, por la interfaz pública de Reactivos y Equipos, y solo si ese módulo admite consulta.
       - Historial visible de la solicitud (enviada, cambios con motivo, reenviada, rechazada con motivo, cancelada), aparte de la auditoría.
       - Bandeja del Administrador: lo excepcional primero (fuera de plazo y líneas con ⚠ o ✖), luego por la fecha más próxima.
-  - **Métricas previstas:** horas de uso por área, solicitudes y participantes por carrera, asignatura y tipo, consumo de reactivos y uso de equipos por carrera y por práctica, pedidos fuera de plazo, rechazos y tiempo de respuesta.
+  - **Métricas previstas** (en Analítica, M8): horas de uso por área, solicitudes y participantes por carrera, asignatura y tipo, consumo de reactivos y uso de equipos por carrera y por práctica, pedidos fuera de plazo, rechazos y tiempo de respuesta.
+
+Cambios: 21-10, 23-10, 24-10, 26-10, 28-10, 05-11-2026 (historial en git).
 
 ## ADR 0024 — Áreas y departamentos en una sección propia
 
@@ -971,7 +988,7 @@ Estado: aceptada (20-10-2026; idea del usuario: cuadros que la app dibuja como u
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3 | P-04 |
 | Equipos | ¿Qué campos de la ficha y qué documentos considera necesarios el cliente? ¿Qué valores de alimentación usa? ¿Quiere un aviso al pesar en Reactivos con una balanza de calibración vencida? ([ADR 0019](#adr-0019)) | F0, antes de E-01 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
-| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | ¿Devoluciones químicas y quién declara el consumo al cerrar? (Solicitantes, cancelación y materiales, 21-10-2026; responsable, fechas y aforo del Cronograma, 23-10-2026) | P-04, antes de L-01e |
+| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | L-01e se programó con reglas por defecto («Cierre de Laboratorios», 05-11-2026). Falta confirmar: ¿quién declara lo utilizado al cerrar (el responsable o el docente)? ¿El químico abierto que sobra vuelve al frasco o se desecha? ¿La lista de chequeo debe estar completa para marcar «Lista»? ¿La columna «Código» de equipos se llena con los asignados o a mano? ¿Se entrega material que se devuelve? (Solicitantes, cancelación y materiales, 21-10-2026; responsable, fechas y aforo, 23-10-2026) | P-04, con el cliente |
 | Inicio | Propuesta del 20-10-2026 en espera: el usuario tiene otras ideas. «Por atender» de todos los módulos (rojo antes que ámbar, con su enlace filtrado), tres tarjetas por fila con gráfico solo si hay datos (Equipos hoy dice siempre «Sin cambios»), «Por atender» primero en el móvil y avisos declarados por cada módulo en su `module.tsx` | Al terminar los módulos, con las ideas del usuario |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |

@@ -1,6 +1,10 @@
+import { Button } from '@platlab/ui';
 import { PackageX, TriangleAlert } from 'lucide-react';
+import { useState } from 'react';
+import { useLabs } from './context';
 import { holdRows } from './request-hold-rows';
 import type { RequestView } from './request-draft';
+import { RequestPicksSheet } from './request-picks-sheet';
 import { Pill } from './request-status';
 import { shortDateText } from './schedule-placement';
 import { softCard } from './style';
@@ -8,9 +12,11 @@ import { softCard } from './style';
 /**
  * Lo apartado en cada fecha programada (L-01d, ADR 0023), como una línea de tiempo: por fecha, el área, la hora y el
  * responsable de su bloque, con su estado en texto («Apartado» o «Falta apartar recursos»), y debajo lo apartado por
- * línea y, si no alcanza, «Falta». Va fuera de la hoja, como el historial: la hoja es lo que se imprime.
+ * línea y, si no alcanza, «Falta». Quien programa (Administrador) puede «Cambiar frascos» de cada reactivo del catálogo.
+ * Va fuera de la hoja, como el historial: la hoja es lo que se imprime.
  */
 export function RequestHolds({ request }: { request: RequestView }) {
+  const { workspaceId, canSchedule } = useLabs();
   const blocks = request.blocks.filter((block) => block.holds.length > 0);
   if (blocks.length === 0) return null;
   return (
@@ -37,21 +43,50 @@ export function RequestHolds({ request }: { request: RequestView }) {
                 )}
               </p>
               <ul className="grid gap-1.5">
-                {rows.map((row) => (
-                  <li key={row.line} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink">
-                    <span className="min-w-0 break-words tabular-nums">{row.text}</span>
-                    {row.missing ? (
-                      <Pill tone="warning" icon={<TriangleAlert aria-hidden className="size-3.5" />}>
-                        {row.missing}
-                      </Pill>
-                    ) : null}
-                  </li>
-                ))}
+                {rows.map((row) => {
+                  const line = request.lines[row.line - 1];
+                  return (
+                    <li key={row.line} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink">
+                      <span className="min-w-0 break-words tabular-nums">{row.text}</span>
+                      {row.missing ? (
+                        <Pill tone="warning" icon={<TriangleAlert aria-hidden className="size-3.5" />}>
+                          {row.missing}
+                        </Pill>
+                      ) : null}
+                      {canSchedule && line?.kind === 'reagent' && line.itemId ? (
+                        <ChangePicks workspaceId={workspaceId} block={block} lineNumber={row.line} name={line.name} />
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             </li>
           );
         })}
       </ul>
     </section>
+  );
+}
+
+/** «Cambiar frascos» de un reactivo del bloque: el botón y su hoja, que se pide al abrirla. */
+function ChangePicks({
+  workspaceId,
+  block,
+  lineNumber,
+  name,
+}: {
+  workspaceId: string;
+  block: { activityId: string; version: number; date: string };
+  lineNumber: number;
+  name: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button size="sm" variant="secondary" aria-label={`Cambiar frascos de ${name}`} onClick={() => setOpen(true)}>
+        Cambiar frascos
+      </Button>
+      <RequestPicksSheet workspaceId={workspaceId} open={open} onOpenChange={setOpen} block={block} lineNumber={lineNumber} name={name} />
+    </>
   );
 }

@@ -1,4 +1,12 @@
-import { heldForActivity, holdableByArea, holdForActivity, releaseActivityHolds } from '../../../capabilities/inventory/index.js';
+import {
+  activityHoldOptions,
+  heldForActivity,
+  holdableByArea,
+  holdForActivity,
+  reholdForActivity,
+  releaseActivityHolds,
+  type ActivityHoldOption,
+} from '../../../capabilities/inventory/index.js';
 import type { WorkspaceAccess } from '../../core/index.js';
 import { requestableReagents as requestableReagentsQuery } from '../infrastructure/requestables.queries.js';
 import { inventoryContext } from './command.js';
@@ -48,4 +56,17 @@ export function heldReagentQuantities(access: WorkspaceAccess, allocationIds: re
 /** Lo que se podría apartar de cada reactivo el día `validOn`, por área: las alternativas antes de enviar (ADR 0023). */
 export function reagentStockByArea(access: WorkspaceAccess, itemIds: readonly string[], validOn: string) {
   return holdableByArea(inventoryContext(access), itemIds, validOn);
+}
+
+/** Los frascos de los que un bloque puede apartar un reactivo ese día, con lo que ya apartó (ADR 0023). */
+export function reagentHoldOptions(
+  access: WorkspaceAccess,
+  input: { itemId: string; validOn: string; allocationIds: readonly string[] },
+): Promise<ActivityHoldOption[]> {
+  return activityHoldOptions(inventoryContext(access), input);
+}
+
+/** Cambia lo apartado de un reactivo para un bloque por los frascos que eligió el Administrador (ADR 0023). */
+export function reholdReagentForActivity(access: WorkspaceAccess, input: Parameters<typeof reholdForActivity>[1]): Promise<Array<{ allocationId: string; quantity: string }>> {
+  return reholdForActivity(inventoryContext(access), input);
 }

@@ -24,6 +24,8 @@ describe('tabla de recursos', () => {
 
   it('con fechas programadas mide lo apartado y toma la fecha a la que más le falta', () => {
     const block = (date: string, held: string, assets: string[], complete: boolean) => ({
+      activityId: '00000000-0000-4000-8000-000000000001',
+      version: 1,
       date,
       code: 'P1-S1-QUI01',
       areaId: 'a',
@@ -93,7 +95,7 @@ describe('comprobaciones de la revisión', () => {
   });
 
   it('suma «Apartado» solo si hay fechas con lo apartado', () => {
-    const block = { date: '2026-11-02', code: 'C', areaId: 'a', areaName: 'A', startsAt: '08:00', endsAt: '10:00', responsibleName: 'R', holds: [{ line: 1, held: '0', assets: [], complete: false }] };
+    const block = { activityId: '00000000-0000-4000-8000-000000000002', version: 1, date: '2026-11-02', code: 'C', areaId: 'a', areaName: 'A', startsAt: '08:00', endsAt: '10:00', responsibleName: 'R', holds: [{ line: 1, held: '0', assets: [], complete: false }] };
     const items = reviewItems({ lines: [], late: false, blocks: [block], areaId: 'a', startsAt: null, endsAt: null });
     expect(items.at(-1)).toMatchObject({ key: 'apartado', text: 'Falta apartar', detail: '0 de 1 fecha' });
     expect(items[1]).toMatchObject({ label: 'Horario', text: 'Sin horario' });

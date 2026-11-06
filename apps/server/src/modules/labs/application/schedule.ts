@@ -74,7 +74,8 @@ async function withHolds(access: WorkspaceAccess, rows: readonly IListActivities
   return rows.map((row) => toActivity(row, (holds.get(row.id) ?? []).every((hold) => hold.complete)));
 }
 
-async function activityById(access: WorkspaceAccess, activityId: string): Promise<Activity> {
+/** Un bloque con si lo apartado alcanza: lo que responde todo comando sobre él. */
+export async function activityById(access: WorkspaceAccess, activityId: string): Promise<Activity> {
   const [row] = await listActivities.run({ workspaceId: access.workspace.id, activityId, from: null, to: null }, access.client);
   if (!row) throw notFound();
   const [activity] = await withHolds(access, [row]);

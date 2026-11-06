@@ -1031,3 +1031,60 @@ WHERE p.workspace_id = :workspaceId! AND p.item_id = ANY (:itemIds!::uuid[]) AND
   AND p.balance > p.reserved
 GROUP BY p.item_id, la.area_id, area.name
 ORDER BY p.item_id, sum(p.balance - p.reserved) DESC, area.name;
+
+/* @name activityHoldOptions */
+-- Los frascos de los que un bloque puede apartar :itemId el día :validOn (ADR 0023, «Cierre de Laboratorios»): los de
+-- `lockHoldablePositions` y los que ya apartó ese bloque (:allocationIds), con lo disponible más lo suyo. Sin bloquear.
+WITH mine AS (
+  SELECT position_id, sum(quantity) AS quantity
+  FROM inventory.allocations
+  WHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held'
+  GROUP BY position_id
+)
+SELECT p.id, c.code AS "container_code?", l.code AS lot_code, l.expires_on, loc.name AS location_name,
+  trim_scale(p.balance - p.reserved + coalesce(mine.quantity, 0))::text AS "available!",
+  trim_scale(coalesce(mine.quantity, 0))::text AS "held!"
+FROM inventory.positions AS p
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
+LEFT JOIN mine ON mine.position_id = p.id
+WHERE p.workspace_id = :workspaceId! AND p.item_id = :itemId! AND i.kind = :kind!
+  AND p.disposition = 'usable' AND loc.archived_at IS NULL
+  AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)
+  AND (p.balance > p.reserved OR mine.quantity IS NOT NULL)
+ORDER BY l.expires_on NULLS LAST, p.id;
+
+/* @name activityHoldPositions */
+-- Los frascos de lo que sigue apartado en esas reservas de bloque.
+SELECT DISTINCT position_id
+FROM inventory.allocations
+WHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held';
+
+/* @name lockPositionsInOrder */
+-- Bloquea frascos en el orden fijo de su id, antes que sus reservas: el mismo orden que `lockHoldablePositions`.
+SELECT id
+FROM inventory.positions
+WHERE workspace_id = :workspaceId! AND id = ANY (:positionIds!::uuid[])
+ORDER BY id
+FOR UPDATE;
+
+/* @name holdPositionForActivity */
+-- Aparta :quantity de un frasco ya bloqueado para un bloque, solo si sigue siendo apartable el día :validOn y lo
+-- disponible alcanza; si no, no devuelve fila.
+WITH reserved AS (
+  UPDATE inventory.positions AS p
+  SET reserved = p.reserved + :quantity!::numeric, version = p.version + 1
+  FROM inventory.items AS i, inventory.lots AS l, core.locations AS loc
+  WHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND p.item_id = :itemId!
+    AND i.workspace_id = p.workspace_id AND i.id = p.item_id AND i.kind = :kind!
+    AND l.workspace_id = p.workspace_id AND l.id = p.lot_id AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)
+    AND loc.workspace_id = p.workspace_id AND loc.id = p.location_id AND loc.archived_at IS NULL
+    AND p.disposition = 'usable' AND p.balance - p.reserved >= :quantity!::numeric
+  RETURNING p.id
+)
+INSERT INTO inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id, purpose)
+SELECT :workspaceId!, reserved.id, :quantity!::numeric, :reason!, :destination!, :principalId!, 'activity'
+FROM reserved
+RETURNING id, trim_scale(quantity)::text AS "quantity!";

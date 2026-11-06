@@ -1,4 +1,18 @@
-import { closureList, formList, labsForm, labsRequest, labsSettings, periodList, requestList, requestOptions, requestReview, responsibleOptions, scheduleList, spaceList } from '@platlab/contracts';
+import {
+  closureList,
+  formList,
+  labsForm,
+  labsRequest,
+  labsSettings,
+  periodList,
+  reagentPickOptions,
+  requestList,
+  requestOptions,
+  requestReview,
+  responsibleOptions,
+  scheduleList,
+  spaceList,
+} from '@platlab/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
@@ -141,3 +155,17 @@ export function useRequestOptions(workspaceId: string) {
 /** La revisión antes de enviar (ADR 0023): se pide al momento de enviar, ya guardado el borrador, sin caché. */
 export const fetchRequestReview = (workspaceId: string, requestId: string) =>
   api(`${base(workspaceId)}/requests/${requestId}/review`, { schema: requestReview });
+
+/**
+ * Los frascos de los que se puede apartar un reactivo de un bloque (ADR 0023): los usables y vigentes ese día, con lo
+ * que el bloque ya apartó de cada uno. Solo se piden con la hoja abierta y siempre al abrirla: el stock no se supone.
+ */
+export function useReagentPickOptions(workspaceId: string, activityId: string, line: number, enabled: boolean) {
+  const user = useUserKey();
+  return useQuery({
+    enabled,
+    queryKey: [...labsKey(user, workspaceId), 'reagent-options', activityId, line],
+    queryFn: () => api(`${base(workspaceId)}/activities/${activityId}/lines/${line}/reagent-options`, { schema: reagentPickOptions }),
+    gcTime: 0,
+  });
+}

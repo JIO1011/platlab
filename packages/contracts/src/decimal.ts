@@ -8,6 +8,11 @@ export const decimalString = z
   .string()
   .regex(/^-?\d+(\.\d+)?$/, 'Debe ser un decimal sin notación científica');
 
+/** Cantidad mayor que cero, con hasta 15 enteros y 9 decimales: lo que cabe en numeric(24,9) (02 §12). */
+export const positiveQuantity = z
+  .string()
+  .regex(/^(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal mayor que cero');
+
 /** Escala dos decimales al mismo número de cifras como enteros exactos (BigInt), sin pasar por `number`. */
 function scaled(a: string, b: string): [bigint, bigint] {
   const [aInt = '0', aFrac = ''] = a.replace('-', '').split('.');
