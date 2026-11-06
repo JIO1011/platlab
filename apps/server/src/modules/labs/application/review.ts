@@ -30,7 +30,7 @@ interface Busy {
  * Otras franjas del día, de la misma duración y cada media hora dentro de `ranges`, con al menos `wanted` equipos sin
  * nada apartado que se cruce. `[inicio, fin)`: una franja empieza cuando otra termina.
  */
-export function freeAlternatives(
+function freeAlternatives(
   ranges: ReadonlyArray<{ opens: string; closes: string }>,
   slot: { startsAt: string; endsAt: string },
   assetIds: readonly string[],
