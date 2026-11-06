@@ -192,6 +192,8 @@ async function blocksOf(access: WorkspaceAccess, requestId: string): Promise<Lab
   const rows = await requestBlocks.run({ workspaceId: access.workspace.id, requestId }, access.client);
   const holds = await blockHolds(access, rows.map((row) => ({ activityId: row.id, requestId })));
   return rows.map((block) => ({
+      activityId: block.id,
+      version: block.version,
       date: block.date,
       code: block.code,
       areaId: block.area_id,

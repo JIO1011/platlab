@@ -7,10 +7,7 @@ import { z } from 'zod';
  */
 export const unit = z.string().regex(/^[A-Za-z]{1,10}$/, 'Unidad inválida');
 
-/** Cantidad mayor que cero, con hasta 15 enteros y 9 decimales. */
-export const positiveQuantity = z
-  .string()
-  .regex(/^(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal mayor que cero');
+export { positiveQuantity } from '../decimal.js';
 
 /** Ajuste con signo y distinto de cero. */
 export const adjustmentQuantity = z

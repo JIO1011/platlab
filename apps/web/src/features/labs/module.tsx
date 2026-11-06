@@ -4,16 +4,23 @@ import type { WebModule } from '../../app/web-module';
 /** Las extensiones se descargan aparte, al mostrarse en Áreas (ver `extension-pages.ts`). */
 const extensionPages = () => import('./extension-pages');
 
+/** Lo que espera programarse: para el Administrador, su decisión; para quien pidió, la del laboratorio. */
+const toScheduleText = (n: number) => (n === 1 ? '1 solicitud por programar' : `${n} solicitudes por programar`);
+
 /**
- * Descriptor de Laboratorios en la web (ADR 0023); sus páginas y rutas están en `routes.tsx`. Hasta L-01b no hay
- * solicitudes que contar: la tarjeta del Inicio no lleva cifras.
+ * Descriptor de Laboratorios en la web (ADR 0023); sus páginas y rutas están en `routes.tsx`. La tarjeta del Inicio
+ * cuenta lo fuera de plazo y los bloques de la semana con «Falta» («Cierre de Laboratorios»).
  */
 export const labsWebModule: WebModule = {
   code: 'labs',
   Icon: CalendarRange,
   sectionIcons: { cronograma: CalendarDays, solicitudes: FilePenLine, recibidas: Inbox, formatos: ClipboardList },
   home: {
-    counters: [],
+    counters: [
+      { key: 'late', label: () => 'fuera de plazo' },
+      { key: 'short', label: (n) => (n === 1 ? 'bloque con «Falta» esta semana' : 'bloques con «Falta» esta semana') },
+    ],
+    pending: { permission: 'labs.schedule.manage', approver: toScheduleText, requester: toScheduleText },
     trendNoun: { one: 'solicitud', many: 'solicitudes' },
   },
   // En Áreas, sin sección propia (ADR 0023): el panel del área con su aforo, horario y cierres, la marca en su cuadro y

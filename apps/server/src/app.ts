@@ -3,7 +3,7 @@ import type pg from 'pg';
 import type { HealthResponse } from '@platlab/contracts';
 import { coreRoutes } from './modules/core/index.js';
 import { equipmentAreaContribution, equipmentHomeSummary, equipmentRoutes } from './modules/equipment/index.js';
-import { labsRoutes } from './modules/labs/index.js';
+import { labsHomeSummary, labsRoutes } from './modules/labs/index.js';
 import { maintenanceHomeSummary, maintenanceRoutes } from './modules/maintenance/index.js';
 import { reagentsAreaContribution, reagentsHomeSummary, reagentsRoutes } from './modules/reagents/index.js';
 import type { TokenVerifier } from './platform/auth/jwt.js';
@@ -32,7 +32,7 @@ export function buildApp({ pool, verifyToken, publicFiles }: AppDependencies): F
       await v1.register(
         coreRoutes({
           pool,
-          homeSummaries: { reagents: reagentsHomeSummary, equipment: equipmentHomeSummary, maintenance: maintenanceHomeSummary },
+          homeSummaries: { reagents: reagentsHomeSummary, equipment: equipmentHomeSummary, maintenance: maintenanceHomeSummary, labs: labsHomeSummary },
           areaContributions: { reagents: reagentsAreaContribution, equipment: equipmentAreaContribution },
         }),
       );

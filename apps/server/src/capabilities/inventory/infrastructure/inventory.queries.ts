@@ -2735,3 +2735,177 @@ const holdableByAreaIR: any = {"usedParamSet":{"workspaceId":true,"itemIds":true
 export const holdableByArea = new PreparedQuery<IHoldableByAreaParams,IHoldableByAreaResult>(holdableByAreaIR);
 
 
+/** 'ActivityHoldOptions' parameters type */
+export interface IActivityHoldOptionsParams {
+  allocationIds: stringArray;
+  itemId: string;
+  kind: string;
+  validOn: string;
+  workspaceId: string;
+}
+
+/** 'ActivityHoldOptions' return type */
+export interface IActivityHoldOptionsResult {
+  available: string;
+  container_code: string | null;
+  expires_on: string | null;
+  held: string;
+  id: string;
+  location_name: string;
+  lot_code: string;
+}
+
+/** 'ActivityHoldOptions' query type */
+export interface IActivityHoldOptionsQuery {
+  params: IActivityHoldOptionsParams;
+  result: IActivityHoldOptionsResult;
+}
+
+const activityHoldOptionsIR: any = {"usedParamSet":{"workspaceId":true,"allocationIds":true,"itemId":true,"kind":true,"validOn":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":355,"b":367},{"a":1173,"b":1185}]},{"name":"allocationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":383,"b":397}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1203,"b":1210}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":1225,"b":1230}]},{"name":"validOn","required":true,"transform":{"type":"scalar"},"locs":[{"a":1338,"b":1346}]}],"statement":"-- Los frascos de los que un bloque puede apartar :itemId el día :validOn (ADR 0023, «Cierre de Laboratorios»): los de\n-- `lockHoldablePositions` y los que ya apartó ese bloque (:allocationIds), con lo disponible más lo suyo. Sin bloquear.\nWITH mine AS (\n  SELECT position_id, sum(quantity) AS quantity\n  FROM inventory.allocations\n  WHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held'\n  GROUP BY position_id\n)\nSELECT p.id, c.code AS \"container_code?\", l.code AS lot_code, l.expires_on, loc.name AS location_name,\n  trim_scale(p.balance - p.reserved + coalesce(mine.quantity, 0))::text AS \"available!\",\n  trim_scale(coalesce(mine.quantity, 0))::text AS \"held!\"\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nLEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id\nLEFT JOIN mine ON mine.position_id = p.id\nWHERE p.workspace_id = :workspaceId! AND p.item_id = :itemId! AND i.kind = :kind!\n  AND p.disposition = 'usable' AND loc.archived_at IS NULL\n  AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)\n  AND (p.balance > p.reserved OR mine.quantity IS NOT NULL)\nORDER BY l.expires_on NULLS LAST, p.id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Los frascos de los que un bloque puede apartar :itemId el día :validOn (ADR 0023, «Cierre de Laboratorios»): los de
+ * -- `lockHoldablePositions` y los que ya apartó ese bloque (:allocationIds), con lo disponible más lo suyo. Sin bloquear.
+ * WITH mine AS (
+ *   SELECT position_id, sum(quantity) AS quantity
+ *   FROM inventory.allocations
+ *   WHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held'
+ *   GROUP BY position_id
+ * )
+ * SELECT p.id, c.code AS "container_code?", l.code AS lot_code, l.expires_on, loc.name AS location_name,
+ *   trim_scale(p.balance - p.reserved + coalesce(mine.quantity, 0))::text AS "available!",
+ *   trim_scale(coalesce(mine.quantity, 0))::text AS "held!"
+ * FROM inventory.positions AS p
+ * JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+ * JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+ * JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+ * LEFT JOIN inventory.containers AS c ON c.workspace_id = p.workspace_id AND c.id = p.container_id
+ * LEFT JOIN mine ON mine.position_id = p.id
+ * WHERE p.workspace_id = :workspaceId! AND p.item_id = :itemId! AND i.kind = :kind!
+ *   AND p.disposition = 'usable' AND loc.archived_at IS NULL
+ *   AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)
+ *   AND (p.balance > p.reserved OR mine.quantity IS NOT NULL)
+ * ORDER BY l.expires_on NULLS LAST, p.id
+ * ```
+ */
+export const activityHoldOptions = new PreparedQuery<IActivityHoldOptionsParams,IActivityHoldOptionsResult>(activityHoldOptionsIR);
+
+
+/** 'ActivityHoldPositions' parameters type */
+export interface IActivityHoldPositionsParams {
+  allocationIds: stringArray;
+  workspaceId: string;
+}
+
+/** 'ActivityHoldPositions' return type */
+export interface IActivityHoldPositionsResult {
+  position_id: string;
+}
+
+/** 'ActivityHoldPositions' query type */
+export interface IActivityHoldPositionsQuery {
+  params: IActivityHoldPositionsParams;
+  result: IActivityHoldPositionsResult;
+}
+
+const activityHoldPositionsIR: any = {"usedParamSet":{"workspaceId":true,"allocationIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":144,"b":156}]},{"name":"allocationIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":172,"b":186}]}],"statement":"-- Los frascos de lo que sigue apartado en esas reservas de bloque.\nSELECT DISTINCT position_id\nFROM inventory.allocations\nWHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held'"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Los frascos de lo que sigue apartado en esas reservas de bloque.
+ * SELECT DISTINCT position_id
+ * FROM inventory.allocations
+ * WHERE workspace_id = :workspaceId! AND id = ANY (:allocationIds!::uuid[]) AND purpose = 'activity' AND status = 'held'
+ * ```
+ */
+export const activityHoldPositions = new PreparedQuery<IActivityHoldPositionsParams,IActivityHoldPositionsResult>(activityHoldPositionsIR);
+
+
+/** 'LockPositionsInOrder' parameters type */
+export interface ILockPositionsInOrderParams {
+  positionIds: stringArray;
+  workspaceId: string;
+}
+
+/** 'LockPositionsInOrder' return type */
+export interface ILockPositionsInOrderResult {
+  id: string;
+}
+
+/** 'LockPositionsInOrder' query type */
+export interface ILockPositionsInOrderQuery {
+  params: ILockPositionsInOrderParams;
+  result: ILockPositionsInOrderResult;
+}
+
+const lockPositionsInOrderIR: any = {"usedParamSet":{"workspaceId":true,"positionIds":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":170,"b":182}]},{"name":"positionIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":198,"b":210}]}],"statement":"-- Bloquea frascos en el orden fijo de su id, antes que sus reservas: el mismo orden que `lockHoldablePositions`.\nSELECT id\nFROM inventory.positions\nWHERE workspace_id = :workspaceId! AND id = ANY (:positionIds!::uuid[])\nORDER BY id\nFOR UPDATE"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Bloquea frascos en el orden fijo de su id, antes que sus reservas: el mismo orden que `lockHoldablePositions`.
+ * SELECT id
+ * FROM inventory.positions
+ * WHERE workspace_id = :workspaceId! AND id = ANY (:positionIds!::uuid[])
+ * ORDER BY id
+ * FOR UPDATE
+ * ```
+ */
+export const lockPositionsInOrder = new PreparedQuery<ILockPositionsInOrderParams,ILockPositionsInOrderResult>(lockPositionsInOrderIR);
+
+
+/** 'HoldPositionForActivity' parameters type */
+export interface IHoldPositionForActivityParams {
+  destination: string;
+  itemId: string;
+  kind: string;
+  positionId: string;
+  principalId: string;
+  quantity: string;
+  reason: string;
+  validOn: string;
+  workspaceId: string;
+}
+
+/** 'HoldPositionForActivity' return type */
+export interface IHoldPositionForActivityResult {
+  id: string;
+  quantity: string;
+}
+
+/** 'HoldPositionForActivity' query type */
+export interface IHoldPositionForActivityQuery {
+  params: IHoldPositionForActivityParams;
+  result: IHoldPositionForActivityResult;
+}
+
+const holdPositionForActivityIR: any = {"usedParamSet":{"quantity":true,"workspaceId":true,"positionId":true,"itemId":true,"kind":true,"validOn":true,"reason":true,"destination":true,"principalId":true},"params":[{"name":"quantity","required":true,"transform":{"type":"scalar"},"locs":[{"a":245,"b":254},{"a":813,"b":822},{"a":1016,"b":1025}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":387,"b":399},{"a":988,"b":1000}]},{"name":"positionId","required":true,"transform":{"type":"scalar"},"locs":[{"a":412,"b":423}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":441,"b":448}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":524,"b":529}]},{"name":"validOn","required":true,"transform":{"type":"scalar"},"locs":[{"a":636,"b":644}]},{"name":"reason","required":true,"transform":{"type":"scalar"},"locs":[{"a":1037,"b":1044}]},{"name":"destination","required":true,"transform":{"type":"scalar"},"locs":[{"a":1047,"b":1059}]},{"name":"principalId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1062,"b":1074}]}],"statement":"-- Aparta :quantity de un frasco ya bloqueado para un bloque, solo si sigue siendo apartable el día :validOn y lo\n-- disponible alcanza; si no, no devuelve fila.\nWITH reserved AS (\n  UPDATE inventory.positions AS p\n  SET reserved = p.reserved + :quantity!::numeric, version = p.version + 1\n  FROM inventory.items AS i, inventory.lots AS l, core.locations AS loc\n  WHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND p.item_id = :itemId!\n    AND i.workspace_id = p.workspace_id AND i.id = p.item_id AND i.kind = :kind!\n    AND l.workspace_id = p.workspace_id AND l.id = p.lot_id AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)\n    AND loc.workspace_id = p.workspace_id AND loc.id = p.location_id AND loc.archived_at IS NULL\n    AND p.disposition = 'usable' AND p.balance - p.reserved >= :quantity!::numeric\n  RETURNING p.id\n)\nINSERT INTO inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id, purpose)\nSELECT :workspaceId!, reserved.id, :quantity!::numeric, :reason!, :destination!, :principalId!, 'activity'\nFROM reserved\nRETURNING id, trim_scale(quantity)::text AS \"quantity!\""};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Aparta :quantity de un frasco ya bloqueado para un bloque, solo si sigue siendo apartable el día :validOn y lo
+ * -- disponible alcanza; si no, no devuelve fila.
+ * WITH reserved AS (
+ *   UPDATE inventory.positions AS p
+ *   SET reserved = p.reserved + :quantity!::numeric, version = p.version + 1
+ *   FROM inventory.items AS i, inventory.lots AS l, core.locations AS loc
+ *   WHERE p.workspace_id = :workspaceId! AND p.id = :positionId! AND p.item_id = :itemId!
+ *     AND i.workspace_id = p.workspace_id AND i.id = p.item_id AND i.kind = :kind!
+ *     AND l.workspace_id = p.workspace_id AND l.id = p.lot_id AND (l.expires_on IS NULL OR l.expires_on >= :validOn!::date)
+ *     AND loc.workspace_id = p.workspace_id AND loc.id = p.location_id AND loc.archived_at IS NULL
+ *     AND p.disposition = 'usable' AND p.balance - p.reserved >= :quantity!::numeric
+ *   RETURNING p.id
+ * )
+ * INSERT INTO inventory.allocations (workspace_id, position_id, quantity, reason, destination, requested_by_principal_id, purpose)
+ * SELECT :workspaceId!, reserved.id, :quantity!::numeric, :reason!, :destination!, :principalId!, 'activity'
+ * FROM reserved
+ * RETURNING id, trim_scale(quantity)::text AS "quantity!"
+ * ```
+ */
+export const holdPositionForActivity = new PreparedQuery<IHoldPositionForActivityParams,IHoldPositionForActivityResult>(holdPositionForActivityIR);
+
+

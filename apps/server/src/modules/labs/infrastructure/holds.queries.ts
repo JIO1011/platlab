@@ -239,3 +239,73 @@ const assetBookingsOnIR: any = {"usedParamSet":{"workspaceId":true,"assetIds":tr
 export const assetBookingsOn = new PreparedQuery<IAssetBookingsOnParams,IAssetBookingsOnResult>(assetBookingsOnIR);
 
 
+/** 'ActivityReagentLine' parameters type */
+export interface IActivityReagentLineParams {
+  activityId: string;
+  line: number;
+  workspaceId: string;
+}
+
+/** 'ActivityReagentLine' return type */
+export interface IActivityReagentLineResult {
+  area_name: string;
+  item_id: string;
+  quantity: string;
+  request_number: number;
+  unit: string;
+}
+
+/** 'ActivityReagentLine' query type */
+export interface IActivityReagentLineQuery {
+  params: IActivityReagentLineParams;
+  result: IActivityReagentLineResult;
+}
+
+const activityReagentLineIR: any = {"usedParamSet":{"line":true,"workspaceId":true,"activityId":true},"params":[{"name":"line","required":true,"transform":{"type":"scalar"},"locs":[{"a":651,"b":656}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":681,"b":693}]},{"name":"activityId","required":true,"transform":{"type":"scalar"},"locs":[{"a":706,"b":717}]}],"statement":"-- Una línea de reactivo del catálogo de un bloque (ADR 0023, «Cierre de Laboratorios»): su ítem, lo pedido, el código de\n-- la solicitud y el área del bloque, que es el destino de lo apartado.\nSELECT r.number AS request_number, area.name AS area_name, l.item_id AS \"item_id!\", trim_scale(l.quantity)::text AS \"quantity!\",\n  l.unit AS \"unit!\"\nFROM labs.activities AS a\nJOIN labs.requests AS r ON r.workspace_id = a.workspace_id AND r.id = a.request_id\nJOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id\nJOIN labs.request_lines AS l ON l.workspace_id = a.workspace_id AND l.request_id = a.request_id AND l.line = :line!\nWHERE a.workspace_id = :workspaceId! AND a.id = :activityId! AND l.kind = 'reagent' AND l.item_id IS NOT NULL"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Una línea de reactivo del catálogo de un bloque (ADR 0023, «Cierre de Laboratorios»): su ítem, lo pedido, el código de
+ * -- la solicitud y el área del bloque, que es el destino de lo apartado.
+ * SELECT r.number AS request_number, area.name AS area_name, l.item_id AS "item_id!", trim_scale(l.quantity)::text AS "quantity!",
+ *   l.unit AS "unit!"
+ * FROM labs.activities AS a
+ * JOIN labs.requests AS r ON r.workspace_id = a.workspace_id AND r.id = a.request_id
+ * JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id
+ * JOIN labs.request_lines AS l ON l.workspace_id = a.workspace_id AND l.request_id = a.request_id AND l.line = :line!
+ * WHERE a.workspace_id = :workspaceId! AND a.id = :activityId! AND l.kind = 'reagent' AND l.item_id IS NOT NULL
+ * ```
+ */
+export const activityReagentLine = new PreparedQuery<IActivityReagentLineParams,IActivityReagentLineResult>(activityReagentLineIR);
+
+
+/** 'TouchActivity' parameters type */
+export interface ITouchActivityParams {
+  activityId: string;
+  workspaceId: string;
+}
+
+/** 'TouchActivity' return type */
+export type ITouchActivityResult = void;
+
+/** 'TouchActivity' query type */
+export interface ITouchActivityQuery {
+  params: ITouchActivityParams;
+  result: ITouchActivityResult;
+}
+
+const touchActivityIR: any = {"usedParamSet":{"workspaceId":true,"activityId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":155,"b":167}]},{"name":"activityId","required":true,"transform":{"type":"scalar"},"locs":[{"a":178,"b":189}]}],"statement":"-- Lo apartado de un bloque cambió: su versión también, para quien lo tenga abierto.\nUPDATE labs.activities\nSET version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :activityId!"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Lo apartado de un bloque cambió: su versión también, para quien lo tenga abierto.
+ * UPDATE labs.activities
+ * SET version = version + 1
+ * WHERE workspace_id = :workspaceId! AND id = :activityId!
+ * ```
+ */
+export const touchActivity = new PreparedQuery<ITouchActivityParams,ITouchActivityResult>(touchActivityIR);
+
+

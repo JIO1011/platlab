@@ -144,7 +144,7 @@ ORDER BY d;
 
 /* @name requestBlocks */
 -- El bloque activo de cada fecha programada (L-01c).
-SELECT a.id, a.on_date::text AS "date!", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS "starts_at!",
+SELECT a.id, a.version, a.on_date::text AS "date!", a.code, a.area_id, area.name AS area_name, to_char(a.starts_at, 'HH24:MI') AS "starts_at!",
   to_char(a.ends_at, 'HH24:MI') AS "ends_at!", coalesce(ident.display_name, '') AS "responsible_name!"
 FROM labs.activities AS a
 JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id

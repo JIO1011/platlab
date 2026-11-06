@@ -142,3 +142,25 @@ describe('sin Reactivos', () => {
     }
   });
 });
+
+describe('tarjeta del Inicio', () => {
+  it('cuenta lo que espera programarse, lo fuera de plazo y los bloques de la semana con «Falta»', async () => {
+    const cardOf = async (subject: string) => {
+      const home = (await call(subject, `/workspaces/${lab.workspace.id}/home`)).body as {
+        cards: Array<{ moduleCode: string; summary: Record<string, number> | null; trend: { points: unknown[] } | null }>;
+      };
+      return home.cards.find((card) => card.moduleCode === 'labs');
+    };
+    const before = (await cardOf(lab.adminMember.subject))!.summary!;
+    // Fuera de plazo (antes de la anticipación de 7 días) y sin stock suficiente: espera programarse.
+    const waiting = await sentWith([inDays(3)], '1000');
+    const card = (await cardOf(lab.adminMember.subject))!;
+    expect(card.summary!['pendingRequests']).toBe(before['pendingRequests']! + 1);
+    expect(card.summary!['late']).toBe(before['late']! + 1);
+    expect(card.trend?.points).toHaveLength(30);
+    await place(waiting, inDays(3), '07:00', '08:00');
+    const after = (await cardOf(lab.adminMember.subject))!.summary!;
+    expect(after['pendingRequests']).toBe(before['pendingRequests']);
+    expect(after['short']).toBe(before['short']! + 1);
+  });
+});

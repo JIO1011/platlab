@@ -1,4 +1,4 @@
-import { approvalResults, approvedRequest, closure, formLogo, labsForm, labsRequest, labsSettings, period, scheduledActivity, space } from '@platlab/contracts';
+import { activity, approvalResults, approvedRequest, closure, formLogo, labsForm, labsRequest, labsSettings, period, scheduledActivity, space } from '@platlab/contracts';
 import { toast } from '@platlab/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, isApiError } from '../../app/api';
@@ -123,6 +123,11 @@ export function useScheduleActivity(workspaceId: string) {
 /** «Mover»: otra área, otra hora u otro responsable el mismo día, con la versión del bloque que se vio. */
 export function useMoveActivity(workspaceId: string, activityId: string) {
   return useModuleCommand(workspaceId, `/labs/activities/${activityId}`, scheduledActivity, useLabsKey(workspaceId), 'PATCH');
+}
+
+/** «Cambiar frascos»: de qué frascos sale lo apartado de un reactivo del bloque (línea desde 1), con la versión del bloque que se vio. */
+export function useSaveReagentPicks(workspaceId: string, activityId: string, line: number) {
+  return useModuleCommand(workspaceId, `/labs/activities/${activityId}/lines/${line}/reagents`, activity, useLabsKey(workspaceId), 'PUT');
 }
 
 /**
