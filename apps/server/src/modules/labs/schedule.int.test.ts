@@ -165,6 +165,10 @@ describe('aprobar', () => {
       [inDays(42), area, '14:00', 'Administradora'],
     ]);
     expect(await reload(request)).toMatchObject({ status: 'scheduled', scheduledCount: 2 });
+    // Recibidas muestra el código de práctica de cada bloque, en el orden de sus fechas.
+    const listed = requestList.parse((await call(lab.operator.subject, `${lab.base}/requests?scope=inbox`)).body).items.find((item) => item.id === request.id);
+    expect(listed?.blockCodes).toEqual(approved.items.map((item) => item.activity.code));
+    expect(listed?.scheduledDates).toEqual([inDays(35), inDays(42)]);
     expect((await send(lab, 'POST', `/requests/${request.id}/approve`, { expectedVersion: request.version }, lab.operator.subject)).status).toBe(403);
   });
 

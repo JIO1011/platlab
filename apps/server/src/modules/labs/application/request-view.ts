@@ -106,6 +106,7 @@ function toSummary(row: IListRequestsResult, lines: readonly RequestLine[]): Req
     scheduledCount: row.scheduled_dates.length,
     dates: row.dates,
     scheduledDates: row.scheduled_dates,
+    blockCodes: row.block_codes,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     participants: row.participants,

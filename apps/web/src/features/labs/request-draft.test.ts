@@ -22,6 +22,7 @@ const request: LabsRequest = {
   exceptions: 0,
   scheduledCount: 0,
   scheduledDates: [],
+  blockCodes: [],
   group: 'Ingeniería química',
   submittedAt: null,
   version: 3,

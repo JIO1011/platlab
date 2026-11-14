@@ -935,6 +935,11 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
       - **Cronograma:** barra compacta («‹ Hoy ›», la fecha grande y «Período · Semana N · bloques»); cada columna con sigla, aforo y horario del día; las horas cerradas, rayadas; la semana sigue de lunes a domingo. El bloque conserva el color de su carrera y suma código y hora arriba, materia, y docente y participantes abajo. Sin nada por programar, un pie de una línea.
       - **Recibidas:** las cuatro cifras, pestañas con su cuenta, un buscador (código, práctica o docente) y una tabla con Solicitud (código, título; solicitante · formato · sigla del área), Fecha y hora, Recursos y Estado. Se conserva elegir y aprobar varias. La sigla sale del `areaId` que el resumen de la lista ya envía.
       - **Formatos:** dos columnas, con formatos y períodos a la izquierda y la anticipación a la derecha (− / + y la regla de «Fuera de plazo» en una frase). El período dice «Vigente» o «Programado» por sus fechas; no se activa a mano y no se muestra el número de campos.
+      - **Ajustes tras revisarlo** (decisión del usuario, 14-11-2026):
+        - **Bloque:** sin ficha al pasar el cursor; la tarjeta muestra código, hora, materia, docente, encargado y participantes, con 2 px de aire. El código se ve siempre.
+        - **Columna:** el nombre del área sin «Laboratorio de» y sin la sigla.
+        - **Recibidas:** junto a SOL-0000 va el código de práctica de sus bloques (`blockCodes` del resumen), solo si está programada.
+        - **Detalle de una recibida:** el título es el nombre del formato. A la izquierda van los avisos, los datos del formato en una lista corta, los materiales con su estado y el historial plegado. A la derecha, la hoja siempre visible con «Imprimir». Sin las cuatro cifras; en el móvil, pestañas Resumen | Hoja.
     - **Ajustes de L-01b** (decisión del usuario, 23-10-2026; reemplaza «quien administra también puede llenarla» y que logo y nombre lleguen del espacio de trabajo).
       - Piden solo el Docente y el tesista; la lista blanca es invitar con uno de esos roles. Propietario, Administrador y Operador revisan, no piden.
       - Se llena sobre la hoja: la misma plantilla P69 sirve para diseñar, llenar, revisar en Recibidas e imprimir llena; en el móvil, un dato por fila.

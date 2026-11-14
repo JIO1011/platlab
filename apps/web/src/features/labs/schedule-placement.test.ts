@@ -86,6 +86,7 @@ const summary = (overrides: Partial<RequestSummary> = {}): RequestSummary => ({
   scheduledCount: 0,
   dates: ['2026-10-28', '2026-10-30'],
   scheduledDates: [],
+  blockCodes: [],
   startsAt: '08:00',
   endsAt: '10:00',
   participants: 20,

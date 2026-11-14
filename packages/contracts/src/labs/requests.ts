@@ -125,6 +125,8 @@ export const requestSummary = z.object({
   /** Las fechas pedidas y las ya programadas, con el horario, los participantes y el grupo: la bandeja «Por programar». */
   dates: z.array(z.iso.date()),
   scheduledDates: z.array(z.iso.date()),
+  /** El código de práctica de cada bloque («P1-S11-FIS01»), en el orden de `scheduledDates`. */
+  blockCodes: z.array(z.string()),
   startsAt: z.string().nullable(),
   endsAt: z.string().nullable(),
   participants: z.number().int().nullable(),

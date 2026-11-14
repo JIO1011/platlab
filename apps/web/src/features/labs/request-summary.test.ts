@@ -18,6 +18,7 @@ const summary = (number: number, status: RequestSummary['status'], extra: Partia
   scheduledCount: 0,
   dates: [],
   scheduledDates: [],
+  blockCodes: [],
   startsAt: null,
   endsAt: null,
   participants: null,
