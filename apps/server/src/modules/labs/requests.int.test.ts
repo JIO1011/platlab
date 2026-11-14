@@ -164,6 +164,8 @@ describe('quién ve qué', () => {
     expect(inbox.items.map((item) => item.id)).toContain(sent.id);
     expect(inbox.items.map((item) => item.id)).not.toContain(hidden.id);
     expect(inbox.items.every((item) => item.status !== 'draft')).toBe(true);
+    // El resumen lleva el área pedida (Recibidas muestra su sigla); sin área, nula.
+    expect(inbox.items.find((item) => item.id === sent.id)?.areaId).toBeNull();
     const mine = requestList.parse((await call(lab.otherTeacher.subject, `${lab.base}/requests?scope=mine`)).body);
     expect(mine.items.map((item) => item.id)).not.toContain(sent.id);
     expect((await call(lab.teacher.subject, `${lab.base}/requests?scope=inbox`)).status).toBe(403);

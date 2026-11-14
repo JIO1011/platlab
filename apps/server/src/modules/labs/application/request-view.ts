@@ -111,6 +111,7 @@ function toSummary(row: IListRequestsResult, lines: readonly RequestLine[]): Req
     participants: row.participants,
     subject: row.subject,
     group: row.career,
+    areaId: row.area_id,
     submittedAt: row.submitted_at?.toISOString() ?? null,
     version: row.version,
   };
@@ -142,7 +143,6 @@ export async function visibleRequest(access: WorkspaceAccess, requestId: string)
     endsAt: row.ends_at,
     participants: row.participants,
     groups: row.groups,
-    areaId: row.area_id,
     answers: row.answers as Record<string, unknown>,
     notes: row.notes,
     lines,

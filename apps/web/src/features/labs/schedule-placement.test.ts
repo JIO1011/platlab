@@ -91,6 +91,7 @@ const summary = (overrides: Partial<RequestSummary> = {}): RequestSummary => ({
   participants: 20,
   subject: null,
   group: null,
+  areaId: null,
   submittedAt: '2026-10-20T10:00:00Z',
   version: 1,
   ...overrides,

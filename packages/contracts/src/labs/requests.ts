@@ -131,6 +131,8 @@ export const requestSummary = z.object({
   /** La materia y el «Grupo» del bloque: la asignatura y la carrera, si las tiene. */
   subject: z.string().nullable(),
   group: z.string().nullable(),
+  /** El área pedida: Recibidas muestra su sigla. */
+  areaId: z.uuid().nullable(),
   submittedAt: z.string().nullable(),
   version: z.number().int().positive(),
 });
@@ -154,7 +156,6 @@ export const labsRequest = requestSummary.extend({
   endsAt: z.string().nullable(),
   participants: z.number().int().nullable(),
   groups: z.number().int(),
-  areaId: z.uuid().nullable(),
   answers: z.record(z.string(), z.unknown()),
   notes: z.string().nullable(),
   lines: z.array(requestLine),

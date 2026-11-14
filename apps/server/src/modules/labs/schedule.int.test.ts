@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { approvalResults, approvedRequest, labsRequest, responsibleOptions, scheduledActivity, scheduleList, space, type LabsRequest } from '@platlab/contracts';
+import { approvalResults, approvedRequest, labsRequest, requestList, responsibleOptions, scheduledActivity, scheduleList, space, type LabsRequest } from '@platlab/contracts';
 import { admin, call, count, errorCode } from '../../testing/api.js';
 import { addLocation } from '../../testing/core-fixtures.js';
 import { complete, createRequestsLab, draft, inDays, save, send, submitted, type RequestsLab } from './labs.fixtures.js';
@@ -156,6 +156,9 @@ describe('aprobar', () => {
 
   it('programa cada fecha donde y cuando se pidió; queda programada con sus códigos', async () => {
     const request = await asking([inDays(35), inDays(42)], area);
+    // Recibidas muestra la sigla del área pedida: el resumen de la lista lleva su `areaId`.
+    const inbox = requestList.parse((await call(lab.operator.subject, `${lab.base}/requests?scope=inbox`)).body);
+    expect(inbox.items.find((item) => item.id === request.id)?.areaId).toBe(area);
     const approved = approvedRequest.parse((await send(lab, 'POST', `/requests/${request.id}/approve`, { expectedVersion: request.version })).body);
     expect(approved.items.map((item) => [item.activity.date, item.activity.areaId, item.activity.startsAt, item.activity.responsibleName])).toEqual([
       [inDays(35), area, '14:00', 'Administradora'],

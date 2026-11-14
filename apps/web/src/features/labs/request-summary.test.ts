@@ -23,6 +23,7 @@ const summary = (number: number, status: RequestSummary['status'], extra: Partia
   participants: null,
   subject: null,
   group: null,
+  areaId: null,
   submittedAt: null,
   version: 1,
   ...extra,
