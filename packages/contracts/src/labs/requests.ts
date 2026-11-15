@@ -255,8 +255,18 @@ export const requestReview = z.object({
   ),
 });
 
-/** La respuesta de la consulta sin guardar: cada línea con su nombre y su marca, en el orden pedido, y su revisión. */
-export const requestCheck = z.object({ lines: z.array(requestLine), review: requestReview });
+/**
+ * La respuesta de la consulta sin guardar: cada línea con su nombre y su marca, en el orden pedido, su revisión y lo libre
+ * de cada reactivo y tipo de equipo del catálogo para esas fechas y esa franja (sin fechas, hoy): lo que muestra el buscador.
+ */
+export const requestCheck = z.object({
+  lines: z.array(requestLine),
+  review: requestReview,
+  catalog: z.object({
+    reagents: z.array(z.object({ id: z.uuid(), available: z.string() })),
+    equipmentTypes: z.array(z.object({ id: z.uuid(), available: z.number().int() })),
+  }),
+});
 
 /** Los datos libres de una revisión: cada respuesta con su tipo y las obligatorias presentes. */
 export function requestAnswers(layout: FormLayout) {

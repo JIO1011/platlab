@@ -196,6 +196,9 @@ describe('una sola regla de disponibilidad (ADR 0023, «Disponibilidad y recurso
       [1, '120', '100'],
     ]);
     expect(checked.review.dates.map((date) => date.date)).toEqual([inDays(60), inDays(61)]);
+    // El buscador: lo libre de cada reactivo y tipo de equipo del catálogo para esas fechas y esa franja.
+    expect(checked.catalog.reagents.find((reagent) => reagent.id === item)?.available).toBe('100');
+    expect(checked.catalog.equipmentTypes.find((equipment) => equipment.id === type)?.available).toBe(1);
     // No guardó ni apartó nada.
     const stored = labsRequest.parse((await call(lab.teacher.subject, `${lab.base}/requests/${request.id}`)).body);
     expect(stored).toMatchObject({ version: request.version, lines: [], dates: [] });

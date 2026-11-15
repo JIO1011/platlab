@@ -14,12 +14,12 @@ import {
 } from '@platlab/contracts';
 import { todayIn } from '../../../platform/dates.js';
 import { AppError } from '../../../platform/errors.js';
-import { hasPermission, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
-import { operationalAssetsOfTypes } from '../../equipment/index.js';
-import { reagentStockByArea } from '../../reagents/index.js';
+import { hasPermission, moduleAdmits, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
+import { operationalAssetsOfTypes, requestableAssetTypes } from '../../equipment/index.js';
+import { reagentStockByArea, requestableReagents } from '../../reagents/index.js';
 import { listRequests } from '../infrastructure/requests.queries.js';
 import { scheduleContext } from '../infrastructure/schedule.queries.js';
-import { busyOn, freeIn, neededOf, type Busy } from './availability.js';
+import { busyOn, findingsOf, freeIn, neededOf, type Ask, type Busy } from './availability.js';
 import { REQUEST_CREATE, runQuery } from './command.js';
 import { checkedLines, pendingOf, visibleRequest, type LineRow } from './request-view.js';
 
@@ -139,8 +139,27 @@ function lineRow(line: RequestLineInput, index: number, groups: number): LineRow
 }
 
 /**
+ * Lo libre de todo lo que se puede pedir para esas fechas y esa franja, con la regla única: cada reactivo y tipo de equipo
+ * del catálogo como una línea más. Lo que su módulo no deja pedir no se lista, como en `request-options`.
+ */
+async function catalogOf(access: WorkspaceAccess, scope: Omit<Ask, 'lines'>): Promise<RequestCheck['catalog']> {
+  const [reagentsOn, equipmentOn] = await Promise.all([moduleAdmits(access, 'reagents', 'new_operation'), moduleAdmits(access, 'equipment', 'new_operation')]);
+  const reagents = reagentsOn ? await requestableReagents(access, {}) : [];
+  const types = equipmentOn ? await requestableAssetTypes(access) : [];
+  const lines = [
+    ...reagents.map((reagent) => ({ kind: 'reagent', item_id: reagent.id, asset_type_id: null })),
+    ...types.map((type) => ({ kind: 'equipment', item_id: null, asset_type_id: type.id })),
+  ].map((line, index) => ({ ...line, line: index + 1, quantity: '1' }));
+  const [found = []] = await findingsOf(access, [{ ...scope, lines }]);
+  return {
+    reagents: reagents.map((reagent, index) => ({ id: reagent.id, available: found[index]?.available ?? '0' })),
+    equipmentTypes: types.map((type, index) => ({ id: type.id, available: Number(found[reagents.length + index]?.available ?? 0) })),
+  };
+}
+
+/**
  * La consulta de lo que quien pide está llenando, sin guardarlo (ADR 0023, «Disponibilidad y recursos»): cada línea con
- * su marca y la revisión, con la misma regla que lo guardado. Solo sobre una solicitud propia; las fechas ya programadas
+ * su marca, la revisión y lo libre del catálogo, con la misma regla que lo guardado. Solo sobre una solicitud propia; las fechas ya programadas
  * no cuentan. No guarda ni aparta nada.
  */
 export function checkRequest(pool: pg.Pool, request: QueryRequest, requestId: string, input: CheckRequest): Promise<RequestCheck> {
@@ -151,6 +170,6 @@ export function checkRequest(pool: pg.Pool, request: QueryRequest, requestId: st
     const pending = pendingOf(input.dates, row.scheduled_dates);
     const draft = { pending, startsAt: input.startsAt, endsAt: input.endsAt, lines: input.lines.map((line, index) => lineRow(line, index, input.groups)) };
     const [lines = []] = await checkedLines(access, [draft]);
-    return { lines, review: await reviewOf(access, { ...input, pending, lines }) };
+    return { lines, review: await reviewOf(access, { ...input, pending, lines }), catalog: await catalogOf(access, { pending, startsAt: input.startsAt, endsAt: input.endsAt }) };
   });
 }
