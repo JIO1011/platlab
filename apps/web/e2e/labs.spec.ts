@@ -75,10 +75,11 @@ test('solicitante, Administradora y responsable llevan una práctica de Laborato
   await teacher.getByLabel('Hora de fin').fill(slot.end);
   await teacher.getByRole('textbox', { name: 'Nº alumnos' }).fill('20');
   await teacher.getByRole('textbox', { name: 'Curso-paralelo' }).fill('A');
-  await teacher.getByRole('button', { name: 'Agregar a Reactivos' }).click();
-  await teacher.getByRole('button', { name: 'Reactivo del catálogo' }).click();
-  await teacher.getByRole('option', { name: /Cloruro de sodio NACL/ }).click();
-  await teacher.getByRole('textbox', { name: /Cantidad de Cloruro de sodio/ }).fill('5');
+  // El panel «Recursos» (ADR 0023, «Disponibilidad y recursos»): se busca en el catálogo, se agrega y se ve si alcanza.
+  await teacher.getByRole('searchbox', { name: 'Buscar en Reactivos' }).fill('cloruro');
+  await teacher.getByRole('button', { name: 'Agregar Cloruro de sodio' }).click();
+  await teacher.getByRole('textbox', { name: 'Cantidad de Cloruro de sodio' }).fill('5');
+  await expect(teacher.getByText('Alcanza', { exact: true })).toBeVisible();
   await expectAccessible(teacher, 'Docente: solicitud por llenar');
 
   // «Antes de enviar» solo se abre si algo no alcanza o choca: con poca cantidad y un horario libre, se envía directo.

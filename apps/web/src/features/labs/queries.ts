@@ -10,14 +10,17 @@ import {
   reagentPickOptions,
   requestList,
   requestOptions,
+  requestCheck,
   requestReview,
   responsibleOptions,
+  type CheckRequest,
   scheduleList,
   spaceList,
 } from '@platlab/contracts';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
+import type { CheckAnswer } from './request-check';
 import { viewOf } from './request-draft';
 
 const labsKey = (user: string, workspaceId: string) => [...workspaceKey(user, workspaceId), 'labs'] as const;
@@ -151,6 +154,24 @@ export function useRequestOptions(workspaceId: string) {
   return useQuery({
     queryKey: [...labsKey(user, workspaceId), 'request-options'],
     queryFn: () => api(`${base(workspaceId)}/request-options`, { schema: requestOptions }),
+  });
+}
+
+/**
+ * La consulta sin guardar de lo que se está llenando (ADR 0023, «Disponibilidad y recursos»): se pide al dejar de escribir.
+ * Mientras llega la nueva, se conserva la anterior junto con el cuerpo que la pidió, para que el catálogo no parpadee; quien
+ * la muestra compara ese cuerpo con el actual y no da por buena una respuesta vieja.
+ */
+export function useRequestCheck(workspaceId: string, requestId: string, body: CheckRequest | null) {
+  const user = useUserKey();
+  return useQuery({
+    enabled: body !== null,
+    queryKey: [...labsKey(user, workspaceId), 'request-check', requestId, body],
+    queryFn: async (): Promise<CheckAnswer> => ({
+      body: body!,
+      result: await api(`${base(workspaceId)}/requests/${requestId}/check`, { method: 'POST', body, schema: requestCheck }),
+    }),
+    placeholderData: keepPreviousData,
   });
 }
 

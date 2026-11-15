@@ -1,19 +1,22 @@
 import { saveRequestRequest, type Space } from '@platlab/contracts';
 import { Button, Field, Select, cn, toast } from '@platlab/ui';
 import { useMemo, useState } from 'react';
+import { useDebouncedValue } from '../../app/use-media-query';
 import { isApiError } from '../../app/api';
 import { filled } from '../../app/filled';
 import { todayInZone } from '../../app/format';
 import { labsErrorMessage, useSaveRequest, useSubmitRequest, useVersionConflict } from './commands';
 import { useLabs } from './context';
 import { FormPaper, type PaperSlots } from './form-paper';
-import { fetchRequestReview, useRequestOptions } from './queries';
+import { fetchRequestReview, useRequestCheck, useRequestOptions } from './queries';
 import { CancelRequest } from './request-cancel';
 import { CellNote, FillValue, bare, type FillState } from './request-cells';
+import { checkPlan } from './request-check';
 import { draftFrom, paperOf, sameDraft, saveBody, type RequestDraft, type RequestView } from './request-draft';
 import { missingKeys, noIssues, requestIssues, type RequestIssues } from './request-draft-issues';
 import { RequestHistory } from './request-history';
-import { FillRows } from './request-lines';
+import { ViewRows } from './request-lines';
+import { ResourcesPanel } from './request-resources';
 import { reviewRows, type ReviewRow } from './send-review';
 import { SendReviewSheet } from './send-review-sheet';
 
@@ -70,6 +73,10 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
   const dirty = edit !== null && !sameDraft(edit.draft, stored, request.layout);
   const busy = save.isPending || submit.isPending || reviewing;
   const missing = useMemo(() => (attempted ? missingKeys(shown, request.layout) : new Set<string>()), [attempted, shown, request.layout]);
+  // La consulta sin guardar (ADR 0023, «Disponibilidad y recursos»): se pide al dejar de escribir.
+  const plan = useMemo(() => checkPlan(shown, request.layout), [shown, request.layout]);
+  const asked = useDebouncedValue(plan, 400);
+  const check = useRequestCheck(workspaceId, request.id, asked?.body ?? null);
 
   const change = (patch: Partial<RequestDraft>) => {
     setEdit({ draft: { ...shown, ...patch }, version: edit?.version ?? request.version });
@@ -145,7 +152,8 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
   const state: FillState = { draft: shown, options: options.data, today: todayInZone(me.workspace.timeZone), issues, missing, onChange: change };
   const slots: PaperSlots = {
     value: (field) => <FillValue field={field} state={state} />,
-    resourceRows: <FillRows paper={paper} draft={shown} layout={request.layout} saved={dirty ? null : request.lines} options={options.data} issues={issues} onChange={change} />,
+    // La tabla se llena sola desde el panel «Recursos»: muestra lo pedido tal como se imprime.
+    resourceRows: <ViewRows paper={paper} draft={shown} layout={request.layout} saved={null} />,
     notes: (
       <>
         <textarea
@@ -163,8 +171,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
     requester: request.requesterName,
   };
 
-  const hasLines = shown.lines.length > 0;
-  const status = dirty ? (hasLines ? 'Cambios sin guardar · guarda para comprobar si lo pedido alcanza' : 'Cambios sin guardar') : 'Sin cambios por guardar';
+  const status = dirty ? 'Cambios sin guardar' : 'Sin cambios por guardar';
 
   return (
     <div className="grid gap-4 pb-28 md:pb-0 [&_button]:scroll-mb-24 [&_input]:scroll-mb-24 [&_textarea]:scroll-mb-24">
@@ -174,6 +181,18 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
         </p>
       ) : null}
       <AreaBar draft={shown} spaces={spaces} error={issues.fields['areaId']} onChange={(areaId) => change({ areaId })} />
+      <ResourcesPanel
+        paper={paper}
+        draft={shown}
+        layout={request.layout}
+        options={options.data}
+        plan={plan}
+        answer={check.data}
+        failed={check.isError}
+        onRetry={() => void check.refetch()}
+        issues={issues.lines}
+        onChange={change}
+      />
       <FormPaper mode="fill" draft={paper} workspaceName={me.workspace.name} revision={request.formRevision} slots={slots} />
       <RequestHistory events={request.events} timeZone={me.workspace.timeZone} />
       <SendReviewSheet

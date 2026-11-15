@@ -31,7 +31,7 @@ export const bare =
   'hover:bg-action-soft/70 focus-visible:bg-action-soft focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-action aria-[invalid=true]:bg-danger-soft';
 
 /** El control ocupa toda la celda de la hoja: se come su relleno (`px-1.5 py-0.5`) para que el resalte llegue a los bordes. */
-export function Frame({ className, children }: { className?: string; children: ReactNode }) {
+function Frame({ className, children }: { className?: string; children: ReactNode }) {
   return <div className={cn('-mx-2.5 -my-1.5 flex min-w-0 items-center', className)}>{children}</div>;
 }
 

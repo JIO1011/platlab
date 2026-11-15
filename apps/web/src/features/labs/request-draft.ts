@@ -182,14 +182,6 @@ export function draftFrom(request: RequestView): RequestDraft {
   };
 }
 
-/** Una línea nueva y vacía; los reactivos y los equipos parten del catálogo si el espacio lo admite. */
-export function newLine(kind: DraftLine['kind'], catalog: boolean): DraftLine {
-  const id = crypto.randomUUID();
-  if (kind === 'reagent') return { id, kind, catalog, itemId: null, name: '', quantity: '', unit: '' };
-  if (kind === 'equipment') return { id, kind, catalog, assetTypeId: null, name: '', byGroup: false, perGroup: '', quantity: '1' };
-  return { id, kind, name: '', byGroup: false, perGroup: '', quantity: '' };
-}
-
 /** Los grupos de la solicitud; si la revisión no presenta «grupos», es uno. */
 export const groupsOf = (draft: RequestDraft, layout: FormLayout): number => (presents(layout, 'grupos') ? Number(draft.groups) : 1);
 
@@ -208,7 +200,8 @@ function answerValue(field: FormFreeField, text: string): string | number | bool
   return text.trim();
 }
 
-function lineInput(line: DraftLine, groups: number): RequestLineInput {
+/** Una línea como la manda el contrato: con «por grupo», el total es lo pedido por grupo por los grupos. */
+export function lineInput(line: DraftLine, groups: number): RequestLineInput {
   if (line.kind === 'reagent') {
     return {
       kind: 'reagent',
