@@ -2,7 +2,7 @@ import type { RequestLine } from '@platlab/contracts';
 import { Badge, Quantity } from '@platlab/ui';
 import { Check, TriangleAlert, X } from 'lucide-react';
 
-export const lineChecks = {
+const lineChecks = {
   ok: { Icon: Check, label: 'Alcanza', tone: 'success' },
   short: { Icon: TriangleAlert, label: 'No alcanza', tone: 'warning' },
   unverified: { Icon: X, label: 'Sin verificar', tone: 'neutral' },

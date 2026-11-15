@@ -15,7 +15,7 @@ import {
 /**
  * Las ediciones del borrador (ADR 0023), todas puras: devuelven la lista nueva o, si el contrato no admite el cambio
  * (un dato esencial que se quita, una fila de cuatro datos, una columna menos de la mínima…), `undefined`, y la pantalla
- * lo explica. Nada se guarda hasta «Publicar revisión».
+ * lo explica. Nada se guarda hasta «Guardar cambios».
  */
 
 /** Los elementos con el de la posición `from` llevado a `to` (acotada a la lista); una posición que no existe, o la misma, devuelve la lista sin cambios. */

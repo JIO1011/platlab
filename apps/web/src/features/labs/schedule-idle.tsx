@@ -2,7 +2,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@platlab/ui';
 import { ChevronDown } from 'lucide-react';
 import { Link } from 'react-router';
 import { countText } from '../../app/format';
-import type { BoardColumn } from './schedule-grid';
+import { areaLabel, type BoardColumn } from './schedule-grid';
 
 /**
  * El aviso de las áreas del Núcleo que aún no tienen horario, en el encabezado del Cronograma: no ocupan columnas en la
@@ -29,7 +29,8 @@ export function IdleAreas({ columns, enableHref }: { columns: readonly BoardColu
           {columns.map((column) => (
             <li key={column.areaId} className="flex min-h-11 items-center justify-between gap-3 px-2 text-sm">
               <span className="min-w-0 font-medium text-ink [overflow-wrap:anywhere]">
-                {column.areaName}
+                <span aria-hidden>{areaLabel(column.areaName)}</span>
+                <span className="sr-only">{column.areaName}</span>
                 {column.groupName ? <span className="block text-xs font-normal text-ink-muted">{column.groupName}</span> : null}
               </span>
               {enableHref ? (

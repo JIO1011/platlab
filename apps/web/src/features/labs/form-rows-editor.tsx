@@ -16,7 +16,7 @@ import { collide, instructions, useRowsEditor, verticalForRows } from './form-ro
  * otra arrastrando su asa (dnd kit), con Espacio y las flechas en ella, con Alt + flechas en su etiqueta o con los botones
  * de sus ajustes; soltarlo sobre otro dato lo pone en esa fila (si le caben) y soltarlo entre filas le da una propia.
  * «Agregar dato» y los datos del sistema que se vuelven a agregar nacen en una fila propia. Es un borrador en pantalla:
- * solo «Publicar revisión» lo guarda. Tras agregar, quitar o mover, el foco vuelve a un control que sigue existiendo.
+ * solo «Guardar cambios» lo guarda. Tras agregar, quitar o mover, el foco vuelve a un control que sigue existiendo.
  */
 export function FormRowsEditor({ rows, issues, onChange }: { rows: DraftRow[]; issues: FormIssues; onChange: (rows: DraftRow[]) => void }) {
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');

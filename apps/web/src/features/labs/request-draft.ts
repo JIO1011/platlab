@@ -30,7 +30,7 @@ export const viewOf = (request: LabsRequest): RequestView => ({ ...request, layo
 
 /** La hoja de la revisión con que se llenó la solicitud (ADR 0023: se llena, se revisa y se imprime sobre ella). */
 export const paperOf = (request: RequestView): Draft =>
-  sheetDraft({ revision: request.formRevision, title: request.formTitle, documentCode: request.documentCode, layout: request.layout });
+  sheetDraft({ revision: request.formRevision, title: request.formTitle, layout: request.layout });
 
 /** La clave de un dato de la hoja: la del sistema o la del dato libre, con que se guarda su valor. */
 export const fieldKey = (field: DraftField): string => (field.kind === 'system' ? field.key : (field.key ?? field.id));

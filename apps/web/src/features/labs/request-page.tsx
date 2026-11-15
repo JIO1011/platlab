@@ -54,16 +54,22 @@ function RequestSheet({ request }: { request: RequestView }) {
   );
 }
 
+/** El título de la pantalla por omisión: el de la práctica y, sin él, el nombre del formato. */
+const practiceTitle = (request: RequestView): string => request.title ?? request.formName;
+
 /**
  * Abre una solicitud por su id en la sección de la que viene (`parent`): su título, la carga y el error. Quien la usa
  * pone lo que se ve de la solicitud ya leída y, si quiere, sus acciones junto al título.
  */
 export function OpenRequest({
   parent,
+  titleOf = practiceTitle,
   actions,
   children,
 }: {
   parent: 'solicitudes' | 'recibidas';
+  /** El título de la pantalla con la solicitud ya leída; por omisión, el título de la práctica. */
+  titleOf?: (request: RequestView) => string;
   /** Lo que va a la derecha del título, con la solicitud ya leída (en la bandeja, las acciones de quien revisa). */
   actions?: (request: RequestView) => ReactNode;
   children: (request: RequestView) => ReactNode;
@@ -74,7 +80,7 @@ export function OpenRequest({
 
   return (
     <WithBack parent={`/e/${workspaceId}/laboratorios/${parent}`}>
-      <SectionHeader title={request.data?.title ?? request.data?.formName ?? 'Solicitud'} updatedAt={request.dataUpdatedAt} actions={request.data ? actions?.(request.data) : undefined} />
+      <SectionHeader title={request.data ? titleOf(request.data) : 'Solicitud'} updatedAt={request.dataUpdatedAt} actions={request.data ? actions?.(request.data) : undefined} />
       <div className="mt-8">
         {request.isPending ? (
           <div aria-busy="true">

@@ -98,8 +98,8 @@ function LogoPicker({ header, design, onStatus }: { header: Draft['header']; des
         <DropdownMenuTrigger
           aria-label={shown ? 'Logo del membrete: cambiar o quitar' : 'Logo del membrete: agregar'}
           className={cn(
-            'group/edit relative h-14 w-24 shrink-0 overflow-hidden rounded-control border bg-white text-ink-subtle transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action',
-            shown ? 'border-line-strong' : 'border-dashed border-ink-subtle hover:bg-action-soft hover:text-ink-muted',
+            'group/edit relative h-12 w-16 shrink-0 overflow-hidden rounded-control border bg-white text-ink-muted transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action',
+            shown ? 'border-line-strong' : 'border-dashed border-line-strong hover:bg-surface-sunken hover:text-ink',
           )}
         >
           {shown ? (
@@ -112,11 +112,11 @@ function LogoPicker({ header, design, onStatus }: { header: Draft['header']; des
           ) : (
             <span aria-hidden className="grid size-full place-content-center justify-items-center gap-0.5 text-[10px] font-medium">
               <ImagePlus className="size-5" />
-              Agregar logo
+              Logo
             </span>
           )}
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-44">
+        <DropdownMenuContent className="w-52">
           <DropdownMenuItem onSelect={() => input.current?.click()}>
             <Upload aria-hidden />
             {url ? 'Cambiar logo' : 'Subir logo'}
@@ -132,6 +132,7 @@ function LogoPicker({ header, design, onStatus }: { header: Draft['header']; des
               Quitar logo
             </DropdownMenuItem>
           ) : null}
+          <p className="px-2 pb-1 pt-1.5 text-[11px] text-ink-muted">JPEG, PNG o WebP, hasta {FORM_LOGO_MAX_BYTES / 1024} KiB</p>
         </DropdownMenuContent>
       </DropdownMenu>
       <input ref={input} type="file" accept={LOGO_ACCEPT} hidden tabIndex={-1} onChange={(event) => void choose(event)} />
@@ -147,14 +148,17 @@ interface Status {
 /** Qué escribir en cada línea del membrete, de arriba abajo. */
 const lineHints = ['Institución', 'Facultad', 'Área o carrera'];
 
-/** El membrete en edición: el logo a la izquierda y, a su lado, hasta tres líneas de texto que se escriben, agregan y quitan. */
+/**
+ * El membrete en edición: el logo y, a su lado, hasta tres líneas de texto. Sin líneas, se ve el nombre del espacio, que es
+ * lo que se imprime; el aviso de los formatos del logo vive en su menú.
+ */
 function BrandDesign({ draft, workspaceName, design }: { draft: Draft; workspaceName: string; design: MastheadDesign }) {
   const [status, setStatus] = useState<Status>({ busy: false, error: null });
   const { header } = draft;
   const setLines = (lines: string[]) => design.set({ header: { ...header, lines } });
   return (
     <Cell className="grid content-center gap-1 p-1.5">
-      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+      <div className="flex items-center gap-2">
         <LogoPicker header={header} design={design} onStatus={setStatus} />
         <div className="grid min-w-0 flex-1 gap-0.5">
           {header.lines.map((line, at) => (
@@ -172,11 +176,11 @@ function BrandDesign({ draft, workspaceName, design }: { draft: Draft; workspace
               </Button>
             </div>
           ))}
-          {header.lines.length === 0 ? <Ghost note className="px-1.5 text-[11px] leading-tight">Sin líneas, la hoja muestra «{workspaceName}».</Ghost> : null}
+          {header.lines.length === 0 ? <span className="px-1.5 text-[12px] font-semibold">{workspaceName}</span> : null}
           {header.lines.length < FORM_MAX_HEADER_LINES ? (
-            <Button className="h-11 justify-self-start sm:h-6" onClick={() => setLines([...header.lines, ''])}>
+            <Button variant="ghost" className="h-11 justify-self-start px-1.5 text-[11px] sm:h-6" aria-label="Agregar una línea al membrete" onClick={() => setLines([...header.lines, ''])}>
               <Plus aria-hidden />
-              Agregar línea de texto
+              Línea
             </Button>
           ) : null}
         </div>
@@ -189,24 +193,34 @@ function BrandDesign({ draft, workspaceName, design }: { draft: Draft; workspace
         <p role="alert" className="text-[11.5px] font-medium text-danger">
           {status.error}
         </p>
-      ) : header.logoUrl ? null : (
-        <Ghost note className="text-[11px] leading-tight">
-          Logo en JPEG, PNG o WebP de hasta {FORM_LOGO_MAX_BYTES / 1024} KiB.
-        </Ghost>
-      )}
+      ) : null}
     </Cell>
   );
 }
 
-/** El encabezado en franja, de una sola fila: el membrete (logo y líneas), la revisión con el título y el código. */
-export function Masthead({ draft, workspaceName, revision, design }: { draft: Draft; workspaceName: string; revision: number; design?: MastheadDesign }) {
-  const code = draft.documentCode.trim();
+/**
+ * El encabezado en franja, de una sola fila: el membrete (logo y líneas), la revisión con el título y la casilla «Código»,
+ * que lleva solo el código de práctica (`practiceCode`, el mismo de la lista); sin él, el aviso de que lo pone el sistema.
+ */
+export function Masthead({
+  draft,
+  workspaceName,
+  revision,
+  design,
+  practiceCode,
+}: {
+  draft: Draft;
+  workspaceName: string;
+  revision: number;
+  design?: MastheadDesign;
+  practiceCode?: string;
+}) {
   const issues = design?.issues;
   return (
     <header className={cn(sheetGrid, 'sm:grid-cols-[minmax(0,1.7fr)_minmax(0,2.6fr)_minmax(0,1.2fr)] print:h-[14mm]')}>
       {design ? <BrandDesign draft={draft} workspaceName={workspaceName} design={design} /> : <BrandView draft={draft} workspaceName={workspaceName} />}
       <MastheadBlock head={revision > 0 ? `Revisión ${revision}` : 'Sin publicar'} headClassName="italic">
-        <Cell kind="label" className={cn('flex flex-col justify-center text-center text-[15px] font-bold tracking-normal print:overflow-hidden print:whitespace-nowrap print:py-0 print:text-[12pt] print:leading-tight', design && 'p-0.5')}>
+        <Cell kind="label" className={cn('flex flex-col justify-center text-center text-[15px] font-bold tracking-normal text-ink print:overflow-hidden print:whitespace-nowrap print:py-0 print:text-[12pt] print:leading-tight', design && 'p-0.5')}>
           {design ? (
             <EditableText
               label="Título del formato"
@@ -223,23 +237,14 @@ export function Masthead({ draft, workspaceName, revision, design }: { draft: Dr
         </Cell>
       </MastheadBlock>
       <MastheadBlock head="Código" headClassName="text-[11px]">
-        <Cell className={cn('grid content-center gap-0.5 text-center print:py-0', design && 'p-0.5')}>
-          {design ? (
-            <EditableText
-              label="Código del documento"
-              value={draft.documentCode}
-              maxLength={40}
-              placeholder="Código"
-              error={issues?.documentCode}
-              className="text-center font-bold sm:min-h-5 sm:py-0"
-              onChange={(documentCode) => design.set({ documentCode })}
-            />
-          ) : code ? (
-            <span className="font-bold print:text-[9pt]">{code}</span>
-          ) : null}
-          <Ghost note className="text-[11px] leading-tight">
-            Lo pone el sistema al programar
-          </Ghost>
+        <Cell className="grid content-center text-center print:py-0">
+          {practiceCode ? (
+            <span className="font-mono text-[12px] font-bold tabular-nums print:text-[9pt]">{practiceCode}</span>
+          ) : (
+            <Ghost note className="text-[11px] leading-tight">
+              Lo pone el sistema al programar
+            </Ghost>
+          )}
         </Cell>
       </MastheadBlock>
     </header>

@@ -115,7 +115,7 @@ function PendingTile({ card, actions }: { card: PendingCard; actions: TrayAction
 
 /**
  * «Por programar» (ADR 0023, L-01c; decisión del usuario, 24-10-2026): pegada al borde inferior del contenido, una
- * franja de unos 110 px con una tarjeta por fecha pendiente de las solicitudes enviadas, las del día que se ve primero y
+ * franja de unos 110 px (sin nada pendiente, un pie de una línea) con una tarjeta por fecha pendiente de las solicitudes enviadas, las del día que se ve primero y
  * resaltadas (se arrastran a la tabla) y las de otros días menos saturadas (llevan a su día). En pantallas estrechas es una
  * lista debajo del día, con «Programar…». El Operador las ve sin acciones de programar.
  */
@@ -123,6 +123,18 @@ export function ScheduleTray({ items, pendingError, onRetry, actions }: { items:
   const heading = useId();
   const cards = pendingCards(items, actions.visible);
   const here = cards.filter((card) => card.date === actions.visible).length;
+  // Sin nada pendiente, un pie de una línea.
+  if (cards.length === 0 && !pendingError) {
+    return (
+      <section aria-labelledby={heading} className={cn(softCard, 'flex flex-wrap items-center gap-x-2.5 gap-y-0.5 px-4 py-3 text-sm', actions.wide && 'shrink-0')}>
+        <CircleCheck aria-hidden className="size-4 shrink-0 text-success" />
+        <h2 id={heading} className="font-bold text-ink">
+          Por programar · 0
+        </h2>
+        <p className="text-ink-muted">Todo programado para este período</p>
+      </section>
+    );
+  }
   const hint = !actions.wide ? null : here > 0 && actions.canSchedule ? 'Arrastra las resaltadas a la tabla, o haz clic para «Programar…»' : cards.length > 0 ? 'Haz clic en una para ver su día' : null;
   return (
     <section aria-labelledby={heading} className={cn(softCard, 'px-4 pb-3 pt-3', actions.wide && 'shrink-0')}>
@@ -138,11 +150,6 @@ export function ScheduleTray({ items, pendingError, onRetry, actions }: { items:
           <button type="button" onClick={onRetry} className="font-semibold underline-offset-2 hover:underline">
             Reintentar
           </button>
-        </p>
-      ) : cards.length === 0 ? (
-        <p className="mt-1 flex items-center gap-2 text-sm text-ink-muted">
-          <CircleCheck aria-hidden className="size-4 text-success" />
-          Todo programado
         </p>
       ) : (
         <ul className={cn('mt-1.5', actions.wide ? 'flex gap-2 overflow-x-auto overscroll-x-contain pb-1' : 'grid gap-2')}>

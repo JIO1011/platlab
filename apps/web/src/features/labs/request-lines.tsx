@@ -31,7 +31,7 @@ const cellCount = (kind: ResourceKind, equipmentCode: boolean): number => (kind 
 /** Las líneas de un recurso con su posición en el borrador (lo que el servidor comprobó y los avisos van por esa posición). */
 const linesOf = (draft: RequestDraft, kind: ResourceKind) => draft.lines.flatMap((line, index) => (line.kind === LINE_KINDS[kind] ? [{ line, index }] : []));
 
-const cell = cn(sheetCell, 'bg-white px-1.5 py-0.5 align-top');
+const cell = cn(sheetCell, 'bg-white px-2.5 py-1.5 align-top');
 const decimal = (text: string) => text.replace(/[^\d.,]/g, '');
 const integer = (text: string) => text.replace(/\D/g, '');
 
@@ -143,11 +143,12 @@ function reagentCells({ line, index, props, setLine, remove }: LineCells & { lin
     />,
     <td key="quantity" className={cell}>
       <Frame>
-        <input aria-label={`Cantidad de ${line.name || 'reactivo'}`} inputMode="decimal" autoComplete="off" value={line.quantity} onChange={(event) => setLine({ ...line, quantity: decimal(event.target.value) })} className={bare} />
+        {/* Cantidad y unidad comparten una columna angosta: menos aire a los lados para que quepan sin salirse. */}
+        <input aria-label={`Cantidad de ${line.name || 'reactivo'}`} inputMode="decimal" autoComplete="off" value={line.quantity} onChange={(event) => setLine({ ...line, quantity: decimal(event.target.value) })} className={cn(bare, 'px-1.5')} />
         {line.catalog ? (
-          <span className="shrink-0 pr-1.5 text-ink-muted">{line.unit}</span>
+          <span className="shrink-0 pr-2 text-ink-muted">{line.unit}</span>
         ) : (
-          <input aria-label={`Unidad de ${line.name || 'reactivo'}`} autoComplete="off" maxLength={10} placeholder="Unidad" value={line.unit} onChange={(event) => setLine({ ...line, unit: event.target.value })} className={cn(bare, 'w-14 shrink-0')} />
+          <input aria-label={`Unidad de ${line.name || 'reactivo'}`} autoComplete="off" maxLength={10} placeholder="Unidad" value={line.unit} onChange={(event) => setLine({ ...line, unit: event.target.value })} className={cn(bare, 'w-12 shrink-0 px-1')} />
         )}
       </Frame>
     </td>,
@@ -300,7 +301,8 @@ function viewAmounts(line: DraftLine, groups: number): [course: string, group: s
   return [show(totalOf(line.perGroup, groups)), show(line.perGroup)];
 }
 
-const viewCell = cn(sheetCell, denseCell, 'bg-white');
+// Una celda de tabla no respeta `min-h`: el alto de fila va en `h-8` (en papel, el de la planilla).
+const viewCell = cn(sheetCell, denseCell, 'h-8 bg-white');
 
 /** Una línea en la hoja de solo lectura: su nombre con su ✔ ⚠ ✖ (que no se imprime) y sus cantidades, o las celdas en blanco. */
 function viewCells(found: { line: DraftLine; index: number } | undefined, { paper, draft, layout, saved, block }: TableProps, kind: ResourceKind, prefix: string): ReactElement[] {

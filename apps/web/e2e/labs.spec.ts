@@ -42,9 +42,9 @@ function freeSlot() {
 /** Del menú de Laboratorios a una solicitud recibida, por su título, tal como la abre quien atiende los laboratorios. */
 async function openReceived(page: Page, requestTitle: string) {
   await page.goto(`${labs}/recibidas`);
-  await page.getByRole('button', { name: /^Ver todas/ }).click();
+  await page.getByRole('button', { name: /^Todas/ }).click();
   await page.getByRole('link', { name: requestTitle, exact: true }).click();
-  await expect(page.getByRole('heading', { name: requestTitle, level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Práctica académica', level: 1 })).toBeVisible();
 }
 
 test('solicitante, Administradora y responsable llevan una práctica de Laboratorios', async ({ browser }) => {
@@ -96,7 +96,7 @@ test('solicitante, Administradora y responsable llevan una práctica de Laborato
   await expect(admin.getByRole('heading', { name: 'Recibidas', level: 1 })).toBeVisible();
   await expectAccessible(admin, 'Administradora: Recibidas');
   await admin.getByRole('link', { name: title, exact: true }).click();
-  await expect(admin.getByRole('heading', { name: title, level: 1 })).toBeVisible();
+  await expect(admin.getByRole('heading', { name: 'Práctica académica', level: 1 })).toBeVisible();
   await expectAccessible(admin, 'Administradora: solicitud recibida');
   await admin.getByRole('button', { name: 'Aprobar', exact: true }).click();
   const held = admin.getByRole('region', { name: 'Lo apartado' });

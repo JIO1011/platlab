@@ -210,7 +210,7 @@ describe('fechas', () => {
 describe('la hoja de la solicitud', () => {
   it('lleva la revisión, el título y el código con que se llenó', () => {
     const paper = paperOf(viewOf(request));
-    expect(paper).toMatchObject({ baseRevision: 2, title: 'Solicitud de laboratorio', documentCode: 'FOR-LAB-01' });
+    expect(paper).toMatchObject({ baseRevision: 2, title: 'Solicitud de laboratorio' });
     expect(fieldsOf(paper.rows).map(fieldKey)).toContain('docente');
   });
 

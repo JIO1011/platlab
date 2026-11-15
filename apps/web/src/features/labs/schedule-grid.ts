@@ -1,5 +1,5 @@
 import { isoWeekday, periodWeek, scheduleProblemText, timeText, toMinutes, type Activity, type Closure, type Period, type Space } from '@platlab/contracts';
-import { addDays } from '../../app/format';
+import { addDays, countText } from '../../app/format';
 
 /**
  * La lógica pura de la tabla del Cronograma (ADR 0023): qué áreas y qué horas muestra un día, dónde cae cada bloque y
@@ -81,6 +81,20 @@ export function activitiesOn(items: readonly Activity[], date: string): Activity
   return items.filter((item) => item.date === date);
 }
 
+/** «Período P1 · Semana 11 · 7 bloques programados»: lo que la barra del día dice bajo la fecha; sin período o sin cifra (mientras cargan), omite esa parte. */
+export function daySummary(period: { code: string; week: number } | null | undefined, count: number | undefined): string {
+  const parts = [
+    period === undefined ? null : period ? `Período ${period.code} · Semana ${period.week}` : 'Fuera de los períodos',
+    count === undefined ? null : countText(count, 'bloque programado', 'bloques programados'),
+  ];
+  return parts.filter((part) => part !== null).join(' · ');
+}
+
+/** Lo que dice la semana de cada día sobre su carga: «7 blq», o «–» si no tiene bloques. */
+export function loadText(count: number): string {
+  return count === 0 ? '–' : `${count} blq`;
+}
+
 /** Cuántos bloques tiene cada fecha dada, con cero para las libres. */
 export function loadByDay(items: readonly Activity[], dates: readonly string[]): Record<string, number> {
   const load: Record<string, number> = Object.fromEntries(dates.map((date) => [date, 0]));
@@ -93,6 +107,13 @@ export interface CoreArea {
   id: string;
   name: string;
   group: { name: string } | null;
+}
+
+const LAB_PREFIX = /^laboratorios?\s+(?:de\s+las|de\s+los|de\s+la|del|de)\s+/i;
+
+/** El nombre del área para rotular una columna o una tarjeta: sin «Laboratorio de» al inicio («Laboratorio de Química» → «Química»); si no queda nada, el nombre completo. */
+export function areaLabel(name: string): string {
+  return name.replace(LAB_PREFIX, '').trim() || name;
 }
 
 /** Una columna de la tabla: un área habilitada (con su espacio) o una del Núcleo que aún no tiene horario (`space` nulo). */
@@ -129,6 +150,12 @@ export function activitiesOfArea(dayItems: readonly Activity[], areaId: string):
 /** Las franjas abiertas del área ese día, según su horario semanal. */
 export function openSlots(space: Pick<Space, 'weeklyHours'>, date: string): Span[] {
   return space.weeklyHours[String(isoWeekday(date)) as keyof Space['weeklyHours']].map((slot) => ({ from: toMinutes(slot.opens), to: toMinutes(slot.closes) }));
+}
+
+/** El horario del área ese día, «07:00–18:00» (los tramos, separados por « · »), o «Cerrada» si su horario semanal no abre. */
+export function dayHoursText(space: Pick<Space, 'weeklyHours'>, date: string): string {
+  const slots = openSlots(space, date);
+  return slots.length === 0 ? 'Cerrada' : slots.map((slot) => `${timeText(slot.from)}–${timeText(slot.to)}`).join(' · ');
 }
 
 /** Los cierres vigentes que tocan al área ese día: los suyos y los feriados comunes. */
@@ -255,17 +282,18 @@ export function overCapacity(block: Pick<Activity, 'participants'>, space: Pick<
 /** Lo que avisa un bloque cuyo apartado no alcanza todo lo pedido (L-01d, ADR 0023). */
 export const MISSING_HOLDS = 'Falta apartar recursos';
 
-/** Lo que un bloque guarda para el nombre accesible y el tooltip: hora, código, responsable y, si procede, el aforo. */
+/** Lo que un bloque guarda para el nombre accesible y el tooltip: hora, código, responsable, participantes y, si procede, el aforo. */
 export function activityDetails(block: Activity, space?: Pick<Space, 'capacity'>): string[] {
   return [
     `${block.startsAt}–${block.endsAt} · ${block.code}`,
     `Responsable: ${block.responsibleName}`,
+    `Participantes: ${block.participants}`,
     ...(space && overCapacity(block, space) ? [capacityWarning(block.participants, space.capacity)] : []),
     ...(block.complete ? [] : [MISSING_HOLDS]),
   ];
 }
 
-/** Lo que un lector de pantalla oye de un bloque: su texto, hora, código, responsable y aforo si se supera. */
+/** Lo que un lector de pantalla oye de un bloque: su texto, hora, código, responsable, participantes y aforo si se supera. */
 export function activityLabel(block: Activity, space?: Pick<Space, 'capacity'>): string {
   return [blockText(block), ...activityDetails(block, space)].join(', ');
 }

@@ -70,7 +70,7 @@ export function useArchiveForm(workspaceId: string, formId: string) {
   return useModuleCommand(workspaceId, `/labs/forms/${formId}/archive`, labsForm, useLabsKey(workspaceId));
 }
 
-/** «Publicar revisión»: la revisión siguiente e inmutable de la hoja del formato. */
+/** «Guardar cambios» de un formato: la revisión siguiente e inmutable de la hoja del formato. */
 export function usePublishForm(workspaceId: string, formId: string) {
   return useModuleCommand(workspaceId, `/labs/forms/${formId}/revisions`, labsForm, useLabsKey(workspaceId));
 }

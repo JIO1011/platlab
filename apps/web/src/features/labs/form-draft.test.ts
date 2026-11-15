@@ -30,13 +30,13 @@ const freeKeysOf = (value: Draft): string[] =>
 describe('draftFrom', () => {
   it('parte de la revisión vigente: membrete, filas y firmas', () => {
     const value = draftFrom(published);
-    expect(value).toMatchObject({ baseRevision: 2, title: 'Solicitud de laboratorio', documentCode: 'FOR-LAB-01', equipmentCode: true, notes: true });
+    expect(value).toMatchObject({ baseRevision: 2, title: 'Solicitud de laboratorio', equipmentCode: true, notes: true });
     expect(value.rows).toHaveLength(FORM_STANDARD_LAYOUT.rows.length);
     expect(value.signatures.map(({ label, requester }) => ({ label, requester }))).toEqual(FORM_STANDARD_LAYOUT.signatures);
   });
 
-  it('un formato sin código lo deja vacío', () => {
-    expect(draftFrom({ ...published, documentCode: null }).documentCode).toBe('');
+  it('no lleva el código del documento: la casilla «Código» es la del código de práctica', () => {
+    expect(draftFrom(published)).not.toHaveProperty('documentCode');
   });
 
   it('cada dato lleva su clave como id, del sistema o libre', () => {
@@ -59,14 +59,13 @@ describe('draftFrom', () => {
 describe('publishPayload', () => {
   it('sin cambios devuelve la hoja tal como llegó, con la revisión vista', () => {
     const payload = publishPayload(draft());
-    expect(payload).toMatchObject({ title: 'Solicitud de laboratorio', documentCode: 'FOR-LAB-01', expectedRevision: 2 });
+    expect(payload).toMatchObject({ title: 'Solicitud de laboratorio', expectedRevision: 2 });
     expect(payload.layout).toEqual(FORM_STANDARD_LAYOUT);
     expect(publishFormRequest.safeParse(payload).success).toBe(true);
   });
 
-  it('un código vacío o en blanco se envía como null', () => {
-    expect(publishPayload(draft({ documentCode: '' })).documentCode).toBeNull();
-    expect(publishPayload(draft({ documentCode: '   ' })).documentCode).toBeNull();
+  it('guarda el formato sin código del documento, aunque la revisión anterior lo tuviera', () => {
+    expect(publishPayload(draft()).documentCode).toBeNull();
   });
 
   it('las columnas ocultas no se publican', () => {
@@ -129,9 +128,8 @@ describe('formIssues', () => {
   });
 
   it('avisa de lo que excede el límite', () => {
-    const issues = issuesOf(draft({ title: 'a'.repeat(121), documentCode: 'b'.repeat(41) }));
+    const issues = issuesOf(draft({ title: 'a'.repeat(121) }));
     expect(issues.title).toBe('El título admite hasta 120 caracteres.');
-    expect(issues.documentCode).toBe('El código admite hasta 40 caracteres.');
   });
 
   it('señala la etiqueta de un dato libre vacío por su id', () => {

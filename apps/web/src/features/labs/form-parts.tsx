@@ -25,38 +25,43 @@ export const reveal =
 export const sheetGrid = 'grid gap-px bg-line-strong';
 
 /**
- * Las columnas de una fila de la Sección I según sus datos (1 a 3): cada dato es etiqueta y valor; con 2, la etiqueta
- * es algo más ancha y, con 3, el valor, que lleva sus controles. En el móvil, un dato por fila. Cada dato es una
- * subrejilla de dos columnas (`datumRoot`), para que las etiquetas de una fila queden alineadas con sus valores.
+ * Las columnas de una fila de la Sección I según sus datos (1 a 3): cada dato es etiqueta y valor. La etiqueta mide lo que
+ * su texto (`fit-content`), en una sola línea, y el valor se queda con el resto para que el docente escriba más; solo una
+ * etiqueta muy larga llega a su tope y envuelve. En el móvil, un dato por fila. Cada dato es una subrejilla de dos
+ * columnas (`datumRoot`), para que las etiquetas de una fila queden alineadas con sus valores.
  */
 const rowColumns = [
-  'sm:grid-cols-[minmax(0,1fr)_minmax(0,4fr)]',
-  'sm:grid-cols-[repeat(2,minmax(0,1.25fr)_minmax(0,1fr))]',
-  'sm:grid-cols-[repeat(3,minmax(0,1fr)_minmax(0,1.25fr))]',
+  'sm:grid-cols-[fit-content(40%)_minmax(0,1fr)]',
+  'sm:grid-cols-[repeat(2,fit-content(30%)_minmax(0,1fr))]',
+  'sm:grid-cols-[repeat(3,fit-content(26%)_minmax(0,1fr))]',
 ] as const;
 
-export const dataRowGrid = (count: number) => cn(sheetGrid, 'grid-cols-[minmax(0,2fr)_minmax(0,3fr)]', rowColumns[Math.min(Math.max(count, 1), 3) - 1]);
+export const dataRowGrid = (count: number) => cn(sheetGrid, 'grid-cols-[fit-content(50%)_minmax(0,1fr)]', rowColumns[Math.min(Math.max(count, 1), 3) - 1]);
 
 /** La subrejilla de un dato; `gap-y-px` separa el aviso que a veces lleva debajo. */
 export const datumRoot = 'col-span-2 grid grid-cols-subgrid gap-y-px';
 
+/**
+ * La hoja es neutra y de texto negro, sin el color del módulo (decisión del usuario, 14-11-2026): dos grises bien
+ * distintos sobre la rejilla, el más oscuro para los encabezados, y el valor en blanco.
+ */
 export const cellKinds = {
-  /** La etiqueta de un dato: fondo gris suave, mayúsculas y negrita como en la plantilla. */
+  /** La etiqueta de un dato: gris claro, mayúsculas y seminegrita como en la plantilla. */
   label: 'bg-surface-sunken text-[11px] font-semibold uppercase tracking-wide text-ink',
   /** El valor: en blanco, a llenar. */
   value: 'bg-white text-ink',
-  /** Un encabezado de la hoja (barra de sección, tabla de recursos): el color suave del módulo con su tono profundo. */
-  head: 'bg-action-soft text-[11px] font-bold uppercase tracking-wide text-action-deep',
+  /** Un encabezado de la hoja (barra de sección, tabla de recursos, franja del encabezado): el gris de la línea, en negrita. */
+  head: 'bg-line text-[11px] font-bold uppercase tracking-wide text-ink',
 } as const;
 
 /**
- * Una fila compacta de la hoja: en pantalla, 24 px; en papel, 4,5 mm a 8 pt, de una sola línea (lo que no cabe se recorta,
- * porque la hoja cuenta con ese alto para que todo entre en una A4).
+ * Una fila compacta de la hoja: en pantalla, 32 px con aire; en papel, 4,5 mm a 8 pt, de una sola línea (lo que no cabe se
+ * recorta, porque la hoja cuenta con ese alto para que todo entre en una A4).
  */
-export const denseCell = 'min-h-6 px-1.5 py-0.5 print:h-[4.5mm] print:min-h-0 print:overflow-hidden print:whitespace-nowrap print:px-1 print:py-0 print:text-[8pt] print:leading-[4.5mm]';
+export const denseCell = 'min-h-8 px-2.5 py-1.5 print:h-[4.5mm] print:min-h-0 print:overflow-hidden print:whitespace-nowrap print:px-1 print:py-0 print:text-[8pt] print:leading-[4.5mm]';
 
 /** La etiqueta de un dato, en cambio, no se recorta al imprimir: envuelve y la fila crece (4,5 mm como mínimo). */
-const denseLabelCell = 'min-h-6 px-1.5 py-0.5 print:h-auto print:min-h-[4.5mm] print:px-1 print:py-0 print:text-[8pt] print:leading-[4.5mm]';
+const denseLabelCell = 'min-h-8 px-2.5 py-1.5 print:h-auto print:min-h-[4.5mm] print:px-1 print:py-0 print:text-[8pt] print:leading-[4.5mm]';
 
 /** Una celda de la hoja; `dense` la deja del alto de una fila de la plantilla. */
 export function Cell({ kind = 'value', dense = false, className, children }: { kind?: keyof typeof cellKinds; dense?: boolean; className?: string | undefined; children?: ReactNode }) {

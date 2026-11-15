@@ -3,6 +3,7 @@ import { Badge } from '@platlab/ui';
 import type { ReactNode } from 'react';
 import { CodeTag } from '../../app/code-tag';
 import type { RequestView } from './request-draft';
+import { practiceCodeText } from './request-summary';
 
 export type Tone = 'neutral' | 'info' | 'strong' | 'success' | 'warning' | 'danger';
 
@@ -29,17 +30,26 @@ export function Pill({ tone, icon, children }: { tone: Tone; icon?: ReactNode; c
   );
 }
 
-/**
- * El estado de una solicitud con su nombre en español y, si entró fuera de la anticipación, «Fuera de plazo». Con
- * `hideStatus` (una lista que ya es de un solo estado) solo queda lo que no repite el título.
- */
-export function RequestBadges({ status, late, hideStatus = false }: { status: RequestStatus; late: boolean; hideStatus?: boolean }) {
+/** El estado de una solicitud con su nombre en español y, si entró fuera de la anticipación, «Fuera de plazo». */
+export function RequestBadges({ status, late }: { status: RequestStatus; late: boolean }) {
   const { label, tone } = statuses[status];
   return (
     <>
-      {hideStatus ? null : <Pill tone={tone}>{label}</Pill>}
+      <Pill tone={tone}>{label}</Pill>
       {late ? <Pill tone="warning">Fuera de plazo</Pill> : null}
     </>
+  );
+}
+
+/** El código de práctica de los bloques de la solicitud en mono («P1-S11-FIS01») y, si son varios, «+N»; sin bloques, nada. */
+export function PracticeCode({ codes }: { codes: readonly string[] }) {
+  const practice = practiceCodeText(codes);
+  if (!practice) return null;
+  return (
+    <span className="font-mono text-xs font-medium tabular-nums text-ink-muted">
+      {practice.code}
+      {practice.more ? <span className="ml-1">{practice.more}</span> : null}
+    </span>
   );
 }
 
