@@ -9,7 +9,8 @@ const toScheduleText = (n: number) => (n === 1 ? '1 solicitud por programar' : `
 
 /**
  * Descriptor de Laboratorios en la web (ADR 0023); sus páginas y rutas están en `routes.tsx`. La tarjeta del Inicio
- * cuenta lo fuera de plazo y los bloques de la semana con «Falta» («Cierre de Laboratorios»).
+ * cuenta lo fuera de plazo y los bloques de la semana con «Falta» («Cierre de Laboratorios») o, para quien pide, lo suyo
+ * que necesita su atención («Inicio de quien pide»).
  */
 export const labsWebModule: WebModule = {
   code: 'labs',
@@ -19,6 +20,8 @@ export const labsWebModule: WebModule = {
     counters: [
       { key: 'late', label: () => 'fuera de plazo' },
       { key: 'short', label: (n) => (n === 1 ? 'bloque con «Falta» esta semana' : 'bloques con «Falta» esta semana') },
+      // Solo quien pide: las suyas con cambios pedidos.
+      { key: 'attention', label: (n) => (n === 1 ? 'necesita tu atención' : 'necesitan tu atención') },
     ],
     pending: { permission: 'labs.schedule.manage', approver: toScheduleText, requester: toScheduleText },
     trendNoun: { one: 'solicitud', many: 'solicitudes' },

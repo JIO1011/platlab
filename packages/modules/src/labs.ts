@@ -33,7 +33,8 @@ export const labsModule = defineModule({
       ],
     },
   ],
-  homeCard: { permission: 'labs.space.manage' },
+  // Todo el que consulta Laboratorios: quien pide ve sus cifras; quien consulta las recibidas, las del laboratorio.
+  homeCard: { permission: 'labs.read' },
   // Las áreas del Núcleo (ADR 0024): quien consulta Laboratorios las ve en el Cronograma (habilitadas o no) y el
   // Administrador las habilita para prácticas desde Áreas, aunque el espacio solo tenga Laboratorios.
   areas: { read: 'labs.read', manage: 'labs.space.manage' },

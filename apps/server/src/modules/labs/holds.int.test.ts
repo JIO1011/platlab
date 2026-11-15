@@ -144,13 +144,14 @@ describe('sin Reactivos', () => {
 });
 
 describe('tarjeta del Inicio', () => {
-  it('cuenta lo que espera programarse, lo fuera de plazo y los bloques de la semana con «Falta»', async () => {
-    const cardOf = async (subject: string) => {
-      const home = (await call(subject, `/workspaces/${lab.workspace.id}/home`)).body as {
-        cards: Array<{ moduleCode: string; summary: Record<string, number> | null; trend: { points: unknown[] } | null }>;
-      };
-      return home.cards.find((card) => card.moduleCode === 'labs');
+  const cardOf = async (subject: string) => {
+    const home = (await call(subject, `/workspaces/${lab.workspace.id}/home`)).body as {
+      cards: Array<{ moduleCode: string; summary: Record<string, number> | null; trend: { points: unknown[] } | null }>;
     };
+    return home.cards.find((card) => card.moduleCode === 'labs');
+  };
+
+  it('cuenta lo que espera programarse, lo fuera de plazo y los bloques de la semana con «Falta»', async () => {
     const before = (await cardOf(lab.adminMember.subject))!.summary!;
     // Fuera de plazo (antes de la anticipación de 7 días) y sin stock suficiente: espera programarse.
     const waiting = await sentWith([inDays(3)], '1000');
@@ -162,5 +163,18 @@ describe('tarjeta del Inicio', () => {
     const after = (await cardOf(lab.adminMember.subject))!.summary!;
     expect(after['pendingRequests']).toBe(before['pendingRequests']);
     expect(after['short']).toBe(before['short']! + 1);
+  });
+
+  it('quien pide ve lo suyo: lo que espera programarse y lo que necesita su atención (ADR 0023, «Inicio de quien pide»)', async () => {
+    const before = (await cardOf(lab.teacher.subject))!.summary!;
+    const other = (await cardOf(lab.otherTeacher.subject))!.summary!;
+    expect(Object.keys(before).sort()).toEqual(['attention', 'pendingRequests']);
+    const waiting = await sentWith([inDays(40)], '1');
+    expect((await cardOf(lab.teacher.subject))!.summary).toEqual({ pendingRequests: before['pendingRequests']! + 1, attention: before['attention'] });
+    const returned = await send(lab, 'POST', `/requests/${waiting.id}/request-changes`, { expectedVersion: waiting.version, reason: 'Falta el título' });
+    expect(returned.status).toBe(200);
+    expect((await cardOf(lab.teacher.subject))!.summary).toEqual({ pendingRequests: before['pendingRequests'], attention: before['attention']! + 1 });
+    // Las de otro docente no cuentan para él.
+    expect((await cardOf(lab.otherTeacher.subject))!.summary).toEqual(other);
   });
 });
