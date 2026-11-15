@@ -47,33 +47,48 @@ export const requestLineInput = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('material'), description: text(200), perGroup: positiveQuantity.nullable(), quantity: positiveQuantity }).strict(),
 ]);
 
+/** Lo que decide qué hay para la práctica: fechas, franja, participantes, grupos, laboratorio y recursos. */
+const requestResources = z.object({
+  dates: z
+    .array(z.iso.date())
+    .max(REQUEST_MAX_DATES)
+    .refine((values) => new Set(values).size === values.length, 'Cada fecha va una vez'),
+  startsAt: time.nullable(),
+  endsAt: time.nullable(),
+  participants: z.number().int().min(1).max(1000).nullable(),
+  groups: z.number().int().min(1).max(100),
+  areaId: z.uuid().nullable(),
+  lines: z.array(requestLineInput).max(REQUEST_MAX_LINES),
+});
+
+const endsAfterStart: [(value: { startsAt: string | null; endsAt: string | null }) => boolean, { message: string; path: string[] }] = [
+  (value) => !value.startsAt || !value.endsAt || value.startsAt < value.endsAt,
+  { message: 'La hora de fin va después del inicio', path: ['endsAt'] },
+];
+
 /**
  * PUT /requests/:requestId: guarda el borrador (o la corrección pedida) entero, con la versión que la persona vio. Puede
  * estar a medias; enviar exige lo esencial. Asignatura y carrera van por nombre: un nombre nuevo entra a su lista.
  */
-export const saveRequestRequest = z
-  .object({
+export const saveRequestRequest = requestResources
+  .extend({
     expectedVersion,
     title: text(200).nullable(),
     teacherName: text(120).nullable(),
     activityType: activityType.nullable(),
     subject: text(120).nullable(),
     career: text(120).nullable(),
-    dates: z
-      .array(z.iso.date())
-      .max(REQUEST_MAX_DATES)
-      .refine((values) => new Set(values).size === values.length, 'Cada fecha va una vez'),
-    startsAt: time.nullable(),
-    endsAt: time.nullable(),
-    participants: z.number().int().min(1).max(1000).nullable(),
-    groups: z.number().int().min(1).max(100),
-    areaId: z.uuid().nullable(),
     answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
     notes: text(2000).nullable(),
-    lines: z.array(requestLineInput).max(REQUEST_MAX_LINES),
   })
   .strict()
-  .refine((value) => !value.startsAt || !value.endsAt || value.startsAt < value.endsAt, { message: 'La hora de fin va después del inicio', path: ['endsAt'] });
+  .refine(...endsAfterStart);
+
+/**
+ * POST /requests/:requestId/check: lo que quien pide está llenando, sin guardarlo, frente a la regla única de
+ * disponibilidad (ADR 0023, «Disponibilidad y recursos»). Solo consulta: no guarda ni aparta nada.
+ */
+export const checkRequestRequest = requestResources.strict().refine(...endsAfterStart);
 
 /** POST /requests: un borrador con la última revisión de un formato activo o, con `from`, la copia de una solicitud propia. */
 export const createRequestRequest = z.union([
@@ -240,6 +255,9 @@ export const requestReview = z.object({
   ),
 });
 
+/** La respuesta de la consulta sin guardar: cada línea con su nombre y su marca, en el orden pedido, y su revisión. */
+export const requestCheck = z.object({ lines: z.array(requestLine), review: requestReview });
+
 /** Los datos libres de una revisión: cada respuesta con su tipo y las obligatorias presentes. */
 export function requestAnswers(layout: FormLayout) {
   const fields = layout.rows.flatMap((row) => (row.kind === 'row' ? row.fields : [])).filter((field): field is FormFreeField => 'type' in field);
@@ -270,4 +288,6 @@ export type RequestList = z.infer<typeof requestList>;
 export type LabsRequest = z.infer<typeof labsRequest>;
 export type RequestOptions = z.infer<typeof requestOptions>;
 export type RequestReview = z.infer<typeof requestReview>;
+export type RequestCheck = z.infer<typeof requestCheck>;
+export type CheckRequest = z.infer<typeof checkRequestRequest>;
 export type SaveRequest = z.infer<typeof saveRequestRequest>;

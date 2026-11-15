@@ -5,6 +5,8 @@ export type DateOrString = Date | string;
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
+export type booleanArray = (boolean)[];
+
 export type numberArray = (number)[];
 
 export type stringArray = (string)[];
@@ -164,7 +166,9 @@ export interface IListRequestsResult {
   activity_type: string | null;
   answers: Json;
   area_id: string | null;
+  block_closed: booleanArray;
   block_codes: stringArray;
+  block_ids: stringArray;
   career: string | null;
   dates: stringArray;
   document_code: string | null;
@@ -198,7 +202,7 @@ export interface IListRequestsQuery {
   result: IListRequestsResult;
 }
 
-const listRequestsIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true,"requesterId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1847,"b":1859}]},{"name":"requestId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1878,"b":1887},{"a":1919,"b":1928}]},{"name":"requesterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1953,"b":1964},{"a":2016,"b":2027}]}],"statement":"-- Con :requestId, solo esa (quién la ve lo decide el comando). Si no, con :requesterId, las de esa persona\n-- (borradores incluidos), o las recibidas: sin borradores. Activas primero y, dentro, por la fecha más próxima.\nSELECT\n  q.id, q.number, q.status, q.form_id, q.form_revision, f.name AS form_name, r.title AS form_title, r.document_code,\n  r.layout, q.requester_principal_id, coalesce(ident.display_name, '') AS \"requester_name!\",\n  q.title, q.teacher_name, q.activity_type, subject.name AS \"subject?\", career.name AS \"career?\",\n  q.dates::text[] AS \"dates!\", to_char(q.starts_at, 'HH24:MI') AS starts_at, to_char(q.ends_at, 'HH24:MI') AS ends_at,\n  q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version,\n  ARRAY(SELECT a.on_date::text FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"scheduled_dates!\",\n  ARRAY(SELECT a.code FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"block_codes!\"\nFROM labs.requests AS q\nJOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id\nJOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision\nLEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id\nLEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = q.workspace_id AND pr.id = q.requester_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE q.workspace_id = :workspaceId!\n  AND (CASE WHEN :requestId::uuid IS NOT NULL THEN q.id = :requestId::uuid\n            WHEN :requesterId::uuid IS NOT NULL THEN q.requester_principal_id = :requesterId::uuid\n            ELSE q.status <> 'draft' END)\nORDER BY q.status IN ('rejected', 'cancelled'), q.dates[1] NULLS LAST, q.number DESC\nLIMIT 500"};
+const listRequestsIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true,"requesterId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2332,"b":2344}]},{"name":"requestId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2363,"b":2372},{"a":2404,"b":2413}]},{"name":"requesterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2438,"b":2449},{"a":2501,"b":2512}]}],"statement":"-- Con :requestId, solo esa (quién la ve lo decide el comando). Si no, con :requesterId, las de esa persona\n-- (borradores incluidos), o las recibidas: sin borradores. Activas primero y, dentro, por la fecha más próxima.\nSELECT\n  q.id, q.number, q.status, q.form_id, q.form_revision, f.name AS form_name, r.title AS form_title, r.document_code,\n  r.layout, q.requester_principal_id, coalesce(ident.display_name, '') AS \"requester_name!\",\n  q.title, q.teacher_name, q.activity_type, subject.name AS \"subject?\", career.name AS \"career?\",\n  q.dates::text[] AS \"dates!\", to_char(q.starts_at, 'HH24:MI') AS starts_at, to_char(q.ends_at, 'HH24:MI') AS ends_at,\n  q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version,\n  ARRAY(SELECT a.on_date::text FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"scheduled_dates!\",\n  ARRAY(SELECT a.code FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"block_codes!\",\n  -- Sus bloques y si están cerrados: con todas las fechas programadas, la marca de cada línea sale de lo apartado.\n  ARRAY(SELECT a.id FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"block_ids!\",\n  ARRAY(SELECT a.stage = 'closed' FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"block_closed!\"\nFROM labs.requests AS q\nJOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id\nJOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision\nLEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id\nLEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = q.workspace_id AND pr.id = q.requester_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE q.workspace_id = :workspaceId!\n  AND (CASE WHEN :requestId::uuid IS NOT NULL THEN q.id = :requestId::uuid\n            WHEN :requesterId::uuid IS NOT NULL THEN q.requester_principal_id = :requesterId::uuid\n            ELSE q.status <> 'draft' END)\nORDER BY q.status IN ('rejected', 'cancelled'), q.dates[1] NULLS LAST, q.number DESC\nLIMIT 500"};
 
 /**
  * Query generated from SQL:
@@ -214,7 +218,12 @@ const listRequestsIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true
  *   ARRAY(SELECT a.on_date::text FROM labs.activities AS a
  *     WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "scheduled_dates!",
  *   ARRAY(SELECT a.code FROM labs.activities AS a
- *     WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "block_codes!"
+ *     WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "block_codes!",
+ *   -- Sus bloques y si están cerrados: con todas las fechas programadas, la marca de cada línea sale de lo apartado.
+ *   ARRAY(SELECT a.id FROM labs.activities AS a
+ *     WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "block_ids!",
+ *   ARRAY(SELECT a.stage = 'closed' FROM labs.activities AS a
+ *     WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "block_closed!"
  * FROM labs.requests AS q
  * JOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id
  * JOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision

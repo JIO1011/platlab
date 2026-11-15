@@ -39,7 +39,12 @@ SELECT
   ARRAY(SELECT a.on_date::text FROM labs.activities AS a
     WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "scheduled_dates!",
   ARRAY(SELECT a.code FROM labs.activities AS a
-    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "block_codes!"
+    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "block_codes!",
+  -- Sus bloques y si están cerrados: con todas las fechas programadas, la marca de cada línea sale de lo apartado.
+  ARRAY(SELECT a.id FROM labs.activities AS a
+    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "block_ids!",
+  ARRAY(SELECT a.stage = 'closed' FROM labs.activities AS a
+    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "block_closed!"
 FROM labs.requests AS q
 JOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id
 JOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision
