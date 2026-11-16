@@ -1,8 +1,10 @@
 import type pg from 'pg';
 import type { z } from 'zod';
 import {
+  pendingCount,
   type ActivityStage,
   type LabsRequest,
+  type RequestExceptions,
   type RequestLine,
   type RequestList,
   type RequestOptions,
@@ -98,7 +100,12 @@ export async function checkedLines(access: WorkspaceAccess, requests: ReadonlyAr
   );
 }
 
-const exceptionsOf = (lines: readonly RequestLine[]) => lines.filter((line) => line.check !== 'ok').length;
+/** Las líneas con ⚠ o ✖ de cada tipo. */
+const exceptionsOf = (lines: readonly RequestLine[]): RequestExceptions => {
+  const pending = lines.filter((line) => line.check !== 'ok');
+  const count = (kind: RequestLine['kind']) => pending.filter((line) => line.kind === kind).length;
+  return { reagent: count('reagent'), equipment: count('equipment'), material: count('material') };
+};
 
 function toSummary(row: IListRequestsResult, lines: readonly RequestLine[]): RequestSummary {
   return {
@@ -204,7 +211,7 @@ export function listRequests(pool: pg.Pool, request: QueryRequest, { scope }: z.
     const lines = await checkedLines(access, rows.map((row) => ({ ...scopeOf(row, held.get(row.id)), lines: byRequest.get(row.id) ?? [] })));
     const items = rows.map((row, index) => toSummary(row, lines[index]!));
     if (scope === 'inbox') {
-      const urgent = (item: RequestSummary) => item.status === 'submitted' && (item.late || item.exceptions > 0);
+      const urgent = (item: RequestSummary) => item.status === 'submitted' && (item.late || pendingCount(item.exceptions) > 0);
       items.sort((a, b) => Number(urgent(b)) - Number(urgent(a)));
     }
     return { items };

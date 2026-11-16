@@ -16,7 +16,7 @@ const request: LabsRequest = {
   firstDate: '2026-11-02',
   dateCount: 2,
   late: false,
-  exceptions: 0,
+  exceptions: { reagent: 0, equipment: 0, material: 0 },
   scheduledCount: 0,
   scheduledDates: [],
   blockCodes: [],

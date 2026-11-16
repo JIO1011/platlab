@@ -17,8 +17,8 @@ import {
   scheduledMessage,
   shortDateText,
   slotAt,
-  snapTo,
   startAtOffset,
+  requestedSpan,
   toScheduleOrder,
 } from './schedule-placement';
 
@@ -79,7 +79,7 @@ const summary = (overrides: Partial<RequestSummary> = {}): RequestSummary => ({
   firstDate: '2026-10-28',
   dateCount: 2,
   late: false,
-  exceptions: 0,
+  exceptions: { reagent: 0, equipment: 0, material: 0 },
   scheduledCount: 0,
   dates: ['2026-10-28', '2026-10-30'],
   scheduledDates: [],
@@ -95,17 +95,35 @@ const summary = (overrides: Partial<RequestSummary> = {}): RequestSummary => ({
 });
 
 describe('hora desde la posición', () => {
-  it('encaja a 15 minutos', () => {
-    expect(snapTo(487)).toBe(480);
-    expect(snapTo(488)).toBe(495);
-    expect(snapTo(0)).toBe(0);
-  });
-
-  it('da la hora del punto de la columna, encajada', () => {
+  it('empieza en la hora en punto de la fila bajo el puntero, sin saltar a la siguiente', () => {
     // 660 px de columna para 660 minutos (420 a 1080): un píxel por minuto.
     expect(startAtOffset({ offset: 0, height: 660, range, duration: 60 })).toBe(420);
     expect(startAtOffset({ offset: 66, height: 660, range, duration: 60 })).toBe(480);
-    expect(startAtOffset({ offset: 100, height: 660, range, duration: 60 })).toBe(525);
+    // 08:40 bajo el puntero: la fila de las 08, no las 09.
+    expect(startAtOffset({ offset: 100, height: 660, range, duration: 60 })).toBe(480);
+  });
+
+  it('deja en la fila del puntero la hora del bloque que se tiene agarrada', () => {
+    // Puntero a las 12:00 y el bloque agarrado a 90 min de su borde (en su segunda hora): empieza a las 11:00.
+    expect(startAtOffset({ offset: 300, grab: 90, height: 660, range, duration: 120 })).toBe(660);
+    expect(startAtOffset({ offset: 300, grab: 20, height: 660, range, duration: 120 })).toBe(720);
+  });
+
+  it('empieza en la hora pedida si cae en la fila del puntero, aunque no sea en punto', () => {
+    // Pedida a las 14:15 (855): en cualquier punto de la fila de las 14 empieza a las 14:15.
+    expect(startAtOffset({ offset: 420, height: 660, range, duration: 120, requested: 855 })).toBe(855);
+    expect(startAtOffset({ offset: 470, height: 660, range, duration: 120, requested: 855 })).toBe(855);
+  });
+
+  it('en otra fila sigue en la hora en punto, sin impedir otro lugar', () => {
+    expect(startAtOffset({ offset: 480, height: 660, range, duration: 120, requested: 855 })).toBe(900);
+    expect(startAtOffset({ offset: 180, height: 660, range, duration: 120, requested: 855 })).toBe(600);
+  });
+
+  it('dice el horario pedido en minutos, o nada si no lo trae completo', () => {
+    expect(requestedSpan({ startsAt: '14:00', endsAt: '16:00' })).toEqual({ from: 840, to: 960 });
+    expect(requestedSpan({ startsAt: '14:00', endsAt: null })).toBeNull();
+    expect(requestedSpan(undefined)).toBeNull();
   });
 
   it('deja el bloque dentro del rango, también por arriba y por abajo', () => {
@@ -200,7 +218,7 @@ describe('bandeja Por programar', () => {
     const ordered = toScheduleOrder([
       summary({ id: 'tarde-fecha', dates: ['2026-11-10'] }),
       summary({ id: 'temprano', dates: ['2026-10-26'] }),
-      summary({ id: 'recursos', dates: ['2026-11-20'], exceptions: 2 }),
+      summary({ id: 'recursos', dates: ['2026-11-20'], exceptions: { reagent: 0, equipment: 2, material: 0 } }),
       summary({ id: 'plazo', dates: ['2026-12-01'], late: true }),
       summary({ id: 'programada', status: 'scheduled', scheduledCount: 2 }),
     ]);

@@ -20,7 +20,7 @@ import { formatDate } from '../../app/format';
 import { useMediaQuery } from '../../app/use-media-query';
 import { blockFace } from './schedule-block';
 import { useCareerTone } from './schedule-career-color';
-import { blockText, toMinutes, type DayRange } from './schedule-grid';
+import { blockText, toMinutes, type DayRange, type Span } from './schedule-grid';
 import { blockingTexts, requestBlockText, startAtOffset } from './schedule-placement';
 
 /**
@@ -56,6 +56,8 @@ export interface ColumnData {
 interface DragState {
   source: DragSource;
   preview: DragPreview | null;
+  /** El horario que pidió la solicitud: la tabla lo resalta mientras se arrastra y el arrastre se pega a su inicio. */
+  requested: Span | null;
 }
 
 /** Lo que se está guardando tras soltar: el destino donde se marca «Guardando» hasta que el servidor responde. */
@@ -113,8 +115,11 @@ const announcements: Announcements = {
   onDragCancel: () => 'Se canceló: nada cambió.',
 };
 
-/** El indicador que sigue al puntero: qué se lleva y su horario. */
-function Ghost() {
+/**
+ * El indicador que sigue al puntero: qué se lleva y su horario. Sobre la tabla (`over`) se oculta para no tapar el destino:
+ * ahí manda la vista previa, que encaja en la celda con su hora.
+ */
+function Ghost({ over }: { over: boolean }) {
   const { active } = useDndContext();
   const toneOf = useCareerTone();
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -122,7 +127,7 @@ function Ghost() {
   return (
     <DragOverlay dropAnimation={reduceMotion ? null : { duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
       {source ? (
-        <div className={cn('w-fit max-w-64 cursor-grabbing px-3 py-1.5 shadow-overlay', blockFace, toneOf(sourceGroup(source)))}>
+        <div className={cn('w-fit max-w-64 cursor-grabbing px-3 py-1.5 shadow-overlay', blockFace, toneOf(sourceGroup(source)), over && 'opacity-0')}>
           <p className="text-left text-sm font-medium leading-[1.3] [overflow-wrap:anywhere]">{sourceLabel(source)}</p>
           <p className="text-[13px] tabular-nums text-ink-muted">
             {sourceDetail(source)} · {sourceTimes(source)}
@@ -135,14 +140,17 @@ function Ghost() {
 
 /**
  * Envuelve la tabla y «Por programar». `previewOf` dice, con los datos cargados, qué pasaría al soltar en esa área a esa hora;
- * `onDrop` recibe un lugar válido y lo guarda. Un lugar que no cabe se explica y no hace nada.
+ * `onDrop` recibe un lugar válido y lo guarda. Un lugar que no cabe se explica y no hace nada. `requestedOf` da el horario
+ * que pidió la solicitud de lo arrastrado: se resalta en la tabla y el arrastre se pega a su inicio, sin impedir otro.
  */
 export function ScheduleDnd({
   previewOf,
+  requestedOf,
   onDrop,
   children,
 }: {
   previewOf: (source: DragSource, areaId: string, start: number) => DragPreview | null;
+  requestedOf: (source: DragSource) => Span | null;
   onDrop: (source: DragSource, preview: DragPreview) => void;
   children: ReactNode;
 }) {
@@ -158,7 +166,7 @@ export function ScheduleDnd({
     const point = pointOf(activatorEvent);
     const top = active.rect.current.initial?.top;
     grab.current = source.kind === 'move' && point && top !== undefined ? Math.max(point.y - top, 0) : 0;
-    setState({ source, preview: null });
+    setState({ source, preview: null, requested: requestedOf(source) });
   };
 
   const move = ({ active, over, delta, activatorEvent }: DragMoveEvent) => {
@@ -167,8 +175,9 @@ export function ScheduleDnd({
     const column = over?.data.current as ColumnData | undefined;
     let next: DragPreview | null = null;
     if (source && over && column && point) {
-      const offset = point.y + delta.y - grab.current - over.rect.top;
-      next = previewOf(source, String(over.id), startAtOffset({ offset, height: over.rect.height, range: column.range, duration: source.duration }));
+      const offset = point.y + delta.y - over.rect.top;
+      const requested = state?.requested?.from ?? null;
+      next = previewOf(source, String(over.id), startAtOffset({ offset, grab: grab.current, height: over.rect.height, range: column.range, duration: source.duration, requested }));
     }
     setState((current) => {
       if (!current) return current;
@@ -201,7 +210,7 @@ export function ScheduleDnd({
       onDragCancel={() => setState(null)}
     >
       <PreviewContext.Provider value={state}>{children}</PreviewContext.Provider>
-      <Ghost />
+      <Ghost over={Boolean(state?.preview)} />
     </DndContext>
   );
 }

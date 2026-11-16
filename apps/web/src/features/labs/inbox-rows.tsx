@@ -1,4 +1,4 @@
-import type { RequestSummary } from '@platlab/contracts';
+import type { RequestExceptions, RequestSummary } from '@platlab/contracts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, cn } from '@platlab/ui';
 import { ChevronRight, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router';
@@ -15,11 +15,10 @@ interface InboxRowsProps {
 /** Lo común de las filas: tinte al pasar y un anillo de foco que ocupa toda la fila. */
 const rowStyle = 'relative transition-colors hover:bg-action-soft/60 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-action';
 
-/** El código de práctica en mono, sin caja, si ya está programada, y su título: el enlace que se extiende a toda la fila. */
+/** El título de la práctica: el enlace que se extiende a toda la fila. */
 function RequestName({ request, href }: { request: RequestSummary; href: string }) {
   return (
-    <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-      <PracticeCode codes={request.blockCodes} />
+    <p>
       <Link to={href} className={cn('min-w-0 break-words after:absolute after:inset-0 focus-visible:outline-none', request.title ? 'text-[15px] font-semibold text-ink' : 'text-ink-muted')}>
         {titleText(request)}
       </Link>
@@ -27,31 +26,41 @@ function RequestName({ request, href }: { request: RequestSummary; href: string 
   );
 }
 
-/** Solicitante · formato. */
+/** Solicitante · carrera · código de práctica (en mono, si ya está programada; decisión del usuario, 15-11-2026). */
 function RequestFacts({ request }: { request: RequestSummary }) {
   return (
-    <p className="min-w-0 break-words text-sm text-ink-muted">
-      {request.requesterName} <span aria-hidden>·</span> {request.formName}
+    <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 break-words text-sm text-ink-muted">
+      <span>{request.requesterName}</span>
+      {request.group ? (
+        <>
+          <span aria-hidden>·</span>
+          <span>{request.group}</span>
+        </>
+      ) : null}
+      {request.blockCodes.length > 0 ? (
+        <>
+          <span aria-hidden>·</span>
+          <PracticeCode codes={request.blockCodes} />
+        </>
+      ) : null}
     </p>
   );
 }
 
-/** Fecha, horario en mono y, si pide más días, cuántos más. */
+/** La primera fecha, su horario en mono y, si pide más días, «y 1 fecha más» debajo. */
 function RequestWhen({ request }: { request: RequestSummary }) {
   const { date, time, more } = whenText(request);
   return (
     <span className="grid gap-0.5 tabular-nums">
-      <span className="text-sm font-medium text-ink">
-        {date}
-        {more ? <span className="font-normal text-ink-muted"> {more}</span> : null}
-      </span>
+      <span className="text-sm font-medium text-ink">{date}</span>
       {time ? <span className="font-mono text-xs text-ink-muted">{time}</span> : null}
+      {more ? <span className="text-xs text-ink-muted">{more}</span> : null}
     </span>
   );
 }
 
-/** Los recursos que aún hay que mirar, en ámbar con su ícono, o «Sin pendientes». */
-function RequestResources({ exceptions }: { exceptions: number }) {
+/** Los recursos que aún hay que mirar, por tipo («3 equipos por revisar»), en ámbar con su ícono, o «Sin pendientes». */
+function RequestResources({ exceptions }: { exceptions: RequestExceptions }) {
   const pending = exceptionsText(exceptions);
   return pending ? (
     <span className="inline-flex items-center gap-1.5 text-sm font-medium text-warning">

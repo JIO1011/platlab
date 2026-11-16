@@ -1,24 +1,25 @@
 import { createContext, useContext } from 'react';
 
 /**
- * El color de fondo de un bloque del Cronograma según su carrera (decisión del usuario, 24-10-2026): ocho tonos de
- * tinte medio (`--color-career-N` y su borde de 1 px `-edge`, texto `ink` con contraste AA) y un tono por carrera sin choques
- * entre las visibles (`careerTones`), así la misma carrera se ve igual en toda la tabla y en «Por programar». El color
- * solo distingue; la carrera va escrita en el bloque. Las clases se escriben completas para que Tailwind las encuentre.
+ * El color de un bloque del Cronograma según su carrera (decisión del usuario, 24-10-2026; forma «franja de carrera»,
+ * 15-11-2026): ocho tonos, cada uno con su tinte (`--tone-bg`, `--color-career-N`, para la etiqueta de la carrera, con
+ * texto `ink` AA) y su color fuerte (`--tone-edge`, `-edge`, para la franja del borde izquierdo), y un tono por carrera sin
+ * choques entre las visibles (`careerTones`), así la misma carrera se ve igual en toda la tabla y en «Por programar». El
+ * color solo distingue; la carrera va escrita en el bloque. Las clases se escriben completas para que Tailwind las encuentre.
  */
 export const tones = [
-  'bg-career-1 border-career-1-edge',
-  'bg-career-2 border-career-2-edge',
-  'bg-career-3 border-career-3-edge',
-  'bg-career-4 border-career-4-edge',
-  'bg-career-5 border-career-5-edge',
-  'bg-career-6 border-career-6-edge',
-  'bg-career-7 border-career-7-edge',
-  'bg-career-8 border-career-8-edge',
+  '[--tone-bg:var(--color-career-1)] [--tone-edge:var(--color-career-1-edge)]',
+  '[--tone-bg:var(--color-career-2)] [--tone-edge:var(--color-career-2-edge)]',
+  '[--tone-bg:var(--color-career-3)] [--tone-edge:var(--color-career-3-edge)]',
+  '[--tone-bg:var(--color-career-4)] [--tone-edge:var(--color-career-4-edge)]',
+  '[--tone-bg:var(--color-career-5)] [--tone-edge:var(--color-career-5-edge)]',
+  '[--tone-bg:var(--color-career-6)] [--tone-edge:var(--color-career-6-edge)]',
+  '[--tone-bg:var(--color-career-7)] [--tone-edge:var(--color-career-7-edge)]',
+  '[--tone-bg:var(--color-career-8)] [--tone-edge:var(--color-career-8-edge)]',
 ] as const;
 
-/** El fondo y el borde de un bloque sin carrera: los del módulo. */
-export const neutralTone = 'bg-action-soft border-action';
+/** El tinte y la franja de un bloque sin carrera: los del módulo. */
+export const neutralTone = '[--tone-bg:var(--color-action-soft)] [--tone-edge:var(--color-action)]';
 
 /** La carrera sin mayúsculas, tildes ni espacios de más: «Ingeniería  Química» y «ingenieria quimica» son la misma. */
 function normalized(career: string): string {
@@ -35,7 +36,7 @@ function hash(text: string): number {
   return value;
 }
 
-/** Lo que decide el tono de cada carrera: dada una carrera, las clases de su bloque. */
+/** Lo que decide el tono de cada carrera: dada una carrera, las variables de color de su bloque (`--tone-bg`, `--tone-edge`). */
 export type ToneOf = (career: string | null) => string;
 
 /**
@@ -67,7 +68,7 @@ const ToneContext = createContext<ToneOf>(careerTones([]));
 /** Quien provee el reparto de tonos de la pantalla (el Cronograma): bloques, «Por programar» y el indicador de arrastre lo leen. */
 export const CareerToneProvider = ToneContext.Provider;
 
-/** El reparto de tonos de la pantalla: dada una carrera, las clases de fondo y borde de su bloque. */
+/** El reparto de tonos de la pantalla: dada una carrera, las variables de color de su bloque. */
 export function useCareerTone(): ToneOf {
   return useContext(ToneContext);
 }

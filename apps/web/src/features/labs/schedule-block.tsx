@@ -1,9 +1,8 @@
 import type { Activity, Space } from '@platlab/contracts';
 import { Button, Tooltip, cn } from '@platlab/ui';
-import { GraduationCap, MoveVertical, PackageX, TriangleAlert, UserCheck, Users, type LucideIcon } from 'lucide-react';
+import { MoveVertical, PackageX, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { countText } from '../../app/format';
 import { MISSING_HOLDS, activityLabel, blockParts, blockText, capacityWarning, overCapacity, toMinutes } from './schedule-grid';
 import { stageLabels, stageMarks } from './practice-stage';
 import { useCareerTone } from './schedule-career-color';
@@ -19,10 +18,17 @@ export interface BlockOpening {
 }
 
 /**
- * La cara de un bloque (tabla, lista y «Por programar»): fondo de tinte medio por carrera con un borde fino de todo el
- * perímetro del mismo tono más oscuro (`careerTone` los pone), radio de 8 px y el texto de la planilla.
+ * La cara de un bloque (tabla, lista, «Por programar» y lo que se arrastra), forma «franja de carrera» (decisión del
+ * usuario, 15-11-2026): fondo blanco con borde fino y una franja de 4 px a la izquierda con el color fuerte de su carrera
+ * (`--tone-edge`, que pone `careerTone`), radio de 6 px y el texto de la planilla.
  */
-export const blockFace = 'overflow-hidden rounded-lg border text-ink shadow-[0_1px_2px_rgb(15_23_42/0.08)]';
+export const blockFace =
+  'overflow-hidden rounded-md border border-line border-l-4 border-l-(color:--tone-edge) bg-surface text-ink shadow-[0_1px_2px_rgb(15_23_42/0.08)]';
+
+/** La carrera en una etiqueta con el tinte de su color (`--tone-bg`): la que distingue el bloque, escrita. */
+function CareerTag({ career, className }: { career: string; className?: string | undefined }) {
+  return <span className={cn('max-w-full truncate rounded-[4px] bg-(--tone-bg) px-1.5 text-[11px] font-medium leading-4 text-ink', className)}>{career}</span>;
+}
 
 /**
  * Las líneas de texto de una solicitud por programar (la ficha de «Por programar», `tile`, y su lista en pantalla estrecha,
@@ -46,38 +52,159 @@ const reveal =
   '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/block:opacity-100 [@media(hover:hover)]:group-focus-within/block:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100';
 
 /**
- * Desde qué alto interior se ve cada línea de un bloque de la tabla (consulta del alto interior; las clases van completas
- * para que Tailwind las encuentre): el código (y la hora si cabe), el docente, el encargado, los participantes y el aviso de aforo.
+ * Desde qué alto interior se ve cada parte de un bloque de la tabla (consulta del alto interior; las clases van completas
+ * para que Tailwind las encuentre), por prioridad (decisión del usuario, 15-11-2026: materia primero, sin efecto al
+ * pasar): el código con la hora y la materia se ven siempre; con alto, la materia pasa a dos líneas antes que nada más;
+ * luego la carrera, el Docente con los participantes, el Encargado, la etapa y el aviso de aforo. El detalle completo, a
+ * un clic.
  */
 const fromHeight = {
-  head: 'hidden [@container(min-height:30px)]:flex',
-  teacher: 'hidden [@container(min-height:46px)]:flex',
-  manager: 'hidden [@container(min-height:64px)]:flex',
-  people: 'hidden [@container(min-height:80px)]:flex',
-  warning: 'hidden [@container(min-height:110px)]:flex',
+  head: 'hidden [@container(min-height:32px)]:flex',
+  subject: '[@container(min-height:48px)]:line-clamp-2',
+  career: 'hidden [@container(min-height:66px)]:flex',
+  teacher: 'hidden [@container(min-height:82px)]:flex',
+  manager: 'hidden [@container(min-height:98px)]:flex',
+  stage: 'hidden [@container(min-height:114px)]:flex',
+  warning: 'hidden [@container(min-height:130px)]:flex',
 } as const;
 
-/** Una línea de datos con su ícono pequeño: en la tabla se corta con elipsis solo si no cabe; en la lista, baja de línea. */
-function Detail({ icon: Icon, table, children, className }: { icon: LucideIcon; table: boolean; children: ReactNode; className?: string | undefined }) {
+/** Un aviso con su ícono pequeño: la etapa, el aviso de aforo o lo que falta apartar. */
+function Notice({ icon: Icon, children, className }: { icon: LucideIcon; children: ReactNode; className?: string | undefined }) {
   return (
-    <span className={cn('items-start gap-1 text-[11px] leading-[14px] text-ink', className)}>
+    <span className={cn('min-w-0 items-start gap-1 text-[11px] font-medium leading-[14px] text-ink', className)}>
       <Icon aria-hidden className="mt-px size-3 shrink-0" />
-      <span className={cn('min-w-0', table ? 'truncate' : '[overflow-wrap:anywhere]')}>{children}</span>
+      <span className="min-w-0 truncate">{children}</span>
     </span>
   );
 }
 
 /**
- * Un bloque de la tabla o de la lista (decisión del usuario, 14-11-2026), sobre el color de su carrera y con sus datos a la
- * vista, sin ficha al pasar el cursor. En este orden, que es el de prioridad: el código en mono, que se ve siempre (con
- * elipsis si la columna es muy angosta), y, a la derecha, la hora si cabe junto al código (la posición del bloque ya la
- * indica y va en el nombre accesible);
- * la materia en negrita (hasta dos líneas); el Docente; el Encargado; y los participantes, con el aviso de aforo si se
- * supera. En la tabla, el alto del bloque decide cuántas se ven (`fromHeight`): un bloque de una hora muestra al menos
- * código y materia, y uno de dos horas, todo. La carrera solo va en el color y en el nombre accesible. Es un solo control, un enlace a su solicitud o un botón
- * que abre su panel; quien programa suma un botón pequeño «Mover…». La etapa y «Falta apartar recursos» llevan su ícono; la
- * etapa, además, su texto (junto a los participantes en la tabla, en su línea en la lista). Cada bloque deja 2 px de aire
- * a su alrededor dentro de su celda.
+ * Una persona del bloque en la tabla, dicha con palabra, «Docente  Diego Docente»: el rol apagado, de ancho fijo para que
+ * los nombres queden alineados (se oculta si la columna es angosta), el nombre en tinta y, a la derecha, `end`.
+ */
+function Person({ role, name, end, className }: { role: string; name: string; end?: ReactNode; className?: string | undefined }) {
+  return (
+    <span className={cn('min-w-0 items-baseline gap-2 text-[11px] leading-[14px]', className)}>
+      <span className="hidden w-14 shrink-0 text-ink-muted [@container(min-width:150px)]:inline">{role}</span>
+      <span className="min-w-0 flex-1 truncate font-medium text-ink">{name}</span>
+      {end ?? null}
+    </span>
+  );
+}
+
+/** Los participantes con el ícono de personas, en ámbar si superan el aforo (el triángulo de la materia lo dice también sin color). */
+function Participants({ count, over }: { count: number; over: boolean }) {
+  return (
+    <span className={cn('inline-flex shrink-0 items-center gap-0.5 self-center font-mono font-semibold tabular-nums', over ? 'text-warning' : 'text-ink')}>
+      <Users aria-hidden className="size-3" />
+      {count}
+    </span>
+  );
+}
+
+/** Una fila de la lista del móvil: el rol apagado y su valor, en la rejilla de dos columnas de las personas. */
+function ListRow({ role, children }: { role: string; children: ReactNode }) {
+  return (
+    <>
+      <span className="text-ink-muted">{role}</span>
+      <span className="font-medium [overflow-wrap:anywhere]">{children}</span>
+    </>
+  );
+}
+
+/**
+ * La cara de un bloque en la tabla (forma «franja de carrera», decisión del usuario, 15-11-2026), en dos zonas para
+ * reconocerlo de un vistazo. Arriba, qué práctica es: el código en mono y, a la derecha, la hora si cabe; la materia en
+ * negrita con los íconos de etapa, aforo y apartado; y la carrera en su etiqueta de color. Abajo, pegado al borde,
+ * quiénes: «Docente» con los participantes (ícono de personas) a la derecha y «Encargado»; sobre ellos, si sobra alto, la etapa y el aviso de
+ * aforo.
+ */
+function TableFace({ activity, over, space, clear }: { activity: Activity; over: boolean; space: Pick<Space, 'capacity'>; clear: string | null }) {
+  const StageMark = activity.stage === 'scheduled' ? null : stageMarks[activity.stage];
+  return (
+    <span className="flex size-full flex-col gap-0.5 px-2 py-1 text-left [container-type:size]">
+      <span className={cn('items-baseline justify-between gap-2 font-mono text-[11px] leading-[14px] tabular-nums text-ink-muted', fromHeight.head, clear)}>
+        <span className="min-w-0 truncate font-semibold">{activity.code}</span>
+        <span className="ml-auto hidden shrink-0 [@container(min-width:168px)]:block">
+          {activity.startsAt}–{activity.endsAt}
+        </span>
+      </span>
+      <span className={cn('flex min-w-0 items-start gap-1 text-[13px] font-semibold leading-4', clear)}>
+        {StageMark ? <StageMark aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
+        {over ? <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
+        {!activity.complete ? <PackageX aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
+        <span className={cn('min-w-0 line-clamp-1 [overflow-wrap:anywhere]', fromHeight.subject)}>{blockParts(activity).subject}</span>
+      </span>
+      {activity.group ? (
+        <span className={cn('min-w-0', fromHeight.career)}>
+          <CareerTag career={activity.group} />
+        </span>
+      ) : null}
+      <span className="mt-auto" />
+      {StageMark ? (
+        <Notice icon={StageMark} className={fromHeight.stage}>
+          {stageLabels[activity.stage]}
+        </Notice>
+      ) : null}
+      {over ? (
+        <Notice icon={TriangleAlert} className={cn('tabular-nums', fromHeight.warning)}>
+          {capacityWarning(activity.participants, space.capacity)}
+        </Notice>
+      ) : null}
+      <Person role="Docente" name={activity.requesterName} end={<Participants count={activity.participants} over={over} />} className={fromHeight.teacher} />
+      <Person role="Encargado" name={activity.responsibleName} className={fromHeight.manager} />
+    </span>
+  );
+}
+
+/**
+ * La cara de un bloque en la lista del móvil, con todo a la vista y sin cortar, en el mismo orden que la tabla: el código
+ * y la hora, la materia, la carrera en su etiqueta, «Docente», «Encargado» y «Participantes», y los avisos de aforo, etapa
+ * y «Falta apartar recursos».
+ */
+function ListFace({ activity, over, space, clear }: { activity: Activity; over: boolean; space: Pick<Space, 'capacity'>; clear: string | null }) {
+  const StageMark = activity.stage === 'scheduled' ? null : stageMarks[activity.stage];
+  return (
+    <span className="flex size-full flex-col gap-1 px-3 py-2 text-left">
+      <span className={cn('flex justify-between gap-2 font-mono text-xs font-semibold tabular-nums text-ink-muted', clear)}>
+        <span className="min-w-0 truncate">{activity.code}</span>
+        <span className="shrink-0 font-normal">
+          {activity.startsAt}–{activity.endsAt}
+        </span>
+      </span>
+      <span className={cn('min-w-0 text-sm font-semibold leading-5 [overflow-wrap:anywhere]', clear)}>{blockParts(activity).subject}</span>
+      {activity.group ? <CareerTag career={activity.group} className="w-fit whitespace-normal [overflow-wrap:anywhere]" /> : null}
+      <span className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs leading-4">
+        <ListRow role="Docente">{activity.requesterName}</ListRow>
+        <ListRow role="Encargado">{activity.responsibleName}</ListRow>
+        <ListRow role="Participantes">
+          <span className={cn('font-mono tabular-nums', over && 'text-warning')}>{activity.participants}</span>
+        </ListRow>
+      </span>
+      {over ? (
+        <Notice icon={TriangleAlert} className="flex tabular-nums">
+          {capacityWarning(activity.participants, space.capacity)}
+        </Notice>
+      ) : null}
+      {StageMark ? (
+        <Notice icon={StageMark} className="flex">
+          {stageLabels[activity.stage]}
+        </Notice>
+      ) : null}
+      {activity.complete ? null : (
+        <Notice icon={PackageX} className="flex">
+          {MISSING_HOLDS}
+        </Notice>
+      )}
+    </span>
+  );
+}
+
+/**
+ * Un bloque de la tabla o de la lista, sobre el color de su carrera y con sus datos a la vista (`TableFace` y
+ * `ListFace`); la carrera va escrita y en el color. Es un solo control, un enlace a su solicitud o un botón que abre su
+ * panel con todo; quien programa suma un botón pequeño «Mover…». En la tabla, cada bloque deja aire a su alrededor
+ * dentro de su celda.
  */
 export function ScheduleBlock({ activity, space, opening, size }: { activity: Activity; space: Pick<Space, 'capacity'>; opening: BlockOpening; size: 'table' | 'list' }) {
   const toneOf = useCareerTone();
@@ -86,7 +213,6 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
   const minutes = toMinutes(activity.endsAt) - toMinutes(activity.startsAt);
   const table = size === 'table';
   const over = overCapacity(activity, space);
-  const row = (key: keyof typeof fromHeight) => (table ? fromHeight[key] : 'flex');
   // Con «Mover…», las dos primeras líneas dejan libre el lado derecho del botón.
   const clear = opening.onMove ? 'pr-7' : null;
   const className = cn(
@@ -96,62 +222,11 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
     'focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action',
     !table && 'min-h-11',
   );
-  const StageMark = activity.stage === 'scheduled' ? null : stageMarks[activity.stage];
-  const icons =
-    table && (over || !activity.complete || StageMark) ? (
-      <>
-        {StageMark ? <StageMark aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
-        {over ? <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
-        {!activity.complete ? <PackageX aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
-      </>
-    ) : null;
-  const face = (
-    <span className={cn('flex size-full flex-col gap-px text-left', table ? 'px-2 py-[2px] [container-type:size]' : 'gap-1 px-3 py-2')}>
-      <span className={cn('items-baseline justify-between gap-2 font-mono text-[11px] leading-[14px] tabular-nums text-ink-muted', row('head'), clear)}>
-        <span className="min-w-0 truncate">{activity.code}</span>
-        {table ? (
-          <span className="ml-auto hidden shrink-0 [@container(min-width:192px)]:block">
-            {activity.startsAt}–{activity.endsAt}
-          </span>
-        ) : null}
-      </span>
-      <span className={cn('flex min-w-0 items-start gap-1 font-semibold', table ? 'text-xs leading-[15px]' : 'text-sm leading-5', clear)}>
-        {icons}
-        <span className={cn('min-w-0 [overflow-wrap:anywhere]', table && 'line-clamp-1 [@container(min-height:96px)]:line-clamp-2')}>{blockParts(activity).subject}</span>
-      </span>
-      <Detail icon={GraduationCap} table={table} className={row('teacher')}>
-        {activity.requesterName}
-      </Detail>
-      <Detail icon={UserCheck} table={table} className={row('manager')}>
-        {activity.responsibleName}
-      </Detail>
-      <Detail icon={Users} table={table} className={cn('tabular-nums', row('people'))}>
-        {countText(activity.participants, 'participante', 'participantes')}
-        {table && StageMark ? <span className="hidden font-medium [@container(min-width:176px)]:inline"> · {stageLabels[activity.stage]}</span> : null}
-      </Detail>
-      {over ? (
-        <Detail icon={TriangleAlert} table={table} className={cn('font-medium tabular-nums', row('warning'))}>
-          {capacityWarning(activity.participants, space.capacity)}
-        </Detail>
-      ) : null}
-      {StageMark && !table ? (
-        <span className="flex items-center gap-1 text-xs font-medium leading-4">
-          <StageMark aria-hidden className="size-3.5 shrink-0" />
-          {stageLabels[activity.stage]}
-        </span>
-      ) : null}
-      {!activity.complete && !table ? (
-        <span className="flex items-center gap-1 text-xs font-medium leading-4">
-          <PackageX aria-hidden className="size-3.5 shrink-0" />
-          {MISSING_HOLDS}
-        </span>
-      ) : null}
-    </span>
-  );
+  const face = table ? <TableFace activity={activity} over={over} space={space} clear={clear} /> : <ListFace activity={activity} over={over} space={space} clear={clear} />;
   const stage = activity.stage === 'scheduled' ? [] : [`Etapa: ${stageLabels[activity.stage]}`];
   const label = [activityLabel(activity, space), ...stage].join(', ');
   return (
-    <div className={cn('group/block relative size-full', table && 'p-0.5')}>
+    <div className={cn('group/block relative size-full', table && 'px-1.5 py-0.5')}>
       {to ? (
         <Link to={to} aria-label={label} className={className}>
           {face}
@@ -166,7 +241,9 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
           <Button
             size="icon"
             className={cn(
-              'absolute right-1 top-1 size-9 rounded-md border-ink/20 bg-white/90 text-ink hover:bg-white [&_svg]:size-3.5',
+              'absolute size-9 rounded-md border-ink/20 bg-white/90 text-ink hover:bg-white [&_svg]:size-3.5',
+              // En la tabla, dentro del aire que deja el bloque en su celda.
+              table ? 'right-2.5 top-1.5' : 'right-1 top-1',
               // En la tabla, un bloque de menos de 45 min (una o dos filas) no alcanza para el botón de 24 px.
               table && minutes < 45 ? 'lg:size-5' : 'lg:size-6',
               reveal,

@@ -15,24 +15,25 @@ import {
   closedSpans,
   dayClosedText,
   dayHoursText,
-  daySummary,
+  daySlots,
   holidayOn,
   hourMarks,
   loadByDay,
-  loadText,
   monthWeeks,
   nowMinutes,
+  offHourMarks,
   openSlots,
   overCapacity,
   parseDay,
   periodOn,
   placement,
   rowStarts,
-  shadedHours,
   shiftMonth,
   timeText,
   toMinutes,
+  weekCaption,
   weekDates,
+  withoutHours,
 } from './schedule-grid';
 
 const closedDay: WeeklyHours['1'] = [];
@@ -131,24 +132,16 @@ describe('fechas', () => {
 });
 
 describe('carga y áreas del día', () => {
-  it('resume el día con su período, su semana y sus bloques', () => {
+  it('dice el mes y la semana del período, con «(Hoy)» si el día es hoy', () => {
     const period = { code: 'P1', week: 11 };
-    expect(daySummary(period, 7)).toBe('Período P1 · Semana 11 · 7 bloques programados');
-    expect(daySummary(period, 1)).toBe('Período P1 · Semana 11 · 1 bloque programado');
-    expect(daySummary(period, 0)).toBe('Período P1 · Semana 11 · 0 bloques programados');
+    expect(weekCaption('2026-11-16', '2026-11-16', period)).toEqual({ month: 'Noviembre de 2026', week: 'P1 · Semana 11 (Hoy)' });
+    expect(weekCaption('2026-11-17', '2026-11-16', period)).toEqual({ month: 'Noviembre de 2026', week: 'P1 · Semana 11' });
   });
 
-  it('resume el día sin período, o sin lo que aún carga', () => {
-    expect(daySummary(null, 2)).toBe('Fuera de los períodos · 2 bloques programados');
-    expect(daySummary(undefined, 2)).toBe('2 bloques programados');
-    expect(daySummary({ code: 'P1', week: 11 }, undefined)).toBe('Período P1 · Semana 11');
-    expect(daySummary(undefined, undefined)).toBe('');
-  });
-
-  it('dice la carga de cada día de la semana: «N blq» o «–»', () => {
-    expect(loadText(7)).toBe('7 blq');
-    expect(loadText(1)).toBe('1 blq');
-    expect(loadText(0)).toBe('–');
+  it('dice «Fuera de los períodos» sin período y omite la semana mientras cargan', () => {
+    expect(weekCaption('2026-12-28', '2026-11-16', null)).toEqual({ month: 'Diciembre de 2026', week: 'Fuera de los períodos' });
+    expect(weekCaption('2026-11-16', '2026-11-16', undefined)).toEqual({ month: 'Noviembre de 2026', week: '(Hoy)' });
+    expect(weekCaption('2026-11-17', '2026-11-16', undefined)).toEqual({ month: 'Noviembre de 2026', week: '' });
   });
 
   it('cuenta los bloques de cada fecha y deja en cero las libres', () => {
@@ -212,17 +205,14 @@ describe('rango del día', () => {
     expect(rowStarts(boardRange([]))).toHaveLength(24);
   });
 
+  it('rotula aparte las horas que no son en punto de los bloques, sin repetir y dentro del rango', () => {
+    const items = [activity({ startsAt: '08:00', endsAt: '10:30' }), activity({ startsAt: '10:30', endsAt: '12:15' }), activity({ startsAt: '06:45', endsAt: '09:00' })];
+    expect(offHourMarks(items, { start: 420, end: 1140 })).toEqual([630, 735]);
+  });
+
   it('rotula solo las horas en punto', () => {
     expect(hourMarks({ start: 420, end: 540 })).toEqual([420, 480]);
     expect(hourMarks({ start: 390, end: 510 })).toEqual([420, 480]);
-  });
-
-  it('sombrea una hora de cada dos, recortada al rango', () => {
-    expect(shadedHours({ start: 420, end: 720 })).toEqual([
-      { from: 480, to: 540 },
-      { from: 600, to: 660 },
-    ]);
-    expect(shadedHours({ start: 420, end: 510 })).toEqual([{ from: 480, to: 510 }]);
   });
 
   it('dice la hora del día en la zona del espacio de trabajo', () => {
@@ -246,9 +236,10 @@ describe('lo cerrado', () => {
     ]);
   });
 
-  it('escribe el motivo una sola vez: en el primer tramo de al menos una hora', () => {
+  it('escribe el motivo solo si cierra todo el día; lo que el horario deja fuera va sin rótulo', () => {
     const partial = space({ weeklyHours: hours([{ opens: '07:30', closes: '12:00' }, { opens: '14:00', closes: '17:00' }]) });
-    expect(closedSpans(partial, '2026-10-26', range, []).map((span) => span.labeled)).toEqual([false, true, false]);
+    expect(closedSpans(partial, '2026-10-26', range, []).map((span) => span.labeled)).toEqual([false, false, false]);
+    expect(closedSpans(space(), '2026-10-31', range, [])).toEqual([{ from: 420, to: 1080, reason: dayClosedText, labeled: true }]);
   });
 
   it('no marca nada si el área abre todo el rango', () => {
@@ -277,8 +268,18 @@ describe('lo cerrado', () => {
     expect(dayHoursText(space({ weeklyHours: hours([{ opens: '08:00', closes: '18:00' }]) }), '2026-10-26')).toBe('08:00–18:00');
   });
 
+  it('da cada tramo del horario por separado, para ponerlos uno debajo del otro', () => {
+    expect(daySlots(space(), '2026-10-26')).toEqual(['07:00–13:00', '14:00–18:00']);
+    expect(daySlots(space(), '2026-10-31')).toEqual([]);
+  });
+
   it('dice «Cerrada» el día que el horario del área no abre', () => {
     expect(dayHoursText(space(), '2026-10-31')).toBe('Cerrada');
+  });
+
+  it('reconoce el área sin horario: no abre ningún día de la semana', () => {
+    expect(withoutHours(space())).toBe(false);
+    expect(withoutHours(space({ weeklyHours: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } }))).toBe(true);
   });
 
   it('halla el feriado común y no el de un área', () => {
@@ -344,15 +345,16 @@ describe('texto del bloque', () => {
 });
 
 describe('nombre del área', () => {
-  it('quita «Laboratorio de» al inicio', () => {
+  it('quita la palabra «Laboratorio» al inicio, con el «de» que la siga', () => {
     expect(areaLabel('Laboratorio de Química')).toBe('Química');
     expect(areaLabel('LABORATORIO DE LA Salud')).toBe('Salud');
     expect(areaLabel('Laboratorios de Física')).toBe('Física');
+    expect(areaLabel('Laboratorio Clínico')).toBe('Clínico');
   });
 
   it('deja el nombre completo si no queda nada o no empieza así', () => {
     expect(areaLabel('Laboratorio')).toBe('Laboratorio');
     expect(areaLabel('Anatomía')).toBe('Anatomía');
-    expect(areaLabel('Laboratorio Clínico')).toBe('Laboratorio Clínico');
+    expect(areaLabel('Sala de laboratorio')).toBe('Sala de laboratorio');
   });
 });

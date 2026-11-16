@@ -161,8 +161,8 @@ describe('una sola regla de disponibilidad (ADR 0023, «Disponibilidad y recurso
     const inbox = requestList.parse((await call(lab.adminMember.subject, `${lab.base}/requests?scope=inbox`)).body);
     expect(inbox.items.filter((summary) => [enough.id, short.id].includes(summary.id)).map((summary) => [summary.id, summary.exceptions])).toEqual(
       expect.arrayContaining([
-        [enough.id, 0],
-        [short.id, 1],
+        [enough.id, { reagent: 0, equipment: 0, material: 0 }],
+        [short.id, { reagent: 1, equipment: 0, material: 0 }],
       ]),
     );
   });

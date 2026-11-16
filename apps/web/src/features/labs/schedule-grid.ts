@@ -1,5 +1,6 @@
 import { isoWeekday, periodWeek, scheduleProblemText, timeText, toMinutes, type Activity, type Closure, type Period, type Space } from '@platlab/contracts';
-import { addDays, countText } from '../../app/format';
+import { addDays } from '../../app/format';
+import { monthName } from '../../app/month-name';
 
 /**
  * La lógica pura de la tabla del Cronograma (ADR 0023): qué áreas y qué horas muestra un día, dónde cae cada bloque y
@@ -20,8 +21,8 @@ export interface DayRange {
 }
 
 /**
- * Lo cerrado de un área ese día, con su motivo. El motivo se escribe una sola vez por área: solo el primer tramo de al
- * menos una hora lleva `labeled`; los demás se ven como trama y el motivo queda en su nombre accesible.
+ * Lo cerrado de un área ese día, con su motivo. Solo el cierre de todo el día lleva `labeled` (se escribe en el centro de
+ * la columna); lo que el horario deja fuera se ve en tono apagado y el motivo queda en su nombre accesible.
  */
 export interface ClosedSpan extends Span {
   reason: string;
@@ -81,18 +82,15 @@ export function activitiesOn(items: readonly Activity[], date: string): Activity
   return items.filter((item) => item.date === date);
 }
 
-/** «Período P1 · Semana 11 · 7 bloques programados»: lo que la barra del día dice bajo la fecha; sin período o sin cifra (mientras cargan), omite esa parte. */
-export function daySummary(period: { code: string; week: number } | null | undefined, count: number | undefined): string {
-  const parts = [
-    period === undefined ? null : period ? `Período ${period.code} · Semana ${period.week}` : 'Fuera de los períodos',
-    count === undefined ? null : countText(count, 'bloque programado', 'bloques programados'),
-  ];
-  return parts.filter((part) => part !== null).join(' · ');
-}
-
-/** Lo que dice la semana de cada día sobre su carga: «7 blq», o «–» si no tiene bloques. */
-export function loadText(count: number): string {
-  return count === 0 ? '–' : `${count} blq`;
+/**
+ * Lo que la barra del día dice junto a ‹ Hoy ›, en dos partes: el mes, «Noviembre de 2026», y la semana, «P1 · Semana 11
+ * (Hoy)». Sin período, «Fuera de los períodos»; mientras cargan, sin semana. «(Hoy)» si el día elegido es hoy.
+ */
+export function weekCaption(date: string, today: string, period: { code: string; week: number } | null | undefined): { month: string; week: string } {
+  const month = monthName(date.slice(0, 7), 'long');
+  const week = period === undefined ? '' : period ? `${period.code} · Semana ${period.week}` : 'Fuera de los períodos';
+  const suffix = date === today ? ' (Hoy)' : '';
+  return { month: month.charAt(0).toUpperCase() + month.slice(1), week: week ? `${week}${suffix}` : suffix.trim() };
 }
 
 /** Cuántos bloques tiene cada fecha dada, con cero para las libres. */
@@ -109,9 +107,13 @@ export interface CoreArea {
   group: { name: string } | null;
 }
 
-const LAB_PREFIX = /^laboratorios?\s+(?:de\s+las|de\s+los|de\s+la|del|de)\s+/i;
+const LAB_PREFIX = /^laboratorios?\s+(?:(?:de\s+las|de\s+los|de\s+la|del|de)\s+)?/i;
 
-/** El nombre del área para rotular una columna o una tarjeta: sin «Laboratorio de» al inicio («Laboratorio de Química» → «Química»); si no queda nada, el nombre completo. */
+/**
+ * El nombre del área para rotular una columna o una tarjeta, sin la palabra «Laboratorio» al inicio (decisión del usuario,
+ * 14-11-2026) ni el «de» que la sigue: «Laboratorio de Química» → «Química», «Laboratorio Clínico» → «Clínico». Si no
+ * queda nada, el nombre completo.
+ */
 export function areaLabel(name: string): string {
   return name.replace(LAB_PREFIX, '').trim() || name;
 }
@@ -152,10 +154,20 @@ export function openSlots(space: Pick<Space, 'weeklyHours'>, date: string): Span
   return space.weeklyHours[String(isoWeekday(date)) as keyof Space['weeklyHours']].map((slot) => ({ from: toMinutes(slot.opens), to: toMinutes(slot.closes) }));
 }
 
-/** El horario del área ese día, «07:00–18:00» (los tramos, separados por « · »), o «Cerrada» si su horario semanal no abre. */
+/** Si el área no abre ningún día de la semana: su cabecera lo dice con «Sin horario». */
+export function withoutHours(space: Pick<Space, 'weeklyHours'>): boolean {
+  return Object.values(space.weeklyHours).every((slots) => slots.length === 0);
+}
+
+/** Cada tramo del horario del área ese día, «07:00–13:00» y «14:00–19:00»: la cabecera los pone uno debajo del otro. */
+export function daySlots(space: Pick<Space, 'weeklyHours'>, date: string): string[] {
+  return openSlots(space, date).map((slot) => `${timeText(slot.from)}–${timeText(slot.to)}`);
+}
+
+/** El horario del área ese día en una línea, «07:00–13:00 · 14:00–19:00», o «Cerrada» si su horario semanal no abre. */
 export function dayHoursText(space: Pick<Space, 'weeklyHours'>, date: string): string {
-  const slots = openSlots(space, date);
-  return slots.length === 0 ? 'Cerrada' : slots.map((slot) => `${timeText(slot.from)}–${timeText(slot.to)}`).join(' · ');
+  const slots = daySlots(space, date);
+  return slots.length === 0 ? 'Cerrada' : slots.join(' · ');
 }
 
 /** Los cierres vigentes que tocan al área ese día: los suyos y los feriados comunes. */
@@ -206,8 +218,7 @@ export function closedSpans(space: Space, date: string, range: DayRange, closure
     }
     if (cursor < range.end) spans.push({ from: cursor, to: range.end });
   }
-  const first = spans.findIndex((span) => span.to - span.from >= 60);
-  return spans.map((span, index) => ({ ...span, reason: whole ?? scheduleProblemText.hours, labeled: index === first }));
+  return spans.map((span) => ({ ...span, reason: whole ?? scheduleProblemText.hours, labeled: whole !== null }));
 }
 
 // ---------------------------------------------------------------------------
@@ -232,16 +243,18 @@ export function rowStarts(range: DayRange): number[] {
   return Array.from({ length: (range.end - range.start) / ROW_MINUTES }, (_, index) => range.start + index * ROW_MINUTES);
 }
 
+/**
+ * Las horas que no son en punto donde empieza o termina algún bloque del día (10:15, 14:30), dentro del rango y sin
+ * repetir: la columna de horas las rotula en pequeño para leer dónde cae cada bloque (decisión del usuario, 15-11-2026).
+ */
+export function offHourMarks(items: readonly Pick<Activity, 'startsAt' | 'endsAt'>[], range: DayRange): number[] {
+  const marks = items.flatMap((item) => [toMinutes(item.startsAt), toMinutes(item.endsAt)]);
+  return [...new Set(marks)].filter((mark) => mark % 60 !== 0 && mark > range.start && mark < range.end).sort((a, b) => a - b);
+}
+
 /** Las horas en punto del rango: lo que rotula el eje. */
 export function hourMarks(range: DayRange): number[] {
   return rowStarts(range).filter((mark) => mark % 60 === 0);
-}
-
-/** Las horas que llevan banda de fondo para seguir la fila con la vista: una de cada dos (las pares), recortadas al rango. */
-export function shadedHours(range: DayRange): Span[] {
-  return hourMarks(range)
-    .filter((mark) => (mark / 60) % 2 === 0)
-    .map((mark) => ({ from: mark, to: Math.min(mark + 60, range.end) }));
 }
 
 /** La hora del día en la zona del espacio de trabajo, en minutos desde la medianoche: la línea de «ahora». */

@@ -1,4 +1,5 @@
 import {
+  pendingCount,
   scheduleProblemText,
   type Activity,
   type Closure,
@@ -18,25 +19,48 @@ import { MISSING_HOLDS, blockParts, blockText, capacityWarning, timeText, toMinu
  * dibuja; el servidor decide con los datos bajo bloqueo.
  */
 
-/** El paso de la hora al arrastrar y al escribirla: 15 minutos. */
-const SNAP_MINUTES = 15;
+/** El paso de la hora al arrastrar: la hora en punto, para que el bloque quede entre las líneas de la tabla (decisión del usuario, 15-11-2026). */
+const DRAG_STEP = 60;
 
 /** La hora más tarde que se puede escribir como fin (23:59). */
 const LAST_MINUTE = 23 * 60 + 59;
 
-/** Redondea unos minutos al paso más cercano. */
-export function snapTo(minutes: number, step: number = SNAP_MINUTES): number {
-  return Math.round(minutes / step) * step;
-}
+
+/** La hora en punto de la celda que contiene esos minutos (14:40 → 14:00). */
+const hourCell = (minutes: number) => Math.floor(minutes / DRAG_STEP) * DRAG_STEP;
 
 /**
- * La hora de inicio que corresponde a un punto de la columna: `offset` px bajo su borde superior, de `height` px, que
- * cubre `range`. Encaja a 15 min y deja el bloque dentro del rango del día (`duration` minutos de largo).
+ * La hora de inicio al soltar en un punto de la columna (decisión del usuario, 15-11-2026): la celda de la hora bajo el
+ * puntero, sin redondear a la siguiente (soltar en la fila de las 14 es empezar a las 14:00). `offset` son los px del
+ * puntero bajo el borde superior de la columna, de `height` px, que cubre `range`; `grab`, dónde se agarró el bloque (px
+ * bajo su borde): la hora que se tiene agarrada queda en la fila del puntero. Si la hora pedida (`requested`) cae en esa
+ * misma fila (14:30, 14:15), empieza en ella. Deja el bloque (`duration` minutos) dentro del rango del día. Solo ayuda:
+ * cualquier otra hora en punto sigue al alcance y «Programar…» y «Mover…» aceptan cuartos de hora.
  */
-export function startAtOffset({ offset, height, range, duration }: { offset: number; height: number; range: DayRange; duration: number }): number {
-  const raw = range.start + (offset / Math.max(height, 1)) * (range.end - range.start);
-  const latest = Math.max(range.start, snapTo(range.end - duration));
-  return Math.min(Math.max(snapTo(raw), range.start), latest);
+export function startAtOffset({
+  offset,
+  grab = 0,
+  height,
+  range,
+  duration,
+  requested = null,
+}: {
+  offset: number;
+  grab?: number;
+  height: number;
+  range: DayRange;
+  duration: number;
+  requested?: number | null;
+}): number {
+  const perPixel = (range.end - range.start) / Math.max(height, 1);
+  const cell = hourCell(range.start + offset * perPixel) - hourCell(Math.max(grab, 0) * perPixel);
+  const start = requested !== null && hourCell(requested) === cell ? requested : cell;
+  return Math.min(Math.max(start, range.start), Math.max(range.start, range.end - duration));
+}
+
+/** El horario que pidió la solicitud, en minutos; nulo si no lo trae completo. */
+export function requestedSpan(times: Pick<RequestSummary, 'startsAt' | 'endsAt'> | undefined): { from: number; to: number } | null {
+  return times?.startsAt && times.endsAt ? { from: toMinutes(times.startsAt), to: toMinutes(times.endsAt) } : null;
 }
 
 /** Cuántos minutos dura el horario pedido; nulo si la solicitud no lo trae completo. */
@@ -130,7 +154,7 @@ export function isToSchedule(item: Pick<RequestSummary, 'status' | 'dateCount' |
  * primera fecha pendiente más próxima. Conserva el orden del servidor entre iguales.
  */
 export function toScheduleOrder(items: readonly RequestSummary[]): RequestSummary[] {
-  const rank = (item: RequestSummary) => (item.late ? 0 : item.exceptions > 0 ? 1 : 2);
+  const rank = (item: RequestSummary) => (item.late ? 0 : pendingCount(item.exceptions) > 0 ? 1 : 2);
   const nextDate = (item: RequestSummary) => pendingDates(item)[0] ?? '9999';
   return items
     .filter((item) => isToSchedule(item))

@@ -5,7 +5,7 @@ import { ScheduleBlock, type BlockOpening } from './schedule-block';
 import { activitiesOfArea, areaLabel, closedAllDay, dayHoursText, type BoardColumn } from './schedule-grid';
 import { softCard } from './style';
 
-/** Un área del día: su nombre (sin «Laboratorio de»), aforo y horario, lo que la cierra si es el caso, y sus bloques por hora. */
+/** Un área del día: su nombre (sin la palabra «Laboratorio»), aforo y horario, lo que la cierra si es el caso, y sus bloques por hora. */
 function AreaCard({ space, date, dayItems, closures, opening }: { space: Space; date: string; dayItems: readonly Activity[]; closures: readonly Closure[]; opening: BlockOpening }) {
   const id = useId();
   const blocks = activitiesOfArea(dayItems, space.areaId);

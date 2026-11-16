@@ -19,16 +19,16 @@ const heldBlock = {
 };
 
 describe('avisos de la solicitud', () => {
-  const calm = { late: false, exceptions: 0, blocks: [], startsAt: '08:00', endsAt: '10:00' };
+  const calm = { late: false, exceptions: { reagent: 0, equipment: 0, material: 0 }, blocks: [], startsAt: '08:00', endsAt: '10:00' };
 
   it('sin nada que mirar no hay avisos', () => {
     expect(noticesOf(calm)).toEqual([]);
   });
 
   it('dice el plazo, los recursos por revisar y lo que falta, en frases cortas', () => {
-    expect(noticesOf({ ...calm, late: true, exceptions: 2, startsAt: null })).toEqual([
+    expect(noticesOf({ ...calm, late: true, exceptions: { reagent: 2, equipment: 0, material: 0 }, startsAt: null })).toEqual([
       'Fuera de plazo',
-      '2 recursos por revisar',
+      '2 reactivos por revisar',
       'Sin horario',
     ]);
   });
