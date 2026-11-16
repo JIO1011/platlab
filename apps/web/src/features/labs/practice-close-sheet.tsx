@@ -1,3 +1,4 @@
+import { PRACTICE_NOTES_MAX } from '@platlab/contracts';
 import { Field, Input, Textarea, toast } from '@platlab/ui';
 import { ClipboardCheck } from 'lucide-react';
 import { useState } from 'react';
@@ -9,7 +10,6 @@ import { useClosePractice } from './practice-commands';
 import type { RequestView } from './request-draft';
 import { formatDayShort } from '../../app/format';
 
-const NOTES_MAX = 1000;
 
 /**
  * «Cerrar práctica» (L-01e, ADR 0023): por cada reactivo apartado en el bloque, lo apartado, lo utilizado (obligatorio,
@@ -130,8 +130,8 @@ export function PracticeCloseSheet({
           })}
         </ul>
       )}
-      <Field label="Observaciones" optional hint={`Qué pasó con los materiales y equipos, o lo que quien sigue debe saber. Hasta ${NOTES_MAX} caracteres.`}>
-        <Textarea rows={3} maxLength={NOTES_MAX} value={notes} onChange={(event) => setNotes(event.target.value)} />
+      <Field label="Observaciones" optional hint={`Qué pasó con los materiales y equipos, o lo que quien sigue debe saber. Hasta ${PRACTICE_NOTES_MAX} caracteres.`}>
+        <Textarea rows={3} maxLength={PRACTICE_NOTES_MAX} value={notes} onChange={(event) => setNotes(event.target.value)} />
       </Field>
       <p className="text-sm font-semibold text-ink">
         {rows.length > 0 ? 'Cerrar es definitivo y no se puede deshacer: lo utilizado sale del inventario.' : 'Cerrar es definitivo y no se puede deshacer; no se registra consumo.'}

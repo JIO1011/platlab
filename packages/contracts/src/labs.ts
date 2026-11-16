@@ -1,4 +1,5 @@
 /** Contratos de Laboratorios, por área (ADR 0023). */
+export * from './labs/limits.js';
 export * from './labs/spaces.js';
 export * from './labs/form.js';
 export * from './labs/periods.js';

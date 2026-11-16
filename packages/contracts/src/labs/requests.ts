@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { expectedVersion, text } from '../common.js';
 import { positiveQuantity } from '../decimal.js';
 import type { FormFreeField, FormLayout } from './form.js';
+import { REQUEST_MAX_LINES } from './limits.js';
 import { activityStage, practiceUsage } from './practice.js';
 
 /**
@@ -12,7 +13,6 @@ import { activityStage, practiceUsage } from './practice.js';
  */
 
 export const REQUEST_MAX_DATES = 20;
-export const REQUEST_MAX_LINES = 90;
 
 export const requestStatus = z.enum(['draft', 'submitted', 'changes_requested', 'scheduled', 'completed', 'rejected', 'cancelled']);
 /** Quien pide la edita en borrador y con cambios solicitados. */
