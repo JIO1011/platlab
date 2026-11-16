@@ -117,6 +117,14 @@ const requestEvent = z.object({
 });
 
 /** Una solicitud en las listas: lo que la bandeja ordena (fuera de plazo y recursos que faltan primero). */
+/** Las líneas con ⚠ o ✖ de cada tipo: lo que quien revisa aún debe mirar («2 reactivos y 1 equipo por revisar»). */
+export const requestExceptions = z.object({ reagent: z.number().int(), equipment: z.number().int(), material: z.number().int() });
+
+export type RequestExceptions = z.infer<typeof requestExceptions>;
+
+/** Cuántas líneas quedan por revisar, de todos los tipos. */
+export const pendingCount = ({ reagent, equipment, material }: RequestExceptions): number => reagent + equipment + material;
+
 export const requestSummary = z.object({
   id: z.uuid(),
   status: requestStatus,
@@ -126,8 +134,8 @@ export const requestSummary = z.object({
   firstDate: z.iso.date().nullable(),
   dateCount: z.number().int(),
   late: z.boolean(),
-  /** Líneas con ⚠ o ✖. */
-  exceptions: z.number().int(),
+  /** Líneas con ⚠ o ✖, por tipo. */
+  exceptions: requestExceptions,
   /** Fechas que ya tienen bloque en el Cronograma (L-01c): «1 de 2 programadas». */
   scheduledCount: z.number().int(),
   /** Las fechas pedidas y las ya programadas, con el horario, los participantes y el grupo: la bandeja «Por programar». */

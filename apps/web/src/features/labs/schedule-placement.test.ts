@@ -79,7 +79,7 @@ const summary = (overrides: Partial<RequestSummary> = {}): RequestSummary => ({
   firstDate: '2026-10-28',
   dateCount: 2,
   late: false,
-  exceptions: 0,
+  exceptions: { reagent: 0, equipment: 0, material: 0 },
   scheduledCount: 0,
   dates: ['2026-10-28', '2026-10-30'],
   scheduledDates: [],
@@ -200,7 +200,7 @@ describe('bandeja Por programar', () => {
     const ordered = toScheduleOrder([
       summary({ id: 'tarde-fecha', dates: ['2026-11-10'] }),
       summary({ id: 'temprano', dates: ['2026-10-26'] }),
-      summary({ id: 'recursos', dates: ['2026-11-20'], exceptions: 2 }),
+      summary({ id: 'recursos', dates: ['2026-11-20'], exceptions: { reagent: 0, equipment: 2, material: 0 } }),
       summary({ id: 'plazo', dates: ['2026-12-01'], late: true }),
       summary({ id: 'programada', status: 'scheduled', scheduledCount: 2 }),
     ]);

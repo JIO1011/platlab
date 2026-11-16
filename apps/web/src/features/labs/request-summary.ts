@@ -1,4 +1,4 @@
-import type { RequestSummary } from '@platlab/contracts';
+import { pendingCount, type RequestExceptions, type RequestSummary } from '@platlab/contracts';
 import { fold } from '../../app/fold';
 import { countText, formatDate } from '../../app/format';
 
@@ -9,10 +9,19 @@ export const titleText = ({ title }: Pick<RequestSummary, 'title'>): string => t
 export const firstDateText = ({ firstDate, dateCount }: Pick<RequestSummary, 'firstDate' | 'dateCount'>): string =>
   firstDate ? `${formatDate(firstDate)}${dateCount > 1 ? ` (+${dateCount - 1} más)` : ''}` : 'Sin fecha';
 
-/** Las líneas de recursos con ⚠ o ✖ que quien revisa aún debe mirar; `null` si no hay ninguna. */
-export const exceptionsText = (exceptions: number): string | null => {
-  if (exceptions <= 0) return null;
-  return exceptions === 1 ? '1 recurso por revisar' : `${exceptions} recursos por revisar`;
+const conjunction = new Intl.ListFormat('es', { type: 'conjunction' });
+
+/**
+ * Las líneas con ⚠ o ✖ que quien revisa aún debe mirar, dichas por tipo («3 equipos por revisar», «2 reactivos y 1
+ * equipo por revisar»); `null` si no hay ninguna.
+ */
+export const exceptionsText = ({ reagent, equipment, material }: RequestExceptions): string | null => {
+  const parts = [
+    reagent > 0 ? countText(reagent, 'reactivo', 'reactivos') : null,
+    equipment > 0 ? countText(equipment, 'equipo', 'equipos') : null,
+    material > 0 ? countText(material, 'material', 'materiales') : null,
+  ].filter((part): part is string => part !== null);
+  return parts.length === 0 ? null : `${conjunction.format(parts)} por revisar`;
 };
 
 /** El código de práctica de la solicitud («P1-S11-FIS01»: el del primer bloque) y, si tiene más bloques, «+N»; `null` mientras no está programada. */
@@ -42,7 +51,7 @@ const inboxMatches = (item: RequestSummary, filter: InboxFilter): boolean => {
     case 'late':
       return item.status === 'submitted' && item.late;
     case 'resources':
-      return item.status === 'submitted' && item.exceptions > 0;
+      return item.status === 'submitted' && pendingCount(item.exceptions) > 0;
     case 'changes':
       return item.status === 'changes_requested';
     case 'all':
@@ -73,7 +82,7 @@ export const searchInbox = (items: readonly RequestSummary[], query: string): Re
   return items.filter((item) => [...item.blockCodes, item.title ?? '', item.requesterName].some((text) => fold(text).includes(wanted)));
 };
 
-/** Cuándo es una solicitud en la tabla de Recibidas: la primera fecha, su horario y cuántas fechas más trae. */
+/** Cuándo es una solicitud en la tabla de Recibidas: la primera fecha, su horario y cuántas fechas más trae («y 1 fecha más»). */
 export interface WhenText {
   date: string;
   time: string | null;
@@ -83,7 +92,7 @@ export interface WhenText {
 export const whenText = ({ firstDate, dateCount, startsAt, endsAt }: Pick<RequestSummary, 'firstDate' | 'dateCount' | 'startsAt' | 'endsAt'>): WhenText => ({
   date: firstDate ? formatDate(firstDate) : 'Sin fecha',
   time: startsAt && endsAt ? `${startsAt}–${endsAt}` : null,
-  more: dateCount > 1 ? `+${countText(dateCount - 1, 'fecha', 'fechas')}` : null,
+  more: dateCount > 1 ? `y ${countText(dateCount - 1, 'fecha', 'fechas')} más` : null,
 });
 
 /** Las solicitudes propias según lo que la persona debe hacer, cada grupo en el orden del servidor. */

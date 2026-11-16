@@ -1,4 +1,5 @@
 import {
+  pendingCount,
   scheduleProblemText,
   type Activity,
   type Closure,
@@ -130,7 +131,7 @@ export function isToSchedule(item: Pick<RequestSummary, 'status' | 'dateCount' |
  * primera fecha pendiente más próxima. Conserva el orden del servidor entre iguales.
  */
 export function toScheduleOrder(items: readonly RequestSummary[]): RequestSummary[] {
-  const rank = (item: RequestSummary) => (item.late ? 0 : item.exceptions > 0 ? 1 : 2);
+  const rank = (item: RequestSummary) => (item.late ? 0 : pendingCount(item.exceptions) > 0 ? 1 : 2);
   const nextDate = (item: RequestSummary) => pendingDates(item)[0] ?? '9999';
   return items
     .filter((item) => isToSchedule(item))

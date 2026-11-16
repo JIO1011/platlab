@@ -88,7 +88,7 @@ describe('recursos', () => {
       ['material', 'unverified', '12'],
     ]);
     expect(saved.lines[0]).toMatchObject({ unit: 'g', available: '100' });
-    expect(saved.exceptions).toBe(4);
+    expect(saved.exceptions).toEqual({ reagent: 2, equipment: 1, material: 1 });
     // Validar no reserva: no hay operaciones de inventario nuevas.
     expect(await operations()).toBe(before);
     // Un reactivo del catálogo va en su unidad base.

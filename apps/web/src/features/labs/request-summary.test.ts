@@ -12,7 +12,7 @@ const summary = (number: number, status: RequestSummary['status'], extra: Partia
   firstDate: null,
   dateCount: 0,
   late: false,
-  exceptions: 0,
+  exceptions: { reagent: 0, equipment: 0, material: 0 },
   scheduledCount: 0,
   dates: [],
   scheduledDates: [],
@@ -40,12 +40,18 @@ describe('firstDateText', () => {
 
 describe('exceptionsText', () => {
   it('sin recursos por revisar no dice nada', () => {
-    expect(exceptionsText(0)).toBeNull();
+    expect(exceptionsText({ reagent: 0, equipment: 0, material: 0 })).toBeNull();
   });
 
-  it('concuerda en singular y plural', () => {
-    expect(exceptionsText(1)).toBe('1 recurso por revisar');
-    expect(exceptionsText(4)).toBe('4 recursos por revisar');
+  it('dice el tipo de recurso, en singular y plural', () => {
+    expect(exceptionsText({ reagent: 0, equipment: 3, material: 0 })).toBe('3 equipos por revisar');
+    expect(exceptionsText({ reagent: 1, equipment: 0, material: 0 })).toBe('1 reactivo por revisar');
+    expect(exceptionsText({ reagent: 0, equipment: 0, material: 2 })).toBe('2 materiales por revisar');
+  });
+
+  it('junta los tipos con «y»', () => {
+    expect(exceptionsText({ reagent: 2, equipment: 1, material: 0 })).toBe('2 reactivos y 1 equipo por revisar');
+    expect(exceptionsText({ reagent: 1, equipment: 1, material: 1 })).toBe('1 reactivo, 1 equipo y 1 material por revisar');
   });
 });
 
@@ -98,10 +104,10 @@ describe('filterInbox', () => {
 
 describe('filtros de las cifras de Recibidas', () => {
   const items = [
-    summary(6, 'changes_requested', { late: true, exceptions: 2 }),
-    summary(5, 'submitted', { late: true, exceptions: 1 }),
+    summary(6, 'changes_requested', { late: true, exceptions: { reagent: 2, equipment: 0, material: 0 } }),
+    summary(5, 'submitted', { late: true, exceptions: { reagent: 0, equipment: 1, material: 0 } }),
     summary(4, 'submitted', { late: true }),
-    summary(3, 'submitted', { exceptions: 3 }),
+    summary(3, 'submitted', { exceptions: { reagent: 0, equipment: 0, material: 3 } }),
     summary(2, 'rejected', { late: true }),
     summary(1, 'submitted'),
   ];
@@ -180,8 +186,8 @@ describe('whenText', () => {
   });
 
   it('con más fechas cuenta las demás, en singular y plural', () => {
-    expect(whenText({ firstDate: '2026-11-05', dateCount: 2, startsAt: null, endsAt: null }).more).toBe('+1 fecha');
-    expect(whenText({ firstDate: '2026-11-05', dateCount: 4, startsAt: null, endsAt: null }).more).toBe('+3 fechas');
+    expect(whenText({ firstDate: '2026-11-05', dateCount: 2, startsAt: null, endsAt: null }).more).toBe('y 1 fecha más');
+    expect(whenText({ firstDate: '2026-11-05', dateCount: 4, startsAt: null, endsAt: null }).more).toBe('y 3 fechas más');
   });
 });
 
