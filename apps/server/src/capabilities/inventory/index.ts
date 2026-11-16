@@ -13,6 +13,7 @@ export {
   holdForActivity,
   reholdForActivity,
   releaseActivityHolds,
+  stockBreakdown,
   type ActivityHoldOption,
 } from './application/holds.js';
 export { addReason, brandsOf, reasonsOf, retireReason } from './application/lists.js';

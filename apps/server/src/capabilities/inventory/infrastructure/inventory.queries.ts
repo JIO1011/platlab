@@ -2735,6 +2735,52 @@ const holdableByAreaIR: any = {"usedParamSet":{"workspaceId":true,"itemIds":true
 export const holdableByArea = new PreparedQuery<IHoldableByAreaParams,IHoldableByAreaResult>(holdableByAreaIR);
 
 
+/** 'StockBreakdown' parameters type */
+export interface IStockBreakdownParams {
+  itemIds: stringArray;
+  kind: string;
+  validOn: string;
+  workspaceId: string;
+}
+
+/** 'StockBreakdown' return type */
+export interface IStockBreakdownResult {
+  expired: string;
+  held: string;
+  item_id: string;
+  stock: string;
+}
+
+/** 'StockBreakdown' query type */
+export interface IStockBreakdownQuery {
+  params: IStockBreakdownParams;
+  result: IStockBreakdownResult;
+}
+
+const stockBreakdownIR: any = {"usedParamSet":{"validOn":true,"workspaceId":true,"itemIds":true,"kind":true},"params":[{"name":"validOn","required":true,"transform":{"type":"scalar"},"locs":[{"a":518,"b":526}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":866,"b":878}]},{"name":"itemIds","required":true,"transform":{"type":"scalar"},"locs":[{"a":901,"b":909}]},{"name":"kind","required":true,"transform":{"type":"scalar"},"locs":[{"a":933,"b":938}]}],"statement":"-- Cómo se reparte el saldo utilizable de cada ítem el día :validOn (ADR 0023, «Disponibilidad y recursos»): lo apartado y\n-- lo libre de lotes vencidos ese día. Los mismos frascos que `holdableByArea` sin filtrar por vencimiento, así que el\n-- saldo es lo libre de `holdableByArea` + lo apartado + lo vencido. Sin bloquear.\nSELECT p.item_id,\n  trim_scale(sum(p.balance))::text AS \"stock!\",\n  trim_scale(sum(p.reserved))::text AS \"held!\",\n  trim_scale(coalesce(sum(p.balance - p.reserved) FILTER (WHERE l.expires_on < :validOn!::date), 0))::text AS \"expired!\"\nFROM inventory.positions AS p\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\nJOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id\nJOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id\nWHERE p.workspace_id = :workspaceId! AND p.item_id = ANY (:itemIds!::uuid[]) AND i.kind = :kind!\n  AND p.disposition = 'usable' AND loc.archived_at IS NULL\nGROUP BY p.item_id"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Cómo se reparte el saldo utilizable de cada ítem el día :validOn (ADR 0023, «Disponibilidad y recursos»): lo apartado y
+ * -- lo libre de lotes vencidos ese día. Los mismos frascos que `holdableByArea` sin filtrar por vencimiento, así que el
+ * -- saldo es lo libre de `holdableByArea` + lo apartado + lo vencido. Sin bloquear.
+ * SELECT p.item_id,
+ *   trim_scale(sum(p.balance))::text AS "stock!",
+ *   trim_scale(sum(p.reserved))::text AS "held!",
+ *   trim_scale(coalesce(sum(p.balance - p.reserved) FILTER (WHERE l.expires_on < :validOn!::date), 0))::text AS "expired!"
+ * FROM inventory.positions AS p
+ * JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+ * JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+ * JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+ * WHERE p.workspace_id = :workspaceId! AND p.item_id = ANY (:itemIds!::uuid[]) AND i.kind = :kind!
+ *   AND p.disposition = 'usable' AND loc.archived_at IS NULL
+ * GROUP BY p.item_id
+ * ```
+ */
+export const stockBreakdown = new PreparedQuery<IStockBreakdownParams,IStockBreakdownResult>(stockBreakdownIR);
+
+
 /** 'ActivityHoldOptions' parameters type */
 export interface IActivityHoldOptionsParams {
   allocationIds: stringArray;

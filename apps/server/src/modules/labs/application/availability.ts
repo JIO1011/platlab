@@ -49,7 +49,7 @@ export interface Busy {
 const unique = <T>(values: readonly T[]): T[] => [...new Set(values)];
 
 /** El día cuyo vencimiento cuenta: lo que vence antes de la última fecha pendiente ya no sirve; sin fechas, hoy. */
-const validOnOf = (pending: readonly string[], today: string): string => pending.at(-1) ?? today;
+export const validOnOf = (pending: readonly string[], today: string): string => pending.at(-1) ?? today;
 
 /** Lo pedido en todas las fechas pendientes: lo de una fecha × las fechas, al menos una. Exacto. */
 export const neededOf = (quantity: string, pending: number): string => sumDecimals(Array.from({ length: Math.max(1, pending) }, () => quantity));

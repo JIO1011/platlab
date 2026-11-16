@@ -258,13 +258,15 @@ export const requestReview = z.object({
 /**
  * La respuesta de la consulta sin guardar: cada línea con su nombre y su marca, en el orden pedido, su revisión y lo libre
  * de cada reactivo y tipo de equipo del catálogo para esas fechas y esa franja (sin fechas, hoy): lo que muestra el buscador.
+ * De cada reactivo, además, cómo se reparte su saldo utilizable: `stock` = `available` + `held` (apartado) + `expired`
+ * (de lotes vencidos ese día). De cada tipo de equipo, sus unidades operativas (`total`).
  */
 export const requestCheck = z.object({
   lines: z.array(requestLine),
   review: requestReview,
   catalog: z.object({
-    reagents: z.array(z.object({ id: z.uuid(), available: z.string() })),
-    equipmentTypes: z.array(z.object({ id: z.uuid(), available: z.number().int() })),
+    reagents: z.array(z.object({ id: z.uuid(), available: z.string(), stock: z.string(), held: z.string(), expired: z.string() })),
+    equipmentTypes: z.array(z.object({ id: z.uuid(), available: z.number().int(), total: z.number().int() })),
   }),
 });
 

@@ -1032,6 +1032,22 @@ WHERE p.workspace_id = :workspaceId! AND p.item_id = ANY (:itemIds!::uuid[]) AND
 GROUP BY p.item_id, la.area_id, area.name
 ORDER BY p.item_id, sum(p.balance - p.reserved) DESC, area.name;
 
+/* @name stockBreakdown */
+-- Cómo se reparte el saldo utilizable de cada ítem el día :validOn (ADR 0023, «Disponibilidad y recursos»): lo apartado y
+-- lo libre de lotes vencidos ese día. Los mismos frascos que `holdableByArea` sin filtrar por vencimiento, así que el
+-- saldo es lo libre de `holdableByArea` + lo apartado + lo vencido. Sin bloquear.
+SELECT p.item_id,
+  trim_scale(sum(p.balance))::text AS "stock!",
+  trim_scale(sum(p.reserved))::text AS "held!",
+  trim_scale(coalesce(sum(p.balance - p.reserved) FILTER (WHERE l.expires_on < :validOn!::date), 0))::text AS "expired!"
+FROM inventory.positions AS p
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+JOIN inventory.lots AS l ON l.workspace_id = p.workspace_id AND l.id = p.lot_id
+JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+WHERE p.workspace_id = :workspaceId! AND p.item_id = ANY (:itemIds!::uuid[]) AND i.kind = :kind!
+  AND p.disposition = 'usable' AND loc.archived_at IS NULL
+GROUP BY p.item_id;
+
 /* @name activityHoldOptions */
 -- Los frascos de los que un bloque puede apartar :itemId el día :validOn (ADR 0023, «Cierre de Laboratorios»): los de
 -- `lockHoldablePositions` y los que ya apartó ese bloque (:allocationIds), con lo disponible más lo suyo. Sin bloquear.

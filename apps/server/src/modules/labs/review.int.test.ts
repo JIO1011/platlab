@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { labsRequest, requestCheck, requestList, requestOptions, requestReview, space, type LabsRequest, type SaveRequest } from '@platlab/contracts';
 import { admin, call } from '../../testing/api.js';
-import { addLocation, setModuleStatus } from '../../testing/core-fixtures.js';
+import { addLocation, setModuleStatus, uniqueSuffix } from '../../testing/core-fixtures.js';
 import { complete, createRequestsLab, draft, equipmentType, inDays, save, send, stockedReagent, type RequestsLab } from './labs.fixtures.js';
 
 /**
@@ -160,6 +160,26 @@ describe('una sola regla de disponibilidad (ADR 0023, «Disponibilidad y recurso
     );
   });
 
+  it('lo libre del catálogo dice cómo se reparte el saldo: lo apartado y lo de lotes vencidos esas fechas', async () => {
+    const item = await stockedReagent(lab);
+    // 25 g más de un lote que vence antes de la fecha consultada.
+    const received = await call(lab.operator.subject, `/workspaces/${lab.workspace.id}/reagents/receipts`, {
+      method: 'POST',
+      body: { productId: item, locationId: lab.storage, expiresOn: inDays(30), quantity: '25', unit: 'g', codes: [`F-${uniqueSuffix()}`] },
+      key: `rec-${uniqueSuffix()}`,
+    });
+    expect(received.status).toBe(201);
+    // Otra práctica aparta 30 g del lote vigente.
+    await scheduledWith([inDays(40)], [{ kind: 'reagent', itemId: item, description: null, quantity: '30', unit: 'g' }]);
+    const request = await draft(lab);
+    const body = { dates: [inDays(60)], startsAt: '08:00', endsAt: '10:00', participants: 10, groups: 1, areaId: area, lines: [] };
+    const checked = requestCheck.parse((await send(lab, 'POST', `/requests/${request.id}/check`, body, lab.teacher.subject)).body);
+    expect(checked.catalog.reagents.find((reagent) => reagent.id === item)).toEqual({ id: item, available: '70', stock: '125', held: '30', expired: '25' });
+    // Sin fechas cuenta hoy: el lote de 25 g sigue vigente.
+    const today = requestCheck.parse((await send(lab, 'POST', `/requests/${request.id}/check`, { ...body, dates: [] }, lab.teacher.subject)).body);
+    expect(today.catalog.reagents.find((reagent) => reagent.id === item)).toEqual({ id: item, available: '95', stock: '125', held: '30', expired: '0' });
+  });
+
   it('la consulta sin guardar marca lo que se está llenando con la misma regla y no cambia nada', async () => {
     const item = await stockedReagent(lab);
     const type = await equipmentType(lab);
@@ -197,8 +217,9 @@ describe('una sola regla de disponibilidad (ADR 0023, «Disponibilidad y recurso
     ]);
     expect(checked.review.dates.map((date) => date.date)).toEqual([inDays(60), inDays(61)]);
     // El buscador: lo libre de cada reactivo y tipo de equipo del catálogo para esas fechas y esa franja.
-    expect(checked.catalog.reagents.find((reagent) => reagent.id === item)?.available).toBe('100');
-    expect(checked.catalog.equipmentTypes.find((equipment) => equipment.id === type)?.available).toBe(1);
+    expect(checked.catalog.reagents.find((reagent) => reagent.id === item)).toMatchObject({ available: '100', stock: '100', held: '0', expired: '0' });
+    // Un equipo operativo y otro con falla: uno libre de uno operativo.
+    expect(checked.catalog.equipmentTypes.find((equipment) => equipment.id === type)).toMatchObject({ available: 1, total: 1 });
     // No guardó ni apartó nada.
     const stored = labsRequest.parse((await call(lab.teacher.subject, `${lab.base}/requests/${request.id}`)).body);
     expect(stored).toMatchObject({ version: request.version, lines: [], dates: [] });

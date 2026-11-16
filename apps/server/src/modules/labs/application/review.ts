@@ -16,10 +16,10 @@ import { todayIn } from '../../../platform/dates.js';
 import { AppError } from '../../../platform/errors.js';
 import { hasPermission, moduleAdmits, type QueryRequest, type WorkspaceAccess } from '../../core/index.js';
 import { operationalAssetsOfTypes, requestableAssetTypes } from '../../equipment/index.js';
-import { reagentStockByArea, requestableReagents } from '../../reagents/index.js';
+import { reagentStockBreakdown, reagentStockByArea, requestableReagents } from '../../reagents/index.js';
 import { listRequests } from '../infrastructure/requests.queries.js';
 import { scheduleContext } from '../infrastructure/schedule.queries.js';
-import { busyOn, findingsOf, freeIn, neededOf, type Ask, type Busy } from './availability.js';
+import { busyOn, findingsOf, freeIn, neededOf, validOnOf, type Ask, type Busy } from './availability.js';
 import { REQUEST_CREATE, runQuery } from './command.js';
 import { checkedLines, pendingOf, visibleRequest, type LineRow } from './request-view.js';
 
@@ -140,7 +140,8 @@ function lineRow(line: RequestLineInput, index: number, groups: number): LineRow
 
 /**
  * Lo libre de todo lo que se puede pedir para esas fechas y esa franja, con la regla única: cada reactivo y tipo de equipo
- * del catálogo como una línea más. Lo que su módulo no deja pedir no se lista, como en `request-options`.
+ * del catálogo como una línea más. Lo que su módulo no deja pedir no se lista, como en `request-options`. De cada reactivo,
+ * también cómo se reparte su saldo el día que cuenta la regla; de cada tipo de equipo, sus unidades operativas.
  */
 async function catalogOf(access: WorkspaceAccess, scope: Omit<Ask, 'lines'>): Promise<RequestCheck['catalog']> {
   const [reagentsOn, equipmentOn] = await Promise.all([moduleAdmits(access, 'reagents', 'new_operation'), moduleAdmits(access, 'equipment', 'new_operation')]);
@@ -151,9 +152,19 @@ async function catalogOf(access: WorkspaceAccess, scope: Omit<Ask, 'lines'>): Pr
     ...types.map((type) => ({ kind: 'equipment', item_id: null, asset_type_id: type.id })),
   ].map((line, index) => ({ ...line, line: index + 1, quantity: '1' }));
   const [found = []] = await findingsOf(access, [{ ...scope, lines }]);
+  const validOn = validOnOf(scope.pending, todayIn(access.workspace.timeZone));
+  const [split, assets] = await Promise.all([
+    reagentStockBreakdown(access, reagents.map((reagent) => reagent.id), validOn),
+    operationalAssetsOfTypes(access, types.map((type) => type.id)),
+  ]);
+  const none = { stock: '0', held: '0', expired: '0' };
   return {
-    reagents: reagents.map((reagent, index) => ({ id: reagent.id, available: found[index]?.available ?? '0' })),
-    equipmentTypes: types.map((type, index) => ({ id: type.id, available: Number(found[reagents.length + index]?.available ?? 0) })),
+    reagents: reagents.map((reagent, index) => ({ id: reagent.id, available: found[index]?.available ?? '0', ...(split.get(reagent.id) ?? none) })),
+    equipmentTypes: types.map((type, index) => ({
+      id: type.id,
+      available: Number(found[reagents.length + index]?.available ?? 0),
+      total: assets.filter((asset) => asset.typeId === type.id).length,
+    })),
   };
 }
 

@@ -30,7 +30,7 @@ const draft: RequestDraft = {
 
 const planOf = (patch: Partial<RequestDraft> = {}) => checkPlan({ ...draft, ...patch }, FORM_STANDARD_LAYOUT)!;
 
-const result = (catalog: RequestCheck['catalog'] = { reagents: [{ id: reagentId, available: '70' }], equipmentTypes: [{ id: assetTypeId, available: 1 }] }): RequestCheck => ({
+const result = (catalog: RequestCheck['catalog'] = { reagents: [{ id: reagentId, available: '70', stock: '80', held: '10', expired: '0' }], equipmentTypes: [{ id: assetTypeId, available: 1, total: 2 }] }): RequestCheck => ({
   lines: [
     { kind: 'reagent', itemId: reagentId, name: 'Cloruro de sodio', quantity: '5', unit: 'g', check: 'ok', available: '70' },
     { kind: 'equipment', assetTypeId, name: 'Balanza', perGroup: null, quantity: 2, check: 'short', available: 1 },
