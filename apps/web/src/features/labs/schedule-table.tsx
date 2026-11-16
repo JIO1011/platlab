@@ -174,7 +174,7 @@ function AreaColumn({
 }
 
 /**
- * La cabecera de una columna: el nombre del área (sin «Laboratorio de»; cortado con elipsis; entero en el título y para el
+ * La cabecera de una columna: el nombre del área (sin la palabra «Laboratorio»; cortado con elipsis; entero en el título y para el
  * lector de pantalla) a la izquierda y el aforo, con su ícono, a la derecha; debajo, en mono, el horario de ese día o
  * «Cerrada» si no abre.
  */

@@ -344,15 +344,16 @@ describe('texto del bloque', () => {
 });
 
 describe('nombre del área', () => {
-  it('quita «Laboratorio de» al inicio', () => {
+  it('quita la palabra «Laboratorio» al inicio, con el «de» que la siga', () => {
     expect(areaLabel('Laboratorio de Química')).toBe('Química');
     expect(areaLabel('LABORATORIO DE LA Salud')).toBe('Salud');
     expect(areaLabel('Laboratorios de Física')).toBe('Física');
+    expect(areaLabel('Laboratorio Clínico')).toBe('Clínico');
   });
 
   it('deja el nombre completo si no queda nada o no empieza así', () => {
     expect(areaLabel('Laboratorio')).toBe('Laboratorio');
     expect(areaLabel('Anatomía')).toBe('Anatomía');
-    expect(areaLabel('Laboratorio Clínico')).toBe('Laboratorio Clínico');
+    expect(areaLabel('Sala de laboratorio')).toBe('Sala de laboratorio');
   });
 });

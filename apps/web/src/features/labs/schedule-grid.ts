@@ -109,9 +109,13 @@ export interface CoreArea {
   group: { name: string } | null;
 }
 
-const LAB_PREFIX = /^laboratorios?\s+(?:de\s+las|de\s+los|de\s+la|del|de)\s+/i;
+const LAB_PREFIX = /^laboratorios?\s+(?:(?:de\s+las|de\s+los|de\s+la|del|de)\s+)?/i;
 
-/** El nombre del área para rotular una columna o una tarjeta: sin «Laboratorio de» al inicio («Laboratorio de Química» → «Química»); si no queda nada, el nombre completo. */
+/**
+ * El nombre del área para rotular una columna o una tarjeta, sin la palabra «Laboratorio» al inicio (decisión del usuario,
+ * 14-11-2026) ni el «de» que la sigue: «Laboratorio de Química» → «Química», «Laboratorio Clínico» → «Clínico». Si no
+ * queda nada, el nombre completo.
+ */
 export function areaLabel(name: string): string {
   return name.replace(LAB_PREFIX, '').trim() || name;
 }
