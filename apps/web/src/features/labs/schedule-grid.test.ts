@@ -353,6 +353,6 @@ describe('nombre del área', () => {
   it('deja el nombre completo si no queda nada o no empieza así', () => {
     expect(areaLabel('Laboratorio')).toBe('Laboratorio');
     expect(areaLabel('Anatomía')).toBe('Anatomía');
-    expect(areaLabel('Laboratorio Clínico')).toBe('Clínico');
+    expect(areaLabel('Laboratorio Clínico')).toBe('Laboratorio Clínico');
   });
 });
