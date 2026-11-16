@@ -1,9 +1,8 @@
 import type { Activity, Space } from '@platlab/contracts';
 import { Button, Tooltip, cn } from '@platlab/ui';
-import { GraduationCap, MoveVertical, PackageX, TriangleAlert, UserCheck, Users, type LucideIcon } from 'lucide-react';
+import { MoveVertical, PackageX, TriangleAlert, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { countText } from '../../app/format';
 import { MISSING_HOLDS, activityLabel, blockParts, blockText, capacityWarning, overCapacity, toMinutes } from './schedule-grid';
 import { stageLabels, stageMarks } from './practice-stage';
 import { useCareerTone } from './schedule-career-color';
@@ -19,10 +18,17 @@ export interface BlockOpening {
 }
 
 /**
- * La cara de un bloque (tabla, lista y «Por programar»): fondo de tinte medio por carrera con un borde fino de todo el
- * perímetro del mismo tono más oscuro (`careerTone` los pone), radio de 8 px y el texto de la planilla.
+ * La cara de un bloque (tabla, lista, «Por programar» y lo que se arrastra), forma «franja de carrera» (decisión del
+ * usuario, 15-11-2026): fondo blanco con borde fino y una franja de 4 px a la izquierda con el color fuerte de su carrera
+ * (`--tone-edge`, que pone `careerTone`), radio de 6 px y el texto de la planilla.
  */
-export const blockFace = 'overflow-hidden rounded-lg border text-ink shadow-[0_1px_2px_rgb(15_23_42/0.08)]';
+export const blockFace =
+  'overflow-hidden rounded-md border border-line border-l-4 border-l-(color:--tone-edge) bg-surface text-ink shadow-[0_1px_2px_rgb(15_23_42/0.08)]';
+
+/** La carrera en una etiqueta con el tinte de su color (`--tone-bg`): la que distingue el bloque, escrita. */
+function CareerTag({ career, className }: { career: string; className?: string | undefined }) {
+  return <span className={cn('max-w-full truncate rounded-[4px] bg-(--tone-bg) px-1.5 text-[11px] font-medium leading-4 text-ink', className)}>{career}</span>;
+}
 
 /**
  * Las líneas de texto de una solicitud por programar (la ficha de «Por programar», `tile`, y su lista en pantalla estrecha,
@@ -53,39 +59,66 @@ const reveal =
  */
 const fromHeight = {
   head: 'hidden [@container(min-height:32px)]:flex',
-  career: 'hidden [@container(min-height:48px)]:block',
-  teacher: 'hidden [@container(min-height:64px)]:flex',
-  manager: 'hidden [@container(min-height:80px)]:flex',
-  stage: 'hidden [@container(min-height:96px)]:flex',
-  warning: 'hidden [@container(min-height:112px)]:flex',
+  career: 'hidden [@container(min-height:50px)]:flex',
+  teacher: 'hidden [@container(min-height:66px)]:flex',
+  manager: 'hidden [@container(min-height:82px)]:flex',
+  stage: 'hidden [@container(min-height:98px)]:flex',
+  warning: 'hidden [@container(min-height:114px)]:flex',
 } as const;
 
-/** Una línea de datos con su ícono pequeño: en la tabla se corta con elipsis solo si no cabe; en la lista, baja de línea. */
-function Detail({ icon: Icon, table, children, className }: { icon: LucideIcon; table: boolean; children: ReactNode; className?: string | undefined }) {
+/** Un aviso con su ícono pequeño: la etapa, el aviso de aforo o lo que falta apartar. */
+function Notice({ icon: Icon, children, className }: { icon: LucideIcon; children: ReactNode; className?: string | undefined }) {
   return (
-    <span className={cn('min-w-0 items-start gap-1 text-[11px] leading-[14px] text-ink', className)}>
+    <span className={cn('min-w-0 items-start gap-1 text-[11px] font-medium leading-[14px] text-ink', className)}>
       <Icon aria-hidden className="mt-px size-3 shrink-0" />
-      <span className={cn('min-w-0', table ? 'truncate' : '[overflow-wrap:anywhere]')}>{children}</span>
+      <span className="min-w-0 truncate">{children}</span>
     </span>
   );
 }
 
-/** El código de la práctica en mono, teñido con el borde de su carrera (`--tone-edge`) y oscurecido para que se lea. */
-const codeText = 'font-mono text-[11px] font-semibold leading-[14px] tabular-nums text-[color-mix(in_oklab,var(--tone-edge)_55%,var(--color-ink))]';
+/**
+ * Una persona del bloque en la tabla, dicha con palabra, «Docente  Diego Docente»: el rol apagado, de ancho fijo para que
+ * los nombres queden alineados (se oculta si la columna es angosta), el nombre en tinta y, a la derecha, `end`.
+ */
+function Person({ role, name, end, className }: { role: string; name: string; end?: ReactNode; className?: string | undefined }) {
+  return (
+    <span className={cn('min-w-0 items-baseline gap-2 text-[11px] leading-[14px]', className)}>
+      <span className="hidden w-14 shrink-0 text-ink-muted [@container(min-width:150px)]:inline">{role}</span>
+      <span className="min-w-0 flex-1 truncate font-medium text-ink">{name}</span>
+      {end ?? null}
+    </span>
+  );
+}
+
+/** Los participantes, «26 p», en ámbar si superan el aforo (el triángulo de la materia lo dice también sin color). */
+function Participants({ count, over }: { count: number; over: boolean }) {
+  return <span className={cn('shrink-0 font-mono font-semibold tabular-nums', over ? 'text-warning' : 'text-ink')}>{count} p</span>;
+}
+
+/** Una fila de la lista del móvil: el rol apagado y su valor, en la rejilla de dos columnas de las personas. */
+function ListRow({ role, children }: { role: string; children: ReactNode }) {
+  return (
+    <>
+      <span className="text-ink-muted">{role}</span>
+      <span className="font-medium [overflow-wrap:anywhere]">{children}</span>
+    </>
+  );
+}
 
 /**
- * La cara de un bloque en la tabla (forma decidida por el usuario, 15-11-2026), en dos zonas para reconocerlo de un
- * vistazo. Arriba, qué práctica es: el código teñido con su carrera y, a la derecha, la hora si cabe; la materia en
- * negrita con los íconos de etapa, aforo y apartado; y la carrera. Abajo, pegado al borde, quiénes: el Docente con los
- * participantes a la derecha y el Encargado; sobre ellos, si sobra alto, la etapa y el aviso de aforo.
+ * La cara de un bloque en la tabla (forma «franja de carrera», decisión del usuario, 15-11-2026), en dos zonas para
+ * reconocerlo de un vistazo. Arriba, qué práctica es: el código en mono y, a la derecha, la hora si cabe; la materia en
+ * negrita con los íconos de etapa, aforo y apartado; y la carrera en su etiqueta de color. Abajo, pegado al borde,
+ * quiénes: «Docente» con los participantes a la derecha y «Encargado»; sobre ellos, si sobra alto, la etapa y el aviso de
+ * aforo.
  */
 function TableFace({ activity, over, space, clear }: { activity: Activity; over: boolean; space: Pick<Space, 'capacity'>; clear: string | null }) {
   const StageMark = activity.stage === 'scheduled' ? null : stageMarks[activity.stage];
   return (
     <span className="flex size-full flex-col gap-0.5 px-2 py-1 text-left [container-type:size]">
-      <span className={cn('items-baseline justify-between gap-2', fromHeight.head, clear)}>
-        <span className={cn('min-w-0 truncate', codeText)}>{activity.code}</span>
-        <span className="ml-auto hidden shrink-0 font-mono text-[11px] leading-[14px] tabular-nums text-ink-muted [@container(min-width:168px)]:block">
+      <span className={cn('items-baseline justify-between gap-2 font-mono text-[11px] leading-[14px] tabular-nums text-ink-muted', fromHeight.head, clear)}>
+        <span className="min-w-0 truncate font-semibold">{activity.code}</span>
+        <span className="ml-auto hidden shrink-0 [@container(min-width:168px)]:block">
           {activity.startsAt}–{activity.endsAt}
         </span>
       </span>
@@ -93,74 +126,68 @@ function TableFace({ activity, over, space, clear }: { activity: Activity; over:
         {StageMark ? <StageMark aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
         {over ? <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
         {!activity.complete ? <PackageX aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
-        <span className="min-w-0 line-clamp-1 [overflow-wrap:anywhere] [@container(min-height:128px)]:line-clamp-2">{blockParts(activity).subject}</span>
+        <span className="min-w-0 line-clamp-1 [overflow-wrap:anywhere] [@container(min-height:130px)]:line-clamp-2">{blockParts(activity).subject}</span>
       </span>
-      {activity.group ? <span className={cn('truncate text-[11px] leading-[14px] text-ink-muted', fromHeight.career)}>{activity.group}</span> : null}
+      {activity.group ? (
+        <span className={cn('min-w-0', fromHeight.career)}>
+          <CareerTag career={activity.group} />
+        </span>
+      ) : null}
       <span className="mt-auto" />
       {StageMark ? (
-        <Detail icon={StageMark} table className={cn('font-medium', fromHeight.stage)}>
+        <Notice icon={StageMark} className={fromHeight.stage}>
           {stageLabels[activity.stage]}
-        </Detail>
+        </Notice>
       ) : null}
       {over ? (
-        <Detail icon={TriangleAlert} table className={cn('font-medium tabular-nums', fromHeight.warning)}>
+        <Notice icon={TriangleAlert} className={cn('tabular-nums', fromHeight.warning)}>
           {capacityWarning(activity.participants, space.capacity)}
-        </Detail>
+        </Notice>
       ) : null}
-      <span className={cn('items-start justify-between gap-2', fromHeight.teacher)}>
-        <Detail icon={GraduationCap} table className="flex">
-          {activity.requesterName}
-        </Detail>
-        <span className={cn('inline-flex shrink-0 items-center gap-0.5 font-mono text-[11px] font-semibold leading-[14px] tabular-nums', over ? 'text-warning' : 'text-ink')}>
-          <Users aria-hidden className="size-3" />
-          {activity.participants}
-        </span>
-      </span>
-      <Detail icon={UserCheck} table className={fromHeight.manager}>
-        {activity.responsibleName}
-      </Detail>
+      <Person role="Docente" name={activity.requesterName} end={<Participants count={activity.participants} over={over} />} className={fromHeight.teacher} />
+      <Person role="Encargado" name={activity.responsibleName} className={fromHeight.manager} />
     </span>
   );
 }
 
 /**
- * La cara de un bloque en la lista del móvil, con todo a la vista y sin cortar: el código, la materia, la carrera, el
- * Docente, el Encargado, los participantes, el aviso de aforo si se supera, la etapa y «Falta apartar recursos».
+ * La cara de un bloque en la lista del móvil, con todo a la vista y sin cortar, en el mismo orden que la tabla: el código
+ * y la hora, la materia, la carrera en su etiqueta, «Docente», «Encargado» y «Participantes», y los avisos de aforo, etapa
+ * y «Falta apartar recursos».
  */
 function ListFace({ activity, over, space, clear }: { activity: Activity; over: boolean; space: Pick<Space, 'capacity'>; clear: string | null }) {
   const StageMark = activity.stage === 'scheduled' ? null : stageMarks[activity.stage];
   return (
     <span className="flex size-full flex-col gap-1 px-3 py-2 text-left">
-      <span className={cn('flex', codeText, clear)}>
+      <span className={cn('flex justify-between gap-2 font-mono text-xs font-semibold tabular-nums text-ink-muted', clear)}>
         <span className="min-w-0 truncate">{activity.code}</span>
+        <span className="shrink-0 font-normal">
+          {activity.startsAt}–{activity.endsAt}
+        </span>
       </span>
       <span className={cn('min-w-0 text-sm font-semibold leading-5 [overflow-wrap:anywhere]', clear)}>{blockParts(activity).subject}</span>
-      {activity.group ? <span className="text-xs leading-4 text-ink-muted [overflow-wrap:anywhere]">{activity.group}</span> : null}
-      <Detail icon={GraduationCap} table={false} className="flex">
-        {activity.requesterName}
-      </Detail>
-      <Detail icon={UserCheck} table={false} className="flex">
-        {activity.responsibleName}
-      </Detail>
-      <Detail icon={Users} table={false} className="flex tabular-nums">
-        {countText(activity.participants, 'participante', 'participantes')}
-      </Detail>
+      {activity.group ? <CareerTag career={activity.group} className="w-fit whitespace-normal [overflow-wrap:anywhere]" /> : null}
+      <span className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs leading-4">
+        <ListRow role="Docente">{activity.requesterName}</ListRow>
+        <ListRow role="Encargado">{activity.responsibleName}</ListRow>
+        <ListRow role="Participantes">
+          <span className={cn('font-mono tabular-nums', over && 'text-warning')}>{activity.participants}</span>
+        </ListRow>
+      </span>
       {over ? (
-        <Detail icon={TriangleAlert} table={false} className="flex font-medium tabular-nums">
+        <Notice icon={TriangleAlert} className="flex tabular-nums">
           {capacityWarning(activity.participants, space.capacity)}
-        </Detail>
+        </Notice>
       ) : null}
       {StageMark ? (
-        <span className="flex items-center gap-1 text-xs font-medium leading-4">
-          <StageMark aria-hidden className="size-3.5 shrink-0" />
+        <Notice icon={StageMark} className="flex">
           {stageLabels[activity.stage]}
-        </span>
+        </Notice>
       ) : null}
       {activity.complete ? null : (
-        <span className="flex items-center gap-1 text-xs font-medium leading-4">
-          <PackageX aria-hidden className="size-3.5 shrink-0" />
+        <Notice icon={PackageX} className="flex">
           {MISSING_HOLDS}
-        </span>
+        </Notice>
       )}
     </span>
   );
