@@ -28,11 +28,11 @@ import {
   periodOn,
   placement,
   rowStarts,
-  shadedHours,
   shiftMonth,
   timeText,
   toMinutes,
   weekDates,
+  withoutHours,
 } from './schedule-grid';
 
 const closedDay: WeeklyHours['1'] = [];
@@ -217,14 +217,6 @@ describe('rango del día', () => {
     expect(hourMarks({ start: 390, end: 510 })).toEqual([420, 480]);
   });
 
-  it('sombrea una hora de cada dos, recortada al rango', () => {
-    expect(shadedHours({ start: 420, end: 720 })).toEqual([
-      { from: 480, to: 540 },
-      { from: 600, to: 660 },
-    ]);
-    expect(shadedHours({ start: 420, end: 510 })).toEqual([{ from: 480, to: 510 }]);
-  });
-
   it('dice la hora del día en la zona del espacio de trabajo', () => {
     // 15:30 UTC es 10:30 en Guayaquil (UTC−5) y 16:30 en Madrid en invierno.
     const instant = Date.UTC(2026, 10, 2, 15, 30);
@@ -246,9 +238,10 @@ describe('lo cerrado', () => {
     ]);
   });
 
-  it('escribe el motivo una sola vez: en el primer tramo de al menos una hora', () => {
+  it('escribe el motivo solo si cierra todo el día; lo que el horario deja fuera va sin rótulo', () => {
     const partial = space({ weeklyHours: hours([{ opens: '07:30', closes: '12:00' }, { opens: '14:00', closes: '17:00' }]) });
-    expect(closedSpans(partial, '2026-10-26', range, []).map((span) => span.labeled)).toEqual([false, true, false]);
+    expect(closedSpans(partial, '2026-10-26', range, []).map((span) => span.labeled)).toEqual([false, false, false]);
+    expect(closedSpans(space(), '2026-10-31', range, [])).toEqual([{ from: 420, to: 1080, reason: dayClosedText, labeled: true }]);
   });
 
   it('no marca nada si el área abre todo el rango', () => {
@@ -279,6 +272,11 @@ describe('lo cerrado', () => {
 
   it('dice «Cerrada» el día que el horario del área no abre', () => {
     expect(dayHoursText(space(), '2026-10-31')).toBe('Cerrada');
+  });
+
+  it('reconoce el área sin horario: no abre ningún día de la semana', () => {
+    expect(withoutHours(space())).toBe(false);
+    expect(withoutHours(space({ weeklyHours: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } }))).toBe(true);
   });
 
   it('halla el feriado común y no el de un área', () => {

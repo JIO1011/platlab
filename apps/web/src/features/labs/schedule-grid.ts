@@ -20,8 +20,8 @@ export interface DayRange {
 }
 
 /**
- * Lo cerrado de un área ese día, con su motivo. El motivo se escribe una sola vez por área: solo el primer tramo de al
- * menos una hora lleva `labeled`; los demás se ven como trama y el motivo queda en su nombre accesible.
+ * Lo cerrado de un área ese día, con su motivo. Solo el cierre de todo el día lleva `labeled` (se escribe en el centro de
+ * la columna); lo que el horario deja fuera se ve en tono apagado y el motivo queda en su nombre accesible.
  */
 export interface ClosedSpan extends Span {
   reason: string;
@@ -156,6 +156,11 @@ export function openSlots(space: Pick<Space, 'weeklyHours'>, date: string): Span
   return space.weeklyHours[String(isoWeekday(date)) as keyof Space['weeklyHours']].map((slot) => ({ from: toMinutes(slot.opens), to: toMinutes(slot.closes) }));
 }
 
+/** Si el área no abre ningún día de la semana: su cabecera lo dice con «Sin horario». */
+export function withoutHours(space: Pick<Space, 'weeklyHours'>): boolean {
+  return Object.values(space.weeklyHours).every((slots) => slots.length === 0);
+}
+
 /** El horario del área ese día, «07:00–18:00» (los tramos, separados por « · »), o «Cerrada» si su horario semanal no abre. */
 export function dayHoursText(space: Pick<Space, 'weeklyHours'>, date: string): string {
   const slots = openSlots(space, date);
@@ -210,8 +215,7 @@ export function closedSpans(space: Space, date: string, range: DayRange, closure
     }
     if (cursor < range.end) spans.push({ from: cursor, to: range.end });
   }
-  const first = spans.findIndex((span) => span.to - span.from >= 60);
-  return spans.map((span, index) => ({ ...span, reason: whole ?? scheduleProblemText.hours, labeled: index === first }));
+  return spans.map((span) => ({ ...span, reason: whole ?? scheduleProblemText.hours, labeled: whole !== null }));
 }
 
 // ---------------------------------------------------------------------------
@@ -239,13 +243,6 @@ export function rowStarts(range: DayRange): number[] {
 /** Las horas en punto del rango: lo que rotula el eje. */
 export function hourMarks(range: DayRange): number[] {
   return rowStarts(range).filter((mark) => mark % 60 === 0);
-}
-
-/** Las horas que llevan banda de fondo para seguir la fila con la vista: una de cada dos (las pares), recortadas al rango. */
-export function shadedHours(range: DayRange): Span[] {
-  return hourMarks(range)
-    .filter((mark) => (mark / 60) % 2 === 0)
-    .map((mark) => ({ from: mark, to: Math.min(mark + 60, range.end) }));
 }
 
 /** La hora del día en la zona del espacio de trabajo, en minutos desde la medianoche: la línea de «ahora». */
