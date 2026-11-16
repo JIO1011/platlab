@@ -1,6 +1,6 @@
 # 05 — Decisiones y pendientes
 
-Revisión: 12 de octubre de 2026. Registro resumido de decisiones de arquitectura (ADR); cada ADR dice solo lo vigente. Una decisión aceptada solo se reemplaza con otra que indique qué cambia. El texto completo anterior de los ADR 0001–0007 está en el commit `bc26fa8`.
+Revisión: 16 de noviembre de 2026. Registro resumido de decisiones de arquitectura (ADR); cada ADR dice solo lo vigente. Una decisión aceptada solo se reemplaza con otra que indique qué cambia. El texto completo anterior de los ADR 0001–0007 está en el commit `bc26fa8`.
 
 | ADR | Tema | Estado |
 |---|---|---|
@@ -25,6 +25,9 @@ Revisión: 12 de octubre de 2026. Registro resumido de decisiones de arquitectur
 | [0019](#adr-0019) | Equipos con la forma de Reactivos: estado separado y Mantenimiento como módulo propio | Aceptado el 15-10-2026 |
 | [0020](#adr-0020) | Mantenimiento intermedio sin inventario propio | Aceptado el 17-10-2026 |
 | [0021](#adr-0021) | Rediseño de la UI por módulos, empezando por Mantenimiento | Aceptado el 19-10-2026 |
+| [0022](#adr-0022) | Calidad de Equipos y Mantenimiento: piezas comunes sin duplicar | Aceptado el 20-10-2026 |
+| [0023](#adr-0023) | Laboratorios: solicitudes y cronograma en un solo módulo | Aceptado el 20-10-2026; cerrado para el piloto el 16-11-2026 |
+| [0024](#adr-0024) | Áreas y departamentos en una sección propia | Aceptado el 20-10-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -205,23 +208,29 @@ Cambios: 02, 04, 05 y 13-10-2026; compactado el 16-11-2026 (historial en git).
 <a id="adr-0011"></a>
 ## ADR 0011 — Inicio como tablero y cada módulo como app
 
-- **Inicio.** Tablero con una tarjeta por módulo habilitado y visible para el rol, con dos o tres cifras y un gráfico pequeño solo si hay datos reales (sin ellos, un texto). Toda la tarjeta abre el módulo, así que sus cifras no son enlaces aparte (no se anidan enlaces). Nombra el espacio en su subtítulo.
-- **Entrada directa.** Sin pantalla para elegir espacio: se abre el último usado en ese navegador (la primera vez, el primero de la lista). Todos los roles entran igual; cambia lo que cada uno puede hacer (Administración solo la ve el propietario).
-- **Módulo como app.** El menú lateral muestra solo sus secciones (Resumen, Inventario, Movimientos y las demás cuando su entrega exista); desde ahí se vuelve al Inicio o se salta a otro módulo.
-  - El Resumen reúne cifras, gráfico y actividad reciente; cada cifra abre la lista que explica.
-  - Las acciones de registro van en la cabecera de la app.
+- **Inicio.** Un tablero con una tarjeta por módulo habilitado y visible para el rol, con dos o tres cifras y un gráfico pequeño solo si hay datos reales (sin ellos, un texto). Toda la tarjeta abre el módulo, así que sus cifras no son enlaces aparte.
+- **Entrada directa.** Sin pantalla para elegir espacio: se abre el último usado en ese navegador (la primera vez, el primero de la lista). Todos los roles entran igual; cambia lo que cada uno puede hacer.
+- **Módulo como app.**
+  - El menú lateral muestra solo sus secciones; el manifiesto las declara con su permiso ([02 §4](02_arquitectura.md#4-contrato-de-módulo)) y `/me` envía solo las permitidas.
+  - El Resumen reúne cifras, gráfico y actividad reciente, y cada cifra abre la lista que explica.
   - La barra superior dice dónde se está (módulo › sección), no el espacio ni la persona.
-- **Una sola aplicación:** misma sesión, admisión y sistema de diseño. Cada módulo se descarga al abrirlo ([02 §8](02_arquitectura.md#8-frontend)). El manifiesto declara las secciones con su permiso ([02 §4](02_arquitectura.md#4-contrato-de-módulo)) y `/me` envía solo las permitidas.
-- **El espacio es quien contrata, no un laboratorio:** una facultad o un instituto ([01 §2](01_producto.md#2-clientes-espacios-y-aislamiento)). Química, Física y los demás laboratorios viven dentro: hoy como ubicaciones y, desde F3, como espacios físicos con agenda en M4 Laboratorios. La demo los nombra así.
-- **La tarjeta de la persona es el selector de espacio** y muestra quién eres, en qué espacio y con qué rol (depende del espacio). Con varios espacios, toda la tarjeta abre el menú, que lleva al Inicio del elegido. En el móvil, un botón con las iniciales abre el mismo menú con «Salir».
-- **Rol real en lugar de «Miembro».** `/me` envía los nombres de los roles vigentes solo para mostrarlos; no autorizan nada.
-- **Institución.** Se muestra en el menú solo si los espacios de la persona son de instituciones distintas. El nombre va en `core.workspaces.institution_name`, que fija el Equipo PlatLab. El runtime no lee `platform.customer_accounts` y el nombre jurídico no se muestra.
-- **Lo transversal queda fuera de los módulos:** pendientes y bandeja de aprobaciones, en el Inicio; búsqueda y avisos, en la barra; miembros, suscripción y ubicaciones, en Administración. Los flujos entre módulos son enlaces; cada operación la ejecuta el módulo dueño del recurso ([ADR 0009](#adr-0009)).
-- **Gráficos.** Cuentan sucesos, nunca suman cantidades de unidades distintas; usan la zona horaria del espacio y el ámbito del miembro; llevan resumen en texto.
+  - Es una sola aplicación, con la misma sesión, admisión y diseño, y cada módulo se descarga al abrirlo ([02 §8](02_arquitectura.md#8-frontend)).
+- **El espacio es quien contrata**, una facultad o un instituto, no un laboratorio ([01 §2](01_producto.md#2-clientes-espacios-y-aislamiento)). Los laboratorios viven dentro, como áreas y espacios de Laboratorios.
+- **La tarjeta de la persona es el selector de espacio:** dice quién es, en qué espacio y con qué rol. En el móvil, un botón con las iniciales abre el mismo menú, con «Salir».
+- **Rol real en lugar de «Miembro» (05-10-2026).** `/me` envía los nombres de los roles vigentes solo para mostrarlos; no autorizan nada.
+- **Institución (05-10-2026).** Se muestra solo si los espacios de la persona son de instituciones distintas. Vive en `core.workspaces.institution_name`, que fija el Equipo PlatLab; el runtime no lee `platform.customer_accounts`, y el nombre jurídico no se muestra.
+- **Lo transversal queda fuera de los módulos:**
+  - los pendientes y las aprobaciones, en el Inicio;
+  - la búsqueda y los avisos, en la barra;
+  - los miembros y la suscripción, en Administración;
+  - las áreas y las ubicaciones, en Áreas ([ADR 0024](#adr-0024)).
 
-Motivo: los módulos se contratan por separado y cada uno se entiende como una herramienta propia; el Inicio da la vista de conjunto sin mezclar las operaciones. Reemplaza el menú común y las pestañas del tablero de 01 §7, y la regla de «no hay gráficos»; sigue la prohibición de gráficos sin datos reales (ADR 0010).
+  Los flujos entre módulos son enlaces, y cada operación la ejecuta el módulo dueño del recurso ([ADR 0009](#adr-0009)).
+- **Gráficos.** Cuentan sucesos y nunca suman cantidades de unidades distintas. Usan la zona horaria del espacio y el ámbito del miembro, y llevan un resumen en texto.
 
-Cambios: 02-10, 05-10-2026 (historial en git).
+Motivo: los módulos se contratan por separado y cada uno se entiende como una herramienta propia; el Inicio da la vista de conjunto sin mezclar las operaciones. Reemplaza el menú común y las pestañas del tablero de 01 §7, y la regla de «no hay gráficos»; sigue la prohibición de gráficos sin datos reales ([ADR 0010](#adr-0010)).
+
+Cambios: 02 y 05-10-2026; compactado el 16-11-2026 (historial en git).
 
 <a id="adr-0012"></a>
 ## ADR 0012 — Reactivos por frasco y salidas con aprobación
@@ -303,44 +312,24 @@ Cambios: 07, 13, 14, 21 y 28-10-2026; compactado el 16-11-2026 (las mediciones, 
 
 ## ADR 0014 — Reactivos completo: cinco secciones, Movimientos como informe y avisos comunes
 
-- **Cinco secciones:** Resumen, Inventario, Movimientos, Solicitudes y Fiscalizados. No hay Informes, Documentos ni Configuración:
-  - Los informes son Movimientos e Inventario filtrados (abajo).
-  - Cada documento vive donde se usa. La SDS va en la ficha del reactivo y en la hoja de salida, y el Inventario filtra «Sin SDS». El ingreso no registra factura ni guía (el usuario lo descartó el 14-10-2026), y las autorizaciones van en Fiscalizados. La carpeta de SDS para una inspección se obtiene exportando las de los reactivos filtrados.
-  - Motivos y destinos: el Administrador los añade y los archiva desde la misma lista donde los elige ([ADR 0012](#adr-0012)). Cada etiqueta lleva una papelera que la archiva de un clic, con aviso «Deshacer» (13-10-2026). En Movimientos son filtros.
-- **Movimientos como informe (R-01C).** Lo que se filtra es lo que se exporta. Los filtros van en la URL, así que un informe es un enlace.
-  - «Imprimir» saca lo filtrado (hasta 1.000 filas, con aviso si hay más) en una página con el espacio, el período y los filtros. En la vista Totales imprime los totales.
-  - El panel de filtros no se desplaza:
-    - Período y Tipo van en pastillas; «Mes anterior» se quita.
-    - Los demás grupos se pliegan, de uno en uno, con buscador, las 5 opciones más usadas y «Ver más».
-    - Reactivo muestra solo el nombre.
-  (14-10-2026)
-  - **Panel de filtros a la derecha**, plegable. Filtra por periodo (todo, 7 y 30 días, este mes, mes anterior, desde–hasta), tipo, reactivo (con búsqueda), responsable, destino, motivo y ubicación.
-    - **Responsable** es quien pidió la salida si hubo solicitud y, si no, quien la registró: responde «¿qué consumió Ana?».
-    - Cada filtro admite varios valores.
-    - Cada opción muestra cuántos movimientos tiene con los demás filtros aplicados, y solo aparecen las que tienen resultados. Lo calcula el servidor. Dentro de un grupo, el conteo no considera lo marcado en ese mismo grupo, para poder sumar opciones.
-  - Los filtros activos se ven como fichas sobre la lista, con quitar y «Limpiar», aunque el panel esté plegado. Por debajo de 1280 px el panel se abre con un botón «Filtros (n)»; en el móvil, como hoja.
-  - **Dos vistas:** Detalle (el libro por días) y Totales por reactivo, responsable, destino o mes. Los totales los calcula el servidor y, dentro de cada grupo, separan por reactivo y unidad: nunca suman unidades distintas. Los traslados se cuentan, pero no suman cantidad. Cada fila abre el Detalle con ese filtro.
-  - **Quién ve qué:** Detalle y filtros, todos los que ven Movimientos. Totales y exportación son «reportes» ([01 §5](01_producto.md#5-actores-y-roles)): permiso `reagents.report.read`, del Administrador, que el Propietario hereda.
-  - **«Exportar a Excel»** (`.xlsx`) llega con R-01B.
-    - Exporta la vista filtrada, con los filtros, el espacio, la fecha y quién lo generó en el encabezado.
-    - Se genera en el worker y queda en la auditoría.
-    - Exportan el Administrador y el Propietario ([01 §5](01_producto.md#5-actores-y-roles)); el Operador consulta.
-    - El Inventario exporta igual su vista filtrada.
-- **Fiscalizados** (REG-02, tras REG-01). Sección solo para el Responsable de fiscalizados y el Administrador. Contiene:
-  - el perfil de cada sustancia;
-  - la autorización, con sitios y cupos, y un aviso al acercarse al cupo;
-  - la custodia y el retorno;
-  - el reporte del periodo: borrador, revisión y exportación, y se sube a SISALEM a mano.
+- **Cinco secciones:** Resumen, Inventario, Movimientos, Solicitudes y Fiscalizados (se llamará «Controlados», [ADR 0015](#adr-0015)). No hay Informes, Documentos ni Configuración:
+  - los informes son Movimientos e Inventario filtrados;
+  - cada documento vive donde se usa. La ficha de seguridad va en la ficha del reactivo y en la salida, y el Inventario filtra «Sin SDS». Las autorizaciones van en Fiscalizados, y el ingreso no registra factura ni guía (14-10-2026);
+  - motivos y destinos se añaden y se archivan desde la misma lista donde se eligen ([ADR 0012](#adr-0012)).
+- **Movimientos como informe (R-01C).** Lo que se filtra es lo que se exporta, y los filtros van en la URL: un informe es un enlace.
+  - *Filtros:* periodo, tipo, reactivo, responsable, destino, motivo y ubicación, cada uno con varios valores. El responsable es quien pidió la salida si hubo solicitud y, si no, quien la registró: responde «¿qué consumió Ana?».
+  - *Conteo por opción:* cada opción dice cuántos movimientos tiene con los demás filtros aplicados, y solo aparecen las que tienen resultados. Lo calcula el servidor, y dentro de un grupo no cuenta lo marcado en ese grupo.
+  - *Dos vistas:* Detalle (el libro por días) y Totales por reactivo, responsable, destino o mes. Los totales los calcula el servidor separados por reactivo y unidad: nunca suman unidades distintas. Los traslados se cuentan, pero no suman cantidad.
+  - *Imprimir y exportar:* «Imprimir» saca lo filtrado (hasta 1.000 filas, con aviso si hay más) con el espacio, el periodo y los filtros. El Excel llega con R-01B ([ADR 0017](#adr-0017)), con el mismo encabezado y en la auditoría. El Inventario exporta igual su vista filtrada.
+  - *Quién ve qué:* el Detalle y los filtros, todos los que ven Movimientos. Totales y exportación son «reportes» ([01 §5](01_producto.md#5-actores-y-roles)): permiso `reagents.report.read`, del Administrador, que el Propietario hereda.
+- **Fiscalizados** (REG-02, tras REG-01). Solo para el Responsable de fiscalizados y el Administrador: el perfil de cada sustancia, la autorización con sitios y cupos (con un aviso al acercarse al cupo), la custodia y el retorno, y el reporte del periodo (borrador, revisión y exportación; se sube a SISALEM a mano). Se reduce a lo que confirme REG-01 ([ADR 0016](#adr-0016)).
+- **Avisos comunes en Core.** Un solo sistema para todos los módulos: cada uno declara sus tipos de aviso en su manifiesto, y la campana y las preferencias son comunes. Las preferencias son por persona, en «Mis avisos» (por módulo, por correo o en la app, con valores por defecto según el rol), y cada correo trae un enlace para darse de baja. Hasta T-07, los avisos van solo en la app ([ADR 0017](#adr-0017)).
+- **Preparación de soluciones:** mejora posterior a completar Reactivos; su diseño en [03 §4](03_datos.md#4-inventario-y-reactivos) se conserva.
+- **Orden:** «Reactivos se completa antes de abrir otro módulo»; lo reemplazó el [ADR 0018](#adr-0018).
 
-  En la operación diaria solo se ven la etiqueta «Fiscalizado» y su filtro en Movimientos.
-- **Avisos comunes en Core.** Un solo sistema para todos los módulos.
-  - Cada módulo declara sus tipos de aviso en su manifiesto y los emite por outbox (T-07). El envío, la campana y las preferencias son comunes.
-  - Preferencias por persona en «Mis avisos», desde la tarjeta de la persona: agrupadas por módulo, por correo o en la app, con valores por defecto según el rol. No hay configuración por módulo.
-  - Cada correo trae un enlace para darse de baja.
-- **Preparación de soluciones:** mejora posterior a completar Reactivos ([01 §8](01_producto.md#8-fuera-del-alcance-inicial)). Su diseño en [03 §4](03_datos.md#4-inventario-y-reactivos) se conserva.
-- **Orden.** Reactivos se completa antes de abrir otro módulo: R-01C, la entrega de ámbito por ubicación (Pendientes), T-07, R-01B y REG-02 cuando REG-01 esté validado ([roadmap](04_roadmap.md)).
+Motivo: menos secciones hacen la app más simple. El laboratorio piensa un informe como un filtro de Excel sobre el libro, y documentos y avisos son transversales: se resuelven donde ocurren o una sola vez para todos los módulos. Reemplaza las secciones Informes, Documentos y Configuración del boceto de [01 §7](01_producto.md#7-cómo-se-ve-la-plataforma).
 
-Motivo: menos secciones hacen la app más simple. El laboratorio piensa un informe como un filtro de Excel sobre el libro, y documentos y avisos son transversales: se resuelven donde ocurren o una sola vez para todos los módulos. El panel va a la derecha porque la izquierda ya tiene el menú del módulo: se lee menú, luego lista y luego refinar. Reemplaza las secciones Informes, Documentos y Configuración del boceto de [01 §7](01_producto.md#7-cómo-se-ve-la-plataforma).
+Cambios: 12, 13 y 14-10-2026; compactado el 16-11-2026 (la forma del panel de filtros, en git).
 
 <a id="adr-0015"></a>
 
@@ -382,66 +371,51 @@ Cambios: 12, 13 y 14-10-2026; compactado el 16-11-2026 (la disposición de la ve
 
 ## ADR 0016 — Controlados al final y orden para completar Reactivos
 
-- **Controlados (REG-02) va al final y se reduce a lo que confirme REG-01.**
-  - En el piloto, el reporte de controlados sale de Movimientos e Inventario filtrados por «Controlado» y exportados a PDF o Excel.
-  - Cupos, custodia y reporte en formato oficial se hacen solo si REG-01 los exige.
-- **Orden para completar Reactivos:**
-  1. Mejoras pequeñas:
-     - «Ficha de seguridad» en la hoja de salida, adonde lleva el escaneo;
-     - ruta de la ubicación en el historial;
-     - código automático sin palabras vacías.
+- **Controlados (REG-02) va al final y se reduce a lo que confirme REG-01.** En el piloto, el reporte sale de Movimientos e Inventario filtrados por «Controlado» y exportados a PDF o Excel. Cupos, custodia y reporte en formato oficial se hacen solo si REG-01 los exige.
+- **Orden para completar Reactivos** (14-10-2026; lo reemplazan el [ADR 0017](#adr-0017) y el [ADR 0018](#adr-0018)):
+  - mejoras pequeñas: la ficha de seguridad en la hoja de salida, adonde lleva el escaneo; la ruta de la ubicación en el historial; y el código automático sin palabras vacías. «Factura o guía» se descarta;
+  - ámbito por ubicación, solo como limpieza de permisos (ADR 0008, «Sin ámbito técnico»). La vista por laboratorio es del módulo Laboratorios;
+  - después, T-07, R-01B, la preparación de soluciones, lo previo a G1 y REG-01 con REG-02 reducido.
 
-     Revisado el 14-10-2026: los indicadores del Resumen ya enlazaban a su lista, y «Factura o guía» se descarta, junto con la referencia de texto que aceptaba el ingreso y la web no usaba.
-  2. Ámbito por ubicación: solo limpieza de permisos. Las ubicaciones y la vista por laboratorio no cambian; esa vista es del módulo Laboratorios (F3). Hecho el 14-10-2026 (ADR 0008, «Sin ámbito técnico»).
-  3. T-07: aplazado ([ADR 0017](#adr-0017)).
-  4. R-01B: ficha de seguridad en PDF por reactivo (también al escanear y en la salida), avisos y exportar a Excel y PDF.
-  5. Preparación de soluciones: pasa al final, como submódulo ([ADR 0017](#adr-0017)).
-  6. Antes de G1: catálogo de más de 100 reactivos, auditoría de UI, QR impreso y rendimiento.
-  7. REG-01 y REG-02 reducido.
+Motivo: el usuario prioriza un módulo completo y usable. El reporte exportable cubre la obligación periódica mientras REG-01 confirma con el laboratorio y la norma qué más hace falta. Cambia la barrera de `CLAUDE.md` y el orden del [ADR 0014](#adr-0014).
 
-Motivo: el usuario prioriza un módulo completo y usable. El reporte exportable cubre la obligación periódica mientras REG-01 confirma con el laboratorio y la norma qué más hace falta. Cambia la barrera de `CLAUDE.md` y el orden del [ADR 0014](#adr-0014) (14-10-2026).
+Cambios: 14-10-2026; compactado el 16-11-2026.
 
 <a id="adr-0017"></a>
 
 ## ADR 0017 — Ficha de seguridad pública, exportación por streaming y T-07 aplazado
 
-- **Ficha de seguridad: enlace o PDF.** El Administrador pega el enlace del fabricante o sube el PDF. La ficha es informativa, no sensible: el PDF queda en un bucket público de Supabase Storage con enlace permanente.
-  - Solo la API sube, con el permiso de catálogo del espacio; el navegador nunca escribe en Storage.
-  - Ruta `<workspace_id>/sds/<uuid>.pdf`: nadie lista, sobrescribe ni borra archivos de otro espacio. Quien recibe un enlace ve esa ficha, y se acepta por ser informativa.
-  - Solo PDF, comprobado por su contenido (`%PDF`), de 6 MiB como máximo ([02 §12](02_arquitectura.md#12-parámetros-iniciales)).
-  - Nunca se sobrescribe: una ficha nueva es un archivo nuevo y la anterior queda para trazabilidad.
-  - Storage se enciende en el entorno local y en el CI.
-- **Exportar por streaming.** El Excel de Movimientos e Inventario sale de la misma consulta aislada del espacio, por lotes con cursor, sin cargarlo entero en memoria ni guardarlo. El PDF sale de «Imprimir».
-- **T-07 se aplaza** (archivos privados, outbox y worker) hasta el primer efecto externo: correo, integración o trabajo en segundo plano. Los avisos de R-01B van solo en la app y se calculan al consultar.
-- **Orden de Reactivos revisado:** R-01B; lo previo a G1, que suma el rendimiento con la carga sintética del roadmap y una prueba de aislamiento en todas las rutas; REG-01 y REG-02 reducido; y al final la preparación de soluciones, como submódulo de Reactivos.
+- **Ficha de seguridad: enlace o PDF.** El Administrador pega el enlace del fabricante o sube el PDF. La ficha es informativa, no sensible, así que el PDF va a un bucket público con enlace permanente (`public-files`; en el entorno local y el CI, por `supabase/config.toml`; en Supabase alojado se crea en S-01).
+  - Solo la API sube, con el permiso de catálogo y con las claves S3 de Storage, que solo alcanzan archivos; nunca con `service_role`. El navegador no escribe en Storage.
+  - Ruta `<workspace_id>/sds/<uuid>.pdf`: nadie lista, sobrescribe ni borra archivos de otro espacio. Quien recibe un enlace ve esa ficha, y se acepta.
+  - Solo PDF, comprobado por su contenido (`%PDF`), hasta el límite de [02 §12](02_arquitectura.md#12-parámetros-iniciales).
+  - Nunca se sobrescribe: cada archivo es una fila de `reagents.safety_sheets`, que no se borra, y el reactivo apunta a la vigente (una sola, enlace o PDF).
+  - La API autoriza, sube fuera de la transacción y registra en otra que vuelve a autorizar. Si el registro falla, queda un archivo sin referencia; se acepta por ser público, con nombre aleatorio y sin datos sensibles.
+- **Exportar por streaming.** El Excel sale de la misma consulta aislada del espacio, por lotes con cursor, sin cargarlo entero en memoria ni guardarlo.
+  - Se escribe con `fflate`, y las cantidades pasan como texto decimal exacto, nunca por `number`. El tope está en [02 §12](02_arquitectura.md#12-parámetros-iniciales).
+  - El del Inventario lleva dos hojas: reactivos, como en pantalla, y frascos con saldo.
+  - El PDF sale de «Imprimir».
+- **T-07 se aplaza** (archivos privados, outbox y worker) hasta el primer efecto externo: correo, integración o trabajo en segundo plano.
+- **Avisos solo en la app**, calculados al consultar. Reemplazan la emisión por outbox del [ADR 0014](#adr-0014).
+  - Core los compone desde el manifiesto de cada módulo, como las tarjetas del Inicio, y cada aviso exige su permiso.
+  - En Reactivos: solicitudes por aprobar (`reagents.issue.approve`), bajo mínimo, vencidos y por vencer (`reagents.catalog.read`).
+  - Son condiciones vigentes: sin «leído», desaparecen al resolverse. «Mis avisos» llega con el correo (T-07).
 
-Motivo: el usuario prioriza lo necesario para el piloto y menos superficie fuera de la base, donde un cliente podría mezclarse con otro; la ficha de seguridad no es un dato sensible. Cambia el orden del [ADR 0016](#adr-0016) y, solo para las fichas, la regla «Storage es privado» de 02 (14-10-2026).
+Motivo: el usuario prioriza lo necesario para el piloto y menos superficie fuera de la base, donde un cliente podría mezclarse con otro; la ficha de seguridad no es un dato sensible. Cambia el orden del [ADR 0016](#adr-0016) y, solo para las fichas, la regla «Storage es privado» de 02.
 
-**Implementación de R-01B (15-10-2026).** Tres entregas, una rama cada una: ficha en PDF, Excel e «Imprimir», y avisos.
-
-- **Ficha en PDF.**
-  - Cada archivo es una fila de `reagents.safety_sheets`, que nunca se borra; el reactivo apunta a la vigente. Hay una sola ficha vigente: enlace o PDF.
-  - La API sube con las claves S3 de Storage, que solo alcanzan archivos; nunca con la clave `service_role`, que abre la base.
-  - Autoriza, sube fuera de la transacción y registra en otra que vuelve a autorizar: nada externo con la transacción abierta. Si el registro falla, queda un archivo sin referencia; se acepta por ser público, con nombre aleatorio y sin datos sensibles.
-  - Bucket público `public-files` en `supabase/config.toml` para el entorno local y el CI; en Supabase alojado se crea en S-01.
-- **Excel.**
-  - Se escribe con `fflate` (sin dependencias): las cantidades pasan como texto decimal exacto, nunca por `number`. Tope en [02 §12](02_arquitectura.md#12-parámetros-iniciales).
-  - El Inventario lleva dos hojas: reactivos, como en pantalla, y frascos con saldo (lote, ubicación, caducidad y saldo).
-- **Avisos.** Core los compone desde el manifiesto de cada módulo, como las tarjetas del Inicio, y cada uno exige su permiso.
-  - Reactivos: solicitudes por aprobar (`reagents.issue.approve`), bajo mínimo, vencidos y por vencer (`reagents.catalog.read`).
-  - Son condiciones vigentes: sin «leído», desaparecen al resolverse. «Mis avisos» llega con el correo (T-07). Reemplaza la emisión por outbox del [ADR 0014](#adr-0014).
+Cambios: 14 y 15-10-2026 (R-01B en tres entregas: ficha en PDF, Excel e «Imprimir», y avisos); compactado el 16-11-2026.
 
 <a id="adr-0018"></a>
 
 ## ADR 0018 — Reactivos concluido para el piloto; sigue Equipos
 
-- **Reactivos queda concluido** con la ficha de seguridad en PDF (R-01B, entrega 1). Sus pruebas están escritas y se corren más adelante.
+- **Reactivos queda concluido** con la ficha de seguridad en PDF (R-01B, entrega 1).
 - **Lo pendiente se programa solo si el cliente lo confirma** (F0):
-  - «Exportar a Excel», con el Inventario en dos hojas, y los avisos en la app (resto de R-01B, [ADR 0017](#adr-0017)).
-  - El QR impreso y la auditoría formal de la UI (R-01A).
-  - Lo previo a G1: rendimiento con la carga sintética, aislamiento en todas las rutas y los pendientes de la tabla de abajo.
-  - REG-01 y REG-02 reducido, y la preparación de soluciones.
-- **Reorganización sin cambiar la lógica**, hecha el 15-10-2026; falta correr las pruebas, que la confirman. Los comandos de Reactivos van por caso de uso en `application/` (catálogo, ficha, movimientos, salidas y listas), su prueba de integración en siete archivos con apoyo común, los contratos por área en `contracts/src/reagents/`, y `MovementFilterPanel` e `IngressSheet` en hooks y secciones. Equipos nace con esa estructura.
+  - el resto de R-01B: el Excel del Inventario en dos hojas y los avisos en la app ([ADR 0017](#adr-0017)). El de Movimientos se adelantó ([ADR 0021](#adr-0021));
+  - el QR impreso y la auditoría formal de la UI (R-01A);
+  - lo previo a G1: rendimiento con la carga sintética, aislamiento en todas las rutas y lo que dice la tabla de Pendientes;
+  - REG-01, REG-02 reducido y la preparación de soluciones.
+- **Estructura de módulo** (15-10-2026, sin cambiar la lógica): comandos por caso de uso en `application/`, contratos por área en `contracts/src/<módulo>/` y las hojas grandes partidas en hooks y secciones. Los módulos nuevos nacen así.
 - **Sigue E-01 Equipos**, con el mínimo que confirme el cliente.
 
 Motivo: el usuario da por concluido el módulo y no quiere lógica que el cliente no necesite. Reemplaza el orden del [ADR 0016](#adr-0016) y del [ADR 0017](#adr-0017), y la regla «Reactivos se completa antes de abrir otro módulo» del [ADR 0014](#adr-0014) (15-10-2026).
@@ -540,27 +514,18 @@ Cambios: 19 y 20-10-2026; compactado el 16-11-2026 (el detalle de cada pantalla,
 
 Estado: aceptada (20-10-2026, a pedido del usuario: «cero lógica muerta o duplicada»).
 
-- **Revisión con codebase-memory.** Fronteras, tipado y código muerto ya los vigilan `deps`, `typecheck` y `knip` en verde. Lo que falla es la duplicación entre módulos: cada uno copió lo que el anterior ya tenía, porque `web-features-isolated` impide importar de otro módulo. Hay además dos hojas de cientos de líneas que mezclan la lógica del formulario con la pantalla.
-- **Lo común sube a su capa** (`apps/server/src/platform/` y `apps/web/src/app/`), nunca a otro módulo:
-  - Servidor:
-    - el Excel de un informe: la respuesta en partes de la ruta, el encabezado (espacio, fecha, autor y filtros) y la marca de tiempo; hoy está tres veces;
-    - el día civil en la zona del espacio.
-  - Mantenimiento lee «hoy» de la base con un solo ayudante tipado, sin conversiones.
-  - Web:
-    - el menú «Exportar» y la cabecera de sección;
-    - las fechas civiles («hoy», días entre fechas), el conteo con plural, la validación y el peso del PDF y la inversión de las abreviaturas de la URL;
-    - la lectura de la etiqueta de un equipo y los mensajes de error comunes.
-- **Las hojas grandes se parten como la del equipo** (`asset-form.ts`):
-  - la del plan pasa su lógica a funciones puras con pruebas;
-  - la del registro se divide en secciones.
-  - Los dos gráficos de barras comparten la leyenda, el eje y el cursor de teclado.
+- **El problema era la duplicación entre módulos.** Fronteras, tipos y código muerto ya los vigilan `deps`, `typecheck` y `knip`. Pero `web-features-isolated` impide importar de otro módulo, así que cada uno copiaba lo que el anterior ya tenía.
+- **Lo común sube a su capa, nunca a otro módulo:**
+  - En el servidor (`apps/server/src/platform/`): el Excel de un informe (respuesta en partes, encabezado con espacio, fecha, autor y filtros) y el día civil en la zona del espacio.
+  - En la web (`apps/web/src/app/`): el menú «Exportar», la cabecera de sección, las fechas civiles, el conteo con plural, la validación del PDF, la lectura de la etiqueta de un equipo y los mensajes de error comunes.
+- **Las hojas grandes se parten:** la lógica del formulario en funciones puras con pruebas y la pantalla en secciones, como `asset-form.ts`.
 - **Se acepta sin cambio:**
-  - la consulta de tipos de equipo que Mantenimiento repite: el aislamiento de los módulos de la web vale más que una caché compartida;
-  - que ninguno de los dos tenga capa `domain/`: sus reglas viven en SQL y en `application/` (ADR 0006);
+  - que Mantenimiento repita la consulta de tipos de equipo: el aislamiento de los módulos de la web vale más que una caché compartida;
+  - que ningún módulo tenga capa `domain/`: sus reglas viven en SQL y en `application/` ([ADR 0006](#adr-0006));
   - el `!` tras un `INSERT … RETURNING`.
-- **No cambian** las funciones, los datos ni los permisos. Hay dos excepciones:
-  - la cabecera de Equipos gana el foco de respaldo que ya tiene Mantenimiento;
-  - los avisos del escáner de equipos dicen lo mismo en los dos módulos.
+- **No cambian** las funciones, los datos ni los permisos.
+
+Cambios: 20-10-2026; compactado el 16-11-2026.
 
 <a id="adr-0023"></a>
 
@@ -634,30 +599,29 @@ Cambios: 21-10, 23-10, 24-10, 26-10, 28-10, 05-11, 14-11, 15-11 y 16-11-2026 (co
 Estado: aceptada (20-10-2026; idea del usuario: cuadros que la app dibuja como un croquis). Ajusta la lista «área o departamento» de Reactivos ([ADR 0015](#adr-0015)), sus destinos ([ADR 0012](#adr-0012)) y Espacios de Laboratorios ([ADR 0023](#adr-0023)).
 
 - **Dos datos en todo recurso:**
-  - **Área (dónde):** la ubicación física del Núcleo (`core.locations`, `core.location_areas`), ya común a los módulos.
-  - **Departamento (de quién):** lista nueva del Núcleo, con dueños y carreras. Un mismo laboratorio guarda cosas de varios departamentos.
-- **Sección «Áreas» en la barra lateral, bajo «Inicio».** No va en el Resumen de los módulos.
+  - *Área (dónde):* la ubicación física del Núcleo (`core.locations`, `core.location_areas`), común a los módulos.
+  - *Departamento (de quién):* una lista del Núcleo, con dueños y carreras. Un mismo laboratorio guarda cosas de varios departamentos.
+- **Sección «Áreas» en la barra lateral, bajo «Inicio»**, no en el Resumen de los módulos.
   - La ven el Propietario, el Administrador y el Operador; crean, renombran y archivan el Propietario y el Administrador.
-  - Un selector «Áreas | Departamentos» cambia la vista.
-  - La app dibuja un cuadro por área, agrupado por sede o edificio: nombre, encargado y una cifra por módulo (🧪 reactivos con existencias, 🔬 equipos activos). No es un lienzo ni una tabla: nadie dibuja ni mueve cuadros.
+  - Un selector «Áreas | Departamentos» cambia la vista. Hay un cuadro por área, agrupado por sede o edificio, con su nombre, su encargado y una cifra por módulo. Nadie dibuja ni mueve cuadros.
   - Cada cifra abre la lista de su módulo filtrada por esa área o ese departamento.
-  - Al abrir un área se ven y se crean sus estantes, y se asigna su encargado (Equipos lo muestra y deja de editarlo).
-  - La vista Departamentos usa los mismos cuadros, con las cifras de cada dueño.
-  - Cada módulo declara su icono y su cifra, como su tarjeta de Inicio: la sección no conoce a los módulos.
+  - Al abrir un área se ven y se crean sus estantes y se asigna su encargado; Equipos lo muestra y deja de editarlo.
+  - Cada módulo declara su icono y su cifra, como su tarjeta del Inicio: la sección no conoce a los módulos.
 - **Los formularios solo eligen:**
-  - la ubicación (ingreso, traslado, alta de equipo), entre áreas y estantes existentes, sin «+ Crear». Si falta, el aviso pide al Administrador crearla en Áreas;
-  - el **departamento**, opcional, al ingresar un reactivo (reemplaza «Área o departamento») y al dar de alta o editar un equipo;
-  - el **destino** de una salida es un departamento, como una carrera. La lista de destinos de Reactivos desaparece;
-  - los motivos no cambian.
+  - la ubicación (ingreso, traslado, alta de equipo), entre áreas y estantes existentes. Si falta, el aviso pide al Administrador crearla en Áreas;
+  - el departamento, opcional, al ingresar un reactivo y al dar de alta o editar un equipo;
+  - el destino de una salida, que es un departamento. La lista de destinos de Reactivos desaparece, y los motivos no cambian.
 - **Reglas:**
   - un área con reactivos o equipos, en ella o en sus estantes, no se archiva: primero se trasladan;
   - archivar un departamento solo lo deja de ofrecer;
-  - la historia no cambia: salidas y solicitudes guardan el texto del destino, como hoy. El lote y el equipo guardan el departamento enlazado: renombrarlo cambia en todas partes.
-- **Datos actuales:** las listas «área o departamento» y de destinos pasan a la de departamentos, sin repetir nombres, y cada lote se enlaza por nombre. No hay datos reales; la demo usa carreras como departamentos.
-- **Laboratorios** (se confirma al empezar L-01a): el «Grupo» del bloque, la carrera, se elige de Departamentos. Espacios solo agrega horario, aforo y cierres a las áreas, que se crean aquí.
+  - la historia no cambia: salidas y solicitudes guardan el texto del destino. El lote y el equipo guardan el departamento enlazado, así que renombrarlo cambia en todas partes.
+- **Datos anteriores:** las listas «área o departamento» y de destinos pasaron a la de departamentos, sin repetir nombres. No había datos reales; la demo usa carreras como departamentos.
+- **Laboratorios:** el «Grupo» del bloque, la carrera, se elige de Departamentos. Espacios solo agrega horario, aforo y cierres a las áreas, que se crean aquí.
 - **Entregas** ([04](04_roadmap.md), C-01), antes de L-01a:
   - **C-01a:** datos, API, cifras por área y por departamento y el paso de las listas actuales;
   - **C-01b:** la sección Áreas y los formularios que solo eligen.
+
+Cambios: 20-10-2026; compactado el 16-11-2026.
 
 ## Pendientes
 
