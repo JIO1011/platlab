@@ -6,6 +6,7 @@ import {
   holdForActivity,
   reholdForActivity,
   releaseActivityHolds,
+  stockBreakdown,
   type ActivityHoldOption,
 } from '../../../capabilities/inventory/index.js';
 import type { WorkspaceAccess } from '../../core/index.js';
@@ -17,20 +18,14 @@ export interface RequestableReagent {
   code: string;
   name: string;
   unit: string;
-  /** Lo usable hoy, en la unidad base: sin cuarentena ni lotes vencidos. Cadena decimal exacta. */
-  available: string;
 }
 
 /**
- * Reactivos que Laboratorios ofrece y valida en una solicitud (ADR 0023): sin reservar nada. Con `itemIds`, esos; si
+ * Reactivos que Laboratorios ofrece y valida en una solicitud (ADR 0023), con su nombre y unidad: sin reservar nada. Con `itemIds`, esos; si
  * no, los activos cuyo nombre o código contienen `q` (vacío, todos, hasta 200).
  */
 export async function requestableReagents(access: WorkspaceAccess, filter: { q?: string; itemIds?: string[] }): Promise<RequestableReagent[]> {
-  const rows = await requestableReagentsQuery.run(
-    { workspaceId: access.workspace.id, timeZone: access.workspace.timeZone, q: filter.q ?? '', itemIds: filter.itemIds ?? null },
-    access.client,
-  );
-  return rows.map((row) => ({ id: row.id, code: row.code, name: row.name, unit: row.unit, available: row.available }));
+  return requestableReagentsQuery.run({ workspaceId: access.workspace.id, q: filter.q ?? '', itemIds: filter.itemIds ?? null }, access.client);
 }
 
 /**
@@ -57,6 +52,11 @@ export function heldReagentQuantities(access: WorkspaceAccess, allocationIds: re
 /** Lo que se podría apartar de cada reactivo el día `validOn`, por área: las alternativas antes de enviar (ADR 0023). */
 export function reagentStockByArea(access: WorkspaceAccess, itemIds: readonly string[], validOn: string) {
   return holdableByArea(inventoryContext(access), itemIds, validOn);
+}
+
+/** Cómo se reparte el saldo de cada reactivo el día `validOn`: lo apartado y lo vencido (ADR 0023, «Disponibilidad y recursos»). */
+export function reagentStockBreakdown(access: WorkspaceAccess, itemIds: readonly string[], validOn: string) {
+  return stockBreakdown(inventoryContext(access), itemIds, validOn);
 }
 
 /** Los frascos de los que un bloque puede apartar un reactivo ese día, con lo que ya apartó (ADR 0023). */

@@ -72,9 +72,8 @@ export interface Draft {
   baseRevision: number;
   /** Logo y líneas del membrete. */
   header: FormHeader;
-  /** El membrete: título del formato y código del documento (vacío si no lleva). */
+  /** El título del formato, en el membrete. La casilla «Código» es del código de práctica, que pone el sistema. */
   title: string;
-  documentCode: string;
   rows: DraftRow[];
   /** Las tres columnas en el orden de la hoja: las que se muestran primero y las ocultas después. */
   resources: DraftResource[];
@@ -109,14 +108,13 @@ function draftField(field: FormField): DraftField {
 }
 
 /** El borrador de una revisión (de un formato o de la que lleva una solicitud): las filas conservan su orden y las columnas ocultas se agregan al final con su nombre de siempre. */
-export function draftFrom(form: Pick<LabsForm, 'revision' | 'title' | 'documentCode' | 'layout'>): Draft {
+export function draftFrom(form: Pick<LabsForm, 'revision' | 'title' | 'layout'>): Draft {
   const { layout } = form;
   const hidden = formResourceKind.options.filter((kind) => !layout.resources.some((resource) => resource.kind === kind));
   return {
     baseRevision: form.revision,
     header: layout.header,
     title: form.title,
-    documentCode: form.documentCode ?? '',
     rows: layout.rows.map((row, at): DraftRow =>
       row.kind === 'section' ? { kind: 'section', id: `row-${at}`, title: row.title } : { kind: 'row', id: `row-${at}`, fields: row.fields.map(draftField) },
     ),
@@ -144,7 +142,7 @@ function freePayload(field: DraftFreeField, key: string): FormFreeField {
   return field.type === 'list' ? { ...base, type: 'list', options: optionsOf(field.options) } : { ...base, type: field.type };
 }
 
-/** El cuerpo de «Publicar revisión», que `publishFormRequest` valida; las claves de los datos libres nuevos se derivan aquí. */
+/** El cuerpo de «Guardar cambios», que `publishFormRequest` valida; las claves de los datos libres nuevos se derivan aquí. */
 export function publishPayload(draft: Draft) {
   const keys = freeKeys(draft.rows);
   const rows = draft.rows.map(
@@ -155,7 +153,8 @@ export function publishPayload(draft: Draft) {
   );
   return {
     title: draft.title,
-    documentCode: draft.documentCode.trim() === '' ? null : draft.documentCode,
+    // La hoja ya no lleva código del documento: la casilla «Código» es la del código de práctica (decisión del 14-11-2026).
+    documentCode: null,
     expectedRevision: draft.baseRevision,
     layout: {
       header: { logoUrl: draft.header.logoUrl, lines: draft.header.lines.map((line) => line.trim()).filter((line) => line !== '') },
@@ -171,7 +170,6 @@ export function publishPayload(draft: Draft) {
 /** Los textos de una sola línea que el contrato valida, con el aviso de cuando falta y el de cuando sobra. */
 const lineMessages = {
   title: { empty: 'Escribe el título del formato.', long: 'El título admite hasta 120 caracteres.' },
-  documentCode: { empty: 'Escribe el código o déjalo vacío.', long: 'El código admite hasta 40 caracteres.' },
   section: { empty: 'Escribe el título de la sección.', long: 'El título admite hasta 80 caracteres.' },
   field: { empty: 'Escribe la etiqueta del dato.', long: 'La etiqueta admite hasta 80 caracteres.' },
   resource: { empty: 'Escribe el nombre de la columna.', long: 'El nombre admite hasta 40 caracteres.' },
@@ -183,7 +181,6 @@ const lineMessage = (kind: keyof typeof lineMessages, issue: z.core.$ZodIssue): 
 /** Lo que el contrato rechazó de la hoja, dicho donde la persona lo corrige. */
 export interface FormIssues {
   title?: string;
-  documentCode?: string;
   /** Por id de sección. */
   sections: Record<string, string>;
   /** Por id de dato. */
@@ -222,7 +219,7 @@ export function formIssues(error: z.ZodError, draft: Draft): FormIssues {
     let placed = false;
     for (const { path, issue: leaf } of leaves(issue)) {
       const [head, group, index, ...rest] = path;
-      if ((head === 'title' || head === 'documentCode') && path.length === 1) {
+      if (head === 'title' && path.length === 1) {
         result[head] ??= lineMessage(head, leaf);
         placed = true;
       } else if (head === 'layout' && typeof index === 'number') {

@@ -79,7 +79,7 @@ interface PlacementOpen {
 
 /**
  * Cronograma (ADR 0023, L-01c; vista decidida el 24-10-2026): el título arriba (y, a la derecha, el aviso de las áreas sin
- * horario), una barra del día (‹ ›, la fecha completa con su período, la semana, «Hoy» y el calendario), la tabla del día
+ * horario), una barra del día (‹ Hoy ›, la fecha completa con su período y sus bloques, la semana y el calendario), la tabla del día
  * que llena el alto de la ventana, con las áreas con horario como columnas y las horas como filas, y «Por programar» pegada abajo. La ven todos los que consultan Laboratorios; el día vive en
  * la URL (`?dia=`), con «Hoy» por omisión. Un clic en un bloque abre su solicitud llena para quien puede verla (quien
  * recibe, en Recibidas; el Docente, la suya) o, si no, su panel de solo lectura. El Administrador (`labs.schedule.manage`)

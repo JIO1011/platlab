@@ -131,7 +131,8 @@ function ModuleCard({ card }: { card: Card }) {
       ) : null}
       <div id={statsId} className="relative mt-auto pt-8">
         <dl className="grid grid-cols-2 gap-4">
-          {(descriptor?.home.counters ?? []).map((counter) => {
+          {/* Cada cifra, si el módulo la envía: Laboratorios envía unas a quien pide y otras a quien las recibe. */}
+          {(descriptor?.home.counters ?? []).filter((counter) => card.summary !== null && counter.key in card.summary).map((counter) => {
             const value = card.summary?.[counter.key] ?? 0;
             return (
               <div key={counter.key} className="flex flex-col-reverse gap-1">

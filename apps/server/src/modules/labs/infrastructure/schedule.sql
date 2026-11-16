@@ -2,7 +2,7 @@
 
 /* @name listActivities */
 -- Los bloques activos del rango (o solo :activityId), con lo que el bloque muestra: actividad, solicitante y grupo.
-SELECT a.id, a.request_id, q.number AS request_number, coalesce(q.title, '') AS "title!",
+SELECT a.id, a.request_id, coalesce(q.title, '') AS "title!",
   coalesce(requester.display_name, '') AS "requester_name!", subject.name AS "subject?", career.name AS "group?",
   coalesce(q.participants, 0) AS "participants!",
   a.on_date::text AS "date!", a.area_id, to_char(a.starts_at, 'HH24:MI') AS "starts_at!", to_char(a.ends_at, 'HH24:MI') AS "ends_at!",
@@ -31,8 +31,7 @@ FOR UPDATE;
 
 /* @name lockRequestForSchedule */
 -- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.
-SELECT number, status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!", area_id,
-  to_char(starts_at, 'HH24:MI') AS starts_at, to_char(ends_at, 'HH24:MI') AS ends_at,
+SELECT status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!",
   ARRAY(SELECT a.on_date::text FROM labs.activities AS a
          WHERE a.workspace_id = labs.requests.workspace_id AND a.request_id = labs.requests.id AND a.cancelled_at IS NULL)
     AS "scheduled_dates!"

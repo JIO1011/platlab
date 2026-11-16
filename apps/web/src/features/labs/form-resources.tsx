@@ -11,7 +11,7 @@ const SAMPLE_ROWS = 3;
 
 /** El ancho relativo de las columnas de cada recurso: su nombre y sus cantidades. Se reparten a 100 % entre las que se muestran. */
 const columnWeights = (kind: ResourceKind, equipmentCode: boolean): number[] => {
-  if (kind === 'reagents') return [19, 7.5];
+  if (kind === 'reagents') return [15, 11.5];
   return kind === 'equipment' ? [17.2, 7.5, 7.5, ...(equipmentCode ? [9.7] : [])] : [17.2, 7.5, 7.5];
 };
 
@@ -38,8 +38,9 @@ export function ResourcesTable({ draft, issues, onChange, rows }: { draft: Draft
   const hidden = draft.resources.filter((resource) => !resource.shown);
   const weights = shown.flatMap((resource) => columnWeights(resource.kind, draft.equipmentCode));
   const total = weights.reduce((sum, weight) => sum + weight, 0);
-  const head = cn(sheetCell, denseCell, cellKinds.head, 'text-center');
-  const sub = cn(sheetCell, denseCell, cellKinds.label, 'text-center text-[11px]');
+  // La cabecera, en columnas angostas, con menos aire a los lados que una fila para que «Cantidad» quepa.
+  const head = cn(sheetCell, denseCell, cellKinds.head, 'px-1.5 text-center tracking-normal');
+  const sub = cn(sheetCell, denseCell, cellKinds.label, 'px-1.5 text-center text-[11px] tracking-normal');
 
   const heading = (resource: DraftResource) => (
     <th key={resource.kind} rowSpan={2} className={cn(head, editable && 'p-0.5')}>
@@ -153,7 +154,7 @@ export function ResourcesTable({ draft, issues, onChange, rows }: { draft: Draft
               Array.from({ length: resourceRows(draft) }, (_, line) => (
                 <tr key={line} className={cn('print:break-inside-avoid', line >= SAMPLE_ROWS && 'hidden print:table-row')}>
                   {weights.map((_weight, column) => (
-                    <td key={column} className={cn(sheetCell, denseCell, 'bg-white')} />
+                    <td key={column} className={cn(sheetCell, denseCell, 'h-8 bg-white')} />
                   ))}
                 </tr>
               ))}

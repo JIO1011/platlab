@@ -249,10 +249,10 @@ export interface IActivityReagentLineParams {
 
 /** 'ActivityReagentLine' return type */
 export interface IActivityReagentLineResult {
+  activity_code: string;
   area_name: string;
   item_id: string;
   quantity: string;
-  request_number: number;
   unit: string;
 }
 
@@ -262,17 +262,16 @@ export interface IActivityReagentLineQuery {
   result: IActivityReagentLineResult;
 }
 
-const activityReagentLineIR: any = {"usedParamSet":{"line":true,"workspaceId":true,"activityId":true},"params":[{"name":"line","required":true,"transform":{"type":"scalar"},"locs":[{"a":651,"b":656}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":681,"b":693}]},{"name":"activityId","required":true,"transform":{"type":"scalar"},"locs":[{"a":706,"b":717}]}],"statement":"-- Una línea de reactivo del catálogo de un bloque (ADR 0023, «Cierre de Laboratorios»): su ítem, lo pedido, el código de\n-- la solicitud y el área del bloque, que es el destino de lo apartado.\nSELECT r.number AS request_number, area.name AS area_name, l.item_id AS \"item_id!\", trim_scale(l.quantity)::text AS \"quantity!\",\n  l.unit AS \"unit!\"\nFROM labs.activities AS a\nJOIN labs.requests AS r ON r.workspace_id = a.workspace_id AND r.id = a.request_id\nJOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id\nJOIN labs.request_lines AS l ON l.workspace_id = a.workspace_id AND l.request_id = a.request_id AND l.line = :line!\nWHERE a.workspace_id = :workspaceId! AND a.id = :activityId! AND l.kind = 'reagent' AND l.item_id IS NOT NULL"};
+const activityReagentLineIR: any = {"usedParamSet":{"line":true,"workspaceId":true,"activityId":true},"params":[{"name":"line","required":true,"transform":{"type":"scalar"},"locs":[{"a":561,"b":566}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":591,"b":603}]},{"name":"activityId","required":true,"transform":{"type":"scalar"},"locs":[{"a":616,"b":627}]}],"statement":"-- Una línea de reactivo del catálogo de un bloque (ADR 0023, «Cierre de Laboratorios»): su ítem, lo pedido, el código de\n-- práctica del bloque y su área, que es el destino de lo apartado.\nSELECT a.code AS activity_code, area.name AS area_name, l.item_id AS \"item_id!\", trim_scale(l.quantity)::text AS \"quantity!\",\n  l.unit AS \"unit!\"\nFROM labs.activities AS a\nJOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id\nJOIN labs.request_lines AS l ON l.workspace_id = a.workspace_id AND l.request_id = a.request_id AND l.line = :line!\nWHERE a.workspace_id = :workspaceId! AND a.id = :activityId! AND l.kind = 'reagent' AND l.item_id IS NOT NULL"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Una línea de reactivo del catálogo de un bloque (ADR 0023, «Cierre de Laboratorios»): su ítem, lo pedido, el código de
- * -- la solicitud y el área del bloque, que es el destino de lo apartado.
- * SELECT r.number AS request_number, area.name AS area_name, l.item_id AS "item_id!", trim_scale(l.quantity)::text AS "quantity!",
+ * -- práctica del bloque y su área, que es el destino de lo apartado.
+ * SELECT a.code AS activity_code, area.name AS area_name, l.item_id AS "item_id!", trim_scale(l.quantity)::text AS "quantity!",
  *   l.unit AS "unit!"
  * FROM labs.activities AS a
- * JOIN labs.requests AS r ON r.workspace_id = a.workspace_id AND r.id = a.request_id
  * JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id
  * JOIN labs.request_lines AS l ON l.workspace_id = a.workspace_id AND l.request_id = a.request_id AND l.line = :line!
  * WHERE a.workspace_id = :workspaceId! AND a.id = :activityId! AND l.kind = 'reagent' AND l.item_id IS NOT NULL

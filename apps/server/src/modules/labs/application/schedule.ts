@@ -4,15 +4,12 @@ import {
   ACTIVITY_CHANGEABLE,
   activityCode,
   periodWeek,
-  requestCode,
   scheduleCheck,
   scheduleProblemText,
   type Activity,
   type ActivityStage,
   type ResponsibleOptions,
   type scheduleActivityRequest,
-  type ApprovalResults,
-  type ApprovedRequest,
   type ScheduledActivity,
   type ScheduleList,
   type scheduleQuery,
@@ -53,7 +50,6 @@ const conflict = () => new AppError('VERSION_CONFLICT', 'Otra persona la cambió
 const toActivity = (row: IListActivitiesResult, complete: boolean): Activity => ({
   id: row.id,
   requestId: row.request_id,
-  requestCode: requestCode(row.request_number),
   title: row.title,
   requesterName: row.requester_name,
   subject: row.subject,
@@ -202,7 +198,7 @@ async function placeDate(
   const activityId = created!.id;
   await insertActivityCode.run({ workspaceId, activityId, code, principalId: access.principalId }, access.client);
   // La reserva real (L-01d): este bloque aparta lo de su fecha; lo que no alcanza queda «Falta».
-  await holdBlock(access, { activityId, requestId, requestCode: requestCode(current.number), date: slot.date, startsAt: slot.startsAt, endsAt: slot.endsAt, areaName: placed.areaName });
+  await holdBlock(access, { activityId, requestId, practiceCode: code, date: slot.date, startsAt: slot.startsAt, endsAt: slot.endsAt, areaName: placed.areaName });
   await recordAudit(access, { action: 'labs.activity.schedule', entityType: 'labs.activity', entityId: activityId, changes: { requestId, ...slot, code, warnings: placed.warnings } });
   return { activity: await activityById(access, activityId), warnings: placed.warnings };
 }
@@ -230,47 +226,6 @@ export function scheduleActivity(pool: pg.Pool, request: CommandRequest, input: 
 }
 
 /**
- * «Aprobar» (ADR 0023, «Flujo de la Propuesta»): programa cada fecha pendiente en el laboratorio y el horario pedidos,
- * con quien aprueba como responsable (o, si no puede serlo, el primero de la lista). Todo o nada: si una fecha choca,
- * no se programa ninguna y el motivo dice cuál; sin laboratorio pedido, se programa arrastrando.
- */
-export function approveRequest(pool: pg.Pool, request: CommandRequest, requestId: string, expectedVersion: number): Promise<ApprovedRequest> {
-  return runScheduleCommand(pool, request, 'labs.request.approve', { requestId, expectedVersion }, requires(SCHEDULE_MANAGE), async (access) => {
-    const current = await lockSubmitted(access, requestId, expectedVersion);
-    if (!current.area_id || !current.starts_at || !current.ends_at) throw invalid('La solicitud no pide laboratorio: prográmala arrastrando en el Cronograma');
-    const leads = await membersWithPermission(access, SCHEDULE_LEAD);
-    const responsibleId = leads.some((member) => member.id === access.principalId) ? access.principalId : leads[0]?.id;
-    if (!responsibleId) throw invalid('No hay a quién asignar el bloque');
-    const items: ScheduledActivity[] = [];
-    for (const date of current.dates.filter((day) => !current.scheduled_dates.includes(day))) {
-      try {
-        items.push(await placeDate(access, current, requestId, { date, areaId: current.area_id, startsAt: current.starts_at, endsAt: current.ends_at, responsibleId }));
-      } catch (error) {
-        if (error instanceof AppError && error.code === 'VALIDATION_FAILED') throw invalid(`El ${date}: ${error.message}`);
-        throw error;
-      }
-    }
-    await settleRequest(access, requestId);
-    return { items };
-  });
-}
-
-/** Aprobar varias a la vez: cada una en su propia transacción y con su resultado; una que falla no frena a las demás. */
-export async function approveRequests(pool: pg.Pool, request: CommandRequest, items: ReadonlyArray<{ requestId: string; expectedVersion: number }>): Promise<ApprovalResults> {
-  const results: ApprovalResults['items'] = [];
-  for (const item of items) {
-    try {
-      const approved = await approveRequest(pool, { ...request, idempotencyKey: request.idempotencyKey && `${request.idempotencyKey}:${item.requestId}` }, item.requestId, item.expectedVersion);
-      results.push({ requestId: item.requestId, ok: true, codes: approved.items.map((scheduled) => scheduled.activity.code), message: null });
-    } catch (error) {
-      if (!(error instanceof AppError)) throw error;
-      results.push({ requestId: item.requestId, ok: false, codes: [], message: error.message });
-    }
-  }
-  return { items: results };
-}
-
-/**
  * Mueve un bloque el mismo día: otra área, otra hora u otro responsable. En otra área toma el número siguiente de esa
  * área en la semana y el código anterior queda en su historial.
  */
@@ -293,7 +248,7 @@ export function moveActivity(pool: pg.Pool, request: CommandRequest, activityId:
     if (recoded.code !== current.code) await insertActivityCode.run({ workspaceId, activityId, code: recoded.code, principalId: access.principalId }, access.client);
     // Otra franja u otra área: los equipos se vuelven a apartar para la nueva; los reactivos son del mismo día.
     if (input.startsAt !== shown.startsAt || input.endsAt !== shown.endsAt) {
-      await rebookEquipment(access, { activityId, requestId: current.request_id, requestCode: shown.requestCode, date: current.on_date, startsAt: input.startsAt, endsAt: input.endsAt, areaName: placed.areaName });
+      await rebookEquipment(access, { activityId, requestId: current.request_id, practiceCode: recoded.code, date: current.on_date, startsAt: input.startsAt, endsAt: input.endsAt, areaName: placed.areaName });
     }
     await recordAudit(access, { action: 'labs.activity.move', entityType: 'labs.activity', entityId: activityId, changes: { ...input, code: recoded.code, warnings: placed.warnings } });
     return { activity: await activityById(access, activityId), warnings: placed.warnings };

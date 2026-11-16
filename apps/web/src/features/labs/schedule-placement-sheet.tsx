@@ -7,8 +7,9 @@ import { isApiError } from '../../app/api';
 import { FormSheet } from '../../app/form-sheet';
 import { formatFullDate } from '../../app/format';
 import { labsErrorMessage, useMoveActivity, useRefreshLabs, useRequestResolved, useScheduleActivity, useVersionConflict } from './commands';
-import { useClosures, usePeriods, useRequestDetail, useSchedule } from './queries';
+import { useClosures, usePeriods, useSchedule } from './queries';
 import { timeText, toMinutes, weekDates } from './schedule-grid';
+import { titleText } from './request-summary';
 import { blockingTexts, capacityText, contextFor, durationOf, endFor, scheduledMessage } from './schedule-placement';
 
 /**
@@ -62,11 +63,9 @@ export function PlacementSheet({
   const end0 = program && target.request.endsAt ? toMinutes(target.request.endsAt) : endFor(start0, duration);
 
   const [date, setDate] = useState(program ? target.date : target.activity.date);
-  // El área que pidió el docente solo viene en el detalle de la solicitud: se pide únicamente la que está abierta.
-  const detail = useRequestDetail(workspaceId, program ? target.request.id : '', program);
-  const asked = program ? spaces.find((item) => item.areaId === detail.data?.areaId) : undefined;
+  // Al programar, el área se elige aquí: la solicitud no la trae (ADR 0023, «Sin área ni código»).
   const [areaChoice, setAreaChoice] = useState<string | null>(null);
-  const areaId = areaChoice ?? (program ? asked?.areaId : target.areaId) ?? '';
+  const areaId = areaChoice ?? (program ? undefined : target.areaId) ?? '';
   const [startsAt, setStartsAt] = useState(timeText(start0));
   const [endsAt, setEndsAt] = useState(timeText(end0));
   const [responsibleId, setResponsibleId] = useState(
@@ -161,7 +160,7 @@ export function PlacementSheet({
       title={program ? 'Programar' : 'Mover bloque'}
       description={
         program
-          ? `${target.request.title ?? target.request.code} · ${target.request.requesterName}`
+          ? `${titleText(target.request)} · ${target.request.requesterName}`
           : `${target.activity.title} · ${target.activity.code}. Mismo día; cambiar el día es pedir cambios al docente.`
       }
       open={open}
@@ -184,7 +183,7 @@ export function PlacementSheet({
           <span className="font-medium">{formatFullDate(date)}</span>
         </p>
       )}
-      <Field label="Área" required hint={asked ? `El docente pidió ${asked.areaName}.` : undefined}>
+      <Field label="Área" required>
         <Select value={areaId} onValueChange={setAreaChoice} options={areaOptions} placeholder="Elige el área" triggerClassName="h-11 sm:h-10" />
       </Field>
       <div className="grid grid-cols-2 gap-4">

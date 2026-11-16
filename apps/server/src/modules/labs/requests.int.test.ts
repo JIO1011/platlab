@@ -16,24 +16,16 @@ beforeAll(async () => {
 });
 
 describe('borrador', () => {
-  it('el Docente y el tesista piden con número fijo; el Administrador y el Operador no piden', async () => {
+  it('el Docente y el tesista piden; el Administrador y el Operador no piden', async () => {
     const mine = await draft(lab);
     expect(mine).toMatchObject({ status: 'draft', teacherName: 'Docente Uno', formName: 'Práctica académica', mine: true, lines: [] });
-    expect(mine.code).toBe(`SOL-${String(mine.number).padStart(4, '0')}`);
     const thesis = await draft(lab, lab.student.subject);
-    expect(thesis.number).toBe(mine.number + 1);
+    expect(thesis).toMatchObject({ status: 'draft', mine: true });
     for (const subject of [lab.operator.subject, lab.adminMember.subject, lab.workspace.owner.subject]) {
       const denied = await send(lab, 'POST', '/requests', { formId: lab.form.id }, subject);
       expect(denied.status).toBe(403);
       expect(errorCode(denied.body)).toBe('ACCESS_DENIED');
     }
-  });
-
-  it('dos borradores a la vez toman números distintos y seguidos', async () => {
-    const fresh = await createRequestsLab(['labs']);
-    const created = await Promise.all(Array.from({ length: 5 }, () => draft(fresh)));
-    const numbers = created.map((request) => request.number).sort((a, b) => a - b);
-    expect(numbers).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('guarda a medias; asignatura y carrera nuevas entran a su lista, sin repetirse', async () => {
@@ -223,7 +215,7 @@ describe('resolver', () => {
     const copy = labsRequest.parse((await send(lab, 'POST', '/requests', { from: source.id }, lab.teacher.subject)).body);
     // La lista guarda la grafía con que entró la asignatura por primera vez.
     expect(copy).toMatchObject({ status: 'draft', title: 'Titulación ácido-base', subject: expect.stringMatching(/^química general$/i), dates: [], groups: 6, answers: { practica_n: 3 } });
-    expect(copy.number).toBeGreaterThan(source.number);
+    expect(copy.id).not.toBe(source.id);
     expect(copy.lines).toMatchObject([{ kind: 'equipment', perGroup: 2, quantity: 12 }]);
     // De otra persona, no.
     expect((await send(lab, 'POST', '/requests', { from: source.id }, lab.otherTeacher.subject)).status).toBe(404);

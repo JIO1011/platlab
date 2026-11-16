@@ -6,6 +6,7 @@ export {
   heldReagentQuantities,
   holdReagentForActivity,
   reagentHoldOptions,
+  reagentStockBreakdown,
   reagentStockByArea,
   reholdReagentForActivity,
   releaseReagentHolds,

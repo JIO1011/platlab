@@ -46,11 +46,10 @@ WHERE workspace_id = :workspaceId! AND asset_id = ANY (:assetIds!::uuid[]) AND r
 
 /* @name activityReagentLine */
 -- Una línea de reactivo del catálogo de un bloque (ADR 0023, «Cierre de Laboratorios»): su ítem, lo pedido, el código de
--- la solicitud y el área del bloque, que es el destino de lo apartado.
-SELECT r.number AS request_number, area.name AS area_name, l.item_id AS "item_id!", trim_scale(l.quantity)::text AS "quantity!",
+-- práctica del bloque y su área, que es el destino de lo apartado.
+SELECT a.code AS activity_code, area.name AS area_name, l.item_id AS "item_id!", trim_scale(l.quantity)::text AS "quantity!",
   l.unit AS "unit!"
 FROM labs.activities AS a
-JOIN labs.requests AS r ON r.workspace_id = a.workspace_id AND r.id = a.request_id
 JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id
 JOIN labs.request_lines AS l ON l.workspace_id = a.workspace_id AND l.request_id = a.request_id AND l.line = :line!
 WHERE a.workspace_id = :workspaceId! AND a.id = :activityId! AND l.kind = 'reagent' AND l.item_id IS NOT NULL;

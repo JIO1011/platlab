@@ -4,6 +4,7 @@ import {
   activitiesOfArea,
   activityDetails,
   activityLabel,
+  areaLabel,
   blockParts,
   blockSpan,
   blockText,
@@ -13,9 +14,12 @@ import {
   closedAllDay,
   closedSpans,
   dayClosedText,
+  dayHoursText,
+  daySummary,
   holidayOn,
   hourMarks,
   loadByDay,
+  loadText,
   monthWeeks,
   nowMinutes,
   openSlots,
@@ -51,7 +55,6 @@ const space = (overrides: Partial<Space> = {}): Space => ({
 const activity = (overrides: Partial<Activity> = {}): Activity => ({
   id: 'a-1',
   requestId: 'r-1',
-  requestCode: 'SOL-0001',
   title: 'Titulación ácido-base',
   requesterName: 'Ana Pérez',
   subject: null,
@@ -128,6 +131,26 @@ describe('fechas', () => {
 });
 
 describe('carga y áreas del día', () => {
+  it('resume el día con su período, su semana y sus bloques', () => {
+    const period = { code: 'P1', week: 11 };
+    expect(daySummary(period, 7)).toBe('Período P1 · Semana 11 · 7 bloques programados');
+    expect(daySummary(period, 1)).toBe('Período P1 · Semana 11 · 1 bloque programado');
+    expect(daySummary(period, 0)).toBe('Período P1 · Semana 11 · 0 bloques programados');
+  });
+
+  it('resume el día sin período, o sin lo que aún carga', () => {
+    expect(daySummary(null, 2)).toBe('Fuera de los períodos · 2 bloques programados');
+    expect(daySummary(undefined, 2)).toBe('2 bloques programados');
+    expect(daySummary({ code: 'P1', week: 11 }, undefined)).toBe('Período P1 · Semana 11');
+    expect(daySummary(undefined, undefined)).toBe('');
+  });
+
+  it('dice la carga de cada día de la semana: «N blq» o «–»', () => {
+    expect(loadText(7)).toBe('7 blq');
+    expect(loadText(1)).toBe('1 blq');
+    expect(loadText(0)).toBe('–');
+  });
+
   it('cuenta los bloques de cada fecha y deja en cero las libres', () => {
     const items = [activity(), activity({ id: 'a-2' }), activity({ id: 'a-3', date: '2026-10-28' }), activity({ id: 'a-4', date: '2026-11-30' })];
     expect(loadByDay(items, ['2026-10-26', '2026-10-27', '2026-10-28'])).toEqual({ '2026-10-26': 2, '2026-10-27': 0, '2026-10-28': 1 });
@@ -249,6 +272,15 @@ describe('lo cerrado', () => {
     expect(openSlots(space(), '2026-10-31')).toEqual([]);
   });
 
+  it('dice el horario del área ese día, con uno o dos tramos', () => {
+    expect(dayHoursText(space(), '2026-10-26')).toBe('07:00–13:00 · 14:00–18:00');
+    expect(dayHoursText(space({ weeklyHours: hours([{ opens: '08:00', closes: '18:00' }]) }), '2026-10-26')).toBe('08:00–18:00');
+  });
+
+  it('dice «Cerrada» el día que el horario del área no abre', () => {
+    expect(dayHoursText(space(), '2026-10-31')).toBe('Cerrada');
+  });
+
   it('halla el feriado común y no el de un área', () => {
     expect(holidayOn([closure()], '2026-10-26')?.reason).toBe('Feriado local');
     expect(holidayOn([closure({ areaId: 'area-1' })], '2026-10-26')).toBeNull();
@@ -289,24 +321,38 @@ describe('texto del bloque', () => {
   });
 
   it('deja la hora, el código y el responsable para los detalles', () => {
-    expect(activityDetails(activity(), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora']);
+    expect(activityDetails(activity(), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora', 'Participantes: 20']);
   });
 
   it('suma el aforo a los detalles solo cuando se supera', () => {
-    expect(activityDetails(activity({ participants: 30 }), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora', 'Supera el aforo (30 / 24)']);
+    expect(activityDetails(activity({ participants: 30 }), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora', 'Participantes: 30', 'Supera el aforo (30 / 24)']);
   });
 
   it('suma «Falta apartar recursos» a los detalles cuando lo apartado no alcanza', () => {
-    expect(activityDetails(activity({ complete: false }), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora', 'Falta apartar recursos']);
+    expect(activityDetails(activity({ complete: false }), space())).toEqual(['08:00–10:00 · P1-S12-ANT01', 'Responsable: Luis Mora', 'Participantes: 20', 'Falta apartar recursos']);
   });
 
   it('suma hora, código y responsable para el lector de pantalla', () => {
-    expect(activityLabel(activity({ subject: 'Bioquímica General' }), space())).toBe('Bioquímica General - Química - Ana Pérez, 08:00–10:00 · P1-S12-ANT01, Responsable: Luis Mora');
+    expect(activityLabel(activity({ subject: 'Bioquímica General' }), space())).toBe('Bioquímica General - Química - Ana Pérez, 08:00–10:00 · P1-S12-ANT01, Responsable: Luis Mora, Participantes: 20');
   });
 
   it('avisa del aforo solo cuando se supera', () => {
     expect(overCapacity(activity({ participants: 24 }), space())).toBe(false);
     expect(overCapacity(activity({ participants: 30 }), space())).toBe(true);
     expect(capacityWarning(30, 24)).toBe('Supera el aforo (30 / 24)');
+  });
+});
+
+describe('nombre del área', () => {
+  it('quita «Laboratorio de» al inicio', () => {
+    expect(areaLabel('Laboratorio de Química')).toBe('Química');
+    expect(areaLabel('LABORATORIO DE LA Salud')).toBe('Salud');
+    expect(areaLabel('Laboratorios de Física')).toBe('Física');
+  });
+
+  it('deja el nombre completo si no queda nada o no empieza así', () => {
+    expect(areaLabel('Laboratorio')).toBe('Laboratorio');
+    expect(areaLabel('Anatomía')).toBe('Anatomía');
+    expect(areaLabel('Laboratorio Clínico')).toBe('Laboratorio Clínico');
   });
 });

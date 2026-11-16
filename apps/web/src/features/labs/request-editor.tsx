@@ -1,19 +1,21 @@
-import { saveRequestRequest, type Space } from '@platlab/contracts';
-import { Button, Field, Select, cn, toast } from '@platlab/ui';
+import { saveRequestRequest } from '@platlab/contracts';
+import { Button, cn, toast } from '@platlab/ui';
 import { useMemo, useState } from 'react';
+import { useDebouncedValue } from '../../app/use-media-query';
 import { isApiError } from '../../app/api';
-import { filled } from '../../app/filled';
 import { todayInZone } from '../../app/format';
 import { labsErrorMessage, useSaveRequest, useSubmitRequest, useVersionConflict } from './commands';
 import { useLabs } from './context';
 import { FormPaper, type PaperSlots } from './form-paper';
-import { fetchRequestReview, useRequestOptions } from './queries';
+import { fetchRequestReview, useRequestCheck, useRequestOptions } from './queries';
 import { CancelRequest } from './request-cancel';
 import { CellNote, FillValue, bare, type FillState } from './request-cells';
+import { checkPlan } from './request-check';
 import { draftFrom, paperOf, sameDraft, saveBody, type RequestDraft, type RequestView } from './request-draft';
 import { missingKeys, noIssues, requestIssues, type RequestIssues } from './request-draft-issues';
 import { RequestHistory } from './request-history';
 import { FillRows } from './request-lines';
+import { titleText } from './request-summary';
 import { reviewRows, type ReviewRow } from './send-review';
 import { SendReviewSheet } from './send-review-sheet';
 
@@ -24,24 +26,6 @@ interface Edit {
 }
 
 const alertClass = 'rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger';
-const NO_AREA = 'none';
-
-/** El área, que la hoja no tiene donde poner: una fila delgada y opcional sobre ella; su ayuda va como texto para lectores de pantalla. */
-function AreaBar({ draft, spaces, error, onChange }: { draft: RequestDraft; spaces: readonly Space[]; error: string | undefined; onChange: (areaId: string | null) => void }) {
-  const areas = spaces.filter((space) => space.archivedAt === null && !space.areaArchived);
-  return (
-    <Field label="Área" optional error={error} className="w-64 max-w-full">
-      <Select
-        value={draft.areaId ?? NO_AREA}
-        onValueChange={(value) => onChange(value === NO_AREA ? null : value)}
-        placeholder="Sin área"
-        triggerClassName={filled}
-        options={[{ value: NO_AREA, label: 'Sin área' }, ...areas.map((space) => ({ value: space.areaId, label: space.areaName, ...(space.groupName ? { detail: space.groupName } : {}) }))]}
-      />
-      <span className="sr-only">Dónde se hará la actividad, entre las áreas habilitadas para prácticas.</span>
-    </Field>
-  );
-}
 
 /**
  * El llenado de una solicitud sobre la hoja del formato (ADR 0023): cada dato es un control dentro de su celda y los
@@ -49,7 +33,7 @@ function AreaBar({ draft, spaces, error, onChange }: { draft: RequestDraft; spac
  * que el servidor confirma «Guardar borrador» o «Enviar», que guarda lo pendiente y envía. Si otra persona la cambió antes,
  * el servidor lo rechaza y se carga la vigente. Las obligatorias vacías se marcan solo al intentar enviar.
  */
-export function RequestEditor({ request, spaces }: { request: RequestView; spaces: readonly Space[] }) {
+export function RequestEditor({ request }: { request: RequestView }) {
   const { workspaceId, me } = useLabs();
   const options = useRequestOptions(workspaceId);
   const save = useSaveRequest(workspaceId, request.id);
@@ -70,6 +54,10 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
   const dirty = edit !== null && !sameDraft(edit.draft, stored, request.layout);
   const busy = save.isPending || submit.isPending || reviewing;
   const missing = useMemo(() => (attempted ? missingKeys(shown, request.layout) : new Set<string>()), [attempted, shown, request.layout]);
+  // La consulta sin guardar (ADR 0023, «Disponibilidad y recursos»): se pide al dejar de escribir.
+  const plan = useMemo(() => checkPlan(shown, request.layout), [shown, request.layout]);
+  const asked = useDebouncedValue(plan, 400);
+  const check = useRequestCheck(workspaceId, request.id, asked?.body ?? null);
 
   const change = (patch: Partial<RequestDraft>) => {
     setEdit({ draft: { ...shown, ...patch }, version: edit?.version ?? request.version });
@@ -107,7 +95,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
   };
 
   const saveDraft = async () => {
-    if ((await persist()) !== null) toast.success('Borrador guardado', { description: request.code });
+    if ((await persist()) !== null) toast.success('Borrador guardado', { description: titleText(request) });
   };
 
   const send = async () => {
@@ -135,7 +123,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
     try {
       await submit.mutateAsync({ expectedVersion: version });
       setReview(null);
-      toast.success('Solicitud enviada', { description: request.code });
+      toast.success('Solicitud enviada', { description: titleText(request) });
     } catch (failure) {
       setReview(null);
       fail(failure);
@@ -145,7 +133,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
   const state: FillState = { draft: shown, options: options.data, today: todayInZone(me.workspace.timeZone), issues, missing, onChange: change };
   const slots: PaperSlots = {
     value: (field) => <FillValue field={field} state={state} />,
-    resourceRows: <FillRows paper={paper} draft={shown} layout={request.layout} saved={dirty ? null : request.lines} options={options.data} issues={issues} onChange={change} />,
+    resourceRows: <FillRows paper={paper} draft={shown} layout={request.layout} options={options.data} plan={plan} answer={check.data} issues={issues} onChange={change} />,
     notes: (
       <>
         <textarea
@@ -163,8 +151,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
     requester: request.requesterName,
   };
 
-  const hasLines = shown.lines.length > 0;
-  const status = dirty ? (hasLines ? 'Cambios sin guardar · guarda para comprobar si lo pedido alcanza' : 'Cambios sin guardar') : 'Sin cambios por guardar';
+  const status = dirty ? 'Cambios sin guardar' : 'Sin cambios por guardar';
 
   return (
     <div className="grid gap-4 pb-28 md:pb-0 [&_button]:scroll-mb-24 [&_input]:scroll-mb-24 [&_textarea]:scroll-mb-24">
@@ -173,7 +160,14 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
           {error}
         </p>
       ) : null}
-      <AreaBar draft={shown} spaces={spaces} error={issues.fields['areaId']} onChange={(areaId) => change({ areaId })} />
+      {check.isError ? (
+        <p role="status" className="flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted print:hidden">
+          No se pudo comprobar lo libre del catálogo; puedes seguir llenando.
+          <Button size="sm" variant="ghost" className="text-action max-sm:h-11" onClick={() => void check.refetch()}>
+            Reintentar
+          </Button>
+        </p>
+      ) : null}
       <FormPaper mode="fill" draft={paper} workspaceName={me.workspace.name} revision={request.formRevision} slots={slots} />
       <RequestHistory events={request.events} timeZone={me.workspace.timeZone} />
       <SendReviewSheet

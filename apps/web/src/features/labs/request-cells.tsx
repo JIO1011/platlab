@@ -27,12 +27,22 @@ export interface FillState {
  * se resalta suave (al pasar y al enfocar) y una celda por completar se marca con `aria-invalid`.
  */
 export const bare =
-  'block h-auto min-h-11 w-full min-w-0 rounded-[3px] border-0 bg-transparent px-1.5 py-1 text-[12px] leading-snug text-ink shadow-none outline-none transition-colors placeholder:text-ink-subtle sm:min-h-[24px] sm:py-0.5 ' +
+  'block h-auto min-h-11 w-full min-w-0 rounded-[3px] border-0 bg-transparent px-2.5 py-1 text-[13px] leading-snug text-ink shadow-none outline-none transition-colors placeholder:text-ink-subtle sm:min-h-8 sm:py-1.5 ' +
   'hover:bg-action-soft/70 focus-visible:bg-action-soft focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-action aria-[invalid=true]:bg-danger-soft';
+
+/**
+ * Un campo de una línea en una celda angosta: sin foco, su texto se lee completo, en varias líneas, sobre el campo; con
+ * foco, se edita en una. Va dentro de un contenedor `grid`, después del campo, que lleva `wrapped` cuando tiene texto.
+ */
+export const wrapped = 'peer [grid-area:1/1] text-transparent focus:text-ink';
+export function WrapShadow({ value }: { value: string }) {
+  if (!value) return null;
+  return <span aria-hidden className="pointer-events-none min-w-0 break-words px-2.5 py-1 text-[13px] leading-snug text-ink [grid-area:1/1] peer-focus:invisible sm:py-1.5">{value}</span>;
+}
 
 /** El control ocupa toda la celda de la hoja: se come su relleno (`px-1.5 py-0.5`) para que el resalte llegue a los bordes. */
 export function Frame({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn('-mx-1.5 -my-0.5 flex min-w-0 items-center', className)}>{children}</div>;
+  return <div className={cn('-mx-2.5 -my-1.5 flex min-w-0 items-center', className)}>{children}</div>;
 }
 
 /** El aviso bajo el control: lo que rechazó el servidor o «Falta completar». No se imprime. */

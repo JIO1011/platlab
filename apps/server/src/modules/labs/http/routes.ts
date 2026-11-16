@@ -15,7 +15,6 @@ import {
   createFormRequest,
   createPeriodRequest,
   activityParams,
-  approveRequestsRequest,
   createRequestRequest,
   labCancelRequest as labCancelRequestSchema,
   scheduleActivityRequest,
@@ -32,6 +31,7 @@ import {
   requestReasonRequest,
   requestVersionRequest,
   saveRequestRequest,
+  checkRequestRequest,
   spaceParams,
   updateFormRequest,
   updatePeriodRequest,
@@ -44,7 +44,7 @@ import { createClosure, listClosures, voidClosure } from '../application/closure
 import { getRequest, getRequestOptions, listRequests } from '../application/request-view.js';
 import { assetBookingsOf, closePractice, incidentPracticeOf, markReady, reportPracticeIncident, setChecklist, startPractice } from '../application/practice.js';
 import { changeReagentPicks, reagentPickOptions } from '../application/reagent-picks.js';
-import { reviewRequest } from '../application/review.js';
+import { checkRequest, reviewRequest } from '../application/review.js';
 import { archiveForm, createForm, getForm, listForms, publishForm, updateForm, uploadFormLogo } from '../application/form.js';
 import { archivePeriod, createPeriod, listPeriods, updatePeriod } from '../application/periods.js';
 import {
@@ -56,7 +56,7 @@ import {
   saveRequest,
   submitRequest,
 } from '../application/requests.js';
-import { approveRequest, approveRequests, listResponsibles, listSchedule, moveActivity, scheduleActivity } from '../application/schedule.js';
+import { listResponsibles, listSchedule, moveActivity, scheduleActivity } from '../application/schedule.js';
 import { getSettings, updateSettings } from '../application/settings.js';
 import { archiveSpace, createSpace, listSpaces, updateSpace } from '../application/spaces.js';
 
@@ -81,6 +81,10 @@ export function labsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: 
 
     app.get('/requests/:requestId', async (request) => getRequest(pool, queryRequest(request), requestParams.parse(request.params).requestId));
     app.get('/requests/:requestId/review', async (request) => reviewRequest(pool, queryRequest(request), requestParams.parse(request.params).requestId));
+    // Una consulta, aunque vaya por POST (lleva lo que se está llenando): no guarda ni aparta nada.
+    app.post('/requests/:requestId/check', async (request) =>
+      checkRequest(pool, queryRequest(request), requestParams.parse(request.params).requestId, checkRequestRequest.parse(request.body)),
+    );
 
     app.put('/requests/:requestId', async (request) =>
       saveRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, saveRequestRequest.parse(request.body)),
@@ -100,15 +104,6 @@ export function labsRoutes({ pool, publicFiles }: { pool: pg.Pool; publicFiles: 
 
     app.post('/requests/:requestId/reject', async (request) =>
       rejectRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestReasonRequest.parse(request.body)),
-    );
-
-    // «Aprobar» (ADR 0023, «Flujo de la Propuesta»): programa donde y cuando se pidió; varias, cada una por separado.
-    app.post('/requests/approve', async (request) =>
-      approveRequests(pool, commandRequest(request), approveRequestsRequest.parse(request.body).items),
-    );
-
-    app.post('/requests/:requestId/approve', async (request) =>
-      approveRequest(pool, commandRequest(request), requestParams.parse(request.params).requestId, requestVersionRequest.parse(request.body).expectedVersion),
     );
 
     app.post('/requests/:requestId/lab-cancel', async (request) =>

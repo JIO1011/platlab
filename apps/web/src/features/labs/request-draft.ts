@@ -30,7 +30,7 @@ export const viewOf = (request: LabsRequest): RequestView => ({ ...request, layo
 
 /** La hoja de la revisión con que se llenó la solicitud (ADR 0023: se llena, se revisa y se imprime sobre ella). */
 export const paperOf = (request: RequestView): Draft =>
-  sheetDraft({ revision: request.formRevision, title: request.formTitle, documentCode: request.documentCode, layout: request.layout });
+  sheetDraft({ revision: request.formRevision, title: request.formTitle, layout: request.layout });
 
 /** La clave de un dato de la hoja: la del sistema o la del dato libre, con que se guarda su valor. */
 export const fieldKey = (field: DraftField): string => (field.kind === 'system' ? field.key : (field.key ?? field.id));
@@ -95,7 +95,6 @@ export interface RequestDraft {
   endsAt: string;
   participants: string;
   groups: string;
-  areaId: string | null;
   /** La respuesta de cada dato libre por su clave, como texto; una casilla es «true» o «false». */
   answers: Record<string, string>;
   notes: string;
@@ -175,19 +174,10 @@ export function draftFrom(request: RequestView): RequestDraft {
     endsAt: request.endsAt ?? '',
     participants: textOf(request.participants),
     groups: String(request.groups),
-    areaId: request.areaId,
     answers: Object.fromEntries(freeFieldsOf(request.layout).map((field) => [field.key, textOf(request.answers[field.key])])),
     notes: request.notes ?? '',
     lines: request.lines.map(draftLine),
   };
-}
-
-/** Una línea nueva y vacía; los reactivos y los equipos parten del catálogo si el espacio lo admite. */
-export function newLine(kind: DraftLine['kind'], catalog: boolean): DraftLine {
-  const id = crypto.randomUUID();
-  if (kind === 'reagent') return { id, kind, catalog, itemId: null, name: '', quantity: '', unit: '' };
-  if (kind === 'equipment') return { id, kind, catalog, assetTypeId: null, name: '', byGroup: false, perGroup: '', quantity: '1' };
-  return { id, kind, name: '', byGroup: false, perGroup: '', quantity: '' };
 }
 
 /** Los grupos de la solicitud; si la revisión no presenta «grupos», es uno. */
@@ -208,7 +198,8 @@ function answerValue(field: FormFreeField, text: string): string | number | bool
   return text.trim();
 }
 
-function lineInput(line: DraftLine, groups: number): RequestLineInput {
+/** Una línea como la manda el contrato: con «por grupo», el total es lo pedido por grupo por los grupos. */
+export function lineInput(line: DraftLine, groups: number): RequestLineInput {
   if (line.kind === 'reagent') {
     return {
       kind: 'reagent',
@@ -250,7 +241,6 @@ export function saveBody(draft: RequestDraft, layout: FormLayout, expectedVersio
     endsAt: textOrNull(draft.endsAt),
     participants: textOrNull(draft.participants) === null ? null : Number(draft.participants),
     groups,
-    areaId: draft.areaId,
     answers: Object.fromEntries(freeFieldsOf(layout).map((field) => [field.key, answerValue(field, draft.answers[field.key] ?? '')])),
     notes: layout.notes ? textOrNull(draft.notes) : null,
     lines: draft.lines.map((line) => lineInput(line, groups)),

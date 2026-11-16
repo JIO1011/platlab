@@ -1,14 +1,14 @@
 import { requestReasonRequest } from '@platlab/contracts';
 import { Button, Field, Textarea, toast } from '@platlab/ui';
-import { CalendarDays, Check, CircleX, PencilLine, type LucideIcon } from 'lucide-react';
+import { CalendarDays, CircleX, PencilLine, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router';
 import { isApiError } from '../../app/api';
 import { FormSheet, validate } from '../../app/form-sheet';
-import { labsErrorMessage, useApproveRequest, useRejectRequest, useRequestChanges, useRequestResolved, useVersionConflict } from './commands';
-import { approvedMessage } from './request-approval';
+import { labsErrorMessage, useRejectRequest, useRequestChanges, useRequestResolved, useVersionConflict } from './commands';
 import type { RequestView } from './request-draft';
+import { titleText } from './request-summary';
 import { pendingDates } from './schedule-placement';
 import { actionBar, primaryGradient } from './style';
 
@@ -61,7 +61,7 @@ function ReasonSheet({ workspaceId, request, resolution, mutation, onDismiss }: 
     if (!payload) return;
     try {
       await mutation.mutateAsync(payload);
-      toast.success(copy.done, { description: request.code });
+      toast.success(copy.done, { description: titleText(request) });
       onDismiss();
     } catch (failure) {
       if (isApiError(failure, 'VERSION_CONFLICT')) {
@@ -105,50 +105,27 @@ const linkButton =
 
 /**
  * Las acciones de quien revisa una solicitud enviada (`labs.request.review`): «Pedir cambios» y «Rechazar», que piden el
- * motivo en una hoja, y la principal. «Aprobar» (también con `labs.schedule.manage`) programa cada fecha pendiente donde y
- * cuando se pidió; sin laboratorio pedido, en su lugar, «Programar en el Cronograma» lleva al día de su primera fecha.
- * «Aprobar» no pinta nada antes: el aviso dice los códigos programados o el motivo que dio el servidor.
+ * motivo en una hoja, y la principal (también con `labs.schedule.manage`): «Programar en el Cronograma» lleva al día de
+ * su primera fecha pendiente. Se aprueba al programarla: el área se elige ahí (ADR 0023, «Sin área ni código»).
  */
 export function ReviewActions({ workspaceId, request, canSchedule }: { workspaceId: string; request: RequestView; canSchedule: boolean }) {
-  const approve = useApproveRequest(workspaceId, request.id);
   const changes = useRequestChanges(workspaceId, request.id);
   const reject = useRejectRequest(workspaceId, request.id);
-  const conflict = useVersionConflict(workspaceId);
-  const resolved = useRequestResolved(workspaceId);
   const [open, setOpen] = useState<Resolution | null>(null);
   const first = pendingDates(request)[0];
-
-  const approveNow = async () => {
-    try {
-      const done = await approve.mutateAsync({ expectedVersion: request.version });
-      const message = approvedMessage(done.items);
-      toast.success(message.title, message.description ? { description: message.description } : undefined);
-    } catch (failure) {
-      if (isApiError(failure, 'VERSION_CONFLICT')) void conflict('esta solicitud');
-      else if (isApiError(failure, 'REQUEST_RESOLVED')) void resolved();
-      else toast.error(`No se pudo aprobar ${request.code}`, { description: labsErrorMessage(failure) });
-    }
-  };
 
   return (
     <div className={actionBar}>
       {(Object.keys(resolutions) as Resolution[]).map((resolution) => (
-        <Button key={resolution} className="h-11 sm:h-10" disabled={approve.isPending} aria-haspopup="dialog" onClick={() => setOpen(resolution)}>
+        <Button key={resolution} className="h-11 sm:h-10" aria-haspopup="dialog" onClick={() => setOpen(resolution)}>
           {resolutions[resolution].trigger}
         </Button>
       ))}
       {canSchedule ? (
-        request.areaId === null ? (
-          <Link to={`/e/${workspaceId}/laboratorios/cronograma${first ? `?dia=${first}` : ''}`} className={`${linkButton} ${primaryGradient}`}>
-            <CalendarDays aria-hidden />
-            Programar en el Cronograma
-          </Link>
-        ) : (
-          <Button variant="primary" className={`h-11 sm:h-10 ${primaryGradient}`} loading={approve.isPending} onClick={() => void approveNow()}>
-            <Check aria-hidden />
-            Aprobar
-          </Button>
-        )
+        <Link to={`/e/${workspaceId}/laboratorios/cronograma${first ? `?dia=${first}` : ''}`} className={`${linkButton} ${primaryGradient}`}>
+          <CalendarDays aria-hidden />
+          Programar en el Cronograma
+        </Link>
       ) : null}
       {open !== null ? (
         <ReasonSheet key={open} workspaceId={workspaceId} request={request} resolution={open} mutation={open === 'changes' ? changes : reject} onDismiss={() => setOpen(null)} />

@@ -1,30 +1,26 @@
 import type { Activity, Closure, Space } from '@platlab/contracts';
 import { useId } from 'react';
 import { Link } from 'react-router';
-import { CodeTag } from '../../app/code-tag';
 import { ScheduleBlock, type BlockOpening } from './schedule-block';
-import { activitiesOfArea, closedAllDay, openSlots, timeText, type BoardColumn } from './schedule-grid';
+import { activitiesOfArea, areaLabel, closedAllDay, dayHoursText, type BoardColumn } from './schedule-grid';
 import { softCard } from './style';
 
-/** Un área del día: su nombre, aforo y horario, lo que la cierra si es el caso, y sus bloques por hora. */
+/** Un área del día: su nombre (sin «Laboratorio de»), aforo y horario, lo que la cierra si es el caso, y sus bloques por hora. */
 function AreaCard({ space, date, dayItems, closures, opening }: { space: Space; date: string; dayItems: readonly Activity[]; closures: readonly Closure[]; opening: BlockOpening }) {
   const id = useId();
   const blocks = activitiesOfArea(dayItems, space.areaId);
   const closed = closedAllDay(space, date, closures);
-  const hours = openSlots(space, date)
-    .map((slot) => `${timeText(slot.from)}–${timeText(slot.to)}`)
-    .join(' · ');
   return (
     <section aria-labelledby={id} className={`${softCard} p-4`}>
-      <h3 id={id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-lg font-bold text-ink">
-        <span className="[overflow-wrap:anywhere]">{space.areaName}</span>
-        <CodeTag>{space.abbreviation}</CodeTag>
+      <h3 id={id} className="text-lg font-bold text-ink [overflow-wrap:anywhere]">
+        <span aria-hidden>{areaLabel(space.areaName)}</span>
+        <span className="sr-only">{space.areaName}</span>
       </h3>
       <p className="mt-0.5 text-[13px] text-ink-muted">
         {space.groupName ? `${space.groupName} · ` : ''}
         <span className="tabular-nums">
           Aforo {space.capacity}
-          {closed ? '' : ` · ${hours}`}
+          {closed ? '' : ` · ${dayHoursText(space, date)}`}
         </span>
       </p>
       {closed ? <p className="mt-3 rounded-control bg-surface-sunken px-3 py-2.5 text-sm text-ink-muted">{closed}</p> : null}
@@ -52,7 +48,11 @@ function IdleRow({ column, enableHref }: { column: BoardColumn; enableHref: stri
   return (
     <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-card bg-surface-sunken/60 px-4 py-2 text-sm text-ink-muted">
       <p className="[overflow-wrap:anywhere]">
-        <span className="font-medium">{column.areaName}</span> · Sin horario
+        <span className="font-medium">
+          <span aria-hidden>{areaLabel(column.areaName)}</span>
+          <span className="sr-only">{column.areaName}</span>
+        </span>{' '}
+        · Sin horario
       </p>
       {enableHref ? (
         <Link to={enableHref} className="inline-flex h-11 items-center rounded-control px-2 font-semibold text-action hover:bg-action-soft focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action">

@@ -3,7 +3,6 @@ import { expectedVersion, text } from '../common.js';
 import { positiveQuantity } from '../decimal.js';
 import type { FormFreeField, FormLayout } from './form.js';
 import { activityStage, practiceUsage } from './practice.js';
-import { scheduleProblem } from './schedule.js';
 
 /**
  * Solicitudes de Laboratorios (ADR 0023, «Diseño de L-01b»): el Docente o el tesista llena un formato activo, la guarda
@@ -23,9 +22,6 @@ export const REQUEST_CANCELLABLE: readonly RequestStatus[] = ['draft', 'submitte
 
 /** El tipo de actividad, dato del sistema «tipo». */
 export const activityType = z.enum(['practice', 'research', 'service', 'training']);
-
-/** El número fijo antes de programar: 42 → «SOL-0042». */
-export const requestCode = (number: number): string => `SOL-${String(number).padStart(4, '0')}`;
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora HH:MM');
 const count = z.number().int().min(1).max(10_000);
@@ -47,33 +43,47 @@ export const requestLineInput = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('material'), description: text(200), perGroup: positiveQuantity.nullable(), quantity: positiveQuantity }).strict(),
 ]);
 
+/** Lo que decide qué hay para la práctica: fechas, franja, participantes, grupos, laboratorio y recursos. */
+const requestResources = z.object({
+  dates: z
+    .array(z.iso.date())
+    .max(REQUEST_MAX_DATES)
+    .refine((values) => new Set(values).size === values.length, 'Cada fecha va una vez'),
+  startsAt: time.nullable(),
+  endsAt: time.nullable(),
+  participants: z.number().int().min(1).max(1000).nullable(),
+  groups: z.number().int().min(1).max(100),
+  lines: z.array(requestLineInput).max(REQUEST_MAX_LINES),
+});
+
+const endsAfterStart: [(value: { startsAt: string | null; endsAt: string | null }) => boolean, { message: string; path: string[] }] = [
+  (value) => !value.startsAt || !value.endsAt || value.startsAt < value.endsAt,
+  { message: 'La hora de fin va después del inicio', path: ['endsAt'] },
+];
+
 /**
  * PUT /requests/:requestId: guarda el borrador (o la corrección pedida) entero, con la versión que la persona vio. Puede
  * estar a medias; enviar exige lo esencial. Asignatura y carrera van por nombre: un nombre nuevo entra a su lista.
  */
-export const saveRequestRequest = z
-  .object({
+export const saveRequestRequest = requestResources
+  .extend({
     expectedVersion,
     title: text(200).nullable(),
     teacherName: text(120).nullable(),
     activityType: activityType.nullable(),
     subject: text(120).nullable(),
     career: text(120).nullable(),
-    dates: z
-      .array(z.iso.date())
-      .max(REQUEST_MAX_DATES)
-      .refine((values) => new Set(values).size === values.length, 'Cada fecha va una vez'),
-    startsAt: time.nullable(),
-    endsAt: time.nullable(),
-    participants: z.number().int().min(1).max(1000).nullable(),
-    groups: z.number().int().min(1).max(100),
-    areaId: z.uuid().nullable(),
     answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
     notes: text(2000).nullable(),
-    lines: z.array(requestLineInput).max(REQUEST_MAX_LINES),
   })
   .strict()
-  .refine((value) => !value.startsAt || !value.endsAt || value.startsAt < value.endsAt, { message: 'La hora de fin va después del inicio', path: ['endsAt'] });
+  .refine(...endsAfterStart);
+
+/**
+ * POST /requests/:requestId/check: lo que quien pide está llenando, sin guardarlo, frente a la regla única de
+ * disponibilidad (ADR 0023, «Disponibilidad y recursos»). Solo consulta: no guarda ni aparta nada.
+ */
+export const checkRequestRequest = requestResources.strict().refine(...endsAfterStart);
 
 /** POST /requests: un borrador con la última revisión de un formato activo o, con `from`, la copia de una solicitud propia. */
 export const createRequestRequest = z.union([
@@ -109,8 +119,6 @@ const requestEvent = z.object({
 /** Una solicitud en las listas: lo que la bandeja ordena (fuera de plazo y recursos que faltan primero). */
 export const requestSummary = z.object({
   id: z.uuid(),
-  number: z.number().int().positive(),
-  code: z.string(),
   status: requestStatus,
   formName: z.string(),
   title: z.string().nullable(),
@@ -125,6 +133,8 @@ export const requestSummary = z.object({
   /** Las fechas pedidas y las ya programadas, con el horario, los participantes y el grupo: la bandeja «Por programar». */
   dates: z.array(z.iso.date()),
   scheduledDates: z.array(z.iso.date()),
+  /** El código de práctica de cada bloque («P1-S11-FIS01»), en el orden de `scheduledDates`. */
+  blockCodes: z.array(z.string()),
   startsAt: z.string().nullable(),
   endsAt: z.string().nullable(),
   participants: z.number().int().nullable(),
@@ -154,7 +164,6 @@ export const labsRequest = requestSummary.extend({
   endsAt: z.string().nullable(),
   participants: z.number().int().nullable(),
   groups: z.number().int(),
-  areaId: z.uuid().nullable(),
   answers: z.record(z.string(), z.unknown()),
   notes: z.string().nullable(),
   lines: z.array(requestLine),
@@ -201,7 +210,7 @@ export const requestOptions = z.object({
 
 /**
  * GET /requests/:requestId/review: lo que se revisa antes de enviar (ADR 0023, «Flujo de la Propuesta»), contra todo el
- * espacio y sin apartar nada. Por fecha pendiente, el laboratorio pedido y los equipos libres en la franja; por
+ * espacio y sin apartar nada. Por fecha pendiente, los equipos libres en la franja; por
  * reactivo, lo pedido en todas esas fechas frente a lo apartable. Lo que no alcanza trae sus alternativas. `line` es la
  * posición de la línea en `lines` de la solicitud.
  */
@@ -209,8 +218,6 @@ export const requestReview = z.object({
   dates: z.array(
     z.object({
       date: z.iso.date(),
-      /** El laboratorio pedido y lo que impide o advierte programarlo; nulo sin laboratorio u horario pedidos. */
-      area: z.object({ name: z.string(), problems: z.array(scheduleProblem) }).nullable(),
       equipment: z.array(
         z.object({
           line: z.number().int(),
@@ -235,6 +242,21 @@ export const requestReview = z.object({
       areas: z.array(z.object({ name: z.string().nullable(), available: z.string() })),
     }),
   ),
+});
+
+/**
+ * La respuesta de la consulta sin guardar: cada línea con su nombre y su marca, en el orden pedido, su revisión y lo libre
+ * de cada reactivo y tipo de equipo del catálogo para esas fechas y esa franja (sin fechas, hoy): lo que muestra el buscador.
+ * De cada reactivo, además, su saldo vigente ese día (`stock` = `available` + `held`, lo apartado; lo vencido no cuenta).
+ * De cada tipo de equipo, sus unidades operativas (`total`).
+ */
+export const requestCheck = z.object({
+  lines: z.array(requestLine),
+  review: requestReview,
+  catalog: z.object({
+    reagents: z.array(z.object({ id: z.uuid(), available: z.string(), stock: z.string(), held: z.string() })),
+    equipmentTypes: z.array(z.object({ id: z.uuid(), available: z.number().int(), total: z.number().int() })),
+  }),
 });
 
 /** Los datos libres de una revisión: cada respuesta con su tipo y las obligatorias presentes. */
@@ -267,4 +289,6 @@ export type RequestList = z.infer<typeof requestList>;
 export type LabsRequest = z.infer<typeof labsRequest>;
 export type RequestOptions = z.infer<typeof requestOptions>;
 export type RequestReview = z.infer<typeof requestReview>;
+export type RequestCheck = z.infer<typeof requestCheck>;
+export type CheckRequest = z.infer<typeof checkRequestRequest>;
 export type SaveRequest = z.infer<typeof saveRequestRequest>;

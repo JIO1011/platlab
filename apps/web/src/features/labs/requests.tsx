@@ -9,7 +9,7 @@ import { labsErrorMessage, useCreateRequest } from './commands';
 import { useLabs } from './context';
 import { useLabsForms, useRequests } from './queries';
 import { RequestItem, RequestList, RequestSection } from './request-list';
-import { firstDateText, groupMine } from './request-summary';
+import { firstDateText, groupMine, titleText } from './request-summary';
 import { softCard } from './style';
 
 /** Crea un borrador, o la copia de otra solicitud propia, y abre su hoja. Si falla, lo dice y se queda en la lista. */
@@ -71,7 +71,7 @@ function NewRequestBand({ workspaceId, forms }: { workspaceId: string; forms: Re
 function DuplicateRequest({ workspaceId, request }: { workspaceId: string; request: RequestSummary }) {
   const { start, pending } = useStartRequest(workspaceId);
   return (
-    <Button variant="ghost" size="sm" className="h-11 sm:h-8" loading={pending} aria-label={`Duplicar ${request.code}`} onClick={() => void start({ from: request.id })}>
+    <Button variant="ghost" size="sm" className="h-11 sm:h-8" loading={pending} aria-label={`Duplicar «${titleText(request)}»`} onClick={() => void start({ from: request.id })}>
       <Copy aria-hidden />
       Duplicar
     </Button>

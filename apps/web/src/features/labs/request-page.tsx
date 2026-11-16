@@ -6,7 +6,7 @@ import { WithBack } from '../../app/back-button';
 import { SectionHeader } from '../../app/section-header';
 import { QueryErrorState } from '../../app/states';
 import { useLabs } from './context';
-import { useRequest, useSpaces } from './queries';
+import { useRequest } from './queries';
 import { CancelRequest } from './request-cancel';
 import { RequestEditor } from './request-editor';
 import type { RequestView } from './request-draft';
@@ -33,7 +33,6 @@ function ChangesNotice({ request }: { request: RequestView }) {
  */
 function RequestSheet({ request }: { request: RequestView }) {
   const { workspaceId, canOperate } = useLabs();
-  const spaces = useSpaces(workspaceId);
   const [cancelling, setCancelling] = useState(false);
   const editable = canOperate && request.mine && REQUEST_EDITABLE.includes(request.status);
   const cancellable = canOperate && request.mine && REQUEST_CANCELLABLE.includes(request.status);
@@ -49,10 +48,13 @@ function RequestSheet({ request }: { request: RequestView }) {
       </RequestHeading>
       {cancelling && cancellable && !editable ? <CancelRequest workspaceId={workspaceId} request={request} onDismiss={() => setCancelling(false)} /> : null}
       <ChangesNotice request={request} />
-      {editable ? <RequestEditor request={request} spaces={spaces.data?.items ?? []} /> : <FilledRequest request={request} />}
+      {editable ? <RequestEditor request={request} /> : <FilledRequest request={request} />}
     </div>
   );
 }
+
+/** El título de la pantalla por omisión: el de la práctica y, sin él, el nombre del formato. */
+const practiceTitle = (request: RequestView): string => request.title ?? request.formName;
 
 /**
  * Abre una solicitud por su id en la sección de la que viene (`parent`): su título, la carga y el error. Quien la usa
@@ -60,10 +62,13 @@ function RequestSheet({ request }: { request: RequestView }) {
  */
 export function OpenRequest({
   parent,
+  titleOf = practiceTitle,
   actions,
   children,
 }: {
   parent: 'solicitudes' | 'recibidas';
+  /** El título de la pantalla con la solicitud ya leída; por omisión, el título de la práctica. */
+  titleOf?: (request: RequestView) => string;
   /** Lo que va a la derecha del título, con la solicitud ya leída (en la bandeja, las acciones de quien revisa). */
   actions?: (request: RequestView) => ReactNode;
   children: (request: RequestView) => ReactNode;
@@ -74,7 +79,7 @@ export function OpenRequest({
 
   return (
     <WithBack parent={`/e/${workspaceId}/laboratorios/${parent}`}>
-      <SectionHeader title={request.data?.title ?? request.data?.formName ?? 'Solicitud'} updatedAt={request.dataUpdatedAt} actions={request.data ? actions?.(request.data) : undefined} />
+      <SectionHeader title={request.data ? titleOf(request.data) : 'Solicitud'} updatedAt={request.dataUpdatedAt} actions={request.data ? actions?.(request.data) : undefined} />
       <div className="mt-8">
         {request.isPending ? (
           <div aria-busy="true">

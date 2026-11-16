@@ -1,4 +1,4 @@
-import { compareDecimals, scheduleProblemText, type RequestReview } from '@platlab/contracts';
+import { compareDecimals, type RequestReview } from '@platlab/contracts';
 import { formatDecimal } from '@platlab/ui';
 import { formatDate } from '../../app/format';
 
@@ -20,18 +20,6 @@ const onDate = (label: string, date: string, dates: number) => (dates > 1 ? `${l
 export function reviewRows(review: RequestReview): ReviewRow[] {
   const rows: ReviewRow[] = [];
   const count = review.dates.length;
-
-  const areaDates = review.dates.filter((date) => date.area !== null);
-  const blocked = areaDates.filter((date) => date.area!.problems.length > 0);
-  if (areaDates.length > 0 && blocked.length === 0) rows.push({ key: 'area', ok: true, label: `${areaDates[0]!.area!.name} libre`, alternatives: [] });
-  for (const date of blocked) {
-    rows.push({
-      key: `area-${date.date}`,
-      ok: false,
-      label: onDate(date.area!.name, date.date, count),
-      alternatives: date.area!.problems.map((problem) => scheduleProblemText[problem]),
-    });
-  }
 
   for (const item of review.reagents) {
     const ok = compareDecimals(item.available, item.needed) >= 0;

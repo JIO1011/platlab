@@ -25,7 +25,6 @@ export interface IListActivitiesResult {
   id: string;
   participants: number;
   request_id: string;
-  request_number: number;
   requester_name: string;
   responsible_name: string;
   responsible_principal_id: string;
@@ -42,13 +41,13 @@ export interface IListActivitiesQuery {
   result: IListActivitiesResult;
 }
 
-const listActivitiesIR: any = {"usedParamSet":{"workspaceId":true,"activityId":true,"from":true,"to":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1530,"b":1542}]},{"name":"activityId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1588,"b":1598},{"a":1630,"b":1640}]},{"name":"from","required":false,"transform":{"type":"scalar"},"locs":[{"a":1683,"b":1687}]},{"name":"to","required":false,"transform":{"type":"scalar"},"locs":[{"a":1699,"b":1701}]}],"statement":"-- Los bloques activos del rango (o solo :activityId), con lo que el bloque muestra: actividad, solicitante y grupo.\nSELECT a.id, a.request_id, q.number AS request_number, coalesce(q.title, '') AS \"title!\",\n  coalesce(requester.display_name, '') AS \"requester_name!\", subject.name AS \"subject?\", career.name AS \"group?\",\n  coalesce(q.participants, 0) AS \"participants!\",\n  a.on_date::text AS \"date!\", a.area_id, to_char(a.starts_at, 'HH24:MI') AS \"starts_at!\", to_char(a.ends_at, 'HH24:MI') AS \"ends_at!\",\n  a.responsible_principal_id, coalesce(responsible.display_name, '') AS \"responsible_name!\", a.code, a.stage, a.version\nFROM labs.activities AS a\nJOIN labs.requests AS q ON q.workspace_id = a.workspace_id AND q.id = a.request_id\nLEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id\nLEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id\nLEFT JOIN core.principals AS rp ON rp.workspace_id = q.workspace_id AND rp.id = q.requester_principal_id\nLEFT JOIN core.memberships AS rm ON rm.workspace_id = rp.workspace_id AND rm.id = rp.membership_id\nLEFT JOIN core.identities AS requester ON requester.id = rm.identity_id\nLEFT JOIN core.principals AS pp ON pp.workspace_id = a.workspace_id AND pp.id = a.responsible_principal_id\nLEFT JOIN core.memberships AS pm ON pm.workspace_id = pp.workspace_id AND pm.id = pp.membership_id\nLEFT JOIN core.identities AS responsible ON responsible.id = pm.identity_id\nWHERE a.workspace_id = :workspaceId! AND a.cancelled_at IS NULL\n  AND (CASE WHEN :activityId::uuid IS NOT NULL THEN a.id = :activityId::uuid\n            ELSE a.on_date BETWEEN :from::date AND :to::date END)\nORDER BY a.on_date, a.starts_at, a.area_id"};
+const listActivitiesIR: any = {"usedParamSet":{"workspaceId":true,"activityId":true,"from":true,"to":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1502,"b":1514}]},{"name":"activityId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1560,"b":1570},{"a":1602,"b":1612}]},{"name":"from","required":false,"transform":{"type":"scalar"},"locs":[{"a":1655,"b":1659}]},{"name":"to","required":false,"transform":{"type":"scalar"},"locs":[{"a":1671,"b":1673}]}],"statement":"-- Los bloques activos del rango (o solo :activityId), con lo que el bloque muestra: actividad, solicitante y grupo.\nSELECT a.id, a.request_id, coalesce(q.title, '') AS \"title!\",\n  coalesce(requester.display_name, '') AS \"requester_name!\", subject.name AS \"subject?\", career.name AS \"group?\",\n  coalesce(q.participants, 0) AS \"participants!\",\n  a.on_date::text AS \"date!\", a.area_id, to_char(a.starts_at, 'HH24:MI') AS \"starts_at!\", to_char(a.ends_at, 'HH24:MI') AS \"ends_at!\",\n  a.responsible_principal_id, coalesce(responsible.display_name, '') AS \"responsible_name!\", a.code, a.stage, a.version\nFROM labs.activities AS a\nJOIN labs.requests AS q ON q.workspace_id = a.workspace_id AND q.id = a.request_id\nLEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id\nLEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id\nLEFT JOIN core.principals AS rp ON rp.workspace_id = q.workspace_id AND rp.id = q.requester_principal_id\nLEFT JOIN core.memberships AS rm ON rm.workspace_id = rp.workspace_id AND rm.id = rp.membership_id\nLEFT JOIN core.identities AS requester ON requester.id = rm.identity_id\nLEFT JOIN core.principals AS pp ON pp.workspace_id = a.workspace_id AND pp.id = a.responsible_principal_id\nLEFT JOIN core.memberships AS pm ON pm.workspace_id = pp.workspace_id AND pm.id = pp.membership_id\nLEFT JOIN core.identities AS responsible ON responsible.id = pm.identity_id\nWHERE a.workspace_id = :workspaceId! AND a.cancelled_at IS NULL\n  AND (CASE WHEN :activityId::uuid IS NOT NULL THEN a.id = :activityId::uuid\n            ELSE a.on_date BETWEEN :from::date AND :to::date END)\nORDER BY a.on_date, a.starts_at, a.area_id"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Los bloques activos del rango (o solo :activityId), con lo que el bloque muestra: actividad, solicitante y grupo.
- * SELECT a.id, a.request_id, q.number AS request_number, coalesce(q.title, '') AS "title!",
+ * SELECT a.id, a.request_id, coalesce(q.title, '') AS "title!",
  *   coalesce(requester.display_name, '') AS "requester_name!", subject.name AS "subject?", career.name AS "group?",
  *   coalesce(q.participants, 0) AS "participants!",
  *   a.on_date::text AS "date!", a.area_id, to_char(a.starts_at, 'HH24:MI') AS "starts_at!", to_char(a.ends_at, 'HH24:MI') AS "ends_at!",
@@ -121,13 +120,9 @@ export interface ILockRequestForScheduleParams {
 
 /** 'LockRequestForSchedule' return type */
 export interface ILockRequestForScheduleResult {
-  area_id: string | null;
   dates: stringArray;
-  ends_at: string | null;
-  number: number;
   participants: number;
   scheduled_dates: stringArray;
-  starts_at: string | null;
   status: string;
   version: number;
 }
@@ -138,14 +133,13 @@ export interface ILockRequestForScheduleQuery {
   result: ILockRequestForScheduleResult;
 }
 
-const lockRequestForScheduleIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":541,"b":553}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":564,"b":574}]}],"statement":"-- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.\nSELECT number, status, version, dates::text[] AS \"dates!\", coalesce(participants, 0) AS \"participants!\", area_id,\n  to_char(starts_at, 'HH24:MI') AS starts_at, to_char(ends_at, 'HH24:MI') AS ends_at,\n  ARRAY(SELECT a.on_date::text FROM labs.activities AS a\n         WHERE a.workspace_id = labs.requests.workspace_id AND a.request_id = labs.requests.id AND a.cancelled_at IS NULL)\n    AS \"scheduled_dates!\"\nFROM labs.requests\nWHERE workspace_id = :workspaceId! AND id = :requestId!\nFOR UPDATE"};
+const lockRequestForScheduleIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":438,"b":450}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":461,"b":471}]}],"statement":"-- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.\nSELECT status, version, dates::text[] AS \"dates!\", coalesce(participants, 0) AS \"participants!\",\n  ARRAY(SELECT a.on_date::text FROM labs.activities AS a\n         WHERE a.workspace_id = labs.requests.workspace_id AND a.request_id = labs.requests.id AND a.cancelled_at IS NULL)\n    AS \"scheduled_dates!\"\nFROM labs.requests\nWHERE workspace_id = :workspaceId! AND id = :requestId!\nFOR UPDATE"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- La solicitud que se programa, bloqueada: su estado, sus fechas y sus participantes deciden.
- * SELECT number, status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!", area_id,
- *   to_char(starts_at, 'HH24:MI') AS starts_at, to_char(ends_at, 'HH24:MI') AS ends_at,
+ * SELECT status, version, dates::text[] AS "dates!", coalesce(participants, 0) AS "participants!",
  *   ARRAY(SELECT a.on_date::text FROM labs.activities AS a
  *          WHERE a.workspace_id = labs.requests.workspace_id AND a.request_id = labs.requests.id AND a.cancelled_at IS NULL)
  *     AS "scheduled_dates!"

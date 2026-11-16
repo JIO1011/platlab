@@ -22,7 +22,8 @@ import { requestLines, type IRequestLinesResult } from '../infrastructure/reques
 export interface BlockSlot {
   activityId: string;
   requestId: string;
-  requestCode: string;
+  /** El código de práctica del bloque: nombra lo apartado («Práctica P1-S10-BIO01»). */
+  practiceCode: string;
   date: string;
   startsAt: string;
   endsAt: string;
@@ -65,7 +66,7 @@ export async function holdBlock(access: WorkspaceAccess, slot: BlockSlot): Promi
         itemId: line.item_id!,
         quantity: line.quantity,
         validOn: slot.date,
-        reason: `Práctica ${slot.requestCode}`,
+        reason: `Práctica ${slot.practiceCode}`,
         destination: slot.areaName,
       });
       for (const hold of holds) {

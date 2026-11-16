@@ -1,4 +1,4 @@
-import { activity, approvalResults, approvedRequest, closure, formLogo, labsForm, labsRequest, labsSettings, period, scheduledActivity, space } from '@platlab/contracts';
+import { activity, closure, formLogo, labsForm, labsRequest, labsSettings, period, scheduledActivity, space } from '@platlab/contracts';
 import { toast } from '@platlab/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, isApiError } from '../../app/api';
@@ -70,7 +70,7 @@ export function useArchiveForm(workspaceId: string, formId: string) {
   return useModuleCommand(workspaceId, `/labs/forms/${formId}/archive`, labsForm, useLabsKey(workspaceId));
 }
 
-/** «Publicar revisión»: la revisión siguiente e inmutable de la hoja del formato. */
+/** «Guardar cambios» de un formato: la revisión siguiente e inmutable de la hoja del formato. */
 export function usePublishForm(workspaceId: string, formId: string) {
   return useModuleCommand(workspaceId, `/labs/forms/${formId}/revisions`, labsForm, useLabsKey(workspaceId));
 }
@@ -103,16 +103,6 @@ export function useRequestChanges(workspaceId: string, requestId: string) {
 /** «Rechazar»: la solicitud enviada queda rechazada, con el motivo. */
 export function useRejectRequest(workspaceId: string, requestId: string) {
   return useModuleCommand(workspaceId, `/labs/requests/${requestId}/reject`, labsRequest, useLabsKey(workspaceId));
-}
-
-/** «Aprobar»: cada fecha pendiente de la solicitud enviada se programa en el laboratorio y la hora pedidos, con la versión que se vio. */
-export function useApproveRequest(workspaceId: string, requestId: string) {
-  return useModuleCommand(workspaceId, `/labs/requests/${requestId}/approve`, approvedRequest, useLabsKey(workspaceId));
-}
-
-/** «Aprobar seleccionadas»: varias a la vez, cada una en su transacción y con su resultado. */
-export function useApproveRequests(workspaceId: string) {
-  return useModuleCommand(workspaceId, '/labs/requests/approve', approvalResults, useLabsKey(workspaceId));
 }
 
 /** «Programar»: una fecha de una solicitud enviada pasa a ser un bloque, con la versión de la solicitud que se vio. */

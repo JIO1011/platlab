@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { approvalResults, approvedRequest, labsRequest, responsibleOptions, scheduledActivity, scheduleList, space, type LabsRequest } from '@platlab/contracts';
+import { labsRequest, requestList, responsibleOptions, scheduledActivity, scheduleList, space, type LabsRequest } from '@platlab/contracts';
 import { admin, call, count, errorCode } from '../../testing/api.js';
 import { addLocation } from '../../testing/core-fixtures.js';
 import { complete, createRequestsLab, draft, inDays, save, send, submitted, type RequestsLab } from './labs.fixtures.js';
@@ -42,7 +42,7 @@ describe('programar', () => {
     const first = await place(request, inDays(20));
     expect(first.status).toBe(201);
     const { activity, warnings } = scheduledActivity.parse(first.body);
-    expect(activity).toMatchObject({ requestCode: request.code, date: inDays(20), areaId: area, responsibleName: 'Operador', title: 'Titulación ácido-base', group: 'Bioquímica' });
+    expect(activity).toMatchObject({ requestId: request.id, date: inDays(20), areaId: area, responsibleName: 'Operador', title: 'Titulación ácido-base', group: 'Bioquímica' });
     expect(activity.code).toMatch(/^P1-S\d{1,2}-QUI01$/);
     expect(warnings).toEqual([]);
     const partial = await reload(request);
@@ -53,6 +53,10 @@ describe('programar', () => {
     expect(done).toMatchObject({ status: 'scheduled', scheduledCount: 2 });
     expect(done.blocks.map((block) => block.date)).toEqual([inDays(20), inDays(27)]);
     expect(done.events.map((event) => event.action)).toEqual(['submitted', 'scheduled']);
+    // Recibidas muestra el código de práctica de cada bloque, en el orden de sus fechas.
+    const listed = requestList.parse((await call(lab.operator.subject, `${lab.base}/requests?scope=inbox`)).body).items.find((item) => item.id === request.id);
+    expect(listed?.blockCodes).toEqual(done.blocks.map((block) => block.code));
+    expect(listed?.scheduledDates).toEqual([inDays(20), inDays(27)]);
   });
 
   it('el Docente y el Operador ven la tabla, pero no programan', async () => {
@@ -143,50 +147,5 @@ describe('cancelar y resolver', () => {
     const response = await place(request, inDays(30));
     expect(response.status).toBe(404);
     expect(errorCode(response.body)).toBe('NOT_FOUND');
-  });
-});
-
-describe('aprobar', () => {
-  /** Una solicitud enviada que pide un laboratorio y un horario. */
-  async function asking(dates: string[], areaId: string, startsAt = '14:00', endsAt = '15:00') {
-    const request = await draft(lab);
-    const saved = await save(lab, request, complete(request, dates, { areaId, startsAt, endsAt }));
-    return labsRequest.parse((await send(lab, 'POST', `/requests/${request.id}/submit`, { expectedVersion: saved.version }, lab.teacher.subject)).body);
-  }
-
-  it('programa cada fecha donde y cuando se pidió; queda programada con sus códigos', async () => {
-    const request = await asking([inDays(35), inDays(42)], area);
-    const approved = approvedRequest.parse((await send(lab, 'POST', `/requests/${request.id}/approve`, { expectedVersion: request.version })).body);
-    expect(approved.items.map((item) => [item.activity.date, item.activity.areaId, item.activity.startsAt, item.activity.responsibleName])).toEqual([
-      [inDays(35), area, '14:00', 'Administradora'],
-      [inDays(42), area, '14:00', 'Administradora'],
-    ]);
-    expect(await reload(request)).toMatchObject({ status: 'scheduled', scheduledCount: 2 });
-    expect((await send(lab, 'POST', `/requests/${request.id}/approve`, { expectedVersion: request.version }, lab.operator.subject)).status).toBe(403);
-  });
-
-  it('todo o nada: si una fecha choca no programa ninguna y dice cuál', async () => {
-    const taken = await asking([inDays(36)], area, '16:00', '17:00');
-    await send(lab, 'POST', `/requests/${taken.id}/approve`, { expectedVersion: taken.version });
-    const request = await asking([inDays(37), inDays(36)], area, '16:00', '17:00');
-    const response = await send(lab, 'POST', `/requests/${request.id}/approve`, { expectedVersion: request.version });
-    expect(response.status).toBe(400);
-    expect(message(response.body)).toContain(inDays(36));
-    expect(await reload(request)).toMatchObject({ status: 'submitted', scheduledCount: 0 });
-  });
-
-  it('sin laboratorio pedido se programa arrastrando; varias a la vez, cada una con su resultado', async () => {
-    const noArea = await submitted(lab, [inDays(38)]);
-    const single = await send(lab, 'POST', `/requests/${noArea.id}/approve`, { expectedVersion: noArea.version });
-    expect(message(single.body)).toMatch(/arrastrando/);
-    const ok = await asking([inDays(39)], otherArea, '09:00', '10:00');
-    const results = approvalResults.parse(
-      (await send(lab, 'POST', '/requests/approve', { items: [{ requestId: noArea.id, expectedVersion: noArea.version }, { requestId: ok.id, expectedVersion: ok.version }] })).body,
-    );
-    expect(results.items.map((item) => [item.requestId, item.ok])).toEqual([
-      [noArea.id, false],
-      [ok.id, true],
-    ]);
-    expect(results.items[1]!.codes[0]).toMatch(/-FIS\d{2}$/);
   });
 });

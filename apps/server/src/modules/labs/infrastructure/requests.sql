@@ -1,13 +1,5 @@
 /* Solicitudes de Laboratorios (ADR 0023, «Diseño de L-01b»): borrador, envío, cambios, rechazo y cancelación. */
 
-/* @name nextRequestNumber */
--- El número siguiente del espacio (SOL-0042). La fila del contador serializa a quienes crean a la vez, y un
--- número tomado no vuelve aunque la solicitud se cancele.
-INSERT INTO labs.request_counters (workspace_id, last_number)
-VALUES (:workspaceId!, 1)
-ON CONFLICT (workspace_id) DO UPDATE SET last_number = labs.request_counters.last_number + 1
-RETURNING last_number AS "number!";
-
 /* @name activeFormRevision */
 -- La última revisión de un formato activo: la que llena un borrador nuevo.
 SELECT max(r.revision) AS revision
@@ -21,23 +13,30 @@ FROM labs.form_revisions
 WHERE workspace_id = :workspaceId! AND form_id = :formId! AND revision = :revision!;
 
 /* @name insertRequest */
-INSERT INTO labs.requests (workspace_id, number, form_id, form_revision, requester_principal_id, title, teacher_name,
-  activity_type, subject_id, career_id, dates, starts_at, ends_at, participants, groups, area_id, answers, notes)
-VALUES (:workspaceId!, :number!, :formId!, :formRevision!, :requesterId!, :title, :teacherName, :activityType, :subjectId,
-  :careerId, :dates!::date[], :startsAt::time, :endsAt::time, :participants, :groups!, :areaId, :answers!::jsonb, :notes)
+INSERT INTO labs.requests (workspace_id, form_id, form_revision, requester_principal_id, title, teacher_name,
+  activity_type, subject_id, career_id, dates, starts_at, ends_at, participants, groups, answers, notes)
+VALUES (:workspaceId!, :formId!, :formRevision!, :requesterId!, :title, :teacherName, :activityType, :subjectId,
+  :careerId, :dates!::date[], :startsAt::time, :endsAt::time, :participants, :groups!, :answers!::jsonb, :notes)
 RETURNING id;
 
 /* @name listRequests */
 -- Con :requestId, solo esa (quién la ve lo decide el comando). Si no, con :requesterId, las de esa persona
 -- (borradores incluidos), o las recibidas: sin borradores. Activas primero y, dentro, por la fecha más próxima.
 SELECT
-  q.id, q.number, q.status, q.form_id, q.form_revision, f.name AS form_name, r.title AS form_title, r.document_code,
+  q.id, q.status, q.form_id, q.form_revision, f.name AS form_name, r.title AS form_title, r.document_code,
   r.layout, q.requester_principal_id, coalesce(ident.display_name, '') AS "requester_name!",
   q.title, q.teacher_name, q.activity_type, subject.name AS "subject?", career.name AS "career?",
   q.dates::text[] AS "dates!", to_char(q.starts_at, 'HH24:MI') AS starts_at, to_char(q.ends_at, 'HH24:MI') AS ends_at,
-  q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version,
+  q.participants, q.groups, q.answers, q.notes, q.late, q.submitted_at, q.version,
   ARRAY(SELECT a.on_date::text FROM labs.activities AS a
-    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "scheduled_dates!"
+    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "scheduled_dates!",
+  ARRAY(SELECT a.code FROM labs.activities AS a
+    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "block_codes!",
+  -- Sus bloques y si están cerrados: con todas las fechas programadas, la marca de cada línea sale de lo apartado.
+  ARRAY(SELECT a.id FROM labs.activities AS a
+    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "block_ids!",
+  ARRAY(SELECT a.stage = 'closed' FROM labs.activities AS a
+    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "block_closed!"
 FROM labs.requests AS q
 JOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id
 JOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision
@@ -50,7 +49,7 @@ WHERE q.workspace_id = :workspaceId!
   AND (CASE WHEN :requestId::uuid IS NOT NULL THEN q.id = :requestId::uuid
             WHEN :requesterId::uuid IS NOT NULL THEN q.requester_principal_id = :requesterId::uuid
             ELSE q.status <> 'draft' END)
-ORDER BY q.status IN ('rejected', 'cancelled'), q.dates[1] NULLS LAST, q.number DESC
+ORDER BY q.status IN ('rejected', 'cancelled'), q.dates[1] NULLS LAST, q.created_at DESC
 LIMIT 500;
 
 /* @name requestLines */
@@ -94,16 +93,11 @@ FROM labs.list_values
 WHERE workspace_id = :workspaceId!
 ORDER BY kind, core.fold_text(name);
 
-/* @name activeSpace */
-SELECT 1 AS "found!"
-FROM labs.spaces
-WHERE workspace_id = :workspaceId! AND area_id = :areaId! AND archived_at IS NULL;
-
 /* @name writeRequest */
 UPDATE labs.requests
 SET title = :title, teacher_name = :teacherName, activity_type = :activityType, subject_id = :subjectId,
   career_id = :careerId, dates = :dates!::date[], starts_at = :startsAt::time, ends_at = :endsAt::time,
-  participants = :participants, groups = :groups!, area_id = :areaId, answers = :answers!::jsonb, notes = :notes,
+  participants = :participants, groups = :groups!, answers = :answers!::jsonb, notes = :notes,
   version = version + 1
 WHERE workspace_id = :workspaceId! AND id = :requestId!;
 

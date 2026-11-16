@@ -6,12 +6,9 @@ import { missingKeys } from './request-draft-issues';
 
 const reagentId = '5b2c7a10-1f3e-4a6b-8c9d-0e1f2a3b4c5d';
 const assetTypeId = '7c3d8b21-2a4f-4b7c-9dae-1f2a3b4c5d6e';
-const areaId = '9d4e9c32-3b5a-4c8d-a1bf-2a3b4c5d6e7f';
 
 const request: LabsRequest = {
   id: '0d8f6d4e-6a8c-4f4e-9d0b-3f1d2b5a7c11',
-  number: 42,
-  code: 'SOL-0042',
   status: 'draft',
   formName: 'Práctica académica',
   title: 'Titulación ácido-base',
@@ -22,6 +19,7 @@ const request: LabsRequest = {
   exceptions: 0,
   scheduledCount: 0,
   scheduledDates: [],
+  blockCodes: [],
   group: 'Ingeniería química',
   submittedAt: null,
   version: 3,
@@ -39,7 +37,6 @@ const request: LabsRequest = {
   endsAt: '10:00',
   participants: 24,
   groups: 3,
-  areaId,
   answers: { colaborador: 'Luis Mora', practica_n: 3, otro: 'ya no se presenta' },
   notes: 'Traer bata',
   lines: [
@@ -85,7 +82,6 @@ describe('ida y vuelta: borrador y SaveRequest', () => {
       endsAt: '10:00',
       participants: 24,
       groups: 3,
-      areaId,
       answers: { colaborador: 'Luis Mora', curso_paralelo: null, practica_n: 3 },
       notes: 'Traer bata',
       lines: [
@@ -117,13 +113,12 @@ describe('ida y vuelta: borrador y SaveRequest', () => {
       endsAt: null,
       participants: null,
       groups: 1,
-      areaId: null,
       answers: {},
       notes: null,
       lines: [],
     });
     const body = saveBody(empty, FORM_STANDARD_LAYOUT, 1);
-    expect(body).toMatchObject({ title: null, activityType: null, dates: [], participants: null, areaId: null, notes: null, lines: [] });
+    expect(body).toMatchObject({ title: null, activityType: null, dates: [], participants: null, notes: null, lines: [] });
     expect(body.answers).toEqual({ colaborador: null, curso_paralelo: null, practica_n: null });
     expect(saveRequestRequest.safeParse(body).success).toBe(true);
   });
@@ -209,7 +204,7 @@ describe('fechas', () => {
 describe('la hoja de la solicitud', () => {
   it('lleva la revisión, el título y el código con que se llenó', () => {
     const paper = paperOf(viewOf(request));
-    expect(paper).toMatchObject({ baseRevision: 2, title: 'Solicitud de laboratorio', documentCode: 'FOR-LAB-01' });
+    expect(paper).toMatchObject({ baseRevision: 2, title: 'Solicitud de laboratorio' });
     expect(fieldsOf(paper.rows).map(fieldKey)).toContain('docente');
   });
 

@@ -50,6 +50,8 @@ export interface PaperSlots {
   notes?: ReactNode;
   /** El nombre de quien solicita, que se imprime bajo su firma. */
   requester?: string;
+  /** El código de práctica de sus bloques, como en la lista («P1-S11-QUI01 +1»), que va en la casilla «Código». */
+  practiceCode?: string;
 }
 
 type PaperProps = {
@@ -80,9 +82,21 @@ export function FormPaper(props: PaperProps) {
   const sheet = (
     <article
       aria-label="Formato de la solicitud"
-      className={cn(sheetGrid, 'mx-auto w-full max-w-[210mm] border border-line-strong text-[12px] leading-snug text-ink [print-color-adjust:exact] print:max-w-none print:text-[8pt]')}
+      // En pantalla, una hoja de papel sobre la mesa, con una sombra larga y suave; en papel, solo su borde. Al llenarla o
+      // leerla en una pantalla ancha se ve a mayor escala (ADR 0023, «Disponibilidad y recursos»); se imprime en A4.
+      className={cn(
+        sheetGrid,
+        'mx-auto w-full max-w-[210mm] border border-line-strong text-[13px] leading-snug text-ink shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-24px_rgb(15_23_42/0.22)] [print-color-adjust:exact] print:max-w-none print:text-[8pt] print:shadow-none',
+        !design && 'xl:[zoom:1.25] print:[zoom:1]',
+      )}
     >
-      <Masthead draft={draft} workspaceName={workspaceName} revision={revision} {...(design ? { design: { issues, set, uploadLogo: design.uploadLogo } } : {})} />
+      <Masthead
+        draft={draft}
+        workspaceName={workspaceName}
+        revision={revision}
+        {...(design ? { design: { issues, set, uploadLogo: design.uploadLogo } } : {})}
+        {...(slots?.practiceCode ? { practiceCode: slots.practiceCode } : {})}
+      />
       {design ? <FormRowsEditor rows={draft.rows} issues={issues} onChange={(rows) => set({ rows })} /> : <SheetRows rows={draft.rows} {...(slots?.value ? { renderValue: slots.value } : {})} />}
       <ResourcesTable draft={draft} issues={issues} {...(design ? { onChange: set } : {})} {...(slots?.resourceRows ? { rows: slots.resourceRows } : {})} />
       <Observations draft={draft} editable={design !== undefined} set={set} {...(slots?.notes ? { content: slots.notes } : {})} />

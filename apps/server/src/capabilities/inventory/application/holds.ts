@@ -10,6 +10,7 @@ import {
   lockHoldablePositions,
   lockPositionsInOrder,
   releaseActivityHolds as releaseQuery,
+  stockBreakdown as stockBreakdownQuery,
 } from '../infrastructure/inventory.queries.js';
 import type { InventoryContext } from './context.js';
 import { applyMovement, lockExistingPosition } from './movements.js';
@@ -73,6 +74,17 @@ export async function holdableByArea(
   if (itemIds.length === 0) return [];
   const rows = await holdableByAreaQuery.run({ workspaceId: ctx.workspaceId, itemIds: [...itemIds], kind: ctx.kind, validOn }, ctx.client);
   return rows.map((row) => ({ itemId: row.item_id, areaName: row.area_name, available: row.available }));
+}
+
+/** El saldo vigente de cada ítem el día `validOn` y lo apartado de él; lo vencido no cuenta (ADR 0023). */
+export async function stockBreakdown(
+  ctx: Pick<InventoryContext, 'client' | 'workspaceId' | 'kind'>,
+  itemIds: readonly string[],
+  validOn: string,
+): Promise<Map<string, { stock: string; held: string }>> {
+  if (itemIds.length === 0) return new Map();
+  const rows = await stockBreakdownQuery.run({ workspaceId: ctx.workspaceId, itemIds: [...itemIds], kind: ctx.kind, validOn }, ctx.client);
+  return new Map(rows.map((row) => [row.item_id, { stock: row.stock, held: row.held }]));
 }
 
 /** Un frasco del que un bloque puede apartar: lo disponible incluye lo que ese bloque ya apartó de él. */

@@ -10,14 +10,17 @@ import {
   reagentPickOptions,
   requestList,
   requestOptions,
+  requestCheck,
   requestReview,
   responsibleOptions,
+  type CheckRequest,
   scheduleList,
   spaceList,
 } from '@platlab/contracts';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
+import type { CheckAnswer } from './request-check';
 import { viewOf } from './request-draft';
 
 const labsKey = (user: string, workspaceId: string) => [...workspaceKey(user, workspaceId), 'labs'] as const;
@@ -121,20 +124,6 @@ export function useRequest(workspaceId: string, requestId: string) {
   });
 }
 
-/**
- * Una solicitud tal como la guarda el servidor, para la hoja «Programar…»: el área que pidió el docente, que el resumen
- * de las listas no trae. Solo se pide la solicitud abierta. Comparte caché con `useRequest`, pero se vuelve a pedir sola: programar cambia sus bloques.
- */
-export function useRequestDetail(workspaceId: string, requestId: string, enabled = true) {
-  const user = useUserKey();
-  return useQuery({
-    enabled,
-    queryKey: [...labsKey(user, workspaceId), 'requests', 'one', requestId],
-    queryFn: () => api(`${base(workspaceId)}/requests/${requestId}`, { schema: labsRequest }),
-    refetchInterval: jitteredPoll,
-  });
-}
-
 /** Quienes pueden llevar un bloque (Operadores y Administradores); solo lo pide quien programa. */
 export function useResponsibles(workspaceId: string, enabled: boolean) {
   const user = useUserKey();
@@ -151,6 +140,24 @@ export function useRequestOptions(workspaceId: string) {
   return useQuery({
     queryKey: [...labsKey(user, workspaceId), 'request-options'],
     queryFn: () => api(`${base(workspaceId)}/request-options`, { schema: requestOptions }),
+  });
+}
+
+/**
+ * La consulta sin guardar de lo que se está llenando (ADR 0023, «Disponibilidad y recursos»): se pide al dejar de escribir.
+ * Mientras llega la nueva, se conserva la anterior junto con el cuerpo que la pidió, para que el catálogo no parpadee; quien
+ * la muestra compara ese cuerpo con el actual y no da por buena una respuesta vieja.
+ */
+export function useRequestCheck(workspaceId: string, requestId: string, body: CheckRequest | null) {
+  const user = useUserKey();
+  return useQuery({
+    enabled: body !== null,
+    queryKey: [...labsKey(user, workspaceId), 'request-check', requestId, body],
+    queryFn: async (): Promise<CheckAnswer> => ({
+      body: body!,
+      result: await api(`${base(workspaceId)}/requests/${requestId}/check`, { method: 'POST', body, schema: requestCheck }),
+    }),
+    placeholderData: keepPreviousData,
   });
 }
 

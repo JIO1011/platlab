@@ -98,8 +98,8 @@ function ArchiveForm({ workspaceId, form, onCancel, onDone }: { workspaceId: str
 }
 
 /**
- * La hoja de un formato (ADR 0023): la plantilla A4 que el Administrador edita en el mismo lugar. Cada «Publicar revisión»
- * es una revisión nueva e inmutable. Lo que se edita es un borrador en pantalla, sobre la revisión en que se empezó; si
+ * La hoja de un formato (ADR 0023): la plantilla A4 que el Administrador edita en el mismo lugar. Cada «Guardar cambios»
+ * publica una revisión nueva e inmutable. Lo que se edita es un borrador en pantalla, sobre la revisión en que se empezó; si
  * otra persona publicó antes, el servidor lo rechaza y se carga la vigente. Un formato archivado, y quien no puede
  * gestionar los formatos, ven la hoja sin edición. «Imprimir» saca la hoja en A4, sin la barra ni los controles.
  */
@@ -146,7 +146,7 @@ export function LabsFormPage() {
     }
     try {
       const published = await publish.mutateAsync(parsed.data);
-      toast.success(`Revisión ${published.revision} publicada`, { description: published.title });
+      toast.success(`Revisión ${published.revision} guardada`, { description: published.title });
       setDraft(null);
     } catch (error) {
       if (isApiError(error, 'VERSION_CONFLICT')) {
@@ -199,7 +199,7 @@ export function LabsFormPage() {
                     </Button>
                   ) : null}
                   <Button variant="primary" className="h-11 max-md:flex-1 md:h-10" disabled={!draft} loading={publish.isPending} onClick={() => void submit()}>
-                    Publicar revisión {current.revision + 1}
+                    Guardar cambios
                   </Button>
                 </>
               ) : null}
@@ -217,7 +217,7 @@ export function LabsFormPage() {
             ) : null}
             {editable ? (
               <p className="text-sm text-ink-muted">
-                Edita sobre la hoja: haz clic en un texto para cambiarlo. Mueve un dato o una fila arrastrando su asa, o con el botón «Mover» de cada dato si prefieres el teclado. El candado marca los datos que no se quitan. Nada se guarda hasta que publicas la revisión.
+                Edita sobre la hoja: haz clic en un texto para cambiarlo. Mueve un dato o una fila arrastrando su asa, o con el botón «Mover» de cada dato si prefieres el teclado. El candado marca los datos que no se quitan. Nada se guarda hasta que pulsas «Guardar cambios», que crea la revisión {current.revision + 1}.
               </p>
             ) : null}
             {generalError ? (
