@@ -243,6 +243,15 @@ export function rowStarts(range: DayRange): number[] {
   return Array.from({ length: (range.end - range.start) / ROW_MINUTES }, (_, index) => range.start + index * ROW_MINUTES);
 }
 
+/**
+ * Las horas que no son en punto donde empieza o termina algún bloque del día (10:15, 14:30), dentro del rango y sin
+ * repetir: la columna de horas las rotula en pequeño para leer dónde cae cada bloque (decisión del usuario, 15-11-2026).
+ */
+export function offHourMarks(items: readonly Pick<Activity, 'startsAt' | 'endsAt'>[], range: DayRange): number[] {
+  const marks = items.flatMap((item) => [toMinutes(item.startsAt), toMinutes(item.endsAt)]);
+  return [...new Set(marks)].filter((mark) => mark % 60 !== 0 && mark > range.start && mark < range.end).sort((a, b) => a - b);
+}
+
 /** Las horas en punto del rango: lo que rotula el eje. */
 export function hourMarks(range: DayRange): number[] {
   return rowStarts(range).filter((mark) => mark % 60 === 0);

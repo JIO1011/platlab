@@ -11,7 +11,7 @@ import {
   type Space,
 } from '@platlab/contracts';
 import { titleText } from './request-summary';
-import { MISSING_HOLDS, ROW_MINUTES, blockParts, blockText, capacityWarning, timeText, toMinutes, type DayRange } from './schedule-grid';
+import { MISSING_HOLDS, blockParts, blockText, capacityWarning, timeText, toMinutes, type DayRange } from './schedule-grid';
 
 /**
  * La lógica pura de programar y mover bloques (ADR 0023, L-01c): de la posición del puntero a una hora, el contexto de
@@ -22,8 +22,8 @@ import { MISSING_HOLDS, ROW_MINUTES, blockParts, blockText, capacityWarning, tim
 /** El paso de la hora al escribirla: 15 minutos. */
 const SNAP_MINUTES = 15;
 
-/** El paso de la hora al arrastrar: la media hora de cada fila, para que el bloque caiga en sus líneas. */
-const DRAG_STEP = ROW_MINUTES;
+/** El paso de la hora al arrastrar: la hora en punto, para que el bloque quede entre las líneas de la tabla (decisión del usuario, 15-11-2026). */
+const DRAG_STEP = 60;
 
 /** Hasta cuántos minutos de la hora pedida el arrastre se pega a ella (sin impedir ponerlo en otra). */
 const MAGNET_REACH = 20;
@@ -38,9 +38,9 @@ export function snapTo(minutes: number, step: number = SNAP_MINUTES): number {
 
 /**
  * La hora de inicio que corresponde a un punto de la columna: `offset` px bajo su borde superior, de `height` px, que
- * cubre `range`. Encaja a la media hora y, a menos de 20 min de la hora pedida (`requested`), se pega a ella aunque no
- * caiga en la media hora (14:15); deja el bloque dentro del rango del día (`duration` minutos de largo). Solo ayuda:
- * cualquier otra media hora sigue al alcance.
+ * cubre `range`. Encaja a la hora en punto y, a menos de 20 min de la hora pedida (`requested`), se pega a ella aunque
+ * no sea en punto (14:30, 14:15); deja el bloque dentro del rango del día (`duration` minutos de largo). Solo ayuda:
+ * cualquier otra hora sigue al alcance y «Programar…» y «Mover…» aceptan cuartos de hora.
  */
 export function startAtOffset({
   offset,

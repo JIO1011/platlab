@@ -102,21 +102,21 @@ describe('hora desde la posición', () => {
     expect(snapTo(0)).toBe(0);
   });
 
-  it('da la hora del punto de la columna, encajada a la media hora de cada fila', () => {
+  it('da la hora del punto de la columna, encajada a la hora en punto', () => {
     // 660 px de columna para 660 minutos (420 a 1080): un píxel por minuto.
     expect(startAtOffset({ offset: 0, height: 660, range, duration: 60 })).toBe(420);
     expect(startAtOffset({ offset: 66, height: 660, range, duration: 60 })).toBe(480);
-    expect(startAtOffset({ offset: 100, height: 660, range, duration: 60 })).toBe(510);
+    expect(startAtOffset({ offset: 100, height: 660, range, duration: 60 })).toBe(540);
   });
 
-  it('se pega a la hora pedida a menos de 20 minutos, aunque no caiga en la media hora', () => {
+  it('se pega a la hora pedida a menos de 20 minutos, aunque no sea en punto', () => {
     // Pedida a las 14:15 (855): a las 14:00 o a las 14:30 del puntero cae en 14:15.
     expect(startAtOffset({ offset: 420, height: 660, range, duration: 120, requested: 855 })).toBe(855);
     expect(startAtOffset({ offset: 450, height: 660, range, duration: 120, requested: 855 })).toBe(855);
   });
 
-  it('lejos de la hora pedida sigue en la media hora, sin impedir otro lugar', () => {
-    expect(startAtOffset({ offset: 460, height: 660, range, duration: 120, requested: 855 })).toBe(870);
+  it('lejos de la hora pedida sigue en la hora en punto, sin impedir otro lugar', () => {
+    expect(startAtOffset({ offset: 460, height: 660, range, duration: 120, requested: 855 })).toBe(900);
     expect(startAtOffset({ offset: 180, height: 660, range, duration: 120, requested: 855 })).toBe(600);
   });
 

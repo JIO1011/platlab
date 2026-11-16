@@ -1,6 +1,6 @@
 import type { Activity, Space } from '@platlab/contracts';
 import { Button, Tooltip, cn } from '@platlab/ui';
-import { MoveVertical, PackageX, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { MoveVertical, PackageX, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { MISSING_HOLDS, activityLabel, blockParts, blockText, capacityWarning, overCapacity, toMinutes } from './schedule-grid';
@@ -92,9 +92,14 @@ function Person({ role, name, end, className }: { role: string; name: string; en
   );
 }
 
-/** Los participantes, «26 p», en ámbar si superan el aforo (el triángulo de la materia lo dice también sin color). */
+/** Los participantes con el ícono de personas, en ámbar si superan el aforo (el triángulo de la materia lo dice también sin color). */
 function Participants({ count, over }: { count: number; over: boolean }) {
-  return <span className={cn('shrink-0 font-mono font-semibold tabular-nums', over ? 'text-warning' : 'text-ink')}>{count} p</span>;
+  return (
+    <span className={cn('inline-flex shrink-0 items-center gap-0.5 self-center font-mono font-semibold tabular-nums', over ? 'text-warning' : 'text-ink')}>
+      <Users aria-hidden className="size-3" />
+      {count}
+    </span>
+  );
 }
 
 /** Una fila de la lista del móvil: el rol apagado y su valor, en la rejilla de dos columnas de las personas. */
@@ -111,7 +116,7 @@ function ListRow({ role, children }: { role: string; children: ReactNode }) {
  * La cara de un bloque en la tabla (forma «franja de carrera», decisión del usuario, 15-11-2026), en dos zonas para
  * reconocerlo de un vistazo. Arriba, qué práctica es: el código en mono y, a la derecha, la hora si cabe; la materia en
  * negrita con los íconos de etapa, aforo y apartado; y la carrera en su etiqueta de color. Abajo, pegado al borde,
- * quiénes: «Docente» con los participantes a la derecha y «Encargado»; sobre ellos, si sobra alto, la etapa y el aviso de
+ * quiénes: «Docente» con los participantes (ícono de personas) a la derecha y «Encargado»; sobre ellos, si sobra alto, la etapa y el aviso de
  * aforo.
  */
 function TableFace({ activity, over, space, clear }: { activity: Activity; over: boolean; space: Pick<Space, 'capacity'>; clear: string | null }) {

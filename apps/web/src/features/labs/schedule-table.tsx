@@ -6,7 +6,7 @@ import type { CSSProperties } from 'react';
 import { useNow } from '../../app/use-now';
 import { ScheduleBlock, type BlockOpening } from './schedule-block';
 import { DraggableBlock, useDragPreview, type ColumnData, type SavingDrop } from './schedule-dnd';
-import { ROW_MINUTES, activitiesOfArea, areaLabel, blockSpan, closedAllDay, closedSpans, dayHoursText, daySlots, hourMarks, nowMinutes, placement, timeText, withoutHours, type DayRange, type Span } from './schedule-grid';
+import { ROW_MINUTES, activitiesOfArea, areaLabel, blockSpan, closedAllDay, closedSpans, dayHoursText, daySlots, hourMarks, nowMinutes, offHourMarks, placement, timeText, withoutHours, type DayRange, type Span } from './schedule-grid';
 import { blockingTexts, capacityText } from './schedule-placement';
 import { softCard } from './style';
 
@@ -71,6 +71,31 @@ function RequestedBand({ range }: { range: DayRange }) {
   return <span aria-hidden className="pointer-events-none absolute inset-x-0 border-y-2 border-dashed border-action-deep/70 bg-action/15" style={at(requested, range)} />;
 }
 
+/**
+ * En la columna de horas, las horas que no son en punto (decisión del usuario, 15-11-2026): las de inicio y fin de los
+ * bloques del día (`marks`) en pequeño y, mientras se arrastra, las de donde caería y las del horario pedido, en tinta. Cada
+ * una con una marca corta hacia la tabla, a la altura exacta.
+ */
+function OffHourMarks({ range, marks }: { range: DayRange; marks: readonly number[] }) {
+  const drag = useDragPreview();
+  const inside = (mark: number | undefined): mark is number => mark !== undefined && mark % 60 !== 0 && mark > range.start && mark < range.end;
+  const live = [drag?.preview?.start, drag?.preview?.end, drag?.requested?.from, drag?.requested?.to].filter(inside);
+  return (
+    <>
+      {[...new Set([...marks, ...live])].map((mark) => (
+        <span
+          key={mark}
+          className={cn('absolute right-0 z-[5] flex -translate-y-1/2 items-center gap-0.5 font-mono text-[10px] leading-3 tabular-nums', live.includes(mark) ? 'font-semibold text-ink' : 'text-ink-muted')}
+          style={{ top: topOf(mark, range) }}
+        >
+          <span className="rounded-[3px] bg-surface px-0.5">{timeText(mark)}</span>
+          <span aria-hidden className="h-px w-1.5 bg-current" />
+        </span>
+      ))}
+    </>
+  );
+}
+
 /** Lo que la vista previa dice del horario pedido: que cae en él, o cuál es; nada si la solicitud no lo trae. */
 function requestedText(requested: Span | null, start: number): string | null {
   if (!requested) return null;
@@ -80,7 +105,7 @@ function requestedText(requested: Span | null, start: number): string | null {
 /**
  * Dónde caería lo que se arrastra en esta columna, dicho con texto y con ícono: «círculo con visto» si cabe, «círculo con
  * cruz» y el motivo si no, «triángulo de alerta» si supera el aforo (solo avisa) y si cae en el horario pedido. El lugar
- * encaja a la media hora y se pega a la hora pedida.
+ * encaja a la hora en punto y se pega a la hora pedida.
  */
 function DropPreview({ range, space }: { range: DayRange; space: Space }) {
   const drag = useDragPreview();
@@ -241,7 +266,8 @@ function ColumnHeader({ space, date, closures }: { space: Space; date: string; c
  * la pantalla y todo el ancho. Una columna por cada área con horario, de ancho igual (mínimo 7,5 rem; si no caben, se
  * desplaza en horizontal con las horas fijas), con su cabecera de dos líneas (`ColumnHeader`); las áreas del Núcleo
  * sin espacio no ocupan columna (su aviso va en el encabezado de la pantalla). Las filas son de media hora, de 07:00 a
- * 19:00, y solo las horas en punto llevan línea fina, con su rótulo en mono debajo de ella; llenan el alto disponible y,
+ * 19:00, y solo las horas en punto llevan línea fina, con su rótulo en mono debajo de ella (las que no son en punto de
+ * los bloques, en pequeño a su altura); llenan el alto disponible y,
  * si no caben a 20 px, se desplaza la tabla. Lo cerrado va en un tono apagado con trama; si cierra todo el día, con su
  * motivo en el centro. Si se mira hoy, una línea fina marca «ahora» con la hora en una pastilla. Quien programa (`canSchedule`) lleva bloques y las solicitudes por programar
  * a un área y una hora arrastrando, y soltar guarda directamente; las columnas son los destinos.
@@ -297,6 +323,7 @@ export function ScheduleTable({
           <div className="relative size-full">
             <HourLines range={range} />
             <RequestedBand range={range} />
+            <OffHourMarks range={range} marks={offHourMarks(dayItems, range)} />
             {hourMarks(range).map((mark) => (
               <span key={mark} className="absolute inset-x-0 mt-2 text-center font-mono text-[11px] leading-none tabular-nums text-ink-muted" style={{ top: topOf(mark, range) }}>
                 {timeText(mark)}

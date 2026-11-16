@@ -21,6 +21,7 @@ import {
   loadByDay,
   monthWeeks,
   nowMinutes,
+  offHourMarks,
   openSlots,
   overCapacity,
   parseDay,
@@ -202,6 +203,11 @@ describe('rango del día', () => {
   it('tiene una fila por cada media hora', () => {
     expect(rowStarts({ start: 420, end: 540 })).toEqual([420, 450, 480, 510]);
     expect(rowStarts(boardRange([]))).toHaveLength(24);
+  });
+
+  it('rotula aparte las horas que no son en punto de los bloques, sin repetir y dentro del rango', () => {
+    const items = [activity({ startsAt: '08:00', endsAt: '10:30' }), activity({ startsAt: '10:30', endsAt: '12:15' }), activity({ startsAt: '06:45', endsAt: '09:00' })];
+    expect(offHourMarks(items, { start: 420, end: 1140 })).toEqual([630, 735]);
   });
 
   it('rotula solo las horas en punto', () => {
