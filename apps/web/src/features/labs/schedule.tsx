@@ -20,7 +20,7 @@ import { ScheduleDnd, type DragPreview, type DragSource, type SavingDrop } from 
 import { activitiesOn, boardColumns, boardRange, holidayOn, loadByDay, parseDay, periodOn, toMinutes, weekDates, type BoardColumn } from './schedule-grid';
 import { IdleAreas } from './schedule-idle';
 import { ScheduleList } from './schedule-list';
-import { contextFor, dropPlan, endFor, pendingDates, responsibleFor, scheduledMessage, slotAt, toScheduleOrder } from './schedule-placement';
+import { contextFor, dropPlan, endFor, pendingDates, requestedSpan, responsibleFor, scheduledMessage, slotAt, toScheduleOrder } from './schedule-placement';
 import { PlacementSheet, type PlacementTarget } from './schedule-placement-sheet';
 import { ScheduleTable } from './schedule-table';
 import { ScheduleTray, type TrayActions } from './schedule-tray';
@@ -147,6 +147,10 @@ export function LabsSchedulePage() {
     return { areaId, start, end: endFor(start, source.duration), check, participants, capacity: space.capacity };
   };
 
+  /** El horario que pidió la solicitud de lo arrastrado (la de un bloque se busca en Recibidas); nulo si no lo trae. */
+  const requestedOf = (source: DragSource) =>
+    requestedSpan(source.kind === 'program' ? source.request : inbox.data?.items.find((request) => request.id === source.activity.requestId));
+
   const drop = useDropActivity(workspaceId);
   const conflict = useVersionConflict(workspaceId);
   const resolved = useRequestResolved(workspaceId);
@@ -220,7 +224,7 @@ export function LabsSchedulePage() {
             onPick={goTo}
           />
         </div>
-        <ScheduleDnd previewOf={previewOf} onDrop={(source, preview) => void dropped(source, preview)}>
+        <ScheduleDnd previewOf={previewOf} requestedOf={requestedOf} onDrop={(source, preview) => void dropped(source, preview)}>
           <div className={cn('mt-3 grid gap-4', wide && 'mt-2 flex min-h-0 flex-1 flex-col gap-3')}>
             {failed ? (
               <div className={softCard}>

@@ -19,6 +19,7 @@ import {
   slotAt,
   snapTo,
   startAtOffset,
+  requestedSpan,
   toScheduleOrder,
 } from './schedule-placement';
 
@@ -101,11 +102,28 @@ describe('hora desde la posición', () => {
     expect(snapTo(0)).toBe(0);
   });
 
-  it('da la hora del punto de la columna, encajada', () => {
+  it('da la hora del punto de la columna, encajada a la media hora de cada fila', () => {
     // 660 px de columna para 660 minutos (420 a 1080): un píxel por minuto.
     expect(startAtOffset({ offset: 0, height: 660, range, duration: 60 })).toBe(420);
     expect(startAtOffset({ offset: 66, height: 660, range, duration: 60 })).toBe(480);
-    expect(startAtOffset({ offset: 100, height: 660, range, duration: 60 })).toBe(525);
+    expect(startAtOffset({ offset: 100, height: 660, range, duration: 60 })).toBe(510);
+  });
+
+  it('se pega a la hora pedida a menos de 20 minutos, aunque no caiga en la media hora', () => {
+    // Pedida a las 14:15 (855): a las 14:00 o a las 14:30 del puntero cae en 14:15.
+    expect(startAtOffset({ offset: 420, height: 660, range, duration: 120, requested: 855 })).toBe(855);
+    expect(startAtOffset({ offset: 450, height: 660, range, duration: 120, requested: 855 })).toBe(855);
+  });
+
+  it('lejos de la hora pedida sigue en la media hora, sin impedir otro lugar', () => {
+    expect(startAtOffset({ offset: 460, height: 660, range, duration: 120, requested: 855 })).toBe(870);
+    expect(startAtOffset({ offset: 180, height: 660, range, duration: 120, requested: 855 })).toBe(600);
+  });
+
+  it('dice el horario pedido en minutos, o nada si no lo trae completo', () => {
+    expect(requestedSpan({ startsAt: '14:00', endsAt: '16:00' })).toEqual({ from: 840, to: 960 });
+    expect(requestedSpan({ startsAt: '14:00', endsAt: null })).toBeNull();
+    expect(requestedSpan(undefined)).toBeNull();
   });
 
   it('deja el bloque dentro del rango, también por arriba y por abajo', () => {

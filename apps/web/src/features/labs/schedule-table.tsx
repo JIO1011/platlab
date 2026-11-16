@@ -6,7 +6,7 @@ import type { CSSProperties } from 'react';
 import { useNow } from '../../app/use-now';
 import { ScheduleBlock, type BlockOpening } from './schedule-block';
 import { DraggableBlock, useDragPreview, type ColumnData, type SavingDrop } from './schedule-dnd';
-import { ROW_MINUTES, activitiesOfArea, areaLabel, blockSpan, closedAllDay, closedSpans, dayHoursText, hourMarks, nowMinutes, placement, timeText, withoutHours, type DayRange } from './schedule-grid';
+import { ROW_MINUTES, activitiesOfArea, areaLabel, blockSpan, closedAllDay, closedSpans, dayHoursText, daySlots, hourMarks, nowMinutes, placement, timeText, withoutHours, type DayRange, type Span } from './schedule-grid';
 import { blockingTexts, capacityText } from './schedule-placement';
 import { softCard } from './style';
 
@@ -17,8 +17,11 @@ import { softCard } from './style';
  */
 const ROW_HEIGHT = 'max(20px, calc((100cqh - var(--head)) / var(--rows)))';
 
-/** El alto de la cabecera de las columnas: nombre del área y aforo, y horario del día. */
-const HEAD_HEIGHT = '3.75rem';
+/** El alto de la cabecera de las columnas: nombre del área y aforo, y una línea por cada tramo del horario del día. */
+const headHeight = (slotLines: number) => `calc(3.75rem + ${Math.max(slotLines - 1, 0)}rem)`;
+
+/** Cuántas líneas de horario lleva la cabecera de un área ese día: una por tramo, o una («Cerrada») si no abre. */
+const slotLines = (space: Space, date: string, closures: readonly Closure[]) => (closedAllDay(space, date, closures) === null ? daySlots(space, date).length : 1);
 
 /** El ancho mínimo de una columna de área y el de la columna de horas. */
 const COLUMN_MIN = '7.5rem';
@@ -59,8 +62,25 @@ function NowLine({ now, range }: { now: number | null; range: DayRange }) {
 }
 
 /**
+ * El horario que pidió la solicitud mientras se arrastra (decisión del usuario, 15-11-2026): una franja con el acento y
+ * líneas discontinuas arriba y abajo, en cada columna, para colocar el bloque en ella. Solo guía: se puede soltar en otra hora.
+ */
+function RequestedBand({ range }: { range: DayRange }) {
+  const requested = useDragPreview()?.requested;
+  if (!requested) return null;
+  return <span aria-hidden className="pointer-events-none absolute inset-x-0 border-y-2 border-dashed border-action-deep/70 bg-action/15" style={at(requested, range)} />;
+}
+
+/** Lo que la vista previa dice del horario pedido: que cae en él, o cuál es; nada si la solicitud no lo trae. */
+function requestedText(requested: Span | null, start: number): string | null {
+  if (!requested) return null;
+  return start === requested.from ? 'En el horario pedido' : `Pedido: ${timeText(requested.from)}–${timeText(requested.to)}`;
+}
+
+/**
  * Dónde caería lo que se arrastra en esta columna, dicho con texto y con ícono: «círculo con visto» si cabe, «círculo con
- * cruz» y el motivo si no, y «triángulo de alerta» si supera el aforo (solo avisa). El lugar encaja a 15 min.
+ * cruz» y el motivo si no, «triángulo de alerta» si supera el aforo (solo avisa) y si cae en el horario pedido. El lugar
+ * encaja a la media hora y se pega a la hora pedida.
  */
 function DropPreview({ range, space }: { range: DayRange; space: Space }) {
   const drag = useDragPreview();
@@ -68,6 +88,7 @@ function DropPreview({ range, space }: { range: DayRange; space: Space }) {
   if (!preview || preview.areaId !== space.areaId) return null;
   const blocked = preview.check.blocking.length > 0;
   const capacity = capacityText(preview.check, preview.participants, preview.capacity);
+  const requested = requestedText(drag.requested, preview.start);
   return (
     <div
       aria-hidden
@@ -90,6 +111,7 @@ function DropPreview({ range, space }: { range: DayRange; space: Space }) {
           {capacity}
         </p>
       ) : null}
+      {requested ? <p className="font-medium text-ink">{requested}</p> : null}
     </div>
   );
 }
@@ -147,6 +169,7 @@ function AreaColumn({
   return (
     <div ref={setNodeRef} role="group" aria-label={`Bloques de ${space.areaName}`} className="relative border-l border-line" style={{ height: columnHeight(range) }}>
       <HourLines range={range} />
+      <RequestedBand range={range} />
       {closedSpans(space, date, range, closures).map((span) => (
         <div
           key={`${span.from}-${span.to}`}
@@ -174,13 +197,14 @@ function AreaColumn({
 /**
  * La cabecera de una columna, en dos líneas (forma decidida por el usuario, 15-11-2026; sin sigla): el nombre del área en
  * negrita, sin la palabra «Laboratorio» (entero en el título y para el lector de pantalla), y el aforo con su ícono a la
- * derecha; debajo, la disponibilidad de ese día en mono, en verde si abre («08:00–12:00») o «Cerrada»
- * apagado si su horario no abre o hay un cierre o feriado, con «Sin horario» en ámbar a la derecha si el área no abre
- * ningún día.
+ * derecha; debajo, la disponibilidad de ese día en mono, en verde si abre, cada tramo en su línea («07:00–13:00» y,
+ * debajo, «14:00–19:00»), o «Cerrada» apagado si su horario no abre o hay un cierre o feriado, con «Sin horario» en ámbar a
+ * la derecha si el área no abre ningún día.
  */
 function ColumnHeader({ space, date, closures }: { space: Space; date: string; closures: readonly Closure[] }) {
   const open = closedAllDay(space, date, closures) === null;
   const hours = open ? dayHoursText(space, date) : 'Cerrada';
+  const lines = open ? daySlots(space, date) : ['Cerrada'];
   const idle = withoutHours(space);
   return (
     <div
@@ -198,10 +222,16 @@ function ColumnHeader({ space, date, closures }: { space: Space; date: string; c
           {space.capacity}
         </span>
       </p>
-      <p className="flex items-center justify-between gap-2 leading-4">
-        <span className={cn('min-w-0 truncate font-mono text-[11px] tabular-nums', open ? 'font-semibold text-success' : 'text-ink-muted')}>{hours}</span>
+      <div className="flex items-start justify-between gap-2 leading-4">
+        <p className={cn('grid min-w-0 font-mono text-[11px] tabular-nums', open ? 'font-semibold text-success' : 'text-ink-muted')}>
+          {lines.map((line) => (
+            <span key={line} className="truncate">
+              {line}
+            </span>
+          ))}
+        </p>
         {idle ? <span className="shrink-0 text-[11px] font-medium text-warning">Sin horario</span> : null}
-      </p>
+      </div>
     </div>
   );
 }
@@ -249,7 +279,7 @@ export function ScheduleTable({
   const style = {
     '--row': ROW_HEIGHT,
     '--rows': rows,
-    '--head': HEAD_HEIGHT,
+    '--head': headHeight(Math.max(1, ...spaces.map((space) => slotLines(space, date, closures)))),
     width: '100%',
     minWidth: `calc(${HOURS_WIDTH} + ${spaces.length} * ${COLUMN_MIN})`,
     gridTemplateColumns: `${HOURS_WIDTH} repeat(${spaces.length}, minmax(${COLUMN_MIN}, 1fr))`,
@@ -266,6 +296,7 @@ export function ScheduleTable({
         <div aria-hidden className="sticky left-0 z-20 bg-surface" style={{ height: columnHeight(range) }}>
           <div className="relative size-full">
             <HourLines range={range} />
+            <RequestedBand range={range} />
             {hourMarks(range).map((mark) => (
               <span key={mark} className="absolute inset-x-0 mt-2 text-center font-mono text-[11px] leading-none tabular-nums text-ink-muted" style={{ top: topOf(mark, range) }}>
                 {timeText(mark)}

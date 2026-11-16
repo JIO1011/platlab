@@ -15,6 +15,7 @@ import {
   closedSpans,
   dayClosedText,
   dayHoursText,
+  daySlots,
   holidayOn,
   hourMarks,
   loadByDay,
@@ -259,6 +260,11 @@ describe('lo cerrado', () => {
   it('dice el horario del área ese día, con uno o dos tramos', () => {
     expect(dayHoursText(space(), '2026-10-26')).toBe('07:00–13:00 · 14:00–18:00');
     expect(dayHoursText(space({ weeklyHours: hours([{ opens: '08:00', closes: '18:00' }]) }), '2026-10-26')).toBe('08:00–18:00');
+  });
+
+  it('da cada tramo del horario por separado, para ponerlos uno debajo del otro', () => {
+    expect(daySlots(space(), '2026-10-26')).toEqual(['07:00–13:00', '14:00–18:00']);
+    expect(daySlots(space(), '2026-10-31')).toEqual([]);
   });
 
   it('dice «Cerrada» el día que el horario del área no abre', () => {

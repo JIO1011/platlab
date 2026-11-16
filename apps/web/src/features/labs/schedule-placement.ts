@@ -11,7 +11,7 @@ import {
   type Space,
 } from '@platlab/contracts';
 import { titleText } from './request-summary';
-import { MISSING_HOLDS, blockParts, blockText, capacityWarning, timeText, toMinutes, type DayRange } from './schedule-grid';
+import { MISSING_HOLDS, ROW_MINUTES, blockParts, blockText, capacityWarning, timeText, toMinutes, type DayRange } from './schedule-grid';
 
 /**
  * La lógica pura de programar y mover bloques (ADR 0023, L-01c): de la posición del puntero a una hora, el contexto de
@@ -19,8 +19,14 @@ import { MISSING_HOLDS, blockParts, blockText, capacityWarning, timeText, toMinu
  * dibuja; el servidor decide con los datos bajo bloqueo.
  */
 
-/** El paso de la hora al arrastrar y al escribirla: 15 minutos. */
+/** El paso de la hora al escribirla: 15 minutos. */
 const SNAP_MINUTES = 15;
+
+/** El paso de la hora al arrastrar: la media hora de cada fila, para que el bloque caiga en sus líneas. */
+const DRAG_STEP = ROW_MINUTES;
+
+/** Hasta cuántos minutos de la hora pedida el arrastre se pega a ella (sin impedir ponerlo en otra). */
+const MAGNET_REACH = 20;
 
 /** La hora más tarde que se puede escribir como fin (23:59). */
 const LAST_MINUTE = 23 * 60 + 59;
@@ -32,12 +38,32 @@ export function snapTo(minutes: number, step: number = SNAP_MINUTES): number {
 
 /**
  * La hora de inicio que corresponde a un punto de la columna: `offset` px bajo su borde superior, de `height` px, que
- * cubre `range`. Encaja a 15 min y deja el bloque dentro del rango del día (`duration` minutos de largo).
+ * cubre `range`. Encaja a la media hora y, a menos de 20 min de la hora pedida (`requested`), se pega a ella aunque no
+ * caiga en la media hora (14:15); deja el bloque dentro del rango del día (`duration` minutos de largo). Solo ayuda:
+ * cualquier otra media hora sigue al alcance.
  */
-export function startAtOffset({ offset, height, range, duration }: { offset: number; height: number; range: DayRange; duration: number }): number {
+export function startAtOffset({
+  offset,
+  height,
+  range,
+  duration,
+  requested = null,
+}: {
+  offset: number;
+  height: number;
+  range: DayRange;
+  duration: number;
+  requested?: number | null;
+}): number {
   const raw = range.start + (offset / Math.max(height, 1)) * (range.end - range.start);
-  const latest = Math.max(range.start, snapTo(range.end - duration));
-  return Math.min(Math.max(snapTo(raw), range.start), latest);
+  const latest = Math.max(range.start, Math.floor((range.end - duration) / DRAG_STEP) * DRAG_STEP);
+  const start = requested !== null && Math.abs(raw - requested) <= MAGNET_REACH ? requested : snapTo(raw, DRAG_STEP);
+  return Math.min(Math.max(start, range.start), latest);
+}
+
+/** El horario que pidió la solicitud, en minutos; nulo si no lo trae completo. */
+export function requestedSpan(times: Pick<RequestSummary, 'startsAt' | 'endsAt'> | undefined): { from: number; to: number } | null {
+  return times?.startsAt && times.endsAt ? { from: toMinutes(times.startsAt), to: toMinutes(times.endsAt) } : null;
 }
 
 /** Cuántos minutos dura el horario pedido; nulo si la solicitud no lo trae completo. */

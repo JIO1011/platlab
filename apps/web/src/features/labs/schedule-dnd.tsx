@@ -20,7 +20,7 @@ import { formatDate } from '../../app/format';
 import { useMediaQuery } from '../../app/use-media-query';
 import { blockFace } from './schedule-block';
 import { useCareerTone } from './schedule-career-color';
-import { blockText, toMinutes, type DayRange } from './schedule-grid';
+import { blockText, toMinutes, type DayRange, type Span } from './schedule-grid';
 import { blockingTexts, requestBlockText, startAtOffset } from './schedule-placement';
 
 /**
@@ -56,6 +56,8 @@ export interface ColumnData {
 interface DragState {
   source: DragSource;
   preview: DragPreview | null;
+  /** El horario que pidió la solicitud: la tabla lo resalta mientras se arrastra y el arrastre se pega a su inicio. */
+  requested: Span | null;
 }
 
 /** Lo que se está guardando tras soltar: el destino donde se marca «Guardando» hasta que el servidor responde. */
@@ -135,14 +137,17 @@ function Ghost() {
 
 /**
  * Envuelve la tabla y «Por programar». `previewOf` dice, con los datos cargados, qué pasaría al soltar en esa área a esa hora;
- * `onDrop` recibe un lugar válido y lo guarda. Un lugar que no cabe se explica y no hace nada.
+ * `onDrop` recibe un lugar válido y lo guarda. Un lugar que no cabe se explica y no hace nada. `requestedOf` da el horario
+ * que pidió la solicitud de lo arrastrado: se resalta en la tabla y el arrastre se pega a su inicio, sin impedir otro.
  */
 export function ScheduleDnd({
   previewOf,
+  requestedOf,
   onDrop,
   children,
 }: {
   previewOf: (source: DragSource, areaId: string, start: number) => DragPreview | null;
+  requestedOf: (source: DragSource) => Span | null;
   onDrop: (source: DragSource, preview: DragPreview) => void;
   children: ReactNode;
 }) {
@@ -158,7 +163,7 @@ export function ScheduleDnd({
     const point = pointOf(activatorEvent);
     const top = active.rect.current.initial?.top;
     grab.current = source.kind === 'move' && point && top !== undefined ? Math.max(point.y - top, 0) : 0;
-    setState({ source, preview: null });
+    setState({ source, preview: null, requested: requestedOf(source) });
   };
 
   const move = ({ active, over, delta, activatorEvent }: DragMoveEvent) => {
@@ -168,7 +173,8 @@ export function ScheduleDnd({
     let next: DragPreview | null = null;
     if (source && over && column && point) {
       const offset = point.y + delta.y - grab.current - over.rect.top;
-      next = previewOf(source, String(over.id), startAtOffset({ offset, height: over.rect.height, range: column.range, duration: source.duration }));
+      const requested = state?.requested?.from ?? null;
+      next = previewOf(source, String(over.id), startAtOffset({ offset, height: over.rect.height, range: column.range, duration: source.duration, requested }));
     }
     setState((current) => {
       if (!current) return current;
@@ -215,7 +221,8 @@ export function useSourceDrag(id: string, source: DragSource | null, disabled: b
 /**
  * Un bloque de la tabla que el Administrador puede llevar a otra área u hora el mismo día (el clic sigue abriéndolo: el
  * arrastre empieza a los 6 px). Sin arrastre (otro rol o pantalla estrecha) es un contenedor simple. Mientras se lleva
- * queda atenuado en su sitio.
+ * queda atenuado en su sitio. Al pasar o enfocar, sube sobre sus vecinos (bajo las cabeceras fijas) para que su ficha
+ * ampliada no quede debajo.
  */
 export function DraggableBlock({ activity, enabled, style, children }: { activity: Activity; enabled: boolean; style: CSSProperties; children: ReactNode }) {
   const duration = toMinutes(activity.endsAt) - toMinutes(activity.startsAt);
@@ -224,7 +231,11 @@ export function DraggableBlock({ activity, enabled, style, children }: { activit
     <div
       ref={setNodeRef}
       {...(enabled ? listeners : {})}
-      className={cn('absolute inset-x-0.5 touch-manipulation', enabled && 'select-none', isDragging && 'opacity-40')}
+      className={cn(
+        'absolute inset-x-0.5 touch-manipulation [@media(hover:hover)]:hover:z-15 has-[:focus-visible]:z-15',
+        enabled && 'select-none',
+        isDragging && 'opacity-40',
+      )}
       style={style}
     >
       {children}

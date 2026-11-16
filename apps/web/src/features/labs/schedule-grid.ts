@@ -159,10 +159,15 @@ export function withoutHours(space: Pick<Space, 'weeklyHours'>): boolean {
   return Object.values(space.weeklyHours).every((slots) => slots.length === 0);
 }
 
-/** El horario del área ese día, «07:00–18:00» (los tramos, separados por « · »), o «Cerrada» si su horario semanal no abre. */
+/** Cada tramo del horario del área ese día, «07:00–13:00» y «14:00–19:00»: la cabecera los pone uno debajo del otro. */
+export function daySlots(space: Pick<Space, 'weeklyHours'>, date: string): string[] {
+  return openSlots(space, date).map((slot) => `${timeText(slot.from)}–${timeText(slot.to)}`);
+}
+
+/** El horario del área ese día en una línea, «07:00–13:00 · 14:00–19:00», o «Cerrada» si su horario semanal no abre. */
 export function dayHoursText(space: Pick<Space, 'weeklyHours'>, date: string): string {
-  const slots = openSlots(space, date);
-  return slots.length === 0 ? 'Cerrada' : slots.map((slot) => `${timeText(slot.from)}–${timeText(slot.to)}`).join(' · ');
+  const slots = daySlots(space, date);
+  return slots.length === 0 ? 'Cerrada' : slots.join(' · ');
 }
 
 /** Los cierres vigentes que tocan al área ese día: los suyos y los feriados comunes. */

@@ -1,3 +1,4 @@
+import { useDndContext } from '@dnd-kit/core';
 import type { Activity, Space } from '@platlab/contracts';
 import { Button, Tooltip, cn } from '@platlab/ui';
 import { MoveVertical, PackageX, TriangleAlert, type LucideIcon } from 'lucide-react';
@@ -194,13 +195,25 @@ function ListFace({ activity, over, space, clear }: { activity: Activity; over: 
 }
 
 /**
- * Un bloque de la tabla o de la lista, sobre el color de su carrera y con sus datos a la vista, sin ficha al pasar el
- * cursor (`TableFace` y `ListFace`); la carrera va escrita y en el color. Es un solo control, un
- * enlace a su solicitud o un botón que abre su panel; quien programa suma un botón pequeño «Mover…». En la tabla, cada
- * bloque deja aire a su alrededor dentro de su celda.
+ * La ficha ampliada de un bloque de la tabla (decisión del usuario, 15-11-2026): al pasar el puntero o enfocarlo con el
+ * teclado, el bloque crece hacia abajo sobre sus vecinos con la cara de la lista (letra mayor y todo sin cortar: la
+ * materia entera, la carrera, las personas y los avisos). Es parte del mismo control, así que el clic y el arrastre siguen
+ * igual; sin puntero (táctil) no aparece y mientras se arrastra algo, tampoco.
+ */
+const expandedFace = cn(
+  'absolute -left-1 -right-px -top-px hidden min-h-[calc(100%+2px)] rounded-md border border-line border-l-4 border-l-(color:--tone-edge) bg-surface text-ink shadow-lg',
+  '[@media(hover:hover)]:group-hover/block:block group-has-[:focus-visible]/block:block',
+);
+
+/**
+ * Un bloque de la tabla o de la lista, sobre el color de su carrera y con sus datos a la vista (`TableFace` y
+ * `ListFace`); la carrera va escrita y en el color. En la tabla, lo que no cabe se ve en su ficha ampliada al pasar o
+ * enfocar (`expandedFace`). Es un solo control, un enlace a su solicitud o un botón que abre su panel; quien programa
+ * suma un botón pequeño «Mover…». En la tabla, cada bloque deja aire a su alrededor dentro de su celda.
  */
 export function ScheduleBlock({ activity, space, opening, size }: { activity: Activity; space: Pick<Space, 'capacity'>; opening: BlockOpening; size: 'table' | 'list' }) {
   const toneOf = useCareerTone();
+  const dragging = useDndContext().active !== null;
   const to = opening.linkOf(activity);
   const text = blockText(activity);
   const minutes = toMinutes(activity.endsAt) - toMinutes(activity.startsAt);
@@ -211,11 +224,24 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
   const className = cn(
     blockFace,
     toneOf(activity.group),
-    'relative block size-full [@media(hover:hover)]:transition-[filter] [@media(hover:hover)]:hover:brightness-95',
+    'relative block size-full',
     'focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action',
-    !table && 'min-h-11',
+    table
+      ? '[@media(hover:hover)]:group-hover/block:overflow-visible group-has-[:focus-visible]/block:overflow-visible'
+      : 'min-h-11 [@media(hover:hover)]:transition-[filter] [@media(hover:hover)]:hover:brightness-95',
   );
-  const face = table ? <TableFace activity={activity} over={over} space={space} clear={clear} /> : <ListFace activity={activity} over={over} space={space} clear={clear} />;
+  const face = table ? (
+    <>
+      <TableFace activity={activity} over={over} space={space} clear={clear} />
+      {dragging ? null : (
+        <span aria-hidden className={expandedFace}>
+          <ListFace activity={activity} over={over} space={space} clear={clear} />
+        </span>
+      )}
+    </>
+  ) : (
+    <ListFace activity={activity} over={over} space={space} clear={clear} />
+  );
   const stage = activity.stage === 'scheduled' ? [] : [`Etapa: ${stageLabels[activity.stage]}`];
   const label = [activityLabel(activity, space), ...stage].join(', ');
   return (
