@@ -524,260 +524,90 @@ Motivo: el usuario da por concluido el módulo y no quiere lógica que el client
 ## ADR 0019 — Equipos con la forma de Reactivos: estado separado y Mantenimiento como módulo propio
 
 - **Cuatro secciones**, con la forma de Reactivos ([ADR 0011](#adr-0011), [ADR 0014](#adr-0014)):
-  - *Resumen.* Equipos por condición y fallas abiertas. Acciones rápidas: registrar equipo, reportar incidente y escanear. Indicadores: días fuera de servicio, fallas por equipo en 12 meses y tiempo promedio de reparación.
-  - *Inventario*, por áreas. Primer nivel: una tarjeta por área con su encargado, el número de equipos y cuántos están fuera de servicio o con restricción. El área es el primer nivel de ubicación debajo de la sede o el edificio: un equipo en «Cuarto frío > Mesón 2» cuenta en «Cuarto frío». La tarjeta aparece con el primer equipo y se oculta si el área queda vacía, sin perder su encargado. La sede solo se nombra si el espacio tiene más de una. Segundo nivel: un membrete con el área, su encargado y cifras por estado que filtran; los equipos agrupados por tipo («Microscopio óptico ×50» con su línea de estado, que abre sus unidades) o todos, en cuadros o en lista, con su lugar dentro del área. La barra superior nombra el área y el equipo para volver. La ficha lleva todos sus datos en el membrete y las pestañas Incidentes e Historial.
-  - *Informe.* La tabla con foto, código, nombre, tipo, marca, modelo, serie, alimentación, ubicación, condición, disponibilidad y responsable, con el panel de filtros de Movimientos; exporta lo filtrado a PDF (vista imprimible) y a Excel, como Reactivos. La ven Administrador y Operador. Filtra también por responsable (con «sin responsable»), estado físico, garantía (vigente, por vencer en 90 días, vencida o sin dato) y vida útil (cumplida, vigente o sin dato). Lleva cinco indicadores que se recalculan con los filtros: equipos, valor de reposición (suma exacta), sin responsable, garantía por vencer y vida útil cumplida; cada uno, salvo el valor, aplica su filtro. No registra equipos: eso es del Inventario (17-10-2026).
-  - *Incidentes*, que son las fallas, en tres pasos con color: reportado (rojo) → en reparación (ámbar) → solucionado (verde); «Marcar como solucionado» exige qué se hizo, puede devolver el equipo a operativo y es definitivo. Quien reporta elige el tipo y dice si el equipo se puede seguir usando; si no, pasa a fuera de servicio, ligado a la falla. Cada incidente guarda quién lo reportó, empezó la reparación y lo solucionó, y cuándo. Docente y Estudiante solo reportan y ven sus reportes: buscan el equipo por código o nombre sin ver el inventario completo.
+  - *Resumen:* equipos por estado, incidentes y estado por área. Indicadores: reparación promedio y días fuera de servicio, en los 12 meses de calendario hasta el actual.
+  - *Inventario* por áreas: el área es el primer nivel de ubicación bajo la sede («Cuarto frío > Mesón 2» cuenta en «Cuarto frío»), con su encargado y sus cifras por estado; dentro, los equipos agrupados por tipo o todos. Aquí se registran los equipos («Registrar equipo»).
+  - *Informe:* la foto del estado actual, con filtros (responsable, estado físico, garantía, vida útil…) e indicadores que se recalculan con ellos. Lo ven Administrador y Operador; exportar (PDF de hasta 1.000 equipos y Excel por partes, con encabezado y auditoría) es del Administrador, con `equipment.report.read`.
+  - *Incidentes* (las fallas), en tres pasos: reportado → en reparación → solucionado. «Marcar como solucionado» exige qué se hizo, puede devolver el equipo a operativo y es definitivo. Quien reporta elige el tipo de falla y dice si el equipo se puede seguir usando; si no, pasa a fuera de servicio, ligado a la falla. Cada paso guarda quién y cuándo. Docente y Estudiante solo reportan y ven lo suyo, buscando el equipo por código o nombre sin ver el inventario.
 - **Estado en cuatro dimensiones**, nunca en una sola lista:
-  - Estado (en el código, condición), es decir, si se puede usar: operativo («funciona normalmente»), uso limitado («funciona, pero con una limitación»), fuera de servicio («no se puede usar») o dado de baja (03 §5); en pantalla, «Cambiar estado». Cambia con motivo; volver a operativo exige resultado y responsable.
-  - Estado físico (en el código, conservación): bueno, regular o malo. Cambiarlo desde la ficha deja un hecho en el Historial, sin motivo (17-10-2026). Se anota en el alta, al editar la ficha o en un mantenimiento.
-  - Tipo de falla: eléctrica, mecánica, requiere repuesto u otra. Vive en la falla, no en el equipo.
-  - Disponibilidad: se calcula (disponible o no disponible; «prestado» con M6 y «en mantenimiento» con M7) y nadie la edita. «Reservado» llega con la agenda (F3).
-- **Mantenimiento es un módulo propio (M7)**, como en la proforma: se vende aparte, requiere Equipos y se construye justo después de E-01 (M-01).
-  - Lleva los planes preventivos y las calibraciones con su frecuencia y su próxima fecha automática; el registro de cada mantenimiento con quién lo hizo, resultado, costo, informe del proveedor (el certificado de calibración va dentro) y «válida hasta»; las órdenes correctivas a partir de una falla; y el aviso «Evaluar reemplazo» —un aviso, no una decisión— si la edad alcanza la vida útil, si los costos de 12 meses llegan al 50 % del valor de reposición o si hay tres fallas en 12 meses. Los importes son exactos (`numeric`). La curva de la bañera, el MTBF y Weibull quedan fuera: con las pocas fallas de un laboratorio no son confiables.
-  - Sin M7, Equipos atiende y resuelve la falla con su resultado. Con los dos, la ficha suma la pestaña Mantenimiento, el Inventario la columna «Próximo mantenimiento» con su semáforo (al día, próximo, vencido), y cerrar una orden correctiva devuelve el equipo a operativo.
-  - Su esquema `maintenance` apunta a los equipos sin escribir en `equipment`. Las órdenes asignadas a técnicos, el bloqueo de agenda y los repuestos siguen en F5.
-- **Foto del equipo.** Una foto principal: al registrar o editar el equipo se elige un archivo o se toma con la cámara, y el navegador la reduce (WebP de 1600 px como máximo) antes de subirla. Se ve en la cabecera de la ficha y en miniatura en el Inventario. Es pública con las reglas de la ficha de seguridad ([ADR 0017](#adr-0017)): solo la API sube, JPEG, PNG o WebP comprobado por su contenido, con el límite de [02 §12](02_arquitectura.md#12-parámetros-iniciales); una foto nueva es un archivo nuevo y la anterior queda en el historial.
-- **Lo que sigue en Equipos:** el QR por equipo, que el «Escanear» de Reactivos abre en la ficha con «Reportar incidente», y la hoja de vida (ficha, fallas y, con M7, mantenimientos) desde «Imprimir», como el PDF de Reactivos. Una falla dentro de la garantía avisa que se reclame al proveedor.
-- **El préstamo va en Préstamos (M6)**, como en la proforma: un solo mostrador para material y equipos. Equipos se centra en qué hay, si funciona o falla y desde cuándo; con M6, muestra «Prestado».
-- **Documentos.** La ficha suma proveedor, fecha de compra, garantía, vida útil y valor de reposición, y una sección Documentos (manual, factura, garantía, informes) con lo que el cliente considere necesario. Los archivos son PDF públicos con las reglas de la ficha de seguridad ([ADR 0017](#adr-0017)) y el límite general de archivos de [02 §12](02_arquitectura.md#12-parámetros-iniciales); el usuario acepta que quien reciba un enlace vea el documento, aunque tenga costos.
-- **El uso de equipos queda fuera de Equipos.** Se define con Laboratorios y Prácticas (F3); la disponibilidad «en uso» llega entonces.
-- **Se reutiliza lo común.** Las ubicaciones por niveles son las de Core, las mismas de Reactivos; crear una desde Equipos usa un permiso de Equipos. Un nombre no se repite entre ubicaciones del mismo nivel, sin distinguir tildes ni mayúsculas («Cuarto frío» y «cuarto frio» son la misma); «Mesón 2» puede existir en dos áreas.
-- **Encargado del área.** Uno por área, guardado en la ubicación de Core para que Reactivos use el mismo dato; es un miembro del espacio. Lo asigna el Administrador desde la tarjeta, con auditoría. Al registrar un equipo en un área con encargado, el responsable del equipo se propone con él y se puede cambiar. Las fallas viven en la capacidad `incidents`, con rutas y permisos de Equipos. La estructura por caso de uso es la del [ADR 0018](#adr-0018).
+  - *Estado* (en el código, condición): operativo, uso limitado, fuera de servicio o dado de baja (03 §5). Cambia con motivo; volver a operativo exige resultado y responsable.
+  - *Estado físico* (conservación): bueno, regular o malo; cambiarlo deja un hecho en el historial, sin motivo.
+  - *Tipo de falla*: eléctrica, mecánica, requiere repuesto u otra; vive en la falla.
+  - *Disponibilidad*: se calcula y nadie la edita («Reservado» con Laboratorios; «Prestado» con M6; «En mantenimiento» con M7).
+- **Mantenimiento es un módulo propio (M7)**: se vende aparte, requiere Equipos y no escribe en `equipment` ([ADR 0020](#adr-0020)). Sin M7, Equipos resuelve la falla con su resultado; con M7, la ficha suma su pestaña y el Inventario el próximo mantenimiento con semáforo.
+- **El préstamo va en Préstamos (M6)**, un solo mostrador para material y equipos; el uso en prácticas, en Laboratorios ([ADR 0023](#adr-0023)), con el vínculo del incidente a la práctica.
+- **Foto del equipo:** una principal, reducida en el navegador (WebP de 1600 px como máximo). Pública con las reglas de la ficha de seguridad ([ADR 0017](#adr-0017)): solo la API sube, comprobada por su contenido, con el límite de [02 §12](02_arquitectura.md#12-parámetros-iniciales); una foto nueva es un archivo nuevo.
+- **QR por equipo, E-01d** (17-10-2026): enlace corto `/q/e/…` que no cambia, en la hoja de etiquetas de Reactivos. Al abrirlo, Administrador y Operador llegan a la ficha; Docente y Estudiante, a «Reportar incidente» con el equipo elegido. Un solo escáner reconoce frascos y equipos. Un equipo dado de baja no se reporta.
+- **Documentos, E-01e** (17-10-2026): proveedor, compra, garantía, vida útil y valor de reposición en la ficha, y la pestaña Documentos (Manual, Factura, Garantía, Informe técnico, Acta de entrega). PDF públicos de hasta el límite general de 02 §12, con las reglas de la ficha de seguridad; el usuario acepta que quien reciba un enlace los vea. Solo el Administrador sube y quita («Quitar» archiva y conserva el archivo). Un incidente con la garantía vigente avisa «Reclama al proveedor».
+- **Hoja de vida, E-01f** (ISO/IEC 17025 6.4.13): vista imprimible A4 desde el alta, con identificación, incidentes, historial y documentos vigentes, y con M7 sus mantenimientos; hasta 1.000 hechos por tabla, con aviso.
+- **Se reutiliza lo común:** las ubicaciones por niveles son las de Core, las mismas de Reactivos; un nombre no se repite en el mismo nivel, sin distinguir tildes ni mayúsculas. Cada área tiene un **encargado**, miembro del espacio, guardado en la ubicación de Core para que Reactivos use el mismo dato; lo asigna el Administrador, con auditoría, y se propone como responsable al registrar un equipo allí. Las fallas viven en la capacidad `incidents`, con rutas y permisos de Equipos.
+- **Entregas:** E-01a (tipos, ficha con foto, estado, traslados e historial), E-01b (fallas), E-01c (Inventario por áreas con encargado, Informe con exportación e Incidentes), E-01d (QR), E-01e (documentos y garantía) y E-01f (Resumen y hoja de vida); después, M-01. E-01a dejó en común los comandos y consultas de módulo, las ubicaciones activas de Core, el cursor y la edición parcial (`platform/`), los contratos comunes y el arnés de pruebas HTTP.
+- **Latencia:** pesan los viajes a la base. Los permisos se leen una vez por transacción; un alta valida tipo, ubicación y responsable en una consulta y resuelve código y nombre únicos con su índice (`ON CONFLICT`); el Inventario pagina por código y busca en `search_text`. Con 5.000 equipos, la página tarda 0,07 ms y la búsqueda 1,5 ms; `pg_trgm` solo si un espacio supera unos 50.000 equipos.
 
-Motivo: el usuario quiere Equipos con la forma de Reactivos. Separar el estado conserva el porqué de cada falla y evita editar la disponibilidad a mano; así lo hacen herramientas como MaintainX y Snipe-IT, y la ISO/IEC 17025 (6.4.13) pide la hoja de vida por equipo. Mantenimiento queda como módulo propio porque la proforma lo vende aparte y el usuario lo confirma. Cambia M3 y M7 en 01 §3, 03 §5, E-01 y M-01 del roadmap y la excepción de Storage de 02.
+Motivo: el usuario quiere Equipos con la forma de Reactivos. Separar el estado conserva el porqué de cada falla y evita editar la disponibilidad a mano, como MaintainX y Snipe-IT; la ISO/IEC 17025 (6.4.13) pide la hoja de vida por equipo. Mantenimiento es propio porque la proforma lo vende aparte. Cambia M3 y M7 en 01 §3, 03 §5, E-01 y M-01 del roadmap y la excepción de Storage de 02.
 
-Cambios: 15-10-2026 (Mantenimiento vuelve a M7, construido después de E-01; foto del equipo; el préstamo pasa a M6). 16-10-2026, pedido del usuario: el Inventario pasa a ser por áreas con encargado; la tabla se llama Informe y exporta; Reportes se llama Incidentes; nombres de ubicación únicos en el mismo nivel sin tildes ni mayúsculas. Ese mismo día, tras revisar las pantallas: «Con restricción» pasa a «Uso limitado», «Condición» a «Estado» y «Conservación» a «Estado físico»; los incidentes quedan en tres pasos, sin «Cerrar»; el área se ve agrupada por tipo; la ficha sin la pestaña Información; y el alta cabe sin desplazarse en escritorio, con «Compra y garantía» plegado.
-
-**Implementación de E-01 (15-10-2026; reordenada el 16-10-2026).** Una rama por entrega: E-01a (tipos, ficha con foto, condición, traslados e historial), E-01b (fallas), E-01c (Inventario por áreas con encargado, Informe con exportación e Incidentes), E-01d (QR por equipo y escanear para reportar un incidente; adelantada el 17-10-2026), E-01e (documentos y aviso de garantía) y E-01f (Resumen completo y hoja de vida); después, M-01 Mantenimiento. El vínculo de un incidente con la actividad en que ocurrió (docente, estudiantes, horario) llega con Laboratorios y Prácticas (F3), como dice 01 §6.3; no se adelanta con texto libre. E-01a deja en común lo que ya compartían los módulos: comandos y consultas de módulo y ubicaciones activas en Core, cursor y edición parcial en `platform/`, contratos comunes en `contracts/src/common.ts` y el arnés HTTP de pruebas en `testing/api.ts`. Los datos de demo de Equipos entran con su primera pantalla.
-
-**Pantallas de E-01a (15-10-2026, `impeccable shape` aprobado).** Inventario en tabla con el panel de filtros de Movimientos (Condición, Tipo y Ubicación; en el móvil, cada fila es una tarjeta); Resumen con cuatro cifras por condición, la banda «Registrar equipo» y la lista «Requieren atención»; ficha como la del reactivo, con Información e Historial; hojas «Registrar equipo», «Cambiar condición» (dar de baja aparte, con confirmación) y «Trasladar equipo». Color de Equipos: el azul de referencia del usuario, de `#1967D2` a `#2370E4`, oscurecido lo justo para AA con texto blanco. La demo habilita Equipos solo en A; C sigue sin módulos.
-
-**Pantallas de E-01c (16-10-2026, `impeccable shape` aprobado).** Inventario: tarjetas de área en orden alfabético (nombre, sede, número de equipos, línea de estado con su color y texto, encargado con «Asignar» o editar solo para el Administrador) y un buscador de equipos en todas las áreas; dentro del área, migas, encargado, buscador, pastillas de condición y cuadros con foto por omisión o lista (la elección se recuerda); los dados de baja no cuentan y se ven solo con su pastilla; «Registrar equipo» desde un área la deja puesta. Informe: la tabla actual con «Exportar», solo del Administrador (permiso `equipment.report.read`, como `reagents.report.read`): «Imprimir» (hasta 1.000 equipos, con aviso) y Excel con todas las columnas de la ficha, encabezado con espacio, fecha, filtros y autor, y auditoría. El Excel lo escribe un escritor propio sobre `yazl`, por partes, que también usará Reactivos.
-
-**QR por equipo, E-01d (17-10-2026, decidido con el usuario).** Cada equipo tiene un QR con su enlace corto (`/q/e/…`: espacio y equipo, como el del frasco, cuyo QR no cambia). La etiqueta usa la hoja de Reactivos (3 × 8, 63,5 × 33,9 mm) y lleva código, nombre, serie y «Escanea para reportar una falla». Se imprime una desde la ficha o varias desde el área con «Etiquetas QR», eligiendo los equipos. Al abrir el QR, el Administrador y el Operador llegan a la ficha; Docente y Estudiante, a «Reportar incidente» con el equipo elegido. Un solo escáner en la app reconoce frascos y equipos, y «Reportar incidente» suma «Escanear» junto al buscador. Un equipo dado de baja no se reporta: el QR lo dice.
-  - Ajustes tras revisar las pantallas (17-10-2026, pedido del usuario):
-    - «Etiquetas QR» del área gira las tarjetas visibles hacia su etiqueta, como Reactivos, respetando estado, búsqueda y tipo. Por tipo, la tarjeta del tipo gira y elige todas sus unidades. La barra inferior imprime las elegidas, y la página de etiquetas queda como vista de impresión.
-    - Un botón circular (←), fuera del membrete y a su izquierda, vuelve un nivel en el área, el tipo y la ficha. El tipo abierto va en la URL. Va en el margen, sin quitarle ancho al membrete; donde el margen no alcanza, encima de él.
-    - «Escanear» va en el Inventario y en el Resumen.
-    - El Resumen pierde el aviso de pendientes y «Requieren atención»: un equipo puede tener uso limitado sin incidente, y las cifras ya llevan al Informe.
-    - En el Informe, las pastillas de filtros se ven solo con el panel cerrado o en el móvil (también en Movimientos de Reactivos), y el valor de reposición dice cuántos equipos lo tienen.
-    - Se adelanta a la entrega siguiente el Resumen con «Estado por área» e «Incidentes en 12 meses» (reportados y solucionados por mes, tiempo promedio de reparación y días fuera de servicio), junto con Incidentes en lista con pestañas por paso y su conteo. La hoja de vida sigue en E-01f.
-
-**Resumen e Incidentes (17-10-2026, `impeccable shape` aprobado).**
-- *Resumen* (Administrador y Operador): bajo las cuatro cifras, dos columnas como en Reactivos. A la izquierda, la banda de acción rápida y «Incidentes en 12 meses»; a la derecha, «Estado por área».
-  - *Incidentes en 12 meses*: los 12 meses de calendario hasta el actual, en la zona del espacio. Reportados y solucionados por mes van en dos líneas con un punto por mes, leyenda y nombre al final de cada línea; no son barras, para no repetir el gráfico de Reactivos. Es la excepción a «Serie única» de `DESIGN.md`: la comparación de las dos series es el dato.
-  - Arriba, «N reportados · M solucionados». Dos cifras: reparación promedio (de reportado a solucionado, de los solucionados en el período; en horas si no llega a un día) y días fuera de servicio, la suma de los días de todos los equipos con cuántos fueron («31 días · en 4 equipos»); cuenta el tramo en curso y el anterior a una baja.
-  - *Estado por área*: cada área con su línea de estado en texto y color, primero las que tienen más fuera de servicio y luego más de uso limitado; hasta seis, con «Ver las N áreas» hacia el Inventario. Cada fila abre su área.
-- *Hoja de vida, E-01f* (17-10-2026, `impeccable shape` aprobado): «Hoja de vida» en la ficha abre una vista imprimible A4 vertical, como el Informe. Cubre toda la vida del equipo, desde el alta. Lleva:
-  - el encabezado con espacio, fecha y quién imprime;
-  - identificación con foto, ubicación y responsable, compra y garantía, y estado actual;
-  - dos tablas: Incidentes (fecha, tipo, qué pasó, si se podía usar, quién lo reportó, qué se hizo, quién lo solucionó y cuánto tardó) e Historial (alta, estado, estado físico y traslados);
-  - al pie, «Elaborado por» y «Revisado por», con nombre, firma y fecha en blanco.
-
-  Con M7 se suma la sección Mantenimiento; sin él, no aparece. Imprime hasta 1.000 hechos de cada tabla y avisa si hay más.
-- *Documentos, E-01e* (17-10-2026, decidido con el usuario):
-  - La ficha suma la pestaña Documentos, con tipo, nombre, fecha y quién lo subió. Los tipos son Manual, Factura, Garantía, Informe técnico y Acta de entrega, y cada documento lleva un nombre escrito.
-  - Solo el Administrador sube y quita, con el permiso de catálogo; el Operador los ve.
-  - Son PDF de hasta 20 MiB (el límite general de 02 §12) con las reglas de la ficha de seguridad: solo la API sube, comprobado por su contenido, y nunca se sobrescribe.
-  - «Quitar» archiva: el documento deja de verse y su archivo público se conserva. Un equipo dado de baja no recibe ni pierde documentos.
-  - La hoja de vida lista los documentos vigentes (tipo, nombre y fecha).
-  - Un incidente reportado con la garantía vigente avisa en su hoja, a quien lo atiende: «Reclama al proveedor», con la fecha, el proveedor y la garantía en PDF si la hay.
-- *Incidentes*: pestañas Reportados, En reparación y Solucionados con su conteo; se abre en Reportados y la pestaña va en la URL. Docente y Estudiante ven las mismas pestañas con lo suyo. Las filas van en una tarjeta, sin la línea de tres pasos: foto, código y nombre, lugar, tipo, «No se puede usar» y la hora de su paso («Reportado hace 2 h», «En reparación desde hace 1 día», «Solucionado en 3 días»).
-
-**Latencia (15-10-2026).** Lo que más pesa son los viajes a la base, no las consultas. Core lee los permisos una vez por transacción; un alta valida tipo, ubicación y responsable en una consulta y resuelve el código y el nombre únicos con su índice (`ON CONFLICT`); cambiar la condición o trasladar escribe historial y equipo en una sentencia. El inventario pagina primero por `assets_code` (también su cursor) y arma niveles y responsable solo para la página; busca en `search_text`, plegado al escribir; el Resumen cuenta desde `assets_condition`. Con 5.000 equipos, la página tarda 0,07 ms y la búsqueda 1,5 ms; un índice de trigramas (`pg_trgm`) se añade solo si un espacio supera unos 50.000 equipos.
+Cambios: 15, 16 y 17-10-2026; compactado el 16-11-2026 (el detalle de pantallas, en git).
 
 <a id="adr-0020"></a>
 
 ## ADR 0020 — Mantenimiento intermedio sin inventario propio
 
-- **Sin inventario propio.** Equipos dice qué hay, dónde y cómo está; Mantenimiento, qué toca hacerle, qué se hizo y cuánto costó.
-  - Cada trabajo apunta al equipo y lee de Equipos su código, nombre y área, con enlace a la ficha; no copia sus datos.
-  - El estado y el estado físico cambian solo por los comandos de Equipos, con admisión de los dos módulos. El esquema `maintenance` no escribe en `equipment` ([ADR 0019](#adr-0019)).
+- **Sin inventario propio.** Equipos dice qué hay, dónde y cómo está; Mantenimiento, qué toca hacerle, qué se hizo y cuánto costó. Cada trabajo apunta al equipo y lee de Equipos su código, nombre y área por una vista, sin copiarlos; sus FKs compuestas apuntan a los equipos y sus tipos. El estado y el estado físico cambian solo por los comandos de Equipos, con admisión de los dos módulos; el esquema `maintenance` no escribe en `equipment` ([ADR 0019](#adr-0019)).
 - **Nivel intermedio.**
-  - Entra: planes por tiempo de preventivo, calibración, verificación intermedia (ISO/IEC 17025 6.4.10) y limpieza, con lista de verificación y criterio de aceptación; correctivo registrado con la misma hoja, enlazado al incidente; costos exactos (`numeric`); proveedores de servicio; certificado en PDF, con las reglas de los documentos de Equipos; «Evaluar reemplazo».
-  - Queda fuera: técnicos con carga de trabajo, bloqueo de agenda y repuestos (F5); frecuencia por uso, que no tiene contador; MTBF y predictivo; correo (T-07).
-- **Cuatro secciones; una acción y una lista** (simplificación del 17-10-2026, decidida por el usuario tras revisar la primera versión: «el objetivo es simplificar el uso»; Indicadores, el 18-10-2026; la portada y las secciones las reemplaza el [ADR 0021](#adr-0021)):
-  - *Por hacer* (la portada): cifras Atrasados, Próximos 30 días y Sin plan; «Registrar mantenimiento» y «Escanear»; dos grupos, Atrasados (vencidos y no conformes, con su etiqueta) y Próximos 30 días, con buscador y «Registrar» en cada fila. En M-01c suma el aviso «Evaluar reemplazo».
-  - *Historial*: los trabajos registrados con su detalle; en M-01d, filtros, Excel e «Imprimir» para el auditor.
-  - *Indicadores* (M-01c), para quien mide, sin mezclarlo con Por hacer: cumplimiento del plan (% a tiempo), atrasados, calibraciones vigentes, costo preventivo frente a correctivo, programado frente a realizado por mes, cumplimiento por requisito y «Evaluar reemplazo». Pocas cifras, cada una lleva a su lista; gráficos de una serie con su lectura en texto.
-  - *Planes*: se crean con cuatro preguntas (qué, a qué equipos: un tipo o un equipo, cada cuánto, desde cuándo); lista y criterio son opcionales. Dentro del plan, cada equipo tiene «Incluido» (quitarlo pide motivo) y «Frecuencia distinta para este equipo». Muestra la cobertura; los proveedores se editan desde su menú y se crean también desde la hoja de registro.
-- **En Equipos, sin duplicar:** la pestaña Mantenimiento de la ficha, la columna «Próximo mantenimiento» con semáforo y la sección de la hoja de vida. El equipo fuera por una calibración externa se marca con «Cambiar estado» de Equipos.
+  - Entra: planes por tiempo de preventivo, calibración, verificación intermedia (ISO/IEC 17025 6.4.10) y limpieza, con lista de verificación y criterio de aceptación; correctivo con la misma hoja, enlazado al incidente; costos exactos (`numeric`); proveedores; certificado en PDF con las reglas de los documentos de Equipos; «Evaluar reemplazo».
+  - Queda fuera: técnicos con carga de trabajo, bloqueo de agenda y repuestos (F5); frecuencia por uso; MTBF y predictivo; correo (T-07). Sin órdenes ni pasos previos: programar con un proveedor espera a que el cliente lo pida.
+- **Secciones:** Resumen (la portada, [ADR 0021](#adr-0021)), «Por hacer» (la lista de trabajo: atrasados y próximos 30 días, con «Registrar»), Historial y Planes.
+  - *Planes:* qué, a qué equipos (un tipo o un equipo), cada cuánto y desde cuándo; lista y criterio opcionales. En un plan por tipo, cada equipo puede excluirse con motivo o tener su frecuencia.
+- **En Equipos, sin duplicar** (por puntos de extensión; Equipos no importa Mantenimiento): la pestaña Mantenimiento de la ficha, el próximo mantenimiento con semáforo en el Inventario (rojo vencido o no conforme, ámbar en 30 días, verde después, «Sin plan» neutro) y la sección de la hoja de vida.
 - **Flujos.**
-  - *Planificado*: el trabajo aparece en «Por hacer» 30 días antes y se registra en una hoja corta: fecha (hoy), resultado (Conforme / Con observaciones / No conforme) y quién lo hizo («Interno» por defecto); la lista si el plan la tiene; costo, certificado, «válida hasta» y estado físico en «Más datos». La próxima fecha se recalcula. Sin órdenes ni pasos previos: programar con un proveedor queda fuera hasta que el cliente lo pida.
-  - *No conforme*: la hoja propone «Cambiar estado», con Fuera de servicio o Uso limitado y el motivo ya llenos, y quien registra lo confirma.
-  - *Correctivo* (M-01b): es un tipo de trabajo de la misma hoja. Si el equipo tiene un incidente abierto, la hoja ofrece darlo por solucionado con ese resultado y, si se elige, devolver el equipo a operativo, por los comandos de Equipos. Se registra una sola vez.
-  - *Sin plan*: «Registrar mantenimiento» por búsqueda o QR; si corresponde a un plan, lo da por cumplido.
-  - *Evaluar reemplazo*: se calcula y el Administrador lo descarta por 6 meses con motivo, o da de baja el equipo en Equipos.
-- **Trazabilidad e ISO/IEC 17025 6.4** (18-10-2026; se toma de Fracttal One lo que garantiza, no su forma de trabajo con órdenes, estados y siglas):
-  - *Firma:* el registro guardado por la persona autenticada es la firma («Registrado por… · fecha y hora · resultado según el criterio»); sin firma dibujada.
-  - *Corrección* (M-01b): un registro no se edita; se anula con motivo y se registra de nuevo, y los dos quedan visibles.
-  - *Requisito* (M-01c): dato opcional del plan (p. ej. «ISO/IEC 17025 6.4.10»), para medir el cumplimiento por requisito.
-  - *Línea de tiempo y estado de calibración* (M-01d): la ficha y la hoja de vida reúnen incidentes, mantenimientos, cambios de estado y traslados; el QR y la ficha muestran «Calibrada hasta…» o «Calibración vencida: no usar» (6.4.8).
-  - *Sin revisión por una segunda persona* (decidido por el usuario): quien registra evalúa contra el criterio. Si el sistema de calidad del cliente la exige, se agrega como opción del plan (pendientes).
-- **Claridad y accesibilidad:** cada fila dice lo que toca hacer, no un estado que haya que interpretar; el estado lleva siempre texto y la fecha completa; el resultado es un grupo de opciones navegable con teclado; guardar se anuncia; objetivos de 44 px y la acción principal al alcance del pulgar.
-- **Roles.** El Administrador crea planes y proveedores. El Operador registra y ve costos e Historial. Docente y Estudiante no entran a Mantenimiento: reportan en Equipos.
-- **Sin tareas en segundo plano** (T-07 sigue aplazado): «Por hacer», el semáforo y los avisos se calculan al consultar. Los avisos van en la app (Por hacer y píldora del Inicio).
-- **Entregas:** M-01a (planes, proveedores, «Por hacer» y «Registrar mantenimiento», con la pestaña y el semáforo en Equipos), M-01b (correctivo en la hoja, enlazado al incidente), M-01b también con la corrección por anulación, M-01c (Indicadores, requisito del plan, «Evaluar reemplazo» y píldora del Inicio), M-01d (Historial con filtros y exportación, línea de tiempo y hoja de vida, y estado de calibración en el QR y la ficha) y el G0 de Mantenimiento junto con el de Equipos.
-- **Diseño de M-01a (17-10-2026).**
-  - *Fechas* (decididas por el usuario). Sin registros, un equipo toca en la fecha de inicio del plan o, si se registró después, el día de su alta. Luego toca en la «válida hasta» del último registro del plan o, sin ella, en su fecha más la frecuencia (cada N días, semanas, meses o años). Un registro con fecha pasada carga la última vez que se hizo.
-  - *Plan propio.* Al crearlo se elige si reemplaza al del tipo; si lo reemplaza, el equipo se excluye del plan del tipo en el mismo paso, y archivar el plan propio lo devuelve a él. Excluir pide motivo y se archiva, no se borra.
-  - *Registro.* Inmutable y asociado al plan que se elige, o a ninguno con su tipo de trabajo. Guarda la lista marcada y el criterio de aceptación con que se evaluó; si el plan cambió mientras se llenaba, se pide revisar la lista. El certificado PDF se adjunta al registrar o después, uno por registro.
-  - *No conforme* (decidido por el usuario, 17-10-2026). El trabajo cuenta como hecho y la fecha del plan avanza, pero mientras el último registro del plan sea «No conforme» el semáforo está en rojo («No conforme desde…») y el trabajo sigue en Por hacer, hasta un registro Conforme o Con observaciones.
-  - *Estado físico actual* (decidido por el usuario). La hoja muestra el estado físico actual del equipo; si se cambia, Equipos lo aplica con su historial y la fecha de hoy, aunque el trabajo sea de una fecha pasada. El registro no guarda una copia.
-  - *Dos módulos en una operación.* Registrar admite Mantenimiento y Equipos en la misma consulta de admisión, con el orden espacio → derechos → membresía. El estado físico lo cambia una función de la interfaz de Equipos, con su permiso `equipment.condition.change` y su historial.
-  - *Lectura de Equipos.* Mantenimiento lee los equipos por una vista de Equipos, no por sus tablas; sus FKs compuestas apuntan a los equipos y a sus tipos.
-  - *Web.* Equipos ofrece puntos de extensión (pestaña de la ficha y columna del Inventario) y Mantenimiento los llena; Equipos no importa nada de Mantenimiento. Semáforo: rojo vencido o no conforme, ámbar en los próximos 30 días, verde después y «Sin plan» neutro. Las cifras cuentan trabajos (equipo y plan).
-  - *Permisos.* `maintenance.work.read` y `maintenance.work.record` para Administrador y Operador; `maintenance.plan.manage` para el Administrador.
-  - *Revisión de UX del 17-10-2026:* lo aplazado (filtros del Historial, tareas «No aplica», ejecutor interno) queda en M-01d o en pendientes.
-- **Diseño de M-01b (18-10-2026).**
-  - *Correctivo.* Es un tipo de trabajo sin plan, y «Qué se hizo» es obligatorio: es el texto con que se soluciona el incidente.
-    - En «¿Qué trabajo se hizo?», cada incidente abierto del equipo es una opción («Reparación del incidente del …»); elegirlo lo liga al registro.
-    - Con Conforme o Con observaciones, la hoja ofrece «Solucionar el incidente» y, si el equipo no está operativo, «Vuelve a Operativo». Lo aplica Equipos con sus permisos (`equipment.fault.manage`, `equipment.condition.change`) y su historial.
-    - Con No conforme, el incidente sigue abierto.
-    - Quien no atiende incidentes no los ve en la hoja.
-  - *Desde el incidente* (decidido por el usuario). Con Mantenimiento, la hoja del incidente suma «Registrar en Mantenimiento», que abre la hoja de registro con el equipo y el incidente ya elegidos (punto de extensión de Equipos). «Marcar como solucionado» sigue en Equipos para lo que no lleva costo, proveedor ni certificado.
-  - *Anular y corregir* (decidido por el usuario: solo el Administrador, con `maintenance.record.void`).
-    - «Anular» pide un motivo, por ejemplo un equipo equivocado o un registro duplicado.
-    - «Corregir» abre la hoja con los datos del registro y pide el motivo. Al guardar, anula el anterior y crea el nuevo, del mismo equipo, en una sola transacción. El certificado pasa al nuevo, salvo que se adjunte otro.
-    - Los dos quedan en el Historial: el anulado, con su motivo, quién y cuándo; el nuevo, con «Corrige al del …». El anulado deja de contar para la próxima fecha.
-    - Lo que el registro aplicó en Equipos (estado físico, incidente solucionado) no se revierte: se corrige en Equipos.
-  - *Bloqueos:* plan → incidente → equipo → proveedor → registro corregido; el incidente va antes que su equipo, como al solucionarlo (02 §6).
-- **Diseño de M-01c (18-10-2026).**
-  - *Periodo* (decidido por el usuario): los 12 meses de calendario hasta el actual, en la zona del espacio, como «Incidentes en 12 meses» de Equipos; sin selector.
-  - *Fecha que tocaba.* El registro con plan guarda la próxima fecha que tenía el plan al registrarlo. No la guarda un registro anterior al último del plan, porque es historia cargada, ni el que repite un «No conforme» antes de su próxima fecha. Al corregir, se calcula sin el registro anulado.
-  - *A tiempo* (decidido por el usuario): hecho en la fecha que tocaba o antes. Cada fecha que tocaba en el periodo es un trabajo programado: hecho a tiempo, hecho tarde o, si ya pasó y sigue pendiente, atrasado. Un trabajo atrasado cuenta una vez, porque la fecha avanza solo con un registro. El «No conforme» cuenta como hecho, como en Por hacer.
-  - *Indicadores.*
-    - Cumplimiento del plan: % a tiempo de lo programado hasta hoy.
-    - Atrasados: la misma cifra de Por hacer.
-    - Calibraciones vigentes: el último registro no es «No conforme» y la fecha no venció.
-    - Costo preventivo, que incluye calibración, verificación y limpieza, frente a correctivo: lo registrado en el periodo, con cuántos registros no tienen costo.
-    - Programado frente a realizado: por mes de la fecha que tocaba.
-    - Cumplimiento por requisito: el mismo cálculo, agrupado por el «Requisito» actual del plan.
-    - Los registros anulados no cuentan en ninguno.
-  - *Requisito:* texto opcional del plan (hasta 120 caracteres), que la hoja sugiere de los ya usados.
-  - *Evaluar reemplazo* (decidido por el usuario).
-    - Se avisa si se cumple cualquiera de tres condiciones, y el aviso dice cuál: cumplió su vida útil, lo reparado en el periodo llega a la mitad de su valor de reposición, o tuvo 3 o más incidentes en el periodo (02 §12).
-    - Los incidentes los cuenta Equipos por su interfaz, para quien los atiende.
-    - El Administrador lo descarta por 6 meses con motivo (`maintenance.replacement.review`). El descarte se guarda y no se edita.
-    - Dar de baja se hace en la ficha de Equipos.
-    - El aviso de Por hacer lo ve solo el Administrador; la lista de Indicadores, quien entra a Mantenimiento.
-  - *Píldora del Inicio:* la tarjeta de Mantenimiento con los atrasados en ámbar, los próximos 30 días y los equipos sin plan, y los registros por día de los últimos 30 días.
-- **Diseño de M-01d (19-10-2026).**
-  - *Historial para el auditor.*
-    - Filtros en la dirección, como en Movimientos y el Informe de Equipos: periodo (desde y hasta, por la fecha del trabajo), tipo de trabajo, resultado, área del equipo y proveedor, con «Interno». El filtro por equipo sigue llegando desde la ficha.
-    - Los anulados siguen a la vista con su marca.
-    - «Excel» descarga lo filtrado por partes ([ADR 0017](#adr-0017)), con el espacio, la fecha, quién lo generó y los filtros en el encabezado, y queda en la auditoría como reporte. Lleva todos los datos del registro: fecha que tocaba, plan y requisito, costo, «válida hasta», certificado, quién registró y la anulación con su motivo.
-    - «Imprimir» saca la misma lista, hasta 1.000 registros, como Movimientos.
-    - Filtros e «Imprimir» son de quien ve el Historial (Administrador y Operador). «Excel» es un reporte (01 §5): del Administrador, con `maintenance.report.export`, como el Informe de Equipos.
-  - *Línea de tiempo.*
-    - La pestaña Historial de la ficha reúne, del más reciente al más antiguo:
-      - el alta, los cambios de estado y de estado físico, y los traslados;
-      - los incidentes (reportado y solucionado), para quien los atiende;
-      - con Mantenimiento, los trabajos registrados en su fecha de trabajo, con los anulados marcados.
-    - En la hoja de vida, la tabla Historial suma los trabajos de mantenimiento; los incidentes siguen en su propia tabla.
-    - Mantenimiento entrega sus hechos por un punto de extensión de Equipos que recibe datos, no pantalla, y Equipos los ordena con los suyos. Equipos no importa Mantenimiento.
-  - *Estado de calibración* (6.4.8).
-    - Va en la cabecera de la ficha, por un punto de extensión de Equipos. Al escanear el QR, Administrador y Operador llegan a ella.
-    - Lo ven quienes entran a Mantenimiento: Propietario, Administrador y Operador (decidido por el usuario). Docente y Estudiante no.
-    - Solo en pantalla: la etiqueta impresa no lleva la fecha y no caduca (decidido por el usuario).
-    - Se calcula al consultar, con los planes de calibración que incluyen al equipo:
-      - «Calibrada hasta…» si el último registro no es «No conforme» y la fecha no venció, con el color del semáforo;
-      - «Calibración vencida: no usar» si la fecha pasó;
-      - «Calibración no conforme: no usar» si el último registro es «No conforme»;
-      - «Sin calibración registrada: no usar» si el plan aún no tiene registros (decidido por el usuario). Se corrige registrando la última calibración con su fecha pasada.
-    - Con varios planes de calibración manda el peor; si todos están vigentes, la fecha más cercana. Sin plan de calibración no se muestra nada.
-    - Es la misma regla que «Calibraciones vigentes» de Indicadores.
-    - No cambia el estado del equipo: para sacarlo de uso se usa «Cambiar estado» de Equipos.
+  - *Planificado:* aparece en «Por hacer» 30 días antes y se registra con fecha, resultado (Conforme / Con observaciones / No conforme) y quién lo hizo («Interno» por defecto); la lista si el plan la tiene; costo, certificado, «válida hasta» y estado físico opcionales. La próxima fecha se recalcula.
+  - *Sin plan:* «Registrar mantenimiento» por búsqueda o QR; si corresponde a un plan, lo da por cumplido.
+  - *No conforme:* la hoja propone «Cambiar estado» de Equipos con el motivo lleno, y quien registra lo confirma.
+  - *Correctivo* (M-01b): un tipo de trabajo sin plan, con «Qué se hizo» obligatorio. Cada incidente abierto del equipo es una opción; elegirlo lo liga al registro, y con Conforme u Observaciones la hoja ofrece solucionarlo y devolver el equipo a operativo, por los comandos y permisos de Equipos. Con No conforme, el incidente sigue abierto. Desde el incidente, «Registrar en Mantenimiento» abre la hoja con todo elegido; «Marcar como solucionado» sigue en Equipos para lo que no lleva costo, proveedor ni certificado.
+- **Reglas de fechas** (M-01a, decididas por el usuario):
+  - Sin registros, toca en la fecha de inicio del plan o, si el equipo se registró después, en su alta. Luego, en la «válida hasta» del último registro o, sin ella, en su fecha más la frecuencia. Un registro con fecha pasada carga la última vez.
+  - *Plan propio:* puede reemplazar al del tipo (el equipo se excluye en el mismo paso; archivarlo lo devuelve). Excluir pide motivo y se archiva.
+  - *No conforme:* cuenta como hecho y la fecha avanza, pero el semáforo queda en rojo y el trabajo sigue en «Por hacer» hasta un registro Conforme o Con observaciones.
+  - *Estado físico:* si se cambia en la hoja, Equipos lo aplica con su historial y la fecha de hoy, aunque el trabajo sea pasado; el registro no guarda copia.
+- **Trazabilidad e ISO/IEC 17025 6.4** (18-10-2026):
+  - El registro guardado por la persona autenticada es la firma; sin firma dibujada ni revisión por una segunda persona (si el cliente la exige, va como opción del plan).
+  - Inmutable: guarda la lista marcada y el criterio con que se evaluó. *Anular y corregir* (M-01b) es del Administrador (`maintenance.record.void`), con motivo: corregir anula el anterior y crea el nuevo en una transacción; los dos quedan visibles y el anulado deja de contar. Lo aplicado en Equipos no se revierte.
+  - *Requisito* (M-01c): texto opcional del plan (hasta 120 caracteres, p. ej. «ISO/IEC 17025 6.4.10») para medir el cumplimiento por requisito.
+  - Bloqueos: plan → incidente → equipo → proveedor → registro corregido (02 §6).
+- **Indicadores (M-01c)**, en los 12 meses de calendario hasta el actual, sin anulados:
+  - Cada registro con plan guarda la fecha que tocaba. *A tiempo* es hecho en esa fecha o antes; cada fecha que tocaba es un trabajo programado: a tiempo, tarde o atrasado (cuenta una vez).
+  - Cumplimiento del plan (% a tiempo), atrasados, calibraciones vigentes, costo preventivo frente a correctivo (con cuántos registros no tienen costo), programado frente a realizado por mes y cumplimiento por requisito.
+  - *Evaluar reemplazo:* avisa, diciendo cuál, si cumplió su vida útil, si lo reparado llega a la mitad del valor de reposición o si tuvo 3 o más incidentes (02 §12). El Administrador lo descarta por 6 meses con motivo (`maintenance.replacement.review`); dar de baja es de Equipos.
+- **Historial para el auditor (M-01d):** filtros en la dirección (periodo, tipo, resultado, área y proveedor), los anulados a la vista con su marca, «Imprimir» hasta 1.000 registros y «Excel» por partes ([ADR 0017](#adr-0017)) con encabezado y auditoría, del Administrador (`maintenance.report.export`). La línea de tiempo de la ficha reúne los hechos de Equipos y los trabajos de Mantenimiento, que llegan como datos por un punto de extensión.
+- **Estado de calibración (6.4.8, M-01d):** en la cabecera de la ficha, para Propietario, Administrador y Operador, solo en pantalla (la etiqueta no caduca). Con los planes de calibración del equipo: «Calibrada hasta…», «Calibración vencida: no usar», «Calibración no conforme: no usar» o «Sin calibración registrada: no usar»; con varios planes manda el peor. Es la regla de «Calibraciones vigentes» y no cambia el estado del equipo.
+- **Roles y permisos:** `maintenance.work.read` y `maintenance.work.record` (Administrador y Operador, que también ve costos); `maintenance.plan.manage` (Administrador, que crea planes y proveedores). Docente y Estudiante no entran: reportan en Equipos.
+- **Sin tareas en segundo plano** (T-07 aplazado): «Por hacer», el semáforo y los avisos se calculan al consultar; los avisos van en la app.
+- **Entregas:** M-01a (planes, proveedores, «Por hacer» y registro, con la pestaña y el semáforo en Equipos), M-01b (correctivo y corrección por anulación), M-01c (indicadores, requisito, «Evaluar reemplazo» y tarjeta del Inicio), M-01d (Historial con exportación, línea de tiempo, hoja de vida y estado de calibración) y el G0 junto con el de Equipos.
 
-Motivo: el usuario quiere un módulo intermedio con la estructura de los demás, sin repetir la información de Equipos. Las decisiones de planes por tipo, el Operador con costos, el «No conforme» que propone y la lista de proveedores las tomó el 17-10-2026. Precisa M-01 del roadmap y el M7 del [ADR 0019](#adr-0019).
+Motivo: el usuario quiere un módulo intermedio con la estructura de los demás, sin repetir la información de Equipos. Se toma de Fracttal One lo que garantiza la trazabilidad, no su forma de trabajo con órdenes. Precisa M-01 del roadmap y el M7 del [ADR 0019](#adr-0019).
 
+Cambios: 17, 18 y 19-10-2026; compactado el 16-11-2026 (el detalle de pantallas, en git).
 
 <a id="adr-0021"></a>
 
 ## ADR 0021 — Rediseño de la UI por módulos, empezando por Mantenimiento
 
-- **Qué es** (pedido del usuario, 19-10-2026): un rediseño de la interfaz para mejorar la experiencia, sin funciones nuevas. Busca consistencia, jerarquía visual, feedback, accesibilidad y rendimiento, con tarjetas que eviten la fatiga visual y flujos de trabajo claros.
-- **Por fases** (decidido por el usuario). Primero Mantenimiento; según el resultado siguen Equipos, Reactivos y el Inicio, con U-01 y el fondo neutro de toda la app. Las piezas comunes se hacen en `app/` para reutilizarlas.
-- **Mantenimiento: el Resumen es la portada** (decidido por el usuario). Reemplaza «Por hacer es la portada» y la sección Indicadores del [ADR 0020](#adr-0020).
-  - El Resumen sigue el patrón de los de Equipos y Reactivos:
-    - cuatro cifras: Atrasados, Próximos 30 días, Cumplimiento del plan y Calibraciones vigentes;
-    - «Gestión rápida» con «Registrar mantenimiento» y «Escanear»;
-    - próximos trabajos, con acceso a Por hacer;
-    - programado frente a realizado;
-    - costo preventivo frente a correctivo;
-    - cumplimiento por requisito;
-    - los avisos de equipos sin plan y «Evaluar reemplazo».
-  - Indicadores se funde en el Resumen. Quedan cuatro secciones: Resumen, Por hacer, Historial y Planes. El enlace viejo `/indicadores` lleva al Resumen.
-  - Por hacer queda como la lista de trabajo: buscador, los grupos con su cuenta y «Registrar» en cada fila; sus cifras pasan al Resumen.
-- **Patrones** (evaluados con las ideas del usuario):
-  - Las cifras se tiñen solo cuando piden atención y la cuenta es mayor que cero; un tinte permanente deja de avisar.
-  - Un solo botón sólido por pantalla; las acciones de fila van en contorno o como enlace.
-  - Los códigos de equipo van en etiqueta monoespaciada, como en la ficha.
-  - El resultado y el plazo, en pastillas con texto y un icono en lo crítico.
-  - Los filtros, en una barra horizontal encima de la tabla con menús desplegables (decidido por el usuario). Empieza en el Historial; el Informe de Equipos y Movimientos la adoptan en su fase.
-  - Las listas van con filas de altura uniforme y realce al pasar el ratón, sin cebra (la cebra queda para lo impreso).
-  - Los planes van en tarjetas, con etiquetas de tipo y frecuencia y el atraso en pastilla con icono.
-  - Los avisos van en una tarjeta con icono y su acción, sin borde lateral grueso.
-  - Los requisitos se muestran en barras de progreso, siempre con el % en texto.
-- **Equipos** (segunda fase, 19-10-2026; el usuario aprobó Mantenimiento y dio ideas, no requisitos):
-  - Fondo neutro y plano en toda la app; las tarjetas, en blanco con sombra suave.
-  - Resumen con la estructura del de Mantenimiento (pedido del usuario, 20-10-2026):
-    - las cuatro cifras, sin cambios;
-    - «Gestión rápida» con «Registrar equipo», «Escanear» y «Reportar incidente»;
-    - el gráfico de incidentes;
-    - a la derecha, «Incidentes por atender»: los primeros reportados o en reparación, con «Ver incidentes»;
-    - debajo, «Estado por área»;
-    - al pie, avisos en tarjeta con su acción, solo si hay alguno: «Garantía por vencer», «Vida útil cumplida» y «Sin responsable», que llevan al Informe ya filtrado.
-    - Todo sale de datos que ya existen; el componente del aviso pasa a `app/` y lo comparten Mantenimiento y Equipos.
-  - Informe: el buscador arriba y los filtros debajo en todos los anchos (pedido del usuario). La tabla no se desplaza de lado: aparece desde 1280 px, con tarjetas en dos columnas antes. «Responsable» pasa a una línea dentro de «Equipo» cuando no cabe.
-  - Las cifras del Resumen se tiñen cuando piden atención, también en Reactivos, porque comparten el componente. Las cifras de incidentes van dentro de la tarjeta de su gráfico.
-  - En las áreas, los tipos de equipo llevan el estado en pastillas. Sin foto, la tarjeta no reserva el hueco de la imagen.
-  - Incidentes en tarjetas compactas, en dos columnas en pantallas anchas, con todo lo del incidente junto. Sin calendario ni otras funciones nuevas.
-  - En el Informe, la barra de filtros horizontal libera el ancho que el panel lateral le quitaba a la tabla, que partía los nombres.
-    - Cebra solo en tablas anchas de datos como esta y en lo impreso.
-    - «Próximo mantenimiento» con el tipo y la fecha en texto y el plazo en pastilla con icono.
-  - Ficha:
-    - pestañas con la activa subrayada en el color del módulo, en el componente común;
-    - los incidentes, como línea de tiempo;
-    - y U-01: la cabecera más corta con «Reportar incidente» a la vista, y la búsqueda y los filtros conservados al volver de una ficha.
-  - Degradado por módulo (pedido del usuario, 20-10-2026): como el de Reactivos (índigo a violeta), el de Equipos y el de Mantenimiento se oscurecen hacia un tono vecino, sin tomar el de otro módulo ni el verde de estado. Solo cambia `action-deep`.
-- **Reactivos** (tercera fase, 20-10-2026; ideas del usuario, no requisitos):
-  - Resumen: «Gestión rápida» conserva sus botones dentro de la banda, como en los otros dos módulos; la cabecera no lleva acciones en ningún Resumen. El gráfico de salidas marca cada semana en el eje.
-  - Cantidades de movimiento (Resumen, Movimientos y ficha): texto con signo y color, sin recuadro (DESIGN.md, «Voz única»). Un solo componente en `app/`.
-  - Inventario: el buscador arriba y los filtros debajo, como el Informe de Equipos. (La tarjeta reorganizada se descartó en la segunda ronda.)
-  - Movimientos adopta la barra de filtros horizontal: Periodo (con sus atajos), Tipo, Reactivo, Responsable, Destino, Motivo y Ubicación, con sus cuentas y buscador. Se van el panel lateral, el cajón y las fichas de filtros, y cada fila usa todo el ancho.
-  - Solicitudes: la solicitud a la izquierda; la cantidad y las acciones a la derecha, con «Aprobar salida» al final. En el móvil, las acciones van abajo a todo el ancho.
-  - Ficha:
-    - Existencia, Mínimo y Caducidad, en una tarjeta propia bajo la cabecera, en lugar de la columna angosta de la derecha. Los frascos usan todo el ancho.
-    - Frascos con el mismo borde neutro: el estado va en su etiqueta, dentro de la tarjeta y arriba a la derecha. Solo el frasco recién escaneado lleva anillo.
-  - Segunda ronda (pedido del usuario, 20-10-2026):
-    - Movimientos con el formato de los otros informes (Historial de Mantenimiento e Informe de Equipos):
-      - «Exportar» en la cabecera, con «Imprimir o guardar PDF» y «Excel (.xlsx)»;
-      - la barra de filtros con la cuenta a la derecha;
-      - la lista con encabezado de columnas y filas de altura uniforme y la fecha en su columna, sin filas de día: el periodo se acota con su filtro (pedido del usuario).
-    - Los nombres se quedan: «Informe» (Equipos) es una foto del estado actual; «Historial» (Mantenimiento) y «Movimientos» (Reactivos) son registros en el tiempo con la palabra de su oficio. Se unifica el formato, no el nombre. Los encabezados de columna son iguales en todas las tablas: 13 px, peso medio y tipo oración.
-    - La tarjeta de reactivo del Inventario vuelve a su diseño anterior (pedido del usuario: el nuevo no gustó).
-    - El Excel de Movimientos, pendiente de R-01B ([ADR 0017](#adr-0017), [ADR 0018](#adr-0018)), lo pide ahora el usuario:
-      - sale por partes;
-      - en el encabezado lleva el espacio, la fecha, quién lo generó y los filtros;
-      - la columna «Controlado» sirve al reporte de controlados ([ADR 0016](#adr-0016));
-      - queda en la auditoría;
-      - es de quien tiene `reagents.report.read`, como los Totales.
+- **Qué es** (pedido del usuario, 19-10-2026): un rediseño de la interfaz sin funciones nuevas, por fases (Mantenimiento, Equipos y Reactivos, 19 y 20-10-2026), para dar consistencia, jerarquía, feedback y accesibilidad. Las piezas comunes van en `app/`. Las funciones, los datos y los permisos no cambian; DESIGN.md y el [ADR 0010](#adr-0010) se mantienen.
+- **El Resumen es la portada de cada módulo:** cuatro cifras, «Gestión rápida» con sus acciones, sus gráficos, «Por atender» a la derecha y avisos al pie solo si los hay, que abren la lista ya filtrada. En Mantenimiento reemplaza «Por hacer» como portada y absorbe Indicadores ([ADR 0020](#adr-0020)); el enlace viejo `/indicadores` lleva al Resumen.
+- **Patrones comunes:**
+  - Las cifras se tiñen solo cuando piden atención y la cuenta es mayor que cero.
+  - Un solo botón sólido por pantalla; las acciones de fila, en contorno o como enlace.
+  - Estados y plazos en pastillas con texto (y un icono en lo crítico); códigos en etiqueta monoespaciada; cantidades de movimiento como texto con signo y color, sin recuadro (DESIGN.md, «Voz única»).
+  - Filtros en una barra horizontal encima de la lista, con su cuenta y buscador; la cebra solo en tablas anchas y en lo impreso.
+  - Las ventanas emergentes, iguales en todos los módulos: «Cancelar» y la acción con su verbo; el botón principal nunca se desactiva y al enviar marca lo que falta; rótulos en tipo oración.
+  - Fondo neutro y plano en toda la app, tarjetas blancas con sombra suave y un degradado por módulo que solo cambia `action-deep`.
+- **Informes con un mismo formato:** «Exportar» en la cabecera (imprimir o PDF, y Excel), la barra de filtros y filas de altura uniforme con encabezado de columnas. Los nombres se quedan: «Informe» (Equipos) es el estado actual; «Historial» (Mantenimiento) y «Movimientos» (Reactivos) son registros en el tiempo.
+- **Excel de Movimientos** (20-10-2026; adelanta lo pendiente de R-01B, [ADR 0017](#adr-0017)): por partes, con el espacio, la fecha, el autor y los filtros en el encabezado, la columna «Controlado» ([ADR 0016](#adr-0016)) y auditoría; de quien tiene `reagents.report.read`. El Excel del Inventario sigue pendiente.
 
-      El Excel del Inventario sigue pendiente.
-    - Resumen con los elementos de los otros módulos:
-      - a la derecha, «Por atender»: los reactivos con frascos vencidos o por vencer y los que están bajo mínimo, con su acción; debajo, la actividad reciente;
-      - al pie, avisos con su acción, solo si los hay: reactivos sin ficha de seguridad y sin mínimo. Abren el Inventario ya filtrado con dos filtros nuevos, sobre datos que ya llegan.
-    - Ventanas emergentes iguales en los tres módulos:
-      - en el pie de todas, «Cancelar» y la acción con su verbo;
-      - el botón principal nunca se desactiva: al enviar marca lo que falta;
-      - rótulos de campo en tipo oración (las mayúsculas, solo para el título de un grupo de campos);
-      - la nota «* Campos obligatorios» en el mismo lugar cuando hay campos opcionales.
-    - Solicitudes queda como está por ahora («es algo genérico de momento», dijo el usuario).
-- **Se mantiene:** DESIGN.md y el [ADR 0010](#adr-0010) (tokens, el color siempre con texto, movimiento) y las reglas del dominio. Las funciones, los datos y los permisos no cambian.
+Motivo: Mantenimiento se apartaba del patrón de Resumen que ya compartían Equipos y Reactivos, y sus listas planas cansaban la vista. El usuario prefirió validar el rediseño en un módulo antes de extenderlo.
 
-Motivo: Mantenimiento se apartaba del patrón de Resumen que ya comparten Equipos y Reactivos, y sus listas planas cansaban la vista. El usuario prefiere validar el rediseño en un módulo antes de extenderlo.
+Cambios: 19 y 20-10-2026; compactado el 16-11-2026 (el detalle de cada pantalla, en git).
+
+<a id="adr-0022"></a>
 
 ## ADR 0022 — Calidad de Equipos y Mantenimiento: piezas comunes sin duplicar
 
@@ -804,6 +634,8 @@ Estado: aceptada (20-10-2026, a pedido del usuario: «cero lógica muerta o dupl
 - **No cambian** las funciones, los datos ni los permisos. Hay dos excepciones:
   - la cabecera de Equipos gana el foco de respaldo que ya tiene Mantenimiento;
   - los avisos del escáner de equipos dicen lo mismo en los dos módulos.
+
+<a id="adr-0023"></a>
 
 ## ADR 0023 — Laboratorios: solicitudes y cronograma en un solo módulo
 
@@ -867,6 +699,8 @@ Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de pro
 - **Métricas previstas** (Analítica, M8): horas de uso por área; solicitudes y participantes por carrera, asignatura y tipo; consumo de reactivos y uso de equipos por práctica; pedidos fuera de plazo, rechazos y tiempo de respuesta. Los datos ya se guardan en columnas.
 
 Cambios: 21-10, 23-10, 24-10, 26-10, 28-10, 05-11, 14-11, 15-11 y 16-11-2026 (compactada; el detalle anterior, en git).
+
+<a id="adr-0024"></a>
 
 ## ADR 0024 — Áreas y departamentos en una sección propia
 
