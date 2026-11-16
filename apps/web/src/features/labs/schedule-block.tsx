@@ -1,4 +1,3 @@
-import { useDndContext } from '@dnd-kit/core';
 import type { Activity, Space } from '@platlab/contracts';
 import { Button, Tooltip, cn } from '@platlab/ui';
 import { MoveVertical, PackageX, TriangleAlert, type LucideIcon } from 'lucide-react';
@@ -54,17 +53,19 @@ const reveal =
 
 /**
  * Desde qué alto interior se ve cada parte de un bloque de la tabla (consulta del alto interior; las clases van completas
- * para que Tailwind las encuentre). Arriba lo que identifica la práctica, abajo las personas: el código con la hora y la
- * materia se ven siempre; luego la carrera, el Docente con los participantes, el Encargado, la etapa y el aviso de aforo.
- * Con todo, la materia pasa a dos líneas.
+ * para que Tailwind las encuentre), por prioridad (decisión del usuario, 15-11-2026: materia primero, sin efecto al
+ * pasar): el código con la hora y la materia se ven siempre; con alto, la materia pasa a dos líneas antes que nada más;
+ * luego la carrera, el Docente con los participantes, el Encargado, la etapa y el aviso de aforo. El detalle completo, a
+ * un clic.
  */
 const fromHeight = {
   head: 'hidden [@container(min-height:32px)]:flex',
-  career: 'hidden [@container(min-height:50px)]:flex',
-  teacher: 'hidden [@container(min-height:66px)]:flex',
-  manager: 'hidden [@container(min-height:82px)]:flex',
-  stage: 'hidden [@container(min-height:98px)]:flex',
-  warning: 'hidden [@container(min-height:114px)]:flex',
+  subject: '[@container(min-height:48px)]:line-clamp-2',
+  career: 'hidden [@container(min-height:66px)]:flex',
+  teacher: 'hidden [@container(min-height:82px)]:flex',
+  manager: 'hidden [@container(min-height:98px)]:flex',
+  stage: 'hidden [@container(min-height:114px)]:flex',
+  warning: 'hidden [@container(min-height:130px)]:flex',
 } as const;
 
 /** Un aviso con su ícono pequeño: la etapa, el aviso de aforo o lo que falta apartar. */
@@ -127,7 +128,7 @@ function TableFace({ activity, over, space, clear }: { activity: Activity; over:
         {StageMark ? <StageMark aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
         {over ? <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
         {!activity.complete ? <PackageX aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
-        <span className="min-w-0 line-clamp-1 [overflow-wrap:anywhere] [@container(min-height:130px)]:line-clamp-2">{blockParts(activity).subject}</span>
+        <span className={cn('min-w-0 line-clamp-1 [overflow-wrap:anywhere]', fromHeight.subject)}>{blockParts(activity).subject}</span>
       </span>
       {activity.group ? (
         <span className={cn('min-w-0', fromHeight.career)}>
@@ -195,25 +196,13 @@ function ListFace({ activity, over, space, clear }: { activity: Activity; over: 
 }
 
 /**
- * La ficha ampliada de un bloque de la tabla (decisión del usuario, 15-11-2026): al pasar el puntero o enfocarlo con el
- * teclado, el bloque crece hacia abajo sobre sus vecinos con la cara de la lista (letra mayor y todo sin cortar: la
- * materia entera, la carrera, las personas y los avisos). Es parte del mismo control, así que el clic y el arrastre siguen
- * igual; sin puntero (táctil) no aparece y mientras se arrastra algo, tampoco.
- */
-const expandedFace = cn(
-  'absolute -left-1 -right-px -top-px hidden min-h-[calc(100%+2px)] rounded-md border border-line border-l-4 border-l-(color:--tone-edge) bg-surface text-ink shadow-lg',
-  '[@media(hover:hover)]:group-hover/block:block group-has-[:focus-visible]/block:block',
-);
-
-/**
  * Un bloque de la tabla o de la lista, sobre el color de su carrera y con sus datos a la vista (`TableFace` y
- * `ListFace`); la carrera va escrita y en el color. En la tabla, lo que no cabe se ve en su ficha ampliada al pasar o
- * enfocar (`expandedFace`). Es un solo control, un enlace a su solicitud o un botón que abre su panel; quien programa
- * suma un botón pequeño «Mover…». En la tabla, cada bloque deja aire a su alrededor dentro de su celda.
+ * `ListFace`); la carrera va escrita y en el color. Es un solo control, un enlace a su solicitud o un botón que abre su
+ * panel con todo; quien programa suma un botón pequeño «Mover…». En la tabla, cada bloque deja aire a su alrededor
+ * dentro de su celda.
  */
 export function ScheduleBlock({ activity, space, opening, size }: { activity: Activity; space: Pick<Space, 'capacity'>; opening: BlockOpening; size: 'table' | 'list' }) {
   const toneOf = useCareerTone();
-  const dragging = useDndContext().active !== null;
   const to = opening.linkOf(activity);
   const text = blockText(activity);
   const minutes = toMinutes(activity.endsAt) - toMinutes(activity.startsAt);
@@ -224,24 +213,11 @@ export function ScheduleBlock({ activity, space, opening, size }: { activity: Ac
   const className = cn(
     blockFace,
     toneOf(activity.group),
-    'relative block size-full',
+    'relative block size-full [@media(hover:hover)]:transition-[filter] [@media(hover:hover)]:hover:brightness-95',
     'focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action',
-    table
-      ? '[@media(hover:hover)]:group-hover/block:overflow-visible group-has-[:focus-visible]/block:overflow-visible'
-      : 'min-h-11 [@media(hover:hover)]:transition-[filter] [@media(hover:hover)]:hover:brightness-95',
+    !table && 'min-h-11',
   );
-  const face = table ? (
-    <>
-      <TableFace activity={activity} over={over} space={space} clear={clear} />
-      {dragging ? null : (
-        <span aria-hidden className={expandedFace}>
-          <ListFace activity={activity} over={over} space={space} clear={clear} />
-        </span>
-      )}
-    </>
-  ) : (
-    <ListFace activity={activity} over={over} space={space} clear={clear} />
-  );
+  const face = table ? <TableFace activity={activity} over={over} space={space} clear={clear} /> : <ListFace activity={activity} over={over} space={space} clear={clear} />;
   const stage = activity.stage === 'scheduled' ? [] : [`Etapa: ${stageLabels[activity.stage]}`];
   const label = [activityLabel(activity, space), ...stage].join(', ');
   return (

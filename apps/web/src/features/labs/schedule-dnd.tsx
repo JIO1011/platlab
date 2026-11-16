@@ -221,8 +221,7 @@ export function useSourceDrag(id: string, source: DragSource | null, disabled: b
 /**
  * Un bloque de la tabla que el Administrador puede llevar a otra área u hora el mismo día (el clic sigue abriéndolo: el
  * arrastre empieza a los 6 px). Sin arrastre (otro rol o pantalla estrecha) es un contenedor simple. Mientras se lleva
- * queda atenuado en su sitio. Al pasar o enfocar, sube sobre sus vecinos (bajo las cabeceras fijas) para que su ficha
- * ampliada no quede debajo.
+ * queda atenuado en su sitio.
  */
 export function DraggableBlock({ activity, enabled, style, children }: { activity: Activity; enabled: boolean; style: CSSProperties; children: ReactNode }) {
   const duration = toMinutes(activity.endsAt) - toMinutes(activity.startsAt);
@@ -231,11 +230,7 @@ export function DraggableBlock({ activity, enabled, style, children }: { activit
     <div
       ref={setNodeRef}
       {...(enabled ? listeners : {})}
-      className={cn(
-        'absolute inset-x-0.5 touch-manipulation [@media(hover:hover)]:hover:z-15 has-[:focus-visible]:z-15',
-        enabled && 'select-none',
-        isDragging && 'opacity-40',
-      )}
+      className={cn('absolute inset-x-0.5 touch-manipulation', enabled && 'select-none', isDragging && 'opacity-40')}
       style={style}
     >
       {children}
