@@ -4,6 +4,8 @@ import { cn } from '../lib/cn';
 
 export const Popover = PopoverPrimitive.Root;
 export const PopoverTrigger = PopoverPrimitive.Trigger;
+/** Ancla la superficie a otro elemento que el disparador (con `virtualRef`, a uno que ya existe). */
+export const PopoverAnchor = PopoverPrimitive.Anchor;
 
 /**
  * Superficie que nace de su disparador y admite controles dentro (casillas, campos de fecha), a diferencia del

@@ -82,10 +82,12 @@ export function FormPaper(props: PaperProps) {
   const sheet = (
     <article
       aria-label="Formato de la solicitud"
-      // En pantalla, una hoja de papel sobre la mesa, con una sombra larga y suave; en papel, solo su borde.
+      // En pantalla, una hoja de papel sobre la mesa, con una sombra larga y suave; en papel, solo su borde. Al llenarla o
+      // leerla en una pantalla ancha se ve a mayor escala (ADR 0023, «Disponibilidad y recursos»); se imprime en A4.
       className={cn(
         sheetGrid,
         'mx-auto w-full max-w-[210mm] border border-line-strong text-[13px] leading-snug text-ink shadow-[0_1px_2px_rgb(15_23_42/0.04),0_18px_40px_-24px_rgb(15_23_42/0.22)] [print-color-adjust:exact] print:max-w-none print:text-[8pt] print:shadow-none',
+        !design && 'xl:[zoom:1.25] print:[zoom:1]',
       )}
     >
       <Masthead

@@ -75,11 +75,18 @@ test('solicitante, Administradora y responsable llevan una práctica de Laborato
   await teacher.getByLabel('Hora de fin').fill(slot.end);
   await teacher.getByRole('textbox', { name: 'Nº alumnos' }).fill('20');
   await teacher.getByRole('textbox', { name: 'Curso-paralelo' }).fill('A');
-  // El panel «Recursos» (ADR 0023, «Disponibilidad y recursos»): se busca en el catálogo, se agrega y se ve si alcanza.
-  await teacher.getByRole('searchbox', { name: 'Buscar en Reactivos' }).fill('cloruro');
-  await teacher.getByRole('button', { name: 'Agregar Cloruro de sodio' }).click();
-  await teacher.getByRole('textbox', { name: 'Cantidad de Cloruro de sodio' }).fill('5');
-  await expect(teacher.getByText('Alcanza', { exact: true })).toBeVisible();
+  // La celda de Reactivos es el buscador (ADR 0023, «Disponibilidad y recursos»): se filtra al escribir, se elige con
+  // Enter, el cursor pasa a la cantidad y junto a ella aparece ✔ si alcanza.
+  const reagent = teacher.getByRole('combobox', { name: 'Reactivo de la fila 1' });
+  await reagent.click();
+  await expect(teacher.getByRole('listbox', { name: 'Reactivos del catálogo' })).toBeVisible();
+  await reagent.fill('nacl');
+  await expect(teacher.getByRole('option', { name: /^Cloruro de sodio, NACL: .* libres/ })).toBeVisible();
+  await reagent.press('Enter');
+  const quantity = teacher.getByRole('textbox', { name: 'Cantidad total de Cloruro de sodio' });
+  await expect(quantity).toBeFocused();
+  await quantity.fill('5');
+  await expect(teacher.getByRole('img', { name: /^Alcanza\. Hay .* libres\.$/ })).toBeVisible();
   await expectAccessible(teacher, 'Docente: solicitud por llenar');
 
   // «Antes de enviar» solo se abre si algo no alcanza o choca: con poca cantidad y un horario libre, se envía directo.

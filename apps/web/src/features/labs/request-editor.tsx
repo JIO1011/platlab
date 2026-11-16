@@ -15,8 +15,7 @@ import { checkPlan } from './request-check';
 import { draftFrom, paperOf, sameDraft, saveBody, type RequestDraft, type RequestView } from './request-draft';
 import { missingKeys, noIssues, requestIssues, type RequestIssues } from './request-draft-issues';
 import { RequestHistory } from './request-history';
-import { ViewRows } from './request-lines';
-import { ResourcesPanel } from './request-resources';
+import { FillRows } from './request-lines';
 import { reviewRows, type ReviewRow } from './send-review';
 import { SendReviewSheet } from './send-review-sheet';
 
@@ -152,8 +151,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
   const state: FillState = { draft: shown, options: options.data, today: todayInZone(me.workspace.timeZone), issues, missing, onChange: change };
   const slots: PaperSlots = {
     value: (field) => <FillValue field={field} state={state} />,
-    // La tabla se llena sola desde el panel «Recursos»: muestra lo pedido tal como se imprime.
-    resourceRows: <ViewRows paper={paper} draft={shown} layout={request.layout} saved={null} />,
+    resourceRows: <FillRows paper={paper} draft={shown} layout={request.layout} options={options.data} plan={plan} answer={check.data} issues={issues} onChange={change} />,
     notes: (
       <>
         <textarea
@@ -181,18 +179,14 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
         </p>
       ) : null}
       <AreaBar draft={shown} spaces={spaces} error={issues.fields['areaId']} onChange={(areaId) => change({ areaId })} />
-      <ResourcesPanel
-        paper={paper}
-        draft={shown}
-        layout={request.layout}
-        options={options.data}
-        plan={plan}
-        answer={check.data}
-        failed={check.isError}
-        onRetry={() => void check.refetch()}
-        issues={issues.lines}
-        onChange={change}
-      />
+      {check.isError ? (
+        <p role="status" className="flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted print:hidden">
+          No se pudo comprobar lo libre del catálogo; puedes seguir llenando.
+          <Button size="sm" variant="ghost" className="text-action max-sm:h-11" onClick={() => void check.refetch()}>
+            Reintentar
+          </Button>
+        </p>
+      ) : null}
       <FormPaper mode="fill" draft={paper} workspaceName={me.workspace.name} revision={request.formRevision} slots={slots} />
       <RequestHistory events={request.events} timeZone={me.workspace.timeZone} />
       <SendReviewSheet
