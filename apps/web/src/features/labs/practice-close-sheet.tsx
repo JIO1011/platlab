@@ -7,7 +7,7 @@ import { labsErrorMessage, useVersionConflict } from './commands';
 import { closeRows, quantityText, summarizeClose, type UsedInputs } from './practice-close';
 import { useClosePractice } from './practice-commands';
 import type { RequestView } from './request-draft';
-import { shortDateText } from './schedule-placement';
+import { formatDayShort } from '../../app/format';
 
 const NOTES_MAX = 1000;
 
@@ -76,7 +76,7 @@ export function PracticeCloseSheet({
     <FormSheet
       icon={ClipboardCheck}
       title="Cerrar práctica"
-      description={`${block.code} · ${shortDateText(block.date)}`}
+      description={`${block.code} · ${formatDayShort(block.date)}`}
       open={open}
       onOpenChange={(next) => (next ? onOpenChange(true) : dismiss())}
       submitLabel="Cerrar práctica"

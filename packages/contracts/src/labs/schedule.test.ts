@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { pendingDates } from './requests.js';
 import { activityCode, isoWeekday, periodWeek, scheduleCheck, type ScheduleContext } from './schedule.js';
 
 const closed = { '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [] };
@@ -44,5 +45,13 @@ describe('código del bloque', () => {
   it('el día ISO no depende de la zona', () => {
     expect(isoWeekday('2027-03-01')).toBe(1);
     expect(isoWeekday('2027-03-07')).toBe(7);
+  });
+});
+
+describe('fechas pendientes', () => {
+  it('son las pedidas sin bloque, en orden', () => {
+    expect(pendingDates(['2026-10-30', '2026-10-28'], ['2026-10-28'])).toEqual(['2026-10-30']);
+    expect(pendingDates(['2026-10-28'], ['2026-10-28'])).toEqual([]);
+    expect(pendingDates(['2026-10-30', '2026-10-28'], [])).toEqual(['2026-10-28', '2026-10-30']);
   });
 });

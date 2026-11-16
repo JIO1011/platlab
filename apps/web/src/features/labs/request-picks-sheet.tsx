@@ -6,7 +6,7 @@ import { FormSheet, type SheetBaseProps } from '../../app/form-sheet';
 import { labsErrorMessage, useSaveReagentPicks, useVersionConflict } from './commands';
 import { useReagentPickOptions } from './queries';
 import { inputOf, itemDetail, summarizePicks, type PickInputs } from './request-picks';
-import { shortDateText } from './schedule-placement';
+import { formatDayShort } from '../../app/format';
 
 /**
  * «Cambiar frascos» (Administrador, ADR 0023, «Cierre de Laboratorios»): de qué frascos sale lo apartado de un reactivo
@@ -64,7 +64,7 @@ export function RequestPicksSheet({
     <FormSheet
       icon={FlaskConical}
       title={`Frascos de ${name}`}
-      description={data ? `${shortDateText(block.date)} · Pedido ${formatDecimal(data.needed)} ${data.unit}` : shortDateText(block.date)}
+      description={data ? `${formatDayShort(block.date)} · Pedido ${formatDecimal(data.needed)} ${data.unit}` : formatDayShort(block.date)}
       open={open}
       onOpenChange={(next) => (next ? onOpenChange(true) : close())}
       submitLabel="Guardar"

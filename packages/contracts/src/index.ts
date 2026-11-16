@@ -364,6 +364,7 @@ export {
   requestSummary,
   requestExceptions,
   pendingCount,
+  pendingDates,
   requestVersionRequest,
   saveRequestRequest,
   type ActivityType,
@@ -417,7 +418,6 @@ export {
   type ClosePracticeRequest,
   type IncidentPractice,
   type PracticeChecklistRequest,
-  type PracticeUsage,
 } from './labs.js';
 export { bottleCodes, codeFromName, firstFreeCode, freeSeries, nextCode, seriesFromName } from './codes.js';
 export { EXPIRING_DAYS, SAFETY_SHEET_MAX_BYTES } from './reagents.js';

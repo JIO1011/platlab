@@ -1,7 +1,7 @@
 import { Button } from '@platlab/ui';
 import { PackageX, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
-import { todayInZone } from '../../app/format';
+import { formatDayShort, todayInZone } from '../../app/format';
 import { useLabs } from './context';
 import { blockMarkId, PracticeActions } from './practice-actions';
 import { isChangeable } from './practice-stage';
@@ -10,7 +10,6 @@ import { holdRows } from './request-hold-rows';
 import type { RequestView } from './request-draft';
 import { RequestPicksSheet } from './request-picks-sheet';
 import { Pill } from './request-status';
-import { shortDateText } from './schedule-placement';
 import { StagePill } from './stage-pill';
 import { softCard } from './style';
 
@@ -37,7 +36,7 @@ export function RequestHolds({ request }: { request: RequestView }) {
             <li key={block.activityId} className="relative grid gap-2.5 pb-7 pl-8 last:pb-0 before:absolute before:bottom-0 before:left-[5px] before:top-3 before:w-px before:bg-line-strong last:before:hidden">
               <span aria-hidden className={`absolute left-0 top-1.5 size-[11px] rounded-full ring-4 ring-surface ${short ? 'bg-warning' : 'bg-success'}`} />
               <p id={blockMarkId(block.activityId)} tabIndex={-1} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-control text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action">
-                <span className="font-semibold text-ink">{shortDateText(block.date)}</span>
+                <span className="font-semibold text-ink">{formatDayShort(block.date)}</span>
                 <span className="break-words text-ink-muted tabular-nums">
                   {block.code} · {block.areaName} · {block.startsAt}–{block.endsAt} · {block.responsibleName}
                 </span>

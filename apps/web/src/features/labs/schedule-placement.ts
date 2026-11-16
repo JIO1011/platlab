@@ -1,5 +1,6 @@
 import {
   pendingCount,
+  pendingDates,
   scheduleProblemText,
   type Activity,
   type Closure,
@@ -12,6 +13,7 @@ import {
 } from '@platlab/contracts';
 import { titleText } from './request-summary';
 import { MISSING_HOLDS, blockParts, blockText, capacityWarning, timeText, toMinutes, type DayRange } from './schedule-grid';
+import { formatDayShort } from '../../app/format';
 
 /**
  * La lógica pura de programar y mover bloques (ADR 0023, L-01c): de la posición del puntero a una hora, el contexto de
@@ -24,7 +26,6 @@ const DRAG_STEP = 60;
 
 /** La hora más tarde que se puede escribir como fin (23:59). */
 const LAST_MINUTE = 23 * 60 + 59;
-
 
 /** La hora en punto de la celda que contiene esos minutos (14:40 → 14:00). */
 const hourCell = (minutes: number) => Math.floor(minutes / DRAG_STEP) * DRAG_STEP;
@@ -121,11 +122,6 @@ export function capacityText(check: ScheduleCheck, participants: number, capacit
   return check.warnings.includes('capacity') ? capacityWarning(participants, capacity) : null;
 }
 
-/** Lo que se dice de un lugar mientras se arrastra: «Libre», o el primer motivo que lo impide. */
-export function previewText(check: ScheduleCheck): string {
-  return check.blocking.length > 0 ? blockingTexts(check)[0]! : 'Libre';
-}
-
 type BlockRequest = Pick<RequestSummary, 'title' | 'subject' | 'group' | 'requesterName'>;
 
 /** «Materia - Carrera - Docente» de una solicitud por programar: el mismo texto que tendrá su bloque. */
@@ -136,12 +132,6 @@ export function requestBlockText(request: BlockRequest): string {
 /** La materia y «Carrera · Docente» de una solicitud por programar: las mismas líneas que tendrá su bloque. */
 export function requestBlockParts(request: BlockRequest): { subject: string; byline: string } {
   return blockParts({ ...request, title: titleText(request) });
-}
-
-/** Las fechas de la solicitud que aún no tienen bloque, en orden. */
-export function pendingDates(request: Pick<RequestSummary, 'dates' | 'scheduledDates'>): string[] {
-  const scheduled = new Set(request.scheduledDates);
-  return request.dates.filter((date) => !scheduled.has(date)).sort();
 }
 
 /** Si la solicitud espera que la programen: enviada y con fechas sin bloque. */
@@ -155,17 +145,12 @@ export function isToSchedule(item: Pick<RequestSummary, 'status' | 'dateCount' |
  */
 export function toScheduleOrder(items: readonly RequestSummary[]): RequestSummary[] {
   const rank = (item: RequestSummary) => (item.late ? 0 : pendingCount(item.exceptions) > 0 ? 1 : 2);
-  const nextDate = (item: RequestSummary) => pendingDates(item)[0] ?? '9999';
+  const nextDate = (item: RequestSummary) => pendingDates(item.dates, item.scheduledDates)[0] ?? '9999';
   return items
     .filter((item) => isToSchedule(item))
     .map((item, index) => ({ item, index, next: nextDate(item) }))
     .sort((a, b) => rank(a.item) - rank(b.item) || a.next.localeCompare(b.next) || a.index - b.index)
     .map(({ item }) => item);
-}
-
-/** «lun 9 nov»: la fecha de una tarjeta de la bandeja. */
-export function shortDateText(date: string): string {
-  return new Intl.DateTimeFormat('es-EC', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`)).replace(',', '');
 }
 
 /** Una fecha por programar de una solicitud: lo que dibuja una tarjeta de la bandeja. */
@@ -179,13 +164,13 @@ export interface PendingCard {
  * después, las de otros días; dentro de cada grupo, el orden de urgencia de `items` (ya ordenado por `toScheduleOrder`).
  */
 export function pendingCards(items: readonly RequestSummary[], visible: string): PendingCard[] {
-  const cards = items.flatMap((request) => pendingDates(request).map((date) => ({ request, date })));
+  const cards = items.flatMap((request) => pendingDates(request.dates, request.scheduledDates).map((date) => ({ request, date })));
   return [...cards.filter((card) => card.date === visible), ...cards.filter((card) => card.date !== visible)];
 }
 
 /** «lun 9 nov · 08:00–10:00»: cuándo se pidió la fecha; sin horario completo, solo la fecha. */
 export function cardWhenText({ request, date }: PendingCard): string {
-  return request.startsAt && request.endsAt ? `${shortDateText(date)} · ${request.startsAt}–${request.endsAt}` : shortDateText(date);
+  return request.startsAt && request.endsAt ? `${formatDayShort(date)} · ${request.startsAt}–${request.endsAt}` : formatDayShort(date);
 }
 
 /** Lo que se avisa tras programar o mover: «P1-S12-QUI01 programado» y, si procede, el aforo y «Falta apartar recursos» (L-01d). */

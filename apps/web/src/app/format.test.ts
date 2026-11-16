@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countText, daysBetween, formatFullDate, formatShortDateTime, formatWeekday, todayInZone } from './format';
+import { countText, daysBetween, formatDayShort, formatFullDate, formatShortDateTime, formatWeekday, todayInZone } from './format';
 
 describe('formatShortDateTime', () => {
   const zone = 'America/Guayaquil';
@@ -59,5 +59,13 @@ describe('formatFullDate y formatWeekday', () => {
     expect(formatFullDate('2026-10-23')).toBe('viernes, 23 de octubre de 2026');
     expect(formatWeekday('2026-10-23', 'long')).toBe('viernes');
     expect(formatWeekday('2026-10-26', 'short')).toMatch(/^lun/);
+  });
+});
+
+describe('formatDayShort', () => {
+  it('escribe la fecha con el día de la semana, sin coma', () => {
+    expect(formatDayShort('2026-10-28')).toMatch(/^mi/i);
+    expect(formatDayShort('2026-10-28')).toMatch(/28/);
+    expect(formatDayShort('2026-10-28')).not.toContain(',');
   });
 });

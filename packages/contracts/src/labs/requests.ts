@@ -125,6 +125,12 @@ export type RequestExceptions = z.infer<typeof requestExceptions>;
 /** Cuántas líneas quedan por revisar, de todos los tipos. */
 export const pendingCount = ({ reagent, equipment, material }: RequestExceptions): number => reagent + equipment + material;
 
+/** Las fechas pedidas que aún no tienen bloque, en orden: una sola regla para la bandeja, la revisión y el servidor. */
+export const pendingDates = (dates: readonly string[], scheduled: readonly string[]): string[] => {
+  const placed = new Set(scheduled);
+  return dates.filter((date) => !placed.has(date)).sort();
+};
+
 export const requestSummary = z.object({
   id: z.uuid(),
   status: requestStatus,

@@ -2,8 +2,8 @@ import { Skeleton } from '@platlab/ui';
 import { useParams } from 'react-router';
 import { QueryErrorState } from '../../app/states';
 import { useAssetBookings } from './queries';
-import { shortDateText } from './schedule-placement';
 import { StagePill } from './stage-pill';
+import { formatDayShort } from '../../app/format';
 
 /**
  * La pestaña «Reservas» de la ficha del equipo (L-01e, ADR 0023; punto de extensión de Equipos): las próximas reservas
@@ -35,7 +35,7 @@ export function AssetBookingsTab({ assetId }: { assetId: string }) {
           {items.map((item) => (
             <li key={item.activityId} className="grid gap-1 px-5 py-3.5 md:px-6">
               <p className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-                <span className="font-semibold text-ink">{shortDateText(item.date)}</span>
+                <span className="font-semibold text-ink">{formatDayShort(item.date)}</span>
                 <span className="tabular-nums text-ink-muted">
                   {item.startsAt}–{item.endsAt}
                 </span>

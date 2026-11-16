@@ -1,4 +1,4 @@
-import { requestReasonRequest } from '@platlab/contracts';
+import { pendingDates, requestReasonRequest } from '@platlab/contracts';
 import { Button, Field, Textarea, toast } from '@platlab/ui';
 import { CalendarDays, CircleX, PencilLine, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -9,7 +9,6 @@ import { FormSheet, validate } from '../../app/form-sheet';
 import { labsErrorMessage, useRejectRequest, useRequestChanges, useRequestResolved, useVersionConflict } from './commands';
 import type { RequestView } from './request-draft';
 import { titleText } from './request-summary';
-import { pendingDates } from './schedule-placement';
 import { actionBar, primaryGradient } from './style';
 
 type Resolution = 'changes' | 'reject';
@@ -112,7 +111,7 @@ export function ReviewActions({ workspaceId, request, canSchedule }: { workspace
   const changes = useRequestChanges(workspaceId, request.id);
   const reject = useRejectRequest(workspaceId, request.id);
   const [open, setOpen] = useState<Resolution | null>(null);
-  const first = pendingDates(request)[0];
+  const first = pendingDates(request.dates, request.scheduledDates)[0];
 
   return (
     <div className={actionBar}>

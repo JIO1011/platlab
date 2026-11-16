@@ -82,6 +82,5 @@ export const incidentPracticeParams = z.object({ workspaceId: z.uuid(), faultId:
 export type ActivityStage = z.infer<typeof activityStage>;
 export type PracticeChecklistRequest = z.infer<typeof practiceChecklistRequest>;
 export type ClosePracticeRequest = z.infer<typeof closePracticeRequest>;
-export type PracticeUsage = z.infer<typeof practiceUsage>;
 export type AssetBookings = z.infer<typeof assetBookings>;
 export type IncidentPractice = z.infer<typeof incidentPractice>;

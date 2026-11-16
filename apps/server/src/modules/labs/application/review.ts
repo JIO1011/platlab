@@ -1,5 +1,6 @@
 import type pg from 'pg';
 import {
+  pendingDates,
   sumDecimals,
   timeText,
   toMinutes,
@@ -17,7 +18,7 @@ import { reagentStockBreakdown, reagentStockByArea, requestableReagents } from '
 import { listRequests } from '../infrastructure/requests.queries.js';
 import { busyOn, findingsOf, freeIn, neededOf, validOnOf, type Ask, type Busy } from './availability.js';
 import { REQUEST_CREATE, runQuery } from './command.js';
-import { checkedLines, pendingOf, visibleRequest, type LineRow } from './request-view.js';
+import { checkedLines, visibleRequest, type LineRow } from './request-view.js';
 
 /**
  * Revisión antes de enviar (ADR 0023, «Flujo de la Propuesta» y «Disponibilidad y recursos»): contra todo el espacio,
@@ -102,7 +103,7 @@ async function reviewOf(access: WorkspaceAccess, draft: Draft): Promise<RequestR
 export function reviewRequest(pool: pg.Pool, request: QueryRequest, requestId: string): Promise<RequestReview> {
   return runQuery(pool, request, async (access) => {
     const current = await visibleRequest(access, requestId);
-    return reviewOf(access, { ...current, pending: pendingOf(current.dates, current.scheduledDates) });
+    return reviewOf(access, { ...current, pending: pendingDates(current.dates, current.scheduledDates) });
   });
 }
 
@@ -155,7 +156,7 @@ export function checkRequest(pool: pg.Pool, request: QueryRequest, requestId: st
     if (!(await hasPermission(access, REQUEST_CREATE))) throw new AppError('ACCESS_DENIED', 'No tienes permiso para esta acción');
     const [row] = await listRequests.run({ workspaceId: access.workspace.id, requestId, requesterId: null }, access.client);
     if (!row || row.requester_principal_id !== access.principalId) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
-    const pending = pendingOf(input.dates, row.scheduled_dates);
+    const pending = pendingDates(input.dates, row.scheduled_dates);
     const draft = { pending, startsAt: input.startsAt, endsAt: input.endsAt, lines: input.lines.map((line, index) => lineRow(line, index, input.groups)) };
     const [lines = []] = await checkedLines(access, [draft]);
     return { lines, review: await reviewOf(access, { ...input, pending, lines }), catalog: await catalogOf(access, { pending, startsAt: input.startsAt, endsAt: input.endsAt }) };

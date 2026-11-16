@@ -1,7 +1,7 @@
 import { ClipboardList } from 'lucide-react';
 import { useParams } from 'react-router';
 import { useIncidentPractice } from './queries';
-import { shortDateText } from './schedule-placement';
+import { formatDayShort } from '../../app/format';
 
 /**
  * La práctica en que se reportó un incidente (L-01e, ADR 0023; punto de extensión de la hoja del incidente en Equipos):
@@ -17,7 +17,7 @@ export function FaultPractice({ faultId }: { faultId: string }) {
       <span className="min-w-0 break-words">
         Reportado en la práctica <span className="font-semibold tabular-nums">{practice.code}</span> · {practice.requesterName} ·{' '}
         <span className="tabular-nums">
-          {shortDateText(practice.date)} {practice.startsAt}–{practice.endsAt}
+          {formatDayShort(practice.date)} {practice.startsAt}–{practice.endsAt}
         </span>{' '}
         · {practice.areaName}
       </span>

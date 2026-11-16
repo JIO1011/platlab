@@ -9,18 +9,16 @@ import {
   durationOf,
   endFor,
   isToSchedule,
-  pendingDates,
-  previewText,
   pendingCards,
   requestBlockText,
   responsibleFor,
   scheduledMessage,
-  shortDateText,
   slotAt,
   startAtOffset,
   requestedSpan,
   toScheduleOrder,
 } from './schedule-placement';
+import { formatDayShort } from '../../app/format';
 
 const day: WeeklyHours['1'] = [{ opens: '07:00', closes: '18:00' }];
 const weekly: WeeklyHours = { '1': day, '2': day, '3': day, '4': day, '5': day, '6': [], '7': [] };
@@ -189,18 +187,10 @@ describe('contexto de scheduleCheck', () => {
     expect(check.blocking).toEqual([]);
     expect(capacityText(check, 30, 24)).toBe('Supera el aforo (30 / 24)');
     expect(capacityText({ blocking: [], warnings: [] }, 20, 24)).toBeNull();
-    expect(previewText(check)).toBe('Libre');
-    expect(previewText({ blocking: ['overlap'], warnings: [] })).toBe('Se cruza con otro bloque del área');
   });
 });
 
 describe('bandeja Por programar', () => {
-  it('las fechas pendientes son las que no tienen bloque', () => {
-    expect(pendingDates(summary({ dates: ['2026-10-30', '2026-10-28'], scheduledDates: ['2026-10-28'] }))).toEqual(['2026-10-30']);
-    expect(pendingDates(summary({ dates: ['2026-10-28'], scheduledDates: ['2026-10-28'] }))).toEqual([]);
-    expect(pendingDates(summary({ dates: ['2026-10-30', '2026-10-28'] }))).toEqual(['2026-10-28', '2026-10-30']);
-  });
-
   it('cada solicitud dice «Materia - Carrera - Docente» como lo dirá su bloque', () => {
     expect(requestBlockText(summary({ subject: 'Histología', group: 'Odontología' }))).toBe('Histología - Odontología - Ana Pérez');
     expect(requestBlockText(summary())).toBe('Titulación - Ana Pérez');
@@ -240,16 +230,10 @@ describe('bandeja Por programar', () => {
     expect(cards.map((card) => `${card.request.id}:${card.date}`)).toEqual(['otra:2026-10-30', 'urgente:2026-10-28', 'otra:2026-10-26']);
   });
 
-  it('escribe la fecha con el día de la semana, sin coma', () => {
-    expect(shortDateText('2026-10-28')).toMatch(/^mi/i);
-    expect(shortDateText('2026-10-28')).toMatch(/28/);
-    expect(shortDateText('2026-10-28')).not.toContain(',');
-  });
-
   it('dice la fecha y el horario pedido de una tarjeta', () => {
     const request = summary({ startsAt: '08:00', endsAt: '10:00' });
-    expect(cardWhenText({ request, date: '2026-10-28' })).toBe(`${shortDateText('2026-10-28')} · 08:00–10:00`);
-    expect(cardWhenText({ request: summary({ startsAt: null, endsAt: null }), date: '2026-10-28' })).toBe(shortDateText('2026-10-28'));
+    expect(cardWhenText({ request, date: '2026-10-28' })).toBe(`${formatDayShort('2026-10-28')} · 08:00–10:00`);
+    expect(cardWhenText({ request: summary({ startsAt: null, endsAt: null }), date: '2026-10-28' })).toBe(formatDayShort('2026-10-28'));
   });
 });
 

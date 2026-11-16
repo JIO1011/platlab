@@ -1,7 +1,7 @@
 import { ACTIVITY_CHANGEABLE, type ActivityStage } from '@platlab/contracts';
 import { CircleCheck, Lock, Play, type LucideIcon } from 'lucide-react';
 import type { Tone } from './request-status';
-import { shortDateText } from './schedule-placement';
+import { formatDayShort } from '../../app/format';
 
 /** Cómo se llama cada etapa de un bloque (L-01e): siempre con texto, nunca solo con color (ADR 0010). */
 export const stageLabels: Record<ActivityStage, string> = {
@@ -49,5 +49,5 @@ export function checklistNote(total: number, prepared: readonly number[]): strin
 
 /** Por qué «Iniciar» aún no se puede: se inicia desde el día de la práctica. `null` si ya se puede. */
 export function startBlockedReason(date: string, today: string): string | null {
-  return date > today ? `Se inicia desde el día de la práctica, ${shortDateText(date)}.` : null;
+  return date > today ? `Se inicia desde el día de la práctica, ${formatDayShort(date)}.` : null;
 }
