@@ -15,11 +15,9 @@ import {
   closedSpans,
   dayClosedText,
   dayHoursText,
-  daySummary,
   holidayOn,
   hourMarks,
   loadByDay,
-  loadText,
   monthWeeks,
   nowMinutes,
   openSlots,
@@ -31,6 +29,7 @@ import {
   shiftMonth,
   timeText,
   toMinutes,
+  weekCaption,
   weekDates,
   withoutHours,
 } from './schedule-grid';
@@ -131,24 +130,16 @@ describe('fechas', () => {
 });
 
 describe('carga y áreas del día', () => {
-  it('resume el día con su período, su semana y sus bloques', () => {
+  it('dice el mes y la semana del período, con «(Hoy)» si el día es hoy', () => {
     const period = { code: 'P1', week: 11 };
-    expect(daySummary(period, 7)).toBe('Período P1 · Semana 11 · 7 bloques programados');
-    expect(daySummary(period, 1)).toBe('Período P1 · Semana 11 · 1 bloque programado');
-    expect(daySummary(period, 0)).toBe('Período P1 · Semana 11 · 0 bloques programados');
+    expect(weekCaption('2026-11-16', '2026-11-16', period)).toEqual({ month: 'Noviembre de 2026', week: 'P1 · Semana 11 (Hoy)' });
+    expect(weekCaption('2026-11-17', '2026-11-16', period)).toEqual({ month: 'Noviembre de 2026', week: 'P1 · Semana 11' });
   });
 
-  it('resume el día sin período, o sin lo que aún carga', () => {
-    expect(daySummary(null, 2)).toBe('Fuera de los períodos · 2 bloques programados');
-    expect(daySummary(undefined, 2)).toBe('2 bloques programados');
-    expect(daySummary({ code: 'P1', week: 11 }, undefined)).toBe('Período P1 · Semana 11');
-    expect(daySummary(undefined, undefined)).toBe('');
-  });
-
-  it('dice la carga de cada día de la semana: «N blq» o «–»', () => {
-    expect(loadText(7)).toBe('7 blq');
-    expect(loadText(1)).toBe('1 blq');
-    expect(loadText(0)).toBe('–');
+  it('dice «Fuera de los períodos» sin período y omite la semana mientras cargan', () => {
+    expect(weekCaption('2026-12-28', '2026-11-16', null)).toEqual({ month: 'Diciembre de 2026', week: 'Fuera de los períodos' });
+    expect(weekCaption('2026-11-16', '2026-11-16', undefined)).toEqual({ month: 'Noviembre de 2026', week: '(Hoy)' });
+    expect(weekCaption('2026-11-17', '2026-11-16', undefined)).toEqual({ month: 'Noviembre de 2026', week: '' });
   });
 
   it('cuenta los bloques de cada fecha y deja en cero las libres', () => {

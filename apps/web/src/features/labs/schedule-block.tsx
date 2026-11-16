@@ -47,21 +47,23 @@ const reveal =
 
 /**
  * Desde qué alto interior se ve cada parte de un bloque de la tabla (consulta del alto interior; las clases van completas
- * para que Tailwind las encuentre): el código con la hora, el pie con el docente y los participantes, el encargado, la
- * etapa y el aviso de aforo. La materia se ve siempre; en dos líneas si sobra alto.
+ * para que Tailwind las encuentre). Arriba lo que identifica la práctica, abajo las personas: el código con la hora y la
+ * materia se ven siempre; luego la carrera, el Docente con los participantes, el Encargado, la etapa y el aviso de aforo.
+ * Con todo, la materia pasa a dos líneas.
  */
 const fromHeight = {
-  head: 'hidden [@container(min-height:30px)]:flex',
-  foot: 'hidden [@container(min-height:48px)]:flex',
-  manager: 'hidden [@container(min-height:66px)]:flex',
-  stage: 'hidden [@container(min-height:82px)]:flex',
-  warning: 'hidden [@container(min-height:98px)]:flex',
+  head: 'hidden [@container(min-height:32px)]:flex',
+  career: 'hidden [@container(min-height:48px)]:block',
+  teacher: 'hidden [@container(min-height:64px)]:flex',
+  manager: 'hidden [@container(min-height:80px)]:flex',
+  stage: 'hidden [@container(min-height:96px)]:flex',
+  warning: 'hidden [@container(min-height:112px)]:flex',
 } as const;
 
 /** Una línea de datos con su ícono pequeño: en la tabla se corta con elipsis solo si no cabe; en la lista, baja de línea. */
 function Detail({ icon: Icon, table, children, className }: { icon: LucideIcon; table: boolean; children: ReactNode; className?: string | undefined }) {
   return (
-    <span className={cn('items-start gap-1 text-[11px] leading-[14px] text-ink', className)}>
+    <span className={cn('min-w-0 items-start gap-1 text-[11px] leading-[14px] text-ink', className)}>
       <Icon aria-hidden className="mt-px size-3 shrink-0" />
       <span className={cn('min-w-0', table ? 'truncate' : '[overflow-wrap:anywhere]')}>{children}</span>
     </span>
@@ -72,9 +74,10 @@ function Detail({ icon: Icon, table, children, className }: { icon: LucideIcon; 
 const codeText = 'font-mono text-[11px] font-semibold leading-[14px] tabular-nums text-[color-mix(in_oklab,var(--tone-edge)_55%,var(--color-ink))]';
 
 /**
- * La cara de un bloque en la tabla (forma decidida por el usuario, 15-11-2026): arriba el código teñido y, a la derecha, la
- * hora si cabe; la materia en negrita con los íconos de etapa, aforo y apartado; y abajo, pegado al borde, el Docente a la
- * izquierda y los participantes («26p») a la derecha. Si sobra alto, sobre el pie, el Encargado, la etapa y el aviso de aforo.
+ * La cara de un bloque en la tabla (forma decidida por el usuario, 15-11-2026), en dos zonas para reconocerlo de un
+ * vistazo. Arriba, qué práctica es: el código teñido con su carrera y, a la derecha, la hora si cabe; la materia en
+ * negrita con los íconos de etapa, aforo y apartado; y la carrera. Abajo, pegado al borde, quiénes: el Docente con los
+ * participantes a la derecha y el Encargado; sobre ellos, si sobra alto, la etapa y el aviso de aforo.
  */
 function TableFace({ activity, over, space, clear }: { activity: Activity; over: boolean; space: Pick<Space, 'capacity'>; clear: string | null }) {
   const StageMark = activity.stage === 'scheduled' ? null : stageMarks[activity.stage];
@@ -90,12 +93,10 @@ function TableFace({ activity, over, space, clear }: { activity: Activity; over:
         {StageMark ? <StageMark aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
         {over ? <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
         {!activity.complete ? <PackageX aria-hidden className="mt-px size-3.5 shrink-0" /> : null}
-        <span className="min-w-0 line-clamp-1 [overflow-wrap:anywhere] [@container(min-height:112px)]:line-clamp-2">{blockParts(activity).subject}</span>
+        <span className="min-w-0 line-clamp-1 [overflow-wrap:anywhere] [@container(min-height:128px)]:line-clamp-2">{blockParts(activity).subject}</span>
       </span>
+      {activity.group ? <span className={cn('truncate text-[11px] leading-[14px] text-ink-muted', fromHeight.career)}>{activity.group}</span> : null}
       <span className="mt-auto" />
-      <Detail icon={UserCheck} table className={cn('text-ink-muted', fromHeight.manager)}>
-        {activity.responsibleName}
-      </Detail>
       {StageMark ? (
         <Detail icon={StageMark} table className={cn('font-medium', fromHeight.stage)}>
           {stageLabels[activity.stage]}
@@ -106,17 +107,25 @@ function TableFace({ activity, over, space, clear }: { activity: Activity; over:
           {capacityWarning(activity.participants, space.capacity)}
         </Detail>
       ) : null}
-      <span className={cn('items-baseline justify-between gap-2 text-xs leading-4', fromHeight.foot)}>
-        <span className="min-w-0 truncate text-ink-muted">{activity.requesterName}</span>
-        <span className={cn('shrink-0 font-mono font-semibold tabular-nums', over ? 'text-warning' : 'text-ink')}>{activity.participants}p</span>
+      <span className={cn('items-start justify-between gap-2', fromHeight.teacher)}>
+        <Detail icon={GraduationCap} table className="flex">
+          {activity.requesterName}
+        </Detail>
+        <span className={cn('inline-flex shrink-0 items-center gap-0.5 font-mono text-[11px] font-semibold leading-[14px] tabular-nums', over ? 'text-warning' : 'text-ink')}>
+          <Users aria-hidden className="size-3" />
+          {activity.participants}
+        </span>
       </span>
+      <Detail icon={UserCheck} table className={fromHeight.manager}>
+        {activity.responsibleName}
+      </Detail>
     </span>
   );
 }
 
 /**
- * La cara de un bloque en la lista del móvil, con todo a la vista y sin cortar: el código, la materia, el Docente, el
- * Encargado, los participantes, el aviso de aforo si se supera, la etapa y «Falta apartar recursos».
+ * La cara de un bloque en la lista del móvil, con todo a la vista y sin cortar: el código, la materia, la carrera, el
+ * Docente, el Encargado, los participantes, el aviso de aforo si se supera, la etapa y «Falta apartar recursos».
  */
 function ListFace({ activity, over, space, clear }: { activity: Activity; over: boolean; space: Pick<Space, 'capacity'>; clear: string | null }) {
   const StageMark = activity.stage === 'scheduled' ? null : stageMarks[activity.stage];
@@ -126,6 +135,7 @@ function ListFace({ activity, over, space, clear }: { activity: Activity; over: 
         <span className="min-w-0 truncate">{activity.code}</span>
       </span>
       <span className={cn('min-w-0 text-sm font-semibold leading-5 [overflow-wrap:anywhere]', clear)}>{blockParts(activity).subject}</span>
+      {activity.group ? <span className="text-xs leading-4 text-ink-muted [overflow-wrap:anywhere]">{activity.group}</span> : null}
       <Detail icon={GraduationCap} table={false} className="flex">
         {activity.requesterName}
       </Detail>
@@ -158,7 +168,7 @@ function ListFace({ activity, over, space, clear }: { activity: Activity; over: 
 
 /**
  * Un bloque de la tabla o de la lista, sobre el color de su carrera y con sus datos a la vista, sin ficha al pasar el
- * cursor (`TableFace` y `ListFace`). La carrera solo va en el color y en el nombre accesible. Es un solo control, un
+ * cursor (`TableFace` y `ListFace`); la carrera va escrita y en el color. Es un solo control, un
  * enlace a su solicitud o un botón que abre su panel; quien programa suma un botón pequeño «Mover…». En la tabla, cada
  * bloque deja aire a su alrededor dentro de su celda.
  */

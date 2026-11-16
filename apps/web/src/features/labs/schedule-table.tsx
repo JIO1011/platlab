@@ -17,8 +17,8 @@ import { softCard } from './style';
  */
 const ROW_HEIGHT = 'max(20px, calc((100cqh - var(--head)) / var(--rows)))';
 
-/** El alto de la cabecera de las columnas: sigla y aforo, nombre del área y horario del día. */
-const HEAD_HEIGHT = '5rem';
+/** El alto de la cabecera de las columnas: nombre del área y aforo, y horario del día. */
+const HEAD_HEIGHT = '3.75rem';
 
 /** El ancho mínimo de una columna de área y el de la columna de horas. */
 const COLUMN_MIN = '7.5rem';
@@ -172,9 +172,9 @@ function AreaColumn({
 }
 
 /**
- * La cabecera de una columna, en tres líneas (forma decidida por el usuario, 15-11-2026): la sigla en mono y negrita a la
- * izquierda y el aforo, con su ícono, a la derecha; el nombre del área sin la palabra «Laboratorio» (entero en el título y
- * para el lector de pantalla); y la disponibilidad de ese día en mono, en verde si abre («08:00–12:00») o «Cerrada»
+ * La cabecera de una columna, en dos líneas (forma decidida por el usuario, 15-11-2026; sin sigla): el nombre del área en
+ * negrita, sin la palabra «Laboratorio» (entero en el título y para el lector de pantalla), y el aforo con su ícono a la
+ * derecha; debajo, la disponibilidad de ese día en mono, en verde si abre («08:00–12:00») o «Cerrada»
  * apagado si su horario no abre o hay un cierre o feriado, con «Sin horario» en ámbar a la derecha si el área no abre
  * ningún día.
  */
@@ -188,16 +188,15 @@ function ColumnHeader({ space, date, closures }: { space: Space; date: string; c
       className="sticky top-0 z-20 grid h-(--head) content-center gap-0.5 border-b border-l border-line bg-surface px-3"
     >
       <p className="flex items-center justify-between gap-2 leading-[18px]">
-        <span className="min-w-0 truncate font-mono text-[13px] font-bold tracking-tight text-ink">{space.abbreviation}</span>
+        <span className="min-w-0 truncate text-[13px] font-semibold text-ink">
+          <span aria-hidden>{areaLabel(space.areaName)}</span>
+          <span className="sr-only">{space.areaName}</span>
+        </span>
         <span className="inline-flex shrink-0 items-center gap-1 font-mono text-[11px] font-medium tabular-nums text-ink-muted">
           <Users aria-hidden className="size-3.5" />
           <span className="sr-only">Aforo </span>
           {space.capacity}
         </span>
-      </p>
-      <p className="truncate text-[13px] leading-[18px] text-ink">
-        <span aria-hidden>{areaLabel(space.areaName)}</span>
-        <span className="sr-only">{space.areaName}</span>
       </p>
       <p className="flex items-center justify-between gap-2 leading-4">
         <span className={cn('min-w-0 truncate font-mono text-[11px] tabular-nums', open ? 'font-semibold text-success' : 'text-ink-muted')}>{hours}</span>
@@ -210,7 +209,7 @@ function ColumnHeader({ space, date, closures }: { space: Space; date: string; c
 /**
  * La tabla del día, como la planilla que ya se usa (ADR 0023; decisión del usuario, 24-10-2026): ocupa el alto que deja
  * la pantalla y todo el ancho. Una columna por cada área con horario, de ancho igual (mínimo 7,5 rem; si no caben, se
- * desplaza en horizontal con las horas fijas), con su cabecera de tres líneas (`ColumnHeader`); las áreas del Núcleo
+ * desplaza en horizontal con las horas fijas), con su cabecera de dos líneas (`ColumnHeader`); las áreas del Núcleo
  * sin espacio no ocupan columna (su aviso va en el encabezado de la pantalla). Las filas son de media hora, de 07:00 a
  * 19:00, y solo las horas en punto llevan línea fina, con su rótulo en mono debajo de ella; llenan el alto disponible y,
  * si no caben a 20 px, se desplaza la tabla. Lo cerrado va en un tono apagado con trama; si cierra todo el día, con su

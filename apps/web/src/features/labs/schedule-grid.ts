@@ -1,5 +1,6 @@
 import { isoWeekday, periodWeek, scheduleProblemText, timeText, toMinutes, type Activity, type Closure, type Period, type Space } from '@platlab/contracts';
-import { addDays, countText } from '../../app/format';
+import { addDays } from '../../app/format';
+import { monthName } from '../../app/month-name';
 
 /**
  * La lógica pura de la tabla del Cronograma (ADR 0023): qué áreas y qué horas muestra un día, dónde cae cada bloque y
@@ -81,18 +82,15 @@ export function activitiesOn(items: readonly Activity[], date: string): Activity
   return items.filter((item) => item.date === date);
 }
 
-/** «Período P1 · Semana 11 · 7 bloques programados»: lo que la barra del día dice bajo la fecha; sin período o sin cifra (mientras cargan), omite esa parte. */
-export function daySummary(period: { code: string; week: number } | null | undefined, count: number | undefined): string {
-  const parts = [
-    period === undefined ? null : period ? `Período ${period.code} · Semana ${period.week}` : 'Fuera de los períodos',
-    count === undefined ? null : countText(count, 'bloque programado', 'bloques programados'),
-  ];
-  return parts.filter((part) => part !== null).join(' · ');
-}
-
-/** Lo que dice la semana de cada día sobre su carga: «7 blq», o «–» si no tiene bloques. */
-export function loadText(count: number): string {
-  return count === 0 ? '–' : `${count} blq`;
+/**
+ * Lo que la barra del día dice junto a ‹ Hoy ›, en dos partes: el mes, «Noviembre de 2026», y la semana, «P1 · Semana 11
+ * (Hoy)». Sin período, «Fuera de los períodos»; mientras cargan, sin semana. «(Hoy)» si el día elegido es hoy.
+ */
+export function weekCaption(date: string, today: string, period: { code: string; week: number } | null | undefined): { month: string; week: string } {
+  const month = monthName(date.slice(0, 7), 'long');
+  const week = period === undefined ? '' : period ? `${period.code} · Semana ${period.week}` : 'Fuera de los períodos';
+  const suffix = date === today ? ' (Hoy)' : '';
+  return { month: month.charAt(0).toUpperCase() + month.slice(1), week: week ? `${week}${suffix}` : suffix.trim() };
 }
 
 /** Cuántos bloques tiene cada fecha dada, con cero para las libres. */
