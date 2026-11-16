@@ -807,181 +807,66 @@ Estado: aceptada (20-10-2026, a pedido del usuario: «cero lógica muerta o dupl
 
 ## ADR 0023 — Laboratorios: solicitudes y cronograma en un solo módulo
 
-Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de producto). Reemplaza la división M4 Laboratorios + M5 Prácticas y Solicitudes de [01 §3](01_producto.md#3-módulos).
+Estado: aceptada (20-10-2026; idea del usuario combinada con la propuesta de producto) y cerrada para el piloto (16-11-2026). Reemplaza la división M4 Laboratorios + M5 Prácticas y Solicitudes de [01 §3](01_producto.md#3-módulos). Aquí van las reglas; la forma de cada pantalla vive en el código y sus pruebas, y sus ajustes en git (PR #38 a #48).
 
-- **Un módulo, «Laboratorios»** (código `labs`, ruta `laboratorios`). Absorbe M4 y M5: para el cliente es un solo trabajo, del pedido del docente al laboratorio listo. El mapa queda en siete módulos; M5 no se reutiliza.
-  - El nombre sirve a universidades y a laboratorios de empresa. «Prácticas» era solo académico y «Agenda» dejaba fuera las solicitudes.
-  - La agenda (franjas y choques) es una capacidad con dueño técnico en `labs`, para que Equipos («Reservado») y Mantenimiento (bloqueos, F5) la consulten por su interfaz, sin escribir en ella.
-- **Todo entra por solicitud y el Administrador organiza.**
-  - Nadie reserva directo: cada bloque del cronograma nace de una solicitud. Quien administra también puede llenarla, por ejemplo para una clase.
-  - Sin repetición semanal: cada práctica es una solicitud.
-- **Cuatro secciones:**
-  - **Cronograma** (Administrador y Operador; el Docente ve la tabla completa, sin la bandeja y sin mover nada):
-    - la tabla de horas por áreas de un día, con un calendario para elegir el día y la carga de la semana;
-    - la bandeja «Por programar» al costado (abajo en el móvil), con lo urgente primero: plazo y recursos que faltan;
-    - cada bloque dice «Actividad · Solicitante · Grupo», y el Administrador renombra «Grupo» («Carrera», «Proyecto», «Cliente»);
-    - al arrastrar un bloque se programa y se asigna su responsable (un Operador); con un clic se abre la solicitud. Arrastrar tiene siempre la alternativa «Programar…» (área y hora), en el móvil y con teclado;
-    - mientras se arrastra se valida: choque, horario del área, cierre y aforo. Sin márgenes de preparación ni limpieza: el bloque ocupa solo su franja (decisión del usuario, 20-10-2026);
-    - cambiar la hora el mismo día es del Administrador. Cambiar el día pide cambios al docente, con motivo.
-  - **Solicitudes:**
-    - el Docente la llena en tres pasos (Datos → Recursos → Revisar) o duplica una anterior, y sigue su estado en «Mis solicitudes»;
-    - el Administrador la revisa en su bandeja, con lo excepcional primero, y la rechaza o pide cambios con motivo. Programarla es aprobarla;
-    - los estados son los de [01 §6.2](01_producto.md#62-solicitud-y-práctica).
-  - **Formatos** (Administrador): un núcleo fijo y campos libres.
-    - El núcleo: encabezado y datos de la actividad, fecha y franja pedidas, participantes y tres columnas de recursos (equipos por tipo, materiales y reactivos) vinculadas a los inventarios. Validan ✔ ⚠ ✖ sin reservar nada.
-    - Los campos libres: el Administrador los agrega, quita y ordena; los tipos son texto, número, fecha, lista y sí/no, y cada uno puede ser obligatorio. Sin lógica condicional.
-    - Cada solicitud guarda la versión del formato con que se llenó.
-    - Los materiales quedan «no verificados» hasta Materiales (M6).
-  - **Espacios** (Administrador):
-    - las áreas del Core ([03](03_datos.md), `core.location_areas`), sin duplicarlas, con aforo, horario semanal y cierres;
-    - el plazo de anticipación, 7 días por defecto. Lo que llega tarde no se bloquea: entra marcado «fuera de plazo» y el Administrador decide.
-    - **Sin sección propia** (decisión del usuario, 21-10-2026, «siempre conservando simplicidad»). Laboratorios queda con Formato, Solicitudes y Cronograma. Los datos siguen en `labs`, y Áreas ([ADR 0024](#adr-0024)) los muestra por un punto de extensión, solo si el espacio tiene Laboratorios:
-      - **en cada área**, un panel «Laboratorio» con aforo, horario semanal y cierres, y en su cuadro la marca 🕒 «Habilitada para prácticas»;
-      - **en la cabecera de Áreas**, «Feriados», con los cierres comunes;
-      - **en Formato**, la anticipación, porque es una regla del pedido.
-- **Lista blanca:** es invitar con el rol Docente. Las invitaciones reales dependen de T-03B, y por CSV y con Google o Microsoft llegan en F3. La demo usa las cuentas sembradas.
-- **Entregas** ([04](04_roadmap.md), L-01):
-  - **L-01a:** Espacios y Formatos.
-  - **L-01b:** Solicitudes, con los recursos validados y la bandeja.
-  - **L-01c:** Cronograma.
-  - **L-01d:** reserva real. Al programar se apartan el stock y los equipos concretos en una sola transacción; «Aprobar» desde Recibidas y la revisión antes de enviar («Flujo de la Propuesta»), y el Administrador cambia los frascos apartados («Cierre de Laboratorios»).
-  - **L-01e:** preparación y cierre. El consumo real y la devolución mueven el inventario de Reactivos, como operaciones distintas de reservar ([03](03_datos.md)); también la impresión, el incidente con el contexto de la práctica y «Reservado» en Equipos («Cierre de Laboratorios»).
-  - L-01a a L-01c son el mínimo que se muestra al cliente. Después viene su G0.
-- **Se valida con el cliente** antes de cerrar cada regla (Pendientes, «Reglas de Laboratorios»): lo dudoso no se programa.
-- **Reglas de L-01a** (confirmadas por el usuario, 21-10-2026):
-  - se agenda el **área completa**: cada área del Núcleo con horario es una fila del Cronograma; si un laboratorio tiene salas, se crean como áreas en «Áreas»;
-  - **horario semanal y cierres por área**, y **feriados comunes** que se cargan una vez para todo el espacio;
-  - **anticipación de 7 días**, configurable por el Administrador para todo el espacio;
-  - **sin áreas exclusivas** por ahora: toda área con horario es solicitable y el Administrador decide al programar.
-  - **Formato:** cada guardado publica una versión nueva e inmutable. Ya no es uno por espacio: ver «Diseño por filas y varios formatos».
-- **Formato estándar** (decisión del usuario, 21-10-2026): un formato general para universidades, laboratorios y empresas, que el Administrador ajusta sin diseñarlo. Es rápido de llenar y deja métricas comparables.
-  - **Membrete:** logo y nombre de la institución, nombre del formato, código del documento y revisión, que es la versión publicada. El número de solicitud y la fecha los pone el sistema. Logo y nombre son del espacio de trabajo y sirven a todas las impresiones: llegan con una pieza del Core; hasta entonces se muestra el nombre del espacio.
-  - **Cuatro bloques fijos:**
-    1. Actividad: tipo (práctica, investigación o tesis, servicio, capacitación), título, asignatura y carrera. El Administrador renombra «Asignatura» y «Carrera», por ejemplo a «Proyecto» y «Cliente».
-    2. Fecha: una o varias fechas sueltas (nunca un rango), hora de inicio y fin, y área opcional. Cada fecha es una actividad de un día: un bloque y un código propios en el Cronograma.
-    3. Participantes: número de participantes y de grupos (1 por defecto).
-    4. Recursos del inventario. El solicitante sale de la sesión.
-  - **Asignatura y carrera se eligen de una lista** que se arma al usarlas, nunca como texto libre: de ellas salen las métricas (L-01b).
-  - **Cantidades** (L-01b): equipos y materiales con «por grupo / total», y se guarda el total (2 por grupo × 8 grupos = 16). Los equipos se piden por tipo y el Administrador asigna los concretos al programar. Los reactivos van siempre en total, con unidad y cantidad exacta.
-  - **Campos libres y observaciones**, solo para lo propio de cada cliente; no entran en las métricas.
-  - **Plantilla estándar** (21-10-2026; la hace editable «Diseño por filas y varios formatos»): una hoja A4 como la P69, que es el punto de partida de todo formato nuevo. Antes el Administrador solo ajustaba, sobre la hoja: título y código; los nombres de asignatura y carrera; y los datos extra de la Sección I (colaborador, curso-paralelo y práctica Nº vienen precargados y se pueden renombrar, quitar u ordenar).
-    - **Encabezado:** espacio, revisión, título y la casilla del código de la solicitud.
-    - **Sección I, Datos de la actividad:** filas «etiqueta | valor», dos por fila. Primero los datos del sistema (docente, título, tipo, asignatura, carrera, fecha, horario, nº de alumnos y nº de grupos) y después los extra.
-    - **Recursos:** Reactivos (cantidad total), Equipos (por curso, por grupo y código) y Materiales (por curso y por grupo). Por curso = por grupo × nº de grupos. Se imprimen filas vacías hasta llenar la hoja.
-    - **Observaciones** al final.
-    - **Entrega / Recepción:** firmas físicas del asistente de laboratorio y del docente; bajo la firma del docente se imprime su nombre.
-    - La columna «Código» de equipos lleva el código del equipo asignado, o queda en blanco para escribirlo a mano. Esto está por confirmar con el cliente.
-  - **Diseño por filas y varios formatos** (decisión del usuario, 21-10-2026). Sirve a universidades, empresas y otros usuarios sin un lienzo libre: posicionar a mano rompería la impresión y el móvil.
-    - **Toda la plantilla se edita sobre la hoja, sin candados.** La Sección I es una lista de filas de 1 a 3 datos «etiqueta | valor». Los títulos de sección son opcionales: se agregan, renombran y quitan. Cada dato se mueve entre filas.
-    - **Cinco datos esenciales:** docente, título, fecha, horario y nº de participantes. Se renombran y se mueven, pero no se quitan, porque el Cronograma y el aforo los usan. Al intentarlo, un aviso lo explica.
-    - **Datos del sistema opcionales:** asignatura, carrera, tipo y nº de grupos. Se pueden quitar; sin ellos se pierde esa métrica. Por dentro conservan su clave en todos los formatos, así que las métricas siguen siendo comparables.
-    - **Recursos:** Reactivos, Equipos y Materiales se pueden renombrar u ocultar (al menos uno queda), y la columna «Código» de equipos se puede quitar.
-    - **Observaciones**, opcionales.
-    - **Firmas:** de 1 a 3 con nombre libre. Una puede ser la del solicitante, que imprime su nombre.
-    - **Varios formatos** («Práctica académica», «Servicio externo»…). Cada uno tiene su nombre y sus versiones, se archiva y no se borra, y uno nuevo parte de la plantilla estándar o duplica otro. La sección pasa a llamarse «Formatos».
-    - **Quién llena:** el docente, y quien esté en la lista blanca, ve los formatos activos y llena el que necesite. Cada solicitud guarda el formato y la versión con que se llenó.
-  - **Código de la solicitud programada** (L-01b y L-01c), por ejemplo `P1-S12-ANT03`: período, semana del período, sigla del área y secuencia. ANT01, ANT02 y ANT03 son la primera, la segunda y la tercera de Anatomía en esa semana.
-    - Se asigna al programar, con el número siguiente del área en esa semana. Los números no se reutilizan. Antes de programar, la solicitud lleva un número fijo (`SOL-0042`).
-    - Se programa y se mueve solo hacia el futuro. Al moverla, toma el número siguiente de su nueva semana, y el código anterior queda en el historial.
-    - Período, semana, área y secuencia se guardan por separado para filtrar; el código solo se muestra.
-    - Requiere, antes de L-01b, los períodos del espacio (por ejemplo «P1: 01-04 al 15-08»; la semana se calcula desde su inicio) y la sigla de cada área en Áreas.
-    - **Períodos y sigla** (decisión del usuario, 21-10-2026). El período solo identifica la actividad en el código, y fuera de todo período no se agenda.
-      - Los períodos son de Laboratorios y se editan junto a la anticipación: un código corto («P1») y sus fechas, sin solaparse; se archivan, no se borran.
-      - La sigla (2 a 5 letras, única en el espacio) se guarda con el aforo del área, en `labs.spaces`, y se edita en su panel «Laboratorio» de Áreas. Se sugiere desde el nombre («Anatomía» → ANT) y el Administrador la cambia. No toca el Núcleo: solo Laboratorios la usa.
-    - **Reglas de L-01b** (decisión del usuario, 21-10-2026).
-      - Solicitan el Docente y el Estudiante (tesista) desde el inicio; cada uno ve solo sus solicitudes.
-      - El solicitante cancela una solicitud aprobada hasta el día anterior; después solo la cancela el laboratorio (Administrador u Operador).
-      - Los materiales que se entregan y se devuelven se piden como texto libre con cantidad; sin inventario ni devolución controlada hasta un Materiales mínimo.
-      - El tesista llena su propio formato (por ejemplo «Tesis», con «Docente» renombrado a «Tutor»): el dato esencial es un texto que, para el Docente, se llena con su nombre. El solicitante sale siempre de la sesión.
-      - El Operador consulta las solicitudes recibidas; pedir cambios y rechazar son del Administrador.
-      - Los equipos se piden solo por tipo; un caso especial va en Observaciones.
-    - **Reglas y diseño de L-01c, Cronograma** (decisión del usuario, 23-10-2026).
-      - El responsable de un bloque es un Operador o el Administrador; por defecto, quien programa elige. El docente nunca.
-      - Cada fecha de la solicitud es un bloque. La solicitud queda «programada» cuando todas sus fechas tienen bloque; mientras tanto sigue en «Por programar» con «1 de 2 programadas». Programar es aprobar cada fecha.
-      - Al programar se valida: choque con otro bloque del área, horario semanal del área, cierres y feriados, período y que la fecha sea futura; todo eso bloquea. Superar el aforo solo avisa (⚠ 30 / 24) y el Administrador decide.
-      - El bloque ocupa la fecha pedida; el Administrador cambia el área, la hora o el responsable ese mismo día. Cambiar el día es pedir cambios al docente.
-      - Código `P1-S12-ANT03` al programar: el período de la fecha, la semana contada desde su inicio, la sigla del área y el número siguiente de esa área en esa semana. Si el bloque cambia de área o de semana, toma el número siguiente de la nueva y el anterior queda en su historial; los números no se reutilizan.
-      - Lo programa el Administrador (permiso propio); el Operador ve la tabla y la bandeja sin mover nada; el Docente y el tesista ven la tabla completa sin la bandeja.
-      - Las reglas se escriben una vez en el contrato y las usan la validación en vivo al arrastrar y el servidor, que decide; una exclusión GiST impide dos bloques activos que se crucen en el mismo área.
-      - Cancelar una solicitud programada: quien la pidió, hasta el día anterior a su primer bloque; el laboratorio, siempre y con motivo. Sus bloques se liberan y conservan su historial.
-    - **Reglas de L-01d, reserva real** (decisión del usuario, 24-10-2026; ajusta «sin reservas parciales» del [ADR 0007](#adr-0007) para el Cronograma).
-      - Las cantidades de una solicitud son por fecha: cada bloque aparta lo suyo al programarse.
-      - Los reactivos se apartan solos, de los frascos usables que vencen antes y siguen vigentes el día de la práctica; el Administrador puede cambiarlos.
-      - Si no alcanza el stock o no hay equipos libres del tipo en esa franja, se programa igual, se aparta lo que hay y lo que falta queda marcado «Falta» para resolverlo.
-      - ~~Propuestas de cambio con vencimiento~~ (descartadas el 26-10-2026, ver «Flujo de la Propuesta»).
-    - **Flujo de la Propuesta** (decisión del usuario, 26-10-2026, sobre `docs/antecedentes/Propuesta.pdf`; reemplaza las propuestas de cambio con vencimiento del [ADR 0007](#adr-0007) para Laboratorios).
-      - «Solicitar ajuste» es «Pedir cambios» con motivo; no hay contraofertas del laboratorio que el docente acepte.
-      - En Recibidas, «Aprobar» programa cada fecha en la hora y el laboratorio pedidos, con las mismas reglas y la reserva real, y el bloque aparece solo en el Cronograma; también varias a la vez, cada una en su transacción con su resultado. Si choca o no hay laboratorio pedido, se programa arrastrando.
-      - Antes de enviar, el sistema muestra al docente alternativas para lo que no alcanza (28-10-2026: contra todo el espacio, como la reserva). Por fecha revisa el laboratorio pedido (libre, en horario y sin cierre), cada reactivo (lo pedido en todas las fechas frente a lo usable sin apartar) y cada tipo de equipo (libres en la franja). Si falta, muestra cuánto hay y en qué áreas está el reactivo, y las horas libres de ese día para el equipo. Solo informa: no aparta ni impide enviar.
-      - L-01e: el técnico prepara con una lista de chequeo y marca «Lista»; la práctica pasa a «En ejecución» y se finaliza; al cerrar registra solicitado, utilizado (parte de lo solicitado) y devuelto, y lo devuelto vuelve al inventario. «Reportar incidencia» lleva el contexto de la práctica al equipo.
-    - **Cierre de Laboratorios** (decisión del usuario, 05-11-2026, sobre la evaluación del módulo; lo marcado «por confirmar» se valida con el cliente en P-04 y se ajusta sin rehacer el flujo).
-      - **Formatos:** el editor se queda, para que el Administrador ajuste sin pedir soporte. En la incorporación, el Equipo PlatLab arma el primer formato con el Administrador, desde la cuenta de él y a partir de su formato en papel, sin acceso privilegiado ([ADR 0004](#adr-0004)). Un formato que sirva a otros clientes se vuelve plantilla del producto; no hay formatos a medida por cliente.
-      - **Cambiar los frascos apartados:** en «Lo apartado» de un bloque programado o listo, el Administrador elige por reactivo de qué frascos usables y vigentes ese día sale cada cantidad, hasta lo pedido; lo que no cubre queda «Falta». En una transacción: libera lo anterior y aparta lo elegido.
-      - **Preparación y cierre (L-01e)**, por bloque: programada → lista → en curso → cerrada. Lo lleva quien tenga `labs.schedule.lead` (el Operador o el Administrador).
-        - La lista de chequeo son los recursos del bloque. Marcarla no bloquea «Lista», que muestra cuántos quedan (por confirmar).
-        - «Iniciar», desde el día de la práctica. Mover y cancelar, solo programada o lista.
-        - «Cerrar» registra por reactivo lo utilizado, hasta lo apartado: sale del inventario como salida «Práctica P1-S12-ANT03» hacia el área. El resto, lo devuelto, vuelve a estar disponible (por confirmar: quién declara el consumo y si se devuelve el químico abierto). Materiales y equipos llevan observaciones.
-        - Con todos sus bloques cerrados, la solicitud pasa a «Finalizada».
-        - «Reportar incidencia», desde un bloque en curso o cerrado: se elige un equipo apartado y el incidente nace en Equipos, autorizado por Equipos, con el vínculo a la práctica (código, solicitante y horario), que guarda Laboratorios y Equipos muestra por un punto de extensión.
-        - La hoja impresa desde un bloque lleva en «Código» los equipos apartados.
-      - **«Reservado» en Equipos:** la ficha del equipo muestra sus próximas reservas del Cronograma por un punto de extensión de Laboratorios; Equipos no depende de Laboratorios.
-      - **Inicio:** la tarjeta cuenta lo que espera programarse, lo fuera de plazo y los bloques de los próximos 7 días con «Falta», y grafica las solicitudes enviadas por día.
-      - **Métricas:** van con Analítica (M8); los datos ya se guardan en columnas.
-      - **Avisos al solicitante:** sin correo hasta el outbox (T-07, [ADR 0017](#adr-0017)); sigue el estado y el historial en «Mis solicitudes».
-      - **G0 de Laboratorios:** demo sintética con solicitudes en cada estado y bloques con lo apartado coherente; pgTAP, integración y concurrencia de reservar, cambiar frascos y cerrar; e2e del flujo solicitante → Administrador → responsable, con axe; auditoría de la interfaz. Superado, pasa a etapa `pilot`.
-    - **Color de Laboratorios** (decisión del usuario, 26-10-2026; reemplaza el fucsia y, el mismo día, el negro petróleo): amarillo `#FFCB56` (pedido por el usuario el mismo día, en lugar de la terracota) como fondo, con texto casi negro encima y el oro oscuro `#7A5600` para textos, enlaces y focos sobre blanco; estilo formal y elegante como la Propuesta.
-    - **Vista del Cronograma** (decisión del usuario, 24-10-2026; ajusta «Cronograma» de «Cuatro secciones» y la bandeja al costado): una tabla al ancho de la ventana, como la planilla que ya usan, con todas las áreas habilitadas como columnas (sigla) y las horas de 07:00 a 19:00 como filas. Cada bloque dice solo «Materia - Carrera - Docente» y al pulsarlo abre la solicitud llena, lista para imprimir. «Por programar» queda debajo de la tabla, como bloques que se arrastran a su lugar.
-    - **Rediseño de Cronograma, Recibidas y Formatos** (decisión del usuario, 14-11-2026, sobre tres capturas de referencia; ajusta la vista del 24-10-2026): se toma la forma de las capturas con el color de Laboratorios, sin su azul ni su fondo de cristal.
-      - **Cronograma:** barra compacta («‹ Hoy ›», la fecha grande y «Período · Semana N · bloques»); cada columna con sigla, aforo y horario del día; las horas cerradas, rayadas; la semana sigue de lunes a domingo. El bloque conserva el color de su carrera y suma código y hora arriba, materia, y docente y participantes abajo. Sin nada por programar, un pie de una línea.
-        - **Ajuste del 15-11-2026** (decisión del usuario, sobre tres capturas; reemplaza la fecha grande de la barra):
-          - Barra del día en una línea: «‹ Hoy ›», «Noviembre de 2026 · P1 · Semana 11 (Hoy)», la semana de lunes a domingo («Lun 16» con la cifra de bloques del día; el elegido relleno con el color de Laboratorios) y el calendario. La fecha completa queda para el lector de pantalla.
-          - Cabecera de cada columna sin sigla: el nombre sin «Laboratorio» con el aforo a la derecha y el horario del día en verde («Cerrada» apagado si no abre o hay cierre; «Sin horario» en ámbar si no abre ningún día).
-          - Solo las horas en punto llevan línea, sin bandas, con la hora en mono debajo. Lo cerrado, en tono apagado con trama suave y «Cerrada este día» al centro.
-          - Bloque «franja de carrera» (elegido entre tres opciones): fondo blanco con una franja de 4 px del color de la carrera a la izquierda, en la tabla, la lista, «Por programar» y lo que se arrastra. Dos zonas: arriba qué práctica es (código y hora, materia y la carrera en una etiqueta de su tinte); abajo quiénes, dichos con palabra («Docente» con los participantes junto al ícono de personas, «Encargado»). La etapa y el aviso de aforo, si el bloque es alto; uno de una hora muestra código y materia. Sin efecto al pasar el puntero (se probó un zoom y se descartó: tapaba a los vecinos y estorbaba al arrastrar): la materia tiene prioridad y pasa a dos líneas antes que la carrera y las personas; el detalle completo, a un clic.
-          - Un horario con dos tramos se escribe en la cabecera uno debajo del otro.
-          - Ayuda para colocar, sin restringir: al arrastrar se resalta en todas las columnas la franja del horario pedido (acento con líneas discontinuas); el bloque empieza en la hora en punto de la fila bajo el puntero, sin saltar a la siguiente (al mover, la hora que se tiene agarrada queda en esa fila), o en la hora pedida si cae en esa fila aunque sea 14:30 o 14:15; sobre la tabla el indicador del puntero se oculta y manda la vista previa, para no tapar el destino; las horas que no son en punto de los bloques del día, y mientras se arrastra las de donde caería y las del horario pedido, se rotulan en pequeño en la columna de horas; la vista previa dice «En el horario pedido» o «Pedido: 14:00–16:00». Se puede soltar en cualquier otra hora, y «Programar…» y «Mover…» siguen aceptando cuartos de hora.
-      - **Recibidas:** las cuatro cifras, pestañas con su cuenta, un buscador (código, práctica o docente) y una tabla con Solicitud (código, título; solicitante · formato · sigla del área), Fecha y hora, Recursos y Estado. Se conserva elegir y aprobar varias. La sigla sale del `areaId` que el resumen de la lista ya envía.
-        - **Ajuste del 15-11-2026** (decisión del usuario): la fila dice el título y, debajo, «Docente · Carrera · código de práctica» (sin el formato). Las fechas extra se dicen «y 1 fecha más». Los recursos por revisar se dicen por tipo («3 equipos por revisar», «2 reactivos y 1 equipo por revisar»): el resumen trae `exceptions` por tipo (`reagent`, `equipment`, `material`).
-      - **Formatos:** dos columnas, con formatos y períodos a la izquierda y la anticipación a la derecha (− / + y la regla de «Fuera de plazo» en una frase). El período dice «Vigente» o «Programado» por sus fechas; no se activa a mano y no se muestra el número de campos.
-      - **Ajustes tras revisarlo** (decisión del usuario, 14-11-2026):
-        - **Bloque:** sin ficha al pasar el cursor; la tarjeta muestra código, hora, materia, docente, encargado y participantes, con 2 px de aire. El código se ve siempre.
-        - **Columna:** el nombre del área sin «Laboratorio de» y sin la sigla.
-        - **Recibidas:** junto a SOL-0000 va el código de práctica de sus bloques (`blockCodes` del resumen), solo si está programada.
-        - **Detalle de una recibida** (reemplaza, el mismo día, la versión de dos columnas con cuadros y el «documento moderno»): el título es el nombre del formato y debajo van SOL-0000, el código de práctica, el estado y «Fuera de plazo». Sin las cuatro cifras ni los cuadros de datos, materiales y apartado. Al centro, la planilla P69 llena, la misma que se ve en Formatos y en «Mis solicitudes», con su ✔ ⚠ ✖ por línea (no se imprime), el área y «Imprimir»; debajo, lo apartado por fecha y el historial plegado.
-          - **El código en la planilla** (decisión del usuario, 14-11-2026): la casilla «Código» de la hoja llena lleva, bajo el código del documento, el código de práctica tal como en la lista («P1-S11-QUI01 +1»); sin bloques, el aviso «Lo pone el sistema al programar», que no se imprime.
-          - **La planilla, neutra y legible** (decisión del usuario, 14-11-2026; reemplaza, el mismo día, el crema del módulo; vale para Formatos, el llenado, Recibidas, «Mis solicitudes» y la impresión): sin amarillo; texto negro (`ink`); rejilla `line-strong`; encabezados en gris `line` en negrita y etiquetas en `surface-sunken`. En pantalla, una hoja de papel con sombra suave, filas de 32 px y valores a 13 px.
-          - **Etiquetas a su medida** (decisión del usuario, 14-11-2026): cada etiqueta mide lo que su texto, en una línea (`fit-content`, con tope de 40 %, 30 % o 26 % según la fila tenga 1, 2 o 3 datos), y el valor se queda con el resto para escribir más. Reactivos: «Cantidad total» más ancha (15 / 11,5) para que la cantidad y su unidad quepan.
-          - **Sin código del documento** (decisión del usuario, 14-11-2026): la casilla «Código» lleva solo el código de práctica; la hoja no muestra ni edita el código del documento y al guardar se envía `documentCode: null` (el campo sigue en el contrato y la base, sin uso).
-          - **Membrete simple:** el cuadro «Logo» y sus líneas («+ Línea»); los formatos y el peso del logo se dicen en su menú.
-        - **Formatos:** el botón que publica la revisión se llama «Guardar cambios» (decisión del usuario, 14-11-2026: «Publicar revisión N» no se reconocía como guardar); el aviso dice «Revisión N guardada» y la nota, qué revisión crea.
-    - **Disponibilidad y recursos** (decisión del usuario, 15-11-2026; corrige que la línea dijera «Alcanza» con el stock ya reservado mientras la revisión decía «No hay»):
-      - **Una sola regla de «cuánto hay»**, en el servidor, para el buscador, la marca de cada línea, la revisión antes de enviar, la cuenta «Con recursos por revisar» y Recibidas. Reactivo: saldo − reservado de los lotes vigentes en la última fecha pendiente y de lugares activos, frente a la cantidad × las fechas pendientes (sin fechas, vigentes hoy y una vez). Equipo: los libres en la franja del peor día pendiente; sin fecha u horario, los operativos. Con todas sus fechas programadas, la marca sale de lo apartado. Sin catálogo o sin el módulo admitido, «Sin verificar».
-      - **Docente:** se pide en la misma planilla, que en pantalla ocupa todo el ancho con letra más grande (se imprime igual, en A4) y muestra al menos cinco filas, siempre con una vacía al final. La celda de Reactivos o de Equipos es el buscador: al hacer clic o escribir, abre junto a la cantidad una lista desplazable con lupa, nombre, código y lo libre para sus fechas y su horario («**1.575** de 1.580 g libres» con su barra y lo apartado; «**2** de 3 libres en tu horario»; ver «Sin área ni código en la solicitud»). Enter elige y pasa a la cantidad; lo que no está se pide «sin catálogo» desde la última fila; en el móvil la lista sale desde abajo. Junto a la cantidad, solo ✔ o ⚠, con el detalle al pasar el mouse y para el lector de pantalla; no se imprime y no se muestra mientras se comprueba. Los materiales se escriben. La consulta sin guardar responde también lo libre, el saldo, lo apartado y lo vencido del catálogo.
-        - Reemplaza (decisión del usuario, 15-11-2026, tras ver que el panel decía «Sin stock libre» del ácido clorhídrico con 4.550 mL en el inventario, todo apartado para una práctica del 9-11 sin cerrar) el panel «Recursos» de dos columnas sobre la hoja y las etiquetas «Alcanza» y «No alcanza».
-        - Lo apartado para una práctica ya pasada y sin cerrar sigue contando hasta que se cierre: no se promete reactivo que quizá ya se usó.
-      - **Administrador y Operador:** arriba del detalle, «Para aprobar»: el laboratorio, cada reactivo y cada equipo con ✔ ⚠, cuánto hay y las alternativas, junto a Aprobar, Pedir cambios y Rechazar. Debajo, la planilla sin cambios. «Lo apartado» se separa en «Reserva» (por fecha, con códigos y «Cambiar frascos») y «Práctica» (preparar, iniciar, cerrar, incidencias).
-      - Entregas: 1) la regla y la consulta sin guardar (base y API, con sus pruebas); 2) la planilla del docente; 3) «Para aprobar» y la separación de «Lo apartado».
-    - **Sin área ni código en la solicitud** (decisión del usuario, 15-11-2026; reemplaza en «Flujo de la Propuesta» el «Aprobar» de Recibidas y la revisión del laboratorio pedido, y el número fijo `SOL-0042`):
-      - Quien pide no elige área: el área se asigna al colocar cada fecha en el Cronograma. Recibidas ya no muestra área y su botón es «Programar en el Cronograma» (lleva al día de su primera fecha); se quitan «Aprobar» de un clic y «Aprobar seleccionadas». La revisión antes de enviar deja de revisar el laboratorio; busca las horas libres de un equipo en el día de la tabla del Cronograma.
-      - La solicitud no lleva número ni código: se reconoce por su título y su formato; programada, por el código de práctica de sus bloques, que también nombra lo apartado («Práctica P1-S10-BIO01»).
-      - En la lista del buscador de la planilla: «Agregado» en lo que ya pide otra línea; la cifra de libres destacada; de los reactivos, sobre su saldo vigente y con lo apartado (lo vencido no cuenta en el saldo ni se nombra); los equipos, sin barra; lo que no tiene stock o equipos operativos va al final. Sin fechas, no se explica para cuándo se cuenta.
-    - **Inicio de quien pide** (decisión del usuario, 15-11-2026; el Docente no tenía cómo entrar a Laboratorios desde el Inicio): la tarjeta de Laboratorios la ve todo el que consulta Laboratorios. Quien consulta las recibidas (Administrador y Operador) ve las cifras del laboratorio entero; el Docente y el tesista, las suyas: las solicitudes por programar, las que necesitan su atención (cambios pedidos) y el gráfico de las que envió.
-    - **Ajustes de L-01b** (decisión del usuario, 23-10-2026; reemplaza «quien administra también puede llenarla» y que logo y nombre lleguen del espacio de trabajo).
-      - Piden solo el Docente y el tesista; la lista blanca es invitar con uno de esos roles. Propietario, Administrador y Operador revisan, no piden.
-      - Se llena sobre la hoja: la misma plantilla P69 sirve para diseñar, llenar, revisar en Recibidas e imprimir llena; en el móvil, un dato por fila.
-      - **Membrete** por formato: un logo subido para el espacio de trabajo (JPEG, PNG o WebP de hasta 512 KiB) y hasta tres líneas; sin líneas, el nombre del espacio. Va en la hoja y cambia con cada revisión.
-      - En Formatos, mover filas, datos y columnas de forma visible y un candado en los datos que no se quitan.
-    - **Diseño de L-01b** (21-10-2026, sobre las reglas anteriores).
-      - Estados de esta entrega: borrador → enviada, más cambios solicitados, rechazada y cancelada. «Programada» llega con el Cronograma (L-01c). El solicitante edita en borrador y en cambios solicitados, y cancela mientras no esté programada.
-      - Número fijo `SOL-0042` desde el borrador, correlativo por espacio de trabajo y sin reutilizarse.
-      - Los datos del sistema se guardan en columnas (título, docente, tipo, asignatura, carrera, horario, participantes, grupos) para las métricas; los datos libres, en un `jsonb` que el servidor valida contra la revisión del formato al enviar. Asignatura y carrera son listas de Laboratorios que crecen al usarlas.
-      - Una o varias fechas sueltas con un mismo horario. Al enviar, toda fecha debe ser futura y estar dentro de un período activo («fuera de ellos no se agenda»); si la primera cae antes de la anticipación, entra «fuera de plazo» y no se bloquea. Horario del área, cierres y choques se validan al programar (L-01c).
-      - Recursos en una sola tabla de líneas: reactivo del catálogo en su unidad base o «no catalogado» con unidad; tipo de equipo o «no catalogado», con por grupo y total; material como texto con cantidad. Validar no reserva: ✔ si el stock usable de reactivos o los equipos operativos del tipo alcanzan, ⚠ si no, ✖ si no está catalogado o es material. Se calcula al leer, por la interfaz pública de Reactivos y Equipos, y solo si ese módulo admite consulta.
-      - Historial visible de la solicitud (enviada, cambios con motivo, reenviada, rechazada con motivo, cancelada), aparte de la auditoría.
-      - Bandeja del Administrador: lo excepcional primero (fuera de plazo y líneas con ⚠ o ✖), luego por la fecha más próxima.
-  - **Métricas previstas** (en Analítica, M8): horas de uso por área, solicitudes y participantes por carrera, asignatura y tipo, consumo de reactivos y uso de equipos por carrera y por práctica, pedidos fuera de plazo, rechazos y tiempo de respuesta.
+- **Un módulo, «Laboratorios»** (código `labs`, ruta `laboratorios`), del pedido del docente al laboratorio listo; sirve a universidades y a empresas. El mapa queda en siete módulos y M5 no se reutiliza. La agenda (franjas y choques) es una capacidad con dueño técnico en `labs`: Equipos («Reservado») y Mantenimiento (bloqueos, F5) la consultan por su interfaz, sin escribir en ella.
+- **Todo entra por solicitud y el Administrador organiza.** Cada bloque del Cronograma nace de una solicitud; sin repetición semanal: cada práctica es una solicitud.
+- **Secciones:** Cronograma, Solicitudes («Mis solicitudes» y Recibidas) y Formatos. Laboratorios no tiene sección de espacios (decisión del usuario, 21-10-2026): Áreas ([ADR 0024](#adr-0024)) muestra por un punto de extensión, solo si el espacio tiene Laboratorios, el panel «Laboratorio» de cada área (aforo, sigla, horario semanal y cierres) con la marca 🕒 «Habilitada para prácticas», y «Feriados» en su cabecera. La anticipación y los períodos se editan en Formatos.
+- **Roles:** piden el Docente y el Estudiante (tesista), y cada uno ve solo las suyas; la lista blanca es invitar con uno de esos roles (invitaciones reales con T-03B; CSV, Google y Microsoft en F3). Propietario, Administrador y Operador revisan, no piden. El Administrador programa, mueve, pide cambios y rechaza; el Operador consulta las recibidas y lleva bloques; el Docente y el tesista ven la tabla completa, sin la bandeja «Por programar» y sin mover nada.
+- **Entregas** ([04](04_roadmap.md), L-01): L-01a Espacios y Formatos; L-01b Solicitudes; L-01c Cronograma; L-01d reserva real; L-01e preparación y cierre. Lo dudoso se valida con el cliente antes de programarlo (Pendientes, «Reglas de Laboratorios»).
+- **Reglas de L-01a** (21-10-2026): se agenda el área completa (las salas se crean como áreas); horario semanal y cierres por área y feriados comunes; anticipación de 7 días, de 0 a 90, para todo el espacio: lo que llega tarde no se bloquea, entra «fuera de plazo» y el Administrador decide; sin áreas exclusivas.
+- **Formato estándar** (21-10-2026): una hoja A4 como la P69, punto de partida de todo formato, rápida de llenar y con métricas comparables. La misma hoja sirve para diseñar, llenar, revisar en Recibidas e imprimir; en el móvil, un dato por fila. La hoja es neutra: sin el color del módulo, igual en pantalla e impresa.
+  - **Membrete** por formato: un logo subido para el espacio de trabajo (JPEG, PNG o WebP de hasta 512 KiB) y hasta tres líneas; sin líneas, el nombre del espacio. Cambia con cada revisión. La casilla «Código» lleva el código de práctica; la hoja no usa código del documento.
+  - **Diseño por filas y varios formatos** (21-10-2026; sin lienzo libre, que rompería la impresión y el móvil). Todo se edita sobre la hoja: filas de 1 a 3 datos «etiqueta | valor» y títulos de sección opcionales. Cinco datos esenciales (docente, título, fecha, horario y participantes) se renombran y se mueven, pero no se quitan: el Cronograma y el aforo los usan. Los opcionales del sistema (asignatura, carrera, tipo y grupos) conservan su clave en todos los formatos, para que las métricas sigan siendo comparables. Reactivos, Equipos y Materiales se renombran u ocultan (al menos uno queda); observaciones opcionales; de 1 a 3 firmas, una puede ser la del solicitante. Varios formatos con nombre: cada guardado publica una revisión inmutable, se archivan y no se borran, y cada solicitud guarda el formato y la revisión con que se llenó.
+  - Asignatura y carrera se eligen de listas de Laboratorios que crecen al usarlas, nunca como texto libre: de ellas salen las métricas. Los campos libres son solo para lo propio de cada cliente y no entran en las métricas.
+  - **Cantidades:** equipos y materiales «por grupo / total», y se guarda el total (2 por grupo × 8 grupos = 16); los equipos se piden por tipo; los reactivos, en total, con unidad y cantidad exacta.
+- **Reglas de L-01b** (21 y 23-10-2026):
+  - El solicitante cancela hasta el día anterior a su primer bloque; después, solo el laboratorio y con motivo. Los bloques se liberan y conservan su historial.
+  - Los materiales se piden como texto con cantidad, sin inventario hasta un Materiales mínimo; los casos especiales de equipos, en Observaciones.
+  - El tesista llena su propio formato (por ejemplo «Docente» renombrado a «Tutor»); el solicitante sale siempre de la sesión.
+- **Diseño de L-01b** (21-10-2026):
+  - Estados de [01 §6.2](01_producto.md#62-solicitud-y-práctica): borrador → enviada, cambios solicitados, rechazada, cancelada; programada (L-01c) y finalizada (L-01e). Se edita en borrador y en cambios solicitados.
+  - Los datos del sistema se guardan en columnas (para las métricas); los libres, en un `jsonb` que el servidor valida contra la revisión del formato.
+  - Una o varias fechas sueltas con un mismo horario. Al enviar, toda fecha es futura y está dentro de un período; si la primera cae antes de la anticipación, entra «fuera de plazo».
+  - Recursos en una tabla de líneas: reactivo del catálogo (en su unidad base) o sin catálogo, tipo de equipo o sin catálogo, y material como texto. La marca ✔ ⚠ ✖ de cada línea sale de «Disponibilidad y recursos» y no reserva.
+  - Historial visible de la solicitud (enviada, cambios con motivo, reenviada, rechazada, cancelada), aparte de la auditoría.
+  - Recibidas muestra lo excepcional primero (fuera de plazo y recursos por revisar, dichos por tipo) y luego la fecha más próxima.
+- **Sin área ni código en la solicitud** (15-11-2026): quien pide no elige área; se asigna al colocar cada fecha en el Cronograma, y Recibidas lleva a «Programar en el Cronograma». La solicitud no tiene número: se reconoce por su título y su formato y, programada, por el código de práctica de sus bloques, que también nombra lo apartado.
+- **Períodos y sigla** (21-10-2026):
+  - Los períodos son de Laboratorios: un código corto («P1») y sus fechas, sin solaparse; fuera de todo período no se agenda; se archivan.
+  - La sigla del área (2 a 5 letras, única en el espacio) se guarda en `labs.spaces` y se sugiere desde el nombre («Anatomía» → ANT); no toca el Núcleo.
+  - Código de práctica `P1-S12-ANT03`: período, semana contada desde su inicio, sigla y el número siguiente del área en esa semana. Los números no se reutilizan; si el bloque cambia de área, toma el siguiente de la nueva y el anterior queda en su historial. Las partes se guardan en columnas; el código solo se muestra.
+- **Reglas y diseño de L-01c, Cronograma** (23-10-2026):
+  - Cada fecha es un bloque y programarla es aprobarla; la solicitud queda «programada» cuando todas tienen bloque.
+  - El responsable es un Operador o el Administrador (por defecto, quien programa); nunca el docente.
+  - Bloquean: el choque con otro bloque del área (exclusión GiST), el horario del área, cierres y feriados, el período y que la fecha no sea futura. Superar el aforo solo avisa. El bloque ocupa solo su franja, sin márgenes de preparación.
+  - El mismo día, el Administrador cambia el área, la hora o el responsable; cambiar el día es pedir cambios al docente.
+  - Las reglas se escriben una vez en el contrato (`scheduleCheck`): las usan la vista previa al arrastrar y el servidor, que decide.
+  - Arrastrar ayuda sin restringir: cae en la hora en punto de la fila bajo el puntero (o en la pedida, si está en esa fila) y resalta el horario pedido. «Programar…» y «Mover…» aceptan cuartos de hora y sirven con teclado y en el móvil.
+- **Reglas de L-01d, reserva real** (24-10-2026; ajusta «sin reservas parciales» del [ADR 0007](#adr-0007)):
+  - Cada bloque aparta lo suyo al programarse, en la misma transacción: las cantidades son por fecha.
+  - Los reactivos salen de los frascos usables que vencen antes y siguen vigentes el día de la práctica; los equipos, de los operativos libres en la franja.
+  - Lo que no alcanza se programa igual: se aparta lo que hay y lo demás queda «Falta».
+- **Flujo de la Propuesta** (26-10-2026, sobre `docs/antecedentes/Propuesta.pdf`; reemplaza las propuestas con vencimiento del [ADR 0007](#adr-0007)): «Solicitar ajuste» es «Pedir cambios» con motivo, sin contraofertas. Antes de enviar, el docente ve lo que no alcanza, cuánto hay y en qué áreas, y las horas libres de un equipo ese día; solo informa: no aparta ni impide enviar.
+- **Disponibilidad y recursos** (15-11-2026): una sola regla de «cuánto hay», en el servidor, para el buscador de la planilla, la marca de cada línea, la revisión antes de enviar, el Inicio y Recibidas.
+  - Reactivo: saldo − reservado de los lotes vigentes en la última fecha pendiente y en lugares activos, frente a la cantidad × las fechas pendientes (sin fechas, hoy y una vez). Lo apartado para una práctica pasada sin cerrar sigue contando hasta que se cierre.
+  - Equipo: los libres en la franja del peor día pendiente; sin fecha u horario, los operativos.
+  - Con todas sus fechas programadas, la marca sale de lo apartado. Sin catálogo o sin el módulo admitido, «Sin verificar».
+  - El docente busca en la celda de la planilla, con lo libre para sus fechas; la marca no se imprime; los materiales se escriben.
+  - Aplazado al cerrar el módulo (16-11-2026): «Para aprobar» arriba del detalle y «Lo apartado» partido en «Reserva» y «Práctica».
+- **Cierre de Laboratorios** (05-11-2026; lo «por confirmar» va a P-04 y se ajusta sin rehacer el flujo):
+  - **Formatos:** el Administrador los edita sin pedir soporte. En la incorporación, el Equipo PlatLab arma el primero con él, desde su cuenta y sin acceso privilegiado ([ADR 0004](#adr-0004)). Un formato útil a otros clientes se vuelve plantilla del producto; no hay formatos a medida.
+  - **Cambiar los frascos apartados:** en un bloque programado o listo, el Administrador elige de qué frascos sale cada reactivo, hasta lo pedido; lo no cubierto queda «Falta». Libera y aparta en una transacción.
+  - **Preparación y cierre (L-01e)**, por bloque: programada → lista → en curso → cerrada, por quien tenga `labs.schedule.lead`. La lista de chequeo son los recursos y no bloquea «Lista» (por confirmar). «Iniciar», desde el día de la práctica; mover y cancelar, solo programada o lista. «Cerrar» registra por reactivo lo utilizado, hasta lo apartado, como salida «Práctica P1-S12-ANT03» hacia el área, y libera el resto (por confirmar: quién declara el consumo y si vuelve el químico abierto). Con todos sus bloques cerrados, la solicitud queda «Finalizada».
+  - «Reportar incidencia», desde un bloque en curso o cerrado: el incidente nace en Equipos, autorizado por Equipos, con el vínculo a la práctica que guarda Laboratorios. La hoja impresa desde un bloque lleva en «Código» los equipos apartados.
+  - **«Reservado» en Equipos:** la ficha del equipo muestra sus próximas reservas por un punto de extensión de Laboratorios; Equipos no depende de Laboratorios.
+  - **Inicio de quien pide** (15-11-2026): la tarjeta la ve todo el que consulta Laboratorios. Administrador y Operador ven el laboratorio entero (por programar, fuera de plazo y bloques de los próximos 7 días con «Falta»); el Docente y el tesista, lo suyo (por programar y cambios pedidos). Ambos, el gráfico de solicitudes enviadas por día.
+  - Sin correo al solicitante hasta el outbox (T-07, [ADR 0017](#adr-0017)): sigue el estado y el historial en «Mis solicitudes».
+  - **G0 de Laboratorios:** demo sintética con solicitudes en cada estado y lo apartado coherente; pgTAP, integración y concurrencia de reservar, cambiar frascos y cerrar; e2e del flujo con axe y auditoría de la interfaz. Superado, el módulo pasa a `pilot`.
+- **Color de Laboratorios** (26-10-2026): amarillo `#FFCB56` de fondo con texto casi negro, y oro oscuro `#7A5600` para textos, enlaces y focos sobre blanco.
+- **Métricas previstas** (Analítica, M8): horas de uso por área; solicitudes y participantes por carrera, asignatura y tipo; consumo de reactivos y uso de equipos por práctica; pedidos fuera de plazo, rechazos y tiempo de respuesta. Los datos ya se guardan en columnas.
 
-Cambios: 21-10, 23-10, 24-10, 26-10, 28-10, 05-11-2026 (historial en git).
+Cambios: 21-10, 23-10, 24-10, 26-10, 28-10, 05-11, 14-11, 15-11 y 16-11-2026 (compactada; el detalle anterior, en git).
 
 ## ADR 0024 — Áreas y departamentos en una sección propia
 
