@@ -2,6 +2,7 @@ import type pg from 'pg';
 import type { z } from 'zod';
 import {
   pendingCount,
+  pendingDates,
   type ActivityStage,
   type LabsRequest,
   type RequestExceptions,
@@ -47,8 +48,6 @@ const notFound = () => new AppError('NOT_FOUND', 'Recurso no encontrado');
 export type LineRow = Omit<IRequestLinesResult, 'request_id'>;
 
 /** Las fechas aún sin bloque, en orden: las que cuentan para la regla. */
-export const pendingOf = (dates: readonly string[], scheduled: readonly string[]): string[] => dates.filter((date) => !scheduled.includes(date)).sort();
-
 /** Con todas sus fechas programadas, una línea alcanza si lo apartado alcanza en cada uno de sus bloques. */
 function heldOf(blocks: ReadonlyArray<readonly LineHold[]>): Map<number, boolean> {
   const held = new Map<number, boolean>();
@@ -58,13 +57,13 @@ function heldOf(blocks: ReadonlyArray<readonly LineHold[]>): Map<number, boolean
 
 /** Lo que la regla necesita de una solicitud leída: sus fechas pendientes, su franja y, sin pendientes, lo apartado. */
 function scopeOf(row: IListRequestsResult, held: ReadonlyMap<number, boolean> | undefined): Omit<Ask, 'lines'> {
-  const pending = pendingOf(row.dates, row.scheduled_dates);
+  const pending = pendingDates(row.dates, row.scheduled_dates);
   return { pending, startsAt: row.starts_at, endsAt: row.ends_at, held: pending.length === 0 && row.block_ids.length > 0 ? held : undefined };
 }
 
 /** Lo apartado por línea de las solicitudes del listado con todas sus fechas programadas, en una pasada. */
 async function heldByRequest(access: WorkspaceAccess, rows: readonly IListRequestsResult[]): Promise<Map<string, Map<number, boolean>>> {
-  const scheduled = rows.filter((row) => row.block_ids.length > 0 && pendingOf(row.dates, row.scheduled_dates).length === 0);
+  const scheduled = rows.filter((row) => row.block_ids.length > 0 && pendingDates(row.dates, row.scheduled_dates).length === 0);
   const holds = await blockHolds(
     access,
     scheduled.flatMap((row) => row.block_ids.map((activityId, index) => ({ activityId, requestId: row.id, closed: row.block_closed[index] ?? false }))),
@@ -205,7 +204,9 @@ export function listRequests(pool: pg.Pool, request: QueryRequest, { scope }: z.
     const rows = await listRequestsQuery.run({ workspaceId, requestId: null, requesterId: scope === 'mine' ? access.principalId : null }, access.client);
     const byRequest = new Map<string, IRequestLinesResult[]>();
     for (const line of rows.length > 0 ? await requestLines.run({ workspaceId, requestIds: rows.map((row) => row.id) }, access.client) : []) {
-      byRequest.set(line.request_id, [...(byRequest.get(line.request_id) ?? []), line]);
+      const lines = byRequest.get(line.request_id);
+      if (lines) lines.push(line);
+      else byRequest.set(line.request_id, [line]);
     }
     const held = await heldByRequest(access, rows);
     const lines = await checkedLines(access, rows.map((row) => ({ ...scopeOf(row, held.get(row.id)), lines: byRequest.get(row.id) ?? [] })));

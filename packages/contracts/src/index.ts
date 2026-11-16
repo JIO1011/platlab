@@ -301,6 +301,7 @@ export {
   FORM_OPTIONAL_KEYS,
   FORM_STANDARD_LAYOUT,
   LEAD_DAYS_DEFAULT,
+  LEAD_DAYS_MAX,
   labsForm,
   labsSettings,
   period,
@@ -364,6 +365,7 @@ export {
   requestSummary,
   requestExceptions,
   pendingCount,
+  pendingDates,
   requestVersionRequest,
   saveRequestRequest,
   type ActivityType,
@@ -410,6 +412,7 @@ export {
   incidentPracticeParams,
   practiceChecklistRequest,
   practiceIncidentRequest,
+  PRACTICE_NOTES_MAX,
   practiceStepRequest,
   practiceUsage,
   type ActivityStage,
@@ -417,7 +420,6 @@ export {
   type ClosePracticeRequest,
   type IncidentPractice,
   type PracticeChecklistRequest,
-  type PracticeUsage,
 } from './labs.js';
 export { bottleCodes, codeFromName, firstFreeCode, freeSeries, nextCode, seriesFromName } from './codes.js';
 export { EXPIRING_DAYS, SAFETY_SHEET_MAX_BYTES } from './reagents.js';

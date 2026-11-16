@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { expectedVersion, text } from '../common.js';
 import { nonNegativeQuantity } from '../decimal.js';
 import { reportFaultRequest } from '../equipment/faults.js';
+import { REQUEST_MAX_LINES } from './limits.js';
 
 /**
  * Preparación y cierre de cada bloque (ADR 0023, «Cierre de Laboratorios», L-01e): programada → lista → en curso →
@@ -14,13 +15,16 @@ export const activityStage = z.enum(['scheduled', 'ready', 'running', 'closed'])
 /** Mover o cambiar lo apartado, solo antes de empezar. */
 export const ACTIVITY_CHANGEABLE: readonly ActivityStage[] = ['scheduled', 'ready'];
 
-const lineNumber = z.number().int().min(1).max(90);
+const lineNumber = z.number().int().min(1).max(REQUEST_MAX_LINES);
+
+/** Las observaciones al cerrar una práctica. */
+export const PRACTICE_NOTES_MAX = 1000;
 /** Sin líneas repetidas. */
 const uniqueLines = (lines: readonly number[]) => new Set(lines).size === lines.length;
 
 /** PUT /activities/:activityId/checklist: las líneas ya preparadas. No bloquea «Lista». */
 export const practiceChecklistRequest = z
-  .object({ expectedVersion, lines: z.array(lineNumber).max(90).refine(uniqueLines, 'Cada línea va una sola vez') })
+  .object({ expectedVersion, lines: z.array(lineNumber).max(REQUEST_MAX_LINES).refine(uniqueLines, 'Cada línea va una sola vez') })
   .strict();
 
 /** POST /activities/:activityId/ready y /start: un paso adelante con la versión que se vio. */
@@ -32,9 +36,9 @@ export const closePracticeRequest = z
     expectedVersion,
     usage: z
       .array(z.object({ line: lineNumber, used: nonNegativeQuantity }).strict())
-      .max(90)
+      .max(REQUEST_MAX_LINES)
       .refine((usage) => uniqueLines(usage.map((item) => item.line)), 'Cada línea va una sola vez'),
-    notes: text(1000).nullable(),
+    notes: text(PRACTICE_NOTES_MAX).nullable(),
   })
   .strict();
 
@@ -82,6 +86,5 @@ export const incidentPracticeParams = z.object({ workspaceId: z.uuid(), faultId:
 export type ActivityStage = z.infer<typeof activityStage>;
 export type PracticeChecklistRequest = z.infer<typeof practiceChecklistRequest>;
 export type ClosePracticeRequest = z.infer<typeof closePracticeRequest>;
-export type PracticeUsage = z.infer<typeof practiceUsage>;
 export type AssetBookings = z.infer<typeof assetBookings>;
 export type IncidentPractice = z.infer<typeof incidentPractice>;

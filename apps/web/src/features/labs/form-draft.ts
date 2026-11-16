@@ -211,41 +211,49 @@ function fieldIssue(field: DraftField, tail: readonly PropertyKey[], issue: z.co
   return { options: issue.code === 'too_small' && tail.length === 1 ? 'Agrega al menos una opción.' : tooMany };
 }
 
-/** Los errores de `publishFormRequest` en palabras de la pantalla. */
+/**
+ * Pone una causa donde la persona la corrige: el título, una sección, un dato, una columna de recursos o una firma de la
+ * hoja (`layout.<grupo>.<índice>…`). Falso si no corresponde a ninguno.
+ */
+function placeLeaf(result: FormIssues, draft: Draft, shown: readonly Draft['resources'][number][], { path, issue }: Leaf): boolean {
+  const [head, group, index, ...rest] = path;
+  if (head === 'title' && path.length === 1) {
+    result.title ??= lineMessage('title', issue);
+    return true;
+  }
+  if (head !== 'layout' || typeof index !== 'number') return false;
+  if (group === 'rows') {
+    const row = draft.rows[index];
+    if (row?.kind === 'section' && rest[0] === 'title') {
+      result.sections[row.id] ??= lineMessage('section', issue);
+      return true;
+    }
+    const field = row?.kind === 'row' && rest[0] === 'fields' && typeof rest[1] === 'number' ? row.fields[rest[1]] : undefined;
+    const found = field ? fieldIssue(field, rest.slice(2), issue) : undefined;
+    if (!field || !found) return false;
+    result.fields[field.id] = { ...found, ...result.fields[field.id] };
+    return true;
+  }
+  if (rest[0] !== 'label') return false;
+  const resource = group === 'resources' ? shown[index] : undefined;
+  if (resource) {
+    result.resources[resource.kind] ??= lineMessage('resource', issue);
+    return true;
+  }
+  const signature = group === 'signatures' ? draft.signatures[index] : undefined;
+  if (!signature) return false;
+  result.signatures[signature.id] ??= lineMessage('signature', issue);
+  return true;
+}
+
+/** Los errores de `publishFormRequest` en palabras de la pantalla; lo que no tiene lugar en la hoja va a `general`. */
 export function formIssues(error: z.ZodError, draft: Draft): FormIssues {
   const result: FormIssues = { sections: {}, fields: {}, resources: {}, signatures: {} };
   const shown = draft.resources.filter((resource) => resource.shown);
   for (const issue of error.issues) {
-    let placed = false;
-    for (const { path, issue: leaf } of leaves(issue)) {
-      const [head, group, index, ...rest] = path;
-      if (head === 'title' && path.length === 1) {
-        result[head] ??= lineMessage(head, leaf);
-        placed = true;
-      } else if (head === 'layout' && typeof index === 'number') {
-        const row = group === 'rows' ? draft.rows[index] : undefined;
-        const resource = group === 'resources' ? shown[index] : undefined;
-        const signature = group === 'signatures' ? draft.signatures[index] : undefined;
-        if (row?.kind === 'section' && rest[0] === 'title') {
-          result.sections[row.id] ??= lineMessage('section', leaf);
-          placed = true;
-        } else if (row?.kind === 'row' && rest[0] === 'fields' && typeof rest[1] === 'number') {
-          const field = row.fields[rest[1]];
-          const found = field ? fieldIssue(field, rest.slice(2), leaf) : undefined;
-          if (field && found) {
-            result.fields[field.id] = { ...found, ...result.fields[field.id] };
-            placed = true;
-          }
-        } else if (resource && rest[0] === 'label') {
-          result.resources[resource.kind] ??= lineMessage('resource', leaf);
-          placed = true;
-        } else if (signature && rest[0] === 'label') {
-          result.signatures[signature.id] ??= lineMessage('signature', leaf);
-          placed = true;
-        }
-      }
-    }
-    if (!placed) result.general ??= issue.code === 'custom' ? issue.message : 'Revisa la hoja antes de publicar.';
+    // Todas las causas se ponen (sin cortar en la primera): una unión trae una por rama.
+    const placed = leaves(issue).map((leaf) => placeLeaf(result, draft, shown, leaf));
+    if (!placed.includes(true)) result.general ??= issue.code === 'custom' ? issue.message : 'Revisa la hoja antes de publicar.';
   }
   return result;
 }

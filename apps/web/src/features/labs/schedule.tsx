@@ -1,4 +1,4 @@
-import { scheduleCheck, type Activity, type Closure, type RequestSummary } from '@platlab/contracts';
+import { pendingDates, scheduleCheck, type Activity, type Closure, type RequestSummary } from '@platlab/contracts';
 import { Skeleton, StatePanel, cn, toast } from '@platlab/ui';
 import { MapPin } from 'lucide-react';
 import { useState } from 'react';
@@ -20,7 +20,7 @@ import { ScheduleDnd, type DragPreview, type DragSource, type SavingDrop } from 
 import { activitiesOn, boardColumns, boardRange, holidayOn, loadByDay, parseDay, periodOn, toMinutes, weekDates, type BoardColumn } from './schedule-grid';
 import { IdleAreas } from './schedule-idle';
 import { ScheduleList } from './schedule-list';
-import { contextFor, dropPlan, endFor, pendingDates, requestedSpan, responsibleFor, scheduledMessage, slotAt, toScheduleOrder } from './schedule-placement';
+import { contextFor, dropPlan, endFor, requestedSpan, responsibleFor, scheduledMessage, slotAt, toScheduleOrder } from './schedule-placement';
 import { PlacementSheet, type PlacementTarget } from './schedule-placement-sheet';
 import { ScheduleTable } from './schedule-table';
 import { ScheduleTray, type TrayActions } from './schedule-tray';
@@ -196,7 +196,7 @@ export function LabsSchedulePage() {
     }
   };
   const programFrom = (request: RequestSummary, day: string) =>
-    openPlacement({ kind: 'program', request, pending: pendingDates(request), date: day });
+    openPlacement({ kind: 'program', request, pending: pendingDates(request.dates, request.scheduledDates), date: day });
 
   const tray: TrayActions = {
     canSchedule,

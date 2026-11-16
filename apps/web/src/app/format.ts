@@ -55,6 +55,11 @@ export function formatWeekday(isoDate: string, style: 'short' | 'long'): string 
   return new Intl.DateTimeFormat('es-EC', { weekday: style, timeZone: 'UTC' }).format(civilDate(isoDate));
 }
 
+/** La fecha civil con el día de la semana abreviado, «lun 9 nov»: tarjetas y avisos de una práctica. */
+export function formatDayShort(isoDate: string): string {
+  return new Intl.DateTimeFormat('es-EC', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(civilDate(isoDate)).replace(',', '');
+}
+
 /** Fecha civil corta, «31/12/2026»: para fichas donde «31 dic 2026» no cabe. */
 export function formatShortDate(isoDate: string): string {
   const [year, month, day] = isoDate.split('-');

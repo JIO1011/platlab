@@ -8,7 +8,7 @@ import { labsErrorMessage } from './commands';
 import { blockAssets } from './practice-assets';
 import { useRefreshEquipment, useReportPracticeIncident } from './practice-commands';
 import type { RequestView } from './request-draft';
-import { shortDateText } from './schedule-placement';
+import { formatDayShort } from '../../app/format';
 
 const DESCRIPTION_MAX = 2000;
 
@@ -92,7 +92,7 @@ export function PracticeIncidentSheet({
     <FormSheet
       icon={TriangleAlert}
       title="Reportar incidencia"
-      description={`${block.code} · ${shortDateText(block.date)}. Quien atiende los equipos la verá en Equipos, con el vínculo a esta práctica.`}
+      description={`${block.code} · ${formatDayShort(block.date)}. Quien atiende los equipos la verá en Equipos, con el vínculo a esta práctica.`}
       open={open}
       onOpenChange={(next) => (next ? onOpenChange(true) : dismiss())}
       submitLabel="Reportar incidencia"

@@ -8,7 +8,7 @@ import { blockAssets } from './practice-assets';
 import { draftFrom, paperOf, valueText, type RequestView } from './request-draft';
 import { ViewRows } from './request-lines';
 import { practiceCodeLabel } from './request-summary';
-import { shortDateText } from './schedule-placement';
+import { formatDayShort } from '../../app/format';
 
 /**
  * La hoja de solo lectura de una solicitud llena: la hoja del formato, lo llenado y los `slots` con que se ve y se imprime
@@ -54,7 +54,7 @@ export function PrintControls({ request, sheet }: { request: RequestView; sheet:
             onValueChange={setBlockId}
             placeholder="Fecha"
             triggerClassName="max-sm:h-11"
-            options={withAssets.map((item) => ({ value: item.activityId, label: `Códigos: ${shortDateText(item.date)}` }))}
+            options={withAssets.map((item) => ({ value: item.activityId, label: `Códigos: ${formatDayShort(item.date)}` }))}
           />
         </div>
       ) : null}

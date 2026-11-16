@@ -6,8 +6,9 @@ import { exceptionsText } from './request-summary';
 import { BlockCopy, blockFace } from './schedule-block';
 import { useCareerTone } from './schedule-career-color';
 import { useSourceDrag, type DragSource } from './schedule-dnd';
-import { cardWhenText, durationOf, pendingCards, requestBlockParts, requestBlockText, shortDateText, type PendingCard } from './schedule-placement';
+import { cardWhenText, durationOf, pendingCards, requestBlockParts, requestBlockText, type PendingCard } from './schedule-placement';
 import { softCard } from './style';
+import { formatDayShort } from '../../app/format';
 
 /** Lo que «Por programar» necesita del resto de la pantalla. */
 export interface TrayActions {
@@ -82,7 +83,7 @@ function PendingTile({ card, actions }: { card: PendingCard; actions: TrayAction
         {children}
       </button>
     ) : (
-      <button type="button" aria-label={`Ver ${shortDateText(date)} en el cronograma: ${text}`} onClick={() => actions.onPickDate(date)} className={cn(inner, focus)}>
+      <button type="button" aria-label={`Ver ${formatDayShort(date)} en el cronograma: ${text}`} onClick={() => actions.onPickDate(date)} className={cn(inner, focus)}>
         {children}
       </button>
     );

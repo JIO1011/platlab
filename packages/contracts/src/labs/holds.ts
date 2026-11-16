@@ -1,13 +1,14 @@
 import { z } from 'zod';
 import { expectedVersion } from '../common.js';
 import { positiveQuantity } from '../decimal.js';
+import { REQUEST_MAX_LINES } from './limits.js';
 
 /**
  * Cambiar los frascos apartados (ADR 0023, «Cierre de Laboratorios»): en un bloque programado o listo, el Administrador
  * elige de qué frascos sale cada cantidad de un reactivo, hasta lo pedido; lo que no cubre queda «Falta».
  */
 
-export const activityLineParams = z.object({ workspaceId: z.uuid(), activityId: z.uuid(), line: z.coerce.number().int().min(1).max(90) });
+export const activityLineParams = z.object({ workspaceId: z.uuid(), activityId: z.uuid(), line: z.coerce.number().int().min(1).max(REQUEST_MAX_LINES) });
 
 /** GET /activities/:activityId/lines/:line/reagent-options: los frascos usables y vigentes ese día, los que vencen antes primero. */
 export const reagentPickOptions = z.object({

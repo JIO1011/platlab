@@ -1,4 +1,4 @@
-import { updateLabsSettingsRequest, type LabsSettings } from '@platlab/contracts';
+import { LEAD_DAYS_MAX, updateLabsSettingsRequest, type LabsSettings } from '@platlab/contracts';
 import { Button, Field, IconChip, Input, Skeleton, cn, toast } from '@platlab/ui';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Clock, Minus, Plus } from 'lucide-react';
@@ -8,15 +8,13 @@ import { QueryErrorState } from '../../app/states';
 import { labsErrorMessage, useSaveSettings } from './commands';
 import { softCard } from './style';
 
-const maxDays = 90;
-
 /** Los días de anticipación como los escribió la persona: vacío o con letras, `NaN`, que el contrato rechaza. */
 const daysOf = (text: string) => (text.trim() === '' ? Number.NaN : Number(text));
 
 /** Un día más o menos, entre 0 y 90; si lo escrito no es un entero, parte del valor guardado. */
 const stepDays = (text: string, delta: number, saved: number): string => {
   const typed = daysOf(text);
-  return String(Math.min(maxDays, Math.max(0, (Number.isInteger(typed) ? typed : saved) + delta)));
+  return String(Math.min(LEAD_DAYS_MAX, Math.max(0, (Number.isInteger(typed) ? typed : saved) + delta)));
 };
 
 /** La regla en una frase, con los días ya guardados: lo que aún no se guarda no rige. */
@@ -106,14 +104,14 @@ export function LeadDaysSection({
                   type="number"
                   inputMode="numeric"
                   min={0}
-                  max={maxDays}
+                  max={LEAD_DAYS_MAX}
                   className="h-11 w-16 text-center tabular-nums [appearance:textfield] sm:h-10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   // La regla va bajo la fila para que el botón quede junto al campo; con error, Field describe el error.
                   {...(error ? {} : { 'aria-describedby': hintId })}
                   value={text}
                   onChange={(event) => edit(event.target.value)}
                 />
-                <Button size="icon" className="size-11 sm:size-10" aria-label="Un día más" disabled={typed >= maxDays} onClick={() => edit(stepDays(text, 1, settings.data.leadDays))}>
+                <Button size="icon" className="size-11 sm:size-10" aria-label="Un día más" disabled={typed >= LEAD_DAYS_MAX} onClick={() => edit(stepDays(text, 1, settings.data.leadDays))}>
                   <Plus aria-hidden />
                 </Button>
                 <Button type="submit" variant="primary" className="h-11 min-w-40 flex-1 sm:h-10" disabled={!dirty} loading={save.isPending}>

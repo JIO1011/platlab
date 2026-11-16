@@ -13,8 +13,11 @@ export const LEAD_DAYS_DEFAULT = 7;
 /** GET /settings: sin ajustes guardados, la anticipación por defecto y la versión 0. */
 export const labsSettings = z.object({ leadDays: z.number().int(), version: z.number().int().nonnegative() });
 
-/** PUT /settings: de 0 a 90 días. */
-export const updateLabsSettingsRequest = z.object({ leadDays: z.number().int().min(0).max(90) }).strict();
+/** La anticipación más larga que se puede pedir. */
+export const LEAD_DAYS_MAX = 90;
+
+/** PUT /settings: de 0 a `LEAD_DAYS_MAX` días. */
+export const updateLabsSettingsRequest = z.object({ leadDays: z.number().int().min(0).max(LEAD_DAYS_MAX) }).strict();
 
 /** Hora de 00:00 a 23:59; 24:00 no es una hora. */
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Debe ser una hora HH:MM');

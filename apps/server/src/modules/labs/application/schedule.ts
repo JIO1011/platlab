@@ -246,7 +246,8 @@ export function moveActivity(pool: pg.Pool, request: CommandRequest, activityId:
       ),
     );
     if (recoded.code !== current.code) await insertActivityCode.run({ workspaceId, activityId, code: recoded.code, principalId: access.principalId }, access.client);
-    // Otra franja u otra área: los equipos se vuelven a apartar para la nueva; los reactivos son del mismo día.
+    // Otra franja: los equipos se vuelven a apartar para la nueva. El área no cambia lo apartado (los equipos se apartan por
+    // franja y los reactivos son del mismo día).
     if (input.startsAt !== shown.startsAt || input.endsAt !== shown.endsAt) {
       await rebookEquipment(access, { activityId, requestId: current.request_id, practiceCode: recoded.code, date: current.on_date, startsAt: input.startsAt, endsAt: input.endsAt, areaName: placed.areaName });
     }
