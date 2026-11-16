@@ -16,7 +16,7 @@ Revisión: 16 de noviembre de 2026. Registro resumido de decisiones de arquitect
 | [0010](#adr-0010) | Sistema de diseño y movimiento | Aceptado el 01-10-2026 |
 | [0011](#adr-0011) | Inicio como tablero y cada módulo como app | Aceptado el 02-10-2026 |
 | [0012](#adr-0012) | Reactivos por frasco y salidas con aprobación | Aceptado el 02-10-2026 |
-| [0013](#adr-0013) | Delegación por riesgo y puertas del harness | Aceptado el 07-10-2026 |
+| [0013](#adr-0013) | La sesión principal implementa todo; puertas del harness | Aceptado el 07-10-2026; sin subagentes desde el 14-11-2026 |
 | [0014](#adr-0014) | Reactivos completo: cinco secciones, Movimientos como informe y avisos comunes | Aceptado el 12-10-2026 |
 | [0015](#adr-0015) | Ingreso en un paso, control por peso y controlados | Aceptado el 12-10-2026 |
 | [0016](#adr-0016) | Controlados al final y orden para completar Reactivos | Aceptado el 14-10-2026 |
@@ -272,41 +272,26 @@ No se copia de ReactiLab: frasco, lote y código fusionados; ajustes sin signo; 
 Cambios: 05, 06 y 12-10-2026; compactado el 16-11-2026 (el detalle de pantallas, en git).
 
 <a id="adr-0013"></a>
-## ADR 0013 — Delegación por riesgo y puertas del harness
+## ADR 0013 — La sesión principal implementa todo; puertas del harness
 
 La regla de trabajo vigente está en `.claude/orquestacion.md`; aquí quedan la decisión y su porqué.
 
-- **Reparto por riesgo, no por capa.**
-  - Lo que pueda alterar saldos, permisos, datos, concurrencia o el contrato de la API lo implementa la sesión principal en línea, con sus pruebas, esté en SQL, en el servidor o en la web. Trabaja en `high`, y en `xhigh` solo para diseñar o decidir.
-  - Lo demás va a Sonnet 5.5: `platlab-ui-implementer` (presentación, movimiento, avisos y e2e de UI) y `platlab-assistant` (docs, lo mecánico y pruebas sin lógica nueva).
-  - Sin agente Opus delegado (28-10-2026, pedido del usuario): una entrega delicada grande se parte en base y API, lógica web y pantallas.
-- **Escalada.** Un subagente no lanza otros. Un agente Sonnet se detiene con «Bloqueo» si el cambio toca lo delicado, si la misma comprobación falla dos veces o si falta una decisión.
-- **Puertas automáticas** (`.claude/hooks/`):
-  - Ningún implementador confirma, sube, abre PR ni edita las puertas.
-  - Los agentes Sonnet no escriben en `supabase/`, `apps/server/`, `packages/contracts/` ni `packages/modules/`. Al terminar, se compara el contenido para detectar cambios hechos por otra vía.
-  - Al terminar corre `typecheck`; en cierre, también `lint`, `deps`, `knip` y las capturas si cambió la UI.
-  - En local se bloquean las escrituras remotas por MCP, `supabase link`, `db push` y `git push --force`. La barrera real es la regla de GitHub que protege `main`.
+- **Sin subagentes** (14-11-2026, pedido del usuario; el 16-11-2026 se quitaron los agentes definidos, sus hooks y el script de tokens). La sesión principal analiza, decide con el usuario, implementa con sus pruebas, confirma y sube. Trabaja en `high`, y en `xhigh` solo para diseñar o decidir. Una entrega grande se parte en base y API, lógica web y pantallas.
+- **Lo delicado se prueba siempre:** lo que pueda alterar saldos, permisos, datos, concurrencia o el contrato de la API, esté en SQL, en el servidor o en la web, va con sus pruebas y `platlab-db-review`.
+- **Puertas automáticas** (`.claude/hooks/`): `read-guard.sh` rechaza leer sin rango un archivo de más de 300 líneas; en local se bloquean las escrituras remotas por MCP, `supabase link`, `db push` y `git push --force`. La barrera real es la regla de GitHub que protege `main`.
 - **Etapas de una entrega (14-10-2026).**
   - *Cambios*, por defecto: se escriben o ajustan las pruebas sin correrlas, y el usuario revisa en el navegador.
-  - *Cierre*, cuando el usuario aprueba (`.git/claude-fase`): pruebas dirigidas, `pnpm check`, capturas con el revisor y CI.
+  - *Cierre*, cuando el usuario aprueba (`.git/claude-fase`): pruebas dirigidas, `pnpm check`, capturas con la revisión de acabado y CI.
   - Base y API se cierran siempre con las pruebas de su módulo (21-10-2026).
 - **Cierre de UI.**
-  - Por entrega: capturas de escritorio y móvil, `review-animations` si cambió el movimiento e `impeccable-finish-reviewer`.
+  - Por entrega: capturas de escritorio y móvil, `review-animations` si cambió el movimiento y la revisión de acabado de impeccable, en línea.
   - Por puerta (G0, G1…): `impeccable audit`, `harden` y `polish` sobre todo el frontend, más `review-animations`.
-  - Las skills que el flujo exige deben poder invocarse.
 - **Evidencia:** una fila por entrega, cuando terminó el CI del mismo commit.
-- **Economía de tokens (13 y 14-10-2026).** Lo caro es el contexto, que crece y se relee en cada turno; el brief pesa unos 2k. La sesión principal arranca con unos 58k tokens y un subagente con unos 31k. Por eso:
-  - la orquestación vive en `.claude/orquestacion.md` y solo la carga la sesión principal;
-  - cada agente declara sus herramientas, y los que no tocan lo delicado no cargan `CLAUDE.md`;
-  - briefs de 40 líneas y entregas de 40 turnos como máximo;
-  - codebase-memory primero, y `read-guard.sh` rechaza leer sin rango un archivo de más de 300 líneas;
-  - no hay monitores de tokens.
+- **Economía de tokens.** Lo caro es el contexto, que crece y se relee en cada turno. Por eso: codebase-memory primero, lectura por partes, salidas cortas y sin monitores de tokens. Pendiente del usuario: deshabilitar los MCP y las skills de la cuenta ajenos a PlatLab.
 
-  Pendiente del usuario: deshabilitar los MCP y las skills de la cuenta ajenos a PlatLab.
+Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las pruebas de invariantes son la especificación, y una regla que depende del prompt se vuelve una puerta automática. Las etapas evitan repetir pruebas y capturas sobre cambios que el usuario aún va a ajustar. Sin subagentes porque el usuario prefiere que todo lo haga la sesión principal y los agentes ya no se usaban: sus puertas protegían un reparto que dejó de existir.
 
-Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa. Las pruebas de invariantes son la especificación, y una regla que depende del prompt se vuelve una puerta automática. Las etapas evitan repetir pruebas y capturas sobre cambios que el usuario aún va a ajustar. La revisión del 07-10-2026 añadió las puertas, porque el cierre de R-01A nunca se ejecutó y `main` no tenía protección.
-
-Cambios: 07, 13, 14, 21 y 28-10-2026; compactado el 16-11-2026 (las mediciones, en git).
+Cambios: 07, 13, 14, 21 y 28-10-2026; 14 y 16-11-2026 (sin subagentes); compactado el 16-11-2026 (el reparto con agentes Sonnet y sus puertas, en git).
 
 <a id="adr-0014"></a>
 

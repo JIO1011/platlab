@@ -36,7 +36,7 @@ Actúa como experto senior en desarrollo de software full-stack,arquitectura, in
 
 ## Orquestación
 
-Roles, delegación, entregas, puertas y economía de tokens están en `.claude/orquestacion.md`; lo carga solo la sesión principal. Para todos: reglas del dominio por encima de las de estilo (nada de UI optimista sobre el stock ni de «deshacer» en movimientos confirmados).
+Entregas, etapas, puertas y economía de tokens están en `.claude/orquestacion.md`, que inyecta el hook de inicio. Sin subagentes: la sesión principal hace todo en línea ([ADR 0013](docs/05_decisiones.md#adr-0013)). Reglas del dominio por encima de las de estilo (nada de UI optimista sobre el stock ni de «deshacer» en movimientos confirmados).
 
 ## Qué leer y qué documento manda
 
