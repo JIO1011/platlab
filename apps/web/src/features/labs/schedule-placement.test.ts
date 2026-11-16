@@ -17,7 +17,6 @@ import {
   scheduledMessage,
   shortDateText,
   slotAt,
-  snapTo,
   startAtOffset,
   requestedSpan,
   toScheduleOrder,
@@ -96,27 +95,28 @@ const summary = (overrides: Partial<RequestSummary> = {}): RequestSummary => ({
 });
 
 describe('hora desde la posición', () => {
-  it('encaja a 15 minutos', () => {
-    expect(snapTo(487)).toBe(480);
-    expect(snapTo(488)).toBe(495);
-    expect(snapTo(0)).toBe(0);
-  });
-
-  it('da la hora del punto de la columna, encajada a la hora en punto', () => {
+  it('empieza en la hora en punto de la fila bajo el puntero, sin saltar a la siguiente', () => {
     // 660 px de columna para 660 minutos (420 a 1080): un píxel por minuto.
     expect(startAtOffset({ offset: 0, height: 660, range, duration: 60 })).toBe(420);
     expect(startAtOffset({ offset: 66, height: 660, range, duration: 60 })).toBe(480);
-    expect(startAtOffset({ offset: 100, height: 660, range, duration: 60 })).toBe(540);
+    // 08:40 bajo el puntero: la fila de las 08, no las 09.
+    expect(startAtOffset({ offset: 100, height: 660, range, duration: 60 })).toBe(480);
   });
 
-  it('se pega a la hora pedida a menos de 20 minutos, aunque no sea en punto', () => {
-    // Pedida a las 14:15 (855): a las 14:00 o a las 14:30 del puntero cae en 14:15.
+  it('deja en la fila del puntero la hora del bloque que se tiene agarrada', () => {
+    // Puntero a las 12:00 y el bloque agarrado a 90 min de su borde (en su segunda hora): empieza a las 11:00.
+    expect(startAtOffset({ offset: 300, grab: 90, height: 660, range, duration: 120 })).toBe(660);
+    expect(startAtOffset({ offset: 300, grab: 20, height: 660, range, duration: 120 })).toBe(720);
+  });
+
+  it('empieza en la hora pedida si cae en la fila del puntero, aunque no sea en punto', () => {
+    // Pedida a las 14:15 (855): en cualquier punto de la fila de las 14 empieza a las 14:15.
     expect(startAtOffset({ offset: 420, height: 660, range, duration: 120, requested: 855 })).toBe(855);
-    expect(startAtOffset({ offset: 450, height: 660, range, duration: 120, requested: 855 })).toBe(855);
+    expect(startAtOffset({ offset: 470, height: 660, range, duration: 120, requested: 855 })).toBe(855);
   });
 
-  it('lejos de la hora pedida sigue en la hora en punto, sin impedir otro lugar', () => {
-    expect(startAtOffset({ offset: 460, height: 660, range, duration: 120, requested: 855 })).toBe(900);
+  it('en otra fila sigue en la hora en punto, sin impedir otro lugar', () => {
+    expect(startAtOffset({ offset: 480, height: 660, range, duration: 120, requested: 855 })).toBe(900);
     expect(startAtOffset({ offset: 180, height: 660, range, duration: 120, requested: 855 })).toBe(600);
   });
 

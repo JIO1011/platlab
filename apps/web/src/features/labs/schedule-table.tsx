@@ -105,7 +105,7 @@ function requestedText(requested: Span | null, start: number): string | null {
 /**
  * Dónde caería lo que se arrastra en esta columna, dicho con texto y con ícono: «círculo con visto» si cabe, «círculo con
  * cruz» y el motivo si no, «triángulo de alerta» si supera el aforo (solo avisa) y si cae en el horario pedido. El lugar
- * encaja a la hora en punto y se pega a la hora pedida.
+ * cae en la fila de la hora bajo el puntero (o en la hora pedida, si está en esa fila).
  */
 function DropPreview({ range, space }: { range: DayRange; space: Space }) {
   const drag = useDragPreview();

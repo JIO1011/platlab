@@ -115,8 +115,11 @@ const announcements: Announcements = {
   onDragCancel: () => 'Se canceló: nada cambió.',
 };
 
-/** El indicador que sigue al puntero: qué se lleva y su horario. */
-function Ghost() {
+/**
+ * El indicador que sigue al puntero: qué se lleva y su horario. Sobre la tabla (`over`) se oculta para no tapar el destino:
+ * ahí manda la vista previa, que encaja en la celda con su hora.
+ */
+function Ghost({ over }: { over: boolean }) {
   const { active } = useDndContext();
   const toneOf = useCareerTone();
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -124,7 +127,7 @@ function Ghost() {
   return (
     <DragOverlay dropAnimation={reduceMotion ? null : { duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
       {source ? (
-        <div className={cn('w-fit max-w-64 cursor-grabbing px-3 py-1.5 shadow-overlay', blockFace, toneOf(sourceGroup(source)))}>
+        <div className={cn('w-fit max-w-64 cursor-grabbing px-3 py-1.5 shadow-overlay', blockFace, toneOf(sourceGroup(source)), over && 'opacity-0')}>
           <p className="text-left text-sm font-medium leading-[1.3] [overflow-wrap:anywhere]">{sourceLabel(source)}</p>
           <p className="text-[13px] tabular-nums text-ink-muted">
             {sourceDetail(source)} · {sourceTimes(source)}
@@ -172,9 +175,9 @@ export function ScheduleDnd({
     const column = over?.data.current as ColumnData | undefined;
     let next: DragPreview | null = null;
     if (source && over && column && point) {
-      const offset = point.y + delta.y - grab.current - over.rect.top;
+      const offset = point.y + delta.y - over.rect.top;
       const requested = state?.requested?.from ?? null;
-      next = previewOf(source, String(over.id), startAtOffset({ offset, height: over.rect.height, range: column.range, duration: source.duration, requested }));
+      next = previewOf(source, String(over.id), startAtOffset({ offset, grab: grab.current, height: over.rect.height, range: column.range, duration: source.duration, requested }));
     }
     setState((current) => {
       if (!current) return current;
@@ -207,7 +210,7 @@ export function ScheduleDnd({
       onDragCancel={() => setState(null)}
     >
       <PreviewContext.Provider value={state}>{children}</PreviewContext.Provider>
-      <Ghost />
+      <Ghost over={Boolean(state?.preview)} />
     </DndContext>
   );
 }
