@@ -124,20 +124,6 @@ export function useRequest(workspaceId: string, requestId: string) {
   });
 }
 
-/**
- * Una solicitud tal como la guarda el servidor, para la hoja «Programar…»: el área que pidió el docente, que el resumen
- * de las listas no trae. Solo se pide la solicitud abierta. Comparte caché con `useRequest`, pero se vuelve a pedir sola: programar cambia sus bloques.
- */
-export function useRequestDetail(workspaceId: string, requestId: string, enabled = true) {
-  const user = useUserKey();
-  return useQuery({
-    enabled,
-    queryKey: [...labsKey(user, workspaceId), 'requests', 'one', requestId],
-    queryFn: () => api(`${base(workspaceId)}/requests/${requestId}`, { schema: labsRequest }),
-    refetchInterval: jitteredPoll,
-  });
-}
-
 /** Quienes pueden llevar un bloque (Operadores y Administradores); solo lo pide quien programa. */
 export function useResponsibles(workspaceId: string, enabled: boolean) {
   const user = useUserKey();

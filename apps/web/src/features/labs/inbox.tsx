@@ -1,19 +1,16 @@
 import type { RequestSummary } from '@platlab/contracts';
-import { Button, Input, Segmented, Skeleton, StatePanel, cn, toast } from '@platlab/ui';
-import { CalendarX, Check, CircleCheck, Clock, FilePenLine, Inbox, Search, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { Input, Segmented, Skeleton, StatePanel, cn } from '@platlab/ui';
+import { CalendarX, CircleCheck, Clock, FilePenLine, Inbox, Search, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { SectionHeader } from '../../app/section-header';
 import { StatButton } from '../../app/stat-button';
 import { QueryErrorState } from '../../app/states';
 import { useMediaQuery } from '../../app/use-media-query';
-import { labsErrorMessage, useApproveRequests } from './commands';
 import { useLabs } from './context';
-import { ApprovalSummaryCard, RowCheckbox } from './inbox-approval';
 import { InboxStack, InboxTable } from './inbox-rows';
-import { useRequests, useSpaces } from './queries';
-import { approvalSummary, approveBody, isApprovable } from './request-approval';
+import { useRequests } from './queries';
 import { filterInbox, inboxCounts, initialInboxFilter, searchInbox, type InboxFilter } from './request-summary';
-import { actionBar, primaryGradient, softCard } from './style';
+import { softCard } from './style';
 
 /** Lo que dice la pestaña de cada filtro y qué decir si no hay ninguna solicitud. */
 const filterTexts: Record<InboxFilter, { tab: string; empty: string }> = {
@@ -73,51 +70,27 @@ function Figure({
 
 /** Lo que sigue a las cifras con las recibidas ya cargadas: abre en «Por revisar» si hay alguna y, si no, en «Todas». */
 function InboxBody({ received }: { received: readonly RequestSummary[] }) {
-  const { workspaceId, canReview, canSchedule } = useLabs();
-  const spaces = useSpaces(workspaceId);
-  const approve = useApproveRequests(workspaceId);
+  const { workspaceId } = useLabs();
   const table = useMediaQuery(tableQuery);
   const [filter, setFilter] = useState<InboxFilter>(() => initialInboxFilter(received));
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [summary, setSummary] = useState<ReturnType<typeof approvalSummary> | null>(null);
   const searching = query.trim() !== '';
   const items = searchInbox(filterInbox(received, filter), query);
-  const approvable = canReview && canSchedule ? items.filter(isApprovable) : [];
-  // Solo cuentan las elegidas que se ven en este filtro y esta búsqueda: lo que no se ve no se aprueba.
-  const chosen = approvable.filter((item) => selected.has(item.id));
-  const toggle = (id: string, on: boolean) => setSelected((current) => new Set(on ? [...current, id] : [...current].filter((other) => other !== id)));
   const counts = inboxCounts(received);
-  const abbreviations = new Map(spaces.data?.items.map((space) => [space.areaId, space.abbreviation]));
-
-  const approveChosen = async () => {
-    try {
-      const done = await approve.mutateAsync(approveBody(chosen));
-      setSummary(approvalSummary(done.items, chosen));
-      setSelected(new Set());
-    } catch (failure) {
-      toast.error('No se pudieron aprobar las solicitudes', { description: labsErrorMessage(failure) });
-    }
-  };
 
   const rows = {
     requests: items,
     hrefOf: (request: RequestSummary) => `/e/${workspaceId}/laboratorios/recibidas/${request.id}`,
-    abbreviationOf: (request: RequestSummary) => (request.areaId ? abbreviations.get(request.areaId) : undefined),
-    leading: (request: RequestSummary) =>
-      approvable.includes(request) ? <RowCheckbox code={request.code} checked={selected.has(request.id)} onChange={(on) => toggle(request.id, on)} /> : null,
-    selectable: approvable.length > 0,
   };
 
   return (
-    <div className={cn('grid gap-6 sm:gap-8', chosen.length > 0 && 'max-sm:pb-24')}>
+    <div className="grid gap-6 sm:gap-8">
       <section aria-label="Filtros por cifra" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <Figure filter="submitted" label="Por revisar" active={filter} onPress={setFilter} count={counts.submitted} idle="Al día" hint="Esperan tu respuesta" icon={Clock} idleIcon={CircleCheck} attention={false} />
         <Figure filter="late" label="Fuera de plazo" active={filter} onPress={setFilter} count={counts.late} idle="Ninguna" hint="Sin la anticipación pedida" icon={CalendarX} />
         <Figure filter="resources" label="Recursos por revisar" active={filter} onPress={setFilter} count={counts.resources} idle="Ninguna" hint="Con líneas por mirar" icon={TriangleAlert} />
         <Figure filter="changes" label="Cambios pedidos" active={filter} onPress={setFilter} count={counts.changes} idle="Ninguna" hint="Esperan al solicitante" icon={FilePenLine} attention={false} />
       </section>
-      {summary ? <ApprovalSummaryCard summary={summary} onDismiss={() => setSummary(null)} /> : null}
       {received.length === 0 ? (
         <div className={softCard}>
           <StatePanel icon={Inbox} title="Aún no recibes solicitudes" description="Cuando alguien envíe una solicitud, aparecerá aquí con lo más urgente primero." />
@@ -144,26 +117,6 @@ function InboxBody({ received }: { received: readonly RequestSummary[] }) {
               />
             </div>
           </div>
-          {approvable.length > 0 ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-4 py-2 sm:px-6">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-11 sm:h-8"
-                onClick={() => setSelected(chosen.length === approvable.length ? new Set() : new Set(approvable.map((item) => item.id)))}
-              >
-                {chosen.length === approvable.length ? 'Quitar selección' : 'Elegir todas'}
-              </Button>
-              {chosen.length > 0 ? (
-                <div className={actionBar}>
-                  <Button variant="primary" className={`h-11 sm:h-10 ${primaryGradient}`} loading={approve.isPending} onClick={() => void approveChosen()}>
-                    <Check aria-hidden />
-                    Aprobar seleccionadas ({chosen.length})
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
           {items.length === 0 ? (
             <div className="border-t border-line">
               <StatePanel
@@ -185,8 +138,7 @@ function InboxBody({ received }: { received: readonly RequestSummary[] }) {
 /**
  * Recibidas (ADR 0023, L-01b): las solicitudes enviadas por los solicitantes, lo urgente primero (el servidor las
  * ordena). Cuatro cifras hacen de filtro y comparten estado con las pestañas, con su cuenta; el buscador filtra en el
- * navegador. Quien revisa y programa elige enviadas con su casilla y las aprueba juntas: cada una se programa donde y
- * cuando se pidió, y el resumen dice el resultado de cada una.
+ * navegador. Cada solicitud abre su hoja; se aprueba al programarla en el Cronograma.
  */
 export function LabsInboxPage() {
   const { workspaceId } = useLabs();

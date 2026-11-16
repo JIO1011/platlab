@@ -95,7 +95,6 @@ export interface RequestDraft {
   endsAt: string;
   participants: string;
   groups: string;
-  areaId: string | null;
   /** La respuesta de cada dato libre por su clave, como texto; una casilla es «true» o «false». */
   answers: Record<string, string>;
   notes: string;
@@ -175,7 +174,6 @@ export function draftFrom(request: RequestView): RequestDraft {
     endsAt: request.endsAt ?? '',
     participants: textOf(request.participants),
     groups: String(request.groups),
-    areaId: request.areaId,
     answers: Object.fromEntries(freeFieldsOf(request.layout).map((field) => [field.key, textOf(request.answers[field.key])])),
     notes: request.notes ?? '',
     lines: request.lines.map(draftLine),
@@ -243,7 +241,6 @@ export function saveBody(draft: RequestDraft, layout: FormLayout, expectedVersio
     endsAt: textOrNull(draft.endsAt),
     participants: textOrNull(draft.participants) === null ? null : Number(draft.participants),
     groups,
-    areaId: draft.areaId,
     answers: Object.fromEntries(freeFieldsOf(layout).map((field) => [field.key, answerValue(field, draft.answers[field.key] ?? '')])),
     notes: layout.notes ? textOrNull(draft.notes) : null,
     lines: draft.lines.map((line) => lineInput(line, groups)),

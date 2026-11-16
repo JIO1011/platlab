@@ -3,7 +3,6 @@ import { expectedVersion, text } from '../common.js';
 import { positiveQuantity } from '../decimal.js';
 import type { FormFreeField, FormLayout } from './form.js';
 import { activityStage, practiceUsage } from './practice.js';
-import { scheduleProblem } from './schedule.js';
 
 /**
  * Solicitudes de Laboratorios (ADR 0023, «Diseño de L-01b»): el Docente o el tesista llena un formato activo, la guarda
@@ -23,9 +22,6 @@ export const REQUEST_CANCELLABLE: readonly RequestStatus[] = ['draft', 'submitte
 
 /** El tipo de actividad, dato del sistema «tipo». */
 export const activityType = z.enum(['practice', 'research', 'service', 'training']);
-
-/** El número fijo antes de programar: 42 → «SOL-0042». */
-export const requestCode = (number: number): string => `SOL-${String(number).padStart(4, '0')}`;
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora HH:MM');
 const count = z.number().int().min(1).max(10_000);
@@ -57,7 +53,6 @@ const requestResources = z.object({
   endsAt: time.nullable(),
   participants: z.number().int().min(1).max(1000).nullable(),
   groups: z.number().int().min(1).max(100),
-  areaId: z.uuid().nullable(),
   lines: z.array(requestLineInput).max(REQUEST_MAX_LINES),
 });
 
@@ -124,8 +119,6 @@ const requestEvent = z.object({
 /** Una solicitud en las listas: lo que la bandeja ordena (fuera de plazo y recursos que faltan primero). */
 export const requestSummary = z.object({
   id: z.uuid(),
-  number: z.number().int().positive(),
-  code: z.string(),
   status: requestStatus,
   formName: z.string(),
   title: z.string().nullable(),
@@ -148,8 +141,6 @@ export const requestSummary = z.object({
   /** La materia y el «Grupo» del bloque: la asignatura y la carrera, si las tiene. */
   subject: z.string().nullable(),
   group: z.string().nullable(),
-  /** El área pedida: Recibidas muestra su sigla. */
-  areaId: z.uuid().nullable(),
   submittedAt: z.string().nullable(),
   version: z.number().int().positive(),
 });
@@ -219,7 +210,7 @@ export const requestOptions = z.object({
 
 /**
  * GET /requests/:requestId/review: lo que se revisa antes de enviar (ADR 0023, «Flujo de la Propuesta»), contra todo el
- * espacio y sin apartar nada. Por fecha pendiente, el laboratorio pedido y los equipos libres en la franja; por
+ * espacio y sin apartar nada. Por fecha pendiente, los equipos libres en la franja; por
  * reactivo, lo pedido en todas esas fechas frente a lo apartable. Lo que no alcanza trae sus alternativas. `line` es la
  * posición de la línea en `lines` de la solicitud.
  */
@@ -227,8 +218,6 @@ export const requestReview = z.object({
   dates: z.array(
     z.object({
       date: z.iso.date(),
-      /** El laboratorio pedido y lo que impide o advierte programarlo; nulo sin laboratorio u horario pedidos. */
-      area: z.object({ name: z.string(), problems: z.array(scheduleProblem) }).nullable(),
       equipment: z.array(
         z.object({
           line: z.number().int(),
@@ -258,14 +247,14 @@ export const requestReview = z.object({
 /**
  * La respuesta de la consulta sin guardar: cada línea con su nombre y su marca, en el orden pedido, su revisión y lo libre
  * de cada reactivo y tipo de equipo del catálogo para esas fechas y esa franja (sin fechas, hoy): lo que muestra el buscador.
- * De cada reactivo, además, cómo se reparte su saldo utilizable: `stock` = `available` + `held` (apartado) + `expired`
- * (de lotes vencidos ese día). De cada tipo de equipo, sus unidades operativas (`total`).
+ * De cada reactivo, además, su saldo vigente ese día (`stock` = `available` + `held`, lo apartado; lo vencido no cuenta).
+ * De cada tipo de equipo, sus unidades operativas (`total`).
  */
 export const requestCheck = z.object({
   lines: z.array(requestLine),
   review: requestReview,
   catalog: z.object({
-    reagents: z.array(z.object({ id: z.uuid(), available: z.string(), stock: z.string(), held: z.string(), expired: z.string() })),
+    reagents: z.array(z.object({ id: z.uuid(), available: z.string(), stock: z.string(), held: z.string() })),
     equipmentTypes: z.array(z.object({ id: z.uuid(), available: z.number().int(), total: z.number().int() })),
   }),
 });

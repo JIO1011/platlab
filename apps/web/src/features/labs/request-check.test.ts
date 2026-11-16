@@ -22,7 +22,6 @@ const draft: RequestDraft = {
   endsAt: '12:00',
   participants: '30',
   groups: '5',
-  areaId: null,
   answers: {},
   notes: '',
   lines: [salt, empty, scale, paper],
@@ -30,7 +29,7 @@ const draft: RequestDraft = {
 
 const planOf = (patch: Partial<RequestDraft> = {}) => checkPlan({ ...draft, ...patch }, FORM_STANDARD_LAYOUT)!;
 
-const result = (catalog: RequestCheck['catalog'] = { reagents: [{ id: reagentId, available: '70', stock: '80', held: '10', expired: '0' }], equipmentTypes: [{ id: assetTypeId, available: 1, total: 2 }] }): RequestCheck => ({
+const result = (catalog: RequestCheck['catalog'] = { reagents: [{ id: reagentId, available: '70', stock: '80', held: '10' }], equipmentTypes: [{ id: assetTypeId, available: 1, total: 2 }] }): RequestCheck => ({
   lines: [
     { kind: 'reagent', itemId: reagentId, name: 'Cloruro de sodio', quantity: '5', unit: 'g', check: 'ok', available: '70' },
     { kind: 'equipment', assetTypeId, name: 'Balanza', perGroup: null, quantity: 2, check: 'short', available: 1 },
@@ -83,7 +82,7 @@ describe('consulta sin guardar', () => {
   });
 
   it('dice para cuándo se cuenta lo libre', () => {
-    expect(scopeText(undefined)).toBe('Sin fechas todavía: se cuenta lo libre hoy.');
+    expect(scopeText(undefined)).toBe('');
     expect(scopeText(planOf({ dates: ['2026-11-18'] }).body)).toMatch(/^Lo libre para el .+, de 10:00 a 12:00\.$/);
     expect(scopeText(planOf({ endsAt: '' }).body)).toBe('Lo libre para tus 2 fechas. Sin horario, los equipos se cuentan operativos.');
   });

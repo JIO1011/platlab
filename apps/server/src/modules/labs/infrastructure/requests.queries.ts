@@ -11,38 +11,6 @@ export type numberArray = (number)[];
 
 export type stringArray = (string)[];
 
-/** 'NextRequestNumber' parameters type */
-export interface INextRequestNumberParams {
-  workspaceId: string;
-}
-
-/** 'NextRequestNumber' return type */
-export interface INextRequestNumberResult {
-  number: number;
-}
-
-/** 'NextRequestNumber' query type */
-export interface INextRequestNumberQuery {
-  params: INextRequestNumberParams;
-  result: INextRequestNumberResult;
-}
-
-const nextRequestNumberIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":238,"b":250}]}],"statement":"-- El número siguiente del espacio (SOL-0042). La fila del contador serializa a quienes crean a la vez, y un\n-- número tomado no vuelve aunque la solicitud se cancele.\nINSERT INTO labs.request_counters (workspace_id, last_number)\nVALUES (:workspaceId!, 1)\nON CONFLICT (workspace_id) DO UPDATE SET last_number = labs.request_counters.last_number + 1\nRETURNING last_number AS \"number!\""};
-
-/**
- * Query generated from SQL:
- * ```
- * -- El número siguiente del espacio (SOL-0042). La fila del contador serializa a quienes crean a la vez, y un
- * -- número tomado no vuelve aunque la solicitud se cancele.
- * INSERT INTO labs.request_counters (workspace_id, last_number)
- * VALUES (:workspaceId!, 1)
- * ON CONFLICT (workspace_id) DO UPDATE SET last_number = labs.request_counters.last_number + 1
- * RETURNING last_number AS "number!"
- * ```
- */
-export const nextRequestNumber = new PreparedQuery<INextRequestNumberParams,INextRequestNumberResult>(nextRequestNumberIR);
-
-
 /** 'ActiveFormRevision' parameters type */
 export interface IActiveFormRevisionParams {
   formId: string;
@@ -110,7 +78,6 @@ export const revisionLayout = new PreparedQuery<IRevisionLayoutParams,IRevisionL
 export interface IInsertRequestParams {
   activityType?: string | null | void;
   answers: Json;
-  areaId?: string | null | void;
   careerId?: string | null | void;
   dates: stringArray;
   endsAt?: DateOrString | null | void;
@@ -118,7 +85,6 @@ export interface IInsertRequestParams {
   formRevision: number;
   groups: number;
   notes?: string | null | void;
-  number: number;
   participants?: number | null | void;
   requesterId: string;
   startsAt?: DateOrString | null | void;
@@ -139,15 +105,15 @@ export interface IInsertRequestQuery {
   result: IInsertRequestResult;
 }
 
-const insertRequestIR: any = {"usedParamSet":{"workspaceId":true,"number":true,"formId":true,"formRevision":true,"requesterId":true,"title":true,"teacherName":true,"activityType":true,"subjectId":true,"careerId":true,"dates":true,"startsAt":true,"endsAt":true,"participants":true,"groups":true,"areaId":true,"answers":true,"notes":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":240,"b":252}]},{"name":"number","required":true,"transform":{"type":"scalar"},"locs":[{"a":255,"b":262}]},{"name":"formId","required":true,"transform":{"type":"scalar"},"locs":[{"a":265,"b":272}]},{"name":"formRevision","required":true,"transform":{"type":"scalar"},"locs":[{"a":275,"b":288}]},{"name":"requesterId","required":true,"transform":{"type":"scalar"},"locs":[{"a":291,"b":303}]},{"name":"title","required":false,"transform":{"type":"scalar"},"locs":[{"a":306,"b":311}]},{"name":"teacherName","required":false,"transform":{"type":"scalar"},"locs":[{"a":314,"b":325}]},{"name":"activityType","required":false,"transform":{"type":"scalar"},"locs":[{"a":328,"b":340}]},{"name":"subjectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":343,"b":352}]},{"name":"careerId","required":false,"transform":{"type":"scalar"},"locs":[{"a":357,"b":365}]},{"name":"dates","required":true,"transform":{"type":"scalar"},"locs":[{"a":368,"b":374}]},{"name":"startsAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":385,"b":393}]},{"name":"endsAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":402,"b":408}]},{"name":"participants","required":false,"transform":{"type":"scalar"},"locs":[{"a":417,"b":429}]},{"name":"groups","required":true,"transform":{"type":"scalar"},"locs":[{"a":432,"b":439}]},{"name":"areaId","required":false,"transform":{"type":"scalar"},"locs":[{"a":442,"b":448}]},{"name":"answers","required":true,"transform":{"type":"scalar"},"locs":[{"a":451,"b":459}]},{"name":"notes","required":false,"transform":{"type":"scalar"},"locs":[{"a":469,"b":474}]}],"statement":"INSERT INTO labs.requests (workspace_id, number, form_id, form_revision, requester_principal_id, title, teacher_name,\n  activity_type, subject_id, career_id, dates, starts_at, ends_at, participants, groups, area_id, answers, notes)\nVALUES (:workspaceId!, :number!, :formId!, :formRevision!, :requesterId!, :title, :teacherName, :activityType, :subjectId,\n  :careerId, :dates!::date[], :startsAt::time, :endsAt::time, :participants, :groups!, :areaId, :answers!::jsonb, :notes)\nRETURNING id"};
+const insertRequestIR: any = {"usedParamSet":{"workspaceId":true,"formId":true,"formRevision":true,"requesterId":true,"title":true,"teacherName":true,"activityType":true,"subjectId":true,"careerId":true,"dates":true,"startsAt":true,"endsAt":true,"participants":true,"groups":true,"answers":true,"notes":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":223,"b":235}]},{"name":"formId","required":true,"transform":{"type":"scalar"},"locs":[{"a":238,"b":245}]},{"name":"formRevision","required":true,"transform":{"type":"scalar"},"locs":[{"a":248,"b":261}]},{"name":"requesterId","required":true,"transform":{"type":"scalar"},"locs":[{"a":264,"b":276}]},{"name":"title","required":false,"transform":{"type":"scalar"},"locs":[{"a":279,"b":284}]},{"name":"teacherName","required":false,"transform":{"type":"scalar"},"locs":[{"a":287,"b":298}]},{"name":"activityType","required":false,"transform":{"type":"scalar"},"locs":[{"a":301,"b":313}]},{"name":"subjectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":316,"b":325}]},{"name":"careerId","required":false,"transform":{"type":"scalar"},"locs":[{"a":330,"b":338}]},{"name":"dates","required":true,"transform":{"type":"scalar"},"locs":[{"a":341,"b":347}]},{"name":"startsAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":358,"b":366}]},{"name":"endsAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":375,"b":381}]},{"name":"participants","required":false,"transform":{"type":"scalar"},"locs":[{"a":390,"b":402}]},{"name":"groups","required":true,"transform":{"type":"scalar"},"locs":[{"a":405,"b":412}]},{"name":"answers","required":true,"transform":{"type":"scalar"},"locs":[{"a":415,"b":423}]},{"name":"notes","required":false,"transform":{"type":"scalar"},"locs":[{"a":433,"b":438}]}],"statement":"INSERT INTO labs.requests (workspace_id, form_id, form_revision, requester_principal_id, title, teacher_name,\n  activity_type, subject_id, career_id, dates, starts_at, ends_at, participants, groups, answers, notes)\nVALUES (:workspaceId!, :formId!, :formRevision!, :requesterId!, :title, :teacherName, :activityType, :subjectId,\n  :careerId, :dates!::date[], :startsAt::time, :endsAt::time, :participants, :groups!, :answers!::jsonb, :notes)\nRETURNING id"};
 
 /**
  * Query generated from SQL:
  * ```
- * INSERT INTO labs.requests (workspace_id, number, form_id, form_revision, requester_principal_id, title, teacher_name,
- *   activity_type, subject_id, career_id, dates, starts_at, ends_at, participants, groups, area_id, answers, notes)
- * VALUES (:workspaceId!, :number!, :formId!, :formRevision!, :requesterId!, :title, :teacherName, :activityType, :subjectId,
- *   :careerId, :dates!::date[], :startsAt::time, :endsAt::time, :participants, :groups!, :areaId, :answers!::jsonb, :notes)
+ * INSERT INTO labs.requests (workspace_id, form_id, form_revision, requester_principal_id, title, teacher_name,
+ *   activity_type, subject_id, career_id, dates, starts_at, ends_at, participants, groups, answers, notes)
+ * VALUES (:workspaceId!, :formId!, :formRevision!, :requesterId!, :title, :teacherName, :activityType, :subjectId,
+ *   :careerId, :dates!::date[], :startsAt::time, :endsAt::time, :participants, :groups!, :answers!::jsonb, :notes)
  * RETURNING id
  * ```
  */
@@ -165,7 +131,6 @@ export interface IListRequestsParams {
 export interface IListRequestsResult {
   activity_type: string | null;
   answers: Json;
-  area_id: string | null;
   block_closed: booleanArray;
   block_codes: stringArray;
   block_ids: stringArray;
@@ -182,7 +147,6 @@ export interface IListRequestsResult {
   late: boolean;
   layout: Json;
   notes: string | null;
-  number: number;
   participants: number | null;
   requester_name: string;
   requester_principal_id: string;
@@ -202,7 +166,7 @@ export interface IListRequestsQuery {
   result: IListRequestsResult;
 }
 
-const listRequestsIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true,"requesterId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2332,"b":2344}]},{"name":"requestId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2363,"b":2372},{"a":2404,"b":2413}]},{"name":"requesterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2438,"b":2449},{"a":2501,"b":2512}]}],"statement":"-- Con :requestId, solo esa (quién la ve lo decide el comando). Si no, con :requesterId, las de esa persona\n-- (borradores incluidos), o las recibidas: sin borradores. Activas primero y, dentro, por la fecha más próxima.\nSELECT\n  q.id, q.number, q.status, q.form_id, q.form_revision, f.name AS form_name, r.title AS form_title, r.document_code,\n  r.layout, q.requester_principal_id, coalesce(ident.display_name, '') AS \"requester_name!\",\n  q.title, q.teacher_name, q.activity_type, subject.name AS \"subject?\", career.name AS \"career?\",\n  q.dates::text[] AS \"dates!\", to_char(q.starts_at, 'HH24:MI') AS starts_at, to_char(q.ends_at, 'HH24:MI') AS ends_at,\n  q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version,\n  ARRAY(SELECT a.on_date::text FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"scheduled_dates!\",\n  ARRAY(SELECT a.code FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"block_codes!\",\n  -- Sus bloques y si están cerrados: con todas las fechas programadas, la marca de cada línea sale de lo apartado.\n  ARRAY(SELECT a.id FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"block_ids!\",\n  ARRAY(SELECT a.stage = 'closed' FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"block_closed!\"\nFROM labs.requests AS q\nJOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id\nJOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision\nLEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id\nLEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = q.workspace_id AND pr.id = q.requester_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE q.workspace_id = :workspaceId!\n  AND (CASE WHEN :requestId::uuid IS NOT NULL THEN q.id = :requestId::uuid\n            WHEN :requesterId::uuid IS NOT NULL THEN q.requester_principal_id = :requesterId::uuid\n            ELSE q.status <> 'draft' END)\nORDER BY q.status IN ('rejected', 'cancelled'), q.dates[1] NULLS LAST, q.number DESC\nLIMIT 500"};
+const listRequestsIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true,"requesterId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":2311,"b":2323}]},{"name":"requestId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2342,"b":2351},{"a":2383,"b":2392}]},{"name":"requesterId","required":false,"transform":{"type":"scalar"},"locs":[{"a":2417,"b":2428},{"a":2480,"b":2491}]}],"statement":"-- Con :requestId, solo esa (quién la ve lo decide el comando). Si no, con :requesterId, las de esa persona\n-- (borradores incluidos), o las recibidas: sin borradores. Activas primero y, dentro, por la fecha más próxima.\nSELECT\n  q.id, q.status, q.form_id, q.form_revision, f.name AS form_name, r.title AS form_title, r.document_code,\n  r.layout, q.requester_principal_id, coalesce(ident.display_name, '') AS \"requester_name!\",\n  q.title, q.teacher_name, q.activity_type, subject.name AS \"subject?\", career.name AS \"career?\",\n  q.dates::text[] AS \"dates!\", to_char(q.starts_at, 'HH24:MI') AS starts_at, to_char(q.ends_at, 'HH24:MI') AS ends_at,\n  q.participants, q.groups, q.answers, q.notes, q.late, q.submitted_at, q.version,\n  ARRAY(SELECT a.on_date::text FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"scheduled_dates!\",\n  ARRAY(SELECT a.code FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"block_codes!\",\n  -- Sus bloques y si están cerrados: con todas las fechas programadas, la marca de cada línea sale de lo apartado.\n  ARRAY(SELECT a.id FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"block_ids!\",\n  ARRAY(SELECT a.stage = 'closed' FROM labs.activities AS a\n    WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS \"block_closed!\"\nFROM labs.requests AS q\nJOIN labs.forms AS f ON f.workspace_id = q.workspace_id AND f.id = q.form_id\nJOIN labs.form_revisions AS r ON r.workspace_id = q.workspace_id AND r.form_id = q.form_id AND r.revision = q.form_revision\nLEFT JOIN labs.list_values AS subject ON subject.workspace_id = q.workspace_id AND subject.id = q.subject_id\nLEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id\nLEFT JOIN core.principals AS pr ON pr.workspace_id = q.workspace_id AND pr.id = q.requester_principal_id\nLEFT JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\nLEFT JOIN core.identities AS ident ON ident.id = m.identity_id\nWHERE q.workspace_id = :workspaceId!\n  AND (CASE WHEN :requestId::uuid IS NOT NULL THEN q.id = :requestId::uuid\n            WHEN :requesterId::uuid IS NOT NULL THEN q.requester_principal_id = :requesterId::uuid\n            ELSE q.status <> 'draft' END)\nORDER BY q.status IN ('rejected', 'cancelled'), q.dates[1] NULLS LAST, q.created_at DESC\nLIMIT 500"};
 
 /**
  * Query generated from SQL:
@@ -210,11 +174,11 @@ const listRequestsIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true
  * -- Con :requestId, solo esa (quién la ve lo decide el comando). Si no, con :requesterId, las de esa persona
  * -- (borradores incluidos), o las recibidas: sin borradores. Activas primero y, dentro, por la fecha más próxima.
  * SELECT
- *   q.id, q.number, q.status, q.form_id, q.form_revision, f.name AS form_name, r.title AS form_title, r.document_code,
+ *   q.id, q.status, q.form_id, q.form_revision, f.name AS form_name, r.title AS form_title, r.document_code,
  *   r.layout, q.requester_principal_id, coalesce(ident.display_name, '') AS "requester_name!",
  *   q.title, q.teacher_name, q.activity_type, subject.name AS "subject?", career.name AS "career?",
  *   q.dates::text[] AS "dates!", to_char(q.starts_at, 'HH24:MI') AS starts_at, to_char(q.ends_at, 'HH24:MI') AS ends_at,
- *   q.participants, q.groups, q.area_id, q.answers, q.notes, q.late, q.submitted_at, q.version,
+ *   q.participants, q.groups, q.answers, q.notes, q.late, q.submitted_at, q.version,
  *   ARRAY(SELECT a.on_date::text FROM labs.activities AS a
  *     WHERE a.workspace_id = q.workspace_id AND a.request_id = q.id AND a.cancelled_at IS NULL ORDER BY a.on_date) AS "scheduled_dates!",
  *   ARRAY(SELECT a.code FROM labs.activities AS a
@@ -236,7 +200,7 @@ const listRequestsIR: any = {"usedParamSet":{"workspaceId":true,"requestId":true
  *   AND (CASE WHEN :requestId::uuid IS NOT NULL THEN q.id = :requestId::uuid
  *             WHEN :requesterId::uuid IS NOT NULL THEN q.requester_principal_id = :requesterId::uuid
  *             ELSE q.status <> 'draft' END)
- * ORDER BY q.status IN ('rejected', 'cancelled'), q.dates[1] NULLS LAST, q.number DESC
+ * ORDER BY q.status IN ('rejected', 'cancelled'), q.dates[1] NULLS LAST, q.created_at DESC
  * LIMIT 500
  * ```
  */
@@ -450,41 +414,10 @@ const listValuesIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name"
 export const listValues = new PreparedQuery<IListValuesParams,IListValuesResult>(listValuesIR);
 
 
-/** 'ActiveSpace' parameters type */
-export interface IActiveSpaceParams {
-  areaId: string;
-  workspaceId: string;
-}
-
-/** 'ActiveSpace' return type */
-export interface IActiveSpaceResult {
-  found: number;
-}
-
-/** 'ActiveSpace' query type */
-export interface IActiveSpaceQuery {
-  params: IActiveSpaceParams;
-  result: IActiveSpaceResult;
-}
-
-const activeSpaceIR: any = {"usedParamSet":{"workspaceId":true,"areaId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":59,"b":71}]},{"name":"areaId","required":true,"transform":{"type":"scalar"},"locs":[{"a":87,"b":94}]}],"statement":"SELECT 1 AS \"found!\"\nFROM labs.spaces\nWHERE workspace_id = :workspaceId! AND area_id = :areaId! AND archived_at IS NULL"};
-
-/**
- * Query generated from SQL:
- * ```
- * SELECT 1 AS "found!"
- * FROM labs.spaces
- * WHERE workspace_id = :workspaceId! AND area_id = :areaId! AND archived_at IS NULL
- * ```
- */
-export const activeSpace = new PreparedQuery<IActiveSpaceParams,IActiveSpaceResult>(activeSpaceIR);
-
-
 /** 'WriteRequest' parameters type */
 export interface IWriteRequestParams {
   activityType?: string | null | void;
   answers: Json;
-  areaId?: string | null | void;
   careerId?: string | null | void;
   dates: stringArray;
   endsAt?: DateOrString | null | void;
@@ -508,7 +441,7 @@ export interface IWriteRequestQuery {
   result: IWriteRequestResult;
 }
 
-const writeRequestIR: any = {"usedParamSet":{"title":true,"teacherName":true,"activityType":true,"subjectId":true,"careerId":true,"dates":true,"startsAt":true,"endsAt":true,"participants":true,"groups":true,"areaId":true,"answers":true,"notes":true,"workspaceId":true,"requestId":true},"params":[{"name":"title","required":false,"transform":{"type":"scalar"},"locs":[{"a":33,"b":38}]},{"name":"teacherName","required":false,"transform":{"type":"scalar"},"locs":[{"a":56,"b":67}]},{"name":"activityType","required":false,"transform":{"type":"scalar"},"locs":[{"a":86,"b":98}]},{"name":"subjectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":114,"b":123}]},{"name":"careerId","required":false,"transform":{"type":"scalar"},"locs":[{"a":140,"b":148}]},{"name":"dates","required":true,"transform":{"type":"scalar"},"locs":[{"a":159,"b":165}]},{"name":"startsAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":188,"b":196}]},{"name":"endsAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":215,"b":221}]},{"name":"participants","required":false,"transform":{"type":"scalar"},"locs":[{"a":247,"b":259}]},{"name":"groups","required":true,"transform":{"type":"scalar"},"locs":[{"a":271,"b":278}]},{"name":"areaId","required":false,"transform":{"type":"scalar"},"locs":[{"a":291,"b":297}]},{"name":"answers","required":true,"transform":{"type":"scalar"},"locs":[{"a":310,"b":318}]},{"name":"notes","required":false,"transform":{"type":"scalar"},"locs":[{"a":336,"b":341}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":389,"b":401}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":412,"b":422}]}],"statement":"UPDATE labs.requests\nSET title = :title, teacher_name = :teacherName, activity_type = :activityType, subject_id = :subjectId,\n  career_id = :careerId, dates = :dates!::date[], starts_at = :startsAt::time, ends_at = :endsAt::time,\n  participants = :participants, groups = :groups!, area_id = :areaId, answers = :answers!::jsonb, notes = :notes,\n  version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :requestId!"};
+const writeRequestIR: any = {"usedParamSet":{"title":true,"teacherName":true,"activityType":true,"subjectId":true,"careerId":true,"dates":true,"startsAt":true,"endsAt":true,"participants":true,"groups":true,"answers":true,"notes":true,"workspaceId":true,"requestId":true},"params":[{"name":"title","required":false,"transform":{"type":"scalar"},"locs":[{"a":33,"b":38}]},{"name":"teacherName","required":false,"transform":{"type":"scalar"},"locs":[{"a":56,"b":67}]},{"name":"activityType","required":false,"transform":{"type":"scalar"},"locs":[{"a":86,"b":98}]},{"name":"subjectId","required":false,"transform":{"type":"scalar"},"locs":[{"a":114,"b":123}]},{"name":"careerId","required":false,"transform":{"type":"scalar"},"locs":[{"a":140,"b":148}]},{"name":"dates","required":true,"transform":{"type":"scalar"},"locs":[{"a":159,"b":165}]},{"name":"startsAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":188,"b":196}]},{"name":"endsAt","required":false,"transform":{"type":"scalar"},"locs":[{"a":215,"b":221}]},{"name":"participants","required":false,"transform":{"type":"scalar"},"locs":[{"a":247,"b":259}]},{"name":"groups","required":true,"transform":{"type":"scalar"},"locs":[{"a":271,"b":278}]},{"name":"answers","required":true,"transform":{"type":"scalar"},"locs":[{"a":291,"b":299}]},{"name":"notes","required":false,"transform":{"type":"scalar"},"locs":[{"a":317,"b":322}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":370,"b":382}]},{"name":"requestId","required":true,"transform":{"type":"scalar"},"locs":[{"a":393,"b":403}]}],"statement":"UPDATE labs.requests\nSET title = :title, teacher_name = :teacherName, activity_type = :activityType, subject_id = :subjectId,\n  career_id = :careerId, dates = :dates!::date[], starts_at = :startsAt::time, ends_at = :endsAt::time,\n  participants = :participants, groups = :groups!, answers = :answers!::jsonb, notes = :notes,\n  version = version + 1\nWHERE workspace_id = :workspaceId! AND id = :requestId!"};
 
 /**
  * Query generated from SQL:
@@ -516,7 +449,7 @@ const writeRequestIR: any = {"usedParamSet":{"title":true,"teacherName":true,"ac
  * UPDATE labs.requests
  * SET title = :title, teacher_name = :teacherName, activity_type = :activityType, subject_id = :subjectId,
  *   career_id = :careerId, dates = :dates!::date[], starts_at = :startsAt::time, ends_at = :endsAt::time,
- *   participants = :participants, groups = :groups!, area_id = :areaId, answers = :answers!::jsonb, notes = :notes,
+ *   participants = :participants, groups = :groups!, answers = :answers!::jsonb, notes = :notes,
  *   version = version + 1
  * WHERE workspace_id = :workspaceId! AND id = :requestId!
  * ```

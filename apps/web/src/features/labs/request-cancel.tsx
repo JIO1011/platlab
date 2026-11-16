@@ -4,6 +4,7 @@ import { isApiError } from '../../app/api';
 import { ConfirmArchive } from '../../app/confirm-archive';
 import { labsErrorMessage, useCancelRequest, useVersionConflict } from './commands';
 import type { RequestView } from './request-draft';
+import { titleText } from './request-summary';
 
 /** Cancelar la solicitud con su confirmación aquí mismo: no se deshace desde esta pantalla. */
 export function CancelRequest({ workspaceId, request, onDismiss }: { workspaceId: string; request: RequestView; onDismiss: () => void }) {
@@ -14,7 +15,7 @@ export function CancelRequest({ workspaceId, request, onDismiss }: { workspaceId
     setError(null);
     try {
       await cancel.mutateAsync({ expectedVersion: request.version });
-      toast.success('Solicitud cancelada', { description: request.code });
+      toast.success('Solicitud cancelada', { description: titleText(request) });
     } catch (failure) {
       if (isApiError(failure, 'VERSION_CONFLICT')) {
         void conflict('esta solicitud');
@@ -26,8 +27,8 @@ export function CancelRequest({ workspaceId, request, onDismiss }: { workspaceId
   };
   return (
     <ConfirmArchive
-      label={`Cancelar la solicitud ${request.code}`}
-      text={`${request.code} quedará cancelada y ya no se podrá abrir para editarla. Si después la necesitas, duplícala desde Mis solicitudes.`}
+      label={`Cancelar la solicitud «${titleText(request)}»`}
+      text={`«${titleText(request)}» quedará cancelada y ya no se podrá abrir para editarla. Si después la necesitas, duplícala desde Mis solicitudes.`}
       action="Cancelar solicitud"
       dismiss="Conservarla"
       pending={cancel.isPending}

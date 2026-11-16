@@ -1,7 +1,6 @@
 import type pg from 'pg';
 import type { z } from 'zod';
 import {
-  requestCode,
   type ActivityStage,
   type LabsRequest,
   type RequestLine,
@@ -104,8 +103,6 @@ const exceptionsOf = (lines: readonly RequestLine[]) => lines.filter((line) => l
 function toSummary(row: IListRequestsResult, lines: readonly RequestLine[]): RequestSummary {
   return {
     id: row.id,
-    number: row.number,
-    code: requestCode(row.number),
     status: row.status as RequestStatus,
     formName: row.form_name,
     title: row.title,
@@ -123,7 +120,6 @@ function toSummary(row: IListRequestsResult, lines: readonly RequestLine[]): Req
     participants: row.participants,
     subject: row.subject,
     group: row.career,
-    areaId: row.area_id,
     submittedAt: row.submitted_at?.toISOString() ?? null,
     version: row.version,
   };

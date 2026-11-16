@@ -55,7 +55,6 @@ const space = (overrides: Partial<Space> = {}): Space => ({
 const activity = (overrides: Partial<Activity> = {}): Activity => ({
   id: 'a-1',
   requestId: 'r-1',
-  requestCode: 'SOL-0001',
   title: 'Titulación ácido-base',
   requesterName: 'Ana Pérez',
   subject: null,

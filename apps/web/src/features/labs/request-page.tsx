@@ -6,7 +6,7 @@ import { WithBack } from '../../app/back-button';
 import { SectionHeader } from '../../app/section-header';
 import { QueryErrorState } from '../../app/states';
 import { useLabs } from './context';
-import { useRequest, useSpaces } from './queries';
+import { useRequest } from './queries';
 import { CancelRequest } from './request-cancel';
 import { RequestEditor } from './request-editor';
 import type { RequestView } from './request-draft';
@@ -33,7 +33,6 @@ function ChangesNotice({ request }: { request: RequestView }) {
  */
 function RequestSheet({ request }: { request: RequestView }) {
   const { workspaceId, canOperate } = useLabs();
-  const spaces = useSpaces(workspaceId);
   const [cancelling, setCancelling] = useState(false);
   const editable = canOperate && request.mine && REQUEST_EDITABLE.includes(request.status);
   const cancellable = canOperate && request.mine && REQUEST_CANCELLABLE.includes(request.status);
@@ -49,7 +48,7 @@ function RequestSheet({ request }: { request: RequestView }) {
       </RequestHeading>
       {cancelling && cancellable && !editable ? <CancelRequest workspaceId={workspaceId} request={request} onDismiss={() => setCancelling(false)} /> : null}
       <ChangesNotice request={request} />
-      {editable ? <RequestEditor request={request} spaces={spaces.data?.items ?? []} /> : <FilledRequest request={request} />}
+      {editable ? <RequestEditor request={request} /> : <FilledRequest request={request} />}
     </div>
   );
 }

@@ -3,11 +3,13 @@ import { captureElement, expectAccessible, signIn } from './helpers';
 
 /**
  * Recorrido de Laboratorios para G0 (ADR 0023, «G0 de Laboratorios») con las cuentas de la demo sintética
- * (supabase/seeds/demo.sql), todas en el espacio A: el Docente pide una práctica, la Administradora la aprueba y el
- * Operador la prepara, cierra la que está en curso y reporta una incidencia desde una práctica cerrada.
+ * (supabase/seeds/demo.sql), todas en el espacio A: el Docente pide una práctica, la Administradora la programa en el
+ * Cronograma (eso la aprueba) y el Operador la prepara, cierra la que está en curso y reporta una incidencia desde una
+ * práctica cerrada.
  *
- * Los pasos 4 y 5 usan SOL-0011 y SOL-0012, que solo existen tal como los deja la demo recién cargada: corre
- * `pnpm db:reset` antes (como en el CI). El paso 4 cierra SOL-0012 para siempre, así que no se repite sin recargar.
+ * Los pasos 4 y 5 usan «Destilación simple» (en curso hoy) y «Medición de densidad» (cerrada ayer), que solo existen
+ * tal como los deja la demo recién cargada: corre `pnpm db:reset` antes (como en el CI). El paso 4 cierra «Destilación
+ * simple» para siempre, así que no se repite sin recargar.
  */
 const suffix = Date.now().toString(36).toUpperCase();
 const title = `Prueba de laboratorio ${suffix}`;
@@ -67,8 +69,6 @@ test('solicitante, Administradora y responsable llevan una práctica de Laborato
   await teacher.getByRole('option', { name: 'Química General' }).click();
   await teacher.getByRole('combobox', { name: 'Carrera' }).click();
   await teacher.getByRole('option', { name: 'Bioquímica' }).click();
-  await teacher.getByRole('combobox', { name: 'Área(opcional)' }).click();
-  await teacher.getByRole('option', { name: /Laboratorio de Química/ }).click();
   await teacher.getByLabel('Fecha por agregar').fill(slot.date);
   await teacher.getByRole('button', { name: 'Agregar la fecha' }).click();
   await teacher.getByLabel('Hora de inicio').fill(slot.start);
@@ -94,10 +94,8 @@ test('solicitante, Administradora y responsable llevan una práctica de Laborato
   await expect(teacher.getByText('Enviada', { exact: true }).first()).toBeVisible();
   await expect(teacher.getByRole('dialog', { name: 'Antes de enviar' })).toBeHidden();
   await expectAccessible(teacher, 'Docente: solicitud enviada');
-  const code = (await teacher.getByText(/^SOL-\d{4}$/).first().textContent()) ?? '';
-  expect(code).toMatch(/^SOL-\d{4}$/);
 
-  // 2. La Administradora la ve en Recibidas y la aprueba.
+  // 2. La Administradora la ve en Recibidas y la programa en el Cronograma: ahí elige el área (eso la aprueba).
   const admin = await signIn(browser, 'admin@demo.platlab.test');
   await admin.waitForURL(/\/e\//);
   await admin.goto(`${labs}/recibidas`);
@@ -106,7 +104,15 @@ test('solicitante, Administradora y responsable llevan una práctica de Laborato
   await admin.getByRole('link', { name: title, exact: true }).click();
   await expect(admin.getByRole('heading', { name: 'Práctica académica', level: 1 })).toBeVisible();
   await expectAccessible(admin, 'Administradora: solicitud recibida');
-  await admin.getByRole('button', { name: 'Aprobar', exact: true }).click();
+  await admin.getByRole('link', { name: 'Programar en el Cronograma' }).click();
+  await expect(admin).toHaveURL(new RegExp(`cronograma\\?dia=${slot.date}`));
+  await admin.getByRole('button', { name: new RegExp(`^Programar… .*Diego Docente, .*${slot.start}`) }).first().click();
+  const placement = admin.getByRole('dialog', { name: 'Programar' });
+  await placement.getByRole('combobox', { name: 'Área' }).click();
+  await admin.getByRole('option', { name: /Laboratorio de Química/ }).click();
+  await placement.getByRole('button', { name: 'Programar', exact: true }).click();
+  await expect(placement).toBeHidden();
+  await openReceived(admin, title);
   const held = admin.getByRole('region', { name: 'Lo apartado' });
   await expect(held).toBeVisible();
   await expect(admin.getByText('Programada', { exact: true }).first()).toBeVisible();
@@ -134,7 +140,7 @@ test('solicitante, Administradora y responsable llevan una práctica de Laborato
   await expectAccessible(operator, 'Operador: bloque listo');
   await captureElement(block, 'labs-bloque-acciones');
 
-  // 4. SOL-0012 está en curso hoy: «Cerrar práctica» con observaciones (necesita la demo recién cargada).
+  // 4. «Destilación simple» está en curso hoy: «Cerrar práctica» con observaciones (necesita la demo recién cargada).
   await openReceived(operator, 'Destilación simple');
   await expect(operator.getByText('En curso', { exact: true })).toBeVisible();
   await operator.getByRole('button', { name: 'Cerrar práctica' }).click();
@@ -159,7 +165,7 @@ test('solicitante, Administradora y responsable llevan una práctica de Laborato
   await expectAccessible(operator, 'Operador: Cronograma con etapas');
   await captureElement(operator.getByRole('main'), 'labs-cronograma-etapas');
 
-  // 5. Desde SOL-0011 (cerrada), «Reportar incidencia» de su balanza; nace en Equipos con el vínculo a la práctica.
+  // 5. Desde «Medición de densidad» (cerrada), «Reportar incidencia» de su balanza; nace en Equipos con el vínculo a la práctica.
   await openReceived(operator, 'Medición de densidad');
   await operator.getByRole('button', { name: 'Reportar incidencia' }).click();
   const incident = operator.getByRole('dialog', { name: 'Reportar incidencia' });
@@ -187,7 +193,7 @@ test('solicitante, Administradora y responsable llevan una práctica de Laborato
   await operator.getByRole('tab', { name: 'Reservas' }).click();
   const bookings = operator.getByRole('tabpanel', { name: 'Reservas' });
   await expect(bookings).toBeVisible();
-  // La balanza está apartada en SOL-0001 (la semana del código depende de la fecha de la demo).
+  // La balanza está apartada en «Titulación ácido-base» (la semana del código depende de la fecha de la demo).
   await expect(bookings.getByRole('listitem').first()).toContainText(/P1-S\d+-QUI\d+/);
   await expectAccessible(operator, 'Operador: pestaña Reservas');
   await captureElement(bookings, 'labs-reservas-equipo');

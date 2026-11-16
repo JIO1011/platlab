@@ -2,8 +2,8 @@ import type { RequestSummary } from '@platlab/contracts';
 import { ChevronDown } from 'lucide-react';
 import { Fragment, useId, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { CodeTag } from '../../app/code-tag';
-import { RequestBadges } from './request-status';
+import { PracticeCode, RequestBadges } from './request-status';
+import { titleText } from './request-summary';
 import { softCard } from './style';
 
 /** Un dato por línea en el móvil y todos en una, separados por puntos, desde `sm`. */
@@ -104,12 +104,12 @@ export function RequestItem({
     <li className="relative flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-6 py-4 transition-colors hover:bg-action-soft/60 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-action sm:px-8">
       <div className="grid min-w-0 flex-1 basis-56 gap-1.5">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <CodeTag>{request.code}</CodeTag>
+          <PracticeCode codes={request.blockCodes} />
           <Link
             to={to}
             className={`min-w-0 break-words after:absolute after:inset-0 focus-visible:outline-none ${request.title ? 'text-[15px] font-semibold text-ink' : 'text-ink-muted'}`}
           >
-            {request.title ?? 'Sin título'}
+            {titleText(request)}
           </Link>
         </p>
         <Facts facts={facts} />

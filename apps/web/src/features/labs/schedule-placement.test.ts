@@ -52,7 +52,6 @@ const closure = (overrides: Partial<Closure> = {}): Closure => ({
 const activity = (overrides: Partial<Activity> = {}): Activity => ({
   id: 'a-1',
   requestId: 'r-1',
-  requestCode: 'SOL-0001',
   title: 'Titulación',
   requesterName: 'Ana Pérez',
   subject: null,
@@ -73,8 +72,6 @@ const activity = (overrides: Partial<Activity> = {}): Activity => ({
 
 const summary = (overrides: Partial<RequestSummary> = {}): RequestSummary => ({
   id: 'r-1',
-  number: 1,
-  code: 'SOL-0001',
   status: 'submitted',
   formName: 'P69',
   title: 'Titulación',
@@ -92,7 +89,6 @@ const summary = (overrides: Partial<RequestSummary> = {}): RequestSummary => ({
   participants: 20,
   subject: null,
   group: null,
-  areaId: null,
   submittedAt: '2026-10-20T10:00:00Z',
   version: 1,
   ...overrides,
@@ -190,7 +186,7 @@ describe('bandeja Por programar', () => {
   it('cada solicitud dice «Materia - Carrera - Docente» como lo dirá su bloque', () => {
     expect(requestBlockText(summary({ subject: 'Histología', group: 'Odontología' }))).toBe('Histología - Odontología - Ana Pérez');
     expect(requestBlockText(summary())).toBe('Titulación - Ana Pérez');
-    expect(requestBlockText(summary({ title: null }))).toBe('SOL-0001 - Ana Pérez');
+    expect(requestBlockText(summary({ title: null }))).toBe('Sin título - Ana Pérez');
   });
 
   it('solo cuentan las enviadas con fechas sin bloque', () => {

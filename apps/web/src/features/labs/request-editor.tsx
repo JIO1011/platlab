@@ -1,9 +1,8 @@
-import { saveRequestRequest, type Space } from '@platlab/contracts';
-import { Button, Field, Select, cn, toast } from '@platlab/ui';
+import { saveRequestRequest } from '@platlab/contracts';
+import { Button, cn, toast } from '@platlab/ui';
 import { useMemo, useState } from 'react';
 import { useDebouncedValue } from '../../app/use-media-query';
 import { isApiError } from '../../app/api';
-import { filled } from '../../app/filled';
 import { todayInZone } from '../../app/format';
 import { labsErrorMessage, useSaveRequest, useSubmitRequest, useVersionConflict } from './commands';
 import { useLabs } from './context';
@@ -16,6 +15,7 @@ import { draftFrom, paperOf, sameDraft, saveBody, type RequestDraft, type Reques
 import { missingKeys, noIssues, requestIssues, type RequestIssues } from './request-draft-issues';
 import { RequestHistory } from './request-history';
 import { FillRows } from './request-lines';
+import { titleText } from './request-summary';
 import { reviewRows, type ReviewRow } from './send-review';
 import { SendReviewSheet } from './send-review-sheet';
 
@@ -26,24 +26,6 @@ interface Edit {
 }
 
 const alertClass = 'rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger';
-const NO_AREA = 'none';
-
-/** El área, que la hoja no tiene donde poner: una fila delgada y opcional sobre ella; su ayuda va como texto para lectores de pantalla. */
-function AreaBar({ draft, spaces, error, onChange }: { draft: RequestDraft; spaces: readonly Space[]; error: string | undefined; onChange: (areaId: string | null) => void }) {
-  const areas = spaces.filter((space) => space.archivedAt === null && !space.areaArchived);
-  return (
-    <Field label="Área" optional error={error} className="w-64 max-w-full">
-      <Select
-        value={draft.areaId ?? NO_AREA}
-        onValueChange={(value) => onChange(value === NO_AREA ? null : value)}
-        placeholder="Sin área"
-        triggerClassName={filled}
-        options={[{ value: NO_AREA, label: 'Sin área' }, ...areas.map((space) => ({ value: space.areaId, label: space.areaName, ...(space.groupName ? { detail: space.groupName } : {}) }))]}
-      />
-      <span className="sr-only">Dónde se hará la actividad, entre las áreas habilitadas para prácticas.</span>
-    </Field>
-  );
-}
 
 /**
  * El llenado de una solicitud sobre la hoja del formato (ADR 0023): cada dato es un control dentro de su celda y los
@@ -51,7 +33,7 @@ function AreaBar({ draft, spaces, error, onChange }: { draft: RequestDraft; spac
  * que el servidor confirma «Guardar borrador» o «Enviar», que guarda lo pendiente y envía. Si otra persona la cambió antes,
  * el servidor lo rechaza y se carga la vigente. Las obligatorias vacías se marcan solo al intentar enviar.
  */
-export function RequestEditor({ request, spaces }: { request: RequestView; spaces: readonly Space[] }) {
+export function RequestEditor({ request }: { request: RequestView }) {
   const { workspaceId, me } = useLabs();
   const options = useRequestOptions(workspaceId);
   const save = useSaveRequest(workspaceId, request.id);
@@ -113,7 +95,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
   };
 
   const saveDraft = async () => {
-    if ((await persist()) !== null) toast.success('Borrador guardado', { description: request.code });
+    if ((await persist()) !== null) toast.success('Borrador guardado', { description: titleText(request) });
   };
 
   const send = async () => {
@@ -141,7 +123,7 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
     try {
       await submit.mutateAsync({ expectedVersion: version });
       setReview(null);
-      toast.success('Solicitud enviada', { description: request.code });
+      toast.success('Solicitud enviada', { description: titleText(request) });
     } catch (failure) {
       setReview(null);
       fail(failure);
@@ -178,7 +160,6 @@ export function RequestEditor({ request, spaces }: { request: RequestView; space
           {error}
         </p>
       ) : null}
-      <AreaBar draft={shown} spaces={spaces} error={issues.fields['areaId']} onChange={(areaId) => change({ areaId })} />
       {check.isError ? (
         <p role="status" className="flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted print:hidden">
           No se pudo comprobar lo libre del catálogo; puedes seguir llenando.

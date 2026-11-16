@@ -37,7 +37,6 @@ export function checkPlan(draft: RequestDraft, layout: FormLayout): CheckPlan | 
     endsAt: slot ? draft.endsAt : null,
     participants: whole(draft.participants, 1, 1000),
     groups,
-    areaId: draft.areaId,
     lines: lines.map((line) => line.input),
   });
   return parsed.success ? { body: parsed.data, positions: lines.map((line) => line.index) } : null;
@@ -53,10 +52,10 @@ export function catalogOf(plan: CheckPlan | null, answer: CheckAnswer | undefine
   return plan && answer && scopeKey(answer.body) === scopeKey(plan.body) ? answer.result.catalog : null;
 }
 
-/** Para quién se cuenta lo libre, dicho en una frase: las fechas pendientes y el horario. */
+/** Para cuándo se cuenta lo libre, dicho en una frase: las fechas pendientes y el horario. Sin fechas, nada (se cuenta hoy). */
 export function scopeText(body: CheckRequest | undefined): string {
   const dates = body?.dates ?? [];
-  if (dates.length === 0) return 'Sin fechas todavía: se cuenta lo libre hoy.';
+  if (dates.length === 0) return '';
   const when = dates.length === 1 ? `el ${formatDate(dates[0]!)}` : `tus ${dates.length} fechas`;
   return body?.startsAt && body.endsAt ? `Lo libre para ${when}, de ${body.startsAt} a ${body.endsAt}.` : `Lo libre para ${when}. Sin horario, los equipos se cuentan operativos.`;
 }

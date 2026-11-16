@@ -2,6 +2,9 @@ import type { RequestSummary } from '@platlab/contracts';
 import { fold } from '../../app/fold';
 import { countText, formatDate } from '../../app/format';
 
+/** Cómo se nombra una solicitud: su título o, mientras no lo tiene, «Sin título». */
+export const titleText = ({ title }: Pick<RequestSummary, 'title'>): string => title ?? 'Sin título';
+
 /** La primera fecha de la solicitud y, si hay más, cuántas; «Sin fecha» mientras no lleva ninguna. */
 export const firstDateText = ({ firstDate, dateCount }: Pick<RequestSummary, 'firstDate' | 'dateCount'>): string =>
   firstDate ? `${formatDate(firstDate)}${dateCount > 1 ? ` (+${dateCount - 1} más)` : ''}` : 'Sin fecha';
@@ -63,11 +66,11 @@ export const inboxCounts = (items: readonly RequestSummary[]): Record<InboxFilte
 /** El filtro con que abre Recibidas: lo que espera respuesta si hay algo; si no, todas. */
 export const initialInboxFilter = (items: readonly RequestSummary[]): InboxFilter => (filterInbox(items, 'submitted').length > 0 ? 'submitted' : 'all');
 
-/** Las recibidas cuyo código, título o solicitante contienen lo escrito, sin distinguir mayúsculas ni tildes; sin nada escrito, todas. */
+/** Las recibidas cuyo código de práctica, título o solicitante contienen lo escrito, sin distinguir mayúsculas ni tildes; sin nada escrito, todas. */
 export const searchInbox = (items: readonly RequestSummary[], query: string): RequestSummary[] => {
   const wanted = fold(query.trim());
   if (wanted === '') return [...items];
-  return items.filter((item) => [item.code, item.title ?? '', item.requesterName].some((text) => fold(text).includes(wanted)));
+  return items.filter((item) => [...item.blockCodes, item.title ?? '', item.requesterName].some((text) => fold(text).includes(wanted)));
 };
 
 /** Cuándo es una solicitud en la tabla de Recibidas: la primera fecha, su horario y cuántas fechas más trae. */

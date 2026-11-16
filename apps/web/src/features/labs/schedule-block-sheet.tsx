@@ -32,7 +32,7 @@ export function ActivitySheet({
   onOpenChange: (open: boolean) => void;
 }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title={blockText(activity)} description={`${activity.code} · ${activity.requestCode}`} icon={CalendarClock}>
+    <Sheet open={open} onOpenChange={onOpenChange} title={blockText(activity)} description={activity.code} icon={CalendarClock}>
       <dl className="divide-y divide-line">
         <Fact label="Fecha">{formatFullDate(activity.date)}</Fact>
         <Fact label="Hora">

@@ -2,7 +2,6 @@ import type pg from 'pg';
 import {
   ACTIVITY_CHANGEABLE,
   compareDecimals,
-  requestCode,
   sumDecimals,
   type Activity,
   type ActivityStage,
@@ -66,7 +65,7 @@ export function changeReagentPicks(pool: pg.Pool, request: CommandRequest, activ
       validOn: locked.on_date,
       allocationIds: current.allocationIds,
       picks: input.picks,
-      reason: `Práctica ${requestCode(current.request_number)}`,
+      reason: `Práctica ${current.activity_code}`,
       destination: current.area_name,
       releaseReason: 'Cambio de frascos',
     });

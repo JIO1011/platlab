@@ -90,7 +90,6 @@ export const complete = (request: LabsRequest, dates: string[], extra: Partial<S
   endsAt: '10:00',
   participants: 24,
   groups: 6,
-  areaId: null,
   answers: { practica_n: 3 },
   notes: null,
   lines: [],

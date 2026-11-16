@@ -25,7 +25,6 @@ import { requestableReagents } from '../../reagents/index.js';
 import { getSettings as getSettingsQuery } from '../infrastructure/settings.queries.js';
 import {
   activeFormRevision,
-  activeSpace,
   datesOutsidePeriods,
   deleteRequestLines,
   insertListValue,
@@ -35,7 +34,6 @@ import {
   listRequests as listRequestsQuery,
   listValueNamed,
   lockRequest,
-  nextRequestNumber,
   releaseRequestBlocks,
   requestBlocks,
   requestLines,
@@ -121,10 +119,6 @@ async function fields(access: WorkspaceAccess, layout: FormLayout, input: SaveRe
   const present = systemKeys(layout);
   const answers = requestAnswers(layout).partial().safeParse(input.answers);
   if (!answers.success) throw invalid('Revisa los datos del formato');
-  if (input.areaId) {
-    const [space] = await activeSpace.run({ workspaceId: access.workspace.id, areaId: input.areaId }, access.client);
-    if (!space) throw invalid('Esa área no está habilitada para prácticas');
-  }
   return {
     title: input.title,
     teacherName: input.teacherName,
@@ -136,7 +130,6 @@ async function fields(access: WorkspaceAccess, layout: FormLayout, input: SaveRe
     endsAt: input.endsAt,
     participants: input.participants,
     groups: present.has('grupos') ? input.groups : 1,
-    areaId: input.areaId,
     answers: JSON.stringify(answers.data),
     notes: layout.notes ? input.notes : null,
   };
@@ -155,7 +148,6 @@ export function createRequest(pool: pg.Pool, request: CommandRequest, input: z.i
     const [active] = await activeFormRevision.run({ workspaceId, formId }, access.client);
     if (!active?.revision) throw source ? invalid('El formato de esa solicitud está archivado') : notFound();
     const layout = await layoutOf(access, formId, active.revision);
-    const [{ number }] = (await nextRequestNumber.run({ workspaceId }, access.client)) as [{ number: number }];
     const copy: SaveRequest = {
       expectedVersion: 1,
       title: source?.title ?? null,
@@ -168,13 +160,12 @@ export function createRequest(pool: pg.Pool, request: CommandRequest, input: z.i
       endsAt: source?.endsAt ?? null,
       participants: source?.participants ?? null,
       groups: source?.groups ?? 1,
-      areaId: source?.areaId ?? null,
       answers: copyAnswers(layout, source?.answers ?? {}),
       notes: source?.notes ?? null,
       lines: [],
     };
     const values = await fields(access, layout, copy);
-    const [created] = await insertRequest.run({ workspaceId, number, formId, formRevision: active.revision, requesterId: access.principalId, ...values }, access.client);
+    const [created] = await insertRequest.run({ workspaceId, formId, formRevision: active.revision, requesterId: access.principalId, ...values }, access.client);
     const requestId = created!.id;
     if (source) {
       const lines = await requestLines.run({ workspaceId, requestIds: [source.id] }, access.client);
@@ -188,7 +179,7 @@ export function createRequest(pool: pg.Pool, request: CommandRequest, input: z.i
         access.client,
       );
     }
-    await recordAudit(access, { action: 'labs.request.create', entityType: 'labs.request', entityId: requestId, changes: { number, formId, from: source?.id ?? null } });
+    await recordAudit(access, { action: 'labs.request.create', entityType: 'labs.request', entityId: requestId, changes: { formId, from: source?.id ?? null } });
     return visibleRequest(access, requestId);
   });
 }

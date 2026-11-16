@@ -1,7 +1,5 @@
 import type pg from 'pg';
 import {
-  isoWeekday,
-  scheduleCheck,
   sumDecimals,
   timeText,
   toMinutes,
@@ -10,7 +8,6 @@ import {
   type RequestLine,
   type RequestLineInput,
   type RequestReview,
-  type WeeklyHours,
 } from '@platlab/contracts';
 import { todayIn } from '../../../platform/dates.js';
 import { AppError } from '../../../platform/errors.js';
@@ -18,7 +15,6 @@ import { hasPermission, moduleAdmits, type QueryRequest, type WorkspaceAccess } 
 import { operationalAssetsOfTypes, requestableAssetTypes } from '../../equipment/index.js';
 import { reagentStockBreakdown, reagentStockByArea, requestableReagents } from '../../reagents/index.js';
 import { listRequests } from '../infrastructure/requests.queries.js';
-import { scheduleContext } from '../infrastructure/schedule.queries.js';
 import { busyOn, findingsOf, freeIn, neededOf, validOnOf, type Ask, type Busy } from './availability.js';
 import { REQUEST_CREATE, runQuery } from './command.js';
 import { checkedLines, pendingOf, visibleRequest, type LineRow } from './request-view.js';
@@ -30,17 +26,15 @@ import { checkedLines, pendingOf, visibleRequest, type LineRow } from './request
  * validando lo suyo. Las líneas «sin verificar» no se revisan.
  */
 
-/** Sin laboratorio pedido, las alternativas de un equipo se buscan en el día de la tabla del Cronograma. */
-const DEFAULT_DAY = [{ opens: '07:00', closes: '19:00' }];
+/** Las alternativas de un equipo se buscan en el día de la tabla del Cronograma: el área se elige al programar. */
+const TABLE_DAY = [{ opens: '07:00', closes: '19:00' }];
 const STEP_MINUTES = 30;
 const MAX_ALTERNATIVES = 3;
 
 /** Lo que se revisa, guardado o por guardar: sus líneas ya marcadas por la regla y solo sus fechas pendientes. */
 interface Draft {
-  areaId: string | null;
   startsAt: string | null;
   endsAt: string | null;
-  participants: number | null;
   pending: readonly string[];
   lines: readonly RequestLine[];
 }
@@ -72,34 +66,17 @@ async function reviewDate(
   assets: Awaited<ReturnType<typeof operationalAssetsOfTypes>>,
 ): Promise<RequestReview['dates'][number]> {
   const slot = draft.startsAt && draft.endsAt ? { date, startsAt: draft.startsAt, endsAt: draft.endsAt } : null;
-  const [context] = draft.areaId && slot ? await scheduleContext.run({ workspaceId: access.workspace.id, areaId: draft.areaId, date, exceptId: null }, access.client) : [];
-  const weeklyHours = context?.weekly_hours as WeeklyHours | undefined;
-  const area =
-    context && slot
-      ? (() => {
-          const check = scheduleCheck(slot, {
-            today: todayIn(access.workspace.timeZone),
-            participants: draft.participants ?? 0,
-            space: { capacity: context.capacity, weeklyHours: weeklyHours! },
-            periods: context.periods as Array<{ startsOn: string; endsOn: string }>,
-            closures: context.closures as Array<{ startsOn: string; endsOn: string }>,
-            others: context.others as Array<{ startsAt: string; endsAt: string }>,
-          });
-          return { name: context.area_name, problems: [...check.blocking, ...check.warnings] };
-        })()
-      : null;
   const equipmentLines = draft.lines.flatMap((line, index) =>
     line.kind === 'equipment' && line.assetTypeId && line.check !== 'unverified' ? [{ index, typeId: line.assetTypeId, name: line.name, wanted: line.quantity }] : [],
   );
-  if (!slot || equipmentLines.length === 0) return { date, area, equipment: [] };
+  if (!slot || equipmentLines.length === 0) return { date, equipment: [] };
   const busy = await busyOn(access, assets.map((asset) => asset.id), date);
-  const ranges = weeklyHours?.[String(isoWeekday(date)) as keyof WeeklyHours] ?? DEFAULT_DAY;
   const equipment = equipmentLines.map(({ index, typeId, name, wanted }) => {
     const ofType = assets.filter((asset) => asset.typeId === typeId).map((asset) => asset.id);
     const free = freeIn(ofType, busy, toMinutes(slot.startsAt), toMinutes(slot.endsAt));
-    return { line: index, name, wanted, free, alternatives: free >= wanted ? [] : freeAlternatives(ranges, slot, ofType, busy, wanted) };
+    return { line: index, name, wanted, free, alternatives: free >= wanted ? [] : freeAlternatives(TABLE_DAY, slot, ofType, busy, wanted) };
   });
-  return { date, area, equipment };
+  return { date, equipment };
 }
 
 async function reviewOf(access: WorkspaceAccess, draft: Draft): Promise<RequestReview> {
@@ -157,7 +134,7 @@ async function catalogOf(access: WorkspaceAccess, scope: Omit<Ask, 'lines'>): Pr
     reagentStockBreakdown(access, reagents.map((reagent) => reagent.id), validOn),
     operationalAssetsOfTypes(access, types.map((type) => type.id)),
   ]);
-  const none = { stock: '0', held: '0', expired: '0' };
+  const none = { stock: '0', held: '0' };
   return {
     reagents: reagents.map((reagent, index) => ({ id: reagent.id, available: found[index]?.available ?? '0', ...(split.get(reagent.id) ?? none) })),
     equipmentTypes: types.map((type, index) => ({

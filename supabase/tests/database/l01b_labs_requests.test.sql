@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(38);
+select plan(36);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -69,8 +69,8 @@ insert into labs.list_values (id, workspace_id, kind, name, created_by_principal
   ('a4000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-00000000000a', 'career', 'Bioquímica',
    'a2000000-0000-4000-8000-000000000001');
 
-insert into labs.requests (id, workspace_id, number, form_id, form_revision, requester_principal_id) values
-  ('b8000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b', 1,
+insert into labs.requests (id, workspace_id, form_id, form_revision, requester_principal_id) values
+  ('b8000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-00000000000b',
    'b7000000-0000-4000-8000-000000000001', 1, 'b2000000-0000-4000-8000-000000000001');
 
 -- ---------------------------------------------------------------------------
@@ -101,91 +101,80 @@ select set_config('platlab.workspace_id', 'a0000000-0000-4000-8000-00000000000a'
 select set_config('platlab.principal_id', 'a2000000-0000-4000-8000-000000000001', true);
 
 select lives_ok(
-  $$ insert into labs.request_counters (workspace_id, last_number) values ('a0000000-0000-4000-8000-00000000000a', 1)
-     on conflict (workspace_id) do update set last_number = labs.request_counters.last_number + 1 $$,
-  'el contador del espacio arranca en 1');
-
-select lives_ok(
-  $$ insert into labs.requests (workspace_id, number, form_id, form_revision, requester_principal_id, subject_id, career_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 1, 'a7000000-0000-4000-8000-000000000001', 1,
+  $$ insert into labs.requests (workspace_id, form_id, form_revision, requester_principal_id, subject_id, career_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a7000000-0000-4000-8000-000000000001', 1,
              'a2000000-0000-4000-8000-000000000001', 'a4000000-0000-4000-8000-000000000001',
              'a4000000-0000-4000-8000-000000000002') $$,
   'la Docente guarda un borrador a su nombre');
 
 select throws_ok(
-  $$ insert into labs.requests (workspace_id, number, form_id, form_revision, requester_principal_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 2, 'a7000000-0000-4000-8000-000000000001', 1,
+  $$ insert into labs.requests (workspace_id, form_id, form_revision, requester_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a7000000-0000-4000-8000-000000000001', 1,
              'a2000000-0000-4000-8000-000000000002') $$,
   '42501', null, 'no pide a nombre de otra persona');
 
 select throws_ok(
-  $$ insert into labs.requests (workspace_id, number, form_id, form_revision, requester_principal_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 1, 'a7000000-0000-4000-8000-000000000001', 1,
-             'a2000000-0000-4000-8000-000000000001') $$,
-  '23505', null, 'el número no se repite en el espacio');
-
-select throws_ok(
-  $$ insert into labs.requests (workspace_id, number, form_id, form_revision, requester_principal_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 3, 'b7000000-0000-4000-8000-000000000001', 1,
+  $$ insert into labs.requests (workspace_id, form_id, form_revision, requester_principal_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'b7000000-0000-4000-8000-000000000001', 1,
              'a2000000-0000-4000-8000-000000000001') $$,
   '23503', null, 'no llena un formato de otro espacio');
 
 select throws_ok(
-  $$ insert into labs.requests (workspace_id, number, form_id, form_revision, requester_principal_id, subject_id)
-     values ('a0000000-0000-4000-8000-00000000000a', 4, 'a7000000-0000-4000-8000-000000000001', 1,
+  $$ insert into labs.requests (workspace_id, form_id, form_revision, requester_principal_id, subject_id)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a7000000-0000-4000-8000-000000000001', 1,
              'a2000000-0000-4000-8000-000000000001', 'a4000000-0000-4000-8000-000000000002') $$,
   '23503', null, 'una carrera no va como asignatura');
 
 select throws_ok(
-  $$ insert into labs.requests (workspace_id, number, form_id, form_revision, requester_principal_id, starts_at, ends_at)
-     values ('a0000000-0000-4000-8000-00000000000a', 5, 'a7000000-0000-4000-8000-000000000001', 1,
+  $$ insert into labs.requests (workspace_id, form_id, form_revision, requester_principal_id, starts_at, ends_at)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a7000000-0000-4000-8000-000000000001', 1,
              'a2000000-0000-4000-8000-000000000001', '10:00', '09:00') $$,
   '23514', null, 'el horario termina después de empezar');
 
 select throws_ok(
-  $$ update labs.requests set status = 'submitted', submitted_at = now() where number = 1 $$,
+  $$ update labs.requests set status = 'submitted', submitted_at = now() where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '23514', null, 'una solicitud incompleta no se envía');
 
 -- Líneas del borrador.
 select lives_ok(
   $$ insert into labs.request_lines (workspace_id, request_id, line, kind, item_id, quantity, unit)
      select 'a0000000-0000-4000-8000-00000000000a', id, 1, 'reagent', 'a6000000-0000-4000-8000-000000000001', 12.5, 'g'
-     from labs.requests where number = 1 $$,
+     from labs.requests where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   'un reactivo del catálogo, en total y con su unidad');
 select lives_ok(
   $$ insert into labs.request_lines (workspace_id, request_id, line, kind, asset_type_id, quantity, per_group)
      select 'a0000000-0000-4000-8000-00000000000a', id, 2, 'equipment', 'a5000000-0000-4000-8000-000000000001', 8, 2
-     from labs.requests where number = 1 $$,
+     from labs.requests where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   'equipos por tipo, por grupo y total');
 select lives_ok(
   $$ insert into labs.request_lines (workspace_id, request_id, line, kind, description, quantity)
      select 'a0000000-0000-4000-8000-00000000000a', id, 3, 'material', 'Pipetas de 10 mL', 4
-     from labs.requests where number = 1 $$,
+     from labs.requests where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   'un material en texto con cantidad');
 select throws_ok(
   $$ insert into labs.request_lines (workspace_id, request_id, line, kind, item_id, description, quantity, unit)
      select 'a0000000-0000-4000-8000-00000000000a', id, 4, 'reagent', 'a6000000-0000-4000-8000-000000000001', 'Sal', 1, 'g'
-     from labs.requests where number = 1 $$,
+     from labs.requests where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '23514', null, 'un reactivo es del catálogo o no catalogado, no ambos');
 select throws_ok(
   $$ insert into labs.request_lines (workspace_id, request_id, line, kind, item_id, quantity)
      select 'a0000000-0000-4000-8000-00000000000a', id, 4, 'reagent', 'a6000000-0000-4000-8000-000000000001', 1
-     from labs.requests where number = 1 $$,
+     from labs.requests where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '23514', null, 'un reactivo lleva su unidad');
 select throws_ok(
   $$ insert into labs.request_lines (workspace_id, request_id, line, kind, description, quantity)
      select 'a0000000-0000-4000-8000-00000000000a', id, 4, 'equipment', 'Centrífuga', 1.5
-     from labs.requests where number = 1 $$,
+     from labs.requests where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '23514', null, 'los equipos van en unidades enteras');
 select throws_ok(
   $$ insert into labs.request_lines (workspace_id, request_id, line, kind, quantity)
      select 'a0000000-0000-4000-8000-00000000000a', id, 4, 'material', 1
-     from labs.requests where number = 1 $$,
+     from labs.requests where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '23514', null, 'un material lleva su descripción');
 select throws_ok(
   $$ insert into labs.request_lines (workspace_id, request_id, line, kind, item_id, quantity, unit)
      select 'a0000000-0000-4000-8000-00000000000a', id, 4, 'reagent', 'b6000000-0000-4000-8000-000000000001', 1, 'mL'
-     from labs.requests where number = 1 $$,
+     from labs.requests where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '23503', null, 'no pide un reactivo de otro espacio');
 select lives_ok(
   $$ delete from labs.request_lines where line = 3 $$,
@@ -196,37 +185,37 @@ select lives_ok(
   $$ update labs.requests
      set title = 'Titulación', teacher_name = 'Docente A', dates = '{2027-03-01}', starts_at = '08:00', ends_at = '10:00',
          participants = 20, status = 'submitted', submitted_at = now(), version = version + 1
-     where number = 1 $$,
+     where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   'completa, se envía');
 select throws_ok(
   $$ insert into labs.request_lines (workspace_id, request_id, line, kind, description, quantity)
      select 'a0000000-0000-4000-8000-00000000000a', id, 5, 'material', 'Gradilla', 1
-     from labs.requests where number = 1 $$,
+     from labs.requests where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '23514', null, 'enviada, no se agregan recursos');
 select throws_ok(
   $$ delete from labs.request_lines where line = 1 $$,
   '23514', null, 'enviada, no se quitan recursos');
 select throws_ok(
-  $$ update labs.requests set status = 'draft' where number = 1 $$,
+  $$ update labs.requests set status = 'draft' where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '23514', null, 'enviada no vuelve a borrador');
 
 -- Historial.
 select throws_ok(
   $$ insert into labs.request_events (workspace_id, request_id, action, principal_id)
      select 'a0000000-0000-4000-8000-00000000000a', id, 'rejected', 'a2000000-0000-4000-8000-000000000001'
-     from labs.requests where number = 1 $$,
+     from labs.requests where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '23514', null, 'rechazar lleva motivo');
 select throws_ok(
   $$ insert into labs.request_events (workspace_id, request_id, action, principal_id)
      select 'a0000000-0000-4000-8000-00000000000a', id, 'submitted', 'a2000000-0000-4000-8000-000000000002'
-     from labs.requests where number = 1 $$,
+     from labs.requests where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '42501', null, 'el historial lo firma quien actúa');
 
 -- Cancelada es final.
 select lives_ok(
-  $$ update labs.requests set status = 'cancelled' where number = 1 $$, 'se cancela');
+  $$ update labs.requests set status = 'cancelled' where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$, 'se cancela');
 select throws_ok(
-  $$ update labs.requests set title = 'Otra' where number = 1 $$,
+  $$ update labs.requests set title = 'Otra' where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '23514', null, 'cancelada, no cambia');
 
 -- Listas.
@@ -244,10 +233,9 @@ select ok(
   and not has_table_privilege('platlab_api', 'labs.request_events', 'UPDATE'),
   'nadie borra solicitudes ni su historial');
 select ok(
-  not has_column_privilege('platlab_api', 'labs.requests', 'number', 'UPDATE')
-  and not has_column_privilege('platlab_api', 'labs.requests', 'form_revision', 'UPDATE')
+  not has_column_privilege('platlab_api', 'labs.requests', 'form_revision', 'UPDATE')
   and not has_column_privilege('platlab_api', 'labs.requests', 'requester_principal_id', 'UPDATE'),
-  'el número, el formato y quien pide no cambian');
+  'el formato y quien pide no cambian');
 
 reset role;
 

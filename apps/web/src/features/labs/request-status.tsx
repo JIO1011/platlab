@@ -1,7 +1,6 @@
 import type { RequestStatus } from '@platlab/contracts';
 import { Badge } from '@platlab/ui';
 import type { ReactNode } from 'react';
-import { CodeTag } from '../../app/code-tag';
 import type { RequestView } from './request-draft';
 import { practiceCodeText } from './request-summary';
 
@@ -53,11 +52,11 @@ export function PracticeCode({ codes }: { codes: readonly string[] }) {
   );
 }
 
-/** La solicitud abierta: su código, su estado y el formato con que se llenó; `children` son lo que va a su lado (quién la pide, acciones). */
+/** La solicitud abierta: su código de práctica si está programada, su estado y el formato con que se llenó; `children` son lo que va a su lado (quién la pide, acciones). */
 export function RequestHeading({ request, children }: { request: RequestView; children?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <CodeTag>{request.code}</CodeTag>
+      <PracticeCode codes={request.blockCodes} />
       <RequestBadges status={request.status} late={request.late} />
       <span className="min-w-0 break-words text-sm text-ink-muted">
         {request.formName} · revisión {request.formRevision}

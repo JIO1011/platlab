@@ -5,8 +5,6 @@ import { exceptionsText, filterInbox, firstDateText, groupMine, inboxCounts, ini
 
 const summary = (number: number, status: RequestSummary['status'], extra: Partial<RequestSummary> = {}): RequestSummary => ({
   id: `00000000-0000-4000-8000-${String(number).padStart(12, '0')}`,
-  number,
-  code: `SOL-${String(number).padStart(4, '0')}`,
   status,
   formName: 'Práctica académica',
   title: null,
@@ -24,7 +22,6 @@ const summary = (number: number, status: RequestSummary['status'], extra: Partia
   participants: null,
   subject: null,
   group: null,
-  areaId: null,
   submittedAt: null,
   version: 1,
   ...extra,
@@ -80,15 +77,18 @@ describe('practiceCodeLabel', () => {
   });
 });
 
+/** El número con que se armó la solicitud de prueba: el final de su id. */
+const numberOf = (item: RequestSummary) => Number(item.id.slice(-12));
+
 describe('filterInbox', () => {
   const items = [summary(4, 'changes_requested'), summary(3, 'submitted'), summary(2, 'rejected'), summary(1, 'submitted')];
 
   it('«Enviadas» deja las que esperan respuesta, en el orden del servidor', () => {
-    expect(filterInbox(items, 'submitted').map((item) => item.number)).toEqual([3, 1]);
+    expect(filterInbox(items, 'submitted').map((item) => numberOf(item))).toEqual([3, 1]);
   });
 
   it('«Todas» las deja todas, en el mismo orden', () => {
-    expect(filterInbox(items, 'all').map((item) => item.number)).toEqual([4, 3, 2, 1]);
+    expect(filterInbox(items, 'all').map((item) => numberOf(item))).toEqual([4, 3, 2, 1]);
   });
 
   it('sin recibidas, no hay nada que filtrar', () => {
@@ -107,12 +107,12 @@ describe('filtros de las cifras de Recibidas', () => {
   ];
 
   it('fuera de plazo y recursos solo cuentan mientras esperan respuesta', () => {
-    expect(filterInbox(items, 'late').map((item) => item.number)).toEqual([5, 4]);
-    expect(filterInbox(items, 'resources').map((item) => item.number)).toEqual([5, 3]);
+    expect(filterInbox(items, 'late').map((item) => numberOf(item))).toEqual([5, 4]);
+    expect(filterInbox(items, 'resources').map((item) => numberOf(item))).toEqual([5, 3]);
   });
 
   it('«cambios» deja las que esperan al solicitante', () => {
-    expect(filterInbox(items, 'changes').map((item) => item.number)).toEqual([6]);
+    expect(filterInbox(items, 'changes').map((item) => numberOf(item))).toEqual([6]);
   });
 
   it('cada cifra coincide con la lista de su filtro', () => {
@@ -136,9 +136,9 @@ describe('searchInbox', () => {
   const items = [
     summary(3, 'submitted', { title: 'Destilación simple', requesterName: 'Diego Docente' }),
     summary(2, 'submitted', { title: 'Medición de densidad', requesterName: 'Ángela Núñez' }),
-    summary(1, 'scheduled', { title: null, requesterName: 'Ana Paz' }),
+    summary(1, 'scheduled', { title: null, requesterName: 'Ana Paz', blockCodes: ['P1-S11-QUI02', 'P1-S12-QUI01'] }),
   ];
-  const numbers = (query: string) => searchInbox(items, query).map((item) => item.number);
+  const numbers = (query: string) => searchInbox(items, query).map((item) => numberOf(item));
 
   it('sin nada escrito deja todas, en el mismo orden', () => {
     expect(numbers('')).toEqual([3, 2, 1]);
@@ -156,12 +156,12 @@ describe('searchInbox', () => {
     expect(numbers('docente')).toEqual([3]);
   });
 
-  it('busca en el código, incluso a medias', () => {
-    expect(numbers('sol-0002')).toEqual([2]);
-    expect(numbers('000')).toEqual([3, 2, 1]);
+  it('busca en el código de práctica de cualquiera de sus bloques, incluso a medias', () => {
+    expect(numbers('p1-s12')).toEqual([1]);
+    expect(numbers('qui0')).toEqual([1]);
   });
 
-  it('una solicitud sin título solo se encuentra por su código o su solicitante', () => {
+  it('una solicitud sin título solo se encuentra por su código de práctica o su solicitante', () => {
     expect(numbers('ana paz')).toEqual([1]);
   });
 
@@ -195,9 +195,9 @@ describe('groupMine', () => {
       summary(2, 'draft'),
       summary(1, 'rejected'),
     ]);
-    expect(groups.attention.map((item) => item.number)).toEqual([4]);
-    expect(groups.drafts.map((item) => item.number)).toEqual([5, 2]);
-    expect(groups.sent.map((item) => item.number)).toEqual([3]);
-    expect(groups.closed.map((item) => item.number)).toEqual([6, 1]);
+    expect(groups.attention.map((item) => numberOf(item))).toEqual([4]);
+    expect(groups.drafts.map((item) => numberOf(item))).toEqual([5, 2]);
+    expect(groups.sent.map((item) => numberOf(item))).toEqual([3]);
+    expect(groups.closed.map((item) => numberOf(item))).toEqual([6, 1]);
   });
 });

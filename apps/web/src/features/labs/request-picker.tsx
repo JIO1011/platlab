@@ -9,10 +9,11 @@ import { WrapShadow, bare, wrapped } from './request-cells';
 /**
  * La celda de Reactivos o de Equipos de la planilla al llenar (ADR 0023, «Disponibilidad y recursos»): es el buscador.
  * Al hacer clic o escribir abre, junto a la cantidad, la lista del catálogo con lo libre para las fechas y el horario que
- * se están llenando: una barra, «1.575 de 1.580 g libres» y lo apartado o vencido. Lo que se escribe en la celda o en la
- * lupa de la lista filtra por nombre o código; ↑ ↓ y Enter eligen, Esc cierra y deja la celda como estaba. Lo que no está
- * se pide «sin catálogo» desde la última fila. En el móvil, la lista sale desde abajo. Mientras se comprueba, no se
- * supone el stock.
+ * se están llenando, la cifra destacada: en reactivos, «**1.575** de 1.580 g libres» con su barra y lo apartado (lo
+ * vencido no cuenta); en equipos, «**2** de 3 libres en tu horario». Lo agotado va al final. Lo que se escribe en la
+ * celda o en la lupa de la lista filtra por nombre o código; ↑ ↓ y Enter eligen, Esc cierra y deja la celda como estaba.
+ * Lo que no está se pide «sin catálogo» desde la última fila. En el móvil, la lista sale desde abajo. Mientras se
+ * comprueba, no se supone el stock.
  */
 
 export interface CatalogEntry {
@@ -37,7 +38,7 @@ export interface PickerProps {
   /** Lo libre para las fechas y el horario de ahora; `null` mientras se comprueba. */
   catalog: RequestCheck['catalog'] | null;
   slotted: boolean;
-  /** Para cuándo se cuenta lo libre, en una frase. */
+  /** Para cuándo se cuenta lo libre, en una frase; vacía sin fechas. */
   scope: string;
   /** Lo del catálogo que ya piden otras líneas: no se repite. */
   taken: ReadonlySet<string>;
@@ -58,35 +59,39 @@ const NOUNS = {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 interface Free {
-  percent: number;
-  hasStock: boolean;
+  /** La cifra destacada (lo libre); vacía sin stock o sin operativos. */
+  count: string;
+  /** Lo que sigue a la cifra («de 1.580 g libres») o, sin cifra, todo el texto («Sin stock»). */
   text: string;
+  /** La barra de lo libre sobre el saldo vigente: solo en reactivos con saldo. */
+  bar: { percent: number; hasStock: boolean } | null;
   note: string | null;
+  /** Nada libre: en ámbar y al final de la lista. */
   none: boolean;
 }
 
-/** Lo libre de una fila de la lista: la barra (libre sobre el saldo u operativos) y su texto. */
+const freeLabel = (free: Free) => `${free.count} ${free.text}`.trim();
+
+/** Lo libre de una fila de la lista: la cifra, su texto y, en reactivos, la barra y lo apartado. */
 function freeOf(kind: Kind, entry: CatalogEntry, catalog: RequestCheck['catalog'], slotted: boolean): Free {
   if (kind === 'reagent') {
     const row = catalog.reagents.find((reagent) => reagent.id === entry.id);
-    const [available, stock, held, expired] = [row?.available ?? '0', row?.stock ?? '0', row?.held ?? '0', row?.expired ?? '0'];
-    if (compareDecimals(stock, '0') <= 0) return { percent: 0, hasStock: false, text: 'Sin stock', note: null, none: true };
-    const amount = (value: string) => `${formatDecimal(value)} ${entry.unit}`;
-    const notes = [compareDecimals(held, '0') > 0 ? `${amount(held)} apartados` : null, compareDecimals(expired, '0') > 0 ? `${amount(expired)} vencidos` : null];
+    const [available, stock, held] = [row?.available ?? '0', row?.stock ?? '0', row?.held ?? '0'];
+    if (compareDecimals(stock, '0') <= 0) return { count: '', text: 'Sin stock', bar: null, note: null, none: true };
     const free = compareDecimals(available, '0') > 0;
     return {
-      percent: ratioPercent(available, stock) ?? 0,
-      hasStock: free,
-      text: `${formatDecimal(available)} de ${amount(stock)} libres`,
-      note: notes.filter((note) => note !== null).join(' · ') || null,
+      count: formatDecimal(available),
+      text: `de ${formatDecimal(stock)} ${entry.unit} libres`,
+      bar: { percent: ratioPercent(available, stock) ?? 0, hasStock: free },
+      note: compareDecimals(held, '0') > 0 ? `${formatDecimal(held)} ${entry.unit} apartados` : null,
       none: !free,
     };
   }
   const row = catalog.equipmentTypes.find((type) => type.id === entry.id);
   const [available, total] = [row?.available ?? 0, row?.total ?? 0];
-  if (total === 0) return { percent: 0, hasStock: false, text: 'Ninguno operativo', note: null, none: true };
-  if (!slotted) return { percent: 100, hasStock: true, text: plural(total, 'operativo', 'operativos'), note: null, none: false };
-  return { percent: Math.round((available * 100) / total), hasStock: available > 0, text: `${available} de ${total} libres en tu horario`, note: null, none: available === 0 };
+  if (total === 0) return { count: '', text: 'Ninguno operativo', bar: null, note: null, none: true };
+  if (!slotted) return { count: String(total), text: total === 1 ? 'operativo' : 'operativos', bar: null, note: null, none: false };
+  return { count: String(available), text: `de ${total} libres en tu horario`, bar: null, note: null, none: available === 0 };
 }
 
 export function ResourcePicker(props: PickerProps) {
@@ -106,9 +111,12 @@ export function ResourcePicker(props: PickerProps) {
     return (options?.equipmentTypes ?? []).map((type) => ({ id: type.id, name: type.name, code: null, unit: '' }));
   }, [kind, options]);
 
+  const frees = useMemo(() => (catalog ? new Map(entries.map((entry) => [entry.id, freeOf(kind, entry, catalog, slotted)])) : null), [kind, entries, catalog, slotted]);
   const typed = (query ?? '').trim();
   const needle = fold(typed);
-  const matches = needle === '' ? entries : entries.filter((entry) => fold(`${entry.name} ${entry.code ?? ''}`).includes(needle));
+  const found = needle === '' ? entries : entries.filter((entry) => fold(`${entry.name} ${entry.code ?? ''}`).includes(needle));
+  // Lo agotado va al final, en el mismo orden entre sí; mientras se comprueba, el orden del catálogo.
+  const matches = frees ? [...found].sort((a, b) => Number(frees.get(a.id)!.none) - Number(frees.get(b.id)!.none)) : found;
   const choices: Choice[] = [
     ...matches.map((entry): Choice => ({ type: 'entry', entry, taken: taken.has(entry.id) && entry.id !== selectedId })),
     ...(typed !== '' ? [{ type: 'free' as const, name: typed }] : []),
@@ -173,7 +181,7 @@ export function ResourcePicker(props: PickerProps) {
             className="h-9 w-full rounded-control border border-line-strong bg-surface pl-8 pr-2 text-sm text-ink placeholder:text-ink-subtle transition-[border-color,box-shadow] duration-150 focus-visible:border-action focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action/20 max-lg:h-11"
           />
         </div>
-        <p className="px-0.5 text-[12px] leading-snug text-ink-muted">{scope}</p>
+        {scope ? <p className="px-0.5 text-[12px] leading-snug text-ink-muted">{scope}</p> : null}
       </div>
       {!options ? <p className="px-3 py-3 text-[13px] text-ink-muted">Cargando el catálogo…</p> : null}
       {options && !enabled ? <p className="px-3 pt-2.5 text-[13px] text-ink-muted">El catálogo de {nouns.many} no está habilitado en este espacio: escribe el nombre y pídelo sin catálogo.</p> : null}
@@ -200,9 +208,9 @@ export function ResourcePicker(props: PickerProps) {
             );
           }
           const { entry } = choice;
-          const free = catalog ? freeOf(kind, entry, catalog, slotted) : null;
+          const free = frees?.get(entry.id) ?? null;
           const mine = entry.id === selectedId;
-          const status = free ? `${free.text}${free.note ? ` · ${free.note}` : ''}` : 'comprobando lo libre';
+          const status = free ? `${freeLabel(free)}${free.note ? ` · ${free.note}` : ''}` : 'comprobando lo libre';
           return (
             <li
               key={entry.id}
@@ -210,7 +218,7 @@ export function ResourcePicker(props: PickerProps) {
               role="option"
               aria-selected={highlighted}
               aria-disabled={choice.taken || undefined}
-              aria-label={`${entry.name}${entry.code ? `, ${entry.code}` : ''}: ${status}${choice.taken ? '. Ya está en la hoja' : ''}`}
+              aria-label={`${entry.name}${entry.code ? `, ${entry.code}` : ''}: ${status}${choice.taken ? '. Agregado' : ''}`}
               onMouseDown={(event) => event.preventDefault()}
               onMouseMove={() => setActive(index)}
               onClick={() => choose(choice)}
@@ -223,15 +231,22 @@ export function ResourcePicker(props: PickerProps) {
               <span className="flex items-start gap-2">
                 <span className="min-w-0 flex-1 break-words text-sm font-medium text-ink">{entry.name}</span>
                 {mine ? <Check className="mt-0.5 size-4 shrink-0 text-action" aria-hidden /> : null}
-                {choice.taken ? <span className="shrink-0 text-[12px] text-ink-muted">Ya está en la hoja</span> : null}
+                {choice.taken ? <span className="shrink-0 text-[12px] text-ink-muted">Agregado</span> : null}
               </span>
               <span className={cn('text-[12px] tabular-nums', free?.none ? 'text-warning' : 'text-ink-muted')}>
                 {entry.code ? <span className="text-ink-subtle">{entry.code} · </span> : null}
-                {free ? free.text : 'Comprobando…'}
+                {free ? (
+                  <>
+                    {free.count ? <strong className={cn('font-semibold', !free.none && 'text-ink')}>{free.count} </strong> : null}
+                    {free.text}
+                  </>
+                ) : (
+                  'Comprobando…'
+                )}
               </span>
-              {free ? (
+              {free?.bar ? (
                 <span aria-hidden className="block">
-                  <StockLevelBar percent={free.percent} hasStock={free.hasStock} label={free.text} className="h-1.5" />
+                  <StockLevelBar percent={free.bar.percent} hasStock={free.bar.hasStock} label={freeLabel(free)} className="h-1.5" />
                 </span>
               ) : null}
               {free?.note ? <span className="text-[12px] text-ink-subtle">{free.note}</span> : null}
@@ -251,7 +266,7 @@ export function ResourcePicker(props: PickerProps) {
         <button type="button" aria-label={value ? `${label}: ${value}` : label} aria-haspopup="dialog" onClick={() => setOpen(true)} className={cn(bare, 'text-left', !value && 'text-ink-subtle print:text-transparent')}>
           {value || nouns.placeholder}
         </button>
-        <Sheet open={open} onOpenChange={(next) => (next ? setOpen(true) : close())} title={nouns.title} description={scope} icon={nouns.icon} fullscreenMobile focusFirst>
+        <Sheet open={open} onOpenChange={(next) => (next ? setOpen(true) : close())} title={nouns.title} description={scope || undefined} icon={nouns.icon} fullscreenMobile focusFirst>
           {panel}
         </Sheet>
       </>
