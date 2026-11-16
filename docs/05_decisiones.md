@@ -173,42 +173,34 @@ Cambios: 30-09, 01-10-2026 (historial en git).
 
 Medidas, patrones y estados: `DESIGN.md` y `packages/ui/src/styles.css` (solo enlazan aquí).
 
-- **Dirección.** Precisión operativa con calma: pautas de Apple (HIG) en una aplicación de trabajo, con el lenguaje visual de ReactiLab (solo el diseño; su código no se copia, por la licencia por aclarar, CLAUDE.md). Parte de 01 «Dirección visual» y 02 §2.
-- **Tokens.** Semánticos, en `packages/ui`. Solo tema claro, preparado para el oscuro. Inter con `tabular-nums` en cantidades y saldos. Neutros en escala pizarra con contraste AA.
-- **Componentes.** shadcn como código propio sobre Radix, TanStack Table para tablas, Sonner para avisos, cmdk para la salida rápida.
-- **Estructura (ReactiLab).** Barra lateral pegada al borde y de ancho completo, barra superior translúcida con borde (no flotan) y tarjetas de borde fino con sombra mínima que, si son enlace, se elevan al pasar el puntero. Indicadores con icono (de estado cuando hay estado, del acento si no) y actividad como línea de tiempo.
-- **Voz única.** Solo el acento invita a actuar. Excepción: la cantidad con signo de la actividad va en rojo suave (salida) o verde suave (ingreso), siempre con signo y tipo escritos.
-- **Acción rápida.** El Resumen de Reactivos abre con una tarjeta degradada del acento («Registrar movimiento») que sustituye a las acciones de la cabecera en esa sección. Su pastilla, resplandor y matraz de marca de agua son decoración pedida por el usuario y no se repiten en otras tarjetas.
-- **Descartado.** Imágenes 3D, vidrio, gráficos sin dato y métricas inventadas.
-- **Color por módulo.** Cada módulo tiene un acento que, dentro de su app, reemplaza al azul en el botón principal, los enlaces, el menú activo, el foco, los gráficos y el icono, y tiñe el brillo del lienzo.
-  - Inicio y plataforma siguen en azul PlatLab; cada tarjeta del Inicio lleva el color de su módulo; la marca PlatLab nunca cambia.
-  - Reactivos es índigo, como ReactiLab: `#4F46E5` (6,3:1 con blanco), con degradado hacia violeta.
-  - Cada color se valida para WCAG AA. Verde, ámbar y rojo son de estado: ningún módulo ni tipo de ítem los usa como color propio.
-  - Un juego de tokens por módulo (`[data-module]`) redefine los de acción; los componentes no cambian.
-- **Tarjetas de catálogo.** Un patrón común a todos los módulos (reactivos hoy; materiales y equipos después), con el componente compartido `IconChip`. Su icono sale de un dato que ya existe (el estado físico: sólido, líquido o gas) y nunca decora; un reactivo sin existencias pasa a chip neutro y píldora ámbar con texto e icono. Solo cambia la presentación.
-- **Ventanas de movimiento.** Nuevo reactivo, ingreso, salida y ajuste son una ventana centrada (como el modal de ReactiLab), no una hoja lateral.
-- **Densidad.** Dentro de un módulo el tamaño base baja de 16 a 15 px (`:root[data-module]`, en porcentaje para respetar la letra del navegador) y todo lo que está en `rem` se reduce por igual; el título de página baja un paso. Inicio y acceso no cambian.
-- **Ventanas como ReactiLab (13-10-2026).** Material de vidrio esmerilado (translúcido con desenfoque y fondo sólido sin soporte), bandas separadas por líneas de borde a borde y botón principal alto con icono. En «Registrar salida»:
-  - cabecera con el icono del módulo, el reactivo y el frasco;
-  - barra de stock con color por nivel y su texto;
-  - cantidad grande sin subrayado;
-  - «Todo» como enlace;
-  - etiquetas claras de ancho parejo.
-  - La ficha (nivel 2) usa el mismo lenguaje sobre el fondo normal, sin degradado. El resumen (Existencia, Mínimo y Caducidad) va en un panel compacto de tres filas, en una columna derecha fija desde 1280 px; por debajo, en una franja compacta bajo la cabecera (13-10-2026). Cada frasco muestra código y estado, ubicación y marca en texto, saldo con barra por nivel, la caducidad exacta y los pesos, sin «Ingresó». La barra por nivel, las pastillas, las bandas y el cuadro de icono son piezas compartidas.
-  - Etiquetas QR: «Etiquetas» gira todas las tarjetas hacia su etiqueta (unos 300 ms, escalonado; sin giro con movimiento reducido). Tocar una la elige, y una barra inferior imprime las elegidas con la hoja de etiquetas existente (13-10-2026).
-- **Ficha.** Sin «← Inventario»: el menú ya lleva al Inventario. Queda abierto darle una función propia (por ejemplo, una miga de pan en la barra superior).
+- **Dirección.** Precisión operativa con calma: las pautas de Apple (HIG) en una aplicación de trabajo, con el lenguaje visual de ReactiLab. Solo se toma su diseño; su código no se copia mientras la licencia esté por aclarar. Parte de 01 «Dirección visual» y de 02 §2.
+- **Tokens** semánticos en `packages/ui`. Solo tema claro, preparado para el oscuro. Inter con `tabular-nums` en cantidades y saldos; neutros en escala pizarra con contraste AA.
+- **Componentes:** shadcn como código propio sobre Radix, Sonner para avisos y cmdk para la salida rápida. TanStack Table vuelve cuando una pantalla necesite una tabla de verdad.
+- **Estructura (ReactiLab).** Barra lateral y barra superior pegadas al borde, sin flotar; tarjetas de borde fino con sombra mínima; indicadores con icono y la actividad como línea de tiempo.
+- **Voz única.** Solo el acento invita a actuar. Excepción: la cantidad con signo de un movimiento va en rojo suave (salida) o verde suave (ingreso), siempre con el signo y el tipo escritos.
+- **Color por módulo.**
+  - Cada módulo tiene un acento que, dentro de su app, reemplaza al azul en lo que invita a actuar, el foco, los gráficos y el icono.
+  - Lo aplica un juego de tokens por módulo (`[data-module]`), y los componentes no cambian.
+  - Inicio y plataforma siguen en azul PlatLab, y la marca nunca cambia. Reactivos es índigo (`#4F46E5`).
+  - Cada color pasa WCAG AA. Verde, ámbar y rojo son de estado: ningún módulo los usa como propio.
+- **Iconos con dato.** El icono de una tarjeta de catálogo sale de un dato que ya existe, como el estado físico, y nunca decora (`IconChip`, común a todos los módulos).
+- **Ventanas como ReactiLab (13-10-2026).**
+  - Ingreso, salida y ajuste son ventanas centradas, no hojas laterales.
+  - Son de vidrio esmerilado (con fondo sólido donde no hay soporte), con bandas separadas por líneas y un botón principal alto con icono.
+  - La barra de stock por nivel, las pastillas, las bandas y el cuadro de icono son piezas compartidas.
+- **Densidad.** Dentro de un módulo, la base baja de 16 a 15 px (en porcentaje, para respetar la letra del navegador). Inicio y acceso no cambian.
 - **Movimiento.**
-  - Pulsación de 100–150 ms con CSS; superposiciones de 150–200 ms que nacen de su origen.
+  - Pulsación de 100 a 150 ms con CSS; superposiciones de 150 a 200 ms que nacen de su origen.
   - Spring sin rebote para hojas y fichas.
   - Se respeta `prefers-reduced-motion`.
   - Nunca se animan filas, escritura ni bucles.
+- **Descartado:** imágenes 3D, gráficos sin dato y métricas inventadas.
 - **Dominio por encima del estilo.** Sin UI optimista sobre existencias ni «deshacer» en un movimiento confirmado: se corrige con otro movimiento. Estados con texto y una acción primaria por pantalla.
-- **Verificación.** Playwright con axe (WCAG 2.2 AA) en CI. El cierre de UI, por entrega y por puerta, está en el [ADR 0013](#adr-0013).
-- **Orden.** Tokens y estructura base → acceso, selector de espacio e Inicio → tablero de Reactivos y «Registrar salida».
+- **Verificación:** Playwright con axe (WCAG 2.2 AA) en CI. El cierre de UI está en el [ADR 0013](#adr-0013).
 
 Motivo: una app que se usa todo el día necesita jerarquía clara, estados honestos y movimiento que explique, no que decore.
 
-Cambios: 02-10, 04-10, 05-10-2026 (historial en git).
+Cambios: 02, 04, 05 y 13-10-2026; compactado el 16-11-2026 (historial en git).
 
 <a id="adr-0011"></a>
 ## ADR 0011 — Inicio como tablero y cada módulo como app
@@ -234,87 +226,78 @@ Cambios: 02-10, 05-10-2026 (historial en git).
 <a id="adr-0012"></a>
 ## ADR 0012 — Reactivos por frasco y salidas con aprobación
 
-Toma ReactiLab como referencia de UX. Los patrones visuales están en `DESIGN.md`.
+ReactiLab es la referencia de UX; los patrones visuales están en `DESIGN.md`.
 
-- **Por frasco.** Cada ingreso registra uno o más frascos (envases) de un mismo lote, cada uno con código propio (lote y número), cantidad inicial y QR.
-  - La posición es frasco más ubicación; salidas, ajustes y traslados operan sobre un frasco.
-  - El ingreso puede crear el lote en la misma ventana ([01 §6.1](01_producto.md#61-inventario-de-reactivos-m2)).
-  - Resuelve la pregunta «Envases». La apertura y la caducidad tras abrir llegan si el laboratorio las pide.
-- **Lote sin estado.** Solo es un dato: código, proveedor, lote del proveedor y caducidad. No hay cuarentena, bloqueo ni descarte de lote.
-  - Un frasco vencido, contaminado o roto se desecha con «Ajustar» a cero y un motivo de la lista («Vencido», «Contaminado»); queda como ajuste, con su responsable. No existe un movimiento «baja».
-  - La disposición por posición (cuarentena de un retorno) sigue en el diseño para custodia y retornos ([03 §4](03_datos.md#4-inventario-y-reactivos)).
-- **Dos niveles.** El inventario lista reactivos con su total y avisos; la ficha muestra encabezado, frascos e historial.
-  - Frasco: proveedor, ubicación, caducidad, código, saldo con la barra de lo que queda, lote, lote del proveedor, ingreso y, con solicitudes pendientes, lo apartado y lo disponible (`/positions` añade `lot.supplierName`, `lot.supplierLot` y `container.receivedAt`).
-  - Acciones por frasco: Salida, Trasladar y Ajustar; la etiqueta se imprime desde la ficha. No hay «borrar».
-  - Encabezado: identidad en una línea (código, CAS, estado físico) y tres datos: Existencia, Mínimo (con «Fijar» o «Cambiar» para quien administra el catálogo) y Caducidad. «Sin vencidos ni por vencer» solo afirma lo que cuenta: la caducidad sin confirmar se avisa en cada frasco.
-  - Lo que PlatLab no modela (categoría) no se muestra. Tara, densidad y «Controlado» se modelan desde el [ADR 0015](#adr-0015).
+- **Por frasco.** Cada ingreso registra uno o más frascos de un mismo lote, cada uno con código propio, cantidad inicial y QR. La posición es frasco más ubicación, y salidas, ajustes y traslados operan sobre un frasco. La apertura y la caducidad tras abrir llegan si el laboratorio las pide.
+- **Lote sin estado.** Es solo un dato (código, marca y caducidad, [ADR 0015](#adr-0015)), sin cuarentena, bloqueo ni descarte.
+  - Un frasco vencido, contaminado o roto se desecha con «Ajustar» a cero y un motivo de la lista, y queda como ajuste con su responsable. No existe un movimiento «baja».
+  - La disposición por posición sigue en el diseño para custodia y retornos ([03 §4](03_datos.md#4-inventario-y-reactivos)).
+- **Dos niveles.** El inventario lista reactivos con su total y sus avisos; la ficha muestra el encabezado (Existencia, Mínimo y Caducidad), los frascos y el historial. Cada frasco tiene Salida, Trasladar y Ajustar; no hay «borrar». Lo que PlatLab no modela no se muestra.
 - **Salidas del Operador con aprobación.**
   - La solicitud aparta la cantidad del frasco con una reserva `held`: nadie más dispone de ella.
   - El Administrador o el Propietario la aprueba (la salida se confirma y la reserva pasa a `fulfilled`) o la rechaza con motivo (`released`).
-  - Las salidas del Administrador y del Propietario son directas, y nadie aprueba su propia solicitud. Los ingresos son directos.
-- **Vencidos.** Se permite sacar de un frasco vencido, con advertencia visible; el movimiento guarda la caducidad que tenía.
-- **Sugerencia FEFO.** La salida propone el frasco utilizable que vence antes, nunca el de menor cantidad.
-- **Salida rápida.** Atajos de cantidad (25 %, 50 % y todo el frasco) y la vista de lo que quedará.
-- **Motivos y destinos.** Listas del espacio que administra el Administrador. La operación guarda el texto elegido, así que cambiar la lista no altera la historia. Se archivan, nunca se borran.
-- **Vencido y por vencer.** Vencido: la caducidad del lote es anterior a hoy, en la zona del espacio. Por vencer: caduca entre hoy y los próximos 30 días ([02 §12](02_arquitectura.md#12-parámetros-iniciales)). Solo cuentan frascos con saldo, en las ubicaciones que el miembro puede consultar. El inventario los dice con texto y filtra por ellos.
-- **Mínimo.** Uno por reactivo, para todo el espacio, en su unidad base y opcional; lo fija el Administrador al crear el reactivo o desde su ficha (`reagents.catalog.manage`). Bajo mínimo: la existencia física (todos los frascos con saldo, con vencidos y lo apartado) es menor que el mínimo; sin existencias y con mínimo, también. El inventario lo marca con texto y filtra por él (`?minimo=bajo`).
-- **Resumen.** Cuatro indicadores por urgencia: Por aprobar (o Mis solicitudes), Vencidos, Por vencer y Bajo mínimo (con el total de reactivos y frascos en texto pequeño). Cada uno abre la lista que lo explica: Solicitudes, o el Inventario filtrado.
-  - No hay «Ubicaciones» (contaba frascos) ni «Salidas» (el gráfico ya lleva su total). En el Inicio, el dato se dice «frascos».
-  - La acción rápida va en banda compacta bajo los indicadores; debajo, el gráfico y la actividad reciente. Cabe en una ventana de escritorio desde 1280 × 720 (`DESIGN.md`).
-- **Movimientos como libro por días.** Extiende la línea de tiempo del Resumen a pantalla completa.
-  - Filtros en píldoras: tipo (todos, ingresos, salidas, ajustes) y periodo (7, 30, 90 días o todo), en `?tipo=` y `?dias=`; la cifra del Resumen abre exactamente su lista.
-  - Asientos agrupados por día en la zona del espacio, con cantidad con signo y saldo. Cada fila abre la ficha (la lista añade `product.id`).
-  - Sin totales por día ni del periodo: la lista llega por páginas y un total en el navegador saldría incompleto sin avisarlo; si hacen falta, los calcula el servidor.
-  - Sin editar, borrar ni «deshacer»: un error se corrige con un ajuste.
-  - `@tanstack/react-table` sale de las dependencias de la web (no hay tablas); vuelve (ADR 0010) cuando una pantalla necesite una de verdad. `Table` de `packages/ui` se conserva.
-- **Traslado en un paso.** Mueve un frasco entero, con todo su saldo, a otra ubicación: una operación `transfer` con dos asientos (sale del origen, entra en el destino), visible en Movimientos como «Traslado». Sin borrador, aprobación ni tránsito. Lo registran el Operador y el Administrador (`reagents.transfer.create`). Un frasco vacío o con salidas pendientes no se traslada: primero se resuelven.
-- **Conteo por ubicación.** El Administrador elige una ubicación, anota lo que hay en cada frasco y confirma: un ajuste con motivo «Conteo» y un asiento por cada frasco que no cuadra. Si un saldo cambió mientras se contaba, se pide volver a cargar; si lo contado queda por debajo de lo apartado, primero se resuelven las solicitudes.
-- **Etiqueta con QR por frasco.** Lleva código, reactivo, lote y caducidad; se imprime a 3 × 8 por hoja A4 desde la ficha, eligiendo los frascos.
-  - Cada QR es único: identifica el espacio y el frasco y no sirve en otro espacio. Es un enlace corto (`/q/`) que la cámara del móvil abre, tras iniciar sesión, sin escáner propio.
-  - Escanear abre la descarga de ese frasco: la hoja de salida con el frasco elegido (para el Operador, «Solicitar salida», con la aprobación de siempre). Si no se puede descargar (vacío, todo apartado o sin permiso), la ficha resalta el frasco y dice por qué.
-  - El escaneo dentro de la app sigue pendiente (P-03).
-- **Orden.** R-01A (todo lo anterior, sin dependencias externas) va antes de T-07. R-01B (SDS privada, avisos por correo y exportación) va después ([roadmap](04_roadmap.md)).
+  - Sus propias salidas son directas, y nadie aprueba su propia solicitud. Los ingresos son directos.
+- **Salida.** Propone el frasco utilizable que vence antes (FEFO), nunca el de menor cantidad, con atajos de 25 %, 50 % y todo el frasco y lo que quedará. De un frasco vencido se puede sacar con advertencia, y el movimiento guarda la caducidad que tenía.
+- **Motivos y destinos.** Listas del espacio que administra el Administrador; se archivan, nunca se borran. La operación guarda el texto elegido, así que cambiar la lista no altera la historia. Desde el [ADR 0024](#adr-0024), el destino es un departamento.
+- **Vencido y por vencer (05-10-2026).** Vencido: la caducidad del lote es anterior a hoy, en la zona del espacio. Por vencer: caduca en los próximos 30 días ([02 §12](02_arquitectura.md#12-parámetros-iniciales)). Solo cuentan los frascos con saldo en las ubicaciones que el miembro puede consultar.
+- **Mínimo (05-10-2026).** Opcional, uno por reactivo para todo el espacio y en su unidad base; lo fija el Administrador (`reagents.catalog.manage`). Bajo mínimo: la existencia física (los frascos con saldo, con los vencidos y lo apartado) es menor que el mínimo; sin existencias y con mínimo, también.
+- **Resumen.** Por aprobar (o Mis solicitudes), Vencidos, Por vencer y Bajo mínimo; cada cifra abre la lista que la explica.
+- **Movimientos.** Un libro por días en la zona del espacio, con la cantidad con signo y el saldo. Sin totales calculados en el navegador, porque la lista llega por páginas, y sin editar, borrar ni «deshacer»: un error se corrige con un ajuste. El informe con filtros y totales del servidor está en el [ADR 0014](#adr-0014).
+- **Traslado en un paso.** Mueve un frasco entero, con todo su saldo, a otra ubicación: una operación `transfer` con dos asientos, visible como «Traslado», sin borrador, aprobación ni tránsito. Lo registran el Operador y el Administrador (`reagents.transfer.create`). Un frasco vacío o con salidas pendientes no se traslada.
+- **Conteo por ubicación.** El Administrador anota lo que hay en cada frasco y confirma: un ajuste con motivo «Conteo» y un asiento por cada frasco que no cuadra. Si un saldo cambió mientras se contaba, se vuelve a cargar; si lo contado queda por debajo de lo apartado, primero se resuelven las solicitudes.
+- **Etiqueta con QR por frasco.** Lleva código, reactivo, lote y caducidad, y se imprime a 3 × 8 por hoja A4.
+  - Cada QR es un enlace corto (`/q/`), único del espacio y del frasco, que no sirve en otro espacio.
+  - Tras iniciar sesión, abre la salida con ese frasco elegido (para el Operador, «Solicitar salida»). Si no se puede descargar (vacío, todo apartado o sin permiso), la ficha resalta el frasco y dice por qué.
+- **Entregas de R-01A**, antes de T-07:
+  - entrega 1: dos niveles, ingreso por frascos y salida con FEFO, motivos y destinos;
+  - entrega 2: salidas del Operador con aprobación;
+  - entrega 3: mínimos;
+  - entrega 4: traslado, conteo y QR.
+
+  R-01B (ficha de seguridad, avisos y exportación) va después ([roadmap](04_roadmap.md)).
 
 Motivo: el laboratorio ya trabaja por frasco con ReactiLab; el QR, el % restante y el control de las salidas son parte de su práctica. Se construye en la capacidad inventario para que Materiales lo herede.
 
 No se copia de ReactiLab: frasco, lote y código fusionados; ajustes sin signo; el borrado como baja; el saldo recortado a cero en silencio; la sugerencia por menor cantidad.
 
-Cambios: 05-10, 06-10, 12-10-2026 (historial en git).
+Cambios: 05, 06 y 12-10-2026; compactado el 16-11-2026 (el detalle de pantallas, en git).
 
 <a id="adr-0013"></a>
 ## ADR 0013 — Delegación por riesgo y puertas del harness
 
-- **Orquestador:** la sesión principal (Opus 5.5 en `xhigh`). Diseña datos, flujos e invariantes, define en el brief los casos de prueba (permisos, concurrencia, saldos), revisa lo delicado, confirma y sube. Lo trivial lo hace en línea.
-- **Reparto por riesgo, no por capa.** Todo cambio que pueda alterar saldos, permisos, datos, concurrencia o el contrato de la API lo implementa la sesión principal en línea, esté en SQL, en el servidor o en la web, con sus pruebas (ver «Quién implementa»). Lo demás va a Sonnet 5.5 en `high`: `platlab-ui-implementer` (presentación, movimiento, avisos y e2e de UI) y `platlab-assistant` (docs, cambios mecánicos y pruebas sin lógica nueva).
-- **Escalada.** Un subagente no lanza otros. Un agente Sonnet se detiene y reporta «Bloqueo» si el cambio toca lo delicado, si la misma comprobación falla dos veces o si falta una decisión; el orquestador lo reasigna. Las correcciones siguen con el mismo agente (`SendMessage`).
-- **Puertas automáticas** (`.claude/settings.json` y `.claude/hooks/`):
-  - Ningún implementador confirma, sube, abre PR ni edita `.claude/settings.json` o `.claude/hooks/`: `subagent-guard.sh` lo rechaza.
-  - Los agentes Sonnet no escriben en `supabase/`, `apps/server/`, `packages/contracts/` ni `packages/modules/`. El mismo hook rechaza la edición, y `subagent-gate.sh` compara al terminar el contenido con el del inicio para detectar cambios hechos por otra vía (Bash, scripts, regeneraciones). Si los hay, el agente los reporta como «Bloqueo» y no los deshace. La lógica delicada de `apps/web` no tiene ruta propia: sigue dependiendo del brief.
-  - Al terminar un implementador con cambios de código corre `typecheck`. En la etapa de cierre corren además `lint`, `deps` y `knip`, y si `platlab-ui-implementer` cambió `.tsx` o `.css` de la interfaz, debe dejar capturas nuevas de escritorio y móvil en `apps/web/.impeccable/review/`. Si algo falla, el agente vuelve a trabajar una vez; si sigue fallando, termina y se avisa.
-  - En local se bloquean las escrituras remotas de Supabase y Cloudflare por MCP, `supabase link`, `db push` y `git push --force`. Son avisos tempranos: las reglas de Bash solo comparan prefijos. La barrera es una regla de GitHub que impide el force-push y el borrado de `main`.
-- **Revisor de UI.** Un hook `SubagentStart` le da a `impeccable-finish-reviewer` el paquete de PlatLab: refina un sistema existente sin diseño de referencia, tarjeta QUALITY BAR ni semilla, y esas comprobaciones no aplican.
-- **Cierre de UI.** Por entrega: capturas de escritorio y móvil, `review-animations` si cambió el movimiento e `impeccable-finish-reviewer`. Por puerta (G0, G1…): `impeccable audit`, `harden` y `polish` sobre todo el frontend, más `review-animations`. Las skills que el flujo exige deben poder invocarse: `review-animations` y `pick-ui-library` no llevan `disable-model-invocation`.
-- **Evidencia.** Una fila por entrega, cuando el CI del mismo commit terminó.
-- **Economía de tokens (13-10-2026).** Medido: arrancar un subagente costaba ~40k tokens antes del brief (MCP heredados, skills y `CLAUDE.md`), y R-01D sumó ~1,2M en subagentes.
-  - La orquestación sale de `CLAUDE.md` a `.claude/orquestacion.md`, que solo recibe la sesión principal (hook `SessionStart`).
-  - Cada agente declara sus herramientas (`tools`, sin MCP ajenos). Los que no tocan lo delicado no cargan `CLAUDE.md` (`omitClaudeMd`). `platlab-assistant` pasa a `medium`; los implementadores, a 40 turnos, y el asistente, a 25.
-  - Las pruebas corren una sola vez, en la etapa de cierre: la sesión principal corre las dirigidas y `pnpm check`, y el CI del PR, las suites y el e2e. La verificación la hace la sesión principal con el log del CI, sin subagente.
-  - Briefs de 40 líneas y entregas de 40 turnos como máximo; hasta ~20 líneas, en línea; una sola ronda de capturas.
+La regla de trabajo vigente está en `.claude/orquestacion.md`; aquí quedan la decisión y su porqué.
+
+- **Reparto por riesgo, no por capa.**
+  - Lo que pueda alterar saldos, permisos, datos, concurrencia o el contrato de la API lo implementa la sesión principal en línea, con sus pruebas, esté en SQL, en el servidor o en la web. Trabaja en `high`, y en `xhigh` solo para diseñar o decidir.
+  - Lo demás va a Sonnet 5.5: `platlab-ui-implementer` (presentación, movimiento, avisos y e2e de UI) y `platlab-assistant` (docs, lo mecánico y pruebas sin lógica nueva).
+  - Sin agente Opus delegado (28-10-2026, pedido del usuario): una entrega delicada grande se parte en base y API, lógica web y pantallas.
+- **Escalada.** Un subagente no lanza otros. Un agente Sonnet se detiene con «Bloqueo» si el cambio toca lo delicado, si la misma comprobación falla dos veces o si falta una decisión.
+- **Puertas automáticas** (`.claude/hooks/`):
+  - Ningún implementador confirma, sube, abre PR ni edita las puertas.
+  - Los agentes Sonnet no escriben en `supabase/`, `apps/server/`, `packages/contracts/` ni `packages/modules/`. Al terminar, se compara el contenido para detectar cambios hechos por otra vía.
+  - Al terminar corre `typecheck`; en cierre, también `lint`, `deps`, `knip` y las capturas si cambió la UI.
+  - En local se bloquean las escrituras remotas por MCP, `supabase link`, `db push` y `git push --force`. La barrera real es la regla de GitHub que protege `main`.
 - **Etapas de una entrega (14-10-2026).**
-  - *Cambios* (por defecto): los agentes implementan y escriben o ajustan las pruebas sin correrlas, y el usuario revisa en el navegador. `subagent-guard.sh` rechaza que un agente corra pruebas, y la puerta solo vigila el carril y `typecheck`.
-  - *Cierre*, cuando el usuario aprueba los cambios: la sesión principal marca la etapa en `.git/claude-fase` (local, sin versionar; los agentes no lo tocan) y corre las pruebas dirigidas, `pnpm check`, las capturas con el revisor y el CI. Con la siguiente entrega vuelve a *cambios*.
-  - El brief designa la ubicación (codebase-memory; en SQL, rangos de `grep`, porque el índice lo cubre parcialmente), las skills y las herramientas. Los agentes no precargan skills ni exploran: si falta algo, una búsqueda puntual y, si no basta, «Bloqueo».
+  - *Cambios*, por defecto: se escriben o ajustan las pruebas sin correrlas, y el usuario revisa en el navegador.
+  - *Cierre*, cuando el usuario aprueba (`.git/claude-fase`): pruebas dirigidas, `pnpm check`, capturas con el revisor y CI.
+  - Base y API se cierran siempre con las pruebas de su módulo (21-10-2026).
+- **Cierre de UI.**
+  - Por entrega: capturas de escritorio y móvil, `review-animations` si cambió el movimiento e `impeccable-finish-reviewer`.
+  - Por puerta (G0, G1…): `impeccable audit`, `harden` y `polish` sobre todo el frontend, más `review-animations`.
+  - Las skills que el flujo exige deben poder invocarse.
+- **Evidencia:** una fila por entrega, cuando terminó el CI del mismo commit.
+- **Economía de tokens (13 y 14-10-2026).** Lo caro es el contexto, que crece y se relee en cada turno; el brief pesa unos 2k. La sesión principal arranca con unos 58k tokens y un subagente con unos 31k. Por eso:
+  - la orquestación vive en `.claude/orquestacion.md` y solo la carga la sesión principal;
+  - cada agente declara sus herramientas, y los que no tocan lo delicado no cargan `CLAUDE.md`;
+  - briefs de 40 líneas y entregas de 40 turnos como máximo;
+  - codebase-memory primero, y `read-guard.sh` rechaza leer sin rango un archivo de más de 300 líneas;
+  - no hay monitores de tokens.
 
-- **Quién implementa (14-10-2026).** Medido en el paso 2 del [ADR 0016](#adr-0016): la sesión principal arranca con ~58k tokens y un subagente con ~31k. Los dos agentes Opus releyeron 5,8 M en 75 turnos; la orquestación, 7,8 M en 66, y unos 12 de esos turnos fueron solo avisos de un monitor de tokens. Lo caro es el contexto, que crece con cada lectura y razonamiento y se relee en cada turno; el brief pesa ~2k.
-  - Lo delicado lo implementa la sesión principal en línea, con sus pruebas, justo después de ubicarlo: sin brief ni relectura. De Opus a Opus delegar no abarata el token; solo aísla el contexto.
-  - Sin agente Opus delegado (28-10-2026, pedido del usuario: se eliminan `platlab-implementer` y `delegate-guard.sh`). Una entrega delicada grande se parte en base y API, lógica web y pantallas, y cada parte la hace la sesión principal.
-  - Sonnet sigue con la UI, los docs y lo mecánico: su menor precio por token compensa el arranque.
-  - La sesión principal trabaja en `high` al implementar y en `xhigh` solo para diseñar o decidir.
-  - Código: codebase-memory primero. `read-guard.sh` rechaza un `Read` sin rango de un `.ts` o `.tsx` de más de 300 líneas, también en la sesión principal. El brief nombra las funciones por su nombre calificado.
-  - Sin monitores de tokens: cada aviso despierta a la sesión principal con todo su contexto. El uso de cada agente llega en su aviso de fin; el detalle sale una sola vez de `.claude/scripts/agent-tokens.sh`.
-  - Pendiente del usuario: deshabilitar los MCP y las skills de la cuenta ajenos a PlatLab, que pesan en cada turno de cada sesión.
+  Pendiente del usuario: deshabilitar los MCP y las skills de la cuenta ajenos a PlatLab.
 
-Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa; las pruebas de invariantes son la especificación; una regla que depende del prompt se vuelve una puerta automática; y el contexto del orquestador se reserva para decidir. Las etapas evitan repetir pruebas y capturas sobre cambios que el usuario aún va a ajustar. Reemplaza el reparto anterior de `CLAUDE.md` (Opus solo para código delicado y Sonnet por tipo de tarea). La revisión del harness del 07-10-2026 añadió los rechazos, la comparación de contenido, las capturas, el paquete del revisor y el cierre de UI por puerta: el cierre de R-01A nunca se ejecutó (una de sus skills no se podía invocar) y `main` no tenía protección.
+Motivo: el riesgo depende de lo que un cambio puede romper, no de la capa. Las pruebas de invariantes son la especificación, y una regla que depende del prompt se vuelve una puerta automática. Las etapas evitan repetir pruebas y capturas sobre cambios que el usuario aún va a ajustar. La revisión del 07-10-2026 añadió las puertas, porque el cierre de R-01A nunca se ejecutó y `main` no tenía protección.
+
+Cambios: 07, 13, 14, 21 y 28-10-2026; compactado el 16-11-2026 (las mediciones, en git).
 
 <a id="adr-0014"></a>
 
@@ -363,93 +346,37 @@ Motivo: menos secciones hacen la app más simple. El laboratorio piensa un infor
 
 ## ADR 0015 — Ingreso en un paso, control por peso y controlados
 
-- **Una ventana «Ingresar reactivo»** reemplaza «Nuevo reactivo» y «Registrar ingreso». Es un formulario por secciones, al estilo de ReactiLab:
-  - **Datos de la etiqueta:**
-    - Nombre: busca en el catálogo o crea, en el mismo campo.
-    - CAS: obligatorio, salvo en mezclas.
-    - Marca, código, cantidad con su unidad, número de frascos y caducidad.
-  - **Control por peso** (opcional).
-  - **Dónde se guarda:** área o departamento, y ubicación.
-  - **Clasificación y seguridad.**
+- **Una ventana «Ingresar reactivo»** reemplaza las dos de antes (catálogo e ingreso). Desde el ajuste del 13-10-2026 se llama «Nuevo reactivo» y, desde la ficha, «Ingresar frascos». Va en el orden en que se lee el frasco:
+  - datos de la etiqueta: nombre (busca en el catálogo o crea, en el mismo campo), CAS (obligatorio salvo en mezclas), marca, código, cantidad con su unidad, número de frascos y caducidad;
+  - «Dónde se guarda», «Control por peso» (opcional) y «Clasificación y seguridad».
 
-  Las tres últimas secciones aparecen al escribir el nombre. Las sugerencias salen solo al escribir, desde 2 letras. Con un reactivo existente, sus datos de catálogo se rellenan y no se editan ahí.
+  Con un reactivo existente, sus datos de catálogo se rellenan y no se editan ahí. Crear uno desde el ingreso exige el permiso de catálogo; el Operador elige del catálogo.
 - **Reactivo (catálogo):**
-  - estado físico: sólido, líquido, acuoso, mezcla o gas;
-  - peligros: los 9 pictogramas SGA;
-  - **controlado**: lo marca el Administrador, nunca el sistema por el CAS;
-  - ficha de seguridad por reactivo: digital (con enlace; el PDF llega con T-07), solo en físico o no tiene;
-  - densidad (g/mL), para los que se miden en volumen;
-  - unidad g, kg, mL o L, que no cambia tras el primer movimiento;
-  - código del reactivo, automático.
+  - estado físico (sólido, líquido, acuoso, mezcla o gas) y los 9 pictogramas SGA;
+  - **controlado**, que marca el Administrador, nunca el sistema por el CAS;
+  - ficha de seguridad (digital, solo en físico o no tiene) y densidad (g/mL);
+  - unidad (g, kg, mL o L), que no cambia tras el primer movimiento;
+  - código automático a partir del nombre (`ACETONA`, `ACIDO-CLORHIDRICO-37`).
 
-  El mínimo se fija en la ficha, no en el ingreso.
-- **Frasco: código propio, único en el espacio.**
-  - Se sugiere a partir del nombre (`ACE-001`) o sigue la serie del reactivo (`AC-BIO-001` → `AC-BIO-002`), y es editable.
-  - Varios frascos se numeran en serie.
-  - Los códigos existentes se conservan, y el QR no cambia.
-- **Lote:** guarda la marca (antes «proveedor») y la caducidad. No se piden ni el lote del fabricante ni el código del lote: el lote interno es automático.
-- **Área o departamento:** lista propia del espacio. Se amplía desde el mismo selector y se guarda en el ingreso.
-- **Ubicación por niveles:** hasta 3 campos (laboratorio o bodega › estante › nivel).
-  - Cada campo sugiere los hijos del anterior.
-  - Con «+» o Enter se crea la ubicación y se abre el nivel siguiente. Solo crean ubicaciones el Administrador y el Propietario.
-  - Se crean ubicaciones de Core desde la API.
+  El mínimo se fija en la ficha, no en el ingreso. Editar la ficha es del Administrador y el Propietario.
+- **Códigos:**
+  - *Frasco:* propio y único en el espacio. El servidor sugiere la serie libre a partir del nombre (`ACE-001`) o de la del reactivo (`AC-BIO-001` → `AC-BIO-002`), acepta la editada y rechaza una repetida. Varios frascos se numeran en serie, y los existentes conservan su código («lote-NN») y su QR.
+  - *Lote:* interno y automático por reactivo (`L-001`). Guarda la marca (antes «proveedor») y la caducidad, sin el lote del fabricante.
+- **Dónde se guarda:** la ubicación por niveles (laboratorio o bodega › estante › nivel) y el departamento. Desde el [ADR 0024](#adr-0024), el formulario solo elige: las ubicaciones se crean en Áreas, y el departamento reemplaza a la lista «área o departamento».
 - **Control por peso:**
-  - **Tara** = peso bruto del frasco lleno − cantidad × densidad (en masa: − cantidad).
-  - En la ficha, cada frasco muestra Tara · Peso neto · Bruto esperado; la salida, «En balanza».
-  - «Ajustar» ofrece «Por peso»: un ajuste con motivo «Pesada», con el saldo redondeado a centésimas.
-  - Cálculos exactos (`numeric`).
-- **Controlado:**
-  - candado en la tarjeta del inventario y «🔒 Controlado» en la ficha;
-  - filtro «Controlados» y aviso en la salida;
-  - en la interfaz reemplaza «Fiscalizado»: la sección de REG-02 se llamará «Controlados» ([ADR 0014](#adr-0014)).
-- **Conteo** sale de la interfaz. Se conserva en el servidor para conciliar el inventario de G1.
-- **Referencia visual:** el prototipo de la rama `proto/r-01d-ingreso`, que no se fusiona.
-
-**Ajuste de la ventana (13-10-2026):**
-
-- Se llama «Nuevo reactivo»; desde la ficha, «Ingresar frascos».
-- Cada sección va en su propio marco, visible desde el inicio. «Clasificación y seguridad» va en una tarjeta aparte, a la derecha en escritorio y al final en el móvil.
-- La unidad se elige en un desplegable unido a la cantidad.
-- El error del CAS aparece en un globo junto al campo. «Control por peso» explica cada campo con globos de ayuda.
-- Área o departamento es un desplegable.
-- La ubicación muestra sus tres niveles con texto guía; cada nivel se habilita al elegir el anterior.
-- «Control por peso» es una sección desplegable, plegada al abrir y bajo «Dónde se guarda»; se abre sola si tiene datos o un error.
-- El número de frascos va en el pie, unido al botón: [− N +] «Ingresar N frascos». «Caducidad» ocupa su lugar, junto a Cantidad.
-- Tarjeta del frasco (14-10-2026):
-  - Los estados van sobre el borde: «★ Usar primero» (FEFO), «Vencido», «Apartado», «Cuarentena» y «Restringido».
-  - Contenido: el código, la marca y el área, el saldo con su barra, la ubicación con su ruta completa, y las fichas 📅 (fecha corta) y ⚖.
-  - Trasladar es un botón propio (⇄) y el menú «⋯» desaparece.
-  - Tocar el código abre «Detalles del frasco»: lote interno, fecha de ingreso, cantidad inicial, densidad y quién lo ingresó.
-  - Ajuste del mismo día:
-    - La ubicación va en dos líneas, como una dirección: la sala arriba y, en gris, el estante y el nivel.
-    - La ficha ⚖ dice «Debe pesar N g» y ofrece «Corregir con la balanza». La tara y el neto pasan a «Detalles del frasco».
-    - «Ajustar» vuelve como botón y abre una sola ventana que elige el método. Con control por balanza, pregunta «¿Qué marca la balanza?» y ofrece escribir la cantidad. Sin control, pregunta la cantidad y ofrece «Pesar el frasco para activar la balanza» (antes «Fijar tara»).
-  - La tarjeta queda con «Salida» y ⇄. «Etiquetas QR» pasa a la cabecera de la ficha y gira las tarjetas (14-10-2026).
-  - «Ajustar» vive solo en la ficha ⚖ de cada frasco, que ve quien puede ajustar:
-    - con tara, «Debe pesar N g», con «Corregir con la balanza» y «Escribir la cantidad»;
-    - sin tara, «Sin pesar», con «Pesar ahora para activar la balanza» y «Escribir la cantidad»;
-    - el Operador la ve solo con tara, como información.
-  - El icono del estado va junto al código del frasco.
-  - En la cabecera, «Editar» es un lápiz junto al nombre. «Actualizado hace N min» y ⟳ pasan a la barra superior, junto a la miga de pan.
-- Resumen de la ficha: tres tarjetas pequeñas separadas en una columna angosta.
-- Inventario (nivel 1): 4 tarjetas por fila desde 1280 px, con el contenido centrado y las insignias (frascos, vencidos y controlado) en una fila bajo el total.
-
-**Implementación (12-10-2026):**
-
-- **Editar la ficha** (Administrador y Propietario): nombre, CAS, estado, peligros, controlado, ficha de seguridad y densidad. La unidad, solo sin movimientos.
-- **Fijar tara** en la ficha (quien ajusta): tara = peso en balanza − saldo × densidad. Reemplaza la anterior y queda en la auditoría.
-- **Densidad por frasco.** La del reactivo se sugiere; cada frasco guarda la tara y la densidad con que se calculó. Corregir la ficha no cambia frascos ya pesados.
-- **Cálculos en el servidor.** Tara, ajuste por peso y fijar tara se calculan en SQL; el navegador solo los anticipa. Un peso menor que la tara se rechaza.
-- **Reactivo nuevo desde el ingreso:** exige el permiso de catálogo. El Operador elige del catálogo.
-- **Códigos.**
-  - Reactivo: automático a partir del nombre (`ACETONA`, `ACIDO-CLORHIDRICO-37`).
-  - Lote: automático por reactivo (`L-001`).
-  - Frasco: el servidor sugiere la serie libre, acepta la editada y rechaza un código repetido.
-  - Los frascos existentes conservan «lote-NN».
-- **Área:** lista del módulo, como los destinos; el ingreso guarda el texto en el lote.
-- **Ubicaciones:** se crean por la ruta de Reactivos con su permiso de catálogo, porque Core no tiene permisos propios. Un nombre repetido bajo el mismo padre devuelve la existente.
+  - *Tara* = peso bruto del frasco lleno − cantidad × densidad (en masa, − cantidad). *Fijar tara* (quien ajusta) = peso en balanza − saldo × densidad; reemplaza la anterior y queda en la auditoría.
+  - Cada frasco guarda la tara y la densidad con que se calculó. La del reactivo solo se sugiere, y corregir la ficha no cambia los frascos ya pesados.
+  - Tara, ajuste por peso y fijar tara se calculan en SQL (`numeric`); el navegador solo los anticipa. Un peso menor que la tara se rechaza. El ajuste por peso lleva el motivo «Pesada» y el saldo redondeado a centésimas.
+  - **Ajuste del mismo día (14-10-2026):** «Ajustar» vive en la ficha ⚖ de cada frasco y abre una sola ventana; el frasco decide el método.
+    - Con tara, «Debe pesar N g», con «Corregir con la balanza» y «Escribir la cantidad».
+    - Sin tara, «Sin pesar», con «Pesar ahora para activar la balanza» y «Escribir la cantidad».
+    - El Operador solo la ve con tara, como información.
+- **Controlado:** candado en el inventario y «🔒 Controlado» en la ficha, el filtro «Controlados» y un aviso en la salida. Reemplaza «Fiscalizado» en la interfaz; la sección de REG-02 se llamará «Controlados» ([ADR 0014](#adr-0014)).
+- **Conteo:** sale de la interfaz y se conserva en el servidor para conciliar el inventario de G1.
 
 Motivo: quien registra tiene el frasco en la mano y llena lo que lee, de arriba abajo; separar el catálogo y el ingreso en dos ventanas lo hacía lento. La tara permite comprobar con la balanza lo que dice el sistema. «Controlado» se entiende igual en universidades, empresas y uso individual. Cambia el [ADR 0012](#adr-0012) (tara, densidad, código de frasco y ventanas de registro) y el término del [ADR 0014](#adr-0014).
+
+Cambios: 12, 13 y 14-10-2026; compactado el 16-11-2026 (la disposición de la ventana y de la tarjeta del frasco, en git).
 
 <a id="adr-0016"></a>
 
@@ -738,17 +665,17 @@ Estado: aceptada (20-10-2026; idea del usuario: cuadros que la app dibuja como u
 |---|---|---|
 | Fiscalizados | Sustancias, concentraciones, cupos, sitios, custodia, formato vigente del reporte y si las salidas reguladas requieren aprobación | REG-01 (F0) |
 | Espacios del piloto | ¿Una o varias unidades operan el inventario? ¿La calificación abarca varias? ¿Necesita el titular una vista consolidada de sus espacios (informes o traslados entre ellos)? Hoy los espacios no comparten nada, aunque sean del mismo titular; abrirlo exige una decisión nueva | F0, con REG-01 |
-| Soluciones preparadas | Submódulo de Reactivos, al final ([ADR 0017](#adr-0017)); el diseño ya está decidido (03 §4). Falta saber si el laboratorio almacena soluciones y si siguen siendo fiscalizadas | REG-01 |
+| Soluciones preparadas | ¿El laboratorio almacena soluciones y siguen siendo fiscalizadas? El diseño está decidido (03 §4) y va al final de Reactivos ([ADR 0017](#adr-0017)) | REG-01 |
 | Materiales en prácticas | ¿La práctica representativa usa material que se entrega y se devuelve? Si es así, se adelanta un Materiales mínimo a F3. En Laboratorios los materiales son texto libre: ¿el cliente necesita saber cuántos hay (vasos, pipetas) al pedir y al aprobar? (15-11-2026) | P-04 |
 | Equipos | ¿Qué campos de la ficha y qué documentos considera necesarios el cliente? ¿Qué valores de alimentación usa? ¿Quiere un aviso al pesar en Reactivos con una balanza de calibración vencida? ([ADR 0019](#adr-0019)) | F0, antes de E-01 |
 | Registro paralelo | ¿El laboratorio conserva su registro actual durante el piloto? | F0 |
-| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | L-01e se programó con reglas por defecto («Cierre de Laboratorios», 05-11-2026). Falta confirmar: ¿quién declara lo utilizado al cerrar (el responsable o el docente)? ¿El químico abierto que sobra vuelve al frasco o se desecha? ¿La lista de chequeo debe estar completa para marcar «Lista»? ¿La columna «Código» de equipos se llena con los asignados o a mano? ¿Se entrega material que se devuelve? (Solicitantes, cancelación y materiales, 21-10-2026; responsable, fechas y aforo, 23-10-2026) | P-04, con el cliente |
+| Reglas de Laboratorios ([ADR 0023](#adr-0023)) | L-01e se programó con reglas por defecto («Cierre de Laboratorios», 05-11-2026). Falta confirmar: ¿quién declara lo utilizado al cerrar (el responsable o el docente)? ¿El químico abierto que sobra vuelve al frasco o se desecha? ¿La lista de chequeo debe estar completa para marcar «Lista»? ¿La columna «Código» de equipos se llena con los asignados o a mano? ¿Se entrega material que se devuelve? | P-04, con el cliente |
 | Revisión de Laboratorios (16-11-2026) | Al mover un bloque a otra área cambia su código, pero los reactivos apartados conservan el motivo y el destino de antes («Práctica P1-S10-BIO03 · Bioquímica»): ¿se deja como registro de cuándo se apartó o se actualiza al mover? «Recibidas» muestra hasta 500 solicitudes sin páginas: añadir páginas o filtro por periodo | El motivo, con el usuario; las páginas, antes de G2 |
-| Inicio | Propuesta del 20-10-2026 en espera: el usuario tiene otras ideas. «Por atender» de todos los módulos (rojo antes que ámbar, con su enlace filtrado), tres tarjetas por fila con gráfico solo si hay datos (Equipos hoy dice siempre «Sin cambios»), «Por atender» primero en el móvil y avisos declarados por cada módulo en su `module.tsx` | Al terminar los módulos, con las ideas del usuario |
+| Inicio | La propuesta del 20-10-2026 espera, porque el usuario tiene otras ideas: «Por atender» de todos los módulos con su enlace filtrado, tres tarjetas por fila con gráfico solo si hay datos y avisos declarados por cada módulo. Hoy la tarjeta de Equipos dice siempre «Sin cambios» | Al terminar los módulos, con las ideas del usuario |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
-| Datos de Mantenimiento | ¿Qué datos del proveedor necesita el cliente (acreditación, identificación tributaria)? ¿Las tareas de la lista necesitan «No aplica» o una explicación cuando no se hacen? ¿Se identifica al técnico interno que hizo el trabajo? ¿Su sistema de calidad exige que una segunda persona revise las calibraciones? M-01a guarda nombre y contacto del proveedor, casillas simples y quién registró, y el registro es inmutable ([ADR 0020](#adr-0020)) | F0, con el cliente |
-| Escaneo con cámara | Resuelto el 14-10-2026: «Escanear» en Reactivos abre la cámara en la app y lleva al frasco listo para «Salida». Usa el lector nativo del navegador o, si no lo hay, una librería. ¿Hace falta registrar salidas en serie? | P-03 |
+| Datos de Mantenimiento | ¿Qué datos del proveedor necesita el cliente (acreditación, identificación tributaria)? ¿Las tareas de la lista necesitan «No aplica» o una explicación cuando no se hacen? ¿Se identifica al técnico interno que hizo el trabajo? ¿Su sistema de calidad exige que una segunda persona revise las calibraciones? Hoy se guardan el nombre y el contacto del proveedor, casillas simples y quién registró ([ADR 0020](#adr-0020)) | F0, con el cliente |
+| Salidas en serie | ¿Hace falta registrar varias salidas seguidas con la cámara? Hoy «Escanear» abre un frasco listo para «Salida» (14-10-2026) | P-03 |
 | Retención y respaldos | Duración por repositorio y mecanismo de supresión anticipada | DP-01, antes de G1 |
 | Libro sin filtros | La lista sin filtros (también la actividad del Resumen) entra por frascos y ordena todo el libro del espacio: unos 250 ms con 40 000 operaciones (medido en R-01C). ¿Índice o consulta distinta? | Antes de G1, con el escenario de carga (04 §4) |
 | Inventario de más de 100 reactivos | La web carga solo la primera página del catálogo (100). El Inventario y sus filtros no muestran el resto. ¿Paginación, búsqueda en el servidor o ambas? | Antes de G1 |
