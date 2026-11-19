@@ -15,6 +15,7 @@
     "db:start": "pnpm db:keys && supabase start -x realtime,imgproxy,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor && supabase seed buckets --local",
     "db:reset": "supabase db reset && supabase seed buckets --local",
     "db:types": "pnpm --filter @platlab/server db:types",
+    "demo:online": "bash scripts/demo-online.sh",
     "test:db": "supabase test db",
     "test": "pnpm -r test",
     "test:int": "pnpm --filter @platlab/server test:int",

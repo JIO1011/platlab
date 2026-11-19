@@ -1,0 +1,27 @@
+# Túnel de la demo publicada (ADR 0029). Cópialo a ~/.cloudflared/platlab.yml y reemplaza <TUNNEL_ID> y <HOME>
+# (lo crea `cloudflared tunnel create platlab-demo`). Gana la primera regla que coincide. Las reglas no fijan el
+# dominio: el túnel solo recibe el que le asigna `cloudflared tunnel route dns` (pnpm demo:online lo toma de PLATLAB_DEMO_HOST).
+tunnel: <TUNNEL_ID>
+credentials-file: <HOME>/.cloudflared/<TUNNEL_ID>.json
+# Por TCP: QUIC usa UDP 7844, que muchas redes de campus bloquean.
+protocol: http2
+
+ingress:
+  # De Auth local, solo entrar, renovar la sesión y salir. Sus claves de desarrollo son públicas: nada más de
+  # Supabase local sale a internet.
+  - path: ^/auth/v1/(token|user|logout)$
+    service: http://127.0.0.1:54321
+  # Registro, recuperación y administración de Auth: cerrados.
+  - path: ^/auth/v1/
+    service: http_status:404
+  # La API (pnpm demo:online la levanta en el 3100).
+  - path: ^/v1/
+    service: http://127.0.0.1:3100
+  # La app: su acceso, sus rutas y sus archivos (vite preview en el 4180). Vite solo acepta su propio host.
+  - path: ^/((acceso|espacios)/?$|(e|q|assets|ghs)/)
+    service: http://127.0.0.1:4180
+    originRequest:
+      httpHostHeader: 127.0.0.1:4180
+  # Todo lo demás, empezando por la portada: el sitio de presentación (apps/site, en el 4190). Su «Iniciar sesión»
+  # lleva a /acceso.
+  - service: http://127.0.0.1:4190

@@ -2,6 +2,7 @@ import { Button, Field, Input } from '@platlab/ui';
 import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Wordmark } from '../../app/brand';
+import { env } from '../../app/env';
 import { useSession } from '../../app/session';
 
 const demoAccounts = [
@@ -109,12 +110,14 @@ export function LoginPage() {
             {signingUp ? 'Crear cuenta' : 'Entrar'}
           </Button>
         </form>
-        <p className="mt-4 text-center text-sm text-ink-muted">
-          {signingUp ? '¿Ya tienes cuenta?' : '¿Te invitaron y no tienes cuenta?'}{' '}
-          <button type="button" onClick={switchMode} className="font-semibold text-action underline-offset-2 hover:underline">
-            {signingUp ? 'Inicia sesión' : 'Crear cuenta'}
-          </button>
-        </p>
+        {env.signupEnabled ? (
+          <p className="mt-4 text-center text-sm text-ink-muted">
+            {signingUp ? '¿Ya tienes cuenta?' : '¿Te invitaron y no tienes cuenta?'}{' '}
+            <button type="button" onClick={switchMode} className="font-semibold text-action underline-offset-2 hover:underline">
+              {signingUp ? 'Inicia sesión' : 'Crear cuenta'}
+            </button>
+          </p>
+        ) : null}
 
         {import.meta.env.DEV ? (
           <section className="mt-8 rounded-panel bg-canvas p-4" aria-label="Cuentas de demo">

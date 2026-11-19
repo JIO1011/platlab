@@ -8,4 +8,6 @@ export const env = {
     import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] ?? 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH',
   /** Vacío: mismo origen (proxy de Vite). En producción, el dominio de la API. */
   apiUrl: import.meta.env['VITE_API_URL'] ?? '',
+  /** «Crear cuenta» (ADR 0027). `off` en la demo publicada, donde el registro no llega a Auth (ADR 0029). */
+  signupEnabled: import.meta.env['VITE_SIGNUP'] !== 'off',
 };

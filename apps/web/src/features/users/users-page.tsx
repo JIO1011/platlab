@@ -14,6 +14,7 @@ import { Ellipsis, Lock, UserRoundPlus, UsersRound } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { useShell } from '../../app/app-shell';
+import { env } from '../../app/env';
 import { dayInZone, relativeDays, todayInZone } from '../../app/format';
 import { initialsOf } from '../../app/initials';
 import { QueryErrorState } from '../../app/states';
@@ -29,7 +30,10 @@ type Dialog =
 
 const hints: Record<UsersView, (days: number) => string> = {
   activos: () => 'Quienes entran hoy al espacio, con su rol y su último acceso.',
-  pendientes: () => 'Se unen al entrar a PlatLab con su correo y pulsar «Unirme». Si no tienen cuenta, la crean en el acceso.',
+  pendientes: () =>
+    env.signupEnabled
+      ? 'Se unen al entrar a PlatLab con su correo y pulsar «Unirme». Si no tienen cuenta, la crean en el acceso.'
+      : 'Se unen al entrar a PlatLab con su correo y pulsar «Unirme». Necesitan una cuenta de acceso: en esta demo, la crea el Equipo PlatLab.',
   'sin-actividad': (days) =>
     `No entran hace más de ${days} días o nunca entraron. Si ya no forman parte del laboratorio, quítales el acceso.`,
   quitados: () => 'Ya no entran al espacio. Sus registros conservan su nombre; puedes volver a agregarlos.',
