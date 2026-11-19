@@ -352,3 +352,4 @@ Son valores de arranque para pruebas. Se ajustan con mediciones y no son comprom
 | Por vencer | Un frasco con saldo cuya caducidad cae entre hoy y los próximos 30 días, en la zona del espacio ([ADR 0012](05_decisiones.md#adr-0012), 05-10-2026) |
 | Semáforo de insumos | Un lote de insumo con saldo: vencido (antes de hoy), vence en 90 días o menos, en 180 días o menos, o vigente; en la zona del espacio. Son los cortes de la planilla del cliente ([ADR 0025](05_decisiones.md#adr-0025), 18-11-2026) |
 | Evaluar reemplazo | Vida útil cumplida, reparaciones del periodo de Indicadores (12 meses de calendario) que llegan al 50 % del valor de reposición, o 3 incidentes en el periodo; descartar lo oculta 6 meses ([ADR 0020](05_decisiones.md#adr-0020), 18-10-2026) |
+| Usuario sin actividad | Sin acceso al espacio en más de 30 días, o nunca entró; el último acceso se guarda como máximo una vez por hora ([ADR 0027](05_decisiones.md#adr-0027)) |
