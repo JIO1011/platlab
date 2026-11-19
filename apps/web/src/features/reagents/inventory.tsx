@@ -3,6 +3,7 @@ import { Badge, Button, IconChip, Input, Quantity, Skeleton, StatePanel, cn } fr
 import { CalendarClock, CircleAlert, FlaskConical, Layers, Lock, PackagePlus, Search, TrendingDown, TriangleAlert, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { FilterPill } from '../../app/filter-pill';
 import { ModuleMark } from '../../app/module-mark';
 import { useAreasOverview } from '../../app/queries';
 import { useReagents } from './context';
@@ -61,25 +62,6 @@ const alertFilters = {
 } as const;
 type AlertFilter = keyof typeof alertFilters;
 const alertFilterKeys = Object.keys(alertFilters) as AlertFilter[];
-
-/** Píldora de filtro: se muestra si hay algo que filtrar o si ya está activa, para poder quitarla. */
-function FilterPill({ label, count, active, onToggle }: { label: string; count: number; active: boolean; onToggle: () => void }) {
-  if (count === 0 && !active) return null;
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onToggle}
-      className={cn(
-        'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors',
-        active ? 'bg-action-soft text-action' : 'bg-surface-sunken text-ink-muted hover:text-ink',
-      )}
-    >
-      {label}
-      <span className="tabular-nums">({count})</span>
-    </button>
-  );
-}
 
 /** Ficha del alcance que trae la sección Áreas («Área: Química»): dice a qué se limita la lista y se quita con un toque. */
 function ScopeChip({ label, name, onRemove }: { label: string; name: string | undefined; onRemove: () => void }) {
@@ -199,6 +181,7 @@ export function ReagentsInventoryPage() {
               count={productList.filter(alertFilters[filter].has).length}
               active={active === filter}
               onToggle={() => toggleAlert(filter)}
+              hideWhenEmpty
             />
           ))}
           {active ? null : (

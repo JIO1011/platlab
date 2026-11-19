@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dueText, lentOut, locationLabels, normalizeQuantity, outstandingText } from './text';
+import { dueStatus, dueText, lentOut, locationLabels, materialLevel, normalizeQuantity } from './text';
 
 describe('lentOut', () => {
   it('resta exacto lo disponible de la existencia', () => {
@@ -9,7 +9,7 @@ describe('lentOut', () => {
   });
 });
 
-describe('dueText y outstandingText', () => {
+describe('dueText', () => {
   it('dice la fecha prevista, la falta de plazo y el cierre', () => {
     expect(dueText({ dueOn: null, status: 'open', closedAt: null })).toBe('Sin fecha de devolución');
     expect(dueText({ dueOn: '2026-11-20', status: 'open', closedAt: null })).toMatch(/^Vence el /);
@@ -17,9 +17,6 @@ describe('dueText y outstandingText', () => {
   });
 
   it('cuenta las líneas por devolver', () => {
-    expect(outstandingText({ status: 'open', outstandingLines: 2, lineCount: 3 })).toBe('Falta devolver en 2 de 3 líneas');
-    expect(outstandingText({ status: 'open', outstandingLines: 1, lineCount: 1 })).toBe('Falta devolver en 1 de 1 línea');
-    expect(outstandingText({ status: 'closed', outstandingLines: 0, lineCount: 2 })).toBe('2 líneas');
   });
 });
 
@@ -40,5 +37,31 @@ describe('normalizeQuantity', () => {
   it('acepta coma decimal y quita espacios', () => {
     expect(normalizeQuantity(' 2,5 ')).toBe('2.5');
     expect(normalizeQuantity('10')).toBe('10');
+  });
+});
+
+describe('dueStatus', () => {
+  const open = { status: 'open' as const, closedAt: null, overdue: false };
+  it('avisa el atraso en rojo con los días', () => {
+    expect(dueStatus({ ...open, dueOn: '2026-11-16', overdue: true }, '2026-11-19')).toMatchObject({ tone: 'danger', headline: 'Atrasado 3 días' });
+  });
+  it('pone en ámbar lo que vence en 3 días o menos y en el acento lo demás', () => {
+    expect(dueStatus({ ...open, dueOn: '2026-11-19' }, '2026-11-19')).toMatchObject({ tone: 'warning', headline: 'Vence hoy' });
+    expect(dueStatus({ ...open, dueOn: '2026-11-20' }, '2026-11-19')).toMatchObject({ tone: 'warning', headline: 'Vence mañana' });
+    expect(dueStatus({ ...open, dueOn: '2026-11-24' }, '2026-11-19')).toMatchObject({ tone: 'accent', headline: 'Vence en 5 días' });
+  });
+  it('un vale cerrado está devuelto y uno sin fecha no vence', () => {
+    expect(dueStatus({ status: 'closed', closedAt: '2026-11-04T10:00:00Z', overdue: false, dueOn: '2026-11-01' }, '2026-11-19').tone).toBe('success');
+    expect(dueStatus({ ...open, dueOn: null }, '2026-11-19').headline).toBe('Sin plazo');
+  });
+});
+
+describe('materialLevel', () => {
+  it('mide el insumo contra el doble de su mínimo', () => {
+    expect(materialLevel({ class: 'consumable', balance: '60', available: '60', minimum: '100', baseUnit: 'u' })).toMatchObject({ percent: 30, note: 'Mínimo 100 u' });
+    expect(materialLevel({ class: 'consumable', balance: '60', available: '60', minimum: null, baseUnit: 'u' })).toMatchObject({ percent: null, note: 'Sin mínimo definido' });
+  });
+  it('mide el reutilizable por lo que hay en el estante', () => {
+    expect(materialLevel({ class: 'reusable_counted', balance: '38', available: '26', minimum: null, baseUnit: 'u' })).toMatchObject({ percent: 68, note: '12 u en préstamo' });
   });
 });

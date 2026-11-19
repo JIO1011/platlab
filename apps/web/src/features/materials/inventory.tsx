@@ -1,7 +1,9 @@
 import type { MaterialClass } from '@platlab/contracts';
-import { Button, Input, Segmented, Skeleton, StatePanel } from '@platlab/ui';
-import { Package, PackageSearch, Plus } from 'lucide-react';
+import { Button, Input, Skeleton, StatePanel } from '@platlab/ui';
+import { Package, PackageSearch, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
+import { FilterPill } from '../../app/filter-pill';
+import { countText } from '../../app/format';
 import { SectionHeader } from '../../app/section-header';
 import { QueryErrorState } from '../../app/states';
 import { useMaterials } from './context';
@@ -11,6 +13,11 @@ import { MaterialSheet } from './material-sheet';
 import { useMaterialPage } from './queries';
 
 type ClassFilter = 'all' | Extract<MaterialClass, 'consumable' | 'reusable_counted'>;
+const classFilters: ReadonlyArray<{ value: ClassFilter; label: string }> = [
+  { value: 'all', label: 'Todos' },
+  { value: 'consumable', label: 'Insumos' },
+  { value: 'reusable_counted', label: 'Reutilizables' },
+];
 
 /**
  * Inventario de Materiales (ADR 0025): los materiales del espacio con lo disponible hoy, lo prestado y el aviso
@@ -37,26 +44,30 @@ export function MaterialsInventoryPage() {
   return (
     <>
       <SectionHeader title="Inventario" updatedAt={materials.dataUpdatedAt} actions={create} />
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <Segmented
-          label="Clase de material"
-          value={materialClass}
-          onValueChange={setMaterialClass}
-          options={[
-            { value: 'all', label: 'Todos' },
-            { value: 'consumable', label: 'Insumos' },
-            { value: 'reusable_counted', label: 'Reutilizables' },
-          ]}
-        />
-        <Input
-          type="search"
-          aria-label="Buscar material por nombre o código"
-          placeholder="Buscar por nombre o código"
-          autoComplete="off"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="h-11 min-w-0 flex-1 basis-60 sm:h-10"
-        />
+      <div className="mt-6 grid gap-3">
+        <div className="relative w-full md:max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" aria-hidden />
+          <Input
+            type="search"
+            aria-label="Buscar material por nombre o código"
+            placeholder="Buscar por nombre o código"
+            autoComplete="off"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="h-11 pl-9 sm:h-10"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {classFilters.map(({ value, label }) => (
+            <FilterPill key={value} label={label} active={materialClass === value} onToggle={() => setMaterialClass(value)} />
+          ))}
+          {items.length > 0 ? (
+            <p className="text-sm text-ink-muted sm:ml-auto" aria-live="polite">
+              {countText(items.length, 'material', 'materiales')}
+              {materials.hasNextPage ? ' o más' : ''}
+            </p>
+          ) : null}
+        </div>
       </div>
       <div className="mt-4">
         {materials.isPending ? (
@@ -84,7 +95,7 @@ export function MaterialsInventoryPage() {
           </div>
         ) : (
           <>
-            <ul className="grid gap-3 sm:gap-4">
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {items.map((material) => (
                 <MaterialCard key={material.id} material={material} onOpen={() => setDetail({ id: material.id, open: true })} />
               ))}

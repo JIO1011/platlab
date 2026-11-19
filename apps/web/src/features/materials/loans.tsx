@@ -1,14 +1,16 @@
-import { Button, Segmented, Skeleton, StatePanel } from '@platlab/ui';
+import { Button, Skeleton, StatePanel } from '@platlab/ui';
 import { HandHelping, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { FilterPill } from '../../app/filter-pill';
+import { todayInZone } from '../../app/format';
 import { SectionHeader } from '../../app/section-header';
 import { QueryErrorState } from '../../app/states';
 import { useMaterials } from './context';
 import { LoanCard } from './loan-card';
 import { LoanDetailSheet } from './loan-detail';
 import { LoanSheet } from './loan-sheet';
-import { useLoanPage } from './queries';
+import { useLoanPage, useMaterialsSummary } from './queries';
 import { loanFilterLabels, type LoanFilter } from './text';
 
 const parseFilter = (value: string | null): LoanFilter => (value === 'overdue' || value === 'closed' ? value : 'open');
@@ -19,7 +21,11 @@ const parseFilter = (value: string | null): LoanFilter => (value === 'overdue' |
  * vale y `?nuevo=1` abre la hoja de préstamo (los enlaces del Resumen).
  */
 export function MaterialsLoansPage() {
-  const { workspaceId, canLend } = useMaterials();
+  const { workspaceId, canLend, me } = useMaterials();
+  const timeZone = me.workspace.timeZone;
+  const today = todayInZone(timeZone);
+  const summary = useMaterialsSummary(workspaceId).data;
+  const counts: Partial<Record<LoanFilter, number | undefined>> = { open: summary?.openLoans, overdue: summary?.overdueLoans };
   const [params, setParams] = useSearchParams();
   const filter = parseFilter(params.get('filtro'));
   const loans = useLoanPage(workspaceId, filter);
@@ -41,13 +47,10 @@ export function MaterialsLoansPage() {
   return (
     <>
       <SectionHeader title="Préstamos" updatedAt={loans.dataUpdatedAt} actions={lend} />
-      <div className="mt-6">
-        <Segmented
-          label="Estado del préstamo"
-          value={filter}
-          onValueChange={setFilter}
-          options={(['open', 'overdue', 'closed'] as const).map((value) => ({ value, label: loanFilterLabels[value] }))}
-        />
+      <div className="mt-6 flex flex-wrap items-center gap-2" role="group" aria-label="Estado del préstamo">
+        {(['open', 'overdue', 'closed'] as const).map((value) => (
+          <FilterPill key={value} label={loanFilterLabels[value]} count={counts[value]} active={filter === value} onToggle={() => setFilter(value)} />
+        ))}
       </div>
       <div className="mt-4">
         {loans.isPending ? (
@@ -73,9 +76,9 @@ export function MaterialsLoansPage() {
           </div>
         ) : (
           <>
-            <ul className="grid gap-3 sm:gap-4">
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {items.map((loan) => (
-                <LoanCard key={loan.id} loan={loan} onOpen={() => setDetail({ id: loan.id, open: true })} />
+                <LoanCard key={loan.id} loan={loan} today={today} timeZone={timeZone} onOpen={() => setDetail({ id: loan.id, open: true })} />
               ))}
             </ul>
             {loans.hasNextPage ? (
