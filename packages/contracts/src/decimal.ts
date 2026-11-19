@@ -31,14 +31,34 @@ export function compareDecimals(a: string, b: string): -1 | 0 | 1 {
   return x < y ? -1 : x > y ? 1 : 0;
 }
 
-/** Suma exacta de `decimalString` no negativas, sin pasar por `number`; sin ceros de más («1.50» + «0.5» = «2»). */
-export function sumDecimals(values: readonly string[]): string {
-  const scale = Math.max(0, ...values.map((value) => value.split('.')[1]?.length ?? 0));
-  const total = values.reduce((sum, value) => {
-    const [int = '0', frac = ''] = value.split('.');
-    return sum + BigInt(int + frac.padEnd(scale, '0'));
-  }, 0n);
+const fractionDigits = (value: string) => value.split('.')[1]?.length ?? 0;
+
+/** Un decimal no negativo como entero exacto con `scale` decimales. */
+function toScaled(value: string, scale: number): bigint {
+  const [int = '0', frac = ''] = value.split('.');
+  return BigInt(int + frac.padEnd(scale, '0'));
+}
+
+/** Entero escalado de vuelta a decimal, sin ceros de más («1.50» → «1.5», «2.00» → «2»). */
+function fromScaled(total: bigint, scale: number): string {
   if (scale === 0) return total.toString();
   const digits = total.toString().padStart(scale + 1, '0');
   return `${digits.slice(0, -scale)}.${digits.slice(-scale)}`.replace(/\.?0+$/, '');
+}
+
+/** Suma exacta de `decimalString` no negativas, sin pasar por `number`; sin ceros de más («1.50» + «0.5» = «2»). */
+export function sumDecimals(values: readonly string[]): string {
+  const scale = Math.max(0, ...values.map(fractionDigits));
+  return fromScaled(
+    values.reduce((sum, value) => sum + toScaled(value, scale), 0n),
+    scale,
+  );
+}
+
+/** Resta exacta de `decimalString` no negativas con `a` ≥ `b` («3» − «0.5» = «2.5»); una diferencia negativa es un error de quien llama. */
+export function subtractDecimals(a: string, b: string): string {
+  const scale = Math.max(fractionDigits(a), fractionDigits(b));
+  const difference = toScaled(a, scale) - toScaled(b, scale);
+  if (difference < 0n) throw new RangeError('La resta no puede ser negativa');
+  return fromScaled(difference, scale);
 }

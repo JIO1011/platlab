@@ -49,9 +49,12 @@ export const materialParams = z.object({ workspaceId: z.uuid(), productId: z.uui
 /** `q`: busca en nombre o código, sin distinguir mayúsculas ni tildes. */
 export const materialListQuery = z.object({ ...page, q: z.string().trim().min(2).max(100).optional() }).strict();
 
-/** Material con su total en todas las ubicaciones y si está bajo su mínimo. */
+/** Material con su total en todas las ubicaciones, lo prestado y si está bajo su mínimo. */
 export const stockedMaterial = material.extend({
+  /** Existencia institucional: incluye lo prestado (03 §4). */
   balance: decimalString,
+  /** Lo que se puede sacar o prestar hoy: la existencia menos lo prestado. */
+  available: decimalString,
   locationsWithStock: z.number().int().nonnegative(),
   belowMinimum: z.boolean(),
 });

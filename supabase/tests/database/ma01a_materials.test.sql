@@ -67,7 +67,9 @@ select throws_ok(
 
 reset role;
 select is(
-  (select count(*)::int from core.role_permissions where permission_code like 'materials.%'), 8,
+  (select count(*)::int from core.role_permissions
+    where permission_code in ('materials.catalog.read', 'materials.catalog.manage', 'materials.receipt.create',
+                              'materials.issue.create', 'materials.adjustment.create')), 8,
   'la matriz del manifiesto está sembrada: 5 del Administrador y 3 del Operador');
 
 select * from finish();

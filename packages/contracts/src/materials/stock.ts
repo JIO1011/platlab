@@ -37,7 +37,10 @@ const materialStockLine = z.object({
   locationName: z.string(),
   /** Ruta desde el primer nivel bajo la sede, para distinguir «Estante 2» de dos áreas. */
   locationPath: z.array(z.string()),
+  /** Existencia institucional: incluye lo prestado. */
   balance: decimalString,
+  /** Lo que se puede sacar o prestar hoy: el saldo menos lo prestado. */
+  available: decimalString,
   unit: z.string(),
 });
 

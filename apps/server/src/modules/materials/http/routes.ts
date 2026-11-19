@@ -1,6 +1,9 @@
 import type pg from 'pg';
 import type { FastifyPluginAsync } from 'fastify';
 import {
+  lendRequest,
+  loanListQuery,
+  loanParams,
   materialAdjustmentRequest,
   materialIssueRequest,
   materialListQuery,
@@ -8,10 +11,13 @@ import {
   materialReceiptRequest,
   materialStockQuery,
   newMaterial,
+  returnRequest,
   setMaterialMinimumRequest,
   updateMaterialRequest,
 } from '@platlab/contracts';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
+import { getLoan, listBorrowers, listLoanPage } from '../application/loan-views.js';
+import { lendMaterial, returnMaterial } from '../application/loans.js';
 import { createMaterial, setMaterialMinimum, updateMaterial } from '../application/catalog.js';
 import { getProduct, listProducts, listStock } from '../application/queries.js';
 import { registerAdjustment, registerIssue, registerReceipt } from '../application/stock.js';
@@ -53,6 +59,21 @@ export function materialsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync
 
     app.post('/issues', async (request, reply) =>
       reply.status(201).send(await registerIssue(pool, commandRequest(request), materialIssueRequest.parse(request.body))),
+    );
+
+    // Préstamos (ADR 0025): el vale, sus devoluciones parciales y a quién se puede prestar.
+    app.get('/borrowers', async (request) => listBorrowers(pool, queryRequest(request)));
+
+    app.get('/loans', async (request) => listLoanPage(pool, queryRequest(request), loanListQuery.parse(request.query)));
+
+    app.post('/loans', async (request, reply) =>
+      reply.status(201).send(await lendMaterial(pool, commandRequest(request), lendRequest.parse(request.body))),
+    );
+
+    app.get('/loans/:loanId', async (request) => getLoan(pool, queryRequest(request), loanParams.parse(request.params).loanId));
+
+    app.post('/loans/:loanId/returns', async (request) =>
+      returnMaterial(pool, commandRequest(request), loanParams.parse(request.params).loanId, returnRequest.parse(request.body)),
     );
 
     app.post('/adjustments', async (request, reply) =>

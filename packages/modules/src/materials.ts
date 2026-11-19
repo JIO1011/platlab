@@ -2,7 +2,7 @@ import { defineModule } from './define-module.js';
 
 /**
  * Manifiesto de Materiales (ADR 0025). Los permisos siguen la matriz de 01 §5: el Operador registra
- * ingresos y salidas; el catálogo y los ajustes son del Administrador. Los de préstamo llegan con MA-01b.
+ * ingresos y salidas; el catálogo y los ajustes son del Administrador. Los de préstamo (ADR 0025) son de los dos.
  * Etapa `development` hasta su G0.
  */
 export const materialsModule = defineModule({
@@ -16,6 +16,8 @@ export const materialsModule = defineModule({
     'materials.receipt.create',
     'materials.issue.create',
     'materials.adjustment.create',
+    'materials.loan.create',
+    'materials.loan.return',
   ],
   roleGrants: {
     admin: [
@@ -24,8 +26,16 @@ export const materialsModule = defineModule({
       'materials.receipt.create',
       'materials.issue.create',
       'materials.adjustment.create',
+      'materials.loan.create',
+      'materials.loan.return',
     ],
-    operator: ['materials.catalog.read', 'materials.receipt.create', 'materials.issue.create'],
+    operator: [
+      'materials.catalog.read',
+      'materials.receipt.create',
+      'materials.issue.create',
+      'materials.loan.create',
+      'materials.loan.return',
+    ],
   },
   // Las secciones (Resumen, Inventario, Préstamos e Informe) llegan con las pantallas (MA-01c y MA-01d).
   nav: [

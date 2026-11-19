@@ -1,5 +1,6 @@
 import type pg from 'pg';
 import type { z } from 'zod';
+import { subtractDecimals } from '@platlab/contracts';
 import type {
   materialListQuery,
   materialStockQuery,
@@ -26,6 +27,7 @@ const toStockedMaterial = (row: IListMaterialsResult): StockedMaterial => ({
   baseUnit: row.base_unit,
   minimum: row.minimum,
   balance: row.balance,
+  available: row.available,
   locationsWithStock: row.locations_with_stock,
   belowMinimum: row.below_minimum,
 });
@@ -87,6 +89,7 @@ export function listStock(pool: pg.Pool, request: QueryRequest, query: z.infer<t
         locationName: position.location.name,
         locationPath: position.location.path,
         balance: position.balance,
+        available: subtractDecimals(position.balance, position.reserved),
         unit: position.unit,
       })),
       nextCursor: page.nextCursor,

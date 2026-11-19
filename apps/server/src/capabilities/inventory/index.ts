@@ -4,6 +4,7 @@
  */
 export { createItem, hasMovements, lockItem, setMinimum, updateItemFields } from './application/catalog.js';
 export { suggestContainerCodes } from './application/codes.js';
+export { holdForLoan, releaseLoanHold } from './application/custody.js';
 export type { InventoryContext } from './application/context.js';
 export {
   activityHoldOptions,
@@ -25,6 +26,7 @@ export {
   receiveContainers,
   setTare,
   transferContainer,
+  type LockedPosition,
 } from './application/movements.js';
 export { receiveStock } from './application/stock.js';
 export {

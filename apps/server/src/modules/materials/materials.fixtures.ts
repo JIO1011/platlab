@@ -60,3 +60,17 @@ export async function stockOf(lab: MaterialsLab, productId: string) {
   expect(response.status).toBe(200);
   return materialStockList.parse(response.body).items;
 }
+
+/** Un reutilizable por cantidad con existencias ingresadas: devuelve su posición. */
+export async function reusableWithStock(lab: MaterialsLab, quantity = '10') {
+  const product = await createMaterial(lab, { name: `Vasos ${uniqueSuffix()}`, class: 'reusable_counted' });
+  return { product, positionId: await receivedPosition(lab, product.id, quantity) };
+}
+
+/** Presta material como el Operador; por defecto, al Docente y con una sola línea. */
+export const lend = (lab: MaterialsLab, lines: Array<{ positionId: string; quantity: string }>, extra: Record<string, unknown> = {}, subject = lab.operator.subject) =>
+  call(subject, `${lab.base}/loans`, { method: 'POST', body: { borrowerId: lab.teacher.principalId, lines, ...extra } });
+
+/** Registra una devolución como el Operador. */
+export const giveBack = (lab: MaterialsLab, loanId: string, expectedVersion: number, lines: Array<Record<string, unknown>>, subject = lab.operator.subject) =>
+  call(subject, `${lab.base}/loans/${loanId}/returns`, { method: 'POST', body: { expectedVersion, lines } });

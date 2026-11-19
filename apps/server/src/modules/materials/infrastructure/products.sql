@@ -26,6 +26,8 @@ SELECT
   m.class,
   trim_scale(i.minimum_quantity) AS minimum,
   stock.balance AS "balance!",
+  -- Lo disponible hoy: el saldo menos lo apartado, que incluye lo prestado (ADR 0025).
+  stock.available AS "available!",
   -- Bajo mínimo: la existencia física total es menor que su mínimo (ADR 0012).
   (i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity) AS "below_minimum!",
   (SELECT count(*)
@@ -35,7 +37,8 @@ SELECT
 FROM inventory.items AS i
 JOIN materials.products AS m ON m.workspace_id = i.workspace_id AND m.item_id = i.id
 CROSS JOIN LATERAL (
-  SELECT trim_scale(coalesce(sum(p.balance), 0)) AS balance
+  SELECT trim_scale(coalesce(sum(p.balance), 0)) AS balance,
+         trim_scale(coalesce(sum(p.balance - p.reserved), 0)) AS available
   FROM inventory.positions AS p
   WHERE p.workspace_id = i.workspace_id AND p.item_id = i.id
 ) AS stock
