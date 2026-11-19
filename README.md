@@ -62,12 +62,14 @@ Para ver el ciclo de aprobación, abre dos sesiones (una ventana normal y otra d
 
 ## Demo en internet
 
-La demo está en **https://platlab.reacti-lab.com** mientras el equipo del Equipo PlatLab la tenga encendida ([ADR 0029](docs/05_decisiones.md#adr-0029)). Es privada y con datos sintéticos.
+La demo está en **https://platlab.reacti-lab.com** mientras el equipo del Equipo PlatLab la tenga encendida ([ADR 0029](docs/05_decisiones.md#adr-0029)). Es abierta y con datos sintéticos.
 
 **Para entrar:**
-1. Abre la dirección y escribe tu correo. Cloudflare Access te envía un código de un solo uso; solo pasan los correos que autorizó el Equipo PlatLab.
-2. En PlatLab, entra con una de las [cuentas de la demo](#cuentas-de-la-demo). La contraseña es la misma de todas.
-3. Para probar Usuarios, entra con `propietaria@…`. Para unirte a un espacio, entra con `estudiante@…` o con `visita@…` y pulsa «Unirme». No hay «Crear cuenta»: las cuentas las da el Equipo PlatLab.
+1. Abre la dirección y entra con una de las [cuentas de la demo](#cuentas-de-la-demo). La contraseña de todas es `platlab-demo`.
+2. Para probar Usuarios, entra con `propietaria@demo.platlab.test`.
+3. Para unirte a un espacio, entra con `estudiante@demo.platlab.test` o con `visita@demo.platlab.test` y pulsa «Unirme».
+
+No hay «Crear cuenta»: las cuentas las da el Equipo PlatLab. Cualquiera puede cambiar los datos de la demo; `pnpm db:reset` los restablece.
 
 **Para encenderla** (en el equipo que la publica):
 
@@ -76,7 +78,6 @@ La demo está en **https://platlab.reacti-lab.com** mientras el equipo del Equip
 | Una vez | Instala `cloudflared` (`sudo pacman -S cloudflared`) y ejecuta `cloudflared tunnel login`, eligiendo `reacti-lab.com` |
 | Una vez | `cloudflared tunnel create platlab-demo` y `cloudflared tunnel route dns platlab-demo platlab.reacti-lab.com` |
 | Una vez | Copia `infra/cloudflared/platlab.example.yml` a `~/.cloudflared/platlab.yml` con el ID del túnel |
-| Una vez | En Cloudflare Zero Trust, crea una aplicación de Access para `platlab.reacti-lab.com` con los correos autorizados |
 | Cada vez | `pnpm db:start` y luego `pnpm demo:online`, que compila la web, levanta la API y la web y abre el túnel. Ctrl+C la apaga |
 
 El túnel reparte un solo dominio. `/v1` va a la API (puerto 3100). De Auth local solo pasan entrar, renovar la sesión y salir. El resto va a la web de producción (puerto 4180). No choca con el desarrollo (3000 y 5173) ni con `pnpm e2e`.

@@ -2,6 +2,8 @@
 # (lo crea `cloudflared tunnel create platlab-demo`). Gana la primera regla que coincide.
 tunnel: <TUNNEL_ID>
 credentials-file: <HOME>/.cloudflared/<TUNNEL_ID>.json
+# Por TCP: QUIC usa UDP 7844, que muchas redes de campus bloquean.
+protocol: http2
 
 ingress:
   # De Auth local, solo entrar, renovar la sesión y salir. Sus claves de desarrollo son públicas: nada más de

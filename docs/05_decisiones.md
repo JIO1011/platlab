@@ -766,7 +766,9 @@ Aceptado el 19-11-2026. Adelanta la publicación que [02 §9](02_arquitectura.md
   - De Auth local solo pasan `/auth/v1/token`, `/auth/v1/user` y `/auth/v1/logout`: entrar, renovar y salir. El registro, la recuperación y la administración responden 404.
   - El resto va a la compilación de producción de la web (`vite preview`).
   - Nada más de Supabase local queda expuesto, porque sus claves de desarrollo son públicas. La API solo acepta JWT asimétricos (ADR 0004).
-- **Privada.** Cloudflare Access, con código de un solo uso, deja pasar solo a los correos que autoriza el Equipo PlatLab. Dentro, se entra con las cuentas de la demo.
+- **Abierta** (decisión del usuario del 19-11-2026). No hay Cloudflare Access: cualquiera entra con las cuentas de la demo, cuya contraseña está en el repositorio público.
+  - Riesgo aceptado: un visitante puede cambiar los datos de la base local, sus invitaciones y usuarios, o la contraseña de una cuenta de la demo. Se restablece con `pnpm db:reset`.
+  - Si hace falta cerrarla, se pone delante Access con código de un solo uso.
 - **«Crear cuenta» se oculta** (`VITE_SIGNUP=off`) y el registro no llega a Auth. No hay SMTP hasta T-03B.
 - **Límites:**
   - La demo está en línea solo mientras el equipo, Docker, la API, la web y el túnel estén encendidos.

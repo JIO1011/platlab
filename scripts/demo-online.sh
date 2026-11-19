@@ -16,7 +16,8 @@ VITE_SUPABASE_URL="https://$host" VITE_SIGNUP=off pnpm --filter @platlab/web bui
 
 PORT=3100 pnpm --filter @platlab/server start &
 api=$!
-pnpm --filter @platlab/web exec vite preview --port 4180 --strictPort &
+# En IPv4 explícito: `localhost` puede ser solo ::1 y el túnel apunta a 127.0.0.1.
+pnpm --filter @platlab/web exec vite preview --host 127.0.0.1 --port 4180 --strictPort &
 web=$!
 trap 'kill "$api" "$web" 2>/dev/null' EXIT
 
