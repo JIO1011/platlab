@@ -18,9 +18,13 @@ export interface Page<T> {
   nextCursor: string | null;
 }
 
-/** Posición vista desde la capacidad: lo propio del tipo de ítem (controlado, ficha de seguridad) lo añade el módulo. */
-export type StockPosition = Omit<Position, 'product'> & {
+/**
+ * Posición vista desde la capacidad: lo propio del tipo de ítem (controlado, ficha de seguridad) lo añade el módulo.
+ * El lote del proveedor solo lo usa Materiales (MA-01f); el contrato de Reactivos no lo publica.
+ */
+export type StockPosition = Omit<Position, 'product' | 'lot'> & {
   product: Omit<Position['product'], 'controlled' | 'sdsKind' | 'sdsUrl' | 'sdsFileUrl'>;
+  lot: Position['lot'] & { supplierLot: string | null };
 };
 
 /** Saldos del espacio, de producto a lote y ubicación (01 §7). */
@@ -55,6 +59,7 @@ export async function listPositionPage(
         code: row.lot_code,
         expiresOn: row.expires_on,
         brand: row.brand,
+        supplierLot: row.supplier_lot,
         department: row.department_id && row.department_name ? { id: row.department_id, name: row.department_name } : null,
       },
       container:

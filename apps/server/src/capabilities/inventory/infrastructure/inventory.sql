@@ -68,8 +68,8 @@ RETURNING lot_seq, code, name, base_unit;
 
 /* @name insertLot */
 -- Si el código automático ya lo tiene un lote anterior del ítem, no inserta y se prueba el siguiente.
-INSERT INTO inventory.lots (workspace_id, item_id, code, brand, department_id, expires_on)
-VALUES (:workspaceId!, :itemId!, :code!, :brand, :departmentId, :expiresOn)
+INSERT INTO inventory.lots (workspace_id, item_id, code, brand, department_id, expires_on, supplier_lot)
+VALUES (:workspaceId!, :itemId!, :code!, :brand, :departmentId, :expiresOn, :supplierLot)
 ON CONFLICT (workspace_id, item_id, lower(code)) DO NOTHING
 RETURNING id, code;
 
@@ -278,6 +278,7 @@ SELECT
   l.code AS lot_code,
   l.expires_on,
   l.brand,
+  l.supplier_lot,
   dept.id AS "department_id?",
   dept.name AS "department_name?",
   p.disposition,
@@ -1124,3 +1125,31 @@ FROM running
 GROUP BY position_id
 HAVING sum(least(quantity, greatest(:used!::numeric - before, 0))) > 0
 ORDER BY position_id;
+
+/* @name findMaterialLot */
+-- El lote de un ingreso de material (ADR 0025, MA-01f). Con lote del proveedor, el de ese código sin distinguir
+-- mayúsculas, sea cual sea su fecha, para avisar si no coincide. Sin él, el de la misma fecha sin código; sin fecha
+-- es el lote único de siempre. Ninguno si aún no existe; el ítem bloqueado serializa los ingresos.
+SELECT id, expires_on::text AS expires_on
+FROM inventory.lots
+WHERE workspace_id = :workspaceId! AND item_id = :itemId!
+  AND CASE WHEN :supplierLot::text IS NULL
+           THEN supplier_lot IS NULL AND expires_on IS NOT DISTINCT FROM :expiresOn::date
+           ELSE lower(supplier_lot) = lower(:supplierLot::text)
+      END
+ORDER BY created_at, id
+LIMIT 1;
+
+/* @name ensureStockPosition */
+-- La posición sin envase de un material en una ubicación (ADR 0025): la de un ingreso anterior o una nueva con saldo cero.
+INSERT INTO inventory.positions (workspace_id, item_id, lot_id, location_id, disposition)
+VALUES (:workspaceId!, :itemId!, :lotId!, :locationId!, 'usable')
+ON CONFLICT (workspace_id, item_id, lot_id, container_id, location_id, disposition) DO NOTHING;
+
+/* @name lockStockPosition */
+SELECT id
+FROM inventory.positions
+WHERE workspace_id = :workspaceId! AND item_id = :itemId! AND lot_id = :lotId! AND container_id IS NULL
+  AND location_id = :locationId! AND disposition = 'usable'
+FOR UPDATE;
+

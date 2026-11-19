@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareDecimals, decimalString, sumDecimals } from './decimal.js';
+import { compareDecimals, decimalString, subtractDecimals, sumDecimals } from './decimal.js';
 
 describe('decimalString', () => {
   it('acepta decimales exactos', () => {
@@ -32,5 +32,18 @@ describe('sumDecimals', () => {
     expect(sumDecimals(['100', '0.001'])).toBe('100.001');
     expect(sumDecimals(['0.1', '0.2'])).toBe('0.3');
     expect(sumDecimals(['50', '50'])).toBe('100');
+  });
+});
+
+describe('subtractDecimals', () => {
+  it('resta exacto con distinta escala y sin ceros de más', () => {
+    expect(subtractDecimals('3', '0.5')).toBe('2.5');
+    expect(subtractDecimals('10', '10')).toBe('0');
+    expect(subtractDecimals('0.3', '0.1')).toBe('0.2');
+    expect(subtractDecimals('100.001', '0.001')).toBe('100');
+  });
+
+  it('rechaza una diferencia negativa', () => {
+    expect(() => subtractDecimals('1', '1.5')).toThrow(RangeError);
   });
 });

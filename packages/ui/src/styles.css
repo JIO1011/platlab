@@ -42,6 +42,12 @@
   /* La marca PlatLab no cambia con el tema del módulo (ADR 0010, color por módulo). */
   --color-brand: #1f5f96;
 
+  /* Series de los gráficos (ADR 0025): categóricas validadas con la guía de visualización, en este orden fijo (azul,
+     naranja, aqua; separación CVD ≥ 9 y normal ≥ 27). El aqua queda bajo 3:1 sobre blanco: lleva leyenda y tabla. */
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #eb6834;
+  --color-chart-3: #1baf7a;
+
   --color-success: #1d7a46;
   --color-success-soft: #e5f3ea;
   --color-warning: #8a5a00;
@@ -254,6 +260,19 @@
   --color-action-pressed: #164e63;
   --color-action-soft: #ecfeff;
   --color-action-deep: #0c4a6e;
+}
+
+[data-module='materials'] {
+  /*
+   * Fucsia de Materiales (ADR 0025): #A21CAF da más de 5:1 con blanco; el texto sobre #FDF4FF, igual. Un color
+   * propio, lejos del índigo de Reactivos y del azul de Equipos; verde, ámbar y rojo siguen siendo de los estados. El
+   * degradado se oscurece hacia #701A75 (ADR 0021). Provisional: lo confirma el usuario con las pantallas (MA-01c).
+   */
+  --color-action: #a21caf;
+  --color-action-hover: #86198f;
+  --color-action-pressed: #701a75;
+  --color-action-soft: #fdf4ff;
+  --color-action-deep: #701a75;
 }
 
 [data-module='labs'] {

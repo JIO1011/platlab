@@ -224,8 +224,11 @@ export function listPositions(
       ...page,
       items: page.items.map((position) => {
         const detail = safety.get(position.product.id);
+        const { id, code, expiresOn, brand, department } = position.lot;
         return {
           ...position,
+          // El lote del proveedor es de Materiales (MA-01f): el contrato de Reactivos no lo publica.
+          lot: { id, code, expiresOn, brand, department },
           product: {
             ...position.product,
             controlled: detail?.controlled ?? false,

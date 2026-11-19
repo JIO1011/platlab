@@ -125,6 +125,8 @@ insert into platform.contract_revision_modules (workspace_id, revision_id, modul
   ('da000000-0000-4000-8000-00000000000a', 'da500000-0000-4000-8000-000000000001', 'maintenance', now() - interval '1 day'),
   -- Laboratorios (ADR 0023) en development: Espacios y Formato sobre las áreas de A.
   ('da000000-0000-4000-8000-00000000000a', 'da500000-0000-4000-8000-000000000001', 'labs', now() - interval '1 day'),
+  -- Materiales (ADR 0025) en development: consumibles y reutilizables con préstamos.
+  ('da000000-0000-4000-8000-00000000000a', 'da500000-0000-4000-8000-000000000001', 'materials', now() - interval '1 day'),
   ('db000000-0000-4000-8000-00000000000b', 'db500000-0000-4000-8000-000000000001', 'reagents', now() - interval '1 day');
 
 select platform.apply_contract_revision('da500000-0000-4000-8000-000000000001', 'seed demo');
@@ -908,6 +910,202 @@ begin
       values ('da000000-0000-4000-8000-00000000000a', ('daf00000-0000-4000-8000-' || lpad(item.number::text, 12, '0'))::uuid,
               'completed', null, 'da200000-0000-4000-8000-000000000002', item.on_date + item.ends_at);
     end if;
+  end loop;
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Materiales de A (ADR 0025): dos insumos (uno bajo su mínimo) y dos reutilizables con existencias, y tres
+-- préstamos: uno atrasado, uno vigente y uno cerrado con un vaso dañado y otro perdido.
+-- ---------------------------------------------------------------------------
+
+create temp table demo_materials (n int, code text, name text, class text, minimum numeric, place uuid, quantity numeric) on commit drop;
+insert into demo_materials values
+  (1, 'GUANTES-NITRILO-M', 'Guantes de nitrilo M', 'consumable', 100, 'da300000-0000-4000-8000-000000000002', 60),
+  (2, 'PAPEL-FILTRO', 'Papel filtro cualitativo', 'consumable', 20, 'da300000-0000-4000-8000-000000000002', 150),
+  (3, 'VASOS-250', 'Vasos de precipitados 250 mL', 'reusable_counted', null, 'da300000-0000-4000-8000-000000000003', 40),
+  (4, 'PROBETAS-100', 'Probetas de 100 mL', 'reusable_counted', null, 'da300000-0000-4000-8000-000000000003', 20);
+
+insert into inventory.items (id, workspace_id, kind, code, name, base_unit, minimum_quantity)
+select ('dd500000-0000-4000-8000-00000000000' || n)::uuid, 'da000000-0000-4000-8000-00000000000a', 'material', code, name, 'u', minimum
+  from demo_materials;
+insert into materials.products (workspace_id, item_id, class)
+select 'da000000-0000-4000-8000-00000000000a', ('dd500000-0000-4000-8000-00000000000' || n)::uuid, class from demo_materials;
+insert into inventory.lots (id, workspace_id, item_id, code)
+select ('dd600000-0000-4000-8000-00000000000' || n)::uuid, 'da000000-0000-4000-8000-00000000000a',
+       ('dd500000-0000-4000-8000-00000000000' || n)::uuid, 'L-001'
+  from demo_materials;
+update inventory.items set lot_seq = 1 where id::text like 'dd500000-%';
+insert into inventory.positions (id, workspace_id, item_id, lot_id, location_id)
+select ('dd700000-0000-4000-8000-00000000000' || n)::uuid, 'da000000-0000-4000-8000-00000000000a',
+       ('dd500000-0000-4000-8000-00000000000' || n)::uuid, ('dd600000-0000-4000-8000-00000000000' || n)::uuid, place
+  from demo_materials;
+
+do $$
+declare
+  item record;
+  operation_id uuid;
+  workspace constant uuid := 'da000000-0000-4000-8000-00000000000a';
+  admin_principal constant uuid := 'da200000-0000-4000-8000-000000000001';
+begin
+  -- Un ingreso por material hace 30 días.
+  for item in select * from demo_materials loop
+    insert into inventory.operations (workspace_id, type, actor_principal_id, reference, effective_at, correlation_id)
+    values (workspace, 'receipt', admin_principal, 'Compra sintética', now() - interval '30 days', gen_random_uuid())
+    returning id into operation_id;
+    update inventory.positions set balance = item.quantity where id = ('dd700000-0000-4000-8000-00000000000' || item.n)::uuid;
+    insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+    values (workspace, operation_id, ('dd700000-0000-4000-8000-00000000000' || item.n)::uuid, item.quantity, item.quantity, 'u', item.quantity);
+  end loop;
+end $$;
+
+-- P-0003, cerrado hace 15 días: 6 vasos prestados; 4 volvieron bien, 1 dañado y 1 perdido (dos bajas del libro).
+do $$
+declare
+  workspace constant uuid := 'da000000-0000-4000-8000-00000000000a';
+  admin_principal constant uuid := 'da200000-0000-4000-8000-000000000001';
+  borrower constant uuid := 'da200000-0000-4000-8000-000000000002';
+  vasos constant uuid := 'dd700000-0000-4000-8000-000000000003';
+  damaged_op uuid;
+  lost_op uuid;
+  line_id constant uuid := 'dd900000-0000-4000-8000-000000000003';
+begin
+  insert into inventory.operations (workspace_id, type, actor_principal_id, reason, reference, effective_at, correlation_id)
+  values (workspace, 'adjustment', admin_principal, 'Dañado en el préstamo P-0003', 'P-0003', now() - interval '15 days', gen_random_uuid())
+  returning id into damaged_op;
+  insert into inventory.operations (workspace_id, type, actor_principal_id, reason, reference, effective_at, correlation_id)
+  values (workspace, 'adjustment', admin_principal, 'Perdido en el préstamo P-0003', 'P-0003', now() - interval '15 days', gen_random_uuid())
+  returning id into lost_op;
+  update inventory.positions set balance = 39 where id = vasos;
+  insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+  values (workspace, damaged_op, vasos, -1, -1, 'u', 39);
+  update inventory.positions set balance = 38 where id = vasos;
+  insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+  values (workspace, lost_op, vasos, -1, -1, 'u', 38);
+
+  insert into materials.loans (id, workspace_id, number, borrower_principal_id, lent_by_principal_id, lent_at, due_on, notes, status, closed_at, version)
+  values ('dd800000-0000-4000-8000-000000000003', workspace, 3, borrower, admin_principal, now() - interval '20 days',
+          (now() - interval '16 days')::date, 'Práctica de titulación', 'closed', now() - interval '15 days', 2);
+  insert into materials.loan_lines (id, workspace_id, loan_id, line, position_id, quantity, returned, damaged, lost)
+  values (line_id, workspace, 'dd800000-0000-4000-8000-000000000003', 1, vasos, 6, 4, 1, 1);
+  insert into materials.return_lines (workspace_id, loan_line_id, outcome, quantity, note, returned_by_principal_id, returned_at, operation_id) values
+    (workspace, line_id, 'good', 4, null, admin_principal, now() - interval '15 days', null),
+    (workspace, line_id, 'damaged', 1, 'Se rompió en la práctica', admin_principal, now() - interval '15 days', damaged_op),
+    (workspace, line_id, 'lost', 1, null, admin_principal, now() - interval '15 days', lost_op);
+end $$;
+
+-- P-0001 (atrasado desde hace 3 días): 12 vasos. P-0002 (vigente, vence en 5 días): 4 probetas. Lo prestado queda apartado.
+insert into materials.loans (id, workspace_id, number, borrower_principal_id, lent_by_principal_id, lent_at, due_on, notes) values
+  ('dd800000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 1, 'da200000-0000-4000-8000-000000000002',
+   'da200000-0000-4000-8000-000000000001', now() - interval '10 days', (now() - interval '3 days')::date, 'Química General, grupo A'),
+  ('dd800000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-00000000000a', 2, 'da200000-0000-4000-8000-000000000002',
+   'da200000-0000-4000-8000-000000000001', now() - interval '2 days', (now() + interval '5 days')::date, null);
+insert into materials.loan_lines (workspace_id, loan_id, line, position_id, quantity) values
+  ('da000000-0000-4000-8000-00000000000a', 'dd800000-0000-4000-8000-000000000001', 1, 'dd700000-0000-4000-8000-000000000003', 12),
+  ('da000000-0000-4000-8000-00000000000a', 'dd800000-0000-4000-8000-000000000002', 1, 'dd700000-0000-4000-8000-000000000004', 4);
+update inventory.positions set reserved = 12 where id = 'dd700000-0000-4000-8000-000000000003';
+update inventory.positions set reserved = 4 where id = 'dd700000-0000-4000-8000-000000000004';
+
+-- Actividad de Materiales de las últimas semanas (ADR 0025), para que el tablero del Resumen tenga qué mostrar: una
+-- reposición de guantes, siete salidas de guantes y cinco de papel filtro, y dos préstamos de vasos ya devueltos.
+create temp table demo_issues (days_ago int, quantity numeric, position_id uuid) on commit drop;
+insert into demo_issues values
+  (25, 15, 'dd700000-0000-4000-8000-000000000001'), (20, 15, 'dd700000-0000-4000-8000-000000000001'),
+  (17, 15, 'dd700000-0000-4000-8000-000000000001'), (12, 15, 'dd700000-0000-4000-8000-000000000001'),
+  (9, 15, 'dd700000-0000-4000-8000-000000000001'), (5, 15, 'dd700000-0000-4000-8000-000000000001'),
+  (2, 15, 'dd700000-0000-4000-8000-000000000001'),
+  (24, 10, 'dd700000-0000-4000-8000-000000000002'), (16, 5, 'dd700000-0000-4000-8000-000000000002'),
+  (11, 8, 'dd700000-0000-4000-8000-000000000002'), (6, 12, 'dd700000-0000-4000-8000-000000000002'),
+  (3, 10, 'dd700000-0000-4000-8000-000000000002');
+
+do $$
+declare
+  workspace constant uuid := 'da000000-0000-4000-8000-00000000000a';
+  admin_principal constant uuid := 'da200000-0000-4000-8000-000000000001';
+  gloves constant uuid := 'dd700000-0000-4000-8000-000000000001';
+  glass constant uuid := 'dd700000-0000-4000-8000-000000000003';
+  issue record;
+  op uuid;
+  new_balance numeric;
+  reasons text[] := array['Práctica de Química General', 'Práctica de Análisis Químico', 'Preparación de soluciones', 'Proyecto de titulación'];
+  loan_id uuid;
+  line_id uuid;
+  loan_n int;
+begin
+  -- Reposición de guantes hace 27 días.
+  insert into inventory.operations (workspace_id, type, actor_principal_id, reference, effective_at, correlation_id)
+  values (workspace, 'receipt', admin_principal, 'Reposición sintética', now() - interval '27 days', gen_random_uuid())
+  returning id into op;
+  update inventory.positions set balance = balance + 100 where id = gloves returning balance into new_balance;
+  insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+  values (workspace, op, gloves, 100, 100, 'u', new_balance);
+
+  for issue in select * from demo_issues order by days_ago desc loop
+    insert into inventory.operations (workspace_id, type, actor_principal_id, requested_by_principal_id, reason, destination, effective_at, correlation_id)
+    values (workspace, 'issue', admin_principal, 'da200000-0000-4000-8000-000000000002', reasons[1 + issue.days_ago % 4], 'Laboratorio de Química',
+            now() - make_interval(days => issue.days_ago), gen_random_uuid())
+    returning id into op;
+    update inventory.positions set balance = balance - issue.quantity where id = issue.position_id returning balance into new_balance;
+    insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+    values (workspace, op, issue.position_id, -issue.quantity, -issue.quantity, 'u', new_balance);
+  end loop;
+
+  -- Dos préstamos de vasos ya devueltos, de hace 42 y 33 días, al Docente.
+  for loan_n, op in select 4, null::uuid union all select 5, null loop
+    loan_id := gen_random_uuid();
+    line_id := gen_random_uuid();
+    insert into materials.loans (id, workspace_id, number, borrower_principal_id, lent_by_principal_id, lent_at, due_on, status, closed_at, version)
+    values (loan_id, workspace, loan_n, 'da200000-0000-4000-8000-000000000004', admin_principal,
+            now() - make_interval(days => case loan_n when 4 then 42 else 33 end),
+            (now() - make_interval(days => case loan_n when 4 then 38 else 29 end))::date, 'closed',
+            now() - make_interval(days => case loan_n when 4 then 40 else 31 end), 2);
+    insert into materials.loan_lines (id, workspace_id, loan_id, line, position_id, quantity, returned)
+    values (line_id, workspace, loan_id, 1, glass, 8, 8);
+    insert into materials.return_lines (workspace_id, loan_line_id, outcome, quantity, returned_by_principal_id, returned_at)
+    values (workspace, line_id, 'good', 8, admin_principal, now() - make_interval(days => case loan_n when 4 then 40 else 31 end));
+  end loop;
+end $$;
+
+-- Insumos que vencen (MA-01f, planilla del cliente): lotes con fecha y lote del proveedor para ver el semáforo. Uno
+-- vencido, uno a 45 días (≤ 90), uno a 150 (≤ 180) y otros lejanos. Cada lote entra con su ingreso en el libro. El
+-- bloque se salta si ya existe, para poder aplicarlo a una base local sin reiniciarla.
+do $$
+declare
+  workspace constant uuid := 'da000000-0000-4000-8000-00000000000a';
+  admin_principal constant uuid := 'da200000-0000-4000-8000-000000000001';
+  shelf constant uuid := 'da300000-0000-4000-8000-000000000002';
+  lot record;
+  op uuid;
+begin
+  if exists (select 1 from inventory.items where id = 'dd500000-0000-4000-8000-000000000005') then
+    return;
+  end if;
+  insert into inventory.items (id, workspace_id, kind, code, name, base_unit, minimum_quantity, lot_seq) values
+    ('dd500000-0000-4000-8000-000000000005', workspace, 'material', 'AGUJAS-CORTAS-30G', 'Agujas cortas 30G', 'u', 50, 2),
+    ('dd500000-0000-4000-8000-000000000006', workspace, 'material', 'SUTURA-REABS-4-0', 'Sutura reabsorbible 4/0', 'u', null, 2),
+    ('dd500000-0000-4000-8000-000000000007', workspace, 'material', 'GUANTES-ESTERILES-7', 'Guantes estériles talla 7', 'u', null, 1);
+  insert into materials.products (workspace_id, item_id, class, tracks_expiry)
+  select workspace, id, 'consumable', true from inventory.items where id::text like 'dd500000-0000-4000-8000-00000000000_' and id::text >= 'dd500000-0000-4000-8000-000000000005';
+
+  for lot in
+    select * from (values
+      (1, 'dd500000-0000-4000-8000-000000000005'::uuid, 'L-001', 'D130', 45, 80),
+      (2, 'dd500000-0000-4000-8000-000000000005'::uuid, 'L-002', 'D321', 400, 100),
+      (3, 'dd500000-0000-4000-8000-000000000006'::uuid, 'L-001', '17705-01', -12, 6),
+      (4, 'dd500000-0000-4000-8000-000000000006'::uuid, 'L-002', 'T88', 150, 12),
+      (5, 'dd500000-0000-4000-8000-000000000007'::uuid, 'L-001', 'SH23099', 540, 50)
+    ) as t (n, item_id, code, supplier_lot, days, quantity)
+  loop
+    insert into inventory.lots (id, workspace_id, item_id, code, supplier_lot, expires_on)
+    values (('dd610000-0000-4000-8000-00000000000' || lot.n)::uuid, workspace, lot.item_id, lot.code, lot.supplier_lot,
+            (now() + make_interval(days => lot.days))::date);
+    insert into inventory.positions (id, workspace_id, item_id, lot_id, location_id, balance)
+    values (('dd710000-0000-4000-8000-00000000000' || lot.n)::uuid, workspace, lot.item_id,
+            ('dd610000-0000-4000-8000-00000000000' || lot.n)::uuid, shelf, lot.quantity);
+    insert into inventory.operations (workspace_id, type, actor_principal_id, reference, effective_at, correlation_id)
+    values (workspace, 'receipt', admin_principal, 'Factura sintética 001-002-000002492', now() - interval '20 days', gen_random_uuid())
+    returning id into op;
+    insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+    values (workspace, op, ('dd710000-0000-4000-8000-00000000000' || lot.n)::uuid, lot.quantity, lot.quantity, 'u', lot.quantity);
   end loop;
 end $$;
 
