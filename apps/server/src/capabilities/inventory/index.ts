@@ -26,6 +26,7 @@ export {
   setTare,
   transferContainer,
 } from './application/movements.js';
+export { receiveStock } from './application/stock.js';
 export {
   containerItem,
   countOperationsPerDay,

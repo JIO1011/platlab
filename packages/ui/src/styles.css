@@ -256,6 +256,19 @@
   --color-action-deep: #0c4a6e;
 }
 
+[data-module='materials'] {
+  /*
+   * Fucsia de Materiales (ADR 0025): #A21CAF da más de 5:1 con blanco; el texto sobre #FDF4FF, igual. Un color
+   * propio, lejos del índigo de Reactivos y del azul de Equipos; verde, ámbar y rojo siguen siendo de los estados. El
+   * degradado se oscurece hacia #701A75 (ADR 0021). Provisional: lo confirma el usuario con las pantallas (MA-01c).
+   */
+  --color-action: #a21caf;
+  --color-action-hover: #86198f;
+  --color-action-pressed: #701a75;
+  --color-action-soft: #fdf4ff;
+  --color-action-deep: #701a75;
+}
+
 [data-module='labs'] {
   /*
    * Amarillo de Laboratorios (ADR 0023, «Color de Laboratorios», decisión del usuario del 26-10-2026, que reemplaza la

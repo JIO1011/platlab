@@ -3001,3 +3001,101 @@ const activityHoldTakesIR: any = {"usedParamSet":{"workspaceId":true,"allocation
 export const activityHoldTakes = new PreparedQuery<IActivityHoldTakesParams,IActivityHoldTakesResult>(activityHoldTakesIR);
 
 
+/** 'FindItemLot' parameters type */
+export interface IFindItemLotParams {
+  itemId: string;
+  workspaceId: string;
+}
+
+/** 'FindItemLot' return type */
+export interface IFindItemLotResult {
+  id: string;
+}
+
+/** 'FindItemLot' query type */
+export interface IFindItemLotQuery {
+  params: IFindItemLotParams;
+  result: IFindItemLotResult;
+}
+
+const findItemLotIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":159,"b":171}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":187,"b":194}]}],"statement":"-- El lote único de un material (ADR 0025): el más antiguo del ítem; ninguno si aún no recibió existencias.\nSELECT id\nFROM inventory.lots\nWHERE workspace_id = :workspaceId! AND item_id = :itemId!\nORDER BY created_at, id\nLIMIT 1"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- El lote único de un material (ADR 0025): el más antiguo del ítem; ninguno si aún no recibió existencias.
+ * SELECT id
+ * FROM inventory.lots
+ * WHERE workspace_id = :workspaceId! AND item_id = :itemId!
+ * ORDER BY created_at, id
+ * LIMIT 1
+ * ```
+ */
+export const findItemLot = new PreparedQuery<IFindItemLotParams,IFindItemLotResult>(findItemLotIR);
+
+
+/** 'EnsureStockPosition' parameters type */
+export interface IEnsureStockPositionParams {
+  itemId: string;
+  locationId: string;
+  lotId: string;
+  workspaceId: string;
+}
+
+/** 'EnsureStockPosition' return type */
+export type IEnsureStockPositionResult = void;
+
+/** 'EnsureStockPosition' query type */
+export interface IEnsureStockPositionQuery {
+  params: IEnsureStockPositionParams;
+  result: IEnsureStockPositionResult;
+}
+
+const ensureStockPositionIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true,"lotId":true,"locationId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":222,"b":234}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":237,"b":244}]},{"name":"lotId","required":true,"transform":{"type":"scalar"},"locs":[{"a":247,"b":253}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":256,"b":267}]}],"statement":"-- La posición sin envase de un material en una ubicación (ADR 0025): la de un ingreso anterior o una nueva con saldo cero.\nINSERT INTO inventory.positions (workspace_id, item_id, lot_id, location_id, disposition)\nVALUES (:workspaceId!, :itemId!, :lotId!, :locationId!, 'usable')\nON CONFLICT (workspace_id, item_id, lot_id, container_id, location_id, disposition) DO NOTHING"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- La posición sin envase de un material en una ubicación (ADR 0025): la de un ingreso anterior o una nueva con saldo cero.
+ * INSERT INTO inventory.positions (workspace_id, item_id, lot_id, location_id, disposition)
+ * VALUES (:workspaceId!, :itemId!, :lotId!, :locationId!, 'usable')
+ * ON CONFLICT (workspace_id, item_id, lot_id, container_id, location_id, disposition) DO NOTHING
+ * ```
+ */
+export const ensureStockPosition = new PreparedQuery<IEnsureStockPositionParams,IEnsureStockPositionResult>(ensureStockPositionIR);
+
+
+/** 'LockStockPosition' parameters type */
+export interface ILockStockPositionParams {
+  itemId: string;
+  locationId: string;
+  lotId: string;
+  workspaceId: string;
+}
+
+/** 'LockStockPosition' return type */
+export interface ILockStockPositionResult {
+  id: string;
+}
+
+/** 'LockStockPosition' query type */
+export interface ILockStockPositionQuery {
+  params: ILockStockPositionParams;
+  result: ILockStockPositionResult;
+}
+
+const lockStockPositionIR: any = {"usedParamSet":{"workspaceId":true,"itemId":true,"lotId":true,"locationId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":56,"b":68}]},{"name":"itemId","required":true,"transform":{"type":"scalar"},"locs":[{"a":84,"b":91}]},{"name":"lotId","required":true,"transform":{"type":"scalar"},"locs":[{"a":106,"b":112}]},{"name":"locationId","required":true,"transform":{"type":"scalar"},"locs":[{"a":159,"b":170}]}],"statement":"SELECT id\nFROM inventory.positions\nWHERE workspace_id = :workspaceId! AND item_id = :itemId! AND lot_id = :lotId! AND container_id IS NULL\n  AND location_id = :locationId! AND disposition = 'usable'\nFOR UPDATE"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT id
+ * FROM inventory.positions
+ * WHERE workspace_id = :workspaceId! AND item_id = :itemId! AND lot_id = :lotId! AND container_id IS NULL
+ *   AND location_id = :locationId! AND disposition = 'usable'
+ * FOR UPDATE
+ * ```
+ */
+export const lockStockPosition = new PreparedQuery<ILockStockPositionParams,ILockStockPositionResult>(lockStockPositionIR);
+
+

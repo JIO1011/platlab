@@ -1124,3 +1124,25 @@ FROM running
 GROUP BY position_id
 HAVING sum(least(quantity, greatest(:used!::numeric - before, 0))) > 0
 ORDER BY position_id;
+
+/* @name findItemLot */
+-- El lote único de un material (ADR 0025): el más antiguo del ítem; ninguno si aún no recibió existencias.
+SELECT id
+FROM inventory.lots
+WHERE workspace_id = :workspaceId! AND item_id = :itemId!
+ORDER BY created_at, id
+LIMIT 1;
+
+/* @name ensureStockPosition */
+-- La posición sin envase de un material en una ubicación (ADR 0025): la de un ingreso anterior o una nueva con saldo cero.
+INSERT INTO inventory.positions (workspace_id, item_id, lot_id, location_id, disposition)
+VALUES (:workspaceId!, :itemId!, :lotId!, :locationId!, 'usable')
+ON CONFLICT (workspace_id, item_id, lot_id, container_id, location_id, disposition) DO NOTHING;
+
+/* @name lockStockPosition */
+SELECT id
+FROM inventory.positions
+WHERE workspace_id = :workspaceId! AND item_id = :itemId! AND lot_id = :lotId! AND container_id IS NULL
+  AND location_id = :locationId! AND disposition = 'usable'
+FOR UPDATE;
+

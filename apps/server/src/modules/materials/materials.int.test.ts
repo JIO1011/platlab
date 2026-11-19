@@ -1,0 +1,276 @@
+import { beforeAll, describe, expect, it } from 'vitest';
+import { materialDetail, materialList, materialMovementResponse, materialStockList } from '@platlab/contracts';
+import {
+  admin,
+  call,
+  count,
+  createMaterial,
+  createMaterialsLab,
+  errorCode,
+  receive,
+  receivedPosition,
+  stockOf,
+  type MaterialsLab,
+} from './materials.fixtures.js';
+
+/** MA-01a (ADR 0025): catálogo, ingreso, salida y ajuste de Materiales por la API. */
+
+let lab: MaterialsLab;
+let other: MaterialsLab;
+
+beforeAll(async () => {
+  lab = await createMaterialsLab();
+  other = await createMaterialsLab();
+});
+
+describe('catálogo', () => {
+  it('el Administrador crea con código automático; el Operador y el Docente no', async () => {
+    const material = await createMaterial(lab, { name: 'Puntas de pipeta 200 µL' });
+    expect(material.code).toMatch(/^[A-Z0-9]/);
+    expect(material.class).toBe('consumable');
+    const denied = await call(lab.operator.subject, `${lab.base}/products`, {
+      method: 'POST',
+      body: { name: 'Otro', class: 'consumable' },
+    });
+    expect(denied.status).toBe(403);
+    expect(errorCode(denied.body)).toBe('ACCESS_DENIED');
+    expect((await call(lab.teacher.subject, `${lab.base}/products`)).status).toBe(403);
+  });
+
+  it('un nombre activo no se repite sin tildes ni mayúsculas', async () => {
+    const material = await createMaterial(lab, { name: 'Papel filtro cualitativo' });
+    const repeated = await call(lab.adminMember.subject, `${lab.base}/products`, {
+      method: 'POST',
+      body: { name: ` ${material.name.replace('í', 'i').toUpperCase()} `, class: 'consumable' },
+    });
+    expect(repeated.status).toBe(409);
+    expect(errorCode(repeated.body)).toBe('NAME_TAKEN');
+  });
+
+  it('un reutilizable se cuenta en piezas; un consumible admite otras unidades', async () => {
+    const bad = await call(lab.adminMember.subject, `${lab.base}/products`, {
+      method: 'POST',
+      body: { name: 'Vasos de precipitados', class: 'reusable_counted', baseUnit: 'kg' },
+    });
+    expect(bad.status).toBe(400);
+    const reusable = await createMaterial(lab, { name: 'Vasos de precipitados 250 mL', class: 'reusable_counted' });
+    expect(reusable.baseUnit).toBe('u');
+    const cotton = await createMaterial(lab, { name: 'Algodón', baseUnit: 'g' });
+    expect(cotton.baseUnit).toBe('g');
+  });
+
+  it('edita nombre y unidad mientras no haya movimientos; la clase no se edita', async () => {
+    const material = await createMaterial(lab, { name: 'Tubos de ensayo' });
+    const renamed = await call(lab.adminMember.subject, `${lab.base}/products/${material.id}`, {
+      method: 'PATCH',
+      body: { name: 'Tubos de ensayo 16x100' },
+    });
+    expect(renamed.status).toBe(200);
+    const classChange = await call(lab.adminMember.subject, `${lab.base}/products/${material.id}`, {
+      method: 'PATCH',
+      body: { class: 'reusable_counted' },
+    });
+    expect(classChange.status).toBe(400);
+    await receivedPosition(lab, material.id, '5');
+    const unit = await call(lab.adminMember.subject, `${lab.base}/products/${material.id}`, {
+      method: 'PATCH',
+      body: { baseUnit: 'g' },
+    });
+    expect(unit.status).toBe(400);
+    const detail = materialDetail.parse((await call(lab.operator.subject, `${lab.base}/products/${material.id}`)).body);
+    expect(detail.name).toBe('Tubos de ensayo 16x100');
+    expect(detail.unitEditable).toBe(false);
+  });
+
+  it('un espacio no ve ni opera los materiales de otro', async () => {
+    const material = await createMaterial(lab);
+    expect((await call(other.adminMember.subject, `${other.base}/products/${material.id}`)).status).toBe(404);
+    expect((await receive(other, material.id, '1', other.shelf, other.operator.subject)).status).toBe(404);
+    const list = materialList.parse((await call(other.adminMember.subject, `${other.base}/products`)).body);
+    expect(list.items.some((item) => item.id === material.id)).toBe(false);
+  });
+
+  it('sin el módulo contratado, nada de Materiales responde', async () => {
+    const without = await createMaterialsLab(['reagents']);
+    const response = await call(without.adminMember.subject, `${without.base}/products`);
+    expect(response.status).toBe(403);
+    expect(errorCode(response.body)).toBe('MODULE_UNAVAILABLE');
+  });
+});
+
+describe('existencias', () => {
+  it('el ingreso crea la posición y un segundo ingreso en la misma ubicación la suma', async () => {
+    const material = await createMaterial(lab);
+    const first = materialMovementResponse.parse((await receive(lab, material.id, '10.5')).body);
+    const second = materialMovementResponse.parse((await receive(lab, material.id, '4.5')).body);
+    expect(second.positionId).toBe(first.positionId);
+    expect(second.balance).toBe('15');
+    // Otra ubicación: otra posición; el total del catálogo suma ambas.
+    await receive(lab, material.id, '5', lab.lab);
+    const stock = await stockOf(lab, material.id);
+    expect(stock).toHaveLength(2);
+    const detail = materialDetail.parse((await call(lab.operator.subject, `${lab.base}/products/${material.id}`)).body);
+    expect(detail.balance).toBe('20');
+    expect(detail.locationsWithStock).toBe(2);
+    // Un solo lote por material, sin envases (ADR 0025).
+    expect(await count('select count(*) as n from inventory.lots where item_id = $1', [material.id])).toBe(1);
+    expect(await count('select count(*) as n from inventory.containers where item_id = $1', [material.id])).toBe(0);
+  });
+
+  it('ingresos simultáneos del primer ingreso crean un solo lote y una sola posición, y suman todo', async () => {
+    const material = await createMaterial(lab);
+    const responses = await Promise.all(Array.from({ length: 6 }, () => receive(lab, material.id, '2')));
+    expect(responses.map((response) => response.status)).toEqual(Array(6).fill(201));
+    expect(await count('select count(*) as n from inventory.lots where item_id = $1', [material.id])).toBe(1);
+    const stock = await stockOf(lab, material.id);
+    expect(stock).toHaveLength(1);
+    expect(stock[0]?.balance).toBe('12');
+  });
+
+  it('la salida descuenta el saldo y nunca lo deja bajo cero', async () => {
+    const material = await createMaterial(lab);
+    const positionId = await receivedPosition(lab, material.id, '10');
+    const issue = (quantity: string) =>
+      call(lab.operator.subject, `${lab.base}/issues`, {
+        method: 'POST',
+        body: { positionId, quantity, unit: 'u', reason: 'Práctica de química', destination: 'Laboratorio 1' },
+      });
+    const done = materialMovementResponse.parse((await issue('3')).body);
+    expect(done.balance).toBe('7');
+    expect(done.type).toBe('issue');
+    const over = await issue('8');
+    expect(over.status).toBe(409);
+    expect(errorCode(over.body)).toBe('INSUFFICIENT_STOCK');
+    expect((await stockOf(lab, material.id))[0]?.balance).toBe('7');
+  });
+
+  it('salidas simultáneas nunca dejan el saldo bajo cero', async () => {
+    const material = await createMaterial(lab);
+    const positionId = await receivedPosition(lab, material.id, '10');
+    const responses = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        call(lab.operator.subject, `${lab.base}/issues`, {
+          method: 'POST',
+          body: { positionId, quantity: '2', unit: 'u', reason: 'Práctica', destination: 'Laboratorio 1' },
+        }),
+      ),
+    );
+    expect(responses.filter((response) => response.status === 201)).toHaveLength(5);
+    expect(responses.filter((response) => response.status === 409)).toHaveLength(1);
+    expect((await stockOf(lab, material.id))[0]?.balance).toBe('0');
+  });
+
+  it('una posición de un reactivo no se mueve por las rutas de Materiales', async () => {
+    const itemId = (
+      await admin.query<{ id: string }>(
+        `insert into inventory.items (workspace_id, kind, code, name, base_unit) values ($1, 'reagent', $2, 'Acetona', 'mL') returning id`,
+        [lab.workspace.id, `ACE-${lab.workspace.code}`],
+      )
+    ).rows[0]!.id;
+    const lotId = (
+      await admin.query<{ id: string }>(
+        `insert into inventory.lots (workspace_id, item_id, code) values ($1, $2, 'L-001') returning id`,
+        [lab.workspace.id, itemId],
+      )
+    ).rows[0]!.id;
+    const positionId = (
+      await admin.query<{ id: string }>(
+        `insert into inventory.positions (workspace_id, item_id, lot_id, location_id) values ($1, $2, $3, $4) returning id`,
+        [lab.workspace.id, itemId, lotId, lab.shelf],
+      )
+    ).rows[0]!.id;
+    const body = { positionId, quantity: '1', unit: 'mL' };
+    const issue = await call(lab.adminMember.subject, `${lab.base}/issues`, {
+      method: 'POST',
+      body: { ...body, reason: 'Práctica', destination: 'Laboratorio 1' },
+    });
+    expect(issue.status).toBe(404);
+    const adjustment = await call(lab.adminMember.subject, `${lab.base}/adjustments`, {
+      method: 'POST',
+      body: { ...body, reason: 'Conteo' },
+    });
+    expect(adjustment.status).toBe(404);
+  });
+
+  it('el ajuste es del Administrador y exige motivo; la unidad debe ser la base', async () => {
+    const material = await createMaterial(lab);
+    const positionId = await receivedPosition(lab, material.id, '10');
+    const adjust = (subject: string, body: Record<string, unknown>) =>
+      call(subject, `${lab.base}/adjustments`, { method: 'POST', body: { positionId, unit: 'u', ...body } });
+    expect((await adjust(lab.operator.subject, { quantity: '-2', reason: 'Conteo' })).status).toBe(403);
+    expect((await adjust(lab.adminMember.subject, { quantity: '-2' })).status).toBe(400);
+    const done = materialMovementResponse.parse((await adjust(lab.adminMember.subject, { quantity: '-2', reason: 'Conteo' })).body);
+    expect(done.balance).toBe('8');
+    const wrongUnit = await adjust(lab.adminMember.subject, { quantity: '1', reason: 'Conteo', unit: 'kg' });
+    expect(wrongUnit.status).toBe(400);
+  });
+
+  it('un material no se opera con ítems de Reactivos y viceversa', async () => {
+    const [reagent] = (
+      await admin.query<{ id: string }>(
+        `insert into inventory.items (workspace_id, kind, code, name, base_unit) values ($1, 'reagent', $2, 'Etanol', 'mL') returning id`,
+        [lab.workspace.id, `ETA-${lab.workspace.code}`],
+      )
+    ).rows;
+    const response = await receive(lab, reagent!.id, '1');
+    expect(response.status).toBe(404);
+  });
+
+  it('no suma existencias a una ubicación archivada', async () => {
+    const material = await createMaterial(lab);
+    const archived = (
+      await admin.query<{ id: string }>(
+        `insert into core.locations (workspace_id, kind, code, name, archived_at)
+         select $1, 'storage', $2, 'Estante viejo', now() returning id`,
+        [lab.workspace.id, `OLD-${lab.workspace.code}`],
+      )
+    ).rows[0]!;
+    expect((await receive(lab, material.id, '1', archived.id)).status).toBe(404);
+  });
+});
+
+describe('mínimo y listado', () => {
+  it('fija el mínimo (Administrador), marca «bajo mínimo» y pagina por código', async () => {
+    const material = await createMaterial(lab, { name: 'Guantes de nitrilo M' });
+    await receivedPosition(lab, material.id, '5');
+    expect(
+      (await call(lab.operator.subject, `${lab.base}/products/${material.id}/minimum`, { method: 'PUT', body: { minimum: '10' } })).status,
+    ).toBe(403);
+    const set = await call(lab.adminMember.subject, `${lab.base}/products/${material.id}/minimum`, { method: 'PUT', body: { minimum: '10' } });
+    expect(set.status).toBe(200);
+    const detail = materialDetail.parse((await call(lab.operator.subject, `${lab.base}/products/${material.id}`)).body);
+    expect(detail.belowMinimum).toBe(true);
+
+    const found = materialList.parse((await call(lab.operator.subject, `${lab.base}/products?q=nitrilo`)).body);
+    expect(found.items.map((item) => item.id)).toEqual([material.id]);
+    const firstPage = materialList.parse((await call(lab.operator.subject, `${lab.base}/products?limit=1`)).body);
+    expect(firstPage.items).toHaveLength(1);
+    expect(firstPage.nextCursor).not.toBeNull();
+    const secondPage = materialList.parse(
+      (await call(lab.operator.subject, `${lab.base}/products?limit=1&cursor=${firstPage.nextCursor}`)).body,
+    );
+    expect(secondPage.items[0]?.id).not.toBe(firstPage.items[0]?.id);
+  });
+
+  it('el stock sin filtro lista las posiciones del espacio', async () => {
+    const list = materialStockList.parse((await call(lab.operator.subject, `${lab.base}/stock`)).body);
+    expect(list.items.length).toBeGreaterThan(0);
+  });
+});
+
+describe('auditoría', () => {
+  it('deja una fila por cada operación de catálogo y de existencias', async () => {
+    const audits = await admin.query<{ action: string }>('select action from core.audit_events where workspace_id = $1', [lab.workspace.id]);
+    const actions = new Set(audits.rows.map((row) => row.action));
+    for (const action of [
+      'materials.product.create',
+      'materials.product.update',
+      'materials.product.minimum',
+      'materials.receipt.create',
+      'materials.issue.create',
+      'materials.adjustment.create',
+    ]) {
+      expect(actions.has(action), action).toBe(true);
+    }
+  });
+});

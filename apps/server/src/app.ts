@@ -5,6 +5,7 @@ import { coreRoutes } from './modules/core/index.js';
 import { equipmentAreaContribution, equipmentHomeSummary, equipmentRoutes } from './modules/equipment/index.js';
 import { labsHomeSummary, labsRoutes } from './modules/labs/index.js';
 import { maintenanceHomeSummary, maintenanceRoutes } from './modules/maintenance/index.js';
+import { materialsRoutes } from './modules/materials/index.js';
 import { reagentsAreaContribution, reagentsHomeSummary, reagentsRoutes } from './modules/reagents/index.js';
 import type { TokenVerifier } from './platform/auth/jwt.js';
 import { requireAuthentication } from './platform/http/auth.js';
@@ -40,6 +41,7 @@ export function buildApp({ pool, verifyToken, publicFiles }: AppDependencies): F
       await v1.register(equipmentRoutes({ pool, publicFiles }), { prefix: '/workspaces/:workspaceId/equipment' });
       await v1.register(maintenanceRoutes({ pool, publicFiles }), { prefix: '/workspaces/:workspaceId/maintenance' });
       await v1.register(labsRoutes({ pool, publicFiles }), { prefix: '/workspaces/:workspaceId/labs' });
+      await v1.register(materialsRoutes({ pool }), { prefix: '/workspaces/:workspaceId/materials' });
     },
     { prefix: '/v1' },
   );

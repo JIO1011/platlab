@@ -423,3 +423,30 @@ export {
 } from './labs.js';
 export { bottleCodes, codeFromName, firstFreeCode, freeSeries, nextCode, seriesFromName } from './codes.js';
 export { EXPIRING_DAYS, SAFETY_SHEET_MAX_BYTES } from './reagents.js';
+export {
+  material,
+  materialAdjustmentRequest,
+  materialClass,
+  materialDetail,
+  materialIssueRequest,
+  materialList,
+  materialListQuery,
+  materialMinimumResponse,
+  materialMovementResponse,
+  materialParams,
+  materialReceiptRequest,
+  materialStockList,
+  materialStockQuery,
+  newMaterial,
+  setMaterialMinimumRequest,
+  stockedMaterial,
+  unitViolation,
+  updateMaterialRequest,
+  type Material,
+  type MaterialClass,
+  type MaterialDetail,
+  type MaterialList,
+  type MaterialStockLine,
+  type MaterialStockList,
+  type StockedMaterial,
+} from './materials.js';

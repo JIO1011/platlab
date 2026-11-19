@@ -28,6 +28,7 @@ Revisión: 16 de noviembre de 2026. Registro resumido de decisiones de arquitect
 | [0022](#adr-0022) | Calidad de Equipos y Mantenimiento: piezas comunes sin duplicar | Aceptado el 20-10-2026 |
 | [0023](#adr-0023) | Laboratorios: solicitudes y cronograma en un solo módulo | Aceptado el 20-10-2026; cerrado para el piloto el 16-11-2026 |
 | [0024](#adr-0024) | Áreas y departamentos en una sección propia | Aceptado el 20-10-2026 |
+| [0025](#adr-0025) | Materiales y Préstamos: consumibles, reutilizables y vale de préstamo | Aceptado el 18-11-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -621,7 +622,7 @@ Cambios: 20-10-2026; compactado el 16-11-2026.
 | Reglas de Laboratorios ([ADR 0023](#adr-0023)) | L-01e se programó con reglas por defecto («Cierre de Laboratorios», 05-11-2026). Falta confirmar: ¿quién declara lo utilizado al cerrar (el responsable o el docente)? ¿El químico abierto que sobra vuelve al frasco o se desecha? ¿La lista de chequeo debe estar completa para marcar «Lista»? ¿La columna «Código» de equipos se llena con los asignados o a mano? ¿Se entrega material que se devuelve? | P-04, con el cliente |
 | Revisión de Laboratorios (16-11-2026) | Al mover un bloque a otra área cambia su código, pero los reactivos apartados conservan el motivo y el destino de antes («Práctica P1-S10-BIO03 · Bioquímica»): ¿se deja como registro de cuándo se apartó o se actualiza al mover? «Recibidas» muestra hasta 500 solicitudes sin páginas: añadir páginas o filtro por periodo | El motivo, con el usuario; las páginas, antes de G2 |
 | Inicio | La propuesta del 20-10-2026 espera, porque el usuario tiene otras ideas: «Por atender» de todos los módulos con su enlace filtrado, tres tarjetas por fila con gráfico solo si hay datos y avisos declarados por cada módulo. Hoy la tarjeta de Equipos dice siempre «Sin cambios» | Al terminar los módulos, con las ideas del usuario |
-| Préstamos | Prestatarios externos, plazos, pérdidas y retrasos | Antes de F4 |
+| Préstamos | Prestatarios externos, plazos, pérdidas y retrasos. Por defecto ([ADR 0025](#adr-0025)): solo miembros, baja y deuda sin bloqueo automático | P-04, antes de G1 |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
 | Datos de Mantenimiento | ¿Qué datos del proveedor necesita el cliente (acreditación, identificación tributaria)? ¿Las tareas de la lista necesitan «No aplica» o una explicación cuando no se hacen? ¿Se identifica al técnico interno que hizo el trabajo? ¿Su sistema de calidad exige que una segunda persona revise las calibraciones? Hoy se guardan el nombre y el contacto del proveedor, casillas simples y quién registró ([ADR 0020](#adr-0020)) | F0, con el cliente |
 | Salidas en serie | ¿Hace falta registrar varias salidas seguidas con la cámara? Hoy «Escanear» abre un frasco listo para «Salida» (14-10-2026) | P-03 |
@@ -636,3 +637,27 @@ Cambios: 20-10-2026; compactado el 16-11-2026.
 | Modelo comercial | Recomendado: licencia anual por espacio y paquete + incorporación única + desarrollos a medida aparte ([01 §4](01_producto.md#4-paquetes)). Pendiente de confirmar por el usuario | Antes de cotizar |
 | Precio | Tarifa por espacio con costos medidos, soporte y margen | Antes de cotizar; S-01 aporta los costos |
 | Código de ReactiLab | Titularidad y licencia: el README dice MIT y los términos dicen software propietario | Antes de copiar componentes |
+
+<a id="adr-0025"></a>
+
+## ADR 0025 — Materiales y Préstamos: consumibles, reutilizables y vale de préstamo
+
+Estado: aceptada (18-11-2026; idea del usuario). Concreta M6 de [01 §3](01_producto.md); adelanta Materiales a antes del G0 de Equipos. Desarrolla la pregunta «Préstamos» de Pendientes con valores por defecto que confirma el cliente (P-04).
+
+- **Tres clases de material** (`materials.products.class`), modelo tomado de Snipe-IT (consumibles, accesorios y activos):
+  - *Consumible* (guantes, puntas): ingreso, salida, ajuste, mínimo y aviso. Sin lotes ni envases a la vista.
+  - *Reutilizable por cantidad* (vasos, pipetas): se presta y se devuelve por cantidad, con devolución parcial y resultado bueno, dañado o perdido.
+  - *Reutilizable identificado* (soporte, kit): una unidad con código y QR, como los activos de Equipos.
+- **Reutiliza la capacidad inventario** con `kind = 'material'`; no hay libro de movimientos propio. Un consumible tiene un solo lote por material (`inventory.positions.lot_id` es obligatorio y el cliente no elige lote), sin envases. Los ítems de Materiales nunca son de Reactivos ([03 §4](03_datos.md)).
+- **Esquema `materials`**, dueño técnico propio: `products` (extensión 1:1 del ítem, con su clase) y, en la entrega siguiente, `loans`, `loan_lines` y `return_lines`. No escribe en `inventory` ni en `equipment` sino por las interfaces de las capacidades.
+- **Rutas y permisos de Materiales** (`/materials/*`, `materials.*`), nunca `/inventory/*`: `materials.catalog.manage` (Administrador), `materials.receipt.create` y `materials.issue.create` (Administrador y Operador), `materials.adjustment.create` (Administrador). Los de préstamo llegan con MA-01b.
+- **Préstamo, por defecto hasta que P-04 lo confirme:**
+  - *Solo a miembros del espacio* (Docente o Estudiante, que presta por su grupo); sin prestatarios externos.
+  - *Vale:* prestatario, fecha, vencimiento y líneas. Prestar saca el material a «en préstamo» (una custodia de inventario) y no lo consume; devolver puede ser parcial.
+  - *Daño o pérdida:* baja con motivo y deuda registrada; no hay bloqueo automático de nuevos préstamos ni cobro. Nadie borra un préstamo: se cierra, se cancela o se compensa.
+  - *Un solo mostrador:* el mismo vale presta material y equipos (FK tipada al activo, [ADR 0019](#adr-0019)), con «Prestado» como disponibilidad calculada de Equipos.
+- **Entregas:** MA-01a (base y API: catálogo, ingreso, salida, ajuste y mínimo de consumibles), MA-01b (custodias, préstamo, devolución, daño y pérdida), MA-01c y MA-01d (pantallas: Resumen, Inventario por áreas, Préstamos, Informe y QR), MA-02 (Laboratorios: material del catálogo y consumo o devolución al cerrar, solo si P-04 lo exige) y MA-03 (disponibilidad «Prestado» en Equipos y G0). Etapa `development` hasta su G0.
+
+Motivo: el laboratorio gasta y presta material además de reactivos; sin catálogo, Laboratorios solo puede pedirlo como texto. Los reglamentos universitarios coinciden en el vale, la devolución con estado y la reposición ([UABC](https://fcqi.tij.uabc.mx/wp-content/uploads/2025/06/Procedimiento-prestamo-material-almacen-6E-ACTUAL.pdf), [UNAM](https://amyd.quimica.unam.mx/mod/resource/view.php?id=6773)); lo de bajo valor y alto volumen no pide lote.
+
+Cambios: 18-11-2026.
