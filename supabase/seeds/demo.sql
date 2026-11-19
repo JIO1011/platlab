@@ -1005,4 +1005,64 @@ insert into materials.loan_lines (workspace_id, loan_id, line, position_id, quan
 update inventory.positions set reserved = 12 where id = 'dd700000-0000-4000-8000-000000000003';
 update inventory.positions set reserved = 4 where id = 'dd700000-0000-4000-8000-000000000004';
 
+-- Actividad de Materiales de las últimas semanas (ADR 0025), para que el tablero del Resumen tenga qué mostrar: una
+-- reposición de guantes, siete salidas de guantes y cinco de papel filtro, y dos préstamos de vasos ya devueltos.
+create temp table demo_issues (days_ago int, quantity numeric, position_id uuid) on commit drop;
+insert into demo_issues values
+  (25, 15, 'dd700000-0000-4000-8000-000000000001'), (20, 15, 'dd700000-0000-4000-8000-000000000001'),
+  (17, 15, 'dd700000-0000-4000-8000-000000000001'), (12, 15, 'dd700000-0000-4000-8000-000000000001'),
+  (9, 15, 'dd700000-0000-4000-8000-000000000001'), (5, 15, 'dd700000-0000-4000-8000-000000000001'),
+  (2, 15, 'dd700000-0000-4000-8000-000000000001'),
+  (24, 10, 'dd700000-0000-4000-8000-000000000002'), (16, 5, 'dd700000-0000-4000-8000-000000000002'),
+  (11, 8, 'dd700000-0000-4000-8000-000000000002'), (6, 12, 'dd700000-0000-4000-8000-000000000002'),
+  (3, 10, 'dd700000-0000-4000-8000-000000000002');
+
+do $$
+declare
+  workspace constant uuid := 'da000000-0000-4000-8000-00000000000a';
+  admin_principal constant uuid := 'da200000-0000-4000-8000-000000000001';
+  gloves constant uuid := 'dd700000-0000-4000-8000-000000000001';
+  glass constant uuid := 'dd700000-0000-4000-8000-000000000003';
+  issue record;
+  op uuid;
+  new_balance numeric;
+  reasons text[] := array['Práctica de Química General', 'Práctica de Análisis Químico', 'Preparación de soluciones', 'Proyecto de titulación'];
+  loan_id uuid;
+  line_id uuid;
+  loan_n int;
+begin
+  -- Reposición de guantes hace 27 días.
+  insert into inventory.operations (workspace_id, type, actor_principal_id, reference, effective_at, correlation_id)
+  values (workspace, 'receipt', admin_principal, 'Reposición sintética', now() - interval '27 days', gen_random_uuid())
+  returning id into op;
+  update inventory.positions set balance = balance + 100 where id = gloves returning balance into new_balance;
+  insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+  values (workspace, op, gloves, 100, 100, 'u', new_balance);
+
+  for issue in select * from demo_issues order by days_ago desc loop
+    insert into inventory.operations (workspace_id, type, actor_principal_id, requested_by_principal_id, reason, destination, effective_at, correlation_id)
+    values (workspace, 'issue', admin_principal, 'da200000-0000-4000-8000-000000000002', reasons[1 + issue.days_ago % 4], 'Laboratorio de Química',
+            now() - make_interval(days => issue.days_ago), gen_random_uuid())
+    returning id into op;
+    update inventory.positions set balance = balance - issue.quantity where id = issue.position_id returning balance into new_balance;
+    insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+    values (workspace, op, issue.position_id, -issue.quantity, -issue.quantity, 'u', new_balance);
+  end loop;
+
+  -- Dos préstamos de vasos ya devueltos, de hace 42 y 33 días, al Docente.
+  for loan_n, op in select 4, null::uuid union all select 5, null loop
+    loan_id := gen_random_uuid();
+    line_id := gen_random_uuid();
+    insert into materials.loans (id, workspace_id, number, borrower_principal_id, lent_by_principal_id, lent_at, due_on, status, closed_at, version)
+    values (loan_id, workspace, loan_n, 'da200000-0000-4000-8000-000000000004', admin_principal,
+            now() - make_interval(days => case loan_n when 4 then 42 else 33 end),
+            (now() - make_interval(days => case loan_n when 4 then 38 else 29 end))::date, 'closed',
+            now() - make_interval(days => case loan_n when 4 then 40 else 31 end), 2);
+    insert into materials.loan_lines (id, workspace_id, loan_id, line, position_id, quantity, returned)
+    values (line_id, workspace, loan_id, 1, glass, 8, 8);
+    insert into materials.return_lines (workspace_id, loan_line_id, outcome, quantity, returned_by_principal_id, returned_at)
+    values (workspace, line_id, 'good', 8, admin_principal, now() - make_interval(days => case loan_n when 4 then 40 else 31 end));
+  end loop;
+end $$;
+
 commit;

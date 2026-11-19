@@ -9,6 +9,7 @@ import {
   materialListQuery,
   materialParams,
   materialReceiptRequest,
+  materialsDashboardQuery,
   materialStockQuery,
   newMaterial,
   returnRequest,
@@ -16,6 +17,7 @@ import {
   updateMaterialRequest,
 } from '@platlab/contracts';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
+import { getDashboard } from '../application/dashboard.js';
 import { getLoan, listBorrowers, listLoanPage } from '../application/loan-views.js';
 import { lendMaterial, returnMaterial } from '../application/loans.js';
 import { createMaterial, setMaterialMinimum, updateMaterial } from '../application/catalog.js';
@@ -29,6 +31,8 @@ import { registerAdjustment, registerIssue, registerReceipt } from '../applicati
 export function materialsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync {
   return async (app) => {
     app.get('/summary', async (request) => getSummary(pool, queryRequest(request)));
+
+    app.get('/dashboard', async (request) => getDashboard(pool, queryRequest(request), materialsDashboardQuery.parse(request.query)));
 
     app.get('/areas', async (request) => listAreas(pool, queryRequest(request)));
 

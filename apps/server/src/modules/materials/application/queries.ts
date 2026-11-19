@@ -110,7 +110,7 @@ export function listStock(pool: pg.Pool, request: QueryRequest, query: z.infer<t
 }
 
 /** Las cifras del Resumen; la tarjeta de Inicio las reutiliza. */
-async function summaryOf(access: WorkspaceAccess): Promise<MaterialsSummary> {
+export async function summaryOf(access: WorkspaceAccess): Promise<MaterialsSummary> {
   const [row] = await materialsSummary.run({ workspaceId: access.workspace.id, timeZone: access.workspace.timeZone }, access.client);
   if (!row) throw new Error('El resumen de Materiales no devolvió fila');
   return { materials: row.materials, belowMinimum: row.below_minimum, openLoans: row.open_loans, overdueLoans: row.overdue_loans };

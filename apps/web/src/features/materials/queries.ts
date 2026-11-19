@@ -5,9 +5,11 @@ import {
   materialAreaList,
   materialDetail,
   materialList,
+  materialsDashboard,
   materialsSummary,
   materialStockList,
   memberList,
+  type DashboardPeriod,
   type MaterialClass,
 } from '@platlab/contracts';
 import { queryOptions, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -29,6 +31,17 @@ export function useMaterialsSummary(workspaceId: string) {
   return useQuery({
     queryKey: [...materialsKey(user, workspaceId), 'summary'],
     queryFn: () => api(`${base(workspaceId)}/summary`, { schema: materialsSummary }),
+    refetchInterval: jitteredPoll,
+  });
+}
+
+/** El tablero del Resumen para un periodo; al cambiar de periodo conserva el anterior hasta que llega el nuevo. */
+export function useMaterialsDashboard(workspaceId: string, days: DashboardPeriod) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...materialsKey(user, workspaceId), 'dashboard', days],
+    queryFn: () => api(`${base(workspaceId)}/dashboard?days=${days}`, { schema: materialsDashboard }),
+    placeholderData: (previous) => previous,
     refetchInterval: jitteredPoll,
   });
 }

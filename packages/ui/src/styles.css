@@ -42,6 +42,12 @@
   /* La marca PlatLab no cambia con el tema del módulo (ADR 0010, color por módulo). */
   --color-brand: #1f5f96;
 
+  /* Series de los gráficos (ADR 0025): categóricas validadas con la guía de visualización, en este orden fijo (azul,
+     naranja, aqua; separación CVD ≥ 9 y normal ≥ 27). El aqua queda bajo 3:1 sobre blanco: lleva leyenda y tabla. */
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #eb6834;
+  --color-chart-3: #1baf7a;
+
   --color-success: #1d7a46;
   --color-success-soft: #e5f3ea;
   --color-warning: #8a5a00;

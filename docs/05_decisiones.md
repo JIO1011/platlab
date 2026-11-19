@@ -657,7 +657,12 @@ Estado: aceptada (18-11-2026; idea del usuario). Concreta M6 de [01 §3](01_prod
   - *Daño o pérdida:* al devolver, la cantidad dañada o perdida da de baja con un ajuste del libro («Dañado en el préstamo P-0001») y queda como deuda registrada en la línea; no hay bloqueo automático de nuevos préstamos ni cobro ni registro de reposición hasta que P-04 lo confirme. Nadie borra un préstamo: se cierra, se cancela o se compensa.
   - *Un solo mostrador:* el mismo vale presta material y equipos (FK tipada al activo, [ADR 0019](#adr-0019)), con «Prestado» como disponibilidad calculada de Equipos.
 - **Entregas:** MA-01a (base y API: catálogo, ingreso, salida, ajuste y mínimo de consumibles), MA-01b (vale, préstamo, devolución parcial, daño y pérdida; hecha), MA-01c (pantallas: Resumen, Inventario con ficha, ingreso, salida, ajuste y mínimo, y Préstamos con «Nuevo préstamo» y devolución; hecha, en revisión del usuario) y MA-01d (Informe exportable y QR), MA-01e (reutilizable identificado: unidades con código y QR) , MA-02 (Laboratorios: material del catálogo y consumo o devolución al cerrar, solo si P-04 lo exige) y MA-03 (disponibilidad «Prestado» en Equipos y G0). Etapa `development` hasta su G0.
+- **Interfaz (19-11-2026, a partir de ejemplos del usuario):**
+  - *Inventario* en lista de filas con imagen, barra de existencia en diez tramos y ubicaciones que se despliegan (un lote por ubicación), más tarjetas y «Por ubicación» por áreas; el filtro «Bajo mínimo» se aplica en la API.
+  - *Nuevo préstamo* como mostrador: mosaicos que se tocan para sumar al vale.
+  - *Resumen* como tablero de solo lectura (`GET /materials/dashboard`, periodo de 7, 30 o 90 días): cifras con tendencia, movimientos por semana, los más usados, lo que se acaba pronto (existencia entre consumo diario), material por clase, reutilizables en el estante y atención. «Quién presta más» solo lo ve quien administra (`materials.catalog.manage`). Los gráficos cuentan movimientos y vales, nunca suman cantidades de unidades distintas (g, mL, u).
+  - *Foto opcional* del material (campo y Storage), con mosaico de color por defecto: pendiente, se registra al hacerla.
 
 Motivo: el laboratorio gasta y presta material además de reactivos; sin catálogo, Laboratorios solo puede pedirlo como texto. Los reglamentos universitarios coinciden en el vale, la devolución con estado y la reposición ([UABC](https://fcqi.tij.uabc.mx/wp-content/uploads/2025/06/Procedimiento-prestamo-material-almacen-6E-ACTUAL.pdf), [UNAM](https://amyd.quimica.unam.mx/mod/resource/view.php?id=6773)); lo de bajo valor y alto volumen no pide lote.
 
-Cambios: 18-11-2026.
+Cambios: 18 y 19-11-2026.

@@ -62,6 +62,18 @@ export function materialLevel(material: Pick<StockedMaterial, 'class' | 'balance
   };
 }
 
+/** El estado de un material en una palabra, con el tono de su punto: solo lo que pide atención se pinta. */
+export interface MaterialStatus {
+  tone: 'danger' | 'warning' | 'success';
+  label: string;
+}
+
+export function materialStatus(material: Pick<StockedMaterial, 'balance' | 'available' | 'belowMinimum'>): MaterialStatus {
+  if (material.balance === '0') return { tone: 'danger', label: 'Agotado' };
+  if (material.belowMinimum) return { tone: 'warning', label: 'Bajo mínimo' };
+  return { tone: 'success', label: 'Disponible' };
+}
+
 /** Cuánto pesa el plazo de un vale: el tono pide atención solo si hay atraso o falta poco. */
 export interface DueStatus {
   tone: 'danger' | 'warning' | 'accent' | 'success' | 'neutral';

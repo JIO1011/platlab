@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { locationList, materialAreaList, materialDetail, materialList, materialMovementResponse, materialsSummary, materialStockList } from '@platlab/contracts';
+import { locationList, materialAreaList, materialDetail, materialsDashboard, materialList, materialMovementResponse, materialsSummary, materialStockList } from '@platlab/contracts';
 import {
   admin,
   call,
@@ -7,8 +7,10 @@ import {
   createMaterial,
   createMaterialsLab,
   errorCode,
+  lend,
   receive,
   receivedPosition,
+  reusableWithStock,
   stockOf,
   type MaterialsLab,
 } from './materials.fixtures.js';
@@ -335,5 +337,40 @@ describe('resumen, ubicaciones y clases', () => {
     await call(fresh.adminMember.subject, `${fresh.base}/products/${supply.id}/minimum`, { method: 'PUT', body: { minimum: '20' } });
     const below = materialList.parse((await call(fresh.operator.subject, `${fresh.base}/products?stock=below-minimum`)).body).items;
     expect(below.map((item) => item.id)).toEqual([supply.id]);
+  });
+
+  it('arma el tablero: cuenta salidas y vales, ordena lo más usado y reserva el ranking de personas al Administrador', async () => {
+    const fresh = await createMaterialsLab();
+    const supply = await createMaterial(fresh, { name: 'Guantes' });
+    const supplyPosition = await receivedPosition(fresh, supply.id, '100');
+    const issue = (quantity: string) =>
+      call(fresh.operator.subject, `${fresh.base}/issues`, {
+        method: 'POST',
+        body: { positionId: supplyPosition, quantity, unit: 'u', reason: 'Práctica', destination: 'Laboratorio 1' },
+      });
+    expect((await issue('10')).status).toBe(201);
+    expect((await issue('20')).status).toBe(201);
+    const glass = await reusableWithStock(fresh, '30');
+    expect((await lend(fresh, [{ positionId: glass.positionId, quantity: '12' }])).status).toBe(201);
+    await call(fresh.adminMember.subject, `${fresh.base}/products/${supply.id}/minimum`, { method: 'PUT', body: { minimum: '90' } });
+
+    const asAdmin = materialsDashboard.parse((await call(fresh.adminMember.subject, `${fresh.base}/dashboard?days=30`)).body);
+    expect(asAdmin.figures.issues).toEqual({ current: 2, previous: 0 });
+    expect(asAdmin.figures.loans).toEqual({ current: 1, previous: 0 });
+    expect(asAdmin.figures).toMatchObject({ openLoans: 1, overdueLoans: 0, belowMinimum: 1 });
+    expect(asAdmin.weekly).toHaveLength(8);
+    expect(asAdmin.weekly.reduce((sum, week) => sum + week.issued, 0)).toBe(2);
+    expect(asAdmin.topSupplies[0]).toMatchObject({ name: 'Guantes', events: 2, quantity: '30' });
+    expect(asAdmin.topReusables[0]).toMatchObject({ events: 1, quantity: '12' });
+    expect(asAdmin.runningLow[0]).toMatchObject({ name: 'Guantes', balance: '70' });
+    expect(asAdmin.shelf).toEqual({ available: '18', total: '30' });
+    expect(asAdmin.attention.belowMinimum[0]).toMatchObject({ name: 'Guantes', balance: '70', minimum: '90' });
+    expect(asAdmin.topBorrowers?.[0]).toMatchObject({ loans: 1, units: '12' });
+
+    const asOperator = materialsDashboard.parse((await call(fresh.operator.subject, `${fresh.base}/dashboard`)).body);
+    expect(asOperator.days).toBe(30);
+    expect(asOperator.topBorrowers).toBeNull();
+    expect((await call(fresh.operator.subject, `${fresh.base}/dashboard?days=15`)).status).toBe(400);
+    expect((await call(fresh.teacher.subject, `${fresh.base}/dashboard`)).status).toBe(403);
   });
 });

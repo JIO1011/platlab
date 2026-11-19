@@ -8,7 +8,9 @@ import { useMaterials } from './context';
 import { MaterialThumb } from './material-thumb';
 import { useStock } from './queries';
 import { SegmentBar } from './segment-bar';
-import { classLabels, lentOut, materialLevel } from './text';
+import { classLabels, lentOut, materialLevel, materialStatus } from './text';
+
+const dotTone = { danger: 'bg-danger', warning: 'bg-warning', success: 'bg-success' } as const;
 
 /** Dónde está el material: la ubicación principal y, si hay más, cuántas otras. */
 function Where({ names }: { names: readonly string[] }) {
@@ -66,6 +68,7 @@ export function MaterialRow({ material, onOpen }: { material: StockedMaterial; o
   const [expanded, setExpanded] = useState(false);
   const level = materialLevel(material);
   const empty = material.balance === '0';
+  const status = materialStatus(material);
   const lent = lentOut(material.balance, material.available);
   const reusable = material.class !== 'consumable';
   return (
@@ -78,7 +81,11 @@ export function MaterialRow({ material, onOpen }: { material: StockedMaterial; o
               {material.name}
             </button>
           </p>
-          <p className="mt-0.5 flex items-center gap-2 text-[13px] text-ink-muted">
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-muted">
+            <span className="inline-flex items-center gap-1.5 font-medium text-ink">
+              <span aria-hidden className={`size-2 rounded-full ${dotTone[status.tone]}`} />
+              {status.label}
+            </span>
             <CodeTag>{material.code}</CodeTag>
             {classLabels[material.class]}
           </p>
@@ -113,8 +120,6 @@ export function MaterialRow({ material, onOpen }: { material: StockedMaterial; o
                 · {level.note.toLowerCase()}
               </span>
             )}
-            {empty ? <Badge tone="warning" className="px-2 py-0.5 text-[11px]">Sin existencias</Badge> : null}
-            {material.belowMinimum ? <Badge tone="warning" className="px-2 py-0.5 text-[11px]">Bajo mínimo</Badge> : null}
             {lent !== '0' ? <Badge tone="info" className="px-2 py-0.5 text-[11px]">Prestado {lent} {material.baseUnit}</Badge> : null}
           </p>
         </div>
