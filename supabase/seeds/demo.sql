@@ -111,7 +111,17 @@ insert into core.role_assignments (workspace_id, principal_id, role_code) values
   ('dc000000-0000-4000-8000-00000000000c', 'dc200000-0000-4000-8000-000000000001', 'admin');
 
 -- Usuarios (ADR 0027): dos personas en la lista blanca de A, pendientes de unirse, y el último acceso de cada
--- miembro; Diego no entra hace 45 días, así que aparece «Sin actividad».
+-- miembro. Diego no entra hace 45 días y Tomás, tesista del semestre pasado sin cuenta de acceso en la demo, hace 40:
+-- los dos aparecen «Sin actividad». Como nadie inicia sesión como Tomás, la prueba e2e cuenta con él.
+insert into core.identities (id, provider, provider_subject, display_name, email) values
+  ('d2000000-0000-4000-8000-000000000007', 'supabase', 'd0000000-0000-4000-8000-000000000007', 'Tomás Tesista', 'tesista@demo.platlab.test');
+insert into core.memberships (id, workspace_id, identity_id, created_at) values
+  ('da100000-0000-4000-8000-000000000007', 'da000000-0000-4000-8000-00000000000a', 'd2000000-0000-4000-8000-000000000007', now() - interval '120 days');
+insert into core.principals (id, workspace_id, kind, membership_id) values
+  ('da200000-0000-4000-8000-000000000007', 'da000000-0000-4000-8000-00000000000a', 'member', 'da100000-0000-4000-8000-000000000007');
+insert into core.role_assignments (workspace_id, principal_id, role_code) values
+  ('da000000-0000-4000-8000-00000000000a', 'da200000-0000-4000-8000-000000000007', 'student');
+
 insert into core.invitations (workspace_id, email, display_name, role_code, invited_by_principal_id, invited_at) values
   ('da000000-0000-4000-8000-00000000000a', 'estudiante@demo.platlab.test', 'Elena Estudiante', 'student',
    'da200000-0000-4000-8000-000000000003', now() - interval '2 days'),
@@ -121,7 +131,8 @@ insert into core.invitations (workspace_id, email, display_name, role_code, invi
 insert into core.member_presence (workspace_id, membership_id, last_seen_at) values
   ('da000000-0000-4000-8000-00000000000a', 'da100000-0000-4000-8000-000000000001', now() - interval '2 hours'),
   ('da000000-0000-4000-8000-00000000000a', 'da100000-0000-4000-8000-000000000002', now() - interval '3 days'),
-  ('da000000-0000-4000-8000-00000000000a', 'da100000-0000-4000-8000-000000000004', now() - interval '45 days');
+  ('da000000-0000-4000-8000-00000000000a', 'da100000-0000-4000-8000-000000000004', now() - interval '45 days'),
+  ('da000000-0000-4000-8000-00000000000a', 'da100000-0000-4000-8000-000000000007', now() - interval '40 days');
 
 -- ---------------------------------------------------------------------------
 -- Derechos: Reactivos para A y B por el comando contractual (T-04); C sin Reactivos

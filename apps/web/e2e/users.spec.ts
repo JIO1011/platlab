@@ -21,9 +21,10 @@ test('la Propietaria ve la actividad y agrega a alguien a la lista', async ({ br
   await expect(page.getByRole('heading', { name: 'Usuarios', level: 1 })).toBeVisible();
 
   await page.getByRole('button', { name: /^Sin actividad/ }).click();
+  // Tomás no tiene cuenta en la demo: ninguna prueba renueva su último acceso (Diego sí entra en otras).
   const list = page.getByRole('region', { name: 'Sin actividad' });
-  await expect(list.getByText('Diego Docente')).toBeVisible();
-  await expect(list.getByText('Entró hace 45 días')).toBeVisible();
+  await expect(list.getByText('Tomás Tesista')).toBeVisible();
+  await expect(list.getByText('Entró hace 40 días')).toBeVisible();
   await expectAccessible(page, 'Usuarios, sin actividad');
 
   await page.getByRole('button', { name: 'Agregar persona' }).click();
