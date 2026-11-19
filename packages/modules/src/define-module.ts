@@ -35,6 +35,12 @@ export interface ModuleManifest {
   nav: readonly NavEntry[];
   homeCard?: { permission: string };
   /**
+   * Inicio (ADR 0026): el módulo aporta actividades con fecha (Actividad y Calendario) o filas de «Por atender», cada
+   * aporte con el permiso que lo deja ver. El servidor filtra además por el ámbito del miembro.
+   */
+  homeAgenda?: { permission: string };
+  homeTasks?: { permission: string };
+  /**
    * Áreas y departamentos del Núcleo (ADR 0024): el módulo que guarda cosas en ellos los declara con su
    * permiso de consulta y el de administración. Core no tiene permisos propios.
    */
@@ -60,6 +66,8 @@ export function defineModule<const M extends ModuleManifest>(manifest: M): M {
     ...Object.values(manifest.roleGrants).flatMap((grants) => grants ?? []),
     ...manifest.nav.flatMap((entry) => [entry.permission, ...entry.sections.map((section) => section.permission)]),
     ...(manifest.homeCard ? [manifest.homeCard.permission] : []),
+    ...(manifest.homeAgenda ? [manifest.homeAgenda.permission] : []),
+    ...(manifest.homeTasks ? [manifest.homeTasks.permission] : []),
     ...(manifest.areas ? [manifest.areas.read, manifest.areas.manage] : []),
   ];
   for (const permission of used) {

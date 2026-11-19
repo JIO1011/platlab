@@ -45,5 +45,7 @@ export const maintenanceModule = defineModule({
     },
   ],
   homeCard: { permission: 'maintenance.work.read' },
+  homeAgenda: { permission: 'maintenance.work.read' },
+  homeTasks: { permission: 'maintenance.work.read' },
   stage: 'development',
 });

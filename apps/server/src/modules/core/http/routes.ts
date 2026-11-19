@@ -1,21 +1,26 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import type pg from 'pg';
 import {
+  agendaQuery,
   areaParams,
   assignAreaManagerRequest,
+  calendarQuery,
   createLocationRequest,
   departmentParams,
   departmentRequest,
   locationParams,
   renameLocationRequest,
   workspaceParams,
+  type HomeAgendaResponse,
+  type HomeCalendarResponse,
   type HomeResponse,
+  type HomeTasksResponse,
   type MyWorkspacesResponse,
   type WorkspaceMeResponse,
 } from '@platlab/contracts';
 import { verifiedSubject } from '../../../platform/http/auth.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
-import { listActiveMembers, listMemberRoles, listMyWorkspaces, withWorkspaceAccess } from '../application/access.js';
+import { listActiveMembers, listMemberRoles, listMyWorkspaces, withWorkspaceAccess, type WorkspaceAccess } from '../application/access.js';
 import { activeDepartments, archiveDepartment, createDepartment, renameDepartment } from '../application/departments.js';
 import { archiveLocation, assignAreaManager, createLocation, renameLocation } from '../application/locations.js';
 import {
@@ -25,16 +30,17 @@ import {
   occupantsFrom,
   type AreaContributions,
 } from '../application/organization.js';
-import { describeWorkspace, homeCards, type HomeSummaries } from '../application/workspace-view.js';
+import { homeAgenda, homeCalendar, homeCards, homeTasks, type HomeModules } from '../application/home.js';
+import { describeWorkspace, type WorkspaceView } from '../application/workspace-view.js';
 
 /** Rutas de Core bajo /v1; la autenticación la exige el ámbito que las registra. */
 export function coreRoutes({
   pool,
-  homeSummaries = {},
+  home = {},
   areaContributions = {},
 }: {
   pool: pg.Pool;
-  homeSummaries?: HomeSummaries;
+  home?: HomeModules;
   areaContributions?: AreaContributions;
 }): FastifyPluginAsync {
   const occupantsOf = occupantsFrom(areaContributions);
@@ -56,14 +62,31 @@ export function coreRoutes({
       );
     });
 
-    app.get('/workspaces/:workspaceId/home', async (request): Promise<HomeResponse> => {
+    // Inicio (ADR 0026): cada panel es una consulta aparte, para que cargue y falle por separado.
+    const homeQuery = <T>(request: FastifyRequest, read: (access: WorkspaceAccess, view: WorkspaceView) => Promise<T>) => {
       const { workspaceId } = workspaceParams.parse(request.params);
-      return withWorkspaceAccess(
-        pool,
-        { subject: verifiedSubject(request), workspaceId, actionClass: 'read_export' },
-        async (access) => ({ cards: await homeCards(access, await describeWorkspace(access), homeSummaries) }),
+      return withWorkspaceAccess(pool, { subject: verifiedSubject(request), workspaceId, actionClass: 'read_export' }, async (access) =>
+        read(access, await describeWorkspace(access)),
       );
+    };
+
+    app.get('/workspaces/:workspaceId/home', async (request): Promise<HomeResponse> =>
+      homeQuery(request, async (access, view) => ({ cards: await homeCards(access, view, home) })),
+    );
+
+    app.get('/workspaces/:workspaceId/home/agenda', async (request): Promise<HomeAgendaResponse> => {
+      const { date } = agendaQuery.parse(request.query);
+      return homeQuery(request, (access, view) => homeAgenda(access, view, home, date));
     });
+
+    app.get('/workspaces/:workspaceId/home/calendar', async (request): Promise<HomeCalendarResponse> => {
+      const { month } = calendarQuery.parse(request.query);
+      return homeQuery(request, (access, view) => homeCalendar(access, view, home, month));
+    });
+
+    app.get('/workspaces/:workspaceId/home/tasks', async (request): Promise<HomeTasksResponse> =>
+      homeQuery(request, async (access, view) => ({ tasks: await homeTasks(access, view, home) })),
+    );
 
     // Áreas y departamentos (ADR 0024): sin permisos propios, con los del módulo que los declara.
     const workspace = '/workspaces/:workspaceId';

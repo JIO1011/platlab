@@ -21,5 +21,5 @@ export {
   type CommandRequest,
   type QueryRequest,
 } from './application/module-operations.js';
-export type { HomeContribution } from './application/workspace-view.js';
+export type { AgendaContribution, HomeContribution, HomeModule, TaskContribution } from './application/home.js';
 export { coreRoutes } from './http/routes.js';

@@ -1,4 +1,4 @@
-import type { AreasAccess, HomeActivity, HomeResponse, HomeTrend, ModuleAccess } from '@platlab/contracts';
+import type { AreasAccess, ModuleAccess } from '@platlab/contracts';
 import { actionClass } from '@platlab/contracts';
 import { moduleRegistry } from '@platlab/modules';
 import { listModuleAccess } from '../infrastructure/access.queries.js';
@@ -61,40 +61,4 @@ function areasAccess(modules: ModuleAccess[], permissions: string[]): AreasAcces
     });
   if (grants('new_operation', 'manage')) return 'manage';
   return grants('read_export', 'read') ? 'read' : 'none';
-}
-
-/** Lo que cada módulo aporta a su tarjeta de Inicio: contadores, gráfico y actividad reciente. */
-export interface HomeContribution {
-  summary: Record<string, number>;
-  activity: HomeActivity[];
-  trend: HomeTrend | null;
-}
-
-/** Core no importa módulos: la composición le pasa la aportación de cada uno (02 §3). */
-export type HomeSummaries = Record<string, (access: WorkspaceAccess) => Promise<HomeContribution>>;
-
-/** Tarjetas de Inicio: módulos que se pueden consultar y cuyo permiso de tarjeta tiene el miembro. */
-export async function homeCards(
-  access: WorkspaceAccess,
-  view: WorkspaceView,
-  summaries: HomeSummaries,
-): Promise<HomeResponse['cards']> {
-  const cards: HomeResponse['cards'] = [];
-  for (const module of view.modules) {
-    const manifest = moduleRegistry.find((entry) => entry.code === module.code);
-    const permission = manifest && 'homeCard' in manifest ? manifest.homeCard.permission : undefined;
-    if (!permission || !module.access.includes('read_export') || !view.permissions.includes(permission)) {
-      continue;
-    }
-    const contribute = summaries[module.code];
-    const contribution = contribute ? await contribute(access) : null;
-    cards.push({
-      moduleCode: module.code,
-      name: module.name,
-      summary: contribution?.summary ?? null,
-      activity: contribution?.activity ?? [],
-      trend: contribution?.trend ?? null,
-    });
-  }
-  return cards;
 }

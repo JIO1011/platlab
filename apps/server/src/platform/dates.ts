@@ -6,3 +6,10 @@ export const todayIn = (timeZone: string) => dayIn(new Date(), timeZone);
 
 /** Un día civil `YYYY-MM-DD` más `days` días, contados en UTC para que no influya la zona del servidor. */
 export const addDays = (day: string, days: number) => new Date(Date.parse(day) + days * 86_400_000).toISOString().slice(0, 10);
+
+/** Los días de un mes `YYYY-MM`, del 1 al último. */
+export function monthDays(month: string): string[] {
+  const [year, number] = month.split('-').map(Number) as [number, number];
+  const length = new Date(Date.UTC(year, number, 0)).getUTCDate();
+  return Array.from({ length }, (_, index) => addDays(`${month}-01`, index));
+}

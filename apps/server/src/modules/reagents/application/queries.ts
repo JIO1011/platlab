@@ -48,7 +48,9 @@ import {
   requirePermission,
   type AreaContribution,
   type HomeContribution,
+  type HomeModule,
   type QueryRequest,
+  type TaskContribution,
   type WorkspaceAccess,
 } from '../../core/index.js';
 import {
@@ -308,7 +310,7 @@ export function listOperationTotals(
  * solicitudes pendientes y los últimos movimientos del espacio. Quien la llama ya exigió la lectura
  * (runQuery o la tarjeta de Inicio con el permiso del manifiesto).
  */
-export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<HomeContribution> {
+async function reagentsHomeSummary(access: WorkspaceAccess): Promise<HomeContribution> {
   const [row] = await homeSummary.run(
     { workspaceId: access.workspace.id, timeZone: access.workspace.timeZone, expiringDays: EXPIRING_DAYS },
     access.client,
@@ -349,6 +351,21 @@ export async function reagentsHomeSummary(access: WorkspaceAccess): Promise<Home
       : null,
   };
 }
+
+/** Por atender (ADR 0026): frascos vencidos y por vencer, y reactivos bajo su mínimo, con las cifras del Resumen. */
+const reagentsTasks: TaskContribution = async (access) => {
+  const [row] = await homeSummary.run(
+    { workspaceId: access.workspace.id, timeZone: access.workspace.timeZone, expiringDays: EXPIRING_DAYS },
+    access.client,
+  );
+  return [
+    { kind: 'expiredContainers', count: Number(row?.expired_containers ?? 0), tone: 'danger' },
+    { kind: 'expiringContainers', count: Number(row?.expiring_containers ?? 0), tone: 'warning' },
+    { kind: 'belowMinimum', count: Number(row?.below_minimum ?? 0), tone: 'warning' },
+  ];
+};
+
+export const reagentsHome: HomeModule = { card: reagentsHomeSummary, tasks: reagentsTasks };
 
 /** Resumen de la app de Reactivos (ADR 0011): lo mismo que su tarjeta de Inicio. */
 export function getSummary(pool: pg.Pool, request: QueryRequest): Promise<HomeContribution> {

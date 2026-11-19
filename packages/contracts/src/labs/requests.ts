@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { expectedVersion, text } from '../common.js';
+import { clockTime as time, expectedVersion, text } from '../common.js';
 import { positiveQuantity } from '../decimal.js';
 import type { FormFreeField, FormLayout } from './form.js';
 import { REQUEST_MAX_LINES } from './limits.js';
@@ -23,7 +23,6 @@ export const REQUEST_CANCELLABLE: readonly RequestStatus[] = ['draft', 'submitte
 /** El tipo de actividad, dato del sistema «tipo». */
 export const activityType = z.enum(['practice', 'research', 'service', 'training']);
 
-const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora HH:MM');
 const count = z.number().int().min(1).max(10_000);
 
 /**

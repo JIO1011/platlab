@@ -20,3 +20,34 @@ LEFT JOIN labs.request_events AS e
     AND (:requesterId::uuid IS NULL OR e.principal_id = :requesterId::uuid)
 GROUP BY d.day
 ORDER BY d.day;
+
+/* @name agendaBlocks */
+-- Actividad del Inicio (ADR 0026): los bloques activos de :date con su estado, el título de la solicitud, el área y el
+-- grupo. Un día pasado solo muestra los cerrados. Con :requesterId, solo los de sus solicitudes.
+SELECT a.id, coalesce(q.title, '') AS "title!", a.code, area.name AS "area_name?", career.name AS "group?",
+  to_char(a.starts_at, 'HH24:MI') AS "starts_at!", to_char(a.ends_at, 'HH24:MI') AS "ends_at!", a.stage
+FROM labs.activities AS a
+JOIN labs.requests AS q ON q.workspace_id = a.workspace_id AND q.id = a.request_id
+LEFT JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id
+LEFT JOIN labs.list_values AS career ON career.workspace_id = q.workspace_id AND career.id = q.career_id
+WHERE a.workspace_id = :workspaceId! AND a.cancelled_at IS NULL AND a.on_date = :date!::date
+  AND (a.on_date >= :today!::date OR a.stage = 'closed')
+  AND (:requesterId::uuid IS NULL OR q.requester_principal_id = :requesterId::uuid)
+ORDER BY a.starts_at, a.code;
+
+/* @name blocksPerDay */
+-- El Calendario del Inicio: cuántos bloques de agendaBlocks tiene cada día de :from a :to, sin ceros.
+SELECT a.on_date::text AS "date!", count(*)::integer AS "count!"
+FROM labs.activities AS a
+JOIN labs.requests AS q ON q.workspace_id = a.workspace_id AND q.id = a.request_id
+WHERE a.workspace_id = :workspaceId! AND a.cancelled_at IS NULL AND a.on_date BETWEEN :from!::date AND :to!::date
+  AND (a.on_date >= :today!::date OR a.stage = 'closed')
+  AND (:requesterId::uuid IS NULL OR q.requester_principal_id = :requesterId::uuid)
+GROUP BY a.on_date
+ORDER BY a.on_date;
+
+/* @name blocksToClose */
+-- «Prácticas por cerrar» en el Inicio: bloques activos de días pasados que nadie cerró.
+SELECT count(*)::integer AS "count!"
+FROM labs.activities
+WHERE workspace_id = :workspaceId! AND cancelled_at IS NULL AND stage <> 'closed' AND on_date < :today!::date;

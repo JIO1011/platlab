@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { homeActivity, homeTrend } from '../access.js';
+import { homeActivity, homeTrend } from '../home.js';
 import { decimalString } from '../decimal.js';
 import { list, many, page } from '../common.js';
 import { operationType } from './shared.js';

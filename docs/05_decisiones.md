@@ -679,7 +679,9 @@ Cambios: 18 y 19-11-2026; 18-11-2026, vencimiento por lote y salida con tipo, a 
 
 ## ADR 0026 — Inicio con Actividad, Calendario y Por atender
 
-Estado: aceptada (19-11-2026; idea del usuario a partir de un ejemplo visual). Amplía el Inicio del [ADR 0011](#adr-0011): las tarjetas por módulo siguen, debajo y más livianas.
+Estado: aceptada (19-11-2026; idea del usuario a partir de un ejemplo visual). Amplía el Inicio del [ADR 0011](#adr-0011).
+
+- **Dos vistas** (19-11-2026): arriba, el selector «Tareas | Módulos». «Tareas» lleva Por atender, Actividad y Calendario; «Módulos», las tarjetas de siempre. Abre en «Tareas» y recuerda en el navegador la última vista de cada persona.
 
 - **Actividad, un cronograma corto:**
   - No muestra el Cronograma completo, solo lo finalizado hoy, lo que está en proceso y lo que está por iniciar.
@@ -693,7 +695,7 @@ Estado: aceptada (19-11-2026; idea del usuario a partir de un ejemplo visual). A
   - Cada día dice en texto lo que tiene.
   - Los vencimientos de reactivos e insumos no entran: van en «Por atender».
 - **Por atender:**
-  - Una fila por tipo de tarea (prácticas por revisar o por cerrar, equipos por revisar, préstamos atrasados, reactivos por vencer o bajo mínimo, insumos bajo mínimo), con lo rojo antes que lo ámbar.
+  - Una fila por tipo de tarea (prácticas por revisar o por cerrar, mantenimientos vencidos, fallas de equipos sin atender, préstamos atrasados, reactivos e insumos vencidos, por vencer o bajo mínimo), con lo rojo antes que lo ámbar. «Equipos por revisar» son dos filas (19-11-2026): los mantenimientos vencidos o no conformes y las fallas que nadie atiende.
   - Cada fila abre la lista ya filtrada de su módulo; si no hay nada, dice «Todo al día».
   - En el móvil va primero.
 - **Recordatorios:**
@@ -705,6 +707,13 @@ Estado: aceptada (19-11-2026; idea del usuario a partir de un ejemplo visual). A
   - El calendario pide su mes aparte.
   - Cada panel carga y falla por separado.
 - **Fuera:** del ejemplo quedan fuera el vidrio translúcido (no alcanza el contraste AA), el banner decorativo y la tarjeta de notificaciones, porque los avisos viven en la barra. Siguen las reglas de los gráficos del ADR 0011.
-- **Entregas:** I-01 (base y API de Actividad, Calendario y Por atender), I-02 (la pantalla) e I-03 (Recordatorios).
+- **Diseño de IN-01** (19-11-2026):
+  - Tres consultas, una por panel: `GET …/home/agenda?date=`, `…/home/calendar?month=` y `…/home/tasks`; las tarjetas siguen en `…/home`.
+  - El estado de una práctica es el de su bloque: cerrada es «Finalizada», en curso es «En proceso», programada o lista es «Por iniciar».
+  - Lo de todo el día: un mantenimiento cuenta el día que vence y, hecho, el día del registro; una devolución, el día previsto.
+  - Un día pasado solo muestra lo hecho (prácticas cerradas, mantenimientos registrados, devoluciones recibidas): lo que se pasó sin hacer va en «Por atender».
+  - Lo próximo: si hoy no queda nada por iniciar, el primer día con algo de los próximos 60.
+  - Cada fila de «Por atender» trae su módulo, su tipo, su cifra y su tono; la pantalla pone el texto y el enlace.
+- **Entregas:** IN-01 (base y API de Actividad, Calendario y Por atender), IN-02 (la pantalla, con el selector de vistas) e IN-03 (Recordatorios).
 
 Motivo: el Inicio de hoy solo lleva a los módulos. El usuario quiere ver en un vistazo lo que pasa hoy, lo que viene y lo que le toca, y llegar a cada cosa con un toque.
