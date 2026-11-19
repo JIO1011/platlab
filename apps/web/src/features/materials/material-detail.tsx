@@ -3,13 +3,15 @@ import { Badge, Button, Quantity, Sheet, Skeleton, StatePanel, sectionLabel } fr
 import { ArrowDownToLine, ArrowUpFromLine, BellRing, MapPinOff, Package, Pencil, SlidersHorizontal } from 'lucide-react';
 import { useState } from 'react';
 import { CodeTag } from '../../app/code-tag';
+import { todayInZone } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
 import { useMaterials } from './context';
+import { ExpiryBadge } from './expiry-badge';
 import { MaterialSheet } from './material-sheet';
 import { MinimumSheet } from './minimum-sheet';
 import { MovementSheet, type Movement } from './movement-sheet';
 import { useMaterial, useStock } from './queries';
-import { classLabels, lentOut } from './text';
+import { byExpiry, classLabels, expiryStatus, lentOut } from './text';
 
 function Figure({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -20,15 +22,26 @@ function Figure({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
-/** Una ubicación con lo que tiene el material y las acciones que el rol permite sobre ella. */
-function StockRow({ line, unit, onMove }: { line: MaterialStockLine; unit: string; onMove: (movement: Movement) => void }) {
+/**
+ * Una ubicación (y su lote, si el insumo vence) con lo que tiene el material y las acciones que el rol permite. La
+ * primera que se puede sacar entre las que vencen se marca «Sale primero» (FEFO, MA-01f).
+ */
+function StockRow({ line, unit, first, today, onMove }: { line: MaterialStockLine; unit: string; first: boolean; today: string; onMove: (movement: Movement) => void }) {
   const { canIssue, canAdjust } = useMaterials();
   const lent = lentOut(line.balance, line.available);
   const canTake = canIssue && line.available !== '0';
+  const expiry = expiryStatus(line.expiresOn, today);
   return (
     <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
       <div className="min-w-0">
         <p className="break-words font-medium text-ink">{line.locationPath.join(' › ')}</p>
+        {expiry || line.lot ? (
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-ink-muted">
+            {line.lot ? <span>Lote {line.lot}</span> : null}
+            {expiry ? <ExpiryBadge status={expiry} /> : null}
+            {first ? <Badge tone="strong" className="px-2 py-0.5 text-[11px]">Sale primero</Badge> : null}
+          </p>
+        ) : null}
         <p className="text-[13px] text-ink-muted">
           Existencia <Quantity value={line.balance} unit={unit} />
           {lent !== '0' ? (
@@ -65,14 +78,17 @@ function StockRow({ line, unit, onMove }: { line: MaterialStockLine; unit: strin
  * ajustar, editar y fijar el mínimo. Cada acción abre su hoja encima; nada cambia hasta que el servidor confirma.
  */
 export function MaterialDetailSheet({ productId, open, onOpenChange }: { productId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
-  const { workspaceId, canManage, canReceive } = useMaterials();
+  const { workspaceId, canManage, canReceive, me } = useMaterials();
+  const today = todayInZone(me.workspace.timeZone);
   const material = useMaterial(workspaceId, productId);
   const stock = useStock(workspaceId, productId);
   const [movement, setMovement] = useState<{ n: number; open: boolean; movement: Movement } | null>(null);
   const [editing, setEditing] = useState<{ n: number; open: boolean } | null>(null);
   const [minimum, setMinimum] = useState<{ n: number; open: boolean } | null>(null);
   const data = material.data;
-  const lines = (stock.data?.items ?? []).filter((line) => line.balance !== '0');
+  const lines = byExpiry((stock.data?.items ?? []).filter((line) => line.balance !== '0'));
+  // Sale primero el lote con fecha que vence antes y aún tiene algo disponible.
+  const firstOut = lines.find((line) => line.expiresOn && line.available !== '0')?.positionId;
 
   return (
     <>
@@ -80,7 +96,14 @@ export function MaterialDetailSheet({ productId, open, onOpenChange }: { product
         open={open}
         onOpenChange={onOpenChange}
         title={data?.name ?? 'Material'}
-        description={data ? <span className="inline-flex flex-wrap items-center gap-2"><CodeTag>{data.code}</CodeTag> {classLabels[data.class]}</span> : undefined}
+        description={
+          data ? (
+            <span className="inline-flex flex-wrap items-center gap-2">
+              <CodeTag>{data.code}</CodeTag> {classLabels[data.class]}
+              {data.tracksExpiry ? ' · Vence: se ingresa por lote' : ''}
+            </span>
+          ) : undefined
+        }
         icon={Package}
         wide
         footer={
@@ -129,7 +152,7 @@ export function MaterialDetailSheet({ productId, open, onOpenChange }: { product
             {data.belowMinimum ? <Badge tone="warning" className="w-fit px-2.5">Bajo mínimo: conviene reponerlo</Badge> : null}
             <section aria-labelledby="stock-title">
               <h3 id="stock-title" className={sectionLabel}>
-                Existencias por ubicación
+                {data.tracksExpiry ? 'Existencias por lote y ubicación' : 'Existencias por ubicación'}
               </h3>
               {stock.isPending ? (
                 <Skeleton className="mt-3 h-24 rounded-card" />
@@ -145,7 +168,14 @@ export function MaterialDetailSheet({ productId, open, onOpenChange }: { product
               ) : (
                 <ul className="mt-1 divide-y divide-line">
                   {lines.map((line) => (
-                    <StockRow key={line.positionId} line={line} unit={data.baseUnit} onMove={(next) => setMovement({ n: (movement?.n ?? 0) + 1, open: true, movement: next })} />
+                    <StockRow
+                      key={line.positionId}
+                      line={line}
+                      unit={data.baseUnit}
+                      first={line.positionId === firstOut && lines.length > 1}
+                      today={today}
+                      onMove={(next) => setMovement({ n: (movement?.n ?? 0) + 1, open: true, movement: next })}
+                    />
                   ))}
                 </ul>
               )}
@@ -159,7 +189,7 @@ export function MaterialDetailSheet({ productId, open, onOpenChange }: { product
           workspaceId={workspaceId}
           open={movement.open}
           onOpenChange={(next) => setMovement((current) => (current ? { ...current, open: next } : current))}
-          material={{ id: data.id, name: data.name, baseUnit: data.baseUnit }}
+          material={{ id: data.id, name: data.name, baseUnit: data.baseUnit, tracksExpiry: data.tracksExpiry }}
           movement={movement.movement}
         />
       ) : null}

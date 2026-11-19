@@ -2,10 +2,13 @@ import type { StockedMaterial } from '@platlab/contracts';
 import { Badge, Quantity, cn } from '@platlab/ui';
 import { CircleAlert, MapPin, TrendingDown } from 'lucide-react';
 import { CodeTag } from '../../app/code-tag';
+import { todayInZone } from '../../app/format';
 import { ModuleMark } from '../../app/module-mark';
+import { useMaterials } from './context';
+import { ExpiryBadge } from './expiry-badge';
 import { MaterialThumb } from './material-thumb';
 import { SegmentBar } from './segment-bar';
-import { classLabels, materialLevel } from './text';
+import { classLabels, expiryStatus, materialLevel } from './text';
 
 /**
  * Un material en su tarjeta (ADR 0025), con la forma de la de Reactivos: la clase con su icono, el nombre y su código;
@@ -13,8 +16,11 @@ import { classLabels, materialLevel } from './text';
  * reutilizable). Toda la tarjeta abre su ficha, donde se ingresa, se da salida y se ajusta.
  */
 export function MaterialCard({ material, onOpen }: { material: StockedMaterial; onOpen: () => void }) {
+  const { me } = useMaterials();
   const level = materialLevel(material);
   const empty = material.balance === '0';
+  // Como en la fila: solo el semáforo que pide atención (≤ 180 días o vencido).
+  const expiry = expiryStatus(material.nextExpiry, todayInZone(me.workspace.timeZone));
   return (
     <li className="group relative flex flex-col gap-3 overflow-hidden rounded-[20px] bg-surface p-4 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float has-[button:focus-visible]:outline-2 has-[button:focus-visible]:outline-offset-2 has-[button:focus-visible]:outline-action motion-safe:hover:-translate-y-1">
       {/* Marca de agua: decorativa y casi invisible. */}
@@ -59,6 +65,7 @@ export function MaterialCard({ material, onOpen }: { material: StockedMaterial; 
             />
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
+            {expiry && expiry.tone !== 'neutral' ? <ExpiryBadge status={expiry} /> : null}
             {empty ? (
               <Badge tone="warning" className="whitespace-nowrap px-2 py-0.5 text-[11px]">
                 <CircleAlert className="size-3" aria-hidden />

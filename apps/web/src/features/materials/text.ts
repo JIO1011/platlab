@@ -1,4 +1,12 @@
-import { subtractDecimals, type LoanSummary, type MaterialClass, type StockedMaterial } from '@platlab/contracts';
+import {
+  EXPIRY_SOON_DAYS,
+  EXPIRY_WATCH_DAYS,
+  subtractDecimals,
+  type IssuePurpose,
+  type LoanSummary,
+  type MaterialClass,
+  type StockedMaterial,
+} from '@platlab/contracts';
 import { addDecimal, ratioPercent } from '@platlab/ui';
 import { countText, daysBetween, formatDate } from '../../app/format';
 
@@ -27,6 +35,38 @@ export const unitOptions = [
   { value: 'mL', label: 'Mililitros (mL)' },
   { value: 'L', label: 'Litros (L)' },
 ];
+
+/** Para qué sale un insumo (MA-01f), con la pista del detalle que pide cada tipo. */
+export const purposeCopy: Record<IssuePurpose, { label: string; detail: string; hint: string }> = {
+  practice: { label: 'Práctica', detail: 'Práctica', hint: 'Cátedra y práctica: «Ortodoncia II, práctica 3».' },
+  clinic: { label: 'Clínica', detail: 'Servicio o tratamiento', hint: 'El servicio o el tratamiento, sin datos del paciente.' },
+  general: { label: 'General', detail: 'Motivo', hint: 'Reposición, botiquín, descarte…' },
+};
+
+/**
+ * El semáforo de un lote (02 §12): vencido o vence hoy en rojo, a EXPIRY_SOON_DAYS días o menos en ámbar, hasta
+ * EXPIRY_WATCH_DAYS en azul y, más lejos, solo la fecha. Sin fecha no hay semáforo.
+ */
+export interface ExpiryStatus {
+  tone: 'danger' | 'warning' | 'accent' | 'neutral';
+  label: string;
+}
+
+export function expiryStatus(expiresOn: string | null, today: string): ExpiryStatus | null {
+  if (!expiresOn) return null;
+  const days = daysBetween(today, expiresOn);
+  if (days < 0) return { tone: 'danger', label: `Vencido hace ${countText(-days, 'día', 'días')}` };
+  if (days === 0) return { tone: 'danger', label: 'Vence hoy' };
+  if (days <= EXPIRY_WATCH_DAYS) return { tone: days <= EXPIRY_SOON_DAYS ? 'warning' : 'accent', label: `Vence en ${countText(days, 'día', 'días')}` };
+  return { tone: 'neutral', label: `Vence el ${formatDate(expiresOn)}` };
+}
+
+/** Las posiciones para dar salida: primero lo que vence antes (FEFO), lo que no vence al final y luego por ubicación. */
+export const byExpiry = <T extends { expiresOn: string | null; locationPath: readonly string[] }>(lines: readonly T[]) =>
+  [...lines].sort(
+    (a, b) =>
+      (a.expiresOn ?? '9999-12-31').localeCompare(b.expiresOn ?? '9999-12-31') || a.locationPath.join(' ').localeCompare(b.locationPath.join(' ')),
+  );
 
 /** Lo que se escribe en un campo de cantidad: con coma o punto decimal, sin espacios; el contrato valida el resto. */
 export const normalizeQuantity = (text: string) => text.trim().replace(',', '.');

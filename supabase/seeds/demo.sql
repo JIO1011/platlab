@@ -1065,4 +1065,48 @@ begin
   end loop;
 end $$;
 
+-- Insumos que vencen (MA-01f, planilla del cliente): lotes con fecha y lote del proveedor para ver el semáforo. Uno
+-- vencido, uno a 45 días (≤ 90), uno a 150 (≤ 180) y otros lejanos. Cada lote entra con su ingreso en el libro. El
+-- bloque se salta si ya existe, para poder aplicarlo a una base local sin reiniciarla.
+do $$
+declare
+  workspace constant uuid := 'da000000-0000-4000-8000-00000000000a';
+  admin_principal constant uuid := 'da200000-0000-4000-8000-000000000001';
+  shelf constant uuid := 'da300000-0000-4000-8000-000000000002';
+  lot record;
+  op uuid;
+begin
+  if exists (select 1 from inventory.items where id = 'dd500000-0000-4000-8000-000000000005') then
+    return;
+  end if;
+  insert into inventory.items (id, workspace_id, kind, code, name, base_unit, minimum_quantity, lot_seq) values
+    ('dd500000-0000-4000-8000-000000000005', workspace, 'material', 'AGUJAS-CORTAS-30G', 'Agujas cortas 30G', 'u', 50, 2),
+    ('dd500000-0000-4000-8000-000000000006', workspace, 'material', 'SUTURA-REABS-4-0', 'Sutura reabsorbible 4/0', 'u', null, 2),
+    ('dd500000-0000-4000-8000-000000000007', workspace, 'material', 'GUANTES-ESTERILES-7', 'Guantes estériles talla 7', 'u', null, 1);
+  insert into materials.products (workspace_id, item_id, class, tracks_expiry)
+  select workspace, id, 'consumable', true from inventory.items where id::text like 'dd500000-0000-4000-8000-00000000000_' and id::text >= 'dd500000-0000-4000-8000-000000000005';
+
+  for lot in
+    select * from (values
+      (1, 'dd500000-0000-4000-8000-000000000005'::uuid, 'L-001', 'D130', 45, 80),
+      (2, 'dd500000-0000-4000-8000-000000000005'::uuid, 'L-002', 'D321', 400, 100),
+      (3, 'dd500000-0000-4000-8000-000000000006'::uuid, 'L-001', '17705-01', -12, 6),
+      (4, 'dd500000-0000-4000-8000-000000000006'::uuid, 'L-002', 'T88', 150, 12),
+      (5, 'dd500000-0000-4000-8000-000000000007'::uuid, 'L-001', 'SH23099', 540, 50)
+    ) as t (n, item_id, code, supplier_lot, days, quantity)
+  loop
+    insert into inventory.lots (id, workspace_id, item_id, code, supplier_lot, expires_on)
+    values (('dd610000-0000-4000-8000-00000000000' || lot.n)::uuid, workspace, lot.item_id, lot.code, lot.supplier_lot,
+            (now() + make_interval(days => lot.days))::date);
+    insert into inventory.positions (id, workspace_id, item_id, lot_id, location_id, balance)
+    values (('dd710000-0000-4000-8000-00000000000' || lot.n)::uuid, workspace, lot.item_id,
+            ('dd610000-0000-4000-8000-00000000000' || lot.n)::uuid, shelf, lot.quantity);
+    insert into inventory.operations (workspace_id, type, actor_principal_id, reference, effective_at, correlation_id)
+    values (workspace, 'receipt', admin_principal, 'Factura sintética 001-002-000002492', now() - interval '20 days', gen_random_uuid())
+    returning id into op;
+    insert into inventory.entries (workspace_id, operation_id, position_id, quantity, captured_quantity, captured_unit, balance_after)
+    values (workspace, op, ('dd710000-0000-4000-8000-00000000000' || lot.n)::uuid, lot.quantity, lot.quantity, 'u', lot.quantity);
+  end loop;
+end $$;
+
 commit;

@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { dueStatus, dueText, lentOut, locationLabels, materialLevel, materialStatus, normalizeQuantity } from './text';
+import { byExpiry, dueStatus, dueText, expiryStatus, lentOut, locationLabels, materialLevel, materialStatus, normalizeQuantity } from './text';
+
+describe('expiryStatus', () => {
+  it('pinta el semáforo con los cortes de 90 y 180 días', () => {
+    expect(expiryStatus(null, '2026-11-18')).toBeNull();
+    expect(expiryStatus('2026-11-08', '2026-11-18')).toEqual({ tone: 'danger', label: 'Vencido hace 10 días' });
+    expect(expiryStatus('2026-11-18', '2026-11-18')).toEqual({ tone: 'danger', label: 'Vence hoy' });
+    expect(expiryStatus('2027-02-16', '2026-11-18')?.tone).toBe('warning');
+    expect(expiryStatus('2027-04-01', '2026-11-18')?.tone).toBe('accent');
+    expect(expiryStatus('2028-01-01', '2026-11-18')?.tone).toBe('neutral');
+  });
+});
+
+describe('byExpiry', () => {
+  it('ordena primero lo que vence antes y deja lo que no vence al final', () => {
+    const lines = [
+      { expiresOn: null, locationPath: ['A'] },
+      { expiresOn: '2027-05-01', locationPath: ['B'] },
+      { expiresOn: '2027-01-01', locationPath: ['C'] },
+    ];
+    expect(byExpiry(lines).map((line) => line.locationPath[0])).toEqual(['C', 'B', 'A']);
+  });
+});
 
 describe('materialStatus', () => {
   it('distingue agotado, todo prestado, bajo mínimo y disponible', () => {

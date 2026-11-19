@@ -120,7 +120,7 @@ export function MaterialsSummaryPage() {
                 <RunningLow rows={data.runningLow} />
               </DashCard>
               <DashCard title="Hay que atender" className="lg:col-span-2 xl:col-span-1">
-                <AttentionList attention={data.attention} base={base} />
+                <AttentionList attention={data.attention} base={base} today={todayInZone(timeZone)} />
               </DashCard>
             </div>
             {data.topBorrowers ? (

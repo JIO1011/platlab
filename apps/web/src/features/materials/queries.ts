@@ -51,8 +51,8 @@ export interface MaterialFilters {
   materialClass: MaterialClass | null;
   /** Solo lo que tiene existencia en esa área (ubicación de primer nivel). */
   areaId: string | null;
-  /** `below-minimum`: solo lo que está bajo su mínimo. */
-  stock: 'below-minimum' | null;
+  /** `below-minimum`: solo lo que está bajo su mínimo; `expiring`: lo que tiene un lote por vencer o vencido. */
+  stock: 'below-minimum' | 'expiring' | null;
 }
 
 /** El catálogo con sus existencias, por páginas; `q` busca desde 2 letras. */

@@ -6,11 +6,13 @@ export const materialsWebModule: WebModule = {
   code: 'materials',
   Icon: Package,
   sectionIcons: { inventario: Package, prestamos: HandHelping },
-  // La tarjeta del Inicio: lo prestado y lo que pide reposición. Sin gráfico hasta que Materiales tenga actividad propia.
+  // La tarjeta del Inicio: lo prestado, lo que pide reposición y lo que vence pronto (MA-01f). Sin gráfico hasta que
+  // Materiales tenga actividad propia.
   home: {
     counters: [
       { key: 'openLoans', label: (n) => (n === 1 ? 'préstamo abierto' : 'préstamos abiertos') },
       { key: 'belowMinimum', label: () => 'bajo mínimo' },
+      { key: 'expiring', label: () => 'por vencer' },
     ],
     trendNoun: { one: 'movimiento', many: 'movimientos' },
   },

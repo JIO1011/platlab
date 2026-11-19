@@ -47,7 +47,7 @@ function AreaChip({ name, onRemove }: { name: string | undefined; onRemove: () =
  * Inventario de Materiales (ADR 0025): una franja de cifras y los materiales del espacio con lo disponible hoy, lo prestado
  * y el aviso «Bajo mínimo». Tres vistas en `?vista=`: la lista de filas (por omisión), las tarjetas con imagen y «Por
  * ubicación», que los agrupa por área como el Inventario de Equipos; tocar un área deja la lista con lo que hay en ella
- * (`?area=`). Se filtra por clase y por «Bajo mínimo» y se busca por nombre o código; tocar un material abre su ficha, donde
+ * (`?area=`). Se filtra por clase, por «Bajo mínimo» o por «Por vencer» (MA-01f) y se busca por nombre o código; tocar un material abre su ficha, donde
  * se ingresa, se da salida y se ajusta. El Administrador registra materiales nuevos.
  */
 export function MaterialsInventoryPage() {
@@ -58,12 +58,14 @@ export function MaterialsInventoryPage() {
   const view: View = requested === 'areas' && areaId ? 'list' : requested;
   const [search, setSearch] = useState('');
   const [materialClass, setMaterialClass] = useState<ClassFilter>('all');
-  const [belowMinimum, setBelowMinimum] = useState(false);
+  // Un solo filtro de existencias a la vez: la API acepta uno.
+  const [stockFilter, setStockFilter] = useState<'below-minimum' | 'expiring' | null>(null);
+  const toggleStock = (next: 'below-minimum' | 'expiring') => setStockFilter(stockFilter === next ? null : next);
   const summary = useMaterialsSummary(workspaceId).data;
   const areas = useMaterialAreas(workspaceId);
   const materials = useMaterialPage(
     workspaceId,
-    { q: search, materialClass: materialClass === 'all' ? null : materialClass, areaId, stock: belowMinimum ? 'below-minimum' : null },
+    { q: search, materialClass: materialClass === 'all' ? null : materialClass, areaId, stock: stockFilter },
     view !== 'areas',
   );
   const areaName = areas.data?.items.find((area) => area.id === areaId)?.name;
@@ -74,7 +76,7 @@ export function MaterialsInventoryPage() {
   const [form, setForm] = useState<{ n: number; open: boolean } | null>(null);
   const [detail, setDetail] = useState<{ id: string; open: boolean } | null>(null);
   const count = materials.data?.pages.reduce((total, page) => total + page.items.length, 0) ?? 0;
-  const filtered = search.trim().length >= 2 || materialClass !== 'all' || areaId !== null || belowMinimum;
+  const filtered = search.trim().length >= 2 || materialClass !== 'all' || areaId !== null || stockFilter !== null;
 
   const create = canManage ? (
     <Button variant="primary" className="h-12 sm:h-10" aria-haspopup="dialog" onClick={() => setForm({ n: (form?.n ?? 0) + 1, open: true })}>
@@ -117,7 +119,10 @@ export function MaterialsInventoryPage() {
               {classFilters.map(({ value, label }) => (
                 <FilterPill key={value} label={label} active={materialClass === value} onToggle={() => setMaterialClass(value)} />
               ))}
-              <FilterPill label="Bajo mínimo" count={summary?.belowMinimum} active={belowMinimum} onToggle={() => setBelowMinimum(!belowMinimum)} />
+              <FilterPill label="Bajo mínimo" count={summary?.belowMinimum} active={stockFilter === 'below-minimum'} onToggle={() => toggleStock('below-minimum')} />
+              {(summary?.expiring ?? 0) > 0 || stockFilter === 'expiring' ? (
+                <FilterPill label="Por vencer" count={summary?.expiring} active={stockFilter === 'expiring'} onToggle={() => toggleStock('expiring')} />
+              ) : null}
               {count > 0 ? (
                 <p className="text-sm text-ink-muted sm:ml-auto" aria-live="polite">
                   {countText(count, 'material', 'materiales')}

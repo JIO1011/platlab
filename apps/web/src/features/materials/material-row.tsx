@@ -3,12 +3,14 @@ import { Badge, Button, Quantity, Skeleton, ratioPercent } from '@platlab/ui';
 import { ChevronDown, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { CodeTag } from '../../app/code-tag';
+import { todayInZone } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
 import { useMaterials } from './context';
+import { ExpiryBadge } from './expiry-badge';
 import { MaterialThumb } from './material-thumb';
 import { useStock } from './queries';
 import { SegmentBar } from './segment-bar';
-import { classLabels, lentOut, materialLevel, materialStatus } from './text';
+import { byExpiry, classLabels, expiryStatus, lentOut, materialLevel, materialStatus } from './text';
 
 const dotTone = { danger: 'bg-danger', warning: 'bg-warning', success: 'bg-success' } as const;
 
@@ -31,24 +33,36 @@ function Where({ names }: { names: readonly string[] }) {
   );
 }
 
-/** Lo que el material tiene en cada ubicación, con su barra: el detalle de «un lote por ubicación» al expandir la fila. */
-function Positions({ productId, unit }: { productId: string; unit: string }) {
+/**
+ * Lo que el material tiene en cada ubicación, con su barra, al expandir la fila. Si el insumo vence, cada lote va en su
+ * propia línea con su semáforo, primero lo que vence antes (MA-01f).
+ */
+function Positions({ productId, unit, today }: { productId: string; unit: string; today: string }) {
   const { workspaceId } = useMaterials();
   const stock = useStock(workspaceId, productId);
   if (stock.isPending) return <Skeleton className="mx-5 mb-3 h-16 rounded-panel" />;
   if (stock.isError) return <QueryErrorState error={stock.error} onRetry={() => void stock.refetch()} />;
-  const lines = stock.data.items.filter((line: MaterialStockLine) => line.balance !== '0');
+  const lines = byExpiry(stock.data.items.filter((line: MaterialStockLine) => line.balance !== '0'));
   if (lines.length === 0) return <p className="px-5 pb-3 text-sm text-ink-muted">Sin existencias en ninguna ubicación.</p>;
   return (
     <ul className="mx-4 mb-3 grid gap-px overflow-hidden rounded-panel bg-line sm:mx-5 lg:ml-[5.25rem]">
       {lines.map((line: MaterialStockLine) => {
         const percent = ratioPercent(line.available, line.balance) ?? 0;
+        const expiry = expiryStatus(line.expiresOn, today);
         return (
           <li key={line.positionId} className="grid items-center gap-x-4 gap-y-1.5 bg-surface-sunken px-4 py-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,14rem)_auto]">
-            <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink">
-              <MapPin className="size-3.5 shrink-0 text-ink-subtle" aria-hidden />
-              <span className="truncate">{line.locationPath.join(' › ')}</span>
-            </p>
+            <div className="grid min-w-0 gap-1">
+              <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink">
+                <MapPin className="size-3.5 shrink-0 text-ink-subtle" aria-hidden />
+                <span className="truncate">{line.locationPath.join(' › ')}</span>
+              </p>
+              {expiry || line.lot ? (
+                <p className="flex flex-wrap items-center gap-1.5 text-[12px] text-ink-muted">
+                  {line.lot ? <span>Lote {line.lot}</span> : null}
+                  {expiry ? <ExpiryBadge status={expiry} /> : null}
+                </p>
+              ) : null}
+            </div>
             <SegmentBar percent={percent} hasStock label={`En el estante: ${percent} %`} />
             <p className="text-[13px] tabular-nums text-ink-muted">
               <Quantity value={line.available} unit={unit} /> de <Quantity value={line.balance} unit={unit} />
@@ -65,7 +79,12 @@ function Positions({ productId, unit }: { productId: string; unit: string }) {
  * tramos y su estado en texto. Tocar la fila abre su ficha; el chevron despliega sus ubicaciones, cada una con su barra.
  */
 export function MaterialRow({ material, onOpen }: { material: StockedMaterial; onOpen: () => void }) {
+  const { me } = useMaterials();
+  const today = todayInZone(me.workspace.timeZone);
   const [expanded, setExpanded] = useState(false);
+  // Solo el lote que vence antes y pide atención (≤ 180 días o vencido) se ve en la fila; lo lejano, en la ficha.
+  const expiry = expiryStatus(material.nextExpiry, today);
+  const expiryAlert = expiry && expiry.tone !== 'neutral' ? expiry : null;
   const level = materialLevel(material);
   const empty = material.balance === '0';
   const status = materialStatus(material);
@@ -86,6 +105,7 @@ export function MaterialRow({ material, onOpen }: { material: StockedMaterial; o
               <span aria-hidden className={`size-2 rounded-full ${dotTone[status.tone]}`} />
               {status.label}
             </span>
+            {expiryAlert ? <ExpiryBadge status={expiryAlert} /> : null}
             <CodeTag>{material.code}</CodeTag>
             {classLabels[material.class]}
           </p>
@@ -124,7 +144,7 @@ export function MaterialRow({ material, onOpen }: { material: StockedMaterial; o
           </p>
         </div>
       </div>
-      {expanded ? <Positions productId={material.id} unit={material.baseUnit} /> : null}
+      {expanded ? <Positions productId={material.id} unit={material.baseUnit} today={today} /> : null}
     </li>
   );
 }
