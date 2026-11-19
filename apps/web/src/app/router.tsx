@@ -41,6 +41,8 @@ export const router = createBrowserRouter([
           { index: true, element: <HomePage /> },
           // Áreas y departamentos del Núcleo (ADR 0024): no es un módulo, así que su ruta vive aquí.
           { path: 'areas', lazy: async () => ({ Component: (await import('../features/areas/areas-page')).AreasPage }) },
+          // Usuarios del Núcleo (ADR 0027): la lista blanca del Propietario.
+          { path: 'usuarios', lazy: async () => ({ Component: (await import('../features/users/users-page')).UsersPage }) },
           ...moduleRoutes.flatMap((module) => module.workspace),
         ],
       },

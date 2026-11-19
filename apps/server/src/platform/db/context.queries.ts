@@ -63,3 +63,31 @@ const setActorIR: any = {"usedParamSet":{"identityId":true,"principalId":true},"
 export const setActor = new PreparedQuery<ISetActorParams,ISetActorResult>(setActorIR);
 
 
+/** 'SetAuthEmail' parameters type */
+export interface ISetAuthEmailParams {
+  authEmail: string;
+}
+
+/** 'SetAuthEmail' return type */
+export interface ISetAuthEmailResult {
+  auth_email: string | null;
+}
+
+/** 'SetAuthEmail' query type */
+export interface ISetAuthEmailQuery {
+  params: ISetAuthEmailParams;
+  result: ISetAuthEmailResult;
+}
+
+const setAuthEmailIR: any = {"usedParamSet":{"authEmail":true},"params":[{"name":"authEmail","required":true,"transform":{"type":"scalar"},"locs":[{"a":139,"b":149}]}],"statement":"-- Correo del JWT (ADR 0027): solo lo leen las políticas de invitaciones para mostrar las propias.\nSELECT set_config('platlab.auth_email', :authEmail!, true) AS auth_email"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Correo del JWT (ADR 0027): solo lo leen las políticas de invitaciones para mostrar las propias.
+ * SELECT set_config('platlab.auth_email', :authEmail!, true) AS auth_email
+ * ```
+ */
+export const setAuthEmail = new PreparedQuery<ISetAuthEmailParams,ISetAuthEmailResult>(setAuthEmailIR);
+
+

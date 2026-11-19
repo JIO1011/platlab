@@ -36,9 +36,10 @@ export const equipmentModule = defineModule({
       'equipment.fault.report',
       'equipment.fault.manage',
     ],
-    // Docente y Estudiante solo reportan incidentes y ven los suyos (01 §5).
+    // Docente, Estudiante y Visita solo reportan incidentes y ven los suyos (01 §5, ADR 0027).
     teacher: ['equipment.fault.report'],
     student: ['equipment.fault.report'],
+    visitor: ['equipment.fault.report'],
   },
   // La app la abre todo el que reporta; Resumen, Inventario (por áreas) e Informe, quien consulta el catálogo.
   nav: [

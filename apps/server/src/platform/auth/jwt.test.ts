@@ -17,7 +17,12 @@ async function rejection(token: string) {
 
 describe('createTokenVerifier', () => {
   it('acepta un JWT ES256 válido y devuelve su sujeto', async () => {
-    await expect(signer.verifier(await signer.sign('user-1'))).resolves.toEqual({ subject: 'user-1' });
+    await expect(signer.verifier(await signer.sign('user-1'))).resolves.toEqual({ subject: 'user-1', email: null });
+  });
+
+  it('devuelve el correo de la cuenta en minúsculas, solo para la lista blanca (ADR 0027)', async () => {
+    const token = await signer.sign('user-1', { claims: { email: ' Ana@Demo.Test ' } });
+    await expect(signer.verifier(token)).resolves.toEqual({ subject: 'user-1', email: 'ana@demo.test' });
   });
 
   it('rechaza emisor, audiencia o vigencia incorrectos', async () => {

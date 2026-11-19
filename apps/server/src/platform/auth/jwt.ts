@@ -4,6 +4,11 @@ import { AppError } from '../errors.js';
 /** Identidad verificada del JWT. La membresía se comprueba después en PostgreSQL (ADR 0004). */
 export interface VerifiedToken {
   subject: string;
+  /**
+   * Correo de la cuenta en minúsculas, o null. Solo sirve para encontrar las invitaciones propias (ADR 0027): Auth
+   * no emite sesión hasta confirmarlo (`enable_confirmations`) y nunca da acceso por sí solo.
+   */
+  email: string | null;
 }
 
 export type TokenVerifier = (token: string) => Promise<VerifiedToken>;
@@ -50,6 +55,7 @@ export function createTokenVerifier({
     }
     if (typeof payload.sub !== 'string' || payload.sub === '') throw invalidToken();
     if (payload['role'] !== 'authenticated' || payload['is_anonymous'] === true) throw invalidToken();
-    return { subject: payload.sub };
+    const email = typeof payload['email'] === 'string' ? payload['email'].trim().toLowerCase() : '';
+    return { subject: payload.sub, email: email === '' ? null : email };
   };
 }

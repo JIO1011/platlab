@@ -18,6 +18,8 @@ export const labsModule = defineModule({
     teacher: ['labs.read', 'labs.request.create'],
     // El tesista pide con su propio formato (ADR 0023, «Reglas de L-01b»).
     student: ['labs.read', 'labs.request.create'],
+    // La Visita, igual que el Docente y el tesista (ADR 0027).
+    visitor: ['labs.read', 'labs.request.create'],
   },
   nav: [
     {

@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   MapPinned,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -333,7 +334,12 @@ export function AppShell() {
                 </li>
               ))}
             </ul>
-          ) : null}
+          ) : (
+            // Sin otro espacio: la entrada muestra sus invitaciones (ADR 0027), p. ej. la de este espacio si aún no se unió.
+            <Link to="/espacios" className="mt-2 inline-block text-sm font-medium text-action underline">
+              Ver mis invitaciones
+            </Link>
+          )}
         </div>
       </main>
     );
@@ -343,6 +349,8 @@ export function AppShell() {
   const app = apps.find((entry) => entry.path === segment);
   const workspaceList = workspaces.data?.workspaces ?? [];
   const showAreas = me.data.areas !== 'none';
+  // Usuarios (ADR 0027): solo el Propietario; la API lo vuelve a comprobar.
+  const showUsers = me.data.member.isOwner;
   const descriptor = app ? webModule(app.code) : undefined;
 
   // El Resumen tiene el mismo icono en todos los módulos; las demás secciones, el que declare el módulo.
@@ -407,6 +415,11 @@ export function AppShell() {
                     Áreas
                   </NavItem>
                 ) : null}
+                {showUsers ? (
+                  <NavItem to={`${base}/usuarios`} icon={UsersRound}>
+                    Usuarios
+                  </NavItem>
+                ) : null}
               </nav>
             </>
           )}
@@ -442,7 +455,7 @@ export function AppShell() {
             )}
             {/* En escritorio, la barra dice dónde se está: módulo › sección › lo que la página sume. */}
             <ShellCrumbs
-              module={app ? app.name : segment === 'areas' ? 'Áreas' : 'Inicio'}
+              module={app ? app.name : segment === 'areas' ? 'Áreas' : segment === 'usuarios' ? 'Usuarios' : 'Inicio'}
               section={
                 section && app
                   ? { label: section.label, to: section.path ? `${base}/${app.path}/${section.path}` : `${base}/${app.path}` }
@@ -469,15 +482,22 @@ export function AppShell() {
                 {sections(true)}
               </nav>
             </div>
-          ) : showAreas ? (
-            // Fuera de un módulo no hay menú lateral en el móvil: Inicio y Áreas, en la misma fila de píldoras.
+          ) : showAreas || showUsers ? (
+            // Fuera de un módulo no hay menú lateral en el móvil: Inicio, Áreas y Usuarios, en la misma fila de píldoras.
             <nav aria-label="Secciones en el móvil" className="flex gap-1 px-3 pb-2 md:hidden">
               <NavItem to={base} end compact>
                 Inicio
               </NavItem>
-              <NavItem to={`${base}/areas`} compact>
-                Áreas
-              </NavItem>
+              {showAreas ? (
+                <NavItem to={`${base}/areas`} compact>
+                  Áreas
+                </NavItem>
+              ) : null}
+              {showUsers ? (
+                <NavItem to={`${base}/usuarios`} compact>
+                  Usuarios
+                </NavItem>
+              ) : null}
             </nav>
           ) : null}
         </header>

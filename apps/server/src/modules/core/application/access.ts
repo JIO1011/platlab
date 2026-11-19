@@ -102,13 +102,21 @@ export function withWorkspaceAccess<T>(
       { authSubject: request.subject, workspaceId: request.workspaceId },
       client,
     );
-    const [row] = await admitWorkspace.run(
-      { workspaceId: request.workspaceId, subject: request.subject, actionClass: request.actionClass },
-      client,
-    );
-    if (!row) throw accessDenied();
-    return work(await enter(client, row));
+    return work(await admitMember(client, request));
   });
+}
+
+/**
+ * Admisión de Core en una transacción ya abierta con su contexto: la de withWorkspaceAccess, y la de quien acaba de
+ * unirse a un espacio (ADR 0027), que entra como cualquier miembro.
+ */
+export async function admitMember(client: pg.PoolClient, request: AccessRequest): Promise<WorkspaceAccess> {
+  const [row] = await admitWorkspace.run(
+    { workspaceId: request.workspaceId, subject: request.subject, actionClass: request.actionClass },
+    client,
+  );
+  if (!row) throw accessDenied();
+  return enter(client, row);
 }
 
 /**

@@ -66,8 +66,9 @@ set constraints all immediate;
 select tables_are('core',
   array['workspaces', 'identities', 'memberships', 'principals', 'roles', 'permissions',
         'role_permissions', 'locations', 'role_assignments', 'module_definitions',
-        'module_dependencies', 'workspace_entitlements', 'audit_events', 'departments'],
-  'core contiene las tablas de T-02 a T-05 y los departamentos (ADR 0024)');
+        'module_dependencies', 'workspace_entitlements', 'audit_events', 'departments',
+        'invitations', 'member_presence'],
+  'core contiene las tablas de T-02 a T-05, los departamentos (ADR 0024) y los usuarios (ADR 0027)');
 
 -- ADR 0008 y 0016: los roles valen para todo el espacio; la asignación no tiene ámbito.
 select hasnt_column('core', 'role_assignments', 'location_id',
@@ -116,8 +117,12 @@ select set_eq(
   array['core.workspaces.version', 'core.memberships.version',
         'core.workspace_entitlements.version', 'platform.idempotency_records.response',
         'core.locations.manager_principal_id', 'core.locations.version',
-        'core.locations.name', 'core.locations.archived_at', 'core.departments.name', 'core.departments.archived_at'],
-  'platlab_api solo actualiza version (para FOR SHARE), la respuesta idempotente, el encargado del área (E-01c) y el nombre y el archivo de ubicaciones y departamentos (ADR 0024)');
+        'core.locations.name', 'core.locations.archived_at', 'core.departments.name', 'core.departments.archived_at',
+        'core.memberships.status', 'core.memberships.revoked_at', 'core.identities.email',
+        'core.invitations.status', 'core.invitations.membership_id', 'core.invitations.accepted_at',
+        'core.invitations.revoked_by_principal_id', 'core.invitations.revoked_at',
+        'core.role_assignments.revoked_at', 'core.member_presence.last_seen_at'],
+  'platlab_api solo actualiza version (para FOR SHARE), la respuesta idempotente, el encargado del área (E-01c), el nombre y el archivo de ubicaciones y departamentos (ADR 0024), y el estado de membresías, invitaciones, roles y el último acceso (ADR 0027)');
 
 select ok(
   not has_table_privilege('platlab_api', 'platform.customer_accounts', 'SELECT'),
@@ -131,8 +136,8 @@ select ok(
 
 select set_eq(
   'select code from core.roles',
-  array['admin', 'operator', 'teacher', 'student', 'regulatory_officer'],
-  'catálogo fijo de roles del espacio (ADR 0008), sin propietario');
+  array['admin', 'operator', 'teacher', 'student', 'visitor', 'regulatory_officer'],
+  'catálogo fijo de roles del espacio (ADR 0008 y 0027), sin propietario');
 
 -- ---------------------------------------------------------------------------
 -- Propietario y estados del espacio
@@ -324,10 +329,11 @@ select throws_ok(
   $$ delete from core.memberships where workspace_id = 'a0000000-0000-4000-8000-00000000000a' $$,
   '42501', null, 'el runtime no borra membresías');
 
-select throws_ok(
-  $$ update core.memberships set status = 'revoked', revoked_at = now()
-      where id = 'a1000000-0000-4000-8000-000000000001' $$,
-  '42501', null, 'el runtime no cambia el estado de una membresía');
+select results_eq(
+  $$ with changed as (update core.memberships set status = 'revoked', revoked_at = now()
+       where id = 'b1000000-0000-4000-8000-000000000001' returning 1) select count(*)::int from changed $$,
+  $$ values (0) $$,
+  'el runtime no revoca una membresía de otro espacio (ADR 0027)');
 
 -- Los cambios de estado incrementan `version` para esperar a la admisión en curso (02 §6).
 select lives_ok(

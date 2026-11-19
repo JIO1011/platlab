@@ -624,6 +624,7 @@ Cambios: 20-10-2026; compactado el 16-11-2026.
 | Revisión de Laboratorios (16-11-2026) | Al mover un bloque a otra área cambia su código, pero los reactivos apartados conservan el motivo y el destino de antes («Práctica P1-S10-BIO03 · Bioquímica»): ¿se deja como registro de cuándo se apartó o se actualiza al mover? «Recibidas» muestra hasta 500 solicitudes sin páginas: añadir páginas o filtro por periodo | El motivo, con el usuario; las páginas, antes de G2 |
 | Inicio | La propuesta del 20-10-2026 espera, porque el usuario tiene otras ideas: «Por atender» de todos los módulos con su enlace filtrado, tres tarjetas por fila con gráfico solo si hay datos y avisos declarados por cada módulo. Hoy la tarjeta de Equipos dice siempre «Sin cambios» | Al terminar los módulos, con las ideas del usuario |
 | Lista de apertura y cierre ([ADR 0026](#adr-0026)) | ¿El laboratorio usa una lista diaria al abrir y al cerrar (gases, campanas, residuos)? ¿Quién la marca, es por área y qué pasa si queda incompleta? Propuesta del 19-11-2026 para el Inicio, sin programar | P-04, con el cliente |
+| Usuarios ([ADR 0027](#adr-0027)) | ¿El Administrador gestiona usuarios con delegación del Propietario? ¿Al quitar a alguien que es encargado de un área o tiene préstamos abiertos se avisa o se impide? ¿La Visita y el Estudiante llevan fecha de fin? ¿Hace falta importar la lista por CSV antes de F3? | P-03 |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos. Por defecto ([ADR 0025](#adr-0025)): solo miembros, baja y deuda sin bloqueo automático | P-04, antes de G1 |
 | Insumos que vencen ([ADR 0025](#adr-0025), MA-01f) | ¿Se bloquea la salida de un lote vencido o basta el aviso? ¿«Caduca solo la esterilidad» necesita su propia fecha? ¿Las salidas de Clínica deben enlazarse al paciente o al tratamiento? | P-04, con el cliente |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
@@ -722,3 +723,32 @@ Estado: aceptada (19-11-2026; idea del usuario a partir de un ejemplo visual). A
 - **Entregas:** IN-01 (base y API de Actividad, Calendario y Por atender), IN-02 (la pantalla con el selector de vistas, Actividad área × hora, el Calendario con la lista del día, Por atender desplegable y los accesos rápidos) e IN-03 (Recordatorios).
 
 Motivo: el Inicio de hoy solo lleva a los módulos. El usuario quiere ver en un vistazo lo que pasa hoy, lo que viene y lo que le toca, y llegar a cada cosa con un toque.
+
+
+<a id="adr-0027"></a>
+
+## ADR 0027 — Usuarios: lista blanca, roles e inactividad
+
+Estado: aceptada (19-11-2026; pedido del usuario, con valores por defecto revisables). Adelanta los miembros del Núcleo (01 §3, M1) sin el correo de T-03B.
+
+- **Sección «Usuarios»** en el menú principal, bajo Áreas. La ve y la usa solo el Propietario; la API lo comprueba en cada petición. La delegación al Administrador (01 §5) queda pendiente.
+- **Roles que se asignan:** Administrador, Operador, Docente, Estudiante y Visita, uno por persona: la escalera Propietario ⊇ Administrador ⊇ Operador hace innecesario combinarlos.
+  - Docente, Estudiante y Visita tienen los mismos permisos; solo cambia el formato que llenan según su actividad.
+  - Visita es un rol nuevo (`visitor`). El Responsable de fiscalizados no se asigna aquí (REG-02).
+- **Lista blanca:** el Propietario agrega nombre, correo y rol, y la persona queda «Pendiente».
+  - Entra a PlatLab con ese correo y pulsa «Unirme» en su lista de espacios: una acción explícita, nunca por GET ni con `email_confirm: true` ([ADR 0004](#adr-0004)).
+  - Es la invitación de 03 §2 (`core.invitations`) sin token: el enlace por correo, su token y su vencimiento llegan con T-03B; Google y Microsoft, en F3. Nunca se da acceso por dominio.
+  - Un correo no se repite pendiente en el mismo espacio ni se invita a quien ya es miembro.
+- **Crear cuenta:** el acceso suma «Crear cuenta» con correo y contraseña. Una cuenta sin invitación no ve ningún espacio. Fuera de local exige la confirmación del correo de Auth (`enable_confirmations`, con el SMTP de T-03B antes de G1).
+- **Cambiar rol:** reemplaza el rol en una transacción que bloquea la membresía, para que lo que está en curso termine con los permisos de antes (02 §6).
+- **Quitar:** revoca la membresía y sus roles; una invitación pendiente se anula.
+  - Nada se borra: sus registros conservan su nombre, la auditoría guarda quién y cuándo, y volver a agregarla reactiva la misma membresía.
+  - El Propietario no se quita ni cambia de rol aquí: la transferencia es O-02.
+- **Inactividad:** cada miembro guarda su último acceso al espacio, al abrirlo, en una tabla aparte para no bloquear la membresía y como máximo una escritura por hora. «Sin actividad» es quien no entra hace más de 30 días ([02 §12](02_arquitectura.md#12-parámetros-iniciales)) o nunca entró; un filtro los reúne para revisarlos y quitarlos.
+- **Diseño de U-01:**
+  - `core.invitations` (correo, nombre, rol, estado `pending`, `accepted` o `revoked`, quién y cuándo), `core.member_presence` (último acceso) y `core.identities.email`, que se guarda al unirse.
+  - Rutas: `GET` y `POST …/members`, `PATCH …/members/:membershipId` (rol), `POST …/members/:membershipId/revoke`, `POST …/invitations/:invitationId/revoke`; para quien se une, `GET /v1/me/invitations` y `POST /v1/workspaces/:workspaceId/invitations/:invitationId/accept`.
+  - Unirse exige que el espacio admita operación nueva y que el correo del JWT coincida. El runtime solo crea su propia identidad, membresía y principal en el espacio del contexto (RLS).
+- **Entregas:** U-01 (base y API) y U-02 (Usuarios, «Unirme» en Espacios y «Crear cuenta»).
+
+Motivo: hoy los miembros solo se crean con datos de prueba. El laboratorio necesita sumar y retirar personas por sí mismo y ver quién dejó de usar la plataforma.
