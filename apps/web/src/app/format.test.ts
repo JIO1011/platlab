@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countText, daysBetween, formatDayShort, formatFullDate, formatShortDateTime, formatWeekday, todayInZone } from './format';
+import { areaLabel, countText, daysBetween, formatDayShort, formatFullDate, formatShortDateTime, formatWeekday, todayInZone } from './format';
 
 describe('formatShortDateTime', () => {
   const zone = 'America/Guayaquil';
@@ -67,5 +67,20 @@ describe('formatDayShort', () => {
     expect(formatDayShort('2026-10-28')).toMatch(/^mi/i);
     expect(formatDayShort('2026-10-28')).toMatch(/28/);
     expect(formatDayShort('2026-10-28')).not.toContain(',');
+  });
+});
+
+describe('nombre del área', () => {
+  it('quita la palabra «Laboratorio» al inicio, con el «de» que la siga', () => {
+    expect(areaLabel('Laboratorio de Química')).toBe('Química');
+    expect(areaLabel('LABORATORIO DE LA Salud')).toBe('Salud');
+    expect(areaLabel('Laboratorios de Física')).toBe('Física');
+    expect(areaLabel('Laboratorio Clínico')).toBe('Clínico');
+  });
+
+  it('deja el nombre completo si no queda nada o no empieza así', () => {
+    expect(areaLabel('Laboratorio')).toBe('Laboratorio');
+    expect(areaLabel('Anatomía')).toBe('Anatomía');
+    expect(areaLabel('Sala de laboratorio')).toBe('Sala de laboratorio');
   });
 });

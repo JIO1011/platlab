@@ -1,6 +1,8 @@
 /** Types generated for queries found in "src/modules/materials/infrastructure/dashboard.sql" */
 import { PreparedQuery } from '@pgtyped/runtime';
 
+export type NumberOrString = number | string;
+
 /** 'DashboardFigures' parameters type */
 export interface IDashboardFiguresParams {
   days: number;
@@ -373,6 +375,7 @@ export const dashboardBorrowers = new PreparedQuery<IDashboardBorrowersParams,ID
 
 /** 'DashboardOverdue' parameters type */
 export interface IDashboardOverdueParams {
+  limit: NumberOrString;
   timeZone: string;
   workspaceId: string;
 }
@@ -391,12 +394,12 @@ export interface IDashboardOverdueQuery {
   result: IDashboardOverdueResult;
 }
 
-const dashboardOverdueIR: any = {"usedParamSet":{"workspaceId":true,"timeZone":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":528,"b":540}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":626,"b":635}]}],"statement":"-- Los vales atrasados más antiguos, para «Hay que atender».\nSELECT l.id, l.number, borrower.display_name AS \"borrower_name!\", l.due_on::text AS \"due_on!\"\nFROM materials.loans AS l\nJOIN LATERAL (\n  SELECT ident.display_name\n  FROM core.principals AS pr\n  JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n  JOIN core.identities AS ident ON ident.id = m.identity_id\n  WHERE pr.workspace_id = l.workspace_id AND pr.id = l.borrower_principal_id\n) AS borrower ON true\nWHERE l.workspace_id = :workspaceId! AND l.status = 'open' AND l.due_on IS NOT NULL\n  AND l.due_on < (now() AT TIME ZONE :timeZone!)::date\nORDER BY l.due_on, l.number\nLIMIT 3"};
+const dashboardOverdueIR: any = {"usedParamSet":{"workspaceId":true,"timeZone":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":562,"b":574}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":660,"b":669}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":712,"b":718}]}],"statement":"-- Los vales atrasados más antiguos, para «Hay que atender» y los casos del Inicio (ADR 0026).\nSELECT l.id, l.number, borrower.display_name AS \"borrower_name!\", l.due_on::text AS \"due_on!\"\nFROM materials.loans AS l\nJOIN LATERAL (\n  SELECT ident.display_name\n  FROM core.principals AS pr\n  JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n  JOIN core.identities AS ident ON ident.id = m.identity_id\n  WHERE pr.workspace_id = l.workspace_id AND pr.id = l.borrower_principal_id\n) AS borrower ON true\nWHERE l.workspace_id = :workspaceId! AND l.status = 'open' AND l.due_on IS NOT NULL\n  AND l.due_on < (now() AT TIME ZONE :timeZone!)::date\nORDER BY l.due_on, l.number\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Los vales atrasados más antiguos, para «Hay que atender».
+ * -- Los vales atrasados más antiguos, para «Hay que atender» y los casos del Inicio (ADR 0026).
  * SELECT l.id, l.number, borrower.display_name AS "borrower_name!", l.due_on::text AS "due_on!"
  * FROM materials.loans AS l
  * JOIN LATERAL (
@@ -409,7 +412,7 @@ const dashboardOverdueIR: any = {"usedParamSet":{"workspaceId":true,"timeZone":t
  * WHERE l.workspace_id = :workspaceId! AND l.status = 'open' AND l.due_on IS NOT NULL
  *   AND l.due_on < (now() AT TIME ZONE :timeZone!)::date
  * ORDER BY l.due_on, l.number
- * LIMIT 3
+ * LIMIT :limit!
  * ```
  */
 export const dashboardOverdue = new PreparedQuery<IDashboardOverdueParams,IDashboardOverdueResult>(dashboardOverdueIR);
@@ -417,6 +420,7 @@ export const dashboardOverdue = new PreparedQuery<IDashboardOverdueParams,IDashb
 
 /** 'DashboardBelowMinimum' parameters type */
 export interface IDashboardBelowMinimumParams {
+  limit: NumberOrString;
   workspaceId: string;
 }
 
@@ -435,12 +439,12 @@ export interface IDashboardBelowMinimumQuery {
   result: IDashboardBelowMinimumResult;
 }
 
-const dashboardBelowMinimumIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":512,"b":524}]}],"statement":"-- Los materiales más por debajo de su mínimo, para «Hay que atender».\nSELECT i.id, i.name, i.base_unit,\n       trim_scale(stock.balance) AS \"balance!\",\n       trim_scale(i.minimum_quantity) AS \"minimum!\"\nFROM inventory.items AS i\nJOIN materials.products AS m ON m.workspace_id = i.workspace_id AND m.item_id = i.id\nCROSS JOIN LATERAL (\n  SELECT coalesce(sum(p.balance), 0) AS balance\n  FROM inventory.positions AS p\n  WHERE p.workspace_id = i.workspace_id AND p.item_id = i.id\n) AS stock\nWHERE i.workspace_id = :workspaceId! AND i.kind = 'material' AND i.archived_at IS NULL\n  AND i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity\nORDER BY stock.balance / i.minimum_quantity, lower(i.name), i.id\nLIMIT 3"};
+const dashboardBelowMinimumIR: any = {"usedParamSet":{"workspaceId":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":546,"b":558}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":757,"b":763}]}],"statement":"-- Los materiales más por debajo de su mínimo, para «Hay que atender» y los casos del Inicio (ADR 0026).\nSELECT i.id, i.name, i.base_unit,\n       trim_scale(stock.balance) AS \"balance!\",\n       trim_scale(i.minimum_quantity) AS \"minimum!\"\nFROM inventory.items AS i\nJOIN materials.products AS m ON m.workspace_id = i.workspace_id AND m.item_id = i.id\nCROSS JOIN LATERAL (\n  SELECT coalesce(sum(p.balance), 0) AS balance\n  FROM inventory.positions AS p\n  WHERE p.workspace_id = i.workspace_id AND p.item_id = i.id\n) AS stock\nWHERE i.workspace_id = :workspaceId! AND i.kind = 'material' AND i.archived_at IS NULL\n  AND i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity\nORDER BY stock.balance / i.minimum_quantity, lower(i.name), i.id\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Los materiales más por debajo de su mínimo, para «Hay que atender».
+ * -- Los materiales más por debajo de su mínimo, para «Hay que atender» y los casos del Inicio (ADR 0026).
  * SELECT i.id, i.name, i.base_unit,
  *        trim_scale(stock.balance) AS "balance!",
  *        trim_scale(i.minimum_quantity) AS "minimum!"
@@ -454,7 +458,7 @@ const dashboardBelowMinimumIR: any = {"usedParamSet":{"workspaceId":true},"param
  * WHERE i.workspace_id = :workspaceId! AND i.kind = 'material' AND i.archived_at IS NULL
  *   AND i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity
  * ORDER BY stock.balance / i.minimum_quantity, lower(i.name), i.id
- * LIMIT 3
+ * LIMIT :limit!
  * ```
  */
 export const dashboardBelowMinimum = new PreparedQuery<IDashboardBelowMinimumParams,IDashboardBelowMinimumResult>(dashboardBelowMinimumIR);
@@ -463,6 +467,7 @@ export const dashboardBelowMinimum = new PreparedQuery<IDashboardBelowMinimumPar
 /** 'DashboardExpiring' parameters type */
 export interface IDashboardExpiringParams {
   expiringBy: string;
+  limit: NumberOrString;
   workspaceId: string;
 }
 
@@ -482,12 +487,13 @@ export interface IDashboardExpiringQuery {
   result: IDashboardExpiringResult;
 }
 
-const dashboardExpiringIR: any = {"usedParamSet":{"workspaceId":true,"expiringBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":546,"b":558}]},{"name":"expiringBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":600,"b":611}]}],"statement":"-- Los lotes con saldo que vencen primero, vencidos incluidos, hasta :expiringBy, para «Hay que atender» (MA-01f).\nSELECT i.id, i.name, i.base_unit,\n       lot.supplier_lot AS lot,\n       lot.expires_on::text AS \"expires_on!\",\n       trim_scale(sum(p.balance)) AS \"balance!\"\nFROM inventory.positions AS p\nJOIN inventory.lots AS lot ON lot.workspace_id = p.workspace_id AND lot.id = p.lot_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id AND i.kind = 'material' AND i.archived_at IS NULL\nWHERE p.workspace_id = :workspaceId! AND p.balance > 0 AND lot.expires_on <= :expiringBy!::date\nGROUP BY i.id, i.name, i.base_unit, lot.id, lot.supplier_lot, lot.expires_on\nORDER BY lot.expires_on, lower(i.name), lot.id\nLIMIT 3"};
+const dashboardExpiringIR: any = {"usedParamSet":{"workspaceId":true,"expiringBy":true,"limit":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":583,"b":595}]},{"name":"expiringBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":637,"b":648}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":786,"b":792}]}],"statement":"-- Los lotes con saldo que vencen primero, vencidos incluidos, hasta :expiringBy, para «Hay que atender» (MA-01f) y los\n-- casos del Inicio (ADR 0026).\nSELECT i.id, i.name, i.base_unit,\n       lot.supplier_lot AS lot,\n       lot.expires_on::text AS \"expires_on!\",\n       trim_scale(sum(p.balance)) AS \"balance!\"\nFROM inventory.positions AS p\nJOIN inventory.lots AS lot ON lot.workspace_id = p.workspace_id AND lot.id = p.lot_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id AND i.kind = 'material' AND i.archived_at IS NULL\nWHERE p.workspace_id = :workspaceId! AND p.balance > 0 AND lot.expires_on <= :expiringBy!::date\nGROUP BY i.id, i.name, i.base_unit, lot.id, lot.supplier_lot, lot.expires_on\nORDER BY lot.expires_on, lower(i.name), lot.id\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Los lotes con saldo que vencen primero, vencidos incluidos, hasta :expiringBy, para «Hay que atender» (MA-01f).
+ * -- Los lotes con saldo que vencen primero, vencidos incluidos, hasta :expiringBy, para «Hay que atender» (MA-01f) y los
+ * -- casos del Inicio (ADR 0026).
  * SELECT i.id, i.name, i.base_unit,
  *        lot.supplier_lot AS lot,
  *        lot.expires_on::text AS "expires_on!",
@@ -498,7 +504,7 @@ const dashboardExpiringIR: any = {"usedParamSet":{"workspaceId":true,"expiringBy
  * WHERE p.workspace_id = :workspaceId! AND p.balance > 0 AND lot.expires_on <= :expiringBy!::date
  * GROUP BY i.id, i.name, i.base_unit, lot.id, lot.supplier_lot, lot.expires_on
  * ORDER BY lot.expires_on, lower(i.name), lot.id
- * LIMIT 3
+ * LIMIT :limit!
  * ```
  */
 export const dashboardExpiring = new PreparedQuery<IDashboardExpiringParams,IDashboardExpiringResult>(dashboardExpiringIR);

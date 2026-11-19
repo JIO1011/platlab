@@ -23,6 +23,22 @@ export const maintenanceWebModule: WebModule = {
       requester: overdueText,
     },
     trendNoun: { one: 'registro', many: 'registros' },
+    agenda: {
+      // Lo que vence se abre listo para registrarlo; lo hecho, en el historial del equipo.
+      maintenance: {
+        noun: { one: 'mantenimiento', many: 'mantenimientos' },
+        href: (item) => (item.status === 'done' ? `mantenimiento/historial?equipo=${item.ref}` : `mantenimiento/por-hacer?registrar=${item.ref}`),
+      },
+    },
+    tasks: {
+      overdue: {
+        label: (n) => (n === 1 ? 'mantenimiento vencido o no conforme' : 'mantenimientos vencidos o no conformes'),
+        href: 'mantenimiento/por-hacer',
+        caseHref: ({ ref }) => `mantenimiento/por-hacer?registrar=${ref}`,
+        when: (day) => `Venció el ${day}`,
+      },
+    },
+    quick: [{ label: 'Registrar mantenimiento', href: 'mantenimiento/por-hacer', permission: 'maintenance.work.record', Icon: Wrench }],
   },
   // En Equipos, sin duplicar (ADR 0020): la pestaña de la ficha, la columna con semáforo y, en el incidente,
   // «Registrar en Mantenimiento» (M-01b).

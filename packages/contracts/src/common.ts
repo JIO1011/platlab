@@ -8,6 +8,8 @@ export const code = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/, 'Códi
 export const text = (max: number) => z.string().trim().min(1).max(max);
 /** La versión que la persona vio al editar: si otra persona cambió el recurso antes, VERSION_CONFLICT. */
 export const expectedVersion = z.number().int().positive();
+/** Hora del día `HH:MM`, en la zona del espacio. */
+export const clockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora HH:MM');
 /** Importe exacto con dos decimales (numeric(14,2)); nunca se opera como number. */
 export const money = z.string().regex(/^\d{1,12}(?:\.\d{1,2})?$/, 'Debe ser un importe con hasta dos decimales');
 

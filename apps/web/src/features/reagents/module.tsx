@@ -1,4 +1,4 @@
-import { ArrowLeftRight, FlaskConical, Inbox, Package } from 'lucide-react';
+import { ArrowLeftRight, ArrowUpFromLine, FlaskConical, Inbox, Package } from 'lucide-react';
 import type { WebModule } from '../../app/web-module';
 
 /**
@@ -36,6 +36,27 @@ export const reagentsWebModule: WebModule = {
       requester: (n) => (n === 1 ? 'Tienes 1 solicitud de salida pendiente' : `Tienes ${n} solicitudes de salida pendientes`),
     },
     trendNoun: { one: 'salida', many: 'salidas' },
+    tasks: {
+      // Cada caso abre la ficha del reactivo, con sus frascos.
+      expiredContainers: {
+        label: (n) => (n === 1 ? 'frasco vencido' : 'frascos vencidos'),
+        href: 'reactivos/inventario?caducidad=vencidos',
+        caseHref: ({ ref }) => `reactivos/inventario/${ref}`,
+        when: (day) => `Venció el ${day}`,
+      },
+      expiringContainers: {
+        label: (n) => (n === 1 ? 'frasco por vencer' : 'frascos por vencer'),
+        href: 'reactivos/inventario?caducidad=por-vencer',
+        caseHref: ({ ref }) => `reactivos/inventario/${ref}`,
+        when: (day) => `Vence el ${day}`,
+      },
+      belowMinimum: {
+        label: (n) => (n === 1 ? 'reactivo bajo su mínimo' : 'reactivos bajo su mínimo'),
+        href: 'reactivos/inventario?minimo=bajo',
+        caseHref: ({ ref }) => `reactivos/inventario/${ref}`,
+      },
+    },
+    quick: [{ label: 'Registrar salida', href: 'reactivos/inventario', permission: 'reagents.issue.create', Icon: ArrowUpFromLine }],
   },
   // Reactivos con existencias en un área o de un departamento (ADR 0024): abre el Inventario filtrado.
   areas: {

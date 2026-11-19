@@ -1,5 +1,4 @@
 import { isoWeekday, periodWeek, scheduleProblemText, timeText, toMinutes, type Activity, type Closure, type Period, type Space } from '@platlab/contracts';
-import { addDays } from '../../app/format';
 import { monthName } from '../../app/month-name';
 
 /**
@@ -36,36 +35,6 @@ export { timeText, toMinutes };
 // ---------------------------------------------------------------------------
 // Fechas
 // ---------------------------------------------------------------------------
-
-const dayPattern = /^\d{4}-\d{2}-\d{2}$/;
-
-/** El día de la URL si es una fecha real AAAA-MM-DD; si no, nulo. */
-export function parseDay(value: string | null): string | null {
-  if (!value || !dayPattern.test(value)) return null;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value ? null : value;
-}
-
-/** Los siete días de la semana de `date`, del lunes al domingo. */
-export function weekDates(date: string): string[] {
-  const monday = addDays(date, 1 - isoWeekday(date));
-  return Array.from({ length: 7 }, (_, index) => addDays(monday, index));
-}
-
-/** Las semanas que cubre un mes (`AAAA-MM`), de lunes a domingo: las que hacen falta, entre 4 y 6. */
-export function monthWeeks(month: string): string[][] {
-  const first = `${month}-01`;
-  const last = addDays(`${shiftMonth(month, 1)}-01`, -1);
-  const weeks: string[][] = [];
-  for (let monday = weekDates(first)[0]!; monday <= last; monday = addDays(monday, 7)) weeks.push(weekDates(monday));
-  return weeks;
-}
-
-/** El mes `AAAA-MM` que está `delta` meses antes o después de `month`. */
-export function shiftMonth(month: string, delta: number): string {
-  const [year, number] = month.split('-').map(Number);
-  return new Date(Date.UTC(year ?? 1970, (number ?? 1) - 1 + delta, 1)).toISOString().slice(0, 7);
-}
 
 /** El período activo que contiene la fecha, con su semana contada desde su inicio. */
 export function periodOn(periods: readonly Period[], date: string): { code: string; week: number } | null {
@@ -105,17 +74,6 @@ export interface CoreArea {
   id: string;
   name: string;
   group: { name: string } | null;
-}
-
-const LAB_PREFIX = /^laboratorios?\s+(?:(?:de\s+las|de\s+los|de\s+la|del|de)\s+)?/i;
-
-/**
- * El nombre del área para rotular una columna o una tarjeta, sin la palabra «Laboratorio» al inicio (decisión del usuario,
- * 14-11-2026) ni el «de» que la sigue: «Laboratorio de Química» → «Química», «Laboratorio Clínico» → «Clínico». Si no
- * queda nada, el nombre completo.
- */
-export function areaLabel(name: string): string {
-  return name.replace(LAB_PREFIX, '').trim() || name;
 }
 
 /** Una columna de la tabla: un área habilitada (con su espacio) o una del Núcleo que aún no tiene horario (`space` nulo). */
@@ -257,12 +215,6 @@ export function hourMarks(range: DayRange): number[] {
   return rowStarts(range).filter((mark) => mark % 60 === 0);
 }
 
-/** La hora del día en la zona del espacio de trabajo, en minutos desde la medianoche: la línea de «ahora». */
-export function nowMinutes(now: number, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(now));
-  const part = (type: string) => Number(parts.find((item) => item.type === type)?.value ?? 0);
-  return part('hour') * 60 + part('minute');
-}
 
 // ---------------------------------------------------------------------------
 // Texto de un bloque

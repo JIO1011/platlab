@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { expectedVersion, text } from '../common.js';
+import { clockTime as time, expectedVersion, text } from '../common.js';
 import { activityStage } from './practice.js';
 import type { WeeklyHours } from './spaces.js';
 
@@ -12,7 +12,6 @@ import type { WeeklyHours } from './spaces.js';
 /** Lo más largo que se pide de una vez: seis semanas. */
 export const SCHEDULE_MAX_DAYS = 42;
 
-const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora HH:MM');
 
 /** El código de un bloque: período, semana desde su inicio, sigla del área y número de esa área en esa semana. */
 export const activityCode = (periodCode: string, week: number, abbreviation: string, sequence: number): string =>

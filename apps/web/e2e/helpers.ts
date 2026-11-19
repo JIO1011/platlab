@@ -58,3 +58,15 @@ export async function captureElement(target: Locator, name: string) {
   await target.screenshot({ path: `${reviewDir}/${name}.png` });
   await hide.evaluate((style) => style.remove());
 }
+
+/**
+ * La tarjeta de un módulo en el Inicio (ADR 0026): el Inicio abre en «Tareas» y las tarjetas están en «Módulos», que se
+ * elige primero si hace falta (el navegador recuerda la última vista de cada persona).
+ */
+export async function moduleCard(page: Page, name: string): Promise<Locator> {
+  // El saludo llega con el espacio, y con él el selector si el rol tiene módulos: antes, el selector aún no existe.
+  await expect(page.getByRole('heading', { level: 1, name: /^(Buenos días|Buenas tardes|Buenas noches),/ })).toBeVisible();
+  const modules = page.getByRole('group', { name: 'Vista del Inicio' }).getByRole('button', { name: 'Módulos', exact: true });
+  if ((await modules.count()) > 0 && (await modules.getAttribute('aria-pressed')) !== 'true') await modules.click();
+  return page.getByRole('link', { name: `Abrir ${name}` });
+}

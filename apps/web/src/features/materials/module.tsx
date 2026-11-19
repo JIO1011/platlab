@@ -15,5 +15,30 @@ export const materialsWebModule: WebModule = {
       { key: 'expiring', label: () => 'por vencer' },
     ],
     trendNoun: { one: 'movimiento', many: 'movimientos' },
+    agenda: {
+      return: { noun: { one: 'devolución', many: 'devoluciones' }, href: (item) => `materiales/prestamos?vale=${item.ref}` },
+    },
+    // Lo que vence y lo que está bajo mínimo se listan en «Hay que atender» del Resumen.
+    tasks: {
+      overdueLoans: {
+        label: (n) => (n === 1 ? 'préstamo atrasado' : 'préstamos atrasados'),
+        href: 'materiales/prestamos?filtro=overdue',
+        caseHref: ({ ref }) => `materiales/prestamos?vale=${ref}`,
+        when: (day) => `Debía volver el ${day}`,
+      },
+      // Cada material abre su ficha en el Inventario.
+      expiring: {
+        label: (n) => (n === 1 ? 'material vencido o por vencer' : 'materiales vencidos o por vencer'),
+        href: 'materiales/inventario',
+        caseHref: ({ ref }) => `materiales/inventario?material=${ref}`,
+        when: (day) => `Vencimiento: ${day}`,
+      },
+      belowMinimum: {
+        label: (n) => (n === 1 ? 'material bajo su mínimo' : 'materiales bajo su mínimo'),
+        href: 'materiales/inventario',
+        caseHref: ({ ref }) => `materiales/inventario?material=${ref}`,
+      },
+    },
+    quick: [{ label: 'Nuevo préstamo', href: 'materiales/prestamos?nuevo=1', permission: 'materials.loan.create', Icon: HandHelping }],
   },
 };

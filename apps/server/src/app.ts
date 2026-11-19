@@ -2,11 +2,11 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type pg from 'pg';
 import type { HealthResponse } from '@platlab/contracts';
 import { coreRoutes } from './modules/core/index.js';
-import { equipmentAreaContribution, equipmentHomeSummary, equipmentRoutes } from './modules/equipment/index.js';
-import { labsHomeSummary, labsRoutes } from './modules/labs/index.js';
-import { maintenanceHomeSummary, maintenanceRoutes } from './modules/maintenance/index.js';
-import { materialsHomeSummary, materialsRoutes } from './modules/materials/index.js';
-import { reagentsAreaContribution, reagentsHomeSummary, reagentsRoutes } from './modules/reagents/index.js';
+import { equipmentAreaContribution, equipmentHome, equipmentRoutes } from './modules/equipment/index.js';
+import { labsHome, labsRoutes } from './modules/labs/index.js';
+import { maintenanceHome, maintenanceRoutes } from './modules/maintenance/index.js';
+import { materialsHome, materialsRoutes } from './modules/materials/index.js';
+import { reagentsAreaContribution, reagentsHome, reagentsRoutes } from './modules/reagents/index.js';
 import type { TokenVerifier } from './platform/auth/jwt.js';
 import { requireAuthentication } from './platform/http/auth.js';
 import { registerErrorHandling } from './platform/http/errors.js';
@@ -33,7 +33,7 @@ export function buildApp({ pool, verifyToken, publicFiles }: AppDependencies): F
       await v1.register(
         coreRoutes({
           pool,
-          homeSummaries: { reagents: reagentsHomeSummary, equipment: equipmentHomeSummary, maintenance: maintenanceHomeSummary, labs: labsHomeSummary, materials: materialsHomeSummary },
+          home: { reagents: reagentsHome, equipment: equipmentHome, maintenance: maintenanceHome, labs: labsHome, materials: materialsHome },
           areaContributions: { reagents: reagentsAreaContribution, equipment: equipmentAreaContribution },
         }),
       );

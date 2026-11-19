@@ -1,3 +1,3 @@
-/** Interfaz pública de Mantenimiento (02 §3): sus rutas y su tarjeta del Inicio. */
-export { maintenanceHomeSummary } from './application/indicators.js';
+/** Interfaz pública de Mantenimiento (02 §3): sus rutas y su aporte al Inicio. */
+export { maintenanceHome } from './application/home.js';
 export { maintenanceRoutes } from './http/routes.js';

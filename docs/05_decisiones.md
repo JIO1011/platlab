@@ -29,6 +29,7 @@ Revisión: 16 de noviembre de 2026. Registro resumido de decisiones de arquitect
 | [0023](#adr-0023) | Laboratorios: solicitudes y cronograma en un solo módulo | Aceptado el 20-10-2026; cerrado para el piloto el 16-11-2026 |
 | [0024](#adr-0024) | Áreas y departamentos en una sección propia | Aceptado el 20-10-2026 |
 | [0025](#adr-0025) | Materiales y Préstamos: consumibles, reutilizables y vale de préstamo | Aceptado el 18-11-2026 |
+| [0026](#adr-0026) | Inicio con Actividad, Calendario y Por atender | Aceptado el 19-11-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -622,6 +623,7 @@ Cambios: 20-10-2026; compactado el 16-11-2026.
 | Reglas de Laboratorios ([ADR 0023](#adr-0023)) | L-01e se programó con reglas por defecto («Cierre de Laboratorios», 05-11-2026). Falta confirmar: ¿quién declara lo utilizado al cerrar (el responsable o el docente)? ¿El químico abierto que sobra vuelve al frasco o se desecha? ¿La lista de chequeo debe estar completa para marcar «Lista»? ¿La columna «Código» de equipos se llena con los asignados o a mano? ¿Se entrega material que se devuelve? | P-04, con el cliente |
 | Revisión de Laboratorios (16-11-2026) | Al mover un bloque a otra área cambia su código, pero los reactivos apartados conservan el motivo y el destino de antes («Práctica P1-S10-BIO03 · Bioquímica»): ¿se deja como registro de cuándo se apartó o se actualiza al mover? «Recibidas» muestra hasta 500 solicitudes sin páginas: añadir páginas o filtro por periodo | El motivo, con el usuario; las páginas, antes de G2 |
 | Inicio | La propuesta del 20-10-2026 espera, porque el usuario tiene otras ideas: «Por atender» de todos los módulos con su enlace filtrado, tres tarjetas por fila con gráfico solo si hay datos y avisos declarados por cada módulo. Hoy la tarjeta de Equipos dice siempre «Sin cambios» | Al terminar los módulos, con las ideas del usuario |
+| Lista de apertura y cierre ([ADR 0026](#adr-0026)) | ¿El laboratorio usa una lista diaria al abrir y al cerrar (gases, campanas, residuos)? ¿Quién la marca, es por área y qué pasa si queda incompleta? Propuesta del 19-11-2026 para el Inicio, sin programar | P-04, con el cliente |
 | Préstamos | Prestatarios externos, plazos, pérdidas y retrasos. Por defecto ([ADR 0025](#adr-0025)): solo miembros, baja y deuda sin bloqueo automático | P-04, antes de G1 |
 | Insumos que vencen ([ADR 0025](#adr-0025), MA-01f) | ¿Se bloquea la salida de un lote vencido o basta el aviso? ¿«Caduca solo la esterilidad» necesita su propia fecha? ¿Las salidas de Clínica deben enlazarse al paciente o al tratamiento? | P-04, con el cliente |
 | Mantenimiento y analítica | Carácter obligatorio o recomendado, quién libera el equipo, destinatarios de alertas y fórmulas | Antes de F5 |
@@ -675,3 +677,48 @@ Estado: aceptada (18-11-2026; idea del usuario). Concreta M6 de [01 §3](01_prod
 Motivo: el laboratorio gasta y presta material además de reactivos; sin catálogo, Laboratorios solo puede pedirlo como texto. Los reglamentos universitarios coinciden en el vale, la devolución con estado y la reposición ([UABC](https://fcqi.tij.uabc.mx/wp-content/uploads/2025/06/Procedimiento-prestamo-material-almacen-6E-ACTUAL.pdf), [UNAM](https://amyd.quimica.unam.mx/mod/resource/view.php?id=6773)); lo de bajo valor y alto volumen no pide lote.
 
 Cambios: 18 y 19-11-2026; 18-11-2026, vencimiento por lote y salida con tipo, a partir de la planilla del cliente.
+
+## ADR 0026 — Inicio con Actividad, Calendario y Por atender
+
+Estado: aceptada (19-11-2026; idea del usuario a partir de un ejemplo visual). Amplía el Inicio del [ADR 0011](#adr-0011).
+
+- **Dos vistas** (19-11-2026): arriba, el selector «Tareas | Módulos». «Tareas» lleva Actividad, Por atender, Calendario y Recordatorios; «Módulos», las tarjetas de siempre. Abre en «Tareas» y recuerda en el navegador la última vista de cada persona.
+- **Disposición de «Tareas»** (19-11-2026, revisión de IN-02): desde escritorio, a la izquierda Actividad y debajo Por atender; a la derecha, Calendario y debajo Recordatorios. En el móvil, el mismo orden en una columna.
+- **Accesos rápidos** (19-11-2026): bajo el saludo, botones a las operaciones frecuentes de cada módulo («Nueva solicitud», «Registrar entrega», «Nuevo préstamo», «Registrar mantenimiento»). Cada módulo los declara con su permiso y solo aparecen los que el rol puede hacer.
+
+- **Actividad, un cronograma corto de hoy:**
+  - No muestra el Cronograma completo, solo lo finalizado hoy, lo que está en proceso y lo que está por iniciar. Siempre es hoy: los otros días se ven en el Calendario.
+  - Es un Cronograma resumido (19-11-2026, segunda revisión): una columna por área de Laboratorios, también las libres, con solo su nombre; las horas hacia abajo y la línea de «ahora», que avanza sola con la hora del espacio. Con muchas áreas, la tabla se desplaza de lado dentro de la tarjeta.
+  - Lo que no tiene hora (un mantenimiento que vence, una devolución prevista) va en una franja «Todo el día» sobre la tabla, con su área en el nombre accesible.
+  - Si hoy ya no queda nada por iniciar, muestra lo próximo.
+  - Cada actividad abre en su módulo.
+  - En el móvil, la misma información va en lista por estado.
+- **Calendario:**
+  - Es un mapa de calor del mes: cada día cuenta sus prácticas, mantenimientos y devoluciones, en tramos fijos (0, 1–2, 3–5, 6–9, 10 o más) para que un mes tranquilo no parezca cargado.
+  - Al tocar un día, debajo del mes aparece la lista de sus actividades, cada una con su enlace (19-11-2026). La tarjeta no cambia de alto: el mes siempre ocupa 6 semanas y la lista tiene alto fijo y se desplaza por dentro.
+  - Cada día dice en texto lo que tiene.
+  - Los vencimientos de reactivos e insumos no entran: van en «Por atender».
+- **Por atender:**
+  - Una tarjeta por módulo con algo pendiente (19-11-2026, segunda revisión), la de algo rojo primero; dentro, una fila por tipo de tarea (prácticas por revisar o por cerrar, mantenimientos vencidos, fallas de equipos sin atender, préstamos atrasados, reactivos e insumos vencidos, por vencer o bajo mínimo), con lo rojo antes que lo ámbar. «Equipos por revisar» son dos filas (19-11-2026): los mantenimientos vencidos o no conformes y las fallas que nadie atiende.
+  - Cada fila se despliega (19-11-2026) y muestra hasta 5 casos con su enlace («Balanza B-02 · venció el 10 nov») y «Ver todos», que abre la lista ya filtrada de su módulo. Si no hay nada, dice «Todo al día».
+- **Recordatorios:**
+  - Son personales: solo los ve quien los crea. Llevan texto, fecha y hora opcionales, y se marcan como hechos o se quitan.
+  - Los vencidos se resaltan en el Inicio. Sin correo por ahora.
+  - No son registros de negocio. Viven en una tabla del Núcleo con RLS por miembro.
+- **Composición:**
+  - Cada módulo declara sus actividades con fecha y sus tareas, como hoy declara su tarjeta, y el Núcleo las compone sin conocer los módulos.
+  - Cada aporte exige su permiso y el ámbito del miembro: el Docente ve sus prácticas.
+  - El calendario pide su mes aparte.
+  - Cada panel carga y falla por separado.
+- **Fuera:** del ejemplo quedan fuera el vidrio translúcido (no alcanza el contraste AA), el banner decorativo y la tarjeta de notificaciones, porque los avisos viven en la barra. Siguen las reglas de los gráficos del ADR 0011.
+- **Diseño de IN-01** (19-11-2026):
+  - Tres consultas, una por panel: `GET …/home/agenda?date=`, `…/home/calendar?month=` y `…/home/tasks`; las tarjetas siguen en `…/home`.
+  - El estado de una práctica es el de su bloque: cerrada es «Finalizada», en curso es «En proceso», programada o lista es «Por iniciar».
+  - Lo de todo el día: un mantenimiento cuenta el día que vence y, hecho, el día del registro; una devolución, el día previsto.
+  - Un día pasado solo muestra lo hecho (prácticas cerradas, mantenimientos registrados, devoluciones recibidas): lo que se pasó sin hacer va en «Por atender».
+  - Lo próximo: si hoy no queda nada por iniciar, el primer día con algo de los próximos 60.
+  - Cada fila de «Por atender» trae su módulo, su tipo, su cifra y su tono; la pantalla pone el texto y el enlace.
+  - Revisión de IN-02 (19-11-2026): cada actividad trae su área (`core.locations`): la del bloque en Laboratorios y la del equipo en Mantenimiento (`core.location_areas`); las devoluciones no tienen. La agenda trae además las áreas de Laboratorios que Actividad dibuja. Cada fila de «Por atender» trae hasta 5 casos con su referencia, título y detalle.
+- **Entregas:** IN-01 (base y API de Actividad, Calendario y Por atender), IN-02 (la pantalla con el selector de vistas, Actividad área × hora, el Calendario con la lista del día, Por atender desplegable y los accesos rápidos) e IN-03 (Recordatorios).
+
+Motivo: el Inicio de hoy solo lleva a los módulos. El usuario quiere ver en un vistazo lo que pasa hoy, lo que viene y lo que le toca, y llegar a cada cosa con un toque.

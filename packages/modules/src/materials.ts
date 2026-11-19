@@ -55,5 +55,7 @@ export const materialsModule = defineModule({
     },
   ],
   homeCard: { permission: 'materials.catalog.read' },
+  homeAgenda: { permission: 'materials.loan.return' },
+  homeTasks: { permission: 'materials.catalog.read' },
   stage: 'development',
 });

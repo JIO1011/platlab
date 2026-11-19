@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { homeActivity, homeTrend } from '../access.js';
+import { homeActivity, homeTrend } from '../home.js';
 import { code, list, many, money, page, text, imageTypes } from '../common.js';
 import { memberList } from '../organization.js';
 

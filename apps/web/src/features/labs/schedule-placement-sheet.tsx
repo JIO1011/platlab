@@ -8,7 +8,8 @@ import { FormSheet } from '../../app/form-sheet';
 import { formatFullDate } from '../../app/format';
 import { labsErrorMessage, useMoveActivity, useRefreshLabs, useRequestResolved, useScheduleActivity, useVersionConflict } from './commands';
 import { useClosures, usePeriods, useSchedule } from './queries';
-import { timeText, toMinutes, weekDates } from './schedule-grid';
+import { timeText, toMinutes } from './schedule-grid';
+import { weekDates } from '../../app/calendar';
 import { titleText } from './request-summary';
 import { blockingTexts, capacityText, contextFor, durationOf, endFor, scheduledMessage } from './schedule-placement';
 

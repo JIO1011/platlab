@@ -19,6 +19,9 @@ import { loanCode } from './loan-views.js';
 import { CATALOG, runQuery, type QueryRequest } from './command.js';
 import { expiringBy, summaryOf } from './queries.js';
 
+/** Cuántas filas lleva cada lista de «Hay que atender» en el Resumen. */
+const ATTENTION_ROWS = 3;
+
 /**
  * El tablero del Resumen (ADR 0025): todas las lecturas en una sola transacción de consulta, así que las cifras
  * concuerdan entre sí. El ranking de quién presta más solo se arma para quien administra el catálogo.
@@ -36,9 +39,9 @@ async function dashboardOf(access: WorkspaceAccess, days: MaterialsDashboard['da
   const reusables = await dashboardTopReusables.run({ workspaceId, days }, run);
   const runningLow = await dashboardRunningLow.run({ workspaceId }, run);
   const byClass = await dashboardByClass.run({ workspaceId }, run);
-  const overdue = await dashboardOverdue.run({ workspaceId, timeZone }, run);
-  const belowMinimum = await dashboardBelowMinimum.run({ workspaceId }, run);
-  const expiring = await dashboardExpiring.run({ workspaceId, expiringBy: expiringBy(access) }, run);
+  const overdue = await dashboardOverdue.run({ workspaceId, timeZone, limit: ATTENTION_ROWS }, run);
+  const belowMinimum = await dashboardBelowMinimum.run({ workspaceId, limit: ATTENTION_ROWS }, run);
+  const expiring = await dashboardExpiring.run({ workspaceId, expiringBy: expiringBy(access), limit: ATTENTION_ROWS }, run);
   const borrowers = (await hasPermission(access, CATALOG)) ? await dashboardBorrowers.run({ workspaceId, days }, run) : null;
 
   const usage = (row: { id: string; name: string; base_unit: string; events: number; quantity: string }) => ({

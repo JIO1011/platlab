@@ -2,7 +2,8 @@ import type { Activity, Closure, Space } from '@platlab/contracts';
 import { useId } from 'react';
 import { Link } from 'react-router';
 import { ScheduleBlock, type BlockOpening } from './schedule-block';
-import { activitiesOfArea, areaLabel, closedAllDay, dayHoursText, type BoardColumn } from './schedule-grid';
+import { areaLabel } from '../../app/format';
+import { activitiesOfArea, closedAllDay, dayHoursText, type BoardColumn } from './schedule-grid';
 import { softCard } from './style';
 
 /** Un área del día: su nombre (sin la palabra «Laboratorio»), aforo y horario, lo que la cierra si es el caso, y sus bloques por hora. */

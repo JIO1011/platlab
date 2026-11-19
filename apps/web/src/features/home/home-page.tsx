@@ -1,19 +1,15 @@
-import type { HomeResponse } from '@platlab/contracts';
-import { IconChip, Skeleton, StatePanel } from '@platlab/ui';
-import { ArrowRight, Boxes, LayoutGrid } from 'lucide-react';
-import { useId } from 'react';
-import { Link } from 'react-router';
-import { moduleApps, useShell } from '../../app/app-shell';
-import { ModuleMark } from '../../app/module-mark';
-import { webModule } from '../../app/modules';
-import { useHome } from '../../app/queries';
-import { QueryErrorState } from '../../app/states';
-import { Sparkline } from '../../app/trend-chart';
+import { Segmented } from '@platlab/ui';
+import { useState } from 'react';
+import { useShell } from '../../app/app-shell';
+import { upperFirst } from '../../app/format';
+import { useUserKey } from '../../app/queries';
+import { ModuleCards } from './module-cards';
+import { QuickActions } from './quick-actions';
+import { TasksView } from './tasks-view';
 
 /** Fecha de hoy en la zona del espacio, con mayúscula inicial: «Jueves, 2 de octubre». */
 function formatToday(timeZone: string): string {
-  const text = new Intl.DateTimeFormat('es-EC', { timeZone, weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return upperFirst(new Intl.DateTimeFormat('es-EC', { timeZone, weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()));
 }
 
 /** Saludo según la hora en la zona del espacio, la misma que usan fechas y movimientos. */
@@ -24,133 +20,76 @@ function greeting(timeZone: string): string {
   return 'Buenas noches';
 }
 
-type Card = HomeResponse['cards'][number];
+type HomeView = 'tasks' | 'modules';
+
+const views: ReadonlyArray<{ value: HomeView; label: string }> = [
+  { value: 'tasks', label: 'Tareas' },
+  { value: 'modules', label: 'Módulos' },
+];
+
+/** La última vista de cada persona, en su navegador (ADR 0026); sin almacenamiento, abre en «Tareas». */
+const viewKey = (user: string) => `platlab:inicio:vista:${user}`;
+
+function readView(key: string): HomeView {
+  try {
+    return window.localStorage.getItem(key) === 'modules' ? 'modules' : 'tasks';
+  } catch {
+    return 'tasks';
+  }
+}
+
+function rememberView(key: string, view: HomeView) {
+  try {
+    window.localStorage.setItem(key, view);
+  } catch {
+    // Sin almacenamiento (ventana privada o bloqueado), la vista vale solo mientras dura la página.
+  }
+}
 
 /**
- * Inicio (ADR 0011): un tablero con una tarjeta por módulo. Cada tarjeta resume el módulo con
- * cifras y, si hay datos, un gráfico pequeño; toda la tarjeta abre la app del módulo.
+ * Inicio (ADR 0011 y 0026): bajo el saludo, los accesos rápidos; «Tareas» muestra lo de hoy (Actividad), lo que toca
+ * (Por atender) y el mes (Calendario); «Módulos», una tarjeta por módulo. Sin módulos para el rol, solo el aviso de las
+ * tarjetas.
  */
 export function HomePage() {
-  const { workspaceId, me } = useShell();
-  const home = useHome(workspaceId);
+  const { me } = useShell();
+  const key = viewKey(useUserKey());
+  const [view, setView] = useState<HomeView>(() => readView(key));
   const firstName = me.member.displayName.split(' ')[0];
+  const hasModules = me.modules.length > 0;
+  const shown: HomeView = hasModules ? view : 'modules';
 
   return (
     <div className="mx-auto max-w-6xl">
-      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <h1 className="text-display text-ink">
             {greeting(me.workspace.timeZone)}, {firstName}
           </h1>
           <p className="mt-2 text-body-lg font-medium text-ink-muted">
-            Estás en <span className="text-ink">{me.workspace.name}</span>. Elige un módulo para empezar a trabajar.
+            Estás en <span className="text-ink">{me.workspace.name}</span>.{' '}
+            {shown === 'tasks' ? 'Esto es lo que toca hoy.' : 'Elige un módulo para empezar a trabajar.'}
           </p>
         </div>
-        <p className="w-fit rounded-full bg-surface-sunken px-3 py-1 text-sm text-ink-muted">{formatToday(me.workspace.timeZone)}</p>
-      </div>
-
-      <section className="mt-8" aria-label="Módulos">
-        {home.isPending ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4">
-            <Skeleton className="h-64 rounded-card" />
-            <Skeleton className="h-64 rounded-card" />
-          </div>
-        ) : home.isError ? (
-          <QueryErrorState error={home.error} onRetry={() => void home.refetch()} />
-        ) : home.data.cards.length === 0 ? (
-          <div className="rounded-card bg-surface shadow-raised">
-            <StatePanel
-              icon={LayoutGrid}
-              title="No hay módulos para tu rol en este espacio"
-              description={
-                me.member.isOwner
-                  ? 'Este espacio todavía no tiene módulos habilitados. Se habilitan por contrato con el Equipo PlatLab.'
-                  : 'Los módulos se habilitan por contrato y se muestran según tu rol. Si esperabas ver alguno, consúltalo con quien administra el espacio.'
-              }
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="w-fit rounded-full bg-surface-sunken px-3 py-1 text-sm text-ink-muted">{formatToday(me.workspace.timeZone)}</p>
+          {hasModules ? (
+            <Segmented
+              label="Vista del Inicio"
+              value={view}
+              options={views}
+              onValueChange={(next) => {
+                setView(next);
+                rememberView(key, next);
+              }}
             />
-          </div>
-        ) : (
-          // Cada tarjeta mide al menos 20rem: junto al menú lateral de la tableta no se estrecha.
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4">
-            {home.data.cards.map((card) => (
-              <ModuleCard key={card.moduleCode} card={card} />
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-/** Tarjeta de un módulo: nombre, cifras y gráfico en su color; abre la app del módulo. */
-function ModuleCard({ card }: { card: Card }) {
-  const { workspaceId, me } = useShell();
-  const statsId = useId();
-  const pendingId = useId();
-  const app = moduleApps(me).find((entry) => entry.code === card.moduleCode);
-  if (!app) return null;
-  const descriptor = webModule(card.moduleCode);
-  const Icon = descriptor?.Icon ?? Boxes;
-  const noun = descriptor?.home.trendNoun ?? { one: 'movimiento', many: 'movimientos' };
-  const trendTotal = card.trend?.points.reduce((sum, point) => sum + point.value, 0) ?? 0;
-  const pending = card.summary?.['pendingRequests'] ?? 0;
-  const labels = descriptor?.home.pending;
-  const pendingText = labels
-    ? me.permissions.includes(labels.permission)
-      ? labels.approver(pending)
-      : labels.requester(pending)
-    : null;
-
-  return (
-    // La tarjeta lleva el color de su módulo (ADR 0010): el Inicio se colorea con los módulos.
-    <Link
-      to={`/e/${workspaceId}/${app.path}`}
-      data-module={card.moduleCode}
-      aria-label={`Abrir ${card.name}`}
-      aria-describedby={pending > 0 && pendingText ? `${pendingId} ${statsId}` : statsId}
-      className="group relative flex min-h-64 flex-col overflow-hidden rounded-card bg-surface p-6 shadow-raised transition-[transform,box-shadow] duration-200 ease-out-expo hover:shadow-float motion-safe:hover:-translate-y-1"
-    >
-      {/* Marca de agua del módulo, como en ReactiLab: decorativa y casi invisible. */}
-      <ModuleMark
-        code={card.moduleCode}
-        className="pointer-events-none absolute -bottom-6 -right-4 size-40 rotate-12 text-action-soft transition-transform duration-500 motion-safe:group-hover:scale-110"
-      />
-      <div className="relative flex items-center gap-3">
-        <IconChip icon={Icon} />
-        <h2 className="text-lg font-bold text-ink">{card.name}</h2>
-        <ArrowRight
-          className="ml-auto size-5 text-action transition-transform duration-150 group-hover:translate-x-0.5"
-          aria-hidden
-        />
-      </div>
-      {/* Lo pendiente de decidir (ADR 0012) se ve desde el Inicio; es un estado, va en ámbar. */}
-      {pending > 0 && pendingText ? (
-        <p id={pendingId} className="mt-4 self-start rounded-full bg-warning-soft px-2.5 py-1 text-[13px] font-medium text-warning">
-          {pendingText}
-        </p>
-      ) : null}
-      <div id={statsId} className="relative mt-auto pt-8">
-        <dl className="grid grid-cols-2 gap-4">
-          {/* Cada cifra, si el módulo la envía: Laboratorios envía unas a quien pide y otras a quien las recibe. */}
-          {(descriptor?.home.counters ?? []).filter((counter) => card.summary !== null && counter.key in card.summary).map((counter) => {
-            const value = card.summary?.[counter.key] ?? 0;
-            return (
-              <div key={counter.key} className="flex flex-col-reverse gap-1">
-                <dt className="text-sm text-ink-muted">{counter.label(value)}</dt>
-                <dd className="text-metric-sm text-ink">{value}</dd>
-              </div>
-            );
-          })}
-        </dl>
-        <div className="mt-6">
-          {card.trend ? <Sparkline points={card.trend.points} /> : null}
-          <p className="mt-2 text-[13px] text-ink-muted">
-            {trendTotal === 0
-              ? `Sin ${noun.many} en los últimos 30 días`
-              : `${trendTotal} ${trendTotal === 1 ? noun.one : noun.many} en los últimos 30 días`}
-          </p>
+          ) : null}
         </div>
       </div>
-    </Link>
+
+      <QuickActions />
+
+      <div className="mt-6">{shown === 'tasks' ? <TasksView /> : <ModuleCards />}</div>
+    </div>
   );
 }

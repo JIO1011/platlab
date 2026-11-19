@@ -6,7 +6,8 @@ import { countText, formatFullDate, formatWeekday } from '../../app/format';
 import { iconAction } from '../../app/glass';
 import { useLabs } from './context';
 import { useSchedule } from './queries';
-import { loadByDay, monthWeeks, shiftMonth, weekDates } from './schedule-grid';
+import { loadByDay } from './schedule-grid';
+import { monthWeeks, shiftMonth, weekDates } from '../../app/calendar';
 
 /** Las iniciales de los días, de lunes a domingo, tomadas de una semana cualquiera. */
 const weekdayInitials = weekDates('2026-01-05').map((date) => formatWeekday(date, 'short').slice(0, 1).toUpperCase());
