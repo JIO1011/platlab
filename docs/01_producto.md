@@ -72,12 +72,18 @@ Un paquete es una combinación del registro de módulos; no crea versiones del c
 | Mantenimiento | M7 sobre M1 + M3 | F5 |
 | Analítica avanzada | M8 sobre un paquete operativo | F5 |
 
-Modelo comercial recomendado, pendiente de que lo confirme el usuario:
+Modelo comercial confirmado por el usuario el 19-11-2026 ([ADR 0031](05_decisiones.md#adr-0031)). Primer comprador: la universidad.
 
-- **Licencia anual por espacio y paquete.** Es una suscripción que para universidades se factura como licencia anual. Incluye hosting, copias, soporte acordado y actualizaciones, con límites de uso descritos. Ampliar el servicio significa cambiar de paquete.
+- **Licencia anual por espacio y plan, sin cobro por usuario.** Es una suscripción que para universidades se factura como licencia anual, por adelantado. Incluye hosting, copias, soporte acordado y actualizaciones, con límites de uso descritos. Docentes y estudiantes son ilimitados. Ampliar el servicio significa cambiar de plan.
+- **Planes** (combinaciones de los paquetes de arriba, que solo se venden en etapa general):
+  - **Control:** M1 + M2, o M1 + M3.
+  - **Operación:** Control + M4 + M6.
+  - **Institucional:** todos los módulos, soporte prioritario y SSO cuando exista.
+- **Tramos por tamaño**, según los laboratorios del espacio: S (hasta 5), M (6–15), L (16–40) y XL (a cotizar).
 - **Incorporación única**, presupuestada según el trabajo real: configuración, migración y limpieza de datos, capacitación.
 - **Desarrollos a medida**, cotizados aparte. Nunca se vuelve a cobrar un módulo que ya existe.
-- **Precios:** los de la proforma no están validados. Se recalculan con infraestructura atribuible, soporte comprometido, mantenimiento, contingencia y margen.
+- **Descuentos**, como reglas y sin cifras fijadas: más espacios del mismo titular, cliente fundador que acepta ser caso de referencia, y contrato de varios años pagado por adelantado. Un piloto pagado de 90 días se descuenta de la licencia si el cliente convierte.
+- **Precios:** los de la proforma no están validados. Se recalculan con infraestructura atribuible, soporte comprometido, mantenimiento, contingencia y margen; las cifras de partida están en el ADR 0031 como hipótesis.
 - Sin pasarela de pago en el MVP.
 
 ## 5. Actores y roles
