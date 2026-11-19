@@ -26,7 +26,7 @@ type ClassFilter = 'all' | Extract<MaterialClass, 'consumable' | 'reusable_count
 const classFilters: ReadonlyArray<{ value: ClassFilter; label: string }> = [
   { value: 'all', label: 'Todos' },
   { value: 'consumable', label: 'Insumos' },
-  { value: 'reusable_counted', label: 'Reutilizables' },
+  { value: 'reusable_counted', label: 'Materiales' },
 ];
 
 /** Ficha del área a la que se limita la lista («Ubicación: Almacén»): se quita con un toque. */

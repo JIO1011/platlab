@@ -54,7 +54,7 @@ export function lendMaterial(pool: pg.Pool, request: CommandRequest, input: z.in
 
     const classes = await loanableClasses.run({ workspaceId, positionIds: ordered.map((line) => line.positionId) }, access.client);
     if (classes.length !== ordered.length || classes.some((row) => row.class !== 'reusable_counted')) {
-      throw new AppError('VALIDATION_FAILED', 'Solo se prestan materiales reutilizables por cantidad');
+      throw new AppError('VALIDATION_FAILED', 'Los insumos no se prestan: se les da salida');
     }
 
     // El número correlativo se asigna con el bloqueo del espacio, después de las posiciones: todos los vales siguen ese orden.

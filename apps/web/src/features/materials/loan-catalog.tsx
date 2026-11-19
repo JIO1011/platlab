@@ -38,7 +38,7 @@ export function LoanCatalog({ workspaceId, inTicket, onPick }: { workspaceId: st
       ) : found.isError ? (
         <QueryErrorState error={found.error} onRetry={() => void found.refetch()} />
       ) : items.length === 0 ? (
-        <StatePanel icon={PackageSearch} title="Nada para prestar" description={search ? 'Ningún reutilizable coincide con la búsqueda.' : 'Aún no hay material reutilizable registrado.'} />
+        <StatePanel icon={PackageSearch} title="Nada para prestar" description={search ? 'Ningún material coincide con la búsqueda.' : 'Aún no hay material para prestar registrado.'} />
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {items.map((material) => {

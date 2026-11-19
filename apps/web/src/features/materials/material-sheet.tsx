@@ -1,11 +1,11 @@
-import { newMaterial, updateMaterialRequest, type Material, type MaterialClass } from '@platlab/contracts';
+import { materialClass, newMaterial, updateMaterialRequest, type Material, type MaterialClass } from '@platlab/contracts';
 import { Field, Input, Segmented, Select, toast } from '@platlab/ui';
 import { Package } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { FormSheet, validate, type SheetBaseProps } from '../../app/form-sheet';
 import { materialsErrorMessage, useCreateMaterial, useUpdateMaterial } from './commands';
-import { classHints, classLabels, creatableClasses, unitOptions } from './text';
+import { classHints, classLabels, unitOptions } from './text';
 
 /** Si el insumo vence (MA-01f): sí pide fecha y lote en cada ingreso; no sigue con un solo lote sin fecha. */
 const expiryOptions = [
@@ -15,7 +15,7 @@ const expiryOptions = [
 
 /**
  * «Registrar material» y «Editar material» (Administrador): el nombre, su clase (que decide cómo se mueve y no cambia
- * después), su unidad y, si es un insumo, si vence. Un reutilizable siempre se cuenta en unidades; la unidad de un
+ * después), su unidad y, si es un insumo, si vence. Un material que se presta siempre se cuenta en unidades; la unidad de un
  * material ya movido no cambia. El código es automático.
  */
 export function MaterialSheet({
@@ -109,7 +109,7 @@ export function MaterialSheet({
               onValueChange={field.onChange}
               disabled={material !== undefined}
               placeholder="Elige la clase"
-              options={creatableClasses.map((value) => ({ value, label: classLabels[value] }))}
+              options={materialClass.options.map((value) => ({ value, label: classLabels[value] }))}
             />
           )}
         />

@@ -165,8 +165,7 @@ Reglas:
 | `equipment.asset_photos` | Foto de un activo: imagen pública, tamaño y huella; nunca se sobrescribe y el activo apunta a la vigente ([ADR 0019](05_decisiones.md#adr-0019)) |
 | `equipment.documents` | Documento de un activo (manual, factura, garantía, informe): PDF público, tipo y fecha; nunca se sobrescribe |
 | `incidents.cases` | Falla de un recurso con FK tipada (hoy, el activo de Equipos) y su módulo dueño; tipo, descripción, si se puede seguir usando, estado, y quién y cuándo la reportó, empezó a repararla y la solucionó. Las notas de seguimiento (`actions`) se suman cuando hagan falta |
-| `materials.products` | Extensión 1:1 del ítem (`kind = 'material'`) con su clase: consumible, reutilizable por cantidad o reutilizable identificado ([ADR 0025](05_decisiones.md#adr-0025)). Un lote único por material, sin envases |
-| `materials.assets` | Unidad identificable de un reutilizable identificado: código y QR (con los préstamos) |
+| `materials.products` | Extensión 1:1 del ítem (`kind = 'material'`) con su clase: consumible («Insumo») o reutilizable por cantidad («Material») ([ADR 0025](05_decisiones.md#adr-0025)). Un lote único por material, sin envases |
 | `materials.loans`, `loan_lines`, `return_lines` | Vale de préstamo ([ADR 0025](05_decisiones.md#adr-0025)): número por espacio, prestatario (miembro), quien presta, fecha prevista y estado. Cada línea guarda la posición, lo prestado y lo devuelto, dañado y perdido, con `devuelto + dañado + perdido ≤ prestado` por restricción. Lo prestado queda apartado (`reserved`) en la posición. `return_lines` es el historial inmutable de cada devolución y, si hubo baja, la operación del libro. Con equipos, la línea apuntará al activo (FK tipada, MA-03) |
 | `maintenance.providers` | Proveedor de servicio del espacio: nombre y contacto; se archiva ([ADR 0020](05_decisiones.md#adr-0020)) |
 | `maintenance.plans` | Tipo de trabajo (preventivo, calibración, verificación, limpieza), título, alcance (un tipo de equipo o un equipo), frecuencia (cada N días, semanas, meses o años), fecha de inicio, lista de verificación, criterio de aceptación y requisito opcional (p. ej. «ISO/IEC 17025 6.4.10»); se archiva |
@@ -185,7 +184,7 @@ Estados:
 Reglas:
 
 - Una avería bloquea nuevas asignaciones y marca las reservas afectadas. Volver a operativo exige resultado y responsable.
-- Los consumibles usan el ledger de inventario. Los reutilizables identificables se entregan y devuelven como activos.
+- Los consumibles usan el ledger de inventario. Lo que se sigue unidad por unidad es un activo de Equipos y se presta en el mismo vale.
 
 ## 6. Laboratorios, agenda y prácticas
 
