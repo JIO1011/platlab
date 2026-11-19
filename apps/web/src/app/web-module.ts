@@ -1,3 +1,4 @@
+import type { AgendaItem } from '@platlab/contracts';
 import type { LucideIcon } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type { RouteObject } from 'react-router';
@@ -45,6 +46,13 @@ export interface WebModule {
     pending?: { permission: string; approver: (n: number) => string; requester: (n: number) => string };
     /** Qué cuenta el gráfico del módulo, para la frase que lo acompaña. */
     trendNoun: { one: string; many: string };
+    /**
+     * Actividad y Calendario (ADR 0026): el nombre de cada tipo de actividad que el módulo aporta y dónde se abre cada
+     * una, desde el espacio y sin barra inicial.
+     */
+    agenda?: Record<string, { noun: { one: string; many: string }; href: (item: AgendaItem, date: string) => string }>;
+    /** Por atender (ADR 0026): el texto de cada fila según su cifra y la lista ya filtrada que abre, como `agenda`. */
+    tasks?: Record<string, { label: (n: number) => string; href: string }>;
   };
   /**
    * Cómo cuenta el módulo en los cuadros de Áreas y Departamentos (ADR 0024): la sección no conoce a los

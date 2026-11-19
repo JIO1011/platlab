@@ -25,6 +25,14 @@ export const labsWebModule: WebModule = {
     ],
     pending: { permission: 'labs.schedule.manage', approver: toScheduleText, requester: toScheduleText },
     trendNoun: { one: 'solicitud', many: 'solicitudes' },
+    agenda: {
+      practice: { noun: { one: 'práctica', many: 'prácticas' }, href: (_item, date) => `laboratorios/cronograma?dia=${date}` },
+    },
+    tasks: {
+      toClose: { label: (n) => (n === 1 ? 'práctica por cerrar' : 'prácticas por cerrar'), href: 'laboratorios/cronograma' },
+      toReview: { label: (n) => (n === 1 ? 'solicitud por programar' : 'solicitudes por programar'), href: 'laboratorios/recibidas' },
+      changesRequested: { label: (n) => (n === 1 ? 'solicitud con cambios pedidos' : 'solicitudes con cambios pedidos'), href: 'laboratorios/solicitudes' },
+    },
   },
   // En Áreas, sin sección propia (ADR 0023): el panel del área con su aforo, horario y cierres, la marca en su cuadro y
   // los feriados en la cabecera.

@@ -36,6 +36,11 @@ export const reagentsWebModule: WebModule = {
       requester: (n) => (n === 1 ? 'Tienes 1 solicitud de salida pendiente' : `Tienes ${n} solicitudes de salida pendientes`),
     },
     trendNoun: { one: 'salida', many: 'salidas' },
+    tasks: {
+      expiredContainers: { label: (n) => (n === 1 ? 'frasco vencido' : 'frascos vencidos'), href: 'reactivos/inventario?caducidad=vencidos' },
+      expiringContainers: { label: (n) => (n === 1 ? 'frasco por vencer' : 'frascos por vencer'), href: 'reactivos/inventario?caducidad=por-vencer' },
+      belowMinimum: { label: (n) => (n === 1 ? 'reactivo bajo su mínimo' : 'reactivos bajo su mínimo'), href: 'reactivos/inventario?minimo=bajo' },
+    },
   },
   // Reactivos con existencias en un área o de un departamento (ADR 0024): abre el Inventario filtrado.
   areas: {

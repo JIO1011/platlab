@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { capture, expectAccessible, password, signIn } from './helpers';
+import { capture, expectAccessible, moduleCard, password, signIn } from './helpers';
 
 /**
  * Recorrido visible de G0 (primer incremento, «Evidencia para cerrar G0», punto 1) con las cuentas
@@ -25,7 +25,7 @@ async function switchTo(page: Page, workspace: string) {
 /** Del espacio a la app de Reactivos (ADR 0011): la tarjeta del Inicio abre su Resumen. */
 async function openReagents(page: Page, workspace: string) {
   await switchTo(page, workspace);
-  await page.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await (await moduleCard(page, 'Reactivos')).click();
   await expect(page.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
 }
 
@@ -280,7 +280,7 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
   // ADR 0011, cambio del 05-10-2026: el espacio vive en la barra lateral; arriba, dónde se está.
   await expect(owner.getByRole('complementary')).toContainText('Facultad de Ciencias');
   await expect(owner.getByRole('complementary')).toContainText('Propietario');
-  await owner.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await (await moduleCard(owner, 'Reactivos')).click();
   await expect(owner.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
   const topBar = owner.getByRole('banner');
   await expect(topBar).toContainText('Reactivos', { useInnerText: true });
@@ -302,14 +302,14 @@ test('C sin Reactivos no lo ve; la propietaria opera como Administradora sin rol
 test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', async ({ browser }) => {
   const operator = await signIn(browser, 'operador@demo.platlab.test', { width: 360, height: 780 });
   await switchTo(operator, 'Instituto de Biotecnología');
-  await expect(operator.getByRole('link', { name: 'Abrir Reactivos' })).toBeVisible();
+  await expect(await moduleCard(operator, 'Reactivos')).toBeVisible();
   await expect(operator.getByText('Instituto de Biotecnología').filter({ visible: true })).toBeVisible();
   await expectAccessible(operator, 'inicio móvil');
   expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await capture(operator, 'mobile-home');
 
   // La tarjeta abre el Resumen; su acción rápida, «Escanear», abre la hoja del lector.
-  await operator.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await (await moduleCard(operator, 'Reactivos')).click();
   await expect(operator.getByRole('heading', { name: 'Actividad reciente' })).toBeVisible();
   await expectAccessible(operator, 'resumen móvil');
   expect(await operator.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -357,13 +357,13 @@ test('en el móvil, el Inicio y la app de Reactivos se adaptan desde 360 px', as
 test('en tableta (820 px), Inicio y la app conservan la barra lateral y usan listas sin desplazarse en horizontal', async ({ browser }) => {
   const admin = await signIn(browser, 'admin@demo.platlab.test', { width: 820, height: 1180 });
   await switchTo(admin, 'Facultad de Ciencias');
-  await expect(admin.getByRole('link', { name: 'Abrir Reactivos' })).toBeVisible();
+  await expect(await moduleCard(admin, 'Reactivos')).toBeVisible();
   await expect(admin.getByRole('complementary')).toBeVisible();
   expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expectAccessible(admin, 'inicio tableta');
   await capture(admin, 'tablet-home');
 
-  await admin.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await (await moduleCard(admin, 'Reactivos')).click();
   await expect(admin.getByRole('heading', { name: 'Reactivos', level: 1 })).toBeVisible();
   await expect(admin.getByRole('button', { name: 'Escanear', exact: true })).toBeVisible();
   expect(await admin.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -389,7 +389,7 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
   await expect(admin.getByText(/\d+ salidas? en los últimos 30 días/)).toBeVisible();
   await capture(admin, 'desktop-home');
 
-  await admin.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await (await moduleCard(admin, 'Reactivos')).click();
   await expect(admin.getByRole('heading', { name: 'Salidas por día' })).toBeVisible();
   const chart = admin.getByRole('group', { name: /Salidas por día, últimos 30 días: \d+ salidas en total/ });
   // Teclado: Fin lleva al día de hoy, que se anuncia y se muestra igual que con el puntero.
@@ -971,8 +971,8 @@ test('listas de la hoja de salida: la Administradora quita un motivo con la pape
 test('sin permiso: el docente que abre Reactivos por URL ve «Sin permiso»', async ({ browser }) => {
   const teacher = await signIn(browser, 'docente@demo.platlab.test');
   // Con Equipos el docente solo reporta fallas (ADR 0019): ve su tarjeta, pero no la de Reactivos.
-  await expect(teacher.getByRole('link', { name: 'Abrir Equipos' })).toBeVisible();
-  await expect(teacher.getByRole('link', { name: 'Abrir Reactivos' })).toHaveCount(0);
+  await expect(await moduleCard(teacher, 'Equipos')).toBeVisible();
+  await expect(await moduleCard(teacher, 'Reactivos')).toHaveCount(0);
   await teacher.goto(`${teacher.url()}/reactivos`);
   await expect(teacher.getByRole('heading', { name: 'Sin permiso' })).toBeVisible();
   await expect(teacher.getByRole('button', { name: /Registrar/ })).toHaveCount(0);
@@ -1009,7 +1009,7 @@ test('error: un fallo del servidor muestra «Reintentar» y al reintentar se rec
     await route.fulfill({ response, status: 500, json: { error: { code: 'INTERNAL', message: 'Fallo simulado' } } });
   });
   await switchTo(admin, 'Facultad de Ciencias');
-  await admin.getByRole('link', { name: 'Abrir Reactivos' }).click();
+  await (await moduleCard(admin, 'Reactivos')).click();
   await expect(admin.getByText('No pudimos cargar esta información')).toBeVisible();
   await expectAccessible(admin, 'error');
 

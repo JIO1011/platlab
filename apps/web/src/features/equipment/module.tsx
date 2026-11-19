@@ -39,6 +39,9 @@ export const equipmentWebModule: WebModule = {
       requester: (n) => pendingFaultsText(n, false),
     },
     trendNoun: { one: 'cambio', many: 'cambios' },
+    tasks: {
+      unattendedFaults: { label: (n) => (n === 1 ? 'falla sin atender' : 'fallas sin atender'), href: 'equipos/incidentes' },
+    },
   },
   // Equipos activos de un área (su inventario) o de un departamento (el Informe filtrado) (ADR 0024).
   areas: {

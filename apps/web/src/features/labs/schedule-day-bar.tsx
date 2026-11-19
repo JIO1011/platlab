@@ -4,7 +4,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { addDays, countText, formatFullDate, formatWeekday } from '../../app/format';
 import { CalendarPicker } from './schedule-calendar';
-import { weekCaption, weekDates } from './schedule-grid';
+import { weekCaption } from './schedule-grid';
+import { weekDates } from '../../app/calendar';
 import { softCard } from './style';
 
 /**

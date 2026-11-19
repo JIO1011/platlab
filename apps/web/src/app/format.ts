@@ -85,6 +85,9 @@ export function daysBetween(from: string, to: string): number {
 }
 
 /** «1 equipo», «3 equipos»: la cuenta con su unidad en singular o plural. */
+/** La misma frase con mayúscula inicial: «jueves, 19 de noviembre» → «Jueves, 19 de noviembre». */
+export const upperFirst = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
 export function countText(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
