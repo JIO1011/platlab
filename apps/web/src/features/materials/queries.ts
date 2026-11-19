@@ -10,7 +10,7 @@ import {
   memberList,
   type MaterialClass,
 } from '@platlab/contracts';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { queryOptions, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../app/api';
 import { jitteredPoll, useUserKey, workspaceKey } from '../../app/queries';
 
@@ -82,14 +82,23 @@ export function useMaterial(workspaceId: string, productId: string | null) {
   });
 }
 
+const stockOptions = (user: string, workspaceId: string, productId: string) =>
+  queryOptions({
+    queryKey: [...materialsKey(user, workspaceId), 'stock', productId],
+    queryFn: () => api(`${base(workspaceId)}/stock?productId=${productId}&limit=100`, { schema: materialStockList }),
+  });
+
 /** Lo que un material tiene en cada ubicación: de aquí salen las posiciones de salidas, ajustes y préstamos. */
 export function useStock(workspaceId: string, productId: string | null) {
   const user = useUserKey();
-  return useQuery({
-    queryKey: [...materialsKey(user, workspaceId), 'stock', productId],
-    queryFn: () => api(`${base(workspaceId)}/stock?productId=${productId ?? ''}&limit=100`, { schema: materialStockList }),
-    enabled: productId !== null,
-  });
+  return useQuery({ ...stockOptions(user, workspaceId, productId ?? ''), enabled: productId !== null });
+}
+
+/** Pide las existencias por ubicación de un material justo cuando se necesitan (tocar su mosaico en «Nuevo préstamo»). */
+export function useFetchStock(workspaceId: string) {
+  const user = useUserKey();
+  const client = useQueryClient();
+  return (productId: string) => client.fetchQuery({ ...stockOptions(user, workspaceId, productId), staleTime: 5_000 });
 }
 
 /** Ubicaciones activas donde el miembro puede ingresar. */
