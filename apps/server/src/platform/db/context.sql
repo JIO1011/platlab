@@ -13,3 +13,7 @@ SELECT
 SELECT
   set_config('platlab.identity_id', :identityId!, true) AS identity_id,
   set_config('platlab.principal_id', :principalId!, true) AS principal_id;
+
+/* @name setAuthEmail */
+-- Correo del JWT (ADR 0027): solo lo leen las políticas de invitaciones para mostrar las propias.
+SELECT set_config('platlab.auth_email', :authEmail!, true) AS auth_email;

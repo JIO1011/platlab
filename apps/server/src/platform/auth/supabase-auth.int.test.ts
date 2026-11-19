@@ -53,7 +53,8 @@ describe('Supabase Auth local', () => {
       alg: 'ES256',
       kid: expect.any(String),
     });
-    await expect(verifyToken(session.access_token)).resolves.toEqual({ subject: session.user.id });
+    // Supabase Auth incluye el correo de la cuenta: con él se encuentra la lista blanca (ADR 0027).
+    await expect(verifyToken(session.access_token)).resolves.toEqual({ subject: session.user.id, email: session.user.email });
   });
 
   it('la API reconoce la identidad del token real y lista sus espacios', async () => {

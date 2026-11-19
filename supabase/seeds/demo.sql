@@ -6,7 +6,9 @@
 --   operador@demo.platlab.test     Óscar Operador: Operador en A; propietario y Administrador en B.
 --   propietaria@demo.platlab.test  Paula Propietaria: propietaria de A, sin rol asignado; opera con los
 --                                  permisos del Administrador por ser propietaria (ADR 0008, 02-10-2026).
---   docente@demo.platlab.test      Diego Docente: Docente en A, sin permisos de Reactivos.
+--   docente@demo.platlab.test      Diego Docente: Docente en A, sin permisos de Reactivos; sin entrar hace 45 días.
+--   estudiante@demo.platlab.test   Elena Estudiante: en la lista blanca de A como Estudiante, pendiente de unirse.
+--   visita@demo.platlab.test       Víctor Visita: en la lista blanca de A como Visita, pendiente de unirse.
 --
 -- Espacios: A con Reactivos, Equipos, Mantenimiento y Laboratorios (30 días de historial y 12 equipos),
 -- B con Reactivos y existencias propias; C sin módulos.
@@ -30,7 +32,9 @@ select '00000000-0000-0000-0000-000000000000', u.id, 'authenticated', 'authentic
     ('d0000000-0000-4000-8000-000000000001'::uuid, 'admin@demo.platlab.test', 'Ana Administradora'),
     ('d0000000-0000-4000-8000-000000000002'::uuid, 'operador@demo.platlab.test', 'Óscar Operador'),
     ('d0000000-0000-4000-8000-000000000003'::uuid, 'propietaria@demo.platlab.test', 'Paula Propietaria'),
-    ('d0000000-0000-4000-8000-000000000004'::uuid, 'docente@demo.platlab.test', 'Diego Docente')
+    ('d0000000-0000-4000-8000-000000000004'::uuid, 'docente@demo.platlab.test', 'Diego Docente'),
+    ('d0000000-0000-4000-8000-000000000005'::uuid, 'estudiante@demo.platlab.test', 'Elena Estudiante'),
+    ('d0000000-0000-4000-8000-000000000006'::uuid, 'visita@demo.platlab.test', 'Víctor Visita')
   ) as u (id, email, name);
 
 insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
@@ -38,7 +42,8 @@ select u.id::text, u.id, jsonb_build_object('sub', u.id::text, 'email', u.email,
        'email', now(), now(), now()
   from auth.users as u
  where u.id in ('d0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000002',
-                'd0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000004');
+                'd0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000004',
+                'd0000000-0000-4000-8000-000000000005', 'd0000000-0000-4000-8000-000000000006');
 
 -- ---------------------------------------------------------------------------
 -- Core: titular, espacios, identidades, membresías, principales y ubicaciones
@@ -56,11 +61,11 @@ insert into core.workspaces (id, customer_account_id, code, name, institution_na
   ('db000000-0000-4000-8000-00000000000b', 'd1000000-0000-4000-8000-000000000001', 'demo-biotecnologia', 'Instituto de Biotecnología', 'Universidad Demo', 'America/Guayaquil'),
   ('dc000000-0000-4000-8000-00000000000c', 'd1000000-0000-4000-8000-000000000002', 'demo-investigacion', 'Centro de Investigación', 'Instituto Tecnológico Demo', 'America/Guayaquil');
 
-insert into core.identities (id, provider, provider_subject, display_name) values
-  ('d2000000-0000-4000-8000-000000000001', 'supabase', 'd0000000-0000-4000-8000-000000000001', 'Ana Administradora'),
-  ('d2000000-0000-4000-8000-000000000002', 'supabase', 'd0000000-0000-4000-8000-000000000002', 'Óscar Operador'),
-  ('d2000000-0000-4000-8000-000000000003', 'supabase', 'd0000000-0000-4000-8000-000000000003', 'Paula Propietaria'),
-  ('d2000000-0000-4000-8000-000000000004', 'supabase', 'd0000000-0000-4000-8000-000000000004', 'Diego Docente');
+insert into core.identities (id, provider, provider_subject, display_name, email) values
+  ('d2000000-0000-4000-8000-000000000001', 'supabase', 'd0000000-0000-4000-8000-000000000001', 'Ana Administradora', 'admin@demo.platlab.test'),
+  ('d2000000-0000-4000-8000-000000000002', 'supabase', 'd0000000-0000-4000-8000-000000000002', 'Óscar Operador', 'operador@demo.platlab.test'),
+  ('d2000000-0000-4000-8000-000000000003', 'supabase', 'd0000000-0000-4000-8000-000000000003', 'Paula Propietaria', 'propietaria@demo.platlab.test'),
+  ('d2000000-0000-4000-8000-000000000004', 'supabase', 'd0000000-0000-4000-8000-000000000004', 'Diego Docente', 'docente@demo.platlab.test');
 
 insert into core.memberships (id, workspace_id, identity_id) values
   ('da100000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'd2000000-0000-4000-8000-000000000001'),
@@ -104,6 +109,19 @@ insert into core.role_assignments (workspace_id, principal_id, role_code) values
   ('da000000-0000-4000-8000-00000000000a', 'da200000-0000-4000-8000-000000000004', 'teacher'),
   ('db000000-0000-4000-8000-00000000000b', 'db200000-0000-4000-8000-000000000002', 'admin'),
   ('dc000000-0000-4000-8000-00000000000c', 'dc200000-0000-4000-8000-000000000001', 'admin');
+
+-- Usuarios (ADR 0027): dos personas en la lista blanca de A, pendientes de unirse, y el último acceso de cada
+-- miembro; Diego no entra hace 45 días, así que aparece «Sin actividad».
+insert into core.invitations (workspace_id, email, display_name, role_code, invited_by_principal_id, invited_at) values
+  ('da000000-0000-4000-8000-00000000000a', 'estudiante@demo.platlab.test', 'Elena Estudiante', 'student',
+   'da200000-0000-4000-8000-000000000003', now() - interval '2 days'),
+  ('da000000-0000-4000-8000-00000000000a', 'visita@demo.platlab.test', 'Víctor Visita', 'visitor',
+   'da200000-0000-4000-8000-000000000003', now() - interval '1 day');
+
+insert into core.member_presence (workspace_id, membership_id, last_seen_at) values
+  ('da000000-0000-4000-8000-00000000000a', 'da100000-0000-4000-8000-000000000001', now() - interval '2 hours'),
+  ('da000000-0000-4000-8000-00000000000a', 'da100000-0000-4000-8000-000000000002', now() - interval '3 days'),
+  ('da000000-0000-4000-8000-00000000000a', 'da100000-0000-4000-8000-000000000004', now() - interval '45 days');
 
 -- ---------------------------------------------------------------------------
 -- Derechos: Reactivos para A y B por el comando contractual (T-04); C sin Reactivos

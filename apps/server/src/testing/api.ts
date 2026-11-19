@@ -30,14 +30,16 @@ interface Call {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
   body?: unknown;
   key?: string;
+  /** Correo de la cuenta en el JWT, para la lista blanca (ADR 0027). */
+  email?: string;
 }
 
-export async function call(subject: string, url: string, { method = 'GET', body, key }: Call = {}) {
+export async function call(subject: string, url: string, { method = 'GET', body, key, email }: Call = {}) {
   const response = await app.inject({
     method,
     url: `/v1${url}`,
     headers: {
-      authorization: `Bearer ${await signer.sign(subject)}`,
+      authorization: `Bearer ${await signer.sign(subject, email ? { claims: { email } } : {})}`,
       ...(key ? { 'idempotency-key': key } : {}),
     },
     ...(body === undefined ? {} : { payload: body as Record<string, unknown> }),

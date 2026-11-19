@@ -18,6 +18,8 @@ export const errorCodes = [
   'CODE_TAKEN',
   // El nombre ya es de otro reactivo activo, sin tildes ni mayúsculas (ADR 0015); el mensaje lo nombra.
   'NAME_TAKEN',
+  // El correo ya es de un miembro activo o ya está pendiente en la lista blanca (ADR 0027).
+  'EMAIL_TAKEN',
   // Otra persona ya aprobó, rechazó o canceló la solicitud (ADR 0012).
   'REQUEST_RESOLVED',
   // Otra persona cambió el recurso desde la versión que se editaba (errores estables de 02).

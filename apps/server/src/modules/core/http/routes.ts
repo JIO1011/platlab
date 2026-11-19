@@ -5,10 +5,14 @@ import {
   areaParams,
   assignAreaManagerRequest,
   calendarQuery,
+  changeMemberRoleRequest,
   createLocationRequest,
   departmentParams,
   departmentRequest,
+  invitationParams,
+  inviteMemberRequest,
   locationParams,
+  memberParams,
   renameLocationRequest,
   workspaceParams,
   type HomeAgendaResponse,
@@ -18,7 +22,7 @@ import {
   type MyWorkspacesResponse,
   type WorkspaceMeResponse,
 } from '@platlab/contracts';
-import { verifiedSubject } from '../../../platform/http/auth.js';
+import { verifiedEmail, verifiedSubject } from '../../../platform/http/auth.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import { listActiveMembers, listMemberRoles, listMyWorkspaces, withWorkspaceAccess, type WorkspaceAccess } from '../application/access.js';
 import { activeDepartments, archiveDepartment, createDepartment, renameDepartment } from '../application/departments.js';
@@ -31,6 +35,16 @@ import {
   type AreaContributions,
 } from '../application/organization.js';
 import { homeAgenda, homeCalendar, homeCards, homeTasks, type HomeModules } from '../application/home.js';
+import {
+  acceptInvitation,
+  changeMemberRole,
+  inviteMember,
+  listMyInvitations,
+  memberDirectory,
+  recordPresence,
+  revokeInvitation,
+  revokeMember,
+} from '../application/members.js';
 import { describeWorkspace, type WorkspaceView } from '../application/workspace-view.js';
 
 /** Rutas de Core bajo /v1; la autenticación la exige el ámbito que las registra. */
@@ -54,12 +68,24 @@ export function coreRoutes({
       return withWorkspaceAccess(
         pool,
         { subject: verifiedSubject(request), workspaceId, actionClass: 'read_export' },
-        async (access) => ({
-          workspace: access.workspace,
-          member: { principalId: access.principalId, displayName: access.displayName, isOwner: access.isOwner, roles: await listMemberRoles(access) },
-          ...(await describeWorkspace(access)),
-        }),
+        async (access) => {
+          // Abrir el espacio es su último acceso (ADR 0027).
+          await recordPresence(access);
+          return {
+            workspace: access.workspace,
+            member: { principalId: access.principalId, displayName: access.displayName, isOwner: access.isOwner, roles: await listMemberRoles(access) },
+            ...(await describeWorkspace(access)),
+          };
+        },
       );
+    });
+
+    // Usuarios (ADR 0027): quien fue invitado ve y acepta sus invitaciones por el correo de su sesión.
+    app.get('/me/invitations', async (request) => listMyInvitations(pool, verifiedSubject(request), verifiedEmail(request)));
+
+    app.post('/workspaces/:workspaceId/invitations/:invitationId/accept', async (request) => {
+      const { workspaceId, invitationId } = invitationParams.parse(request.params);
+      return acceptInvitation(pool, { subject: verifiedSubject(request), workspaceId, email: verifiedEmail(request) }, invitationId);
     });
 
     // Inicio (ADR 0026): cada panel es una consulta aparte, para que cargue y falle por separado.
@@ -146,6 +172,30 @@ export function coreRoutes({
       return areasCommand(pool, commandRequest(request), 'core.department.rename', { departmentId, name }, (access) =>
         renameDepartment(access, departmentId, name),
       );
+    });
+
+    // Usuarios (ADR 0027): solo el Propietario.
+    app.get(`${workspace}/members`, async (request) => memberDirectory(pool, queryRequest(request)));
+
+    app.post(`${workspace}/members`, async (request, reply) => {
+      const input = inviteMemberRequest.parse(request.body);
+      return reply.status(201).send(await inviteMember(pool, commandRequest(request), input));
+    });
+
+    app.patch(`${workspace}/members/:membershipId`, async (request) => {
+      const { membershipId } = memberParams.parse(request.params);
+      const { role } = changeMemberRoleRequest.parse(request.body);
+      return changeMemberRole(pool, commandRequest(request), membershipId, role);
+    });
+
+    app.post(`${workspace}/members/:membershipId/revoke`, async (request) => {
+      const { membershipId } = memberParams.parse(request.params);
+      return revokeMember(pool, commandRequest(request), membershipId);
+    });
+
+    app.post(`${workspace}/invitations/:invitationId/revoke`, async (request) => {
+      const { invitationId } = invitationParams.parse(request.params);
+      return revokeInvitation(pool, commandRequest(request), invitationId);
     });
 
     app.post(`${workspace}/departments/:departmentId/archive`, async (request) => {

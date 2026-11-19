@@ -28,3 +28,9 @@ export function verifiedSubject(request: FastifyRequest): string {
   if (!request.verifiedToken) throw new AppError('IDENTITY_INVALID', 'Identidad inválida');
   return request.verifiedToken.subject;
 }
+
+/** Correo de la sesión, solo para las invitaciones propias (ADR 0027); null si el JWT no lo trae. */
+export function verifiedEmail(request: FastifyRequest): string | null {
+  if (!request.verifiedToken) throw new AppError('IDENTITY_INVALID', 'Identidad inválida');
+  return request.verifiedToken.email;
+}
