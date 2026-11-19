@@ -42,9 +42,9 @@ function InvitationCard({ invitation }: { invitation: Invitation }) {
 
   return (
     <li className="rounded-card bg-surface p-5 shadow-raised">
-      <p className="text-xs font-semibold uppercase tracking-wider text-ink-subtle">{invitation.institution ?? 'Espacio de trabajo'}</p>
-      <p className="mt-1 text-lg font-semibold text-ink">{invitation.workspaceName}</p>
-      <p className="mt-1 text-sm text-ink-muted">Te agregaron como {roleLabel(invitation.role)}.</p>
+      <p className="text-lg font-semibold text-ink">{invitation.workspaceName}</p>
+      {invitation.institution ? <p className="text-sm text-ink-muted">{invitation.institution}</p> : null}
+      <p className="mt-2 text-sm text-ink">Te agregaron como {roleLabel(invitation.role)}.</p>
       {error ? (
         <p role="alert" className="mt-3 text-sm text-danger">
           {error}

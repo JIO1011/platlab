@@ -231,7 +231,9 @@ export function UsersPage() {
         ) : (
           <>
             <div className="-mx-1 overflow-x-auto px-1 pb-1">
+              {/* Ancho natural: en el móvil las cuatro vistas se desplazan en lugar de partirse en líneas. */}
               <Segmented<UsersView>
+                className="w-max"
                 label="Vista"
                 value={view}
                 onValueChange={changeView}
