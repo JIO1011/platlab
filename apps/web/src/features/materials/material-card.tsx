@@ -1,11 +1,11 @@
 import type { StockedMaterial } from '@platlab/contracts';
-import { Badge, IconChip, Quantity, StockLevelBar, cn } from '@platlab/ui';
-import { CircleAlert, MapPin, PackageOpen, Repeat2, ScanBarcode, TrendingDown } from 'lucide-react';
+import { Badge, Quantity, cn } from '@platlab/ui';
+import { CircleAlert, MapPin, TrendingDown } from 'lucide-react';
 import { CodeTag } from '../../app/code-tag';
 import { ModuleMark } from '../../app/module-mark';
+import { MaterialThumb } from './material-thumb';
+import { SegmentBar } from './segment-bar';
 import { classLabels, materialLevel } from './text';
-
-const classIcons = { consumable: PackageOpen, reusable_counted: Repeat2, reusable_identified: ScanBarcode } as const;
 
 /**
  * Un material en su tarjeta (ADR 0025), con la forma de la de Reactivos: la clase con su icono, el nombre y su código;
@@ -23,7 +23,7 @@ export function MaterialCard({ material, onOpen }: { material: StockedMaterial; 
         className="pointer-events-none absolute -bottom-4 -right-3 size-24 rotate-12 text-surface-sunken transition-[color,transform] duration-500 group-hover:text-action-soft motion-safe:group-hover:scale-110"
       />
       <div className="relative flex min-w-0 items-center gap-2.5">
-        <IconChip icon={classIcons[material.class]} tone={empty ? 'neutral' : 'accent'} size="sm" />
+        <MaterialThumb name={material.name} materialClass={material.class} className="size-11 [&>svg]:size-5" />
         <div className="grid min-w-0 gap-0.5">
           <p className="text-[11px] font-semibold uppercase leading-none tracking-wide text-ink-muted">{classLabels[material.class]}</p>
           <CodeTag className="w-fit max-w-full truncate bg-transparent p-0 text-[11px]">{material.code}</CodeTag>
@@ -73,7 +73,7 @@ export function MaterialCard({ material, onOpen }: { material: StockedMaterial; 
             ) : null}
           </div>
         </div>
-        {level.percent === null ? null : <StockLevelBar percent={level.percent} label={`${level.measure}: ${level.percent} %`} hasStock={!empty} />}
+        {level.percent === null ? null : <SegmentBar percent={level.percent} label={`${level.measure}: ${level.percent} %`} hasStock={!empty} />}
         <p className="text-[13px] text-ink-muted">{level.note}</p>
       </div>
     </li>

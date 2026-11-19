@@ -53,6 +53,8 @@ WHERE i.workspace_id = :workspaceId!
   AND i.archived_at IS NULL
   AND (:productId::uuid IS NULL OR i.id = :productId::uuid)
   AND (:class::text IS NULL OR m.class = :class::text)
+  -- Con :stock = 'below-minimum', solo los que tienen mínimo y una existencia total menor que él.
+  AND (:stock::text IS NULL OR (:stock::text = 'below-minimum' AND i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity))
   -- Con :areaId, solo los materiales con existencia en esa área (en cualquiera de sus ubicaciones).
   AND (:areaId::uuid IS NULL OR EXISTS (
          SELECT 1

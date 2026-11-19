@@ -46,9 +46,9 @@ export const materialMinimumResponse = z.object({ productId: z.uuid(), minimum: 
 
 export const materialParams = z.object({ workspaceId: z.uuid(), productId: z.uuid() });
 
-/** `q`: busca en nombre o código, sin distinguir mayúsculas ni tildes; `class`, deja solo una clase; `areaId`, solo lo que tiene existencia en esa área. */
+/** `q`: busca en nombre o código, sin distinguir mayúsculas ni tildes; `class`, deja solo una clase; `areaId`, solo lo que tiene existencia en esa área; `stock=below-minimum`, solo lo que está bajo su mínimo. */
 export const materialListQuery = z
-  .object({ ...page, q: z.string().trim().min(2).max(100).optional(), class: materialClass.optional(), areaId: z.uuid().optional() })
+  .object({ ...page, q: z.string().trim().min(2).max(100).optional(), class: materialClass.optional(), areaId: z.uuid().optional(), stock: z.enum(['below-minimum']).optional() })
   .strict();
 
 /** Material con su total en todas las ubicaciones, lo prestado y si está bajo su mínimo. */

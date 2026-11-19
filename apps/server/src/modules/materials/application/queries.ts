@@ -38,7 +38,7 @@ const toStockedMaterial = (row: IListMaterialsResult): StockedMaterial => ({
   belowMinimum: row.below_minimum,
 });
 
-const catalogPage = (access: Parameters<typeof inventoryContext>[0], params: { productId: string | null; q: string | null; materialClass: MaterialClass | null; areaId: string | null; after: string[] | null; limit: number }) =>
+const catalogPage = (access: Parameters<typeof inventoryContext>[0], params: { productId: string | null; q: string | null; materialClass: MaterialClass | null; areaId: string | null; stock: 'below-minimum' | null; after: string[] | null; limit: number }) =>
   listMaterials.run(
     {
       workspaceId: access.workspace.id,
@@ -46,6 +46,7 @@ const catalogPage = (access: Parameters<typeof inventoryContext>[0], params: { p
       q: params.q,
       class: params.materialClass,
       areaId: params.areaId,
+      stock: params.stock,
       afterCode: params.after?.[0] ?? null,
       afterId: params.after?.[1] ?? null,
       limit: params.limit,
@@ -61,6 +62,7 @@ export function listProducts(pool: pg.Pool, request: QueryRequest, query: z.infe
       q: query.q ?? null,
       materialClass: query.class ?? null,
       areaId: query.areaId ?? null,
+      stock: query.stock ?? null,
       after: decodeCursor(query.cursor, 2),
       limit: query.limit + 1,
     });
@@ -76,7 +78,7 @@ export function listProducts(pool: pg.Pool, request: QueryRequest, query: z.infe
 /** Ficha de un material: su total y si su unidad aún puede cambiar. */
 export function getProduct(pool: pg.Pool, request: QueryRequest, productId: string): Promise<MaterialDetail> {
   return runQuery(pool, request, async (access) => {
-    const [row] = await catalogPage(access, { productId, q: null, materialClass: null, areaId: null, after: null, limit: 1 });
+    const [row] = await catalogPage(access, { productId, q: null, materialClass: null, areaId: null, stock: null, after: null, limit: 1 });
     if (!row) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
     return { ...toStockedMaterial(row), unitEditable: await unitEditable(access, productId) };
   });

@@ -38,6 +38,8 @@ export interface MaterialFilters {
   materialClass: MaterialClass | null;
   /** Solo lo que tiene existencia en esa área (ubicación de primer nivel). */
   areaId: string | null;
+  /** `below-minimum`: solo lo que está bajo su mínimo. */
+  stock: 'below-minimum' | null;
 }
 
 /** El catálogo con sus existencias, por páginas; `q` busca desde 2 letras. */
@@ -45,13 +47,14 @@ export function useMaterialPage(workspaceId: string, filters: MaterialFilters, e
   const user = useUserKey();
   const q = filters.q.trim().length >= 2 ? filters.q.trim() : '';
   return useInfiniteQuery({
-    queryKey: [...materialsKey(user, workspaceId), 'products', q, filters.materialClass, filters.areaId],
+    queryKey: [...materialsKey(user, workspaceId), 'products', q, filters.materialClass, filters.areaId, filters.stock],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams();
       if (q) params.set('q', q);
       if (filters.materialClass) params.set('class', filters.materialClass);
       if (filters.areaId) params.set('areaId', filters.areaId);
+      if (filters.stock) params.set('stock', filters.stock);
       if (pageParam) params.set('cursor', pageParam);
       return api(`${base(workspaceId)}/products?${params}`, { schema: materialList });
     },

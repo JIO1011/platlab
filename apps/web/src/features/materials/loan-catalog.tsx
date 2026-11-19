@@ -12,7 +12,7 @@ import { useMaterialPage } from './queries';
  */
 export function LoanCatalog({ workspaceId, inTicket, onPick }: { workspaceId: string; inTicket: ReadonlyMap<string, string>; onPick: (material: StockedMaterial) => void }) {
   const [search, setSearch] = useState('');
-  const found = useMaterialPage(workspaceId, { q: search, materialClass: 'reusable_counted', areaId: null });
+  const found = useMaterialPage(workspaceId, { q: search, materialClass: 'reusable_counted', areaId: null, stock: null });
   const items = found.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (

@@ -330,5 +330,10 @@ describe('resumen, ubicaciones y clases', () => {
     expect(found.find((item) => item.id === supply.id)?.locationNames).toEqual([nameOf(fresh.shelf)]);
     expect(found.some((item) => item.id === empty.id)).toBe(false);
     expect(await inArea('00000000-0000-4000-8000-000000000000')).toEqual([]);
+
+    // «Bajo mínimo»: con mínimo de 20 y 10 en existencia, los guantes entran; las probetas, sin mínimo, no.
+    await call(fresh.adminMember.subject, `${fresh.base}/products/${supply.id}/minimum`, { method: 'PUT', body: { minimum: '20' } });
+    const below = materialList.parse((await call(fresh.operator.subject, `${fresh.base}/products?stock=below-minimum`)).body).items;
+    expect(below.map((item) => item.id)).toEqual([supply.id]);
   });
 });
