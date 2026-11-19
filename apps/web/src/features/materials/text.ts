@@ -14,21 +14,16 @@ import { countText, daysBetween, formatDate } from '../../app/format';
 
 /** Los textos de Materiales (ADR 0025): cómo se llama cada clase y cómo se lee un vale. */
 
-/** «Insumo» se gasta; «Reutilizable» se presta y se devuelve (01 §3). */
+/** «Insumo» se gasta; «Material» se presta y se devuelve (ADR 0025). */
 export const classLabels: Record<MaterialClass, string> = {
   consumable: 'Insumo',
-  reusable_counted: 'Reutilizable',
-  reusable_identified: 'Reutilizable con código',
+  reusable_counted: 'Material',
 };
 
 export const classHints: Record<MaterialClass, string> = {
   consumable: 'Se gasta: guantes, puntas, papel filtro. Se ingresa, se da salida y tiene mínimo.',
   reusable_counted: 'Se presta y se devuelve por cantidad: vasos, pipetas, probetas.',
-  reusable_identified: 'Una unidad con su propio código.',
 };
-
-/** Las clases que hoy se registran desde la pantalla; la de unidades con código llega con su entrega (ADR 0025). */
-export const creatableClasses: MaterialClass[] = ['consumable', 'reusable_counted'];
 
 /** Cómo se nombra cada unidad al elegirla (ADR 0025, MA-01g): primero las de conteo, luego longitud, masa y volumen. */
 const unitNames: Record<MaterialUnit, string> = {
@@ -90,7 +85,7 @@ export const lentOut = (balance: string, available: string) => subtractDecimals(
 
 /**
  * Cómo se lee la existencia de un material en su tarjeta: un porcentaje para la barra, qué mide y una nota. El insumo se
- * mide contra su mínimo (la escala llega al doble: en el mínimo la barra queda a la mitad y en ámbar); el reutilizable,
+ * mide contra su mínimo (la escala llega al doble: en el mínimo la barra queda a la mitad y en ámbar); el material,
  * por lo que hay en el estante frente a lo que el espacio posee. Sin mínimo no hay barra que decir.
  */
 export interface MaterialLevel {

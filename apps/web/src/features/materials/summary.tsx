@@ -27,7 +27,7 @@ const toPeriod = (value: `${DashboardPeriod}`): DashboardPeriod => (value === '7
 
 /**
  * Resumen de Materiales como tablero (ADR 0025): el periodo se elige arriba y gobierna todo lo de abajo. Primero las cifras
- * con su cambio, luego los movimientos por semana junto al reparto del catálogo y los reutilizables en el estante; después lo
+ * con su cambio, luego los movimientos por semana junto al reparto del catálogo y el material en el estante; después lo
  * más usado, lo que se acaba pronto y lo que pide atención, y, para quien administra, quién presta más. Al cambiar de
  * periodo el tablero conserva lo anterior (atenuado) hasta que llega lo nuevo.
  */
@@ -104,7 +104,7 @@ export function MaterialsSummaryPage() {
                 <FlowChart weeks={data.weekly} />
               </DashCard>
               <div className="grid content-start gap-4 sm:gap-6">
-                <DashCard title="Reutilizables en el estante" hint="Lo que está en su sitio frente a lo que posee el espacio.">
+                <DashCard title="Material en el estante" hint="Lo que está en su sitio frente a lo que posee el espacio.">
                   <ShelfMeter shelf={data.shelf} />
                 </DashCard>
                 <DashCard title="Catálogo por clase">

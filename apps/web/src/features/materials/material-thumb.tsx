@@ -1,8 +1,8 @@
 import type { MaterialClass } from '@platlab/contracts';
 import { cn } from '@platlab/ui';
-import { PackageOpen, Repeat2, ScanBarcode } from 'lucide-react';
+import { PackageOpen, Repeat2 } from 'lucide-react';
 
-const classIcons = { consumable: PackageOpen, reusable_counted: Repeat2, reusable_identified: ScanBarcode } as const;
+const classIcons = { consumable: PackageOpen, reusable_counted: Repeat2 } as const;
 
 /** Un tono estable por material, en pasteles lejos del rojo (que en la interfaz significa alerta). */
 function tintOf(name: string): { background: string; color: string } {

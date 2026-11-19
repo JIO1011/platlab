@@ -2,12 +2,12 @@ import type { MaterialClass, MaterialsDashboard } from '@platlab/contracts';
 import { cn } from '@platlab/ui';
 import { classLabels } from '../text';
 
-/** Una pieza por clase: el insumo con el acento del módulo y el reutilizable en pizarra; el color sigue a la clase. */
-const fills: Partial<Record<MaterialClass, string>> = { consumable: 'bg-action', reusable_counted: 'bg-ink-muted', reusable_identified: 'bg-ink' };
+/** Una pieza por clase: el insumo con el acento del módulo y el material en pizarra; el color sigue a la clase. */
+const fills: Record<MaterialClass, string> = { consumable: 'bg-action', reusable_counted: 'bg-ink-muted' };
 
 /**
  * El catálogo por clase (ADR 0025): una barra segmentada con la parte de cada clase impresa en su pieza y, debajo, una
- * leyenda con los nombres y cuántos materiales son. Son dos o tres partes, así que no hace falta una dona.
+ * leyenda con los nombres y cuántos materiales son. Son dos partes, así que no hace falta una dona.
  */
 export function ClassSplit({ parts }: { parts: MaterialsDashboard['byClass'] }) {
   const total = parts.reduce((sum, part) => sum + part.materials, 0);

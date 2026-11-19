@@ -33,7 +33,7 @@ function Ranking({ rows, value, empty }: { rows: Usage[]; value: (row: Usage) =>
 }
 
 /**
- * Lo más usado del periodo (ADR 0025): los insumos por cuántas salidas tuvieron y los reutilizables por cuántas unidades
+ * Lo más usado del periodo (ADR 0025): los insumos por cuántas salidas tuvieron y el material por cuántas unidades
  * se prestaron. Cada material va en su propia unidad: no se comparan gramos con piezas.
  */
 export function TopUsed({ dashboard }: { dashboard: MaterialsDashboard }) {
@@ -44,14 +44,14 @@ export function TopUsed({ dashboard }: { dashboard: MaterialsDashboard }) {
           Insumos
         </TabsTrigger>
         <TabsTrigger value="reusables" className="h-8 rounded-full px-3.5 text-sm font-medium text-ink-muted data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-raised">
-          Reutilizables
+          Material
         </TabsTrigger>
       </TabsList>
       <TabsContent value="supplies">
         <Ranking rows={dashboard.topSupplies} value={(row) => row.events} empty="Aún no hubo salidas de insumos en este periodo." />
       </TabsContent>
       <TabsContent value="reusables">
-        <Ranking rows={dashboard.topReusables} value={(row) => Number(row.quantity)} empty="Aún no se prestó material reutilizable en este periodo." />
+        <Ranking rows={dashboard.topReusables} value={(row) => Number(row.quantity)} empty="Aún no se prestó material en este periodo." />
       </TabsContent>
     </Tabs>
   );

@@ -13,7 +13,7 @@ import { classLabels, expiryStatus, materialLevel } from './text';
 /**
  * Un material en su tarjeta (ADR 0025), con la forma de la de Reactivos: la clase con su icono, el nombre y su código;
  * debajo, lo disponible hoy en grande con su barra de nivel y una nota (el mínimo del insumo o lo prestado del
- * reutilizable). Toda la tarjeta abre su ficha, donde se ingresa, se da salida y se ajusta.
+ * material). Toda la tarjeta abre su ficha, donde se ingresa, se da salida y se ajusta.
  */
 export function MaterialCard({ material, onOpen }: { material: StockedMaterial; onOpen: () => void }) {
   const { me } = useMaterials();

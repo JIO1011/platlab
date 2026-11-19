@@ -6,8 +6,11 @@ import { list, page, text } from '../common.js';
 // Catálogo de Materiales (ADR 0025)
 // ---------------------------------------------------------------------------
 
-/** Consumible (se gasta), reutilizable por cantidad (se presta y se devuelve) o reutilizable identificado (una unidad con código). */
-export const materialClass = z.enum(['consumable', 'reusable_counted', 'reusable_identified']);
+/**
+ * Consumible, en pantalla «Insumo» (se gasta), o reutilizable por cantidad, en pantalla «Material» (se presta y se
+ * devuelve). Lo que se sigue unidad por unidad es un activo de Equipos (ADR 0025, 19-11-2026).
+ */
+export const materialClass = z.enum(['consumable', 'reusable_counted']);
 /**
  * Un consumible se cuenta en la unidad con que se entrega (pieza, par, caja, rollo…), o se mide en masa, volumen o
  * metros; un reutilizable siempre se cuenta en piezas. Sin conversión entre ellas (ADR 0025, MA-01g).
@@ -28,7 +31,7 @@ export const classViolation = (fields: {
   tracksExpiry: boolean;
 }): { path: 'baseUnit' | 'tracksExpiry'; message: string } | null => {
   if (fields.class === 'consumable') return null;
-  if (fields.baseUnit !== 'u') return { path: 'baseUnit', message: 'Un material reutilizable se cuenta en piezas (u)' };
+  if (fields.baseUnit !== 'u') return { path: 'baseUnit', message: 'Un material que se presta se cuenta en piezas (u)' };
   if (fields.tracksExpiry) return { path: 'tracksExpiry', message: 'Solo un insumo que se gasta puede vencer' };
   return null;
 };

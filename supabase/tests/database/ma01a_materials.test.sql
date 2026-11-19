@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(9);
+select plan(10);
 
 grant usage on schema extensions to platlab_api;
 grant platlab_api to postgres with set true, inherit false;
@@ -51,7 +51,12 @@ select throws_ok(
 select throws_ok(
   $$ insert into materials.products (workspace_id, item_id, class)
      values ('a0000000-0000-4000-8000-00000000000a', 'a5000000-0000-4000-8000-000000000001', 'otra') $$,
-  '23514', null, 'la clase es una de las tres del ADR 0025');
+  '23514', null, 'la clase es una de las dos del ADR 0025');
+
+select throws_ok(
+  $$ insert into materials.products (workspace_id, item_id, class)
+     values ('a0000000-0000-4000-8000-00000000000a', 'a5000000-0000-4000-8000-000000000001', 'reusable_identified') $$,
+  '23514', null, 'ya no hay clase con código: lo que se sigue uno por uno es un activo de Equipos');
 
 select is(
   (select count(*)::int from materials.products), 1,

@@ -21,8 +21,7 @@ const EXPORT_BATCH = 500;
 
 const classLabel: Record<StockedMaterial['class'], string> = {
   consumable: 'Insumo',
-  reusable_counted: 'Reutilizable por cantidad',
-  reusable_identified: 'Reutilizable identificado',
+  reusable_counted: 'Material',
 };
 const outcomeLabel = { damaged: 'Dañado', lost: 'Perdido' } as const;
 const amount = (value: string | null): XlsxCell => (value === null ? null : { number: value });
