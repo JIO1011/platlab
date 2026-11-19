@@ -9,7 +9,6 @@ import {
   materialsSummary,
   materialStockList,
   materialMovementList,
-  materialsReport,
   memberList,
   type DashboardPeriod,
   type MaterialClass,
@@ -58,19 +57,25 @@ export interface MaterialFilters {
   stock: 'below-minimum' | 'expiring' | null;
 }
 
-/** El catálogo con sus existencias, por páginas; `q` busca desde 2 letras. */
+/** Los filtros del Inventario como parámetros (`q` desde 2 letras): los mismos para la lista y para su Excel. */
+export function materialSearch(filters: MaterialFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  const q = filters.q.trim();
+  if (q.length >= 2) params.set('q', q);
+  if (filters.materialClass) params.set('class', filters.materialClass);
+  if (filters.areaId) params.set('areaId', filters.areaId);
+  if (filters.stock) params.set('stock', filters.stock);
+  return params;
+}
+
+/** El catálogo con sus existencias, por páginas. */
 export function useMaterialPage(workspaceId: string, filters: MaterialFilters, enabled = true) {
   const user = useUserKey();
-  const q = filters.q.trim().length >= 2 ? filters.q.trim() : '';
   return useInfiniteQuery({
-    queryKey: [...materialsKey(user, workspaceId), 'products', q, filters.materialClass, filters.areaId, filters.stock],
+    queryKey: [...materialsKey(user, workspaceId), 'products', materialSearch(filters).toString()],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => {
-      const params = new URLSearchParams();
-      if (q) params.set('q', q);
-      if (filters.materialClass) params.set('class', filters.materialClass);
-      if (filters.areaId) params.set('areaId', filters.areaId);
-      if (filters.stock) params.set('stock', filters.stock);
+      const params = materialSearch(filters);
       if (pageParam) params.set('cursor', pageParam);
       return api(`${base(workspaceId)}/products?${params}`, { schema: materialList });
     },
@@ -169,16 +174,6 @@ export function useBorrowers(workspaceId: string, enabled: boolean) {
     queryFn: () => api(`${base(workspaceId)}/borrowers`, { schema: memberList }),
     enabled,
     staleTime: 60_000,
-  });
-}
-
-/** El estado por clase de Informes (MA-01d). */
-export function useMaterialsReport(workspaceId: string) {
-  const user = useUserKey();
-  return useQuery({
-    queryKey: [...materialsKey(user, workspaceId), 'report'],
-    queryFn: () => api(`${base(workspaceId)}/report`, { schema: materialsReport }),
-    refetchInterval: jitteredPoll,
   });
 }
 

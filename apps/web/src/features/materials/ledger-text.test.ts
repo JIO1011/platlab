@@ -32,7 +32,8 @@ describe('textos del libro', () => {
   });
   it('pone los filtros en palabras para la hoja impresa', () => {
     expect(ledgerFilterLines({})).toEqual([]);
-    expect(ledgerFilterLines({ kind: 'issue', purpose: 'practice', from: '2026-11-01', q: 'guantes' })).toEqual([
+    expect(ledgerFilterLines({ productId: 'x', kind: 'issue', purpose: 'practice', from: '2026-11-01', q: 'guantes' }, 'Guantes M')).toEqual([
+      'Material: Guantes M',
       'Movimiento: Salida',
       'Periodo: 1 nov 2026 a hoy',
       'Tipo de salida: Práctica',

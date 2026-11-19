@@ -26,9 +26,10 @@ export function movementNote(row: MaterialMovement): string | null {
 /** La referencia y la persona en una línea: «P-0043 · Diego Docente». */
 export const movementReference = (row: MaterialMovement) => [row.reference, row.person].filter(Boolean).join(' · ') || '—';
 
-/** Los filtros del libro en palabras, para la hoja impresa: «Movimiento: Salida», «Periodo: 1 nov 2026 a hoy». */
-export function ledgerFilterLines(filters: MaterialMovementFilters): string[] {
+/** Los filtros del libro en palabras, para la hoja impresa: «Material: Guantes», «Movimiento: Salida», «Periodo: …». */
+export function ledgerFilterLines(filters: MaterialMovementFilters, materialName?: string): string[] {
   const lines: string[] = [];
+  if (filters.productId) lines.push(`Material: ${materialName ?? 'el elegido'}`);
   if (filters.kind) lines.push(`Movimiento: ${materialMovementKindLabel[filters.kind]}`);
   if (filters.from || filters.to) {
     lines.push(`Periodo: ${filters.from ? formatDate(filters.from) : 'el inicio'} a ${filters.to ? formatDate(filters.to) : 'hoy'}`);

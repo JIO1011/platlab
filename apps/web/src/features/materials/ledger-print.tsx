@@ -16,13 +16,24 @@ const columns = ['Fecha', 'Movimiento', 'Código', 'Material', 'Ubicación', 'Ca
  * apaisada con todas las páginas de la consulta actual (hasta 1.000 renglones). Es el mismo caché que la lista: no
  * pide nada nuevo, solo termina de cargarla.
  */
-export function LedgerPrint({ movements, filters, onClose }: { movements: ReturnType<typeof useMovementPage>; filters: MaterialMovementFilters; onClose: () => void }) {
+export function LedgerPrint({
+  movements,
+  filters,
+  materialName,
+  onClose,
+}: {
+  movements: ReturnType<typeof useMovementPage>;
+  filters: MaterialMovementFilters;
+  /** El nombre del material filtrado, para la línea de filtros. */
+  materialName: string | undefined;
+  onClose: () => void;
+}) {
   const { me } = useMaterials();
   const timeZone = me.workspace.timeZone;
   const [printedAt] = useState(() => new Date().toISOString());
   const { rows, loadedCount, hasMore, loadingMore } = usePrintRows(movements);
   const ready = movements.isSuccess && !movements.isPlaceholderData && !loadingMore;
-  const lines = ledgerFilterLines(filters);
+  const lines = ledgerFilterLines(filters, materialName);
   return (
     <PrintDialog
       workspaceName={me.workspace.name}
@@ -35,7 +46,7 @@ export function LedgerPrint({ movements, filters, onClose }: { movements: Return
         },
         { term: 'Impreso', detail: formatDateTime(printedAt, timeZone) },
       ]}
-      closeLabel="Volver a Informes"
+      closeLabel="Volver a Movimientos"
       loadingText={`Cargando movimientos… ${loadedCount}`}
       ready={ready}
       failed={movements.isError}

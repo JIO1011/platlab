@@ -19,8 +19,9 @@ export const materialsRoutes: ModuleRoutes = {
         { path: 'inventario', lazy: async () => ({ Component: (await pages()).MaterialsInventoryPage }) },
         // El mostrador: `?filtro=`, `?vale=` y `?nuevo=1`.
         { path: 'prestamos', lazy: async () => ({ Component: (await pages()).MaterialsLoansPage }) },
-        // El estado por clase y el libro de movimientos, para imprimir o bajar en Excel.
-        { path: 'informes', lazy: async () => ({ Component: (await pages()).MaterialsReportPage }) },
+        // El libro de movimientos, para imprimir o bajar en Excel; `?material=` lo deja en un material (desde su ficha).
+        { path: 'movimientos', lazy: async () => ({ Component: (await pages()).MaterialsMovementsPage }) },
+        // `inventario?material=` abre la ficha de ese material (desde el libro).
       ],
     },
   ],

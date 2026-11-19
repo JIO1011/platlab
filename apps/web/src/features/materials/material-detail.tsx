@@ -1,7 +1,8 @@
 import type { MaterialStockLine } from '@platlab/contracts';
 import { Badge, Button, Quantity, Sheet, Skeleton, StatePanel, sectionLabel } from '@platlab/ui';
-import { ArrowDownToLine, ArrowUpFromLine, BellRing, MapPinOff, Package, Pencil, SlidersHorizontal } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, BellRing, History, MapPinOff, Package, Pencil, SlidersHorizontal } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { CodeTag } from '../../app/code-tag';
 import { todayInZone } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
@@ -78,7 +79,8 @@ function StockRow({ line, unit, first, today, onMove }: { line: MaterialStockLin
  * ajustar, editar y fijar el mínimo. Cada acción abre su hoja encima; nada cambia hasta que el servidor confirma.
  */
 export function MaterialDetailSheet({ productId, open, onOpenChange }: { productId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
-  const { workspaceId, canManage, canReceive, me } = useMaterials();
+  const { workspaceId, base, canManage, canReceive, me } = useMaterials();
+  const navigate = useNavigate();
   const today = todayInZone(me.workspace.timeZone);
   const material = useMaterial(workspaceId, productId);
   const stock = useStock(workspaceId, productId);
@@ -108,6 +110,12 @@ export function MaterialDetailSheet({ productId, open, onOpenChange }: { product
         wide
         footer={
           <div className="flex w-full flex-wrap justify-end gap-2">
+            {data ? (
+              <Button variant="ghost" className="h-11 sm:mr-auto sm:h-10" onClick={() => navigate(`${base}/movimientos?material=${productId}`)}>
+                <History aria-hidden />
+                Movimientos
+              </Button>
+            ) : null}
             {canManage && data ? (
               <>
                 <Button className="h-11 sm:h-10" aria-haspopup="dialog" onClick={() => setMinimum({ n: (minimum?.n ?? 0) + 1, open: true })}>

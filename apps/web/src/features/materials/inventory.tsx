@@ -1,18 +1,21 @@
 import type { MaterialClass } from '@platlab/contracts';
-import { Button, Input, Segmented } from '@platlab/ui';
+import { Button, Input, Segmented, toast } from '@platlab/ui';
 import { MapPin, Plus, Search, X } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { ExportMenu } from '../../app/export-menu';
 import { FilterPill } from '../../app/filter-pill';
 import { countText } from '../../app/format';
 import { SectionHeader } from '../../app/section-header';
 import { AreasView } from './areas-view';
+import { materialsErrorMessage, useExportStock } from './commands';
 import { useMaterials } from './context';
+import { InventoryPrint } from './inventory-print';
 import { InventoryStats } from './inventory-stats';
 import { MaterialDetailSheet } from './material-detail';
 import { MaterialSheet } from './material-sheet';
 import { MaterialsResults } from './materials-results';
-import { useMaterialAreas, useMaterialPage, useMaterialsSummary } from './queries';
+import { useMaterialAreas, useMaterialPage, useMaterialsSummary, type MaterialFilters } from './queries';
 
 type View = 'list' | 'cards' | 'areas';
 /** `?vista=`: la lista es la vista por omisión y no escribe nada en la dirección. */
@@ -51,7 +54,7 @@ function AreaChip({ name, onRemove }: { name: string | undefined; onRemove: () =
  * se ingresa, se da salida y se ajusta. El Administrador registra materiales nuevos.
  */
 export function MaterialsInventoryPage() {
-  const { workspaceId, canManage } = useMaterials();
+  const { workspaceId, canManage, canReport } = useMaterials();
   const [params, setParams] = useSearchParams();
   const areaId = params.get('area');
   const requested = parseView(params.get('vista'));
@@ -63,20 +66,40 @@ export function MaterialsInventoryPage() {
   const toggleStock = (next: 'below-minimum' | 'expiring') => setStockFilter(stockFilter === next ? null : next);
   const summary = useMaterialsSummary(workspaceId).data;
   const areas = useMaterialAreas(workspaceId);
-  const materials = useMaterialPage(
-    workspaceId,
-    { q: search, materialClass: materialClass === 'all' ? null : materialClass, areaId, stock: stockFilter },
-    view !== 'areas',
-  );
+  const filters: MaterialFilters = { q: search, materialClass: materialClass === 'all' ? null : materialClass, areaId, stock: stockFilter };
+  const materials = useMaterialPage(workspaceId, filters, view !== 'areas');
+  const exportStock = useExportStock(workspaceId);
   const areaName = areas.data?.items.find((area) => area.id === areaId)?.name;
   const writeParams = (next: View, area: string | null) => {
     const vista = viewParam[next];
     setParams({ ...(vista ? { vista } : {}), ...(area ? { area } : {}) }, { replace: true });
   };
   const [form, setForm] = useState<{ n: number; open: boolean } | null>(null);
-  const [detail, setDetail] = useState<{ id: string; open: boolean } | null>(null);
+  // `?material=` abre la ficha de ese material: el enlace del libro de Movimientos.
+  const [detail, setDetail] = useState<{ id: string; open: boolean } | null>(() => {
+    const id = params.get('material');
+    return id ? { id, open: true } : null;
+  });
   const count = materials.data?.pages.reduce((total, page) => total + page.items.length, 0) ?? 0;
   const filtered = search.trim().length >= 2 || materialClass !== 'all' || areaId !== null || stockFilter !== null;
+
+  const filterLines = [
+    ...(search.trim().length >= 2 ? [`Búsqueda: «${search.trim()}»`] : []),
+    ...(materialClass === 'all' ? [] : [`Clase: ${classFilters.find((option) => option.value === materialClass)?.label ?? ''}`]),
+    ...(areaId ? [`Ubicación: ${areaName ?? 'el área elegida'}`] : []),
+    ...(stockFilter ? [stockFilter === 'below-minimum' ? 'Bajo mínimo' : 'Por vencer'] : []),
+  ];
+  // En «Por ubicación» no hay lista que exportar: se exporta desde la lista o las tarjetas.
+  const exportMenu =
+    view === 'areas' ? null : (
+      <ExportMenu
+        compact
+        disabled={materials.isPending}
+        pending={exportStock.isPending}
+        onExcel={canReport ? () => exportStock.mutate(filters, { onError: (error) => toast.error(materialsErrorMessage(error)) }) : null}
+        renderPrint={(onClose) => <InventoryPrint materials={materials} filterLines={filterLines} onClose={onClose} />}
+      />
+    );
 
   const create = canManage ? (
     <Button variant="primary" className="h-12 sm:h-10" aria-haspopup="dialog" onClick={() => setForm({ n: (form?.n ?? 0) + 1, open: true })}>
@@ -87,7 +110,16 @@ export function MaterialsInventoryPage() {
 
   return (
     <>
-      <SectionHeader title="Inventario" updatedAt={view === 'areas' ? areas.dataUpdatedAt : materials.dataUpdatedAt} actions={create} />
+      <SectionHeader
+        title="Inventario"
+        updatedAt={view === 'areas' ? areas.dataUpdatedAt : materials.dataUpdatedAt}
+        actions={
+          <>
+            {exportMenu}
+            {create}
+          </>
+        }
+      />
       <div className="mt-6 grid gap-4">
         <InventoryStats summary={summary} areas={areas.data?.items.length} />
         <Segmented

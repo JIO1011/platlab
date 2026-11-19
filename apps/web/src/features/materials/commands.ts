@@ -2,7 +2,7 @@ import { loan, material, materialMinimumResponse, materialMovementResponse, type
 import { isApiError } from '../../app/api';
 import { commonErrorMessage, useModuleCommand } from '../../app/commands';
 import { useFileDownload } from '../../app/save-file';
-import { movementSearch, useMaterialsKey } from './queries';
+import { materialSearch, movementSearch, useMaterialsKey, type MaterialFilters } from './queries';
 
 /**
  * Comandos de Materiales (ADR 0025): cada hoja abre el suyo, con su clave idempotente, y la pantalla cambia solo con
@@ -40,6 +40,10 @@ export const useReturn = (workspaceId: string, loanId: string) =>
 /** El Excel del libro con los filtros de la pantalla (MA-01d): es una consulta, sin clave idempotente. */
 export const useExportMovements = (workspaceId: string) =>
   useFileDownload((filters: MaterialMovementFilters) => `/workspaces/${workspaceId}/materials/movements/export?${movementSearch(filters)}`);
+
+/** El Excel de existencias con los filtros del Inventario: es una consulta, sin clave idempotente. */
+export const useExportStock = (workspaceId: string) =>
+  useFileDownload((filters: MaterialFilters) => `/workspaces/${workspaceId}/materials/stock/export?${materialSearch(filters)}`);
 
 export function materialsErrorMessage(error: unknown): string {
   if (isApiError(error, 'INSUFFICIENT_STOCK')) return 'No hay disponible suficiente. Revisa la cantidad: lo prestado no se puede sacar.';

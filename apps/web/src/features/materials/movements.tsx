@@ -1,27 +1,48 @@
 import { issuePurposeLabel, materialMovementKind, materialMovementKindLabel, type IssuePurpose, type MaterialMovementFilters, type MaterialMovementKind } from '@platlab/contracts';
 import { Button, Field, Input, Skeleton, StatePanel, toast } from '@platlab/ui';
-import { ScrollText, Search, SearchX } from 'lucide-react';
+import { Package, ScrollText, Search, SearchX, X } from 'lucide-react';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { ExportMenu } from '../../app/export-menu';
 import { FilterPill } from '../../app/filter-pill';
 import { SectionHeader } from '../../app/section-header';
 import { QueryErrorState } from '../../app/states';
-import { ClassReport } from './class-report';
 import { materialsErrorMessage, useExportMovements } from './commands';
 import { useMaterials } from './context';
 import { LedgerPrint } from './ledger-print';
 import { LedgerTable } from './ledger-table';
-import { useMaterialsReport, useMovementPage } from './queries';
+import { useMaterial, useMovementPage } from './queries';
 
 const purposes: IssuePurpose[] = ['practice', 'clinic', 'general'];
 
+/** El material al que se limita el libro («Material: Guantes»): se quita con un toque. */
+function MaterialChip({ name, onRemove }: { name: string | undefined; onRemove: () => void }) {
+  const text = name ? `Material: ${name}` : 'Material';
+  return (
+    <button
+      type="button"
+      onClick={onRemove}
+      aria-label={`Quitar filtro ${text}`}
+      className="inline-flex h-9 w-fit max-w-full items-center gap-1.5 rounded-full border border-action/40 bg-surface px-3.5 text-sm font-medium text-action transition-colors hover:bg-action-soft"
+    >
+      <Package className="size-3.5 shrink-0" aria-hidden />
+      <span className="truncate">{text}</span>
+      <X className="size-3.5 shrink-0" aria-hidden />
+    </button>
+  );
+}
+
 /**
- * Informes de Materiales (MA-01d, ADR 0025): arriba el estado por clase, hoy; debajo, el libro completo de movimientos
- * (ingreso, salida, préstamo, devolución, baja y ajuste) con su cantidad con signo, filtrado por movimiento, tipo de
- * salida, periodo y búsqueda. «Exportar» imprime lo filtrado o, para quien administra, lo baja en Excel.
+ * Movimientos de Materiales (MA-01d, ADR 0025): el libro completo (ingreso, salida, préstamo, devolución, baja y ajuste)
+ * con su cantidad con signo, filtrado por movimiento, tipo de salida, periodo y búsqueda. `?material=` lo limita a un
+ * material (el enlace de su ficha); cada renglón abre la ficha del suyo. «Exportar» imprime lo filtrado o, para quien
+ * administra, lo baja en Excel.
  */
-export function MaterialsReportPage() {
-  const { workspaceId, me, canReport } = useMaterials();
+export function MaterialsMovementsPage() {
+  const { workspaceId, me, base, canReport } = useMaterials();
+  const [params, setParams] = useSearchParams();
+  const productId = params.get('material');
+  const material = useMaterial(workspaceId, productId);
   const [kind, setKind] = useState<MaterialMovementKind | null>(null);
   const [purpose, setPurpose] = useState<IssuePurpose | null>(null);
   const [from, setFrom] = useState('');
@@ -30,6 +51,7 @@ export function MaterialsReportPage() {
   const q = search.trim();
   const backwards = from !== '' && to !== '' && from > to;
   const filters: MaterialMovementFilters = {
+    ...(productId ? { productId } : {}),
     ...(kind ? { kind } : {}),
     ...(kind === 'issue' && purpose ? { purpose } : {}),
     ...(from ? { from } : {}),
@@ -37,7 +59,6 @@ export function MaterialsReportPage() {
     ...(q.length >= 2 ? { q } : {}),
   };
   const filtered = Object.keys(filters).length > 0;
-  const report = useMaterialsReport(workspaceId);
   const movements = useMovementPage(workspaceId, filters);
   const exportMovements = useExportMovements(workspaceId);
   const rows = movements.data?.pages.flatMap((page) => page.items) ?? [];
@@ -48,29 +69,17 @@ export function MaterialsReportPage() {
       disabled={movements.isPending}
       pending={exportMovements.isPending}
       onExcel={canReport ? () => exportMovements.mutate(filters, { onError: (error) => toast.error(materialsErrorMessage(error)) }) : null}
-      renderPrint={(onClose) => <LedgerPrint movements={movements} filters={filters} onClose={onClose} />}
+      renderPrint={(onClose) => <LedgerPrint movements={movements} filters={filters} materialName={material.data?.name} onClose={onClose} />}
     />
   );
 
   return (
     <>
-      <SectionHeader title="Informes" updatedAt={movements.dataUpdatedAt} actions={exportMenu} />
-      <div className="mt-6 grid gap-4 sm:gap-6">
-        {report.isPending ? (
-          <Skeleton className="h-32 rounded-card" />
-        ) : report.isError ? (
-          <div className="rounded-card bg-surface shadow-raised">
-            <QueryErrorState error={report.error} onRetry={() => void report.refetch()} />
-          </div>
-        ) : (
-          <ClassReport report={report.data} />
-        )}
-
-        <section aria-labelledby="ledger-title" className="overflow-hidden rounded-card bg-surface shadow-raised">
+      <SectionHeader title="Movimientos" updatedAt={movements.dataUpdatedAt} actions={exportMenu} />
+      <div className="mt-6">
+        <section aria-label="Libro de movimientos" className="overflow-hidden rounded-card bg-surface shadow-raised">
           <div className="grid gap-3 border-b border-line p-4 sm:p-5">
-            <h2 id="ledger-title" className="text-[15px] font-semibold text-ink">
-              Libro de movimientos
-            </h2>
+            {productId ? <MaterialChip name={material.data?.name} onRemove={() => setParams({}, { replace: true })} /> : null}
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Movimiento">
               <FilterPill label="Todos" active={kind === null} onToggle={() => setKind(null)} />
               {materialMovementKind.options.map((value) => (
@@ -120,7 +129,7 @@ export function MaterialsReportPage() {
             />
           ) : (
             <div className={`transition-opacity duration-200 ${movements.isPlaceholderData ? 'opacity-60' : ''}`}>
-              <LedgerTable rows={rows} timeZone={me.workspace.timeZone} />
+              <LedgerTable rows={rows} timeZone={me.workspace.timeZone} base={base} />
               {movements.hasNextPage ? (
                 <div className="flex justify-center border-t border-line p-4">
                   <Button className="h-11 sm:h-10" onClick={() => void movements.fetchNextPage()} disabled={movements.isFetchingNextPage}>
