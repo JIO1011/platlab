@@ -764,7 +764,8 @@ Aceptado el 19-11-2026. Adelanta la publicación que [02 §9](02_arquitectura.md
 - **Un solo origen, repartido por ruta** (`infra/cloudflared/platlab.example.yml`):
   - `/v1` va a la API.
   - De Auth local solo pasan `/auth/v1/token`, `/auth/v1/user` y `/auth/v1/logout`: entrar, renovar y salir. El registro, la recuperación y la administración responden 404.
-  - El resto va a la compilación de producción de la web (`vite preview`).
+  - La app atiende solo sus rutas y archivos: `/acceso`, `/espacios`, `/e/`, `/q/`, `/assets/` y `/ghs/`, con su compilación de producción (`vite preview`).
+  - **Todo lo demás, empezando por la portada, es el sitio de presentación** (`apps/site`, ADR 0030), servido desde su compilación estática (`scripts/serve-site.py`). Su «Iniciar sesión» lleva a `/acceso` (decisión del usuario del 19-11-2026).
   - Nada más de Supabase local queda expuesto, porque sus claves de desarrollo son públicas. La API solo acepta JWT asimétricos (ADR 0004).
 - **Abierta** (decisión del usuario del 19-11-2026). No hay Cloudflare Access: cualquiera entra con las cuentas de la demo, cuya contraseña está en el repositorio público.
   - Riesgo aceptado: un visitante puede cambiar los datos de la base local, sus invitaciones y usuarios, o la contraseña de una cuenta de la demo. Se restablece con `pnpm db:reset`.

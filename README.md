@@ -62,10 +62,10 @@ Para ver el ciclo de aprobación, abre dos sesiones (una ventana normal y otra d
 
 ## Demo en internet
 
-La demo está en **https://platlab.ohmroyal.org** mientras el equipo del Equipo PlatLab la tenga encendida ([ADR 0029](docs/05_decisiones.md#adr-0029)). Es abierta y con datos sintéticos.
+La demo está en **https://platlab.ohmroyal.org** mientras el equipo del Equipo PlatLab la tenga encendida ([ADR 0029](docs/05_decisiones.md#adr-0029)). La portada es el sitio de presentación. Es abierta y con datos sintéticos.
 
 **Para entrar:**
-1. Abre la dirección y entra con una de las [cuentas de la demo](#cuentas-de-la-demo). La contraseña de todas es `platlab-demo`.
+1. Abre la dirección y pulsa **«Iniciar sesión»** (o ve directo a https://platlab.ohmroyal.org/acceso). Entra con una de las [cuentas de la demo](#cuentas-de-la-demo). La contraseña de todas es `platlab-demo`.
 2. Para probar Usuarios, entra con `propietaria@demo.platlab.test`.
 3. Para unirte a un espacio, entra con `estudiante@demo.platlab.test` o con `visita@demo.platlab.test` y pulsa «Unirme».
 
@@ -78,9 +78,15 @@ No hay «Crear cuenta»: las cuentas las da el Equipo PlatLab. Cualquiera puede 
 | Una vez | Instala `cloudflared` (`sudo pacman -S cloudflared`) y ejecuta `cloudflared tunnel login`, eligiendo `ohmroyal.org` |
 | Una vez | `cloudflared tunnel create platlab-demo` y `cloudflared tunnel route dns platlab-demo platlab.ohmroyal.org` |
 | Una vez | Copia `infra/cloudflared/platlab.example.yml` a `~/.cloudflared/platlab.yml` con el ID del túnel |
-| Cada vez | `pnpm db:start` y luego `pnpm demo:online`, que compila la web, levanta la API y la web y abre el túnel. Ctrl+C la apaga |
+| Cada vez | `pnpm db:start` y luego `pnpm demo:online`, que compila la web y el sitio, levanta la API, la web y el sitio y abre el túnel. Ctrl+C la apaga. Para servir un sitio ya compilado en otra carpeta: `PLATLAB_SITE_DIR=<carpeta> pnpm demo:online` |
 
-El túnel reparte un solo dominio. `/v1` va a la API (puerto 3100). De Auth local solo pasan entrar, renovar la sesión y salir. El resto va a la web de producción (puerto 4180). No choca con el desarrollo (3000 y 5173) ni con `pnpm e2e`.
+El túnel reparte un solo dominio:
+- `/v1` va a la API (puerto 3100).
+- De Auth local solo pasan entrar, renovar la sesión y salir.
+- `/acceso`, `/espacios`, `/e/` y `/q/` van a la web de producción (puerto 4180).
+- Todo lo demás, empezando por la portada, va al sitio de presentación (puerto 4190).
+
+No choca con el desarrollo (3000, 5173 y 3005) ni con `pnpm e2e`.
 
 **Límites:**
 - Los datos son los de la base local: las pruebas los cambian y `pnpm db:reset` los restablece.

@@ -17,7 +17,11 @@ ingress:
   # La API (pnpm demo:online la levanta en el 3100).
   - path: ^/v1/
     service: http://127.0.0.1:3100
-  # Todo lo demás, a la web de producción (vite preview en el 4180). Vite solo acepta su propio host.
-  - service: http://127.0.0.1:4180
+  # La app: su acceso, sus rutas y sus archivos (vite preview en el 4180). Vite solo acepta su propio host.
+  - path: ^/((acceso|espacios)/?$|(e|q|assets|ghs)/)
+    service: http://127.0.0.1:4180
     originRequest:
       httpHostHeader: 127.0.0.1:4180
+  # Todo lo demás, empezando por la portada: el sitio de presentación (apps/site, en el 4190). Su «Iniciar sesión»
+  # lleva a /acceso.
+  - service: http://127.0.0.1:4190
