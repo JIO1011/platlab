@@ -47,6 +47,10 @@ Contraseña de todas: `platlab-demo`. Los datos son sintéticos (`supabase/seeds
 | `operador@demo.platlab.test` | Óscar Operador: Operador en la Facultad de Ciencias, y propietario y Administrador del Instituto de Biotecnología |
 | `propietaria@demo.platlab.test` | Paula Propietaria: propietaria de la Facultad de Ciencias, con los permisos del Administrador |
 | `docente@demo.platlab.test` | Diego Docente: sin permisos en Reactivos |
+| `estudiante@demo.platlab.test` | Elena Estudiante: invitada a la Facultad de Ciencias como Estudiante; se une con «Unirme» |
+| `visita@demo.platlab.test` | Víctor Visita: invitado a la Facultad de Ciencias como Visita; se une con «Unirme» |
+
+En **Usuarios** (solo la Propietaria), Diego y Tomás Tesista aparecen «Sin actividad». Tomás no tiene cuenta de acceso.
 
 Para ver el ciclo de aprobación, abre dos sesiones (una ventana normal y otra de incógnito): el Operador pide una salida desde la ficha de un reactivo y la Administradora la aprueba en **Solicitudes**.
 
@@ -55,6 +59,31 @@ Para ver el ciclo de aprobación, abre dos sesiones (una ventana normal y otra d
 - **Volver a empezar con los datos de demo:** `pnpm db:reset`. Las pruebas modifican los datos, así que conviene reiniciar tras correrlas.
 - **La API responde 000 o el puerto está ocupado:** comprueba que Docker esté activo y que nada más use los puertos 3000 (API), 5173 (web), 54321 (Auth) y 54322 (PostgreSQL).
 - **Otros servicios de Supabase (Studio, correo):** `pnpm supabase start` los levanta sin exclusiones.
+
+## Demo en internet
+
+La demo está en **https://platlab.reacti-lab.com** mientras el equipo del Equipo PlatLab la tenga encendida ([ADR 0029](docs/05_decisiones.md#adr-0029)). Es privada y con datos sintéticos.
+
+**Para entrar:**
+1. Abre la dirección y escribe tu correo. Cloudflare Access te envía un código de un solo uso; solo pasan los correos que autorizó el Equipo PlatLab.
+2. En PlatLab, entra con una de las [cuentas de la demo](#cuentas-de-la-demo). La contraseña es la misma de todas.
+3. Para probar Usuarios, entra con `propietaria@…`. Para unirte a un espacio, entra con `estudiante@…` o con `visita@…` y pulsa «Unirme». No hay «Crear cuenta»: las cuentas las da el Equipo PlatLab.
+
+**Para encenderla** (en el equipo que la publica):
+
+| Cuándo | Qué |
+|---|---|
+| Una vez | Instala `cloudflared` (`sudo pacman -S cloudflared`) y ejecuta `cloudflared tunnel login`, eligiendo `reacti-lab.com` |
+| Una vez | `cloudflared tunnel create platlab-demo` y `cloudflared tunnel route dns platlab-demo platlab.reacti-lab.com` |
+| Una vez | Copia `infra/cloudflared/platlab.example.yml` a `~/.cloudflared/platlab.yml` con el ID del túnel |
+| Una vez | En Cloudflare Zero Trust, crea una aplicación de Access para `platlab.reacti-lab.com` con los correos autorizados |
+| Cada vez | `pnpm db:start` y luego `pnpm demo:online`, que compila la web, levanta la API y la web y abre el túnel. Ctrl+C la apaga |
+
+El túnel reparte un solo dominio. `/v1` va a la API (puerto 3100). De Auth local solo pasan entrar, renovar la sesión y salir. El resto va a la web de producción (puerto 4180). No choca con el desarrollo (3000 y 5173) ni con `pnpm e2e`.
+
+**Límites:**
+- Los datos son los de la base local: las pruebas los cambian y `pnpm db:reset` los restablece.
+- Las fotos, los documentos y los logos no se ven fuera del equipo, porque guardan la dirección de Storage local.
 
 ## Comandos
 
@@ -68,6 +97,7 @@ Para ver el ciclo de aprobación, abre dos sesiones (una ventana normal y otra d
 | pgTAP: RLS, grants, invariantes del ledger | `pnpm test:db` |
 | Integración de la API, con el rol de runtime | `pnpm test:int` |
 | Recorrido en el navegador con accesibilidad (Playwright y axe) | `pnpm e2e` |
+| Publicar la demo por el túnel | `pnpm demo:online` |
 
 Para `pnpm e2e`, la primera vez: `pnpm --filter @platlab/web exec playwright install chromium`. Levanta él mismo la API y la vista previa; solo necesita la base en marcha.
 

@@ -30,6 +30,8 @@ Revisión: 16 de noviembre de 2026. Registro resumido de decisiones de arquitect
 | [0024](#adr-0024) | Áreas y departamentos en una sección propia | Aceptado el 20-10-2026 |
 | [0025](#adr-0025) | Materiales y Préstamos: consumibles, reutilizables y vale de préstamo | Aceptado el 18-11-2026 |
 | [0026](#adr-0026) | Inicio con Actividad, Calendario y Por atender | Aceptado el 19-11-2026 |
+| [0027](#adr-0027) | Usuarios: lista blanca, roles e inactividad | Aceptado el 19-11-2026 |
+| [0029](#adr-0029) | Demo publicada en internet | Aceptado el 19-11-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -752,3 +754,24 @@ Estado: aceptada (19-11-2026; pedido del usuario, con valores por defecto revisa
 - **Entregas:** U-01 (base y API) y U-02 (Usuarios, «Unirme» en Espacios y «Crear cuenta»).
 
 Motivo: hoy los miembros solo se crean con datos de prueba. El laboratorio necesita sumar y retirar personas por sí mismo y ver quién dejó de usar la plataforma.
+
+<a id="adr-0029"></a>
+## ADR 0029 — Demo publicada en internet
+
+Aceptado el 19-11-2026. Adelanta la publicación que [02 §9](02_arquitectura.md#9-infraestructura-y-ambientes) deja para «G0 si la demo se publica». No es G1 ni admite datos reales ([ADR 0005](#adr-0005)).
+
+- **Cómo.** Un Cloudflare Tunnel (`cloudflared`) desde el equipo del Equipo PlatLab publica `platlab.reacti-lab.com`, con el certificado de Cloudflare. Detrás siguen la base, Auth y la API locales de desarrollo; por ahora no hay proyecto de Supabase ni hosting.
+- **Un solo origen, repartido por ruta** (`infra/cloudflared/platlab.example.yml`):
+  - `/v1` va a la API.
+  - De Auth local solo pasan `/auth/v1/token`, `/auth/v1/user` y `/auth/v1/logout`: entrar, renovar y salir. El registro, la recuperación y la administración responden 404.
+  - El resto va a la compilación de producción de la web (`vite preview`).
+  - Nada más de Supabase local queda expuesto, porque sus claves de desarrollo son públicas. La API solo acepta JWT asimétricos (ADR 0004).
+- **Privada.** Cloudflare Access, con código de un solo uso, deja pasar solo a los correos que autoriza el Equipo PlatLab. Dentro, se entra con las cuentas de la demo.
+- **«Crear cuenta» se oculta** (`VITE_SIGNUP=off`) y el registro no llega a Auth. No hay SMTP hasta T-03B.
+- **Límites:**
+  - La demo está en línea solo mientras el equipo, Docker, la API, la web y el túnel estén encendidos.
+  - Los datos son los de la base local: las pruebas los cambian y `pnpm db:reset` los restablece.
+  - Fotos, documentos y logos guardan la URL de Storage local y no se ven fuera del equipo.
+- **Después:** Supabase, Render y un Worker según 02 §9, cuando la demo deba quedar siempre en línea o llegue G1.
+
+Motivo: tener la demo en internet hoy, sin cuentas nuevas ni costo, y sin exponer la base de desarrollo.

@@ -1,0 +1,25 @@
+# Túnel de la demo publicada (ADR 0029). Cópialo a ~/.cloudflared/platlab.yml y reemplaza <TUNNEL_ID> y <HOME>
+# (lo crea `cloudflared tunnel create platlab-demo`). Gana la primera regla que coincide.
+tunnel: <TUNNEL_ID>
+credentials-file: <HOME>/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  # De Auth local, solo entrar, renovar la sesión y salir. Sus claves de desarrollo son públicas: nada más de
+  # Supabase local sale a internet.
+  - hostname: platlab.reacti-lab.com
+    path: ^/auth/v1/(token|user|logout)$
+    service: http://127.0.0.1:54321
+  # Registro, recuperación y administración de Auth: cerrados.
+  - hostname: platlab.reacti-lab.com
+    path: ^/auth/v1/
+    service: http_status:404
+  # La API (pnpm demo:online la levanta en el 3100).
+  - hostname: platlab.reacti-lab.com
+    path: ^/v1/
+    service: http://127.0.0.1:3100
+  # La web de producción (vite preview en el 4180). Vite solo acepta su propio host.
+  - hostname: platlab.reacti-lab.com
+    service: http://127.0.0.1:4180
+    originRequest:
+      httpHostHeader: 127.0.0.1:4180
+  - service: http_status:404
