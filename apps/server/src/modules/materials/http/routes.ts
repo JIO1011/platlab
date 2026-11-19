@@ -19,7 +19,7 @@ import { commandRequest, queryRequest } from '../../../platform/http/module-requ
 import { getLoan, listBorrowers, listLoanPage } from '../application/loan-views.js';
 import { lendMaterial, returnMaterial } from '../application/loans.js';
 import { createMaterial, setMaterialMinimum, updateMaterial } from '../application/catalog.js';
-import { getProduct, getSummary, listProducts, listReceiptLocations, listStock } from '../application/queries.js';
+import { getProduct, getSummary, listAreas, listProducts, listReceiptLocations, listStock } from '../application/queries.js';
 import { registerAdjustment, registerIssue, registerReceipt } from '../application/stock.js';
 
 /**
@@ -29,6 +29,8 @@ import { registerAdjustment, registerIssue, registerReceipt } from '../applicati
 export function materialsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync {
   return async (app) => {
     app.get('/summary', async (request) => getSummary(pool, queryRequest(request)));
+
+    app.get('/areas', async (request) => listAreas(pool, queryRequest(request)));
 
     app.get('/receipt-locations', async (request) => listReceiptLocations(pool, queryRequest(request)));
 

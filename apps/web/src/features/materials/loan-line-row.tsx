@@ -34,7 +34,7 @@ export function LoanLineRow({
   removable: boolean;
 }) {
   const { workspaceId } = useMaterials();
-  const found = useMaterialPage(workspaceId, { q: line.productId ? '' : line.productLabel, materialClass: 'reusable_counted' });
+  const found = useMaterialPage(workspaceId, { q: line.productId ? '' : line.productLabel, materialClass: 'reusable_counted', areaId: null });
   const stock = useStock(workspaceId, line.productId);
 
   const options = useMemo(

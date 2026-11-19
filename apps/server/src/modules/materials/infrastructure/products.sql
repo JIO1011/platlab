@@ -33,6 +33,11 @@ SELECT
   (SELECT count(*)
      FROM inventory.positions AS p
     WHERE p.workspace_id = i.workspace_id AND p.item_id = i.id AND p.balance > 0)::int AS "locations_with_stock!",
+  -- Dónde está, de más a menos existencia: la tarjeta muestra los primeros nombres (sin ruta).
+  (SELECT coalesce(array_agg(l.name ORDER BY p.balance DESC, l.name), '{}')
+     FROM inventory.positions AS p
+     JOIN core.locations AS l ON l.workspace_id = p.workspace_id AND l.id = p.location_id
+    WHERE p.workspace_id = i.workspace_id AND p.item_id = i.id AND p.balance > 0) AS "location_names!",
   lower(i.code) AS "sort_code!"
 FROM inventory.items AS i
 JOIN materials.products AS m ON m.workspace_id = i.workspace_id AND m.item_id = i.id
@@ -48,9 +53,30 @@ WHERE i.workspace_id = :workspaceId!
   AND i.archived_at IS NULL
   AND (:productId::uuid IS NULL OR i.id = :productId::uuid)
   AND (:class::text IS NULL OR m.class = :class::text)
+  -- Con :areaId, solo los materiales con existencia en esa área (en cualquiera de sus ubicaciones).
+  AND (:areaId::uuid IS NULL OR EXISTS (
+         SELECT 1
+           FROM inventory.positions AS p
+           JOIN core.location_areas AS la ON la.workspace_id = p.workspace_id AND la.location_id = p.location_id
+          WHERE p.workspace_id = i.workspace_id AND p.item_id = i.id AND p.balance > 0 AND la.area_id = :areaId::uuid))
   AND (search.pattern IS NULL
        OR inventory.fold_text(i.name) LIKE search.pattern
        OR lower(i.code) LIKE search.pattern)
   AND (:afterId::uuid IS NULL OR (lower(i.code), i.id) > (:afterCode::text, :afterId::uuid))
 ORDER BY lower(i.code), i.id
 LIMIT :limit!;
+
+/* @name listMaterialAreas */
+-- Las áreas con material en existencia: cuántos materiales hay en cada una y cuántos de ellos tienen algo prestado.
+SELECT
+  a.id,
+  a.name,
+  count(DISTINCT p.item_id)::int AS "materials!",
+  count(DISTINCT p.item_id) FILTER (WHERE p.reserved > 0)::int AS "lent_materials!"
+FROM inventory.positions AS p
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id AND i.kind = 'material' AND i.archived_at IS NULL
+JOIN core.location_areas AS la ON la.workspace_id = p.workspace_id AND la.location_id = p.location_id
+JOIN core.locations AS a ON a.workspace_id = la.workspace_id AND a.id = la.area_id
+WHERE p.workspace_id = :workspaceId! AND p.balance > 0
+GROUP BY a.id, a.name
+ORDER BY lower(a.name), a.id;

@@ -46,9 +46,9 @@ export const materialMinimumResponse = z.object({ productId: z.uuid(), minimum: 
 
 export const materialParams = z.object({ workspaceId: z.uuid(), productId: z.uuid() });
 
-/** `q`: busca en nombre o código, sin distinguir mayúsculas ni tildes; `class`, deja solo una clase. */
+/** `q`: busca en nombre o código, sin distinguir mayúsculas ni tildes; `class`, deja solo una clase; `areaId`, solo lo que tiene existencia en esa área. */
 export const materialListQuery = z
-  .object({ ...page, q: z.string().trim().min(2).max(100).optional(), class: materialClass.optional() })
+  .object({ ...page, q: z.string().trim().min(2).max(100).optional(), class: materialClass.optional(), areaId: z.uuid().optional() })
   .strict();
 
 /** Material con su total en todas las ubicaciones, lo prestado y si está bajo su mínimo. */
@@ -58,6 +58,8 @@ export const stockedMaterial = material.extend({
   /** Lo que se puede sacar o prestar hoy: la existencia menos lo prestado. */
   available: decimalString,
   locationsWithStock: z.number().int().nonnegative(),
+  /** Nombres de las ubicaciones con existencia, de más a menos: la tarjeta dice dónde está. */
+  locationNames: z.array(z.string()),
   belowMinimum: z.boolean(),
 });
 export const materialList = list(stockedMaterial);
@@ -78,3 +80,14 @@ export const materialsSummary = z.object({
   overdueLoans: z.number().int().nonnegative(),
 });
 export type MaterialsSummary = z.infer<typeof materialsSummary>;
+
+/** GET /areas: las áreas con material en existencia y cuántos materiales tienen allí (y cuántos con algo prestado). */
+export const materialArea = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  materials: z.number().int().nonnegative(),
+  lentMaterials: z.number().int().nonnegative(),
+});
+export const materialAreaList = z.object({ items: z.array(materialArea) });
+export type MaterialArea = z.infer<typeof materialArea>;
+export type MaterialAreaList = z.infer<typeof materialAreaList>;

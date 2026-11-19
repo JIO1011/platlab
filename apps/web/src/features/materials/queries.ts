@@ -2,6 +2,7 @@ import {
   loan,
   loanList,
   locationList,
+  materialAreaList,
   materialDetail,
   materialList,
   materialsSummary,
@@ -35,6 +36,8 @@ export function useMaterialsSummary(workspaceId: string) {
 export interface MaterialFilters {
   q: string;
   materialClass: MaterialClass | null;
+  /** Solo lo que tiene existencia en esa área (ubicación de primer nivel). */
+  areaId: string | null;
 }
 
 /** El catálogo con sus existencias, por páginas; `q` busca desde 2 letras. */
@@ -42,12 +45,13 @@ export function useMaterialPage(workspaceId: string, filters: MaterialFilters, e
   const user = useUserKey();
   const q = filters.q.trim().length >= 2 ? filters.q.trim() : '';
   return useInfiniteQuery({
-    queryKey: [...materialsKey(user, workspaceId), 'products', q, filters.materialClass],
+    queryKey: [...materialsKey(user, workspaceId), 'products', q, filters.materialClass, filters.areaId],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams();
       if (q) params.set('q', q);
       if (filters.materialClass) params.set('class', filters.materialClass);
+      if (filters.areaId) params.set('areaId', filters.areaId);
       if (pageParam) params.set('cursor', pageParam);
       return api(`${base(workspaceId)}/products?${params}`, { schema: materialList });
     },
@@ -55,6 +59,16 @@ export function useMaterialPage(workspaceId: string, filters: MaterialFilters, e
     placeholderData: (previous) => previous,
     refetchInterval: jitteredPoll,
     enabled,
+  });
+}
+
+/** Las áreas con material en existencia, con cuántos materiales hay en cada una. */
+export function useMaterialAreas(workspaceId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...materialsKey(user, workspaceId), 'areas'],
+    queryFn: () => api(`${base(workspaceId)}/areas`, { schema: materialAreaList }),
+    refetchInterval: jitteredPoll,
   });
 }
 

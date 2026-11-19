@@ -1,6 +1,6 @@
 import type { StockedMaterial } from '@platlab/contracts';
 import { Badge, IconChip, Quantity, StockLevelBar, cn } from '@platlab/ui';
-import { CircleAlert, Layers, PackageOpen, Repeat2, ScanBarcode, TrendingDown } from 'lucide-react';
+import { CircleAlert, MapPin, PackageOpen, Repeat2, ScanBarcode, TrendingDown } from 'lucide-react';
 import { CodeTag } from '../../app/code-tag';
 import { ModuleMark } from '../../app/module-mark';
 import { classLabels, materialLevel } from './text';
@@ -34,6 +34,19 @@ export function MaterialCard({ material, onOpen }: { material: StockedMaterial; 
           {material.name}
         </button>
       </h2>
+      <p className="relative flex min-w-0 items-center gap-1.5 text-[13px] text-ink-muted">
+        <MapPin className="size-3.5 shrink-0 text-ink-subtle" aria-hidden />
+        {material.locationNames.length === 0 ? (
+          <span>Sin ubicación: aún no se ingresa</span>
+        ) : (
+          <>
+            <span className="truncate" title={material.locationNames.join(', ')}>
+              {material.locationNames[0]}
+            </span>
+            {material.locationNames.length > 1 ? <span className="shrink-0 font-medium text-ink">+{material.locationNames.length - 1}</span> : null}
+          </>
+        )}
+      </p>
       <div className="relative mt-auto grid gap-2 border-t border-line pt-2.5">
         <div className="flex items-start justify-between gap-2">
           <div className="grid min-w-0 gap-1">
@@ -51,12 +64,7 @@ export function MaterialCard({ material, onOpen }: { material: StockedMaterial; 
                 <CircleAlert className="size-3" aria-hidden />
                 Sin existencias
               </Badge>
-            ) : (
-              <Badge className="whitespace-nowrap px-2 py-0.5 text-[11px] font-semibold text-ink">
-                <Layers className="size-3" aria-hidden />
-                {material.locationsWithStock === 1 ? '1 ubicación' : `${material.locationsWithStock} ubicaciones`}
-              </Badge>
-            )}
+            ) : null}
             {material.belowMinimum ? (
               <Badge tone="warning" className="whitespace-nowrap px-2 py-0.5 text-[11px]">
                 <TrendingDown className="size-3" aria-hidden />

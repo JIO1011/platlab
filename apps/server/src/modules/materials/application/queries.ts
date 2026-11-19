@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import { subtractDecimals } from '@platlab/contracts';
 import type {
   LocationList,
+  MaterialAreaList,
   materialListQuery,
   MaterialsSummary,
   materialStockQuery,
@@ -15,7 +16,7 @@ import type {
 import { listPositionPage } from '../../../capabilities/inventory/index.js';
 import { AppError } from '../../../platform/errors.js';
 import { decodeCursor, encodeCursor } from '../../../platform/http/cursor.js';
-import { listMaterials, type IListMaterialsResult } from '../infrastructure/products.queries.js';
+import { listMaterialAreas, listMaterials, type IListMaterialsResult } from '../infrastructure/products.queries.js';
 import { activeLocations, hasPermission, type HomeContribution, type WorkspaceAccess } from '../../core/index.js';
 import { materialsSummary } from '../infrastructure/summary.queries.js';
 import { unitEditable } from './catalog.js';
@@ -33,16 +34,18 @@ const toStockedMaterial = (row: IListMaterialsResult): StockedMaterial => ({
   balance: row.balance,
   available: row.available,
   locationsWithStock: row.locations_with_stock,
+  locationNames: row.location_names,
   belowMinimum: row.below_minimum,
 });
 
-const catalogPage = (access: Parameters<typeof inventoryContext>[0], params: { productId: string | null; q: string | null; materialClass: MaterialClass | null; after: string[] | null; limit: number }) =>
+const catalogPage = (access: Parameters<typeof inventoryContext>[0], params: { productId: string | null; q: string | null; materialClass: MaterialClass | null; areaId: string | null; after: string[] | null; limit: number }) =>
   listMaterials.run(
     {
       workspaceId: access.workspace.id,
       productId: params.productId,
       q: params.q,
       class: params.materialClass,
+      areaId: params.areaId,
       afterCode: params.after?.[0] ?? null,
       afterId: params.after?.[1] ?? null,
       limit: params.limit,
@@ -57,6 +60,7 @@ export function listProducts(pool: pg.Pool, request: QueryRequest, query: z.infe
       productId: null,
       q: query.q ?? null,
       materialClass: query.class ?? null,
+      areaId: query.areaId ?? null,
       after: decodeCursor(query.cursor, 2),
       limit: query.limit + 1,
     });
@@ -72,7 +76,7 @@ export function listProducts(pool: pg.Pool, request: QueryRequest, query: z.infe
 /** Ficha de un material: su total y si su unidad aún puede cambiar. */
 export function getProduct(pool: pg.Pool, request: QueryRequest, productId: string): Promise<MaterialDetail> {
   return runQuery(pool, request, async (access) => {
-    const [row] = await catalogPage(access, { productId, q: null, materialClass: null, after: null, limit: 1 });
+    const [row] = await catalogPage(access, { productId, q: null, materialClass: null, areaId: null, after: null, limit: 1 });
     if (!row) throw new AppError('NOT_FOUND', 'Recurso no encontrado');
     return { ...toStockedMaterial(row), unitEditable: await unitEditable(access, productId) };
   });
@@ -120,4 +124,12 @@ export async function materialsHomeSummary(access: WorkspaceAccess): Promise<Hom
 /** Ubicaciones activas donde el miembro registra ingresos; sin el permiso de ingreso, ninguna (ADR 0008). */
 export function listReceiptLocations(pool: pg.Pool, request: QueryRequest): Promise<LocationList> {
   return runQuery(pool, request, async (access) => ({ items: (await hasPermission(access, RECEIPT)) ? await activeLocations(access) : [] }));
+}
+
+/** Las áreas con material en existencia, para el Inventario «Por ubicación». */
+export function listAreas(pool: pg.Pool, request: QueryRequest): Promise<MaterialAreaList> {
+  return runQuery(pool, request, async (access) => {
+    const rows = await listMaterialAreas.run({ workspaceId: access.workspace.id }, access.client);
+    return { items: rows.map((row) => ({ id: row.id, name: row.name, materials: row.materials, lentMaterials: row.lent_materials })) };
+  });
 }

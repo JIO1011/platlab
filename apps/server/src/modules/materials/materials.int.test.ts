@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { locationList, materialDetail, materialList, materialMovementResponse, materialsSummary, materialStockList } from '@platlab/contracts';
+import { locationList, materialAreaList, materialDetail, materialList, materialMovementResponse, materialsSummary, materialStockList } from '@platlab/contracts';
 import {
   admin,
   call,
@@ -307,5 +307,28 @@ describe('resumen, ubicaciones y clases', () => {
       materialList.parse((await call(fresh.operator.subject, `${fresh.base}/products?class=${name}`)).body).items.map((item) => item.id);
     expect(await byClass('consumable')).toEqual([supply.id]);
     expect(await byClass('reusable_counted')).toEqual([glass.id]);
+  });
+
+  it('dice dónde está cada material, resume por área y filtra por ella', async () => {
+    const fresh = await createMaterialsLab();
+    const supply = await createMaterial(fresh, { name: 'Guantes' });
+    const glass = await createMaterial(fresh, { name: 'Probetas', class: 'reusable_counted' });
+    const empty = await createMaterial(fresh, { name: 'Sin existencias' });
+    await receive(fresh, supply.id, '10', fresh.shelf);
+    await receive(fresh, glass.id, '5', fresh.lab);
+    const places = locationList.parse((await call(fresh.operator.subject, `${fresh.base}/receipt-locations`)).body).items;
+    const nameOf = (id: string) => places.find((place) => place.id === id)?.name;
+
+    const areas = materialAreaList.parse((await call(fresh.operator.subject, `${fresh.base}/areas`)).body).items;
+    expect(areas).toHaveLength(1);
+    expect(areas[0]).toMatchObject({ materials: 2, lentMaterials: 0 });
+
+    const inArea = async (areaId: string) =>
+      materialList.parse((await call(fresh.operator.subject, `${fresh.base}/products?areaId=${areaId}`)).body).items;
+    const found = await inArea(areas[0]!.id);
+    expect(found.map((item) => item.id).sort()).toEqual([supply.id, glass.id].sort());
+    expect(found.find((item) => item.id === supply.id)?.locationNames).toEqual([nameOf(fresh.shelf)]);
+    expect(found.some((item) => item.id === empty.id)).toBe(false);
+    expect(await inArea('00000000-0000-4000-8000-000000000000')).toEqual([]);
   });
 });
