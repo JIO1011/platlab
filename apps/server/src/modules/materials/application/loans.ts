@@ -11,7 +11,7 @@ import {
 import { lockKey } from '../../../platform/db/codes.js';
 import { todayIn } from '../../../platform/dates.js';
 import { AppError } from '../../../platform/errors.js';
-import { listActiveMembers, recordAudit, type WorkspaceAccess } from '../../core/index.js';
+import { recordAudit } from '../../core/index.js';
 import {
   advanceLoan,
   applyLineReturn,
@@ -23,7 +23,7 @@ import {
   lockLoan,
   nextLoanNumber,
 } from '../infrastructure/loans.queries.js';
-import { inventoryContext, LOAN, RETURN, requires, runCommand, type CommandRequest } from './command.js';
+import { inventoryContext, LOAN, requireActiveMember, RETURN, requires, runCommand, type CommandRequest } from './command.js';
 import { loanById, loanCode } from './loan-views.js';
 
 /**
@@ -38,18 +38,12 @@ const positive = (quantity: string) => compareDecimals(quantity, ZERO) > 0;
 const byPosition = <T extends { positionId: string }>(items: readonly T[]) =>
   [...items].sort((a, b) => a.positionId.localeCompare(b.positionId));
 
-async function requireBorrower(access: WorkspaceAccess, borrowerId: string): Promise<void> {
-  const members = await listActiveMembers(access);
-  if (!members.some((member) => member.id === borrowerId)) {
-    throw new AppError('VALIDATION_FAILED', 'El prestatario no es un miembro activo del espacio');
-  }
-}
 
 /** Presta material reutilizable a un miembro: un vale con sus líneas, cada una apartada en su posición. */
 export function lendMaterial(pool: pg.Pool, request: CommandRequest, input: z.infer<typeof lendRequest>): Promise<Loan> {
   return runCommand(pool, request, LOAN, input, requires(LOAN), async (access) => {
     const workspaceId = access.workspace.id;
-    await requireBorrower(access, input.borrowerId);
+    await requireActiveMember(access, input.borrowerId, 'El prestatario');
     if (input.dueOn && input.dueOn < todayIn(access.workspace.timeZone)) {
       throw new AppError('VALIDATION_FAILED', 'La fecha de devolución no puede ser anterior a hoy');
     }

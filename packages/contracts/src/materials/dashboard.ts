@@ -50,6 +50,10 @@ export const materialsDashboard = z.object({
   attention: z.object({
     overdue: z.array(z.object({ loanId: z.uuid(), code: z.string(), borrowerName: z.string(), dueOn: z.iso.date() })),
     belowMinimum: z.array(z.object({ productId: z.uuid(), name: z.string(), baseUnit: z.string(), balance: decimalString, minimum: decimalString })),
+    /** Los lotes con saldo que vencen primero (vencidos incluidos), hasta EXPIRY_WATCH_DAYS días (MA-01f). */
+    expiring: z.array(
+      z.object({ productId: z.uuid(), name: z.string(), baseUnit: z.string(), lot: z.string().nullable(), expiresOn: z.iso.date(), balance: decimalString }),
+    ),
   }),
 });
 

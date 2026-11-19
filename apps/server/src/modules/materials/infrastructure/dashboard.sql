@@ -90,6 +90,8 @@ WITH used AS (
   FROM inventory.operations AS o
   JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id
   JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id
+  -- Solo materiales: las salidas de reactivos del espacio no entran a la suma.
+  JOIN inventory.items AS mi ON mi.workspace_id = p.workspace_id AND mi.id = p.item_id AND mi.kind = 'material'
   WHERE o.workspace_id = :workspaceId! AND o.type = 'issue' AND o.effective_at >= now() - interval '30 days'
   GROUP BY p.item_id
 )
@@ -177,4 +179,18 @@ CROSS JOIN LATERAL (
 WHERE i.workspace_id = :workspaceId! AND i.kind = 'material' AND i.archived_at IS NULL
   AND i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity
 ORDER BY stock.balance / i.minimum_quantity, lower(i.name), i.id
+LIMIT 3;
+
+/* @name dashboardExpiring */
+-- Los lotes con saldo que vencen primero, vencidos incluidos, hasta :expiringBy, para «Hay que atender» (MA-01f).
+SELECT i.id, i.name, i.base_unit,
+       lot.supplier_lot AS lot,
+       lot.expires_on::text AS "expires_on!",
+       trim_scale(sum(p.balance)) AS "balance!"
+FROM inventory.positions AS p
+JOIN inventory.lots AS lot ON lot.workspace_id = p.workspace_id AND lot.id = p.lot_id
+JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id AND i.kind = 'material' AND i.archived_at IS NULL
+WHERE p.workspace_id = :workspaceId! AND p.balance > 0 AND lot.expires_on <= :expiringBy!::date
+GROUP BY i.id, i.name, i.base_unit, lot.id, lot.supplier_lot, lot.expires_on
+ORDER BY lot.expires_on, lower(i.name), lot.id
 LIMIT 3;

@@ -424,6 +424,10 @@ export {
 export { bottleCodes, codeFromName, firstFreeCode, freeSeries, nextCode, seriesFromName } from './codes.js';
 export { EXPIRING_DAYS, SAFETY_SHEET_MAX_BYTES } from './reagents.js';
 export {
+  classViolation,
+  EXPIRY_SOON_DAYS,
+  EXPIRY_WATCH_DAYS,
+  issuePurpose,
   lendRequest,
   loan,
   loanFilter,
@@ -456,8 +460,8 @@ export {
   newMaterial,
   setMaterialMinimumRequest,
   stockedMaterial,
-  unitViolation,
   updateMaterialRequest,
+  type IssuePurpose,
   type Material,
   type MaterialArea,
   type MaterialAreaList,

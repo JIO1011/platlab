@@ -6,6 +6,7 @@ import {
   dashboardBelowMinimum,
   dashboardBorrowers,
   dashboardByClass,
+  dashboardExpiring,
   dashboardFigures,
   dashboardOverdue,
   dashboardRunningLow,
@@ -16,7 +17,7 @@ import {
 } from '../infrastructure/dashboard.queries.js';
 import { loanCode } from './loan-views.js';
 import { CATALOG, runQuery, type QueryRequest } from './command.js';
-import { summaryOf } from './queries.js';
+import { expiringBy, summaryOf } from './queries.js';
 
 /**
  * El tablero del Resumen (ADR 0025): todas las lecturas en una sola transacción de consulta, así que las cifras
@@ -37,6 +38,7 @@ async function dashboardOf(access: WorkspaceAccess, days: MaterialsDashboard['da
   const byClass = await dashboardByClass.run({ workspaceId }, run);
   const overdue = await dashboardOverdue.run({ workspaceId, timeZone }, run);
   const belowMinimum = await dashboardBelowMinimum.run({ workspaceId }, run);
+  const expiring = await dashboardExpiring.run({ workspaceId, expiringBy: expiringBy(access) }, run);
   const borrowers = (await hasPermission(access, CATALOG)) ? await dashboardBorrowers.run({ workspaceId, days }, run) : null;
 
   const usage = (row: { id: string; name: string; base_unit: string; events: number; quantity: string }) => ({
@@ -73,6 +75,14 @@ async function dashboardOf(access: WorkspaceAccess, days: MaterialsDashboard['da
     attention: {
       overdue: overdue.map((row) => ({ loanId: row.id, code: loanCode(row.number), borrowerName: row.borrower_name, dueOn: row.due_on })),
       belowMinimum: belowMinimum.map((row) => ({ productId: row.id, name: row.name, baseUnit: row.base_unit, balance: row.balance, minimum: row.minimum })),
+      expiring: expiring.map((row) => ({
+        productId: row.id,
+        name: row.name,
+        baseUnit: row.base_unit,
+        lot: row.lot,
+        expiresOn: row.expires_on,
+        balance: row.balance,
+      })),
     },
   };
 }

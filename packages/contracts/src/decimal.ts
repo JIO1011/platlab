@@ -13,6 +13,14 @@ export const positiveQuantity = z
   .string()
   .regex(/^(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal mayor que cero');
 
+/** Ajuste con signo y distinto de cero, con la misma escala. */
+export const adjustmentQuantity = z
+  .string()
+  .regex(/^-?(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal distinta de cero');
+
+/** Unidad en la que se captura una cantidad (u, g, mL…); el servidor la convierte a la base del ítem o la rechaza. */
+export const unit = z.string().regex(/^[A-Za-z]{1,10}$/, 'Unidad inválida');
+
 /** Cantidad de cero o más, con la misma escala: un conteo o lo utilizado de lo apartado. */
 export const nonNegativeQuantity = z.string().regex(/^\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal de cero o más');
 

@@ -220,7 +220,7 @@ export interface IDashboardRunningLowQuery {
   result: IDashboardRunningLowResult;
 }
 
-const dashboardRunningLowIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":406,"b":418},{"a":1093,"b":1105}]}],"statement":"-- Insumos que se acaban pronto: la existencia entre el consumo diario de los últimos 30 días, en días.\nWITH used AS (\n  SELECT p.item_id, -sum(e.quantity) AS total\n  FROM inventory.operations AS o\n  JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id\n  JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id\n  WHERE o.workspace_id = :workspaceId! AND o.type = 'issue' AND o.effective_at >= now() - interval '30 days'\n  GROUP BY p.item_id\n)\nSELECT i.id, i.name, i.base_unit,\n       trim_scale(stock.balance) AS \"balance!\",\n       trim_scale(round(used.total / 30, 2)) AS \"daily_use!\",\n       floor(stock.balance / (used.total / 30))::int AS \"days_left!\"\nFROM inventory.items AS i\nJOIN materials.products AS m ON m.workspace_id = i.workspace_id AND m.item_id = i.id AND m.class = 'consumable'\nJOIN used ON used.item_id = i.id\nCROSS JOIN LATERAL (\n  SELECT coalesce(sum(p.balance), 0) AS balance\n  FROM inventory.positions AS p\n  WHERE p.workspace_id = i.workspace_id AND p.item_id = i.id\n) AS stock\nWHERE i.workspace_id = :workspaceId! AND i.archived_at IS NULL AND used.total > 0\n  AND floor(stock.balance / (used.total / 30)) <= 90\nORDER BY floor(stock.balance / (used.total / 30)), lower(i.name), i.id\nLIMIT 5"};
+const dashboardRunningLowIR: any = {"usedParamSet":{"workspaceId":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":598,"b":610},{"a":1285,"b":1297}]}],"statement":"-- Insumos que se acaban pronto: la existencia entre el consumo diario de los últimos 30 días, en días.\nWITH used AS (\n  SELECT p.item_id, -sum(e.quantity) AS total\n  FROM inventory.operations AS o\n  JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id\n  JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id\n  -- Solo materiales: las salidas de reactivos del espacio no entran a la suma.\n  JOIN inventory.items AS mi ON mi.workspace_id = p.workspace_id AND mi.id = p.item_id AND mi.kind = 'material'\n  WHERE o.workspace_id = :workspaceId! AND o.type = 'issue' AND o.effective_at >= now() - interval '30 days'\n  GROUP BY p.item_id\n)\nSELECT i.id, i.name, i.base_unit,\n       trim_scale(stock.balance) AS \"balance!\",\n       trim_scale(round(used.total / 30, 2)) AS \"daily_use!\",\n       floor(stock.balance / (used.total / 30))::int AS \"days_left!\"\nFROM inventory.items AS i\nJOIN materials.products AS m ON m.workspace_id = i.workspace_id AND m.item_id = i.id AND m.class = 'consumable'\nJOIN used ON used.item_id = i.id\nCROSS JOIN LATERAL (\n  SELECT coalesce(sum(p.balance), 0) AS balance\n  FROM inventory.positions AS p\n  WHERE p.workspace_id = i.workspace_id AND p.item_id = i.id\n) AS stock\nWHERE i.workspace_id = :workspaceId! AND i.archived_at IS NULL AND used.total > 0\n  AND floor(stock.balance / (used.total / 30)) <= 90\nORDER BY floor(stock.balance / (used.total / 30)), lower(i.name), i.id\nLIMIT 5"};
 
 /**
  * Query generated from SQL:
@@ -231,6 +231,8 @@ const dashboardRunningLowIR: any = {"usedParamSet":{"workspaceId":true},"params"
  *   FROM inventory.operations AS o
  *   JOIN inventory.entries AS e ON e.workspace_id = o.workspace_id AND e.operation_id = o.id
  *   JOIN inventory.positions AS p ON p.workspace_id = e.workspace_id AND p.id = e.position_id
+ *   -- Solo materiales: las salidas de reactivos del espacio no entran a la suma.
+ *   JOIN inventory.items AS mi ON mi.workspace_id = p.workspace_id AND mi.id = p.item_id AND mi.kind = 'material'
  *   WHERE o.workspace_id = :workspaceId! AND o.type = 'issue' AND o.effective_at >= now() - interval '30 days'
  *   GROUP BY p.item_id
  * )
@@ -456,5 +458,49 @@ const dashboardBelowMinimumIR: any = {"usedParamSet":{"workspaceId":true},"param
  * ```
  */
 export const dashboardBelowMinimum = new PreparedQuery<IDashboardBelowMinimumParams,IDashboardBelowMinimumResult>(dashboardBelowMinimumIR);
+
+
+/** 'DashboardExpiring' parameters type */
+export interface IDashboardExpiringParams {
+  expiringBy: string;
+  workspaceId: string;
+}
+
+/** 'DashboardExpiring' return type */
+export interface IDashboardExpiringResult {
+  balance: string;
+  base_unit: string;
+  expires_on: string;
+  id: string;
+  lot: string | null;
+  name: string;
+}
+
+/** 'DashboardExpiring' query type */
+export interface IDashboardExpiringQuery {
+  params: IDashboardExpiringParams;
+  result: IDashboardExpiringResult;
+}
+
+const dashboardExpiringIR: any = {"usedParamSet":{"workspaceId":true,"expiringBy":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":546,"b":558}]},{"name":"expiringBy","required":true,"transform":{"type":"scalar"},"locs":[{"a":600,"b":611}]}],"statement":"-- Los lotes con saldo que vencen primero, vencidos incluidos, hasta :expiringBy, para «Hay que atender» (MA-01f).\nSELECT i.id, i.name, i.base_unit,\n       lot.supplier_lot AS lot,\n       lot.expires_on::text AS \"expires_on!\",\n       trim_scale(sum(p.balance)) AS \"balance!\"\nFROM inventory.positions AS p\nJOIN inventory.lots AS lot ON lot.workspace_id = p.workspace_id AND lot.id = p.lot_id\nJOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id AND i.kind = 'material' AND i.archived_at IS NULL\nWHERE p.workspace_id = :workspaceId! AND p.balance > 0 AND lot.expires_on <= :expiringBy!::date\nGROUP BY i.id, i.name, i.base_unit, lot.id, lot.supplier_lot, lot.expires_on\nORDER BY lot.expires_on, lower(i.name), lot.id\nLIMIT 3"};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * -- Los lotes con saldo que vencen primero, vencidos incluidos, hasta :expiringBy, para «Hay que atender» (MA-01f).
+ * SELECT i.id, i.name, i.base_unit,
+ *        lot.supplier_lot AS lot,
+ *        lot.expires_on::text AS "expires_on!",
+ *        trim_scale(sum(p.balance)) AS "balance!"
+ * FROM inventory.positions AS p
+ * JOIN inventory.lots AS lot ON lot.workspace_id = p.workspace_id AND lot.id = p.lot_id
+ * JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id AND i.kind = 'material' AND i.archived_at IS NULL
+ * WHERE p.workspace_id = :workspaceId! AND p.balance > 0 AND lot.expires_on <= :expiringBy!::date
+ * GROUP BY i.id, i.name, i.base_unit, lot.id, lot.supplier_lot, lot.expires_on
+ * ORDER BY lot.expires_on, lower(i.name), lot.id
+ * LIMIT 3
+ * ```
+ */
+export const dashboardExpiring = new PreparedQuery<IDashboardExpiringParams,IDashboardExpiringResult>(dashboardExpiringIR);
 
 

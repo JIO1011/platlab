@@ -135,7 +135,7 @@ describe('existencias', () => {
     const issue = (quantity: string) =>
       call(lab.operator.subject, `${lab.base}/issues`, {
         method: 'POST',
-        body: { positionId, quantity, unit: 'u', reason: 'Práctica de química', destination: 'Laboratorio 1' },
+        body: { positionId, quantity, unit: 'u', purpose: 'practice', detail: 'Práctica de química' },
       });
     const done = materialMovementResponse.parse((await issue('3')).body);
     expect(done.balance).toBe('7');
@@ -153,7 +153,7 @@ describe('existencias', () => {
       Array.from({ length: 6 }, () =>
         call(lab.operator.subject, `${lab.base}/issues`, {
           method: 'POST',
-          body: { positionId, quantity: '2', unit: 'u', reason: 'Práctica', destination: 'Laboratorio 1' },
+          body: { positionId, quantity: '2', unit: 'u', purpose: 'practice', detail: 'Práctica' },
         }),
       ),
     );
@@ -184,7 +184,7 @@ describe('existencias', () => {
     const body = { positionId, quantity: '1', unit: 'mL' };
     const issue = await call(lab.adminMember.subject, `${lab.base}/issues`, {
       method: 'POST',
-      body: { ...body, reason: 'Práctica', destination: 'Laboratorio 1' },
+      body: { ...body, purpose: 'practice', detail: 'Práctica' },
     });
     expect(issue.status).toBe(404);
     const adjustment = await call(lab.adminMember.subject, `${lab.base}/adjustments`, {
@@ -291,7 +291,7 @@ describe('resumen, ubicaciones y clases', () => {
     });
     await admin.query(`update materials.loans set due_on = current_date - 2 where id = $1`, [(loan.body as { id: string }).id]);
     const summary = materialsSummary.parse((await call(fresh.operator.subject, `${fresh.base}/summary`)).body);
-    expect(summary).toEqual({ materials: 2, belowMinimum: 1, openLoans: 1, overdueLoans: 1 });
+    expect(summary).toEqual({ materials: 2, belowMinimum: 1, openLoans: 1, overdueLoans: 1, expiring: 0 });
   });
 
   it('ofrece ubicaciones de ingreso a quien ingresa y ninguna a quien no', async () => {
@@ -346,7 +346,7 @@ describe('resumen, ubicaciones y clases', () => {
     const issue = (quantity: string) =>
       call(fresh.operator.subject, `${fresh.base}/issues`, {
         method: 'POST',
-        body: { positionId: supplyPosition, quantity, unit: 'u', reason: 'Práctica', destination: 'Laboratorio 1' },
+        body: { positionId: supplyPosition, quantity, unit: 'u', purpose: 'practice', detail: 'Práctica' },
       });
     expect((await issue('10')).status).toBe(201);
     expect((await issue('20')).status).toBe(201);

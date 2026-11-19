@@ -64,7 +64,7 @@ describe('prestar', () => {
     const { positionId } = await open('4', '10');
     const issue = await call(lab.operator.subject, `${lab.base}/issues`, {
       method: 'POST',
-      body: { positionId, quantity: '7', unit: 'u', reason: 'Práctica', destination: 'Laboratorio 1' },
+      body: { positionId, quantity: '7', unit: 'u', purpose: 'practice', detail: 'Práctica' },
     });
     expect(issue.status).toBe(409);
     const adjustment = await call(lab.adminMember.subject, `${lab.base}/adjustments`, {

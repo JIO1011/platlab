@@ -28,7 +28,7 @@ export {
   transferContainer,
   type LockedPosition,
 } from './application/movements.js';
-export { receiveStock } from './application/stock.js';
+export { receiveStock, type MaterialLotInput } from './application/stock.js';
 export {
   containerItem,
   countOperationsPerDay,

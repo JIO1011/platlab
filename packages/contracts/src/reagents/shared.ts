@@ -5,14 +5,8 @@ import { z } from 'zod';
  * cadenas decimales con la precisión de numeric(24,9) (02 §12) y nunca se operan como number.
  * Los esquemas de entrada son estrictos: no se aceptan campos, filtros ni órdenes arbitrarios.
  */
-export const unit = z.string().regex(/^[A-Za-z]{1,10}$/, 'Unidad inválida');
-
-export { positiveQuantity } from '../decimal.js';
-
-/** Ajuste con signo y distinto de cero. */
-export const adjustmentQuantity = z
-  .string()
-  .regex(/^-?(?!0+(?:\.0+)?$)\d{1,15}(?:\.\d{1,9})?$/, 'Debe ser una cantidad decimal distinta de cero');
+// Cantidades y unidades son comunes a todo el inventario: viven en decimal.ts y Reactivos las reexporta.
+export { adjustmentQuantity, positiveQuantity, unit } from '../decimal.js';
 
 /** «Por vencer»: caduca entre hoy y los próximos días (02 §12, ADR 0012); lo usan el servidor y la web. */
 export const EXPIRING_DAYS = 30;

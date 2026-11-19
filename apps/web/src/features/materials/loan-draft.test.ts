@@ -11,6 +11,8 @@ const position = (positionId: string, available: string): MaterialStockLine => (
   balance: available,
   available,
   unit: 'u',
+  lot: null,
+  expiresOn: null,
 });
 const glass = { id: 'p1', name: 'Vasos', baseUnit: 'u' };
 const stock = [position('a', '3'), position('b', '5')];

@@ -1,5 +1,6 @@
 import type { InventoryContext } from '../../../capabilities/inventory/index.js';
-import { moduleCommand, moduleQuery, type WorkspaceAccess } from '../../core/index.js';
+import { AppError } from '../../../platform/errors.js';
+import { listActiveMembers, moduleCommand, moduleQuery, type WorkspaceAccess } from '../../core/index.js';
 
 export { requires, type CommandRequest, type QueryRequest } from '../../core/index.js';
 
@@ -28,3 +29,11 @@ export const runCommand = moduleCommand('materials');
 
 /** Consultas de Materiales: admisión de consulta y lectura del catálogo. */
 export const runQuery = moduleQuery('materials', READ);
+
+/** Prestatario de un vale o solicitante de una salida: un miembro activo del espacio (ADR 0025). */
+export async function requireActiveMember(access: WorkspaceAccess, principalId: string, who: string): Promise<void> {
+  const members = await listActiveMembers(access);
+  if (!members.some((member) => member.id === principalId)) {
+    throw new AppError('VALIDATION_FAILED', `${who} no es un miembro activo del espacio`);
+  }
+}

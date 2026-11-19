@@ -1,7 +1,7 @@
 import { AppError } from '../../../platform/errors.js';
 import {
   ensureStockPosition,
-  findItemLot,
+  findMaterialLot,
   findLocation,
   lockItem as lockItemQuery,
   lockStockPosition,
@@ -12,14 +12,34 @@ import { applyMovement, type MovementResult } from './movements.js';
 
 const notFound = () => new AppError('NOT_FOUND', 'Recurso no encontrado');
 
+/** El lote de un ingreso de material (ADR 0025, MA-01f): con fecha y lote del proveedor si el insumo vence; sin ellos, el lote único. */
+export interface MaterialLotInput {
+  supplierLot: string | null;
+  expiresOn: string | null;
+}
+
 /**
- * Ingreso de un material sin envases (ADR 0025): suma `quantity` a su posición en la ubicación, que se
- * crea con el primer ingreso. Un material tiene un solo lote, creado también con el primero. Bloquea en
- * el orden fijo de 02 §6: ubicación → ítem → lote → posición.
+ * Busca el lote del ingreso y, si no existe, lo abre. El mismo lote del proveedor con otra fecha es un error de captura,
+ * no un lote nuevo. Va con el ítem ya bloqueado, así que dos ingresos del mismo lote no abren dos.
+ */
+async function materialLot(ctx: InventoryContext, itemId: string, lot: MaterialLotInput): Promise<string> {
+  const [existing] = await findMaterialLot.run({ workspaceId: ctx.workspaceId, itemId, ...lot }, ctx.client);
+  if (!existing) return (await openLot(ctx, itemId, { brand: null, departmentId: null, ...lot })).id;
+  // Sin lote del proveedor la búsqueda ya exige la misma fecha: solo un lote con código puede no coincidir.
+  if (existing.expires_on !== lot.expiresOn) {
+    throw new AppError('VALIDATION_FAILED', `El lote ${lot.supplierLot} ya está registrado con vencimiento ${existing.expires_on ?? 'sin fecha'}`);
+  }
+  return existing.id;
+}
+
+/**
+ * Ingreso de un material sin envases (ADR 0025): suma `quantity` a su posición en la ubicación y el lote, que se crean
+ * con el primer ingreso. Sin fecha ni lote del proveedor, el material tiene un solo lote. Bloquea en el orden fijo
+ * de 02 §6: ubicación → ítem → lote → posición.
  */
 export async function receiveStock(
   ctx: InventoryContext,
-  input: { itemId: string; locationId: string; quantity: string; unit: string; reference: string | null },
+  input: { itemId: string; locationId: string; quantity: string; unit: string; reference: string | null; lot: MaterialLotInput },
 ): Promise<MovementResult> {
   const workspaceId = ctx.workspaceId;
   // Ubicación primero, como el ingreso de frascos: un mismo orden de bloqueo para todos los ingresos.
@@ -27,9 +47,7 @@ export async function receiveStock(
   if (!place) throw notFound();
   const [item] = await lockItemQuery.run({ workspaceId, itemId: input.itemId, kind: ctx.kind }, ctx.client);
   if (!item) throw notFound();
-
-  const [existing] = await findItemLot.run({ workspaceId, itemId: item.id }, ctx.client);
-  const lotId = existing?.id ?? (await openLot(ctx, item.id, { brand: null, departmentId: null, expiresOn: null })).id;
+  const lotId = await materialLot(ctx, item.id, input.lot);
 
   const key = { workspaceId, itemId: item.id, lotId, locationId: place.id };
   await ensureStockPosition.run(key, ctx.client);

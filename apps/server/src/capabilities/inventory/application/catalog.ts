@@ -108,6 +108,8 @@ export interface LotDetails {
   /** Departamento dueño (ADR 0024), ya validado por el módulo. */
   departmentId: string | null;
   expiresOn: string | null;
+  /** Lote impreso por el proveedor (MA-01f); los reactivos no lo usan. */
+  supplierLot?: string | null;
 }
 
 export interface OpenedLot {
@@ -129,7 +131,7 @@ export async function openLot(ctx: InventoryContext, itemId: string, details: Lo
     const [item] = await reserveLotSeq.run({ workspaceId: ctx.workspaceId, itemId, kind: ctx.kind }, ctx.client);
     if (!item) throw notFound();
     const [lot] = await insertLot.run(
-      { workspaceId: ctx.workspaceId, itemId, code: lotCode(item.lot_seq), ...details },
+      { workspaceId: ctx.workspaceId, itemId, code: lotCode(item.lot_seq), ...details, supplierLot: details.supplierLot ?? null },
       ctx.client,
     );
     if (lot) {

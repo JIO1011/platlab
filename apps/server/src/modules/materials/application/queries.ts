@@ -1,6 +1,6 @@
 import type pg from 'pg';
 import type { z } from 'zod';
-import { subtractDecimals } from '@platlab/contracts';
+import { EXPIRY_WATCH_DAYS, subtractDecimals } from '@platlab/contracts';
 import type {
   LocationList,
   MaterialAreaList,
@@ -14,6 +14,7 @@ import type {
   MaterialClass,
 } from '@platlab/contracts';
 import { listPositionPage } from '../../../capabilities/inventory/index.js';
+import { addDays, todayIn } from '../../../platform/dates.js';
 import { AppError } from '../../../platform/errors.js';
 import { decodeCursor, encodeCursor } from '../../../platform/http/cursor.js';
 import { listMaterialAreas, listMaterials, type IListMaterialsResult } from '../infrastructure/products.queries.js';
@@ -24,6 +25,9 @@ import { inventoryContext, RECEIPT, runQuery, type QueryRequest } from './comman
 
 /** Consultas de Materiales: catálogo con sus existencias y las posiciones por ubicación. */
 
+/** Hasta qué día un lote cuenta como «por vencer» (02 §12, MA-01f): hoy en la zona del espacio más EXPIRY_WATCH_DAYS. */
+export const expiringBy = (access: WorkspaceAccess) => addDays(todayIn(access.workspace.timeZone), EXPIRY_WATCH_DAYS);
+
 const toStockedMaterial = (row: IListMaterialsResult): StockedMaterial => ({
   id: row.id,
   code: row.code,
@@ -31,14 +35,18 @@ const toStockedMaterial = (row: IListMaterialsResult): StockedMaterial => ({
   class: row.class as MaterialClass,
   baseUnit: row.base_unit,
   minimum: row.minimum,
+  tracksExpiry: row.tracks_expiry,
   balance: row.balance,
   available: row.available,
   locationsWithStock: row.locations_with_stock,
   locationNames: row.location_names,
   belowMinimum: row.below_minimum,
+  nextExpiry: row.next_expiry,
 });
 
-const catalogPage = (access: WorkspaceAccess, params: { productId: string | null; q: string | null; materialClass: MaterialClass | null; areaId: string | null; stock: 'below-minimum' | null; after: string[] | null; limit: number }) =>
+type StockFilter = NonNullable<z.infer<typeof materialListQuery>['stock']>;
+
+const catalogPage = (access: WorkspaceAccess, params: { productId: string | null; q: string | null; materialClass: MaterialClass | null; areaId: string | null; stock: StockFilter | null; after: string[] | null; limit: number }) =>
   listMaterials.run(
     {
       workspaceId: access.workspace.id,
@@ -47,6 +55,7 @@ const catalogPage = (access: WorkspaceAccess, params: { productId: string | null
       class: params.materialClass,
       areaId: params.areaId,
       stock: params.stock,
+      expiringBy: expiringBy(access),
       afterCode: params.after?.[0] ?? null,
       afterId: params.after?.[1] ?? null,
       limit: params.limit,
@@ -103,6 +112,8 @@ export function listStock(pool: pg.Pool, request: QueryRequest, query: z.infer<t
         balance: position.balance,
         available: subtractDecimals(position.balance, position.reserved),
         unit: position.unit,
+        lot: position.lot.supplierLot,
+        expiresOn: position.lot.expiresOn,
       })),
       nextCursor: page.nextCursor,
     };
@@ -111,9 +122,18 @@ export function listStock(pool: pg.Pool, request: QueryRequest, query: z.infer<t
 
 /** Las cifras del Resumen; la tarjeta de Inicio las reutiliza. */
 export async function summaryOf(access: WorkspaceAccess): Promise<MaterialsSummary> {
-  const [row] = await materialsSummary.run({ workspaceId: access.workspace.id, timeZone: access.workspace.timeZone }, access.client);
+  const [row] = await materialsSummary.run(
+    { workspaceId: access.workspace.id, timeZone: access.workspace.timeZone, expiringBy: expiringBy(access) },
+    access.client,
+  );
   if (!row) throw new Error('El resumen de Materiales no devolvió fila');
-  return { materials: row.materials, belowMinimum: row.below_minimum, openLoans: row.open_loans, overdueLoans: row.overdue_loans };
+  return {
+    materials: row.materials,
+    belowMinimum: row.below_minimum,
+    openLoans: row.open_loans,
+    overdueLoans: row.overdue_loans,
+    expiring: row.expiring,
+  };
 }
 
 export const getSummary = (pool: pg.Pool, request: QueryRequest): Promise<MaterialsSummary> => runQuery(pool, request, summaryOf);

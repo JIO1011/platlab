@@ -11,22 +11,40 @@ export const materialClass = z.enum(['consumable', 'reusable_counted', 'reusable
 /** Un consumible se mide en pieza, masa o volumen; un reutilizable siempre se cuenta en piezas. */
 const materialUnit = z.enum(['u', 'g', 'kg', 'mL', 'L']);
 
-/** Regla que cruza clase y unidad: solo un consumible admite una unidad distinta de la pieza. */
-export const unitViolation = (fields: { class: string; baseUnit: string }): string | null =>
-  fields.class !== 'consumable' && fields.baseUnit !== 'u' ? 'Un material reutilizable se cuenta en piezas (u)' : null;
+/** Semáforo de insumos (02 §12, MA-01f): un lote vence pronto a 90 días o menos y se vigila a 180 o menos. */
+export const EXPIRY_SOON_DAYS = 90;
+export const EXPIRY_WATCH_DAYS = 180;
 
-/** Material nuevo: el código es automático a partir del nombre; el mínimo se fija aparte. */
+/**
+ * Reglas que cruzan la clase con la unidad y el vencimiento: solo un consumible admite una unidad distinta de la pieza
+ * y solo un consumible vence. Devuelve el campo que falla y por qué, o null.
+ */
+export const classViolation = (fields: {
+  class: string;
+  baseUnit: string;
+  tracksExpiry: boolean;
+}): { path: 'baseUnit' | 'tracksExpiry'; message: string } | null => {
+  if (fields.class === 'consumable') return null;
+  if (fields.baseUnit !== 'u') return { path: 'baseUnit', message: 'Un material reutilizable se cuenta en piezas (u)' };
+  if (fields.tracksExpiry) return { path: 'tracksExpiry', message: 'Solo un insumo que se gasta puede vencer' };
+  return null;
+};
+
+/** Material nuevo: el código es automático a partir del nombre; el mínimo se fija aparte. Por omisión no vence. */
 export const newMaterial = z
-  .object({ name: text(200), class: materialClass, baseUnit: materialUnit.default('u') })
+  .object({ name: text(200), class: materialClass, baseUnit: materialUnit.default('u'), tracksExpiry: z.boolean().default(false) })
   .strict()
   .superRefine((value, context) => {
-    const message = unitViolation(value);
-    if (message) context.addIssue({ code: 'custom', message, path: ['baseUnit'] });
+    const violation = classViolation(value);
+    if (violation) context.addIssue({ code: 'custom', message: violation.message, path: [violation.path] });
   });
 
-/** PATCH /products/:productId: cambia solo lo enviado, al menos un campo. La clase no cambia; la unidad, solo sin movimientos. */
+/**
+ * PATCH /products/:productId: cambia solo lo enviado, al menos un campo. La clase no cambia; la unidad, solo sin
+ * movimientos. Que el insumo venza cambia cuando sea: los lotes ya ingresados conservan su fecha.
+ */
 export const updateMaterialRequest = z
-  .object({ name: text(200), baseUnit: materialUnit })
+  .object({ name: text(200), baseUnit: materialUnit, tracksExpiry: z.boolean() })
   .partial()
   .strict()
   .refine((value) => Object.keys(value).length > 0, 'Indica al menos un campo');
@@ -38,6 +56,8 @@ export const material = z.object({
   class: materialClass,
   baseUnit: z.string(),
   minimum: decimalString.nullable(),
+  /** Si el insumo vence: su ingreso pide la fecha (MA-01f). */
+  tracksExpiry: z.boolean(),
 });
 
 /** PUT /products/:productId/minimum: null quita el mínimo. */
@@ -46,9 +66,19 @@ export const materialMinimumResponse = z.object({ productId: z.uuid(), minimum: 
 
 export const materialParams = z.object({ workspaceId: z.uuid(), productId: z.uuid() });
 
-/** `q`: busca en nombre o código, sin distinguir mayúsculas ni tildes; `class`, deja solo una clase; `areaId`, solo lo que tiene existencia en esa área; `stock=below-minimum`, solo lo que está bajo su mínimo. */
+/**
+ * `q`: busca en nombre o código, sin distinguir mayúsculas ni tildes; `class`, deja solo una clase; `areaId`, solo lo
+ * que tiene existencia en esa área; `stock=below-minimum`, solo lo que está bajo su mínimo; `stock=expiring`, solo lo
+ * que tiene un lote con saldo vencido o que vence en EXPIRY_WATCH_DAYS días o menos.
+ */
 export const materialListQuery = z
-  .object({ ...page, q: z.string().trim().min(2).max(100).optional(), class: materialClass.optional(), areaId: z.uuid().optional(), stock: z.enum(['below-minimum']).optional() })
+  .object({
+    ...page,
+    q: z.string().trim().min(2).max(100).optional(),
+    class: materialClass.optional(),
+    areaId: z.uuid().optional(),
+    stock: z.enum(['below-minimum', 'expiring']).optional(),
+  })
   .strict();
 
 /** Material con su total en todas las ubicaciones, lo prestado y si está bajo su mínimo. */
@@ -61,6 +91,8 @@ export const stockedMaterial = material.extend({
   /** Nombres de las ubicaciones con existencia, de más a menos: la tarjeta dice dónde está. */
   locationNames: z.array(z.string()),
   belowMinimum: z.boolean(),
+  /** El vencimiento más próximo entre sus lotes con saldo; nulo si ninguno tiene fecha. */
+  nextExpiry: z.iso.date().nullable(),
 });
 export const materialList = list(stockedMaterial);
 /** Ficha: además, si la unidad aún puede cambiar (sin movimientos). */
@@ -78,6 +110,8 @@ export const materialsSummary = z.object({
   belowMinimum: z.number().int().nonnegative(),
   openLoans: z.number().int().nonnegative(),
   overdueLoans: z.number().int().nonnegative(),
+  /** Materiales con un lote con saldo vencido o que vence en EXPIRY_WATCH_DAYS días o menos. */
+  expiring: z.number().int().nonnegative(),
 });
 export type MaterialsSummary = z.infer<typeof materialsSummary>;
 
