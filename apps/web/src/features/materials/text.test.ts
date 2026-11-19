@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { dueStatus, dueText, lentOut, locationLabels, materialLevel, normalizeQuantity } from './text';
+import { dueStatus, dueText, lentOut, locationLabels, materialLevel, materialStatus, normalizeQuantity } from './text';
+
+describe('materialStatus', () => {
+  it('distingue agotado, todo prestado, bajo mínimo y disponible', () => {
+    expect(materialStatus({ balance: '0', available: '0', belowMinimum: true })).toEqual({ tone: 'danger', label: 'Agotado' });
+    expect(materialStatus({ balance: '12', available: '0', belowMinimum: false })).toEqual({ tone: 'warning', label: 'Todo prestado' });
+    expect(materialStatus({ balance: '3', available: '3', belowMinimum: true })).toEqual({ tone: 'warning', label: 'Bajo mínimo' });
+    expect(materialStatus({ balance: '12', available: '4', belowMinimum: false })).toEqual({ tone: 'success', label: 'Disponible' });
+  });
+});
 
 describe('lentOut', () => {
   it('resta exacto lo disponible de la existencia', () => {

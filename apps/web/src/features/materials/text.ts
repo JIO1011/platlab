@@ -70,6 +70,8 @@ export interface MaterialStatus {
 
 export function materialStatus(material: Pick<StockedMaterial, 'balance' | 'available' | 'belowMinimum'>): MaterialStatus {
   if (material.balance === '0') return { tone: 'danger', label: 'Agotado' };
+  // Hay existencia, pero todo está fuera en préstamos: no queda nada que sacar ni prestar.
+  if (material.available === '0') return { tone: 'warning', label: 'Todo prestado' };
   if (material.belowMinimum) return { tone: 'warning', label: 'Bajo mínimo' };
   return { tone: 'success', label: 'Disponible' };
 }

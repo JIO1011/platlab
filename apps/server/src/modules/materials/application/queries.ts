@@ -38,7 +38,7 @@ const toStockedMaterial = (row: IListMaterialsResult): StockedMaterial => ({
   belowMinimum: row.below_minimum,
 });
 
-const catalogPage = (access: Parameters<typeof inventoryContext>[0], params: { productId: string | null; q: string | null; materialClass: MaterialClass | null; areaId: string | null; stock: 'below-minimum' | null; after: string[] | null; limit: number }) =>
+const catalogPage = (access: WorkspaceAccess, params: { productId: string | null; q: string | null; materialClass: MaterialClass | null; areaId: string | null; stock: 'below-minimum' | null; after: string[] | null; limit: number }) =>
   listMaterials.run(
     {
       workspaceId: access.workspace.id,
