@@ -4,6 +4,12 @@ import { expect, type Browser, type Locator, type Page } from '@playwright/test'
 /** Lo que comparten los recorridos de Playwright: entrar, capturar y revisar accesibilidad con axe. */
 export const password = 'platlab-demo';
 const reviewDir = '.impeccable/review';
+/**
+ * Las capturas son evidencia para la revisión visual de una puerta (G0) o de un cierre, no una prueba: solo se guardan
+ * con `E2E_CAPTURES=1`. Sin ella, cada captura igual sube al inicio y espera a que terminen las animaciones, así que el
+ * recorrido no cambia; solo no escribe la imagen.
+ */
+const savesCaptures = process.env.E2E_CAPTURES === '1';
 
 export async function signIn(browser: Browser, email: string, viewport = { width: 1440, height: 900 }) {
   const context = await browser.newContext({ viewport, locale: 'es-EC', timezoneId: 'America/Guayaquil' });
@@ -23,6 +29,7 @@ export async function capture(page: Page, name: string, fullPage = true, keepScr
   if (!keepScroll) await page.evaluate(() => window.scrollTo(0, 0));
   // Sin transiciones a medias: una captura tomada durante un fundido no es evidencia.
   await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+  if (!savesCaptures) return;
   // Los avisos se ocultan solo durante la foto: quitarlos del DOM rompería los siguientes.
   const hide = await page.addStyleTag({ content: '[data-sonner-toaster] { visibility: hidden !important; }' });
   await page.screenshot({ path: `${reviewDir}/${name}.png`, fullPage });
@@ -46,6 +53,7 @@ export async function captureElement(target: Locator, name: string) {
   const page = target.page();
   await target.scrollIntoViewIfNeeded();
   await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running'));
+  if (!savesCaptures) return;
   const hide = await page.addStyleTag({ content: '[data-sonner-toaster] { visibility: hidden !important; }' });
   await target.screenshot({ path: `${reviewDir}/${name}.png` });
   await hide.evaluate((style) => style.remove());
