@@ -74,15 +74,16 @@ export const materialParams = z.object({ workspaceId: z.uuid(), productId: z.uui
  * que tiene existencia en esa área; `stock=below-minimum`, solo lo que está bajo su mínimo; `stock=expiring`, solo lo
  * que tiene un lote con saldo vencido o que vence en EXPIRY_WATCH_DAYS días o menos.
  */
-export const materialListQuery = z
-  .object({
-    ...page,
-    q: z.string().trim().min(2).max(100).optional(),
-    class: materialClass.optional(),
-    areaId: z.uuid().optional(),
-    stock: z.enum(['below-minimum', 'expiring']).optional(),
-  })
-  .strict();
+const listFilterShape = {
+  q: z.string().trim().min(2).max(100).optional(),
+  class: materialClass.optional(),
+  areaId: z.uuid().optional(),
+  stock: z.enum(['below-minimum', 'expiring']).optional(),
+};
+export const materialListQuery = z.object({ ...page, ...listFilterShape }).strict();
+/** Los mismos filtros, sin página: los del Excel de existencias del Inventario. */
+export const materialListFilters = z.object(listFilterShape).strict();
+export type MaterialListFilters = z.infer<typeof materialListFilters>;
 
 /** Material con su total en todas las ubicaciones, lo prestado y si está bajo su mínimo. */
 export const stockedMaterial = material.extend({

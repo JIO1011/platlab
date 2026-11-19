@@ -28,7 +28,7 @@ import { inventoryContext, RECEIPT, runQuery, type QueryRequest } from './comman
 /** Hasta qué día un lote cuenta como «por vencer» (02 §12, MA-01f): hoy en la zona del espacio más EXPIRY_WATCH_DAYS. */
 export const expiringBy = (access: WorkspaceAccess) => addDays(todayIn(access.workspace.timeZone), EXPIRY_WATCH_DAYS);
 
-const toStockedMaterial = (row: IListMaterialsResult): StockedMaterial => ({
+export const toStockedMaterial = (row: IListMaterialsResult): StockedMaterial => ({
   id: row.id,
   code: row.code,
   name: row.name,
@@ -46,7 +46,8 @@ const toStockedMaterial = (row: IListMaterialsResult): StockedMaterial => ({
 
 type StockFilter = NonNullable<z.infer<typeof materialListQuery>['stock']>;
 
-const catalogPage = (access: WorkspaceAccess, params: { productId: string | null; q: string | null; materialClass: MaterialClass | null; areaId: string | null; stock: StockFilter | null; after: string[] | null; limit: number }) =>
+/** Una página del catálogo con sus filtros; la usan la lista y el Excel de existencias. */
+export const catalogPage = (access: WorkspaceAccess, params: { productId: string | null; q: string | null; materialClass: MaterialClass | null; areaId: string | null; stock: StockFilter | null; after: string[] | null; limit: number }) =>
   listMaterials.run(
     {
       workspaceId: access.workspace.id,

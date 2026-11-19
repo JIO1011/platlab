@@ -39,8 +39,8 @@ export const materialsModule = defineModule({
       'materials.loan.return',
     ],
   },
-  // El Resumen es la portada, Préstamos lo ven quienes prestan e Informes, quienes consultan; su Excel es del Administrador
-  // (01 §5). El QR llega con MA-01e.
+  // El Resumen es la portada, Préstamos lo ven quienes prestan y Movimientos, quienes consultan. Los Excel del libro y de
+  // las existencias son del Administrador (01 §5). El QR llega con MA-01e.
   nav: [
     {
       path: 'materiales',
@@ -50,7 +50,7 @@ export const materialsModule = defineModule({
         { path: '', label: 'Resumen', permission: 'materials.catalog.read' },
         { path: 'inventario', label: 'Inventario', permission: 'materials.catalog.read' },
         { path: 'prestamos', label: 'Préstamos', permission: 'materials.loan.create' },
-        { path: 'informes', label: 'Informes', permission: 'materials.catalog.read' },
+        { path: 'movimientos', label: 'Movimientos', permission: 'materials.catalog.read' },
       ],
     },
   ],

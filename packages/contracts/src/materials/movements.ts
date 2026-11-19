@@ -5,7 +5,7 @@ import { materialClass } from './catalog.js';
 import { issuePurpose } from './stock.js';
 
 // ---------------------------------------------------------------------------
-// Informes de Materiales (MA-01d, ADR 0025): resumen por clase y libro de movimientos exportable
+// Movimientos de Materiales (MA-01d, ADR 0025): el libro exportable
 // ---------------------------------------------------------------------------
 
 /**
@@ -28,6 +28,8 @@ export const materialMovementKindLabel: Record<MaterialMovementKind, string> = {
 export const issuePurposeLabel: Record<z.infer<typeof issuePurpose>, string> = { practice: 'Práctica', clinic: 'Clínica', general: 'General' };
 
 const filterShape = {
+  /** Solo los movimientos de ese material (desde su ficha). */
+  productId: z.uuid().optional(),
   kind: materialMovementKind.optional(),
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
@@ -71,21 +73,3 @@ const materialMovement = z.object({
 export const materialMovementList = list(materialMovement);
 export type MaterialMovement = z.infer<typeof materialMovement>;
 export type MaterialMovementList = z.infer<typeof materialMovementList>;
-
-/** GET /report: el estado por clase, hoy. Las piezas de un reutilizable se suman (siempre en piezas). */
-export const materialsReport = z.object({
-  consumable: z.object({
-    materials: z.number().int().nonnegative(),
-    belowMinimum: z.number().int().nonnegative(),
-    expiring: z.number().int().nonnegative(),
-    empty: z.number().int().nonnegative(),
-  }),
-  reusable: z.object({
-    materials: z.number().int().nonnegative(),
-    onShelf: decimalString,
-    lent: decimalString,
-    /** Piezas dadas de baja por daño o pérdida, desde el inicio. */
-    writtenOff: decimalString,
-  }),
-});
-export type MaterialsReport = z.infer<typeof materialsReport>;

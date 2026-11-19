@@ -6,6 +6,7 @@ import {
   loanParams,
   materialAdjustmentRequest,
   materialIssueRequest,
+  materialListFilters,
   materialListQuery,
   materialMovementFilters,
   materialMovementQuery,
@@ -25,7 +26,8 @@ import { getLoan, listBorrowers, listLoanPage } from '../application/loan-views.
 import { lendMaterial, returnMaterial } from '../application/loans.js';
 import { createMaterial, setMaterialMinimum, updateMaterial } from '../application/catalog.js';
 import { getProduct, getSummary, listAreas, listProducts, listReceiptLocations, listStock } from '../application/queries.js';
-import { exportMovements, getReport, listMovementPage } from '../application/report.js';
+import { exportMovements, exportStock } from '../application/export.js';
+import { listMovementPage } from '../application/movements.js';
 import { registerAdjustment, registerIssue, registerReceipt } from '../application/stock.js';
 
 /**
@@ -39,8 +41,6 @@ export function materialsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync
     app.get('/dashboard', async (request) => getDashboard(pool, queryRequest(request), materialsDashboardQuery.parse(request.query)));
 
     app.get('/areas', async (request) => listAreas(pool, queryRequest(request)));
-
-    app.get('/report', async (request) => getReport(pool, queryRequest(request)));
 
     app.get('/movements', async (request) => listMovementPage(pool, queryRequest(request), materialMovementQuery.parse(request.query)));
 
@@ -73,6 +73,11 @@ export function materialsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync
         setMaterialMinimumRequest.parse(request.body).minimum,
       ),
     );
+
+    app.get('/stock/export', async (request, reply) => {
+      const filters = materialListFilters.parse(request.query);
+      return sendXlsx(reply, (open) => exportStock(pool, queryRequest(request), filters, open));
+    });
 
     app.get('/stock', async (request) => listStock(pool, queryRequest(request), materialStockQuery.parse(request.query)));
 

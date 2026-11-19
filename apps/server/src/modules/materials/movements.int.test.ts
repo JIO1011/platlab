@@ -1,17 +1,19 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { errorResponse, loan as loanContract, materialMovementList, materialMovementResponse, materialsReport, type MaterialMovement } from '@platlab/contracts';
+import { errorResponse, loan as loanContract, materialMovementList, materialMovementResponse, type MaterialMovement } from '@platlab/contracts';
 import { download } from '../../testing/api.js';
 import { readZipEntry } from '../../testing/zip.js';
 import { call, createMaterial, createMaterialsLab, giveBack, lend, reusableWithStock, type MaterialsLab } from './materials.fixtures.js';
 
-/** MA-01d (ADR 0025): el libro de Materiales, su Excel y el resumen por clase por la API. */
+/** MA-01d (ADR 0025): el libro de Materiales y los Excel del libro y de existencias por la API. */
 
 let lab: MaterialsLab;
 let loanCode: string;
+let glovesId: string;
 
 beforeAll(async () => {
   lab = await createMaterialsLab();
   const gloves = await createMaterial(lab, { name: 'Guantes de nitrilo M (caja ×100)', baseUnit: 'caja' });
+  glovesId = gloves.id;
   const receipt = await call(lab.operator.subject, `${lab.base}/receipts`, {
     method: 'POST',
     body: { productId: gloves.id, locationId: lab.shelf, quantity: '10', unit: 'caja', reference: 'Factura 001-002-2492' },
@@ -52,6 +54,7 @@ describe('libro de Materiales', () => {
     expect((await movements('?kind=issue')).items).toHaveLength(1);
     expect((await movements('?purpose=clinic')).items).toHaveLength(1);
     expect((await movements('?purpose=practice')).items).toHaveLength(0);
+    expect((await movements(`?productId=${glovesId}`)).items.map((item) => item.kind).sort()).toEqual(['issue', 'receipt']);
     expect((await movements(`?q=${loanCode}`)).items.map((item) => item.kind).sort()).toEqual(['loan', 'return', 'writeoff']);
     expect((await movements('?q=factura')).items).toHaveLength(1);
     expect((await movements('?q=nitrilo')).items).toHaveLength(2);
@@ -80,22 +83,11 @@ describe('libro de Materiales', () => {
   });
 });
 
-describe('resumen por clase', () => {
-  it('cuenta insumos y suma las piezas de los reutilizables: en el estante, prestadas y dadas de baja', async () => {
-    const response = await call(lab.operator.subject, `${lab.base}/report`);
-    expect(response.status).toBe(200);
-    expect(materialsReport.parse(response.body)).toEqual({
-      consumable: { materials: 1, belowMinimum: 0, expiring: 0, empty: 0 },
-      reusable: { materials: 1, onShelf: '8', lent: '1', writtenOff: '1' },
-    });
-  });
-});
-
 describe('Excel del libro', () => {
   it('lo baja el Administrador con los filtros en el encabezado y la cantidad con signo', async () => {
     const file = await download(lab.adminMember.subject, `${lab.base}/movements/export?kind=issue`);
     expect(file.status).toBe(200);
-    expect(file.headers['content-disposition']).toMatch(/^attachment; filename="libro-materiales-\d{4}-\d{2}-\d{2}\.xlsx"$/);
+    expect(file.headers['content-disposition']).toMatch(/^attachment; filename="movimientos-materiales-\d{4}-\d{2}-\d{2}\.xlsx"$/);
     const sheet = readZipEntry(file.bytes, 'xl/worksheets/sheet1.xml');
     expect(sheet).toContain('Filtros: Movimiento: Salida');
     expect(sheet).toContain('Exodoncia');
@@ -103,9 +95,44 @@ describe('Excel del libro', () => {
     expect(sheet).not.toContain('Vasos de precipitados');
   });
 
+  it('nombra el material filtrado en el encabezado', async () => {
+    const file = await download(lab.adminMember.subject, `${lab.base}/movements/export?productId=${glovesId}`);
+    expect(file.status).toBe(200);
+    expect(readZipEntry(file.bytes, 'xl/worksheets/sheet1.xml')).toContain('Guantes de nitrilo M (caja ×100)');
+  });
+
   it('el Operador no lo exporta', async () => {
     const file = await download(lab.operator.subject, `${lab.base}/movements/export`);
     expect(file.status).toBe(403);
     expect(errorResponse.parse(JSON.parse(file.bytes.toString('utf8'))).error.code).toBe('ACCESS_DENIED');
+  });
+});
+
+describe('Excel de existencias', () => {
+  it('da un renglón por ubicación y lote con saldo, primero lo que vence antes, y los agotados', async () => {
+    const fresh = await createMaterialsLab();
+    const sutures = await createMaterial(fresh, { name: 'Sutura reabsorbible 4/0', tracksExpiry: true });
+    for (const [lot, expiresOn] of [['T88', '2099-06-30'], ['D130', '2099-01-31']]) {
+      const response = await call(fresh.operator.subject, `${fresh.base}/receipts`, {
+        method: 'POST',
+        body: { productId: sutures.id, locationId: fresh.shelf, quantity: '6', unit: 'u', lot, expiresOn },
+      });
+      expect(response.status).toBe(201);
+    }
+    await createMaterial(fresh, { name: 'Algodón en rollo', baseUnit: 'rollo' });
+    const file = await download(fresh.adminMember.subject, `${fresh.base}/stock/export?class=consumable`);
+    expect(file.status).toBe(200);
+    expect(file.headers['content-disposition']).toMatch(/^attachment; filename="existencias-materiales-\d{4}-\d{2}-\d{2}\.xlsx"$/);
+    const sheet = readZipEntry(file.bytes, 'xl/worksheets/sheet1.xml');
+    expect(sheet).toContain('Filtros: Clase: Insumo');
+    expect(sheet.indexOf('D130')).toBeGreaterThan(0);
+    expect(sheet.indexOf('D130')).toBeLessThan(sheet.indexOf('T88'));
+    expect(sheet).toContain('Sin existencia');
+    expect(sheet).toContain('rollo');
+  });
+
+  it('el Operador no lo exporta', async () => {
+    const file = await download(lab.operator.subject, `${lab.base}/stock/export`);
+    expect(file.status).toBe(403);
   });
 });

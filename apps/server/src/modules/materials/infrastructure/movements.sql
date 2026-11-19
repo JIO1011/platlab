@@ -2,7 +2,7 @@
 -- Libro de Materiales (MA-01d, ADR 0025). Del libro del inventario: ingresos, salidas y ajustes de materiales; un ajuste
 -- que dejó una devolución dañada o perdida es una baja. De los vales: cada línea prestada (sale del estante) y cada
 -- devolución en buen estado (vuelve), que apartan y liberan sin mover el saldo. Del más nuevo al más viejo, por
--- (at, id), con el periodo en la fecha civil del espacio. Con :q, por material (nombre o código), referencia, vale
+-- (at, id), con el periodo en la fecha civil del espacio; con :productId, solo ese material. Con :q, por material (nombre o código), referencia, vale
 -- (P-0043 o 43) o persona, plegados y con `\`, `%` y `_` escapados como en el catálogo. Los nombres solo se muestran.
 WITH search AS (
   SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),
@@ -76,6 +76,7 @@ LEFT JOIN LATERAL (
   WHERE pr.workspace_id = p.workspace_id AND pr.id = m.actor_id
 ) AS actor ON true
 WHERE (:kind::text IS NULL OR m.kind = :kind::text)
+  AND (:productId::uuid IS NULL OR i.id = :productId::uuid)
   AND (:purpose::text IS NULL OR m.purpose = :purpose::text)
   AND (:from::date IS NULL OR m.at >= (:from::date)::timestamp AT TIME ZONE :timeZone!)
   AND (:to::date IS NULL OR m.at < (:to::date + 1)::timestamp AT TIME ZONE :timeZone!)
@@ -89,31 +90,17 @@ WHERE (:kind::text IS NULL OR m.kind = :kind::text)
 ORDER BY m.at DESC, m.id DESC
 LIMIT :limit!;
 
-/* @name materialsReport */
--- El estado por clase (MA-01d), hoy: insumos activos, bajo su mínimo, con un lote por vencer hasta :expiringBy (vencidos
--- incluidos) y agotados; reutilizables por cantidad activos, sus piezas en el estante y prestadas, y las dadas de baja
--- por daño o pérdida desde el inicio.
-WITH stock AS (
-  SELECT prod.class, i.minimum_quantity,
-         coalesce(sum(p.balance), 0) AS balance,
-         coalesce(sum(p.reserved), 0) AS reserved,
-         coalesce(bool_or(p.balance > 0 AND lot.expires_on <= :expiringBy!::date), false) AS expiring
-  FROM inventory.items AS i
-  JOIN materials.products AS prod ON prod.workspace_id = i.workspace_id AND prod.item_id = i.id
-  LEFT JOIN inventory.positions AS p ON p.workspace_id = i.workspace_id AND p.item_id = i.id
-  LEFT JOIN inventory.lots AS lot ON lot.workspace_id = p.workspace_id AND lot.id = p.lot_id
-  WHERE i.workspace_id = :workspaceId! AND i.kind = 'material' AND i.archived_at IS NULL
-  GROUP BY i.id, prod.class, i.minimum_quantity
-)
-SELECT
-  count(*) FILTER (WHERE class = 'consumable')::int AS "consumables!",
-  count(*) FILTER (WHERE class = 'consumable' AND minimum_quantity IS NOT NULL AND balance < minimum_quantity)::int AS "below_minimum!",
-  count(*) FILTER (WHERE class = 'consumable' AND expiring)::int AS "expiring!",
-  count(*) FILTER (WHERE class = 'consumable' AND balance = 0)::int AS "empty!",
-  count(*) FILTER (WHERE class = 'reusable_counted')::int AS "reusables!",
-  trim_scale(coalesce(sum(balance - reserved) FILTER (WHERE class = 'reusable_counted'), 0)) AS "on_shelf!",
-  trim_scale(coalesce(sum(reserved) FILTER (WHERE class = 'reusable_counted'), 0)) AS "lent!",
-  (SELECT trim_scale(coalesce(sum(rl.quantity), 0))
-     FROM materials.return_lines AS rl
-    WHERE rl.workspace_id = :workspaceId! AND rl.outcome <> 'good') AS "written_off!"
-FROM stock;
+/* @name materialName */
+-- El nombre del material filtrado, para el encabezado del Excel.
+SELECT code, name FROM inventory.items WHERE workspace_id = :workspaceId! AND id = :productId! AND kind = 'material';
+
+/* @name stockPositionsOf */
+-- Las existencias de hoy de esos materiales para el Excel del Inventario: cada ubicación y lote con saldo, primero lo que
+-- vence antes (FEFO, MA-01f).
+SELECT p.item_id, loc.name AS location_name, lot.supplier_lot, lot.expires_on::text AS expires_on,
+       trim_scale(p.balance) AS "balance!", trim_scale(p.balance - p.reserved) AS "available!"
+FROM inventory.positions AS p
+JOIN core.locations AS loc ON loc.workspace_id = p.workspace_id AND loc.id = p.location_id
+JOIN inventory.lots AS lot ON lot.workspace_id = p.workspace_id AND lot.id = p.lot_id
+WHERE p.workspace_id = :workspaceId! AND p.item_id = ANY (:itemIds!::uuid[]) AND p.balance > 0
+ORDER BY p.item_id, lot.expires_on NULLS LAST, inventory.fold_text(loc.name), p.id;
