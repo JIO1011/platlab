@@ -21,7 +21,7 @@ Requisitos: Node 24 (`.nvmrc`), pnpm 11 y Docker en ejecución. La CLI de Supaba
 | pgTAP | `pnpm test:db` |
 | Integración (rol de runtime y Auth local) | `pnpm test:int` (requiere `pnpm db:start`) |
 | API / web en desarrollo | `pnpm --filter @platlab/server dev` · `pnpm --filter @platlab/web dev` |
-| Flujo de G0 en el navegador | `pnpm e2e` (Playwright + axe; requiere `pnpm db:start`; levanta la API y la vista previa; la primera vez, `pnpm --filter @platlab/web exec playwright install chromium`) |
+| Flujo de G0 en el navegador | `pnpm e2e` (Playwright + axe; requiere `pnpm db:start`; levanta la API y la vista previa; la primera vez, `pnpm --filter @platlab/web exec playwright install chromium`). Con `E2E_CAPTURES=1`, guarda además las capturas para la revisión visual en `apps/web/.impeccable/review/` |
 | Demo local | Tras `pnpm db:start`, la API y la web en desarrollo: http://localhost:5173 con las cuentas de `supabase/seeds/demo.sql` (contraseña `platlab-demo`) |
 
 Una sola prueba: `pnpm --filter @platlab/server exec vitest run src/app.test.ts` o filtrar por nombre con `-t "texto"`. Un solo archivo pgTAP: `pnpm supabase test db supabase/tests/database/runtime_role.test.sql`.
