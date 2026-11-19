@@ -1,5 +1,6 @@
 import { materialMovementKindLabel, type MaterialMovement } from '@platlab/contracts';
 import { Quantity, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, cn } from '@platlab/ui';
+import { MapPin } from 'lucide-react';
 import { Link } from 'react-router';
 import { CodeTag } from '../../app/code-tag';
 import { formatShortDateTime } from '../../app/format';
@@ -39,10 +40,13 @@ export function LedgerTable({ rows, timeZone, base }: { rows: MaterialMovement[]
                 <Item row={row} base={base} />
                 <Quantity value={row.quantity} unit={row.unit} signed className={cn('shrink-0 font-semibold', signTone(row.quantity))} />
               </div>
-              <p className="flex flex-wrap items-center gap-x-2 text-[13px] text-ink-muted">
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] text-ink-muted">
                 <span className={cn('font-semibold', kindTone[row.kind])}>{materialMovementKindLabel[row.kind]}</span>
                 <span>{formatShortDateTime(row.at, timeZone)}</span>
-                <span>· {row.place}</span>
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  <MapPin className="size-3.5 shrink-0 text-ink-subtle" aria-hidden />
+                  {row.place}
+                </span>
               </p>
               <p className="text-[13px] text-ink">{movementReference(row)}</p>
               {note ? <p className="text-[12px] text-ink-muted">{note}</p> : null}

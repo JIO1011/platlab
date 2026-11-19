@@ -94,19 +94,20 @@ export function MaterialsMovementsPage() {
                 ))}
               </div>
             ) : null}
-            <div className="grid gap-3 sm:grid-cols-[repeat(2,minmax(0,11rem))_minmax(0,1fr)] sm:items-end">
+            {/* En el móvil, las dos fechas lado a lado y la búsqueda debajo: el libro empieza en la primera pantalla. */}
+            <div className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[repeat(2,minmax(0,11rem))_minmax(0,1fr)]">
               <Field label="Desde">
                 <Input type="date" value={from} max={to || undefined} onChange={(event) => setFrom(event.target.value)} className="h-11 sm:h-10" />
               </Field>
               <Field label="Hasta" error={backwards ? 'Termina antes de empezar' : undefined}>
                 <Input type="date" value={to} min={from || undefined} onChange={(event) => setTo(event.target.value)} className="h-11 sm:h-10" />
               </Field>
-              <div className="relative">
+              <div className="relative col-span-2 sm:col-span-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" aria-hidden />
                 <Input
                   type="search"
                   aria-label="Buscar material, vale, referencia o persona"
-                  placeholder="Buscar material, vale, referencia o persona"
+                  placeholder="Buscar material, vale o persona"
                   autoComplete="off"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
