@@ -760,7 +760,7 @@ Motivo: hoy los miembros solo se crean con datos de prueba. El laboratorio neces
 
 Aceptado el 19-11-2026. Adelanta la publicación que [02 §9](02_arquitectura.md#9-infraestructura-y-ambientes) deja para «G0 si la demo se publica». No es G1 ni admite datos reales ([ADR 0005](#adr-0005)).
 
-- **Cómo.** Un Cloudflare Tunnel (`cloudflared`) desde el equipo del Equipo PlatLab publica `platlab.reacti-lab.com`, con el certificado de Cloudflare. Detrás siguen la base, Auth y la API locales de desarrollo; por ahora no hay proyecto de Supabase ni hosting.
+- **Cómo.** Un Cloudflare Tunnel (`cloudflared`) desde el equipo del Equipo PlatLab publica `platlab.ohmroyal.org`, con el certificado de Cloudflare. Detrás siguen la base, Auth y la API locales de desarrollo; por ahora no hay proyecto de Supabase ni hosting.
 - **Un solo origen, repartido por ruta** (`infra/cloudflared/platlab.example.yml`):
   - `/v1` va a la API.
   - De Auth local solo pasan `/auth/v1/token`, `/auth/v1/user` y `/auth/v1/logout`: entrar, renovar y salir. El registro, la recuperación y la administración responden 404.

@@ -62,7 +62,7 @@ Para ver el ciclo de aprobación, abre dos sesiones (una ventana normal y otra d
 
 ## Demo en internet
 
-La demo está en **https://platlab.reacti-lab.com** mientras el equipo del Equipo PlatLab la tenga encendida ([ADR 0029](docs/05_decisiones.md#adr-0029)). Es abierta y con datos sintéticos.
+La demo está en **https://platlab.ohmroyal.org** mientras el equipo del Equipo PlatLab la tenga encendida ([ADR 0029](docs/05_decisiones.md#adr-0029)). Es abierta y con datos sintéticos.
 
 **Para entrar:**
 1. Abre la dirección y entra con una de las [cuentas de la demo](#cuentas-de-la-demo). La contraseña de todas es `platlab-demo`.
@@ -75,8 +75,8 @@ No hay «Crear cuenta»: las cuentas las da el Equipo PlatLab. Cualquiera puede 
 
 | Cuándo | Qué |
 |---|---|
-| Una vez | Instala `cloudflared` (`sudo pacman -S cloudflared`) y ejecuta `cloudflared tunnel login`, eligiendo `reacti-lab.com` |
-| Una vez | `cloudflared tunnel create platlab-demo` y `cloudflared tunnel route dns platlab-demo platlab.reacti-lab.com` |
+| Una vez | Instala `cloudflared` (`sudo pacman -S cloudflared`) y ejecuta `cloudflared tunnel login`, eligiendo `ohmroyal.org` |
+| Una vez | `cloudflared tunnel create platlab-demo` y `cloudflared tunnel route dns platlab-demo platlab.ohmroyal.org` |
 | Una vez | Copia `infra/cloudflared/platlab.example.yml` a `~/.cloudflared/platlab.yml` con el ID del túnel |
 | Cada vez | `pnpm db:start` y luego `pnpm demo:online`, que compila la web, levanta la API y la web y abre el túnel. Ctrl+C la apaga |
 

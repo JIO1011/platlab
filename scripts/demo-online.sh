@@ -2,7 +2,7 @@
 # Demo publicada (ADR 0029): compila la web de producción, levanta la API y la web en sus puertos de demo y abre el
 # túnel. Requiere `pnpm db:start` y el túnel creado (README, «Demo en internet»). Ctrl+C lo apaga todo.
 set -euo pipefail
-host="${PLATLAB_DEMO_HOST:-platlab.reacti-lab.com}"
+host="${PLATLAB_DEMO_HOST:-platlab.ohmroyal.org}"
 config="${PLATLAB_TUNNEL_CONFIG:-$HOME/.cloudflared/platlab.yml}"
 cd "$(dirname "$0")/.."
 
