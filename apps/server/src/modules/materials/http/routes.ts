@@ -7,6 +7,8 @@ import {
   materialAdjustmentRequest,
   materialIssueRequest,
   materialListQuery,
+  materialMovementFilters,
+  materialMovementQuery,
   materialParams,
   materialReceiptRequest,
   materialsDashboardQuery,
@@ -16,12 +18,14 @@ import {
   setMaterialMinimumRequest,
   updateMaterialRequest,
 } from '@platlab/contracts';
+import { sendXlsx } from '../../../platform/http/download.js';
 import { commandRequest, queryRequest } from '../../../platform/http/module-request.js';
 import { getDashboard } from '../application/dashboard.js';
 import { getLoan, listBorrowers, listLoanPage } from '../application/loan-views.js';
 import { lendMaterial, returnMaterial } from '../application/loans.js';
 import { createMaterial, setMaterialMinimum, updateMaterial } from '../application/catalog.js';
 import { getProduct, getSummary, listAreas, listProducts, listReceiptLocations, listStock } from '../application/queries.js';
+import { exportMovements, getReport, listMovementPage } from '../application/report.js';
 import { registerAdjustment, registerIssue, registerReceipt } from '../application/stock.js';
 
 /**
@@ -35,6 +39,15 @@ export function materialsRoutes({ pool }: { pool: pg.Pool }): FastifyPluginAsync
     app.get('/dashboard', async (request) => getDashboard(pool, queryRequest(request), materialsDashboardQuery.parse(request.query)));
 
     app.get('/areas', async (request) => listAreas(pool, queryRequest(request)));
+
+    app.get('/report', async (request) => getReport(pool, queryRequest(request)));
+
+    app.get('/movements', async (request) => listMovementPage(pool, queryRequest(request), materialMovementQuery.parse(request.query)));
+
+    app.get('/movements/export', async (request, reply) => {
+      const filters = materialMovementFilters.parse(request.query);
+      return sendXlsx(reply, (open) => exportMovements(pool, queryRequest(request), filters, open));
+    });
 
     app.get('/receipt-locations', async (request) => listReceiptLocations(pool, queryRequest(request)));
 

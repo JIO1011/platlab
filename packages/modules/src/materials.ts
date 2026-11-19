@@ -18,6 +18,7 @@ export const materialsModule = defineModule({
     'materials.adjustment.create',
     'materials.loan.create',
     'materials.loan.return',
+    'materials.report.export',
   ],
   roleGrants: {
     admin: [
@@ -28,6 +29,7 @@ export const materialsModule = defineModule({
       'materials.adjustment.create',
       'materials.loan.create',
       'materials.loan.return',
+      'materials.report.export',
     ],
     operator: [
       'materials.catalog.read',
@@ -37,7 +39,8 @@ export const materialsModule = defineModule({
       'materials.loan.return',
     ],
   },
-  // El Informe y el QR llegan con MA-01d. El Resumen es la portada y Préstamos lo ven quienes prestan.
+  // El Resumen es la portada, Préstamos lo ven quienes prestan e Informes, quienes consultan; su Excel es del Administrador
+  // (01 §5). El QR llega con MA-01e.
   nav: [
     {
       path: 'materiales',
@@ -47,6 +50,7 @@ export const materialsModule = defineModule({
         { path: '', label: 'Resumen', permission: 'materials.catalog.read' },
         { path: 'inventario', label: 'Inventario', permission: 'materials.catalog.read' },
         { path: 'prestamos', label: 'Préstamos', permission: 'materials.loan.create' },
+        { path: 'informes', label: 'Informes', permission: 'materials.catalog.read' },
       ],
     },
   ],

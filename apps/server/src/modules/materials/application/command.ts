@@ -23,6 +23,8 @@ export const ADJUSTMENT = 'materials.adjustment.create';
 /** Prestar y recibir devoluciones: Operador y Administrador (01 §5). */
 export const LOAN = 'materials.loan.create';
 export const RETURN = 'materials.loan.return';
+/** Exportar el libro es un reporte (01 §5): del Administrador. */
+export const REPORT = 'materials.report.export';
 
 /** Comandos de Materiales: una transacción con su admisión, permiso, idempotencia y auditoría. */
 export const runCommand = moduleCommand('materials');
