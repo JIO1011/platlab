@@ -29,6 +29,7 @@ Revisión: 16 de noviembre de 2026. Registro resumido de decisiones de arquitect
 | [0023](#adr-0023) | Laboratorios: solicitudes y cronograma en un solo módulo | Aceptado el 20-10-2026; cerrado para el piloto el 16-11-2026 |
 | [0024](#adr-0024) | Áreas y departamentos en una sección propia | Aceptado el 20-10-2026 |
 | [0025](#adr-0025) | Materiales y Préstamos: consumibles, reutilizables y vale de préstamo | Aceptado el 18-11-2026 |
+| [0026](#adr-0026) | Inicio con Actividad, Calendario y Por atender | Aceptado el 19-11-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -675,3 +676,35 @@ Estado: aceptada (18-11-2026; idea del usuario). Concreta M6 de [01 §3](01_prod
 Motivo: el laboratorio gasta y presta material además de reactivos; sin catálogo, Laboratorios solo puede pedirlo como texto. Los reglamentos universitarios coinciden en el vale, la devolución con estado y la reposición ([UABC](https://fcqi.tij.uabc.mx/wp-content/uploads/2025/06/Procedimiento-prestamo-material-almacen-6E-ACTUAL.pdf), [UNAM](https://amyd.quimica.unam.mx/mod/resource/view.php?id=6773)); lo de bajo valor y alto volumen no pide lote.
 
 Cambios: 18 y 19-11-2026; 18-11-2026, vencimiento por lote y salida con tipo, a partir de la planilla del cliente.
+
+## ADR 0026 — Inicio con Actividad, Calendario y Por atender
+
+Estado: aceptada (19-11-2026; idea del usuario a partir de un ejemplo visual). Amplía el Inicio del [ADR 0011](#adr-0011): las tarjetas por módulo siguen, debajo y más livianas.
+
+- **Actividad, un cronograma corto:**
+  - No muestra el Cronograma completo, solo lo finalizado hoy, lo que está en proceso y lo que está por iniciar.
+  - Va en una franja con la línea de «ahora» que avanza sola con la hora del espacio. Si hoy ya no queda nada por iniciar, muestra lo próximo.
+  - Cada actividad abre en su módulo.
+  - Lo que no tiene hora (un mantenimiento que vence, una devolución prevista) va en una franja «Todo el día».
+  - En el móvil, la misma información va en lista por estado.
+- **Calendario:**
+  - Es un mapa de calor del mes: cada día cuenta sus prácticas, mantenimientos y devoluciones, en tramos fijos (0, 1–2, 3–5, 6–9, 10 o más) para que un mes tranquilo no parezca cargado.
+  - Al tocar un día, Actividad muestra ese día.
+  - Cada día dice en texto lo que tiene.
+  - Los vencimientos de reactivos e insumos no entran: van en «Por atender».
+- **Por atender:**
+  - Una fila por tipo de tarea (prácticas por revisar o por cerrar, equipos por revisar, préstamos atrasados, reactivos por vencer o bajo mínimo, insumos bajo mínimo), con lo rojo antes que lo ámbar.
+  - Cada fila abre la lista ya filtrada de su módulo; si no hay nada, dice «Todo al día».
+  - En el móvil va primero.
+- **Recordatorios:**
+  - Son personales: solo los ve quien los crea. Llevan texto y una fecha opcional, y se marcan como hechos o se quitan.
+  - No son registros de negocio. Viven en una tabla del Núcleo con RLS por miembro.
+- **Composición:**
+  - Cada módulo declara sus actividades con fecha y sus tareas, como hoy declara su tarjeta, y el Núcleo las compone sin conocer los módulos.
+  - Cada aporte exige su permiso y el ámbito del miembro: el Docente ve sus prácticas.
+  - El calendario pide su mes aparte.
+  - Cada panel carga y falla por separado.
+- **Fuera:** del ejemplo quedan fuera el vidrio translúcido (no alcanza el contraste AA), el banner decorativo y la tarjeta de notificaciones, porque los avisos viven en la barra. Siguen las reglas de los gráficos del ADR 0011.
+- **Entregas:** I-01 (base y API de Actividad, Calendario y Por atender), I-02 (la pantalla) e I-03 (Recordatorios).
+
+Motivo: el Inicio de hoy solo lleva a los módulos. El usuario quiere ver en un vistazo lo que pasa hoy, lo que viene y lo que le toca, y llegar a cada cosa con un toque.
