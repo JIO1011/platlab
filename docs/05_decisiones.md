@@ -32,6 +32,8 @@ Revisión: 16 de noviembre de 2026. Registro resumido de decisiones de arquitect
 | [0026](#adr-0026) | Inicio con Actividad, Calendario y Por atender | Aceptado el 19-11-2026 |
 | [0027](#adr-0027) | Usuarios: lista blanca, roles e inactividad | Aceptado el 19-11-2026 |
 | [0029](#adr-0029) | Demo publicada en internet | Aceptado el 19-11-2026 |
+| [0031](#adr-0031) | Modelo comercial para universidades | Aceptado el 19-11-2026; ingreso y cifras reemplazados por el 0032 |
+| [0032](#adr-0032) | Precios por módulo con mantenimiento anual | Aceptado el 19-11-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -640,8 +642,8 @@ Cambios: 20-10-2026; compactado el 16-11-2026.
 | Conexión a PostgreSQL | ¿Conexión directa con el complemento IPv4 o Supavisor en modo sesión? | S-01 |
 | Credencial local del rol de runtime | `supabase/seed.sql` fija una contraseña de desarrollo. Antes de usar ramas de Supabase o staging, pasarla a una variable de entorno local o desactivar el seed fuera de local y CI | S-01 |
 | Conectividad | Cortes reales y procedimiento de continuidad | F0 |
-| Modelo comercial | Resuelta: [ADR 0031](#adr-0031) (19-11-2026) | — |
-| Precio | Tarifa por espacio y tramo con costos medidos, soporte y margen; las cifras del ADR 0031 son hipótesis | Antes de cotizar; S-01 aporta los costos |
+| Modelo comercial | Resuelta: [ADR 0031](#adr-0031) y [ADR 0032](#adr-0032) (19-11-2026) | — |
+| Precio | Fijado para el tramo S en el [ADR 0032](#adr-0032). Falta revisarlo con los costos medidos de S-01 y cotizar M, L y XL | Al cerrar S-01 |
 | Compra pública y SSO | ¿Procedimiento y umbrales de compras públicas para una licencia anual? ¿SSO institucional (Microsoft/Google) y política de datos que piden las universidades? | Antes de ofrecer el plan Institucional |
 | Código de ReactiLab | Titularidad y licencia: el README dice MIT y los términos dicen software propietario | Antes de copiar componentes |
 
@@ -783,7 +785,7 @@ Motivo: tener la demo en internet hoy, sin cuentas nuevas ni costo, y sin expone
 <a id="adr-0031"></a>
 ## ADR 0031 — Modelo comercial para universidades: licencia anual por espacio y plan
 
-Aceptado el 19-11-2026 (decisión del usuario). Cierra la recomendación de [01 §4](01_producto.md#4-paquetes). No cambia las puertas: un módulo solo se vende en etapa `general` ([ADR 0009](#adr-0009)).
+Aceptado el 19-11-2026 (decisión del usuario). Cierra la recomendación de [01 §4](01_producto.md#4-paquetes). El ingreso, los planes Control y Operación y las cifras los reemplaza el [ADR 0032](#adr-0032). No cambia las puertas: un módulo solo se vende en etapa `general` ([ADR 0009](#adr-0009)).
 
 - **Comprador:** la universidad es el titular y cada facultad o campus, un espacio.
 - **Ingreso:** licencia anual por espacio y plan, pagada por adelantado y sin cobro por usuario; incorporación única según el trabajo real; desarrollos a medida aparte. La proforma (pago único por módulo + 1 200 USD/año por todo) deja casi sin ingreso recurrente el hosting, el soporte y las actualizaciones, y no se reutiliza.
@@ -806,3 +808,28 @@ Aceptado el 19-11-2026 (decisión del usuario). Cierra la recomendación de [01 
 - **Dependencias para el plan Institucional:** SSO, política de datos y SLA de soporte realista; no se prometen antes de existir.
 
 Motivo: pasar de un pago único con licencia simbólica a ingreso recurrente que sostenga el producto, sin penalizar a docentes y estudiantes con un precio por asiento.
+
+<a id="adr-0032"></a>
+## ADR 0032 — Precios por módulo con mantenimiento anual
+
+Aceptado el 19-11-2026 (decisión del usuario). Reemplaza en el [ADR 0031](#adr-0031) el ingreso (licencia anual completa), los planes Control y Operación y las cifras de partida. Mantiene del 0031 el comprador, los tramos por tamaño, las reglas de descuento, el piloto pagado de 90 días y la compra pública. Las puertas no cambian: un módulo solo se vende en etapa `general` ([ADR 0009](#adr-0009)); antes, se vende como piloto.
+
+- **Compra por módulos, en un solo pago y por espacio**, como en la proforma. El Núcleo es obligatorio y el cliente suma los módulos que necesita. Docentes y estudiantes son ilimitados: no se cobra por usuario.
+- **Paquete Institucional:** el Núcleo con los cinco módulos (Reactivos, Equipos, Laboratorios, Materiales y Mantenimiento), con descuento.
+- **Mantenimiento anual desde el segundo año: 20 % de lo comprado; en el paquete Institucional, una cifra fija de 1 200 USD.** Incluye servidores, copias, actualizaciones y hasta 2 h de soporte al mes; las horas extra se cobran aparte.
+- **Precios del tramo S** (hasta 5 laboratorios por espacio), en USD y sin IVA. M, L y XL se cotizan.
+
+| Concepto | Pago único | Mantenimiento anual desde el año 2 |
+|---|---|---|
+| Núcleo (obligatorio) | 1 000 | 200 |
+| Cada módulo | 1 300 | 260 |
+| Paquete Institucional | 5 800 (en vez de 7 500) | 1 200 |
+| Hora de soporte extra o desarrollo a medida | 50 | — |
+
+- **El pago único incluye la puesta en marcha:** configuración, carga inicial con la plantilla de PlatLab y capacitación. Una migración de datos fuera de la plantilla se cotiza aparte.
+- **Se publican en el sitio** (`/precios/` de `apps/site`). Esto reemplaza el «sin precios ni cifras» del [ADR 0030](#adr-0030).
+- **Compra pública:** el pago único del paquete completo queda debajo de los 10 000 USD de la ínfima cuantía, según guías de 2026. Hay que confirmar el monto con el SERCOP antes de cotizar a una entidad pública (ver Compra pública y SSO, en Pendientes).
+- **Riesgo aceptado:** el ingreso recurrente es bajo, así que el negocio depende de vender clientes y módulos nuevos cada año. El tope de soporte evita perder dinero. Las cifras se revisan con los costos medidos de S-01.
+
+Motivo: un precio que el cliente entiende («paga una vez lo que usa»), un primer pago bajo para cerrar la primera venta, cada módulo nuevo como otra venta y un mantenimiento proporcional al tamaño de cada cliente. Es la regla habitual del software que se vende por licencia.
+
