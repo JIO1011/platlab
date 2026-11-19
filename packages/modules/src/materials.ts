@@ -37,13 +37,17 @@ export const materialsModule = defineModule({
       'materials.loan.return',
     ],
   },
-  // Las secciones (Resumen, Inventario, Préstamos e Informe) llegan con las pantallas (MA-01c y MA-01d).
+  // El Informe y el QR llegan con MA-01d. El Resumen es la portada y Préstamos lo ven quienes prestan.
   nav: [
     {
       path: 'materiales',
       label: 'Materiales',
       permission: 'materials.catalog.read',
-      sections: [{ path: '', label: 'Inventario', permission: 'materials.catalog.read' }],
+      sections: [
+        { path: '', label: 'Resumen', permission: 'materials.catalog.read' },
+        { path: 'inventario', label: 'Inventario', permission: 'materials.catalog.read' },
+        { path: 'prestamos', label: 'Préstamos', permission: 'materials.loan.create' },
+      ],
     },
   ],
   homeCard: { permission: 'materials.catalog.read' },

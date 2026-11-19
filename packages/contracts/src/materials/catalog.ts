@@ -46,8 +46,10 @@ export const materialMinimumResponse = z.object({ productId: z.uuid(), minimum: 
 
 export const materialParams = z.object({ workspaceId: z.uuid(), productId: z.uuid() });
 
-/** `q`: busca en nombre o código, sin distinguir mayúsculas ni tildes. */
-export const materialListQuery = z.object({ ...page, q: z.string().trim().min(2).max(100).optional() }).strict();
+/** `q`: busca en nombre o código, sin distinguir mayúsculas ni tildes; `class`, deja solo una clase. */
+export const materialListQuery = z
+  .object({ ...page, q: z.string().trim().min(2).max(100).optional(), class: materialClass.optional() })
+  .strict();
 
 /** Material con su total en todas las ubicaciones, lo prestado y si está bajo su mínimo. */
 export const stockedMaterial = material.extend({
@@ -67,3 +69,12 @@ export type MaterialClass = z.infer<typeof materialClass>;
 export type StockedMaterial = z.infer<typeof stockedMaterial>;
 export type MaterialList = z.infer<typeof materialList>;
 export type MaterialDetail = z.infer<typeof materialDetail>;
+
+/** GET /summary: las cifras del Resumen y de la tarjeta de Inicio. */
+export const materialsSummary = z.object({
+  materials: z.number().int().nonnegative(),
+  belowMinimum: z.number().int().nonnegative(),
+  openLoans: z.number().int().nonnegative(),
+  overdueLoans: z.number().int().nonnegative(),
+});
+export type MaterialsSummary = z.infer<typeof materialsSummary>;

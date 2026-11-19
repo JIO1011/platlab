@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { materialDetail, materialList, materialMovementResponse, materialStockList } from '@platlab/contracts';
+import { locationList, materialDetail, materialList, materialMovementResponse, materialsSummary, materialStockList } from '@platlab/contracts';
 import {
   admin,
   call,
@@ -272,5 +272,40 @@ describe('auditoría', () => {
     ]) {
       expect(actions.has(action), action).toBe(true);
     }
+  });
+});
+
+describe('resumen, ubicaciones y clases', () => {
+  it('cuenta materiales, bajo mínimo y préstamos abiertos y atrasados', async () => {
+    const fresh = await createMaterialsLab();
+    const supply = await createMaterial(fresh, { name: 'Papel filtro' });
+    const glass = await createMaterial(fresh, { name: 'Vasos', class: 'reusable_counted' });
+    await receivedPosition(fresh, supply.id, '2');
+    const positionId = await receivedPosition(fresh, glass.id, '10');
+    await call(fresh.adminMember.subject, `${fresh.base}/products/${supply.id}/minimum`, { method: 'PUT', body: { minimum: '5' } });
+    const loan = await call(fresh.operator.subject, `${fresh.base}/loans`, {
+      method: 'POST',
+      body: { borrowerId: fresh.teacher.principalId, lines: [{ positionId, quantity: '2' }] },
+    });
+    await admin.query(`update materials.loans set due_on = current_date - 2 where id = $1`, [(loan.body as { id: string }).id]);
+    const summary = materialsSummary.parse((await call(fresh.operator.subject, `${fresh.base}/summary`)).body);
+    expect(summary).toEqual({ materials: 2, belowMinimum: 1, openLoans: 1, overdueLoans: 1 });
+  });
+
+  it('ofrece ubicaciones de ingreso a quien ingresa y ninguna a quien no', async () => {
+    const withPermission = locationList.parse((await call(lab.operator.subject, `${lab.base}/receipt-locations`)).body);
+    expect(withPermission.items.map((place) => place.id)).toContain(lab.shelf);
+    // El Docente ni siquiera consulta Materiales: la admisión lo rechaza antes.
+    expect((await call(lab.teacher.subject, `${lab.base}/receipt-locations`)).status).toBe(403);
+  });
+
+  it('filtra el catálogo por clase', async () => {
+    const fresh = await createMaterialsLab();
+    const supply = await createMaterial(fresh, { name: 'Guantes' });
+    const glass = await createMaterial(fresh, { name: 'Probetas', class: 'reusable_counted' });
+    const byClass = async (name: string) =>
+      materialList.parse((await call(fresh.operator.subject, `${fresh.base}/products?class=${name}`)).body).items.map((item) => item.id);
+    expect(await byClass('consumable')).toEqual([supply.id]);
+    expect(await byClass('reusable_counted')).toEqual([glass.id]);
   });
 });

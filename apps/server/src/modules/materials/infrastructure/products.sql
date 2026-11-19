@@ -47,6 +47,7 @@ WHERE i.workspace_id = :workspaceId!
   AND i.kind = 'material'
   AND i.archived_at IS NULL
   AND (:productId::uuid IS NULL OR i.id = :productId::uuid)
+  AND (:class::text IS NULL OR m.class = :class::text)
   AND (search.pattern IS NULL
        OR inventory.fold_text(i.name) LIKE search.pattern
        OR lower(i.code) LIKE search.pattern)
