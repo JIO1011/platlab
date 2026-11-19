@@ -4,7 +4,6 @@ import {
   activitiesOfArea,
   activityDetails,
   activityLabel,
-  areaLabel,
   blockParts,
   blockSpan,
   blockText,
@@ -301,20 +300,5 @@ describe('texto del bloque', () => {
     expect(overCapacity(activity({ participants: 24 }), space())).toBe(false);
     expect(overCapacity(activity({ participants: 30 }), space())).toBe(true);
     expect(capacityWarning(30, 24)).toBe('Supera el aforo (30 / 24)');
-  });
-});
-
-describe('nombre del área', () => {
-  it('quita la palabra «Laboratorio» al inicio, con el «de» que la siga', () => {
-    expect(areaLabel('Laboratorio de Química')).toBe('Química');
-    expect(areaLabel('LABORATORIO DE LA Salud')).toBe('Salud');
-    expect(areaLabel('Laboratorios de Física')).toBe('Física');
-    expect(areaLabel('Laboratorio Clínico')).toBe('Clínico');
-  });
-
-  it('deja el nombre completo si no queda nada o no empieza así', () => {
-    expect(areaLabel('Laboratorio')).toBe('Laboratorio');
-    expect(areaLabel('Anatomía')).toBe('Anatomía');
-    expect(areaLabel('Sala de laboratorio')).toBe('Sala de laboratorio');
   });
 });

@@ -1,8 +1,8 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@platlab/ui';
 import { ChevronDown } from 'lucide-react';
 import { Link } from 'react-router';
-import { countText } from '../../app/format';
-import { areaLabel, type BoardColumn } from './schedule-grid';
+import { areaLabel, countText } from '../../app/format';
+import type { BoardColumn } from './schedule-grid';
 
 /**
  * El aviso de las áreas del Núcleo que aún no tienen horario, en el encabezado del Cronograma: no ocupan columnas en la

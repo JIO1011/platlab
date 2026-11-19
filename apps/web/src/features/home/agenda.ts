@@ -38,15 +38,15 @@ export function hourMarks(range: TimeRange): number[] {
   return marks;
 }
 
-/** Dónde cae un instante de la franja, en porcentaje desde la izquierda. */
+/** Dónde cae un instante de la franja, en porcentaje desde su inicio (arriba en Actividad). */
 export const offset = (minutes: number, range: TimeRange) => ((minutes - range.start) / (range.end - range.start)) * 100;
 
-/** Una actividad con hora puesta en la franja: su carril (para que dos a la vez no se tapen) y su ancho. */
+/** Una actividad con hora puesta en la franja: su carril (para que dos a la vez no se tapen), dónde empieza y cuánto ocupa. */
 export interface Placed {
   item: AgendaItem;
   lane: number;
-  left: number;
-  width: number;
+  start: number;
+  size: number;
 }
 
 /** Reparte las actividades con hora en carriles: cada una va en el primero que ya quedó libre cuando empieza. */
@@ -59,43 +59,38 @@ export function placeTimed(items: readonly AgendaItem[], range: TimeRange): { pl
       let lane = ends.findIndex((end) => end <= span.from);
       if (lane === -1) lane = ends.push(span.to) - 1;
       else ends[lane] = span.to;
-      const left = offset(span.from, range);
-      return { item, lane, left, width: offset(span.to, range) - left };
+      const start = offset(span.from, range);
+      return { item, lane, start, size: offset(span.to, range) - start };
     });
   return { placed, lanes: Math.max(1, ends.length) };
 }
 
-/** Una fila de Actividad: un área con lo de hoy; `area` null es la fila de lo que no tiene área. */
-export interface AreaRow {
+/** Una columna de Actividad: un área con lo que tiene hora hoy; `area` null es la de lo que no tiene área. */
+export interface AreaColumn {
   area: AgendaArea | null;
-  /** Lo que tiene hora, en la franja. */
-  timed: AgendaItem[];
-  /** Lo que no tiene hora (un mantenimiento que vence, una devolución), junto al nombre de la fila. */
-  allDay: AgendaItem[];
+  items: AgendaItem[];
 }
 
 /**
- * Las filas de Actividad (ADR 0026, revisión de IN-02): primero lo que no tiene área, si hay; después cada área, también
- * las libres, y al final las áreas de lo que no estaba entre ellas (un equipo guardado en un depósito).
+ * Las columnas de Actividad, como en el Cronograma (ADR 0026, segunda revisión de IN-02): cada área, también las libres,
+ * y después las áreas de lo que tiene hora y no estaba entre ellas; al final, «Sin área» si hace falta. Lo que no tiene
+ * hora no abre columna: va en «Todo el día».
  */
-export function areaRows(areas: readonly AgendaArea[], items: readonly AgendaItem[]): AreaRow[] {
+export function areaColumns(areas: readonly AgendaArea[], items: readonly AgendaItem[]): AreaColumn[] {
+  const withTime = timed(items);
   const known = new Map(areas.map((area) => [area.id, area]));
-  for (const item of items) if (item.area && !known.has(item.area.id)) known.set(item.area.id, item.area);
-  const rowOf = (area: AgendaArea | null): AreaRow => {
-    const own = items.filter((item) => (item.area?.id ?? null) === (area?.id ?? null));
-    return { area, timed: timed(own), allDay: allDay(own) };
-  };
-  const loose = rowOf(null);
-  const hasLoose = loose.timed.length + loose.allDay.length > 0;
-  return [...(hasLoose ? [loose] : []), ...[...known.values()].map(rowOf)];
+  for (const item of withTime) if (item.area && !known.has(item.area.id)) known.set(item.area.id, item.area);
+  const columns = [...known.values()].map((area) => ({ area, items: withTime.filter((item) => item.area?.id === area.id) }));
+  const loose = withTime.filter((item) => item.area === null);
+  return loose.length > 0 ? [...columns, { area: null, items: loose }] : columns;
 }
 
 /**
  * Hasta qué hora está en uso un área en el minuto dado, o null si está libre: cuenta lo que no terminó y cuya franja
  * incluye ese minuto. Responde «¿qué laboratorio está libre ahora?».
  */
-export function busyUntil(row: AreaRow, minutes: number): number | null {
-  const ends = row.timed
+export function busyUntil(column: AreaColumn, minutes: number): number | null {
+  const ends = column.items
     .filter((item) => item.status !== 'done')
     .map(spanOf)
     .filter((span) => span.from <= minutes && minutes < span.to)

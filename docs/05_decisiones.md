@@ -688,18 +688,18 @@ Estado: aceptada (19-11-2026; idea del usuario a partir de un ejemplo visual). A
 
 - **Actividad, un cronograma corto de hoy:**
   - No muestra el Cronograma completo, solo lo finalizado hoy, lo que está en proceso y lo que está por iniciar. Siempre es hoy: los otros días se ven en el Calendario.
-  - Es área × hora, como el Cronograma (19-11-2026): una fila por área de Laboratorios, también las libres, para ver qué laboratorio está libre ahora; las horas en horizontal y la línea de «ahora», que avanza sola con la hora del espacio. Con más de 8 áreas, la lista se desplaza dentro de la tarjeta.
-  - Un mantenimiento va en la fila del área de su equipo. Lo que no tiene hora ni área (una devolución prevista, un equipo sin área) va en una fila «Todo el día».
+  - Es un Cronograma resumido (19-11-2026, segunda revisión): una columna por área de Laboratorios, también las libres, con solo su nombre; las horas hacia abajo y la línea de «ahora», que avanza sola con la hora del espacio. Con muchas áreas, la tabla se desplaza de lado dentro de la tarjeta.
+  - Lo que no tiene hora (un mantenimiento que vence, una devolución prevista) va en una franja «Todo el día» sobre la tabla, con su área en el nombre accesible.
   - Si hoy ya no queda nada por iniciar, muestra lo próximo.
   - Cada actividad abre en su módulo.
   - En el móvil, la misma información va en lista por estado.
 - **Calendario:**
   - Es un mapa de calor del mes: cada día cuenta sus prácticas, mantenimientos y devoluciones, en tramos fijos (0, 1–2, 3–5, 6–9, 10 o más) para que un mes tranquilo no parezca cargado.
-  - Al tocar un día, debajo del mes aparece la lista de sus actividades, cada una con su enlace (19-11-2026).
+  - Al tocar un día, debajo del mes aparece la lista de sus actividades, cada una con su enlace (19-11-2026). La tarjeta no cambia de alto: el mes siempre ocupa 6 semanas y la lista tiene alto fijo y se desplaza por dentro.
   - Cada día dice en texto lo que tiene.
   - Los vencimientos de reactivos e insumos no entran: van en «Por atender».
 - **Por atender:**
-  - Una fila por tipo de tarea (prácticas por revisar o por cerrar, mantenimientos vencidos, fallas de equipos sin atender, préstamos atrasados, reactivos e insumos vencidos, por vencer o bajo mínimo), con lo rojo antes que lo ámbar. «Equipos por revisar» son dos filas (19-11-2026): los mantenimientos vencidos o no conformes y las fallas que nadie atiende.
+  - Una tarjeta por módulo con algo pendiente (19-11-2026, segunda revisión), la de algo rojo primero; dentro, una fila por tipo de tarea (prácticas por revisar o por cerrar, mantenimientos vencidos, fallas de equipos sin atender, préstamos atrasados, reactivos e insumos vencidos, por vencer o bajo mínimo), con lo rojo antes que lo ámbar. «Equipos por revisar» son dos filas (19-11-2026): los mantenimientos vencidos o no conformes y las fallas que nadie atiende.
   - Cada fila se despliega (19-11-2026) y muestra hasta 5 casos con su enlace («Balanza B-02 · venció el 10 nov») y «Ver todos», que abre la lista ya filtrada de su módulo. Si no hay nada, dice «Todo al día».
 - **Recordatorios:**
   - Son personales: solo los ve quien los crea. Llevan texto, fecha y hora opcionales, y se marcan como hechos o se quitan.

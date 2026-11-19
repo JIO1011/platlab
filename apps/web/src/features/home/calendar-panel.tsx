@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useId } from 'react';
 import { useShell } from '../../app/app-shell';
 import { monthWeeks, shiftMonth, weekDates } from '../../app/calendar';
-import { formatFullDate, formatWeekday, upperFirst } from '../../app/format';
+import { addDays, formatFullDate, formatWeekday, upperFirst } from '../../app/format';
 import { monthName } from '../../app/month-name';
 import { useHomeAgenda, useHomeCalendar } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
@@ -13,6 +13,13 @@ import { agendaNoun, panel } from './shared';
 
 /** Las iniciales de los días, de lunes a domingo, tomadas de una semana cualquiera. */
 const weekdayInitials = weekDates('2026-01-05').map((date) => formatWeekday(date, 'short').slice(0, 1).toUpperCase());
+
+/** El mes siempre en 6 semanas, con las del mes siguiente vacías: la tarjeta no cambia de alto entre meses. */
+function sixWeeks(month: string): string[][] {
+  const weeks = monthWeeks(month);
+  while (weeks.length < 6) weeks.push(weekDates(addDays(weeks.at(-1)![0]!, 7)));
+  return weeks;
+}
 
 /**
  * Cada tramo en el acento del Inicio, de más claro a más intenso; los dos últimos llevan texto claro. El número del día
@@ -82,7 +89,7 @@ export function CalendarPanel({
                 <span key={index}>{initial}</span>
               ))}
             </div>
-            {monthWeeks(month).map((week) => (
+            {sixWeeks(month).map((week) => (
               <div key={week[0]} className="grid grid-cols-7 gap-1">
                 {week.map((date) => {
                   const day = days.get(date);
@@ -135,7 +142,7 @@ export function CalendarPanel({
 
 /**
  * Lo del día elegido, por hora. Hoy comparte la consulta con Actividad; un día pasado solo trae lo hecho (ADR 0026,
- * «Diseño de IN-01»).
+ * «Diseño de IN-01»). La lista tiene alto fijo y se desplaza por dentro: cambiar de día no mueve la tarjeta.
  */
 function DayList({ date, today }: { date: string; today: string | null }) {
   const { workspaceId } = useShell();
@@ -143,11 +150,11 @@ function DayList({ date, today }: { date: string; today: string | null }) {
   const items = agenda.data?.day.date === date ? agenda.data.day.items : null;
   return (
     <div className="mt-5 border-t border-line pt-4" aria-live="polite" aria-busy={items === null && agenda.isFetching}>
-      <h3 className="text-sm font-semibold text-ink">
+      <h3 className="truncate text-sm font-semibold text-ink">
         {date === today ? 'Hoy' : upperFirst(formatFullDate(date))}
         {items && items.length > 0 ? <span className="ml-2 font-normal tabular-nums text-ink-muted">{statusSummary(items)}</span> : null}
       </h3>
-      <div className="mt-2">
+      <div className="mt-2 h-60 overflow-y-auto overscroll-contain pr-1">
         {agenda.isError ? (
           <QueryErrorState error={agenda.error} onRetry={() => void agenda.refetch()} />
         ) : items === null ? (
