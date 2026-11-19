@@ -18,9 +18,7 @@ import {
   listActiveMembers,
   type AreaContribution,
   type HomeContribution,
-  type HomeModule,
   type QueryRequest,
-  type TaskContribution,
   type WorkspaceAccess,
 } from '../../core/index.js';
 import {
@@ -182,7 +180,7 @@ export function listLocations(pool: pg.Pool, request: QueryRequest): Promise<Loc
  * Lo pendiente depende de quién mira: quien atiende fallas, las que nadie atiende; quien solo reporta,
  * las suyas abiertas. La actividad llega con el Resumen completo (E-01d). Quien la llama ya autorizó.
  */
-async function equipmentHomeSummary(access: WorkspaceAccess): Promise<HomeContribution> {
+export async function equipmentHomeSummary(access: WorkspaceAccess): Promise<HomeContribution> {
   const [row] = await equipmentSummary.run(
     { workspaceId: access.workspace.id, principalId: access.principalId },
     access.client,
@@ -201,14 +199,6 @@ async function equipmentHomeSummary(access: WorkspaceAccess): Promise<HomeContri
     trend: null,
   };
 }
-
-/** Por atender (ADR 0026): las fallas que nadie atiende, para quien las atiende (el manifiesto exige ese permiso). */
-const equipmentTasks: TaskContribution = async (access) => {
-  const [row] = await equipmentSummary.run({ workspaceId: access.workspace.id, principalId: access.principalId }, access.client);
-  return [{ kind: 'unattendedFaults', count: Number(row?.unattended_faults ?? 0), tone: 'warning' }];
-};
-
-export const equipmentHome: HomeModule = { card: equipmentHomeSummary, tasks: equipmentTasks };
 
 /** Resumen de la app de Equipos (ADR 0011): lo mismo que su tarjeta de Inicio. */
 export function getSummary(pool: pg.Pool, request: QueryRequest): Promise<HomeContribution> {

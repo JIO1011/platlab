@@ -149,7 +149,7 @@ ORDER BY count(DISTINCT l.id) DESC, sum(ll.quantity) DESC, borrower.display_name
 LIMIT 5;
 
 /* @name dashboardOverdue */
--- Los vales atrasados más antiguos, para «Hay que atender».
+-- Los vales atrasados más antiguos, para «Hay que atender» y los casos del Inicio (ADR 0026).
 SELECT l.id, l.number, borrower.display_name AS "borrower_name!", l.due_on::text AS "due_on!"
 FROM materials.loans AS l
 JOIN LATERAL (
@@ -162,10 +162,10 @@ JOIN LATERAL (
 WHERE l.workspace_id = :workspaceId! AND l.status = 'open' AND l.due_on IS NOT NULL
   AND l.due_on < (now() AT TIME ZONE :timeZone!)::date
 ORDER BY l.due_on, l.number
-LIMIT 3;
+LIMIT :limit!;
 
 /* @name dashboardBelowMinimum */
--- Los materiales más por debajo de su mínimo, para «Hay que atender».
+-- Los materiales más por debajo de su mínimo, para «Hay que atender» y los casos del Inicio (ADR 0026).
 SELECT i.id, i.name, i.base_unit,
        trim_scale(stock.balance) AS "balance!",
        trim_scale(i.minimum_quantity) AS "minimum!"
@@ -179,10 +179,11 @@ CROSS JOIN LATERAL (
 WHERE i.workspace_id = :workspaceId! AND i.kind = 'material' AND i.archived_at IS NULL
   AND i.minimum_quantity IS NOT NULL AND stock.balance < i.minimum_quantity
 ORDER BY stock.balance / i.minimum_quantity, lower(i.name), i.id
-LIMIT 3;
+LIMIT :limit!;
 
 /* @name dashboardExpiring */
--- Los lotes con saldo que vencen primero, vencidos incluidos, hasta :expiringBy, para «Hay que atender» (MA-01f).
+-- Los lotes con saldo que vencen primero, vencidos incluidos, hasta :expiringBy, para «Hay que atender» (MA-01f) y los
+-- casos del Inicio (ADR 0026).
 SELECT i.id, i.name, i.base_unit,
        lot.supplier_lot AS lot,
        lot.expires_on::text AS "expires_on!",
@@ -193,4 +194,4 @@ JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_i
 WHERE p.workspace_id = :workspaceId! AND p.balance > 0 AND lot.expires_on <= :expiringBy!::date
 GROUP BY i.id, i.name, i.base_unit, lot.id, lot.supplier_lot, lot.expires_on
 ORDER BY lot.expires_on, lower(i.name), lot.id
-LIMIT 3;
+LIMIT :limit!;

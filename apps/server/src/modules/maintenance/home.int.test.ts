@@ -32,7 +32,18 @@ describe('Inicio con Mantenimiento', () => {
     expect((await recordWork(lab, lab.operator.subject, { assetId: soon.id, kind: 'cleaning', performedOn: today, result: 'pass' })).status).toBe(201);
 
     expect((await agenda(lab.operator.subject, shiftDate(today, 5))).day.items).toEqual([
-      { moduleCode: 'maintenance', type: 'maintenance', ref: soon.id, title: soon.name, detail: `${soon.code} · ${plan.title}`, startsAt: null, endsAt: null, status: 'upcoming' },
+      {
+        moduleCode: 'maintenance',
+        type: 'maintenance',
+        ref: soon.id,
+        title: soon.name,
+        detail: `${soon.code} · ${plan.title}`,
+        startsAt: null,
+        endsAt: null,
+        status: 'upcoming',
+        // La fila de Actividad es el área del equipo (ADR 0026, revisión de IN-02).
+        area: { id: soon.location.areaId, name: expect.any(String) },
+      },
     ]);
     const now = await agenda(lab.operator.subject);
     expect(now.day.items.map((item) => [item.ref, item.status])).toEqual([[soon.id, 'done']]);
@@ -47,7 +58,16 @@ describe('Inicio con Mantenimiento', () => {
       total: 1,
       counts: [{ moduleCode: 'maintenance', type: 'maintenance', count: 1 }],
     });
-    expect(await tasks(lab.operator.subject)).toEqual([{ moduleCode: 'maintenance', kind: 'overdue', count: 1, tone: 'danger' }]);
+    // El caso es el equipo atrasado, con lo que vencía hace 10 días.
+    expect(await tasks(lab.operator.subject)).toEqual([
+      {
+        moduleCode: 'maintenance',
+        kind: 'overdue',
+        count: 1,
+        tone: 'danger',
+        cases: [{ ref: late.id, title: late.name, detail: `${late.code} · ${monthly.title}`, date: shiftDate(today, -10) }],
+      },
+    ]);
   });
 
   it('sin permiso de Mantenimiento no aporta', async () => {

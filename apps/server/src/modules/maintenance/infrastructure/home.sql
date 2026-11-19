@@ -4,17 +4,23 @@
  */
 
 /* @name agendaMaintenance */
--- Lo registrado el :date (hecho) y, si :date no es pasado, lo que vence ese día, con el equipo y el plan.
-SELECT r.asset_id AS "asset_id!", a.code AS "asset_code!", a.name AS "asset_name!", p.title AS "plan_title?", true AS "done!"
+-- Lo registrado el :date (hecho) y, si :date no es pasado, lo que vence ese día, con el equipo, el plan y el área del
+-- equipo, que es su fila en Actividad.
+SELECT r.asset_id AS "asset_id!", a.code AS "asset_code!", a.name AS "asset_name!", p.title AS "plan_title?", true AS "done!",
+  area.id AS "area_id?", area.name AS "area_name?"
 FROM maintenance.records AS r
 JOIN equipment.asset_directory AS a ON a.workspace_id = r.workspace_id AND a.id = r.asset_id
 LEFT JOIN maintenance.plans AS p ON p.workspace_id = r.workspace_id AND p.id = r.plan_id
+LEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
+LEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
 WHERE r.workspace_id = :workspaceId! AND r.voided_at IS NULL AND r.performed_on = :date!::date
 UNION ALL
-SELECT pa.asset_id, a.code, a.name, p.title, false
+SELECT pa.asset_id, a.code, a.name, p.title, false, area.id, area.name
 FROM maintenance.plan_assets AS pa
 JOIN maintenance.plans AS p ON p.workspace_id = pa.workspace_id AND p.id = pa.plan_id
 JOIN equipment.asset_directory AS a ON a.workspace_id = pa.workspace_id AND a.id = pa.asset_id
+LEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
+LEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
 WHERE pa.workspace_id = :workspaceId! AND pa.due_on = :date!::date AND :date!::date >= :today!::date
 ORDER BY 5 DESC, 3, 4;
 

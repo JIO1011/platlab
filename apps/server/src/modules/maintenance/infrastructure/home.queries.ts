@@ -10,6 +10,8 @@ export interface IAgendaMaintenanceParams {
 
 /** 'AgendaMaintenance' return type */
 export interface IAgendaMaintenanceResult {
+  area_id: string | null;
+  area_name: string | null;
   asset_code: string;
   asset_id: string;
   asset_name: string;
@@ -23,22 +25,28 @@ export interface IAgendaMaintenanceQuery {
   result: IAgendaMaintenanceResult;
 }
 
-const agendaMaintenanceIR: any = {"usedParamSet":{"workspaceId":true,"date":true,"today":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":468,"b":480},{"a":841,"b":853}]},{"name":"date","required":true,"transform":{"type":"scalar"},"locs":[{"a":527,"b":532},{"a":871,"b":876},{"a":888,"b":893}]},{"name":"today","required":true,"transform":{"type":"scalar"},"locs":[{"a":904,"b":910}]}],"statement":"-- Lo registrado el :date (hecho) y, si :date no es pasado, lo que vence ese día, con el equipo y el plan.\nSELECT r.asset_id AS \"asset_id!\", a.code AS \"asset_code!\", a.name AS \"asset_name!\", p.title AS \"plan_title?\", true AS \"done!\"\nFROM maintenance.records AS r\nJOIN equipment.asset_directory AS a ON a.workspace_id = r.workspace_id AND a.id = r.asset_id\nLEFT JOIN maintenance.plans AS p ON p.workspace_id = r.workspace_id AND p.id = r.plan_id\nWHERE r.workspace_id = :workspaceId! AND r.voided_at IS NULL AND r.performed_on = :date!::date\nUNION ALL\nSELECT pa.asset_id, a.code, a.name, p.title, false\nFROM maintenance.plan_assets AS pa\nJOIN maintenance.plans AS p ON p.workspace_id = pa.workspace_id AND p.id = pa.plan_id\nJOIN equipment.asset_directory AS a ON a.workspace_id = pa.workspace_id AND a.id = pa.asset_id\nWHERE pa.workspace_id = :workspaceId! AND pa.due_on = :date!::date AND :date!::date >= :today!::date\nORDER BY 5 DESC, 3, 4"};
+const agendaMaintenanceIR: any = {"usedParamSet":{"workspaceId":true,"date":true,"today":true},"params":[{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":776,"b":788},{"a":1373,"b":1385}]},{"name":"date","required":true,"transform":{"type":"scalar"},"locs":[{"a":835,"b":840},{"a":1403,"b":1408},{"a":1420,"b":1425}]},{"name":"today","required":true,"transform":{"type":"scalar"},"locs":[{"a":1436,"b":1442}]}],"statement":"-- Lo registrado el :date (hecho) y, si :date no es pasado, lo que vence ese día, con el equipo, el plan y el área del\n-- equipo, que es su fila en Actividad.\nSELECT r.asset_id AS \"asset_id!\", a.code AS \"asset_code!\", a.name AS \"asset_name!\", p.title AS \"plan_title?\", true AS \"done!\",\n  area.id AS \"area_id?\", area.name AS \"area_name?\"\nFROM maintenance.records AS r\nJOIN equipment.asset_directory AS a ON a.workspace_id = r.workspace_id AND a.id = r.asset_id\nLEFT JOIN maintenance.plans AS p ON p.workspace_id = r.workspace_id AND p.id = r.plan_id\nLEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id\nLEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id\nWHERE r.workspace_id = :workspaceId! AND r.voided_at IS NULL AND r.performed_on = :date!::date\nUNION ALL\nSELECT pa.asset_id, a.code, a.name, p.title, false, area.id, area.name\nFROM maintenance.plan_assets AS pa\nJOIN maintenance.plans AS p ON p.workspace_id = pa.workspace_id AND p.id = pa.plan_id\nJOIN equipment.asset_directory AS a ON a.workspace_id = pa.workspace_id AND a.id = pa.asset_id\nLEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id\nLEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id\nWHERE pa.workspace_id = :workspaceId! AND pa.due_on = :date!::date AND :date!::date >= :today!::date\nORDER BY 5 DESC, 3, 4"};
 
 /**
  * Query generated from SQL:
  * ```
- * -- Lo registrado el :date (hecho) y, si :date no es pasado, lo que vence ese día, con el equipo y el plan.
- * SELECT r.asset_id AS "asset_id!", a.code AS "asset_code!", a.name AS "asset_name!", p.title AS "plan_title?", true AS "done!"
+ * -- Lo registrado el :date (hecho) y, si :date no es pasado, lo que vence ese día, con el equipo, el plan y el área del
+ * -- equipo, que es su fila en Actividad.
+ * SELECT r.asset_id AS "asset_id!", a.code AS "asset_code!", a.name AS "asset_name!", p.title AS "plan_title?", true AS "done!",
+ *   area.id AS "area_id?", area.name AS "area_name?"
  * FROM maintenance.records AS r
  * JOIN equipment.asset_directory AS a ON a.workspace_id = r.workspace_id AND a.id = r.asset_id
  * LEFT JOIN maintenance.plans AS p ON p.workspace_id = r.workspace_id AND p.id = r.plan_id
+ * LEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
+ * LEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
  * WHERE r.workspace_id = :workspaceId! AND r.voided_at IS NULL AND r.performed_on = :date!::date
  * UNION ALL
- * SELECT pa.asset_id, a.code, a.name, p.title, false
+ * SELECT pa.asset_id, a.code, a.name, p.title, false, area.id, area.name
  * FROM maintenance.plan_assets AS pa
  * JOIN maintenance.plans AS p ON p.workspace_id = pa.workspace_id AND p.id = pa.plan_id
  * JOIN equipment.asset_directory AS a ON a.workspace_id = pa.workspace_id AND a.id = pa.asset_id
+ * LEFT JOIN core.location_areas AS la ON la.workspace_id = a.workspace_id AND la.location_id = a.location_id
+ * LEFT JOIN core.locations AS area ON area.workspace_id = la.workspace_id AND area.id = la.area_id
  * WHERE pa.workspace_id = :workspaceId! AND pa.due_on = :date!::date AND :date!::date >= :today!::date
  * ORDER BY 5 DESC, 3, 4
  * ```

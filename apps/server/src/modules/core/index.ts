@@ -22,4 +22,5 @@ export {
   type QueryRequest,
 } from './application/module-operations.js';
 export type { AgendaContribution, HomeContribution, HomeModule, TaskContribution } from './application/home.js';
+export { taskFrom } from './application/home.js';
 export { coreRoutes } from './http/routes.js';

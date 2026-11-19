@@ -1,14 +1,24 @@
-import { activityStage, type ActivityStage, type AgendaStatus } from '@platlab/contracts';
+import { activityStage, TASK_CASES, type ActivityStage, type AgendaStatus } from '@platlab/contracts';
 import { addDays, todayIn } from '../../../platform/dates.js';
 import {
   hasPermission,
+  taskFrom,
   type AgendaContribution,
   type HomeContribution,
   type HomeModule,
   type TaskContribution,
   type WorkspaceAccess,
 } from '../../core/index.js';
-import { agendaBlocks, blocksPerDay, blocksToClose, pendingRequestCounts, requestsSentPerDay } from '../infrastructure/home.queries.js';
+import {
+  agendaAreas,
+  agendaBlocks,
+  blocksPerDay,
+  blocksToClose,
+  pendingRequestCounts,
+  requestCases,
+  requestsSentPerDay,
+  type IRequestCasesResult,
+} from '../infrastructure/home.queries.js';
 import { listActivities } from '../infrastructure/schedule.queries.js';
 import { REQUEST_CREATE, REQUEST_REVIEW, REQUEST_VIEW, SCHEDULE_LEAD } from './command.js';
 import { blockHolds } from './holds.js';
@@ -46,7 +56,10 @@ async function labsHomeSummary(access: WorkspaceAccess): Promise<HomeContributio
 /** El estado de una práctica en Actividad es el de su bloque (ADR 0026, «Diseño de IN-01»). */
 const stageStatus: Record<ActivityStage, AgendaStatus> = { scheduled: 'upcoming', ready: 'upcoming', running: 'in_progress', closed: 'done' };
 
-/** Actividad y Calendario (ADR 0026): los bloques del Cronograma, con el mismo ámbito que la tarjeta. */
+/**
+ * Actividad y Calendario (ADR 0026): los bloques del Cronograma, con el mismo ámbito que la tarjeta. Cada bloque va en
+ * la fila de su área, y las áreas con horario se dibujan aunque estén libres.
+ */
 const labsAgenda: AgendaContribution = {
   async day(access, date, today) {
     const requesterId = await requesterScope(access);
@@ -55,11 +68,15 @@ const labsAgenda: AgendaContribution = {
       type: 'practice',
       ref: row.id,
       title: row.title,
-      detail: [row.code, row.area_name, row.group].filter(Boolean).join(' · '),
+      detail: [row.code, row.group].filter(Boolean).join(' · '),
       startsAt: row.starts_at,
       endsAt: row.ends_at,
       status: stageStatus[activityStage.parse(row.stage)],
+      area: row.area_name ? { id: row.area_id, name: row.area_name } : null,
     }));
+  },
+  async areas(access) {
+    return agendaAreas.run({ workspaceId: access.workspace.id }, access.client);
   },
   async counts(access, from, to, today) {
     const requesterId = await requesterScope(access);
@@ -68,24 +85,41 @@ const labsAgenda: AgendaContribution = {
   },
 };
 
+/** Un caso de solicitud: su título, el docente y si llegó fuera de plazo. */
+const requestCase = (row: IRequestCasesResult) => ({
+  ref: row.id,
+  title: row.title,
+  detail: [row.teacher_name, row.late ? 'Fuera de plazo' : null].filter(Boolean).join(' · ') || null,
+  date: row.date,
+});
+
 /**
  * Por atender (ADR 0026): quien lleva los bloques, las prácticas de días pasados sin cerrar; quien revisa, las
- * solicitudes por programar; quien pide, las suyas con cambios pedidos.
+ * solicitudes por programar; quien pide, las suyas con cambios pedidos. Cada fila con sus primeros casos.
  */
 const labsTasks: TaskContribution = async (access) => {
   const workspaceId = access.workspace.id;
+  const { timeZone } = access.workspace;
+  const limit = TASK_CASES;
   const tasks: Awaited<ReturnType<TaskContribution>> = [];
   if (await hasPermission(access, SCHEDULE_LEAD)) {
-    const [row] = await blocksToClose.run({ workspaceId, today: todayIn(access.workspace.timeZone) }, access.client);
-    tasks.push({ kind: 'toClose', count: row?.count ?? 0, tone: 'danger' });
+    const rows = await blocksToClose.run({ workspaceId, today: todayIn(timeZone), limit }, access.client);
+    tasks.push(
+      taskFrom('toClose', 'danger', rows, (row) => ({
+        ref: row.id,
+        title: row.title,
+        detail: [row.code, row.area_name].filter(Boolean).join(' · '),
+        date: row.date,
+      })),
+    );
   }
   if (await hasPermission(access, REQUEST_REVIEW)) {
-    const [row] = await pendingRequestCounts.run({ workspaceId, requesterId: null }, access.client);
-    tasks.push({ kind: 'toReview', count: row?.pending ?? 0, tone: 'warning' });
+    const rows = await requestCases.run({ workspaceId, status: 'submitted', requesterId: null, timeZone, limit }, access.client);
+    tasks.push(taskFrom('toReview', 'warning', rows, requestCase));
   }
   if (await hasPermission(access, REQUEST_CREATE)) {
-    const [row] = await pendingRequestCounts.run({ workspaceId, requesterId: access.principalId }, access.client);
-    tasks.push({ kind: 'changesRequested', count: row?.attention ?? 0, tone: 'warning' });
+    const rows = await requestCases.run({ workspaceId, status: 'changes_requested', requesterId: access.principalId, timeZone, limit }, access.client);
+    tasks.push(taskFrom('changesRequested', 'warning', rows, requestCase));
   }
   return tasks;
 };

@@ -15,7 +15,15 @@ describe('Inicio con Equipos', () => {
     });
     expect(reported.status).toBe(201);
     const tasks = async (subject: string) => homeTasksResponse.parse((await call(subject, `/workspaces/${lab.workspace.id}/home/tasks`)).body).tasks;
-    expect(await tasks(lab.operator.subject)).toEqual([{ moduleCode: 'equipment', kind: 'unattendedFaults', count: 1, tone: 'warning' }]);
+    expect(await tasks(lab.operator.subject)).toEqual([
+      {
+        moduleCode: 'equipment',
+        kind: 'unattendedFaults',
+        count: 1,
+        tone: 'warning',
+        cases: [{ ref: expect.any(String), title: asset.name, detail: `${asset.code} · No enciende`, date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) }],
+      },
+    ]);
     expect(await tasks(lab.teacher.subject)).toEqual([]);
   });
 });

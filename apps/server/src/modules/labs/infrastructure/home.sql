@@ -24,7 +24,7 @@ ORDER BY d.day;
 /* @name agendaBlocks */
 -- Actividad del Inicio (ADR 0026): los bloques activos de :date con su estado, el título de la solicitud, el área y el
 -- grupo. Un día pasado solo muestra los cerrados. Con :requesterId, solo los de sus solicitudes.
-SELECT a.id, coalesce(q.title, '') AS "title!", a.code, area.name AS "area_name?", career.name AS "group?",
+SELECT a.id, coalesce(q.title, '') AS "title!", a.code, a.area_id, area.name AS "area_name?", career.name AS "group?",
   to_char(a.starts_at, 'HH24:MI') AS "starts_at!", to_char(a.ends_at, 'HH24:MI') AS "ends_at!", a.stage
 FROM labs.activities AS a
 JOIN labs.requests AS q ON q.workspace_id = a.workspace_id AND q.id = a.request_id
@@ -46,8 +46,34 @@ WHERE a.workspace_id = :workspaceId! AND a.cancelled_at IS NULL AND a.on_date BE
 GROUP BY a.on_date
 ORDER BY a.on_date;
 
+/* @name agendaAreas */
+-- Las filas de Actividad (ADR 0026, revisión de IN-02): las áreas con horario de Laboratorios, también las libres.
+SELECT area.id, area.name
+FROM labs.spaces AS s
+JOIN core.locations AS area ON area.workspace_id = s.workspace_id AND area.id = s.area_id
+WHERE s.workspace_id = :workspaceId! AND s.archived_at IS NULL AND area.archived_at IS NULL
+ORDER BY lower(area.name), area.id;
+
 /* @name blocksToClose */
--- «Prácticas por cerrar» en el Inicio: bloques activos de días pasados que nadie cerró.
-SELECT count(*)::integer AS "count!"
-FROM labs.activities
-WHERE workspace_id = :workspaceId! AND cancelled_at IS NULL AND stage <> 'closed' AND on_date < :today!::date;
+-- «Prácticas por cerrar» en el Inicio: bloques activos de días pasados que nadie cerró, los más antiguos primero, con
+-- el título de la solicitud, el código y el área. Cada fila lleva el total antes del tope.
+SELECT a.id, coalesce(q.title, '') AS "title!", a.code, area.name AS "area_name?", a.on_date::text AS "date!",
+  count(*) OVER ()::integer AS "total!"
+FROM labs.activities AS a
+JOIN labs.requests AS q ON q.workspace_id = a.workspace_id AND q.id = a.request_id
+LEFT JOIN core.locations AS area ON area.workspace_id = a.workspace_id AND area.id = a.area_id
+WHERE a.workspace_id = :workspaceId! AND a.cancelled_at IS NULL AND a.stage <> 'closed' AND a.on_date < :today!::date
+ORDER BY a.on_date, a.starts_at, a.code
+LIMIT :limit!;
+
+/* @name requestCases */
+-- «Solicitudes por programar» (:status submitted) y «Con cambios pedidos» (changes_requested, con :requesterId): las
+-- que esperan desde hace más primero, con el docente y si llegó fuera de plazo. Cada fila lleva el total antes del tope.
+SELECT q.id, coalesce(q.title, '') AS "title!", q.teacher_name, coalesce(q.late, false) AS "late!",
+  (coalesce(q.submitted_at, q.updated_at) AT TIME ZONE :timeZone!)::date::text AS "date!",
+  count(*) OVER ()::integer AS "total!"
+FROM labs.requests AS q
+WHERE q.workspace_id = :workspaceId! AND q.status = :status!
+  AND (:requesterId::uuid IS NULL OR q.requester_principal_id = :requesterId::uuid)
+ORDER BY coalesce(q.submitted_at, q.updated_at), q.id
+LIMIT :limit!;

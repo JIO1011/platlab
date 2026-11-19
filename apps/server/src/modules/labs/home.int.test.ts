@@ -21,6 +21,8 @@ const home = (subject: string, path: string) => call(subject, `/workspaces/${lab
 const agenda = async (subject: string, date?: string) => homeAgendaResponse.parse((await home(subject, `/agenda${date ? `?date=${date}` : ''}`)).body);
 const calendar = async (subject: string, month: string) => homeCalendarResponse.parse((await home(subject, `/calendar?month=${month}`)).body);
 const tasks = async (subject: string) => homeTasksResponse.parse((await home(subject, '/tasks')).body).tasks;
+/** Las filas sin sus casos, para comparar cifras y tonos. */
+const rows = async (subject: string) => (await tasks(subject)).map((task) => ({ moduleCode: task.moduleCode, kind: task.kind, count: task.count, tone: task.tone }));
 
 async function placed(request: LabsRequest, date: string, startsAt: string, endsAt: string): Promise<Activity> {
   const response = await send(lab, 'POST', '/activities', { requestId: request.id, date, areaId: area, startsAt, endsAt, responsibleId: lab.operator.principalId, expectedVersion: request.version });
@@ -66,6 +68,10 @@ describe('Actividad', () => {
     expect(day.day.items[0]).toMatchObject({ moduleCode: 'labs', type: 'practice', title: 'Titulación ácido-base' });
     expect(day.day.items[0]!.detail).toContain(own.code);
     expect(day.next).toBeNull();
+    // Cada bloque va en la fila de su área, y las áreas con horario llegan aunque estén libres (revisión de IN-02).
+    expect(day.day.items[0]!.area?.id).toBe(area);
+    expect(day.areas.map((entry) => entry.id)).toContain(area);
+    expect((await agenda(lab.adminMember.subject, inDays(19))).areas.map((entry) => entry.id)).toContain(area);
 
     expect((await agenda(lab.teacher.subject, inDays(20))).day.items.map((item) => item.ref)).toEqual([own.id]);
     expect((await agenda(lab.otherTeacher.subject, inDays(20))).day.items.map((item) => item.ref)).toEqual([others.id]);
@@ -114,16 +120,22 @@ describe('Calendario', () => {
 describe('Por atender', () => {
   it('lo rojo primero; cada fila según el permiso de quien mira', async () => {
     const waiting = await submitted(lab, [inDays(30)]);
-    expect(await tasks(lab.adminMember.subject)).toEqual([
+    expect(await rows(lab.adminMember.subject)).toEqual([
       { moduleCode: 'labs', kind: 'toClose', count: 1, tone: 'danger' },
       { moduleCode: 'labs', kind: 'toReview', count: 1, tone: 'warning' },
     ]);
-    expect(await tasks(lab.operator.subject)).toEqual([{ moduleCode: 'labs', kind: 'toClose', count: 1, tone: 'danger' }]);
+    // Los casos: el bloque de ayer sin cerrar y la solicitud enviada hoy.
+    const [toClose, toReview] = await tasks(lab.adminMember.subject);
+    expect(toClose?.cases).toEqual([expect.objectContaining({ date: inDays(-1) })]);
+    expect(toReview?.cases).toEqual([expect.objectContaining({ ref: waiting.id, date: inDays(0) })]);
+    expect(await rows(lab.operator.subject)).toEqual([{ moduleCode: 'labs', kind: 'toClose', count: 1, tone: 'danger' }]);
     expect(await tasks(lab.teacher.subject)).toEqual([]);
 
     const changes = await send(lab, 'POST', `/requests/${waiting.id}/request-changes`, { expectedVersion: waiting.version, reason: 'Falta el grupo' });
     expect(changes.status).toBe(200);
-    expect(await tasks(lab.teacher.subject)).toEqual([{ moduleCode: 'labs', kind: 'changesRequested', count: 1, tone: 'warning' }]);
+    expect(await tasks(lab.teacher.subject)).toEqual([
+      { moduleCode: 'labs', kind: 'changesRequested', count: 1, tone: 'warning', cases: [expect.objectContaining({ ref: waiting.id })] },
+    ]);
     expect(await tasks(lab.otherTeacher.subject)).toEqual([]);
   });
 

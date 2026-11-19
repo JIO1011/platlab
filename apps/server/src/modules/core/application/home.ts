@@ -1,4 +1,5 @@
 import type {
+  AgendaArea,
   AgendaItem,
   HomeActivity,
   HomeAgendaResponse,
@@ -6,6 +7,8 @@ import type {
   HomeResponse,
   HomeTask,
   HomeTrend,
+  TaskCase,
+  TaskTone,
 } from '@platlab/contracts';
 import { moduleRegistry, type ModuleManifest } from '@platlab/modules';
 import { addDays, monthDays, todayIn } from '../../../platform/dates.js';
@@ -28,15 +31,24 @@ interface AgendaCount {
 
 /**
  * Actividades con fecha de un módulo (ADR 0026), ya filtradas por el ámbito del miembro. `today` es hoy en la zona del
- * espacio: un día pasado solo muestra lo hecho. `counts` sigue la misma regla que `day` y omite los ceros.
+ * espacio: un día pasado solo muestra lo hecho. `counts` sigue la misma regla que `day` y omite los ceros. `areas`, si
+ * el módulo las tiene, son las filas que Actividad dibuja aunque estén libres.
  */
 export interface AgendaContribution {
   day(access: WorkspaceAccess, date: string, today: string): Promise<Omit<AgendaItem, 'moduleCode'>[]>;
   counts(access: WorkspaceAccess, from: string, to: string, today: string): Promise<AgendaCount[]>;
+  areas?(access: WorkspaceAccess): Promise<AgendaArea[]>;
 }
 
+type TaskRow = Omit<HomeTask, 'moduleCode'>;
+
 /** Las filas de «Por atender» de un módulo, cada una con el permiso que exige; las de cifra 0 no se muestran. */
-export type TaskContribution = (access: WorkspaceAccess) => Promise<Omit<HomeTask, 'moduleCode'>[]>;
+export type TaskContribution = (access: WorkspaceAccess) => Promise<TaskRow[]>;
+
+/** Una fila de «Por atender» a partir de su consulta de casos, cuyas filas llevan el total antes del tope. */
+export function taskFrom<Row extends { total: number }>(kind: string, tone: TaskTone, rows: Row[], toCase: (row: Row) => TaskCase): TaskRow {
+  return { kind, tone, count: rows[0]?.total ?? 0, cases: rows.map(toCase) };
+}
 
 /** Lo que un módulo aporta al Inicio. Core no importa módulos: la composición se lo pasa (02 §3). */
 export interface HomeModule {
@@ -109,9 +121,18 @@ async function countsOf(access: WorkspaceAccess, sources: AgendaSources, from: s
   return counts;
 }
 
+/** Las filas de Actividad: las áreas que aportan los módulos, sin repetir y por nombre. */
+async function areasOf(access: WorkspaceAccess, sources: AgendaSources): Promise<AgendaArea[]> {
+  const areas = new Map<string, AgendaArea>();
+  for (const { agenda } of sources) {
+    for (const area of (await agenda.areas?.(access)) ?? []) areas.set(area.id, area);
+  }
+  return [...areas.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}
+
 /**
- * Actividad (ADR 0026): lo de un día, hoy por defecto. Si el día es hoy y no queda nada por iniciar, también el
- * próximo día con algo en los siguientes 60.
+ * Actividad (ADR 0026): lo de un día, hoy por defecto, con las áreas que se dibujan como filas. Si el día es hoy y no
+ * queda nada por iniciar, también el próximo día con algo en los siguientes 60.
  */
 export async function homeAgenda(access: WorkspaceAccess, view: WorkspaceView, modules: HomeModules, date?: string): Promise<HomeAgendaResponse> {
   const { timeZone } = access.workspace;
@@ -124,7 +145,7 @@ export async function homeAgenda(access: WorkspaceAccess, view: WorkspaceView, m
     const first = ahead.map((row) => row.date).sort()[0];
     if (first) next = await dayOf(access, sources, first, today);
   }
-  return { today, timeZone, day, next };
+  return { today, timeZone, areas: await areasOf(access, sources), day, next };
 }
 
 /** Calendario (ADR 0026): todos los días del mes, el actual por defecto, con lo que tiene cada uno por tipo. */

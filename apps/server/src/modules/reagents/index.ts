@@ -1,5 +1,6 @@
 /** Interfaz pública de Reactivos (02 §3): rutas, aportes al Inicio y a Áreas (ADR 0024) y lo que Laboratorios pide (ADR 0023). */
-export { reagentsAreaContribution, reagentsHome } from './application/queries.js';
+export { reagentsHome } from './application/home.js';
+export { reagentsAreaContribution } from './application/queries.js';
 export { reagentsRoutes } from './http/routes.js';
 export {
   consumeReagentHolds,

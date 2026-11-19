@@ -45,7 +45,16 @@ describe('Inicio con Materiales', () => {
     const month = addDays(today, 3).slice(0, 7);
     const calendar = homeCalendarResponse.parse((await home(lab.operator.subject, `/calendar?month=${month}`)).body);
     expect(calendar.days.find((entry) => entry.date === addDays(today, 3))?.counts).toEqual([{ moduleCode: 'materials', type: 'return', count: 2 }]);
-    expect(await tasks(lab.operator.subject)).toEqual([{ moduleCode: 'materials', kind: 'overdueLoans', count: 1, tone: 'danger' }]);
+    expect(day.day.items[0]?.area).toBeNull();
+    expect(await tasks(lab.operator.subject)).toEqual([
+      {
+        moduleCode: 'materials',
+        kind: 'overdueLoans',
+        count: 1,
+        tone: 'danger',
+        cases: [{ ref: overdue.id, title: 'Docente', detail: `P-${String(overdue.number).padStart(4, '0')}`, date: addDays(today, -2) }],
+      },
+    ]);
   });
 
   it('quien no presta ni recibe devoluciones no ve Materiales', async () => {

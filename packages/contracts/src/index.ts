@@ -26,6 +26,8 @@ export {
   homeCalendarResponse,
   homeResponse,
   homeTasksResponse,
+  TASK_CASES,
+  type AgendaArea,
   type AgendaItem,
   type AgendaStatus,
   type HomeActivity,
@@ -35,6 +37,7 @@ export {
   type HomeTask,
   type HomeTasksResponse,
   type HomeTrend,
+  type TaskCase,
   type TaskTone,
 } from './home.js';
 export {
