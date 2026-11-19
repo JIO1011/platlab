@@ -67,12 +67,25 @@ RETURNING l.status;
 
 /* @name listLoans */
 -- Vales de más nuevo a más viejo, paginados por número. «Atrasado» es abierto con la fecha prevista vencida en
--- la fecha civil del espacio. Con :loanId, solo ese vale.
+-- la fecha civil del espacio. Con :loanId, solo ese vale. Con :q, los vales cuyo número, prestatario o algún material
+-- (nombre o código) lo contienen, plegados con inventory.fold_text y con `\`, `%` y `_` escapados como en el catálogo.
+-- Los roles del prestatario solo se muestran (ADR 0011): no autorizan nada. Las piezas suman en la unidad del
+-- reutilizable, que siempre es la pieza (ADR 0025).
+WITH search AS (
+  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),
+           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
+)
 SELECT
   l.id,
   l.number,
   l.borrower_principal_id AS borrower_id,
   borrower.display_name AS borrower_name,
+  coalesce((SELECT array_agg(DISTINCT r.name ORDER BY r.name)
+              FROM core.effective_role_assignments AS ra
+              JOIN core.roles AS r ON r.code = ra.role_code
+             WHERE ra.workspace_id = l.workspace_id AND ra.principal_id = l.borrower_principal_id
+               AND ra.revoked_at IS NULL AND ra.valid_from <= now()
+               AND (ra.valid_until IS NULL OR ra.valid_until > now())), '{}') AS "borrower_roles!",
   l.lent_by_principal_id AS lent_by_id,
   lender.display_name AS lent_by_name,
   l.lent_at,
@@ -88,8 +101,17 @@ SELECT
     WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id)::int AS "line_count!",
   (SELECT count(*) FROM materials.loan_lines AS ln
     WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id
-      AND ln.returned + ln.damaged + ln.lost < ln.quantity)::int AS "outstanding_lines!"
+      AND ln.returned + ln.damaged + ln.lost < ln.quantity)::int AS "outstanding_lines!",
+  pieces.lent AS "pieces_lent!",
+  pieces.outstanding AS "pieces_outstanding!"
 FROM materials.loans AS l
+CROSS JOIN search
+CROSS JOIN LATERAL (
+  SELECT trim_scale(coalesce(sum(ln.quantity), 0)) AS lent,
+         trim_scale(coalesce(sum(ln.quantity - ln.returned - ln.damaged - ln.lost), 0)) AS outstanding
+  FROM materials.loan_lines AS ln
+  WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id
+) AS pieces
 JOIN LATERAL (
   SELECT ident.display_name
   FROM core.principals AS pr
@@ -111,6 +133,15 @@ WHERE l.workspace_id = :workspaceId!
        OR (:filter::text = 'open' AND l.status = 'open')
        OR (:filter::text = 'closed' AND l.status = 'closed')
        OR (:filter::text = 'overdue' AND l.status = 'open' AND l.due_on < (now() AT TIME ZONE :timeZone!)::date))
+  AND (search.pattern IS NULL
+       OR l.number::text = nullif(ltrim(substring(lower(:q::text) FROM '^(?:p-?)?([0-9]+)$'), '0'), '')
+       OR inventory.fold_text(borrower.display_name) LIKE search.pattern
+       OR EXISTS (SELECT 1
+                    FROM materials.loan_lines AS ln
+                    JOIN inventory.positions AS p ON p.workspace_id = ln.workspace_id AND p.id = ln.position_id
+                    JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+                   WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id
+                     AND (inventory.fold_text(i.name) LIKE search.pattern OR lower(i.code) LIKE search.pattern)))
   AND (:beforeNumber::int IS NULL OR l.number < :beforeNumber::int)
 ORDER BY l.number DESC
 LIMIT :limit!;

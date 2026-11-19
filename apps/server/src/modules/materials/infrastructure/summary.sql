@@ -17,6 +17,8 @@ SELECT
   (SELECT count(*) FROM materials.loans AS l
     WHERE l.workspace_id = :workspaceId! AND l.status = 'open')::int AS "open_loans!",
   (SELECT count(*) FROM materials.loans AS l
+    WHERE l.workspace_id = :workspaceId! AND l.status = 'closed')::int AS "closed_loans!",
+  (SELECT count(*) FROM materials.loans AS l
     WHERE l.workspace_id = :workspaceId! AND l.status = 'open' AND l.due_on < (now() AT TIME ZONE :timeZone!)::date)::int AS "overdue_loans!",
   -- Materiales con un lote con saldo que vence hasta :expiringBy, vencidos incluidos (MA-01f).
   (SELECT count(DISTINCT p.item_id)

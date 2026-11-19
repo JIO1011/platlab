@@ -62,7 +62,7 @@ describe('catálogo', () => {
   });
 
   it('un insumo se cuenta en la unidad con que se entrega (cajas, metros) y se mueve en ella (MA-01g)', async () => {
-    const gloves = await createMaterial(lab, { name: 'Guantes de nitrilo M (caja ×100)', baseUnit: 'caja' });
+    const gloves = await createMaterial(lab, { name: 'Guantes de látex S (caja ×100)', baseUnit: 'caja' });
     const receipt = await call(lab.operator.subject, `${lab.base}/receipts`, {
       method: 'POST',
       body: { productId: gloves.id, locationId: lab.shelf, quantity: '4', unit: 'caja' },
@@ -313,7 +313,7 @@ describe('resumen, ubicaciones y clases', () => {
     });
     await admin.query(`update materials.loans set due_on = current_date - 2 where id = $1`, [(loan.body as { id: string }).id]);
     const summary = materialsSummary.parse((await call(fresh.operator.subject, `${fresh.base}/summary`)).body);
-    expect(summary).toEqual({ materials: 2, belowMinimum: 1, openLoans: 1, overdueLoans: 1, expiring: 0 });
+    expect(summary).toEqual({ materials: 2, belowMinimum: 1, openLoans: 1, closedLoans: 0, overdueLoans: 1, expiring: 0 });
   });
 
   it('ofrece ubicaciones de ingreso a quien ingresa y ninguna a quien no', async () => {

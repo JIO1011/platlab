@@ -62,8 +62,8 @@ export async function stockOf(lab: MaterialsLab, productId: string) {
 }
 
 /** Un reutilizable por cantidad con existencias ingresadas: devuelve su posición. */
-export async function reusableWithStock(lab: MaterialsLab, quantity = '10') {
-  const product = await createMaterial(lab, { name: `Vasos ${uniqueSuffix()}`, class: 'reusable_counted' });
+export async function reusableWithStock(lab: MaterialsLab, quantity = '10', name = `Vasos ${uniqueSuffix()}`) {
+  const product = await createMaterial(lab, { name, class: 'reusable_counted' });
   return { product, positionId: await receivedPosition(lab, product.id, quantity) };
 }
 

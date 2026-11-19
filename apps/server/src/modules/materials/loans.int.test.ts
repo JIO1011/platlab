@@ -179,6 +179,31 @@ describe('listado y estado', () => {
     expect((await get('?filter=overdue')).items[0]!.overdue).toBe(true);
   });
 
+  it('busca por número, prestatario o material y da las piezas por devolver y los roles del prestatario', async () => {
+    const fresh = await createMaterialsLab();
+    const beakers = await reusableWithStock(fresh, '10');
+    const pipettes = await reusableWithStock(fresh, '10', 'Pipeta_aforada 10 mL');
+    const first = loanContract.parse((await lend(fresh, [{ positionId: beakers.positionId, quantity: '5' }, { positionId: pipettes.positionId, quantity: '3' }])).body);
+    const second = loanContract.parse((await lend(fresh, [{ positionId: beakers.positionId, quantity: '1' }])).body);
+    await giveBack(fresh, first.id, first.version, [{ line: 1, good: '2' }]);
+    const find = async (q: string) =>
+      loanList.parse((await call(fresh.operator.subject, `${fresh.base}/loans?q=${encodeURIComponent(q)}`)).body).items.map((item) => item.number);
+    expect(await find('P-0001')).toEqual([1]);
+    expect(await find('0002')).toEqual([2]);
+    expect(await find('pipeta')).toEqual([1]);
+    expect(await find('PÍPETA_')).toEqual([1]);
+    // `_` y `%` cuentan como texto, no como comodín.
+    expect(await find('a%a')).toEqual([]);
+    expect(await find(pipettes.product.code.toLowerCase())).toEqual([1]);
+    expect(await find('docen')).toEqual([2, 1]);
+    const listed = loanList.parse((await call(fresh.operator.subject, `${fresh.base}/loans`)).body).items;
+    expect(listed.find((item) => item.id === first.id)).toMatchObject({ pieces: { lent: '8', outstanding: '6' }, lineCount: 2 });
+    expect(listed.find((item) => item.id === second.id)!.pieces).toEqual({ lent: '1', outstanding: '1' });
+    expect(listed[0]!.borrower.roles).toEqual(['Docente']);
+    const tooShort = await call(fresh.operator.subject, `${fresh.base}/loans?q=a`);
+    expect(tooShort.status).toBe(400);
+  });
+
   it('los miembros activos son los prestatarios posibles', async () => {
     const response = await call(lab.operator.subject, `${lab.base}/borrowers`);
     expect(response.status).toBe(200);

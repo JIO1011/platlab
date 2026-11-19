@@ -131,6 +131,7 @@ export async function summaryOf(access: WorkspaceAccess): Promise<MaterialsSumma
     materials: row.materials,
     belowMinimum: row.below_minimum,
     openLoans: row.open_loans,
+    closedLoans: row.closed_loans,
     overdueLoans: row.overdue_loans,
     expiring: row.expiring,
   };

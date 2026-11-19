@@ -59,8 +59,9 @@ export const loanParams = z.object({ workspaceId: z.uuid(), loanId: z.uuid() });
 
 /** `overdue`: abiertos con la fecha prevista ya vencida, en la fecha civil del espacio. */
 export const loanFilter = z.enum(['open', 'overdue', 'closed']);
+/** Sin filtro, todos los vales. `q` busca por número (P-0043 o 43), prestatario o material (nombre o código). */
 export const loanListQuery = z
-  .object({ ...page, filter: loanFilter.optional(), borrowerId: z.uuid().optional() })
+  .object({ ...page, filter: loanFilter.optional(), borrowerId: z.uuid().optional(), q: z.string().trim().min(2).max(100).optional() })
   .strict();
 
 const person = z.object({ id: z.uuid(), name: z.string() });
@@ -85,7 +86,8 @@ const loanSummary = z.object({
   number: z.number().int().positive(),
   /** Código legible del vale: P-0001. */
   code: z.string(),
-  borrower: person,
+  /** Con sus roles vigentes en el espacio, solo para mostrarlos (ADR 0011). */
+  borrower: person.extend({ roles: z.array(z.string()) }),
   lentBy: person,
   lentAt: z.iso.datetime({ offset: true }),
   dueOn: z.iso.date().nullable(),
@@ -96,6 +98,8 @@ const loanSummary = z.object({
   hasDebt: z.boolean(),
   lineCount: z.number().int().nonnegative(),
   outstandingLines: z.number().int().nonnegative(),
+  /** Piezas del vale (un reutilizable se cuenta en piezas): prestadas y las que aún faltan por devolver. */
+  pieces: z.object({ lent: decimalString, outstanding: decimalString }),
   closedAt: z.iso.datetime({ offset: true }).nullable(),
 });
 export const loanList = list(loanSummary);

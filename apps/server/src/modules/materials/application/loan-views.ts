@@ -16,7 +16,7 @@ const toSummary = (row: IListLoansResult): LoanSummary => ({
   id: row.id,
   number: row.number,
   code: loanCode(row.number),
-  borrower: { id: row.borrower_id, name: row.borrower_name },
+  borrower: { id: row.borrower_id, name: row.borrower_name, roles: row.borrower_roles },
   lentBy: { id: row.lent_by_id, name: row.lent_by_name },
   lentAt: row.lent_at.toISOString(),
   dueOn: row.due_on,
@@ -25,16 +25,21 @@ const toSummary = (row: IListLoansResult): LoanSummary => ({
   hasDebt: row.has_debt,
   lineCount: row.line_count,
   outstandingLines: row.outstanding_lines,
+  pieces: { lent: row.pieces_lent, outstanding: row.pieces_outstanding },
   closedAt: row.closed_at?.toISOString() ?? null,
 });
 
-const page = (access: WorkspaceAccess, params: { loanId?: string; borrowerId?: string; filter?: string; beforeNumber?: number; limit: number }) =>
+const page = (
+  access: WorkspaceAccess,
+  params: { loanId?: string; borrowerId?: string; filter?: string; q?: string; beforeNumber?: number; limit: number },
+) =>
   listLoans.run(
     {
       workspaceId: access.workspace.id,
       loanId: params.loanId ?? null,
       borrowerId: params.borrowerId ?? null,
       filter: params.filter ?? null,
+      q: params.q ?? null,
       beforeNumber: params.beforeNumber ?? null,
       timeZone: access.workspace.timeZone,
       limit: params.limit,
@@ -78,6 +83,7 @@ export function listLoanPage(pool: pg.Pool, request: QueryRequest, query: z.infe
     const rows = await page(access, {
       ...(query.borrowerId ? { borrowerId: query.borrowerId } : {}),
       ...(query.filter ? { filter: query.filter } : {}),
+      ...(query.q ? { q: query.q } : {}),
       ...(before ? { beforeNumber: Number(before[0]) } : {}),
       limit: query.limit + 1,
     });

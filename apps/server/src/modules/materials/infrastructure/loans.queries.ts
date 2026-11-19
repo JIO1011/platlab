@@ -320,6 +320,7 @@ export interface IListLoansParams {
   filter?: string | null | void;
   limit: NumberOrString;
   loanId?: string | null | void;
+  q?: string | null | void;
   timeZone: string;
   workspaceId: string;
 }
@@ -328,6 +329,7 @@ export interface IListLoansParams {
 export interface IListLoansResult {
   borrower_id: string;
   borrower_name: string;
+  borrower_roles: stringArray;
   closed_at: Date | null;
   due_on: string | null;
   has_debt: boolean;
@@ -340,6 +342,8 @@ export interface IListLoansResult {
   number: number;
   outstanding_lines: number;
   overdue: boolean;
+  pieces_lent: string;
+  pieces_outstanding: string;
   status: string;
   version: number;
 }
@@ -350,18 +354,31 @@ export interface IListLoansQuery {
   result: IListLoansResult;
 }
 
-const listLoansIR: any = {"usedParamSet":{"timeZone":true,"workspaceId":true,"loanId":true,"borrowerId":true,"filter":true,"beforeNumber":true,"limit":true},"params":[{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":518,"b":527},{"a":2150,"b":2159}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":1760,"b":1772}]},{"name":"loanId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1781,"b":1787},{"a":1813,"b":1819}]},{"name":"borrowerId","required":false,"transform":{"type":"scalar"},"locs":[{"a":1835,"b":1845},{"a":1890,"b":1900}]},{"name":"filter","required":false,"transform":{"type":"scalar"},"locs":[{"a":1916,"b":1922},{"a":1949,"b":1955},{"a":2006,"b":2012},{"a":2067,"b":2073}]},{"name":"beforeNumber","required":false,"transform":{"type":"scalar"},"locs":[{"a":2177,"b":2189},{"a":2218,"b":2230}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":2267,"b":2273}]}],"statement":"-- Vales de más nuevo a más viejo, paginados por número. «Atrasado» es abierto con la fecha prevista vencida en\n-- la fecha civil del espacio. Con :loanId, solo ese vale.\nSELECT\n  l.id,\n  l.number,\n  l.borrower_principal_id AS borrower_id,\n  borrower.display_name AS borrower_name,\n  l.lent_by_principal_id AS lent_by_id,\n  lender.display_name AS lent_by_name,\n  l.lent_at,\n  l.due_on,\n  l.status,\n  l.notes,\n  l.version,\n  l.closed_at,\n  (l.status = 'open' AND l.due_on IS NOT NULL AND l.due_on < (now() AT TIME ZONE :timeZone!)::date) AS \"overdue!\",\n  EXISTS (SELECT 1 FROM materials.loan_lines AS ln\n           WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id AND ln.damaged + ln.lost > 0) AS \"has_debt!\",\n  (SELECT count(*) FROM materials.loan_lines AS ln\n    WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id)::int AS \"line_count!\",\n  (SELECT count(*) FROM materials.loan_lines AS ln\n    WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id\n      AND ln.returned + ln.damaged + ln.lost < ln.quantity)::int AS \"outstanding_lines!\"\nFROM materials.loans AS l\nJOIN LATERAL (\n  SELECT ident.display_name\n  FROM core.principals AS pr\n  JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n  JOIN core.identities AS ident ON ident.id = m.identity_id\n  WHERE pr.workspace_id = l.workspace_id AND pr.id = l.borrower_principal_id\n) AS borrower ON true\nJOIN LATERAL (\n  SELECT ident.display_name\n  FROM core.principals AS pr\n  JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n  JOIN core.identities AS ident ON ident.id = m.identity_id\n  WHERE pr.workspace_id = l.workspace_id AND pr.id = l.lent_by_principal_id\n) AS lender ON true\nWHERE l.workspace_id = :workspaceId!\n  AND (:loanId::uuid IS NULL OR l.id = :loanId::uuid)\n  AND (:borrowerId::uuid IS NULL OR l.borrower_principal_id = :borrowerId::uuid)\n  AND (:filter::text IS NULL\n       OR (:filter::text = 'open' AND l.status = 'open')\n       OR (:filter::text = 'closed' AND l.status = 'closed')\n       OR (:filter::text = 'overdue' AND l.status = 'open' AND l.due_on < (now() AT TIME ZONE :timeZone!)::date))\n  AND (:beforeNumber::int IS NULL OR l.number < :beforeNumber::int)\nORDER BY l.number DESC\nLIMIT :limit!"};
+const listLoansIR: any = {"usedParamSet":{"q":true,"timeZone":true,"workspaceId":true,"loanId":true,"borrowerId":true,"filter":true,"beforeNumber":true,"limit":true},"params":[{"name":"q","required":false,"transform":{"type":"scalar"},"locs":[{"a":592,"b":593},{"a":3628,"b":3629}]},{"name":"timeZone","required":true,"transform":{"type":"scalar"},"locs":[{"a":1499,"b":1508},{"a":3522,"b":3531}]},{"name":"workspaceId","required":true,"transform":{"type":"scalar"},"locs":[{"a":3132,"b":3144}]},{"name":"loanId","required":false,"transform":{"type":"scalar"},"locs":[{"a":3153,"b":3159},{"a":3185,"b":3191}]},{"name":"borrowerId","required":false,"transform":{"type":"scalar"},"locs":[{"a":3207,"b":3217},{"a":3262,"b":3272}]},{"name":"filter","required":false,"transform":{"type":"scalar"},"locs":[{"a":3288,"b":3294},{"a":3321,"b":3327},{"a":3378,"b":3384},{"a":3439,"b":3445}]},{"name":"beforeNumber","required":false,"transform":{"type":"scalar"},"locs":[{"a":4243,"b":4255},{"a":4284,"b":4296}]},{"name":"limit","required":true,"transform":{"type":"scalar"},"locs":[{"a":4333,"b":4339}]}],"statement":"-- Vales de más nuevo a más viejo, paginados por número. «Atrasado» es abierto con la fecha prevista vencida en\n-- la fecha civil del espacio. Con :loanId, solo ese vale. Con :q, los vales cuyo número, prestatario o algún material\n-- (nombre o código) lo contienen, plegados con inventory.fold_text y con `\\`, `%` y `_` escapados como en el catálogo.\n-- Los roles del prestatario solo se muestran (ADR 0011): no autorizan nada. Las piezas suman en la unidad del\n-- reutilizable, que siempre es la pieza (ADR 0025).\nWITH search AS (\n  SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),\n           chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern\n)\nSELECT\n  l.id,\n  l.number,\n  l.borrower_principal_id AS borrower_id,\n  borrower.display_name AS borrower_name,\n  coalesce((SELECT array_agg(DISTINCT r.name ORDER BY r.name)\n              FROM core.effective_role_assignments AS ra\n              JOIN core.roles AS r ON r.code = ra.role_code\n             WHERE ra.workspace_id = l.workspace_id AND ra.principal_id = l.borrower_principal_id\n               AND ra.revoked_at IS NULL AND ra.valid_from <= now()\n               AND (ra.valid_until IS NULL OR ra.valid_until > now())), '{}') AS \"borrower_roles!\",\n  l.lent_by_principal_id AS lent_by_id,\n  lender.display_name AS lent_by_name,\n  l.lent_at,\n  l.due_on,\n  l.status,\n  l.notes,\n  l.version,\n  l.closed_at,\n  (l.status = 'open' AND l.due_on IS NOT NULL AND l.due_on < (now() AT TIME ZONE :timeZone!)::date) AS \"overdue!\",\n  EXISTS (SELECT 1 FROM materials.loan_lines AS ln\n           WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id AND ln.damaged + ln.lost > 0) AS \"has_debt!\",\n  (SELECT count(*) FROM materials.loan_lines AS ln\n    WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id)::int AS \"line_count!\",\n  (SELECT count(*) FROM materials.loan_lines AS ln\n    WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id\n      AND ln.returned + ln.damaged + ln.lost < ln.quantity)::int AS \"outstanding_lines!\",\n  pieces.lent AS \"pieces_lent!\",\n  pieces.outstanding AS \"pieces_outstanding!\"\nFROM materials.loans AS l\nCROSS JOIN search\nCROSS JOIN LATERAL (\n  SELECT trim_scale(coalesce(sum(ln.quantity), 0)) AS lent,\n         trim_scale(coalesce(sum(ln.quantity - ln.returned - ln.damaged - ln.lost), 0)) AS outstanding\n  FROM materials.loan_lines AS ln\n  WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id\n) AS pieces\nJOIN LATERAL (\n  SELECT ident.display_name\n  FROM core.principals AS pr\n  JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n  JOIN core.identities AS ident ON ident.id = m.identity_id\n  WHERE pr.workspace_id = l.workspace_id AND pr.id = l.borrower_principal_id\n) AS borrower ON true\nJOIN LATERAL (\n  SELECT ident.display_name\n  FROM core.principals AS pr\n  JOIN core.memberships AS m ON m.workspace_id = pr.workspace_id AND m.id = pr.membership_id\n  JOIN core.identities AS ident ON ident.id = m.identity_id\n  WHERE pr.workspace_id = l.workspace_id AND pr.id = l.lent_by_principal_id\n) AS lender ON true\nWHERE l.workspace_id = :workspaceId!\n  AND (:loanId::uuid IS NULL OR l.id = :loanId::uuid)\n  AND (:borrowerId::uuid IS NULL OR l.borrower_principal_id = :borrowerId::uuid)\n  AND (:filter::text IS NULL\n       OR (:filter::text = 'open' AND l.status = 'open')\n       OR (:filter::text = 'closed' AND l.status = 'closed')\n       OR (:filter::text = 'overdue' AND l.status = 'open' AND l.due_on < (now() AT TIME ZONE :timeZone!)::date))\n  AND (search.pattern IS NULL\n       OR l.number::text = nullif(ltrim(substring(lower(:q::text) FROM '^(?:p-?)?([0-9]+)$'), '0'), '')\n       OR inventory.fold_text(borrower.display_name) LIKE search.pattern\n       OR EXISTS (SELECT 1\n                    FROM materials.loan_lines AS ln\n                    JOIN inventory.positions AS p ON p.workspace_id = ln.workspace_id AND p.id = ln.position_id\n                    JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id\n                   WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id\n                     AND (inventory.fold_text(i.name) LIKE search.pattern OR lower(i.code) LIKE search.pattern)))\n  AND (:beforeNumber::int IS NULL OR l.number < :beforeNumber::int)\nORDER BY l.number DESC\nLIMIT :limit!"};
 
 /**
  * Query generated from SQL:
  * ```
  * -- Vales de más nuevo a más viejo, paginados por número. «Atrasado» es abierto con la fecha prevista vencida en
- * -- la fecha civil del espacio. Con :loanId, solo ese vale.
+ * -- la fecha civil del espacio. Con :loanId, solo ese vale. Con :q, los vales cuyo número, prestatario o algún material
+ * -- (nombre o código) lo contienen, plegados con inventory.fold_text y con `\`, `%` y `_` escapados como en el catálogo.
+ * -- Los roles del prestatario solo se muestran (ADR 0011): no autorizan nada. Las piezas suman en la unidad del
+ * -- reutilizable, que siempre es la pieza (ADR 0025).
+ * WITH search AS (
+ *   SELECT '%' || replace(replace(replace(inventory.fold_text(:q::text),
+ *            chr(92), chr(92) || chr(92)), '%', chr(92) || '%'), '_', chr(92) || '_') || '%' AS pattern
+ * )
  * SELECT
  *   l.id,
  *   l.number,
  *   l.borrower_principal_id AS borrower_id,
  *   borrower.display_name AS borrower_name,
+ *   coalesce((SELECT array_agg(DISTINCT r.name ORDER BY r.name)
+ *               FROM core.effective_role_assignments AS ra
+ *               JOIN core.roles AS r ON r.code = ra.role_code
+ *              WHERE ra.workspace_id = l.workspace_id AND ra.principal_id = l.borrower_principal_id
+ *                AND ra.revoked_at IS NULL AND ra.valid_from <= now()
+ *                AND (ra.valid_until IS NULL OR ra.valid_until > now())), '{}') AS "borrower_roles!",
  *   l.lent_by_principal_id AS lent_by_id,
  *   lender.display_name AS lent_by_name,
  *   l.lent_at,
@@ -377,8 +394,17 @@ const listLoansIR: any = {"usedParamSet":{"timeZone":true,"workspaceId":true,"lo
  *     WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id)::int AS "line_count!",
  *   (SELECT count(*) FROM materials.loan_lines AS ln
  *     WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id
- *       AND ln.returned + ln.damaged + ln.lost < ln.quantity)::int AS "outstanding_lines!"
+ *       AND ln.returned + ln.damaged + ln.lost < ln.quantity)::int AS "outstanding_lines!",
+ *   pieces.lent AS "pieces_lent!",
+ *   pieces.outstanding AS "pieces_outstanding!"
  * FROM materials.loans AS l
+ * CROSS JOIN search
+ * CROSS JOIN LATERAL (
+ *   SELECT trim_scale(coalesce(sum(ln.quantity), 0)) AS lent,
+ *          trim_scale(coalesce(sum(ln.quantity - ln.returned - ln.damaged - ln.lost), 0)) AS outstanding
+ *   FROM materials.loan_lines AS ln
+ *   WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id
+ * ) AS pieces
  * JOIN LATERAL (
  *   SELECT ident.display_name
  *   FROM core.principals AS pr
@@ -400,6 +426,15 @@ const listLoansIR: any = {"usedParamSet":{"timeZone":true,"workspaceId":true,"lo
  *        OR (:filter::text = 'open' AND l.status = 'open')
  *        OR (:filter::text = 'closed' AND l.status = 'closed')
  *        OR (:filter::text = 'overdue' AND l.status = 'open' AND l.due_on < (now() AT TIME ZONE :timeZone!)::date))
+ *   AND (search.pattern IS NULL
+ *        OR l.number::text = nullif(ltrim(substring(lower(:q::text) FROM '^(?:p-?)?([0-9]+)$'), '0'), '')
+ *        OR inventory.fold_text(borrower.display_name) LIKE search.pattern
+ *        OR EXISTS (SELECT 1
+ *                     FROM materials.loan_lines AS ln
+ *                     JOIN inventory.positions AS p ON p.workspace_id = ln.workspace_id AND p.id = ln.position_id
+ *                     JOIN inventory.items AS i ON i.workspace_id = p.workspace_id AND i.id = p.item_id
+ *                    WHERE ln.workspace_id = l.workspace_id AND ln.loan_id = l.id
+ *                      AND (inventory.fold_text(i.name) LIKE search.pattern OR lower(i.code) LIKE search.pattern)))
  *   AND (:beforeNumber::int IS NULL OR l.number < :beforeNumber::int)
  * ORDER BY l.number DESC
  * LIMIT :limit!

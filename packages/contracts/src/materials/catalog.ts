@@ -113,6 +113,7 @@ export const materialsSummary = z.object({
   materials: z.number().int().nonnegative(),
   belowMinimum: z.number().int().nonnegative(),
   openLoans: z.number().int().nonnegative(),
+  closedLoans: z.number().int().nonnegative(),
   overdueLoans: z.number().int().nonnegative(),
   /** Materiales con un lote con saldo vencido o que vence en EXPIRY_WATCH_DAYS días o menos. */
   expiring: z.number().int().nonnegative(),
