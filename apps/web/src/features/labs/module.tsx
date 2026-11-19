@@ -29,10 +29,26 @@ export const labsWebModule: WebModule = {
       practice: { noun: { one: 'práctica', many: 'prácticas' }, href: (_item, date) => `laboratorios/cronograma?dia=${date}` },
     },
     tasks: {
-      toClose: { label: (n) => (n === 1 ? 'práctica por cerrar' : 'prácticas por cerrar'), href: 'laboratorios/cronograma' },
-      toReview: { label: (n) => (n === 1 ? 'solicitud por programar' : 'solicitudes por programar'), href: 'laboratorios/recibidas' },
-      changesRequested: { label: (n) => (n === 1 ? 'solicitud con cambios pedidos' : 'solicitudes con cambios pedidos'), href: 'laboratorios/solicitudes' },
+      // Cada práctica por cerrar abre el Cronograma en su día.
+      toClose: {
+        label: (n) => (n === 1 ? 'práctica por cerrar' : 'prácticas por cerrar'),
+        href: 'laboratorios/cronograma',
+        caseHref: ({ date }) => `laboratorios/cronograma${date ? `?dia=${date}` : ''}`,
+        when: (day) => `Del ${day}`,
+      },
+      toReview: {
+        label: (n) => (n === 1 ? 'solicitud por programar' : 'solicitudes por programar'),
+        href: 'laboratorios/recibidas',
+        caseHref: ({ ref }) => `laboratorios/recibidas/${ref}`,
+        when: (day) => `Enviada el ${day}`,
+      },
+      changesRequested: {
+        label: (n) => (n === 1 ? 'solicitud con cambios pedidos' : 'solicitudes con cambios pedidos'),
+        href: 'laboratorios/solicitudes',
+        caseHref: ({ ref }) => `laboratorios/solicitudes/${ref}`,
+      },
     },
+    quick: [{ label: 'Nueva solicitud', href: 'laboratorios/solicitudes', permission: 'labs.request.create', Icon: ClipboardList }],
   },
   // En Áreas, sin sección propia (ADR 0023): el panel del área con su aforo, horario y cierres, la marca en su cuadro y
   // los feriados en la cabecera.

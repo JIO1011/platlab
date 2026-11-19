@@ -1,4 +1,4 @@
-import { toMinutes, type AgendaItem, type AgendaStatus } from '@platlab/contracts';
+import { toMinutes, type AgendaArea, type AgendaItem, type AgendaStatus } from '@platlab/contracts';
 import { countText } from '../../app/format';
 
 /**
@@ -63,6 +63,44 @@ export function placeTimed(items: readonly AgendaItem[], range: TimeRange): { pl
       return { item, lane, left, width: offset(span.to, range) - left };
     });
   return { placed, lanes: Math.max(1, ends.length) };
+}
+
+/** Una fila de Actividad: un área con lo de hoy; `area` null es la fila de lo que no tiene área. */
+export interface AreaRow {
+  area: AgendaArea | null;
+  /** Lo que tiene hora, en la franja. */
+  timed: AgendaItem[];
+  /** Lo que no tiene hora (un mantenimiento que vence, una devolución), junto al nombre de la fila. */
+  allDay: AgendaItem[];
+}
+
+/**
+ * Las filas de Actividad (ADR 0026, revisión de IN-02): primero lo que no tiene área, si hay; después cada área, también
+ * las libres, y al final las áreas de lo que no estaba entre ellas (un equipo guardado en un depósito).
+ */
+export function areaRows(areas: readonly AgendaArea[], items: readonly AgendaItem[]): AreaRow[] {
+  const known = new Map(areas.map((area) => [area.id, area]));
+  for (const item of items) if (item.area && !known.has(item.area.id)) known.set(item.area.id, item.area);
+  const rowOf = (area: AgendaArea | null): AreaRow => {
+    const own = items.filter((item) => (item.area?.id ?? null) === (area?.id ?? null));
+    return { area, timed: timed(own), allDay: allDay(own) };
+  };
+  const loose = rowOf(null);
+  const hasLoose = loose.timed.length + loose.allDay.length > 0;
+  return [...(hasLoose ? [loose] : []), ...[...known.values()].map(rowOf)];
+}
+
+/**
+ * Hasta qué hora está en uso un área en el minuto dado, o null si está libre: cuenta lo que no terminó y cuya franja
+ * incluye ese minuto. Responde «¿qué laboratorio está libre ahora?».
+ */
+export function busyUntil(row: AreaRow, minutes: number): number | null {
+  const ends = row.timed
+    .filter((item) => item.status !== 'done')
+    .map(spanOf)
+    .filter((span) => span.from <= minutes && minutes < span.to)
+    .map((span) => span.to);
+  return ends.length > 0 ? Math.max(...ends) : null;
 }
 
 /** El estado de una actividad, en singular, y su grupo en la lista del móvil, en plural. */

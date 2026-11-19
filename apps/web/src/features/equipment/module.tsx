@@ -40,8 +40,14 @@ export const equipmentWebModule: WebModule = {
     },
     trendNoun: { one: 'cambio', many: 'cambios' },
     tasks: {
-      unattendedFaults: { label: (n) => (n === 1 ? 'falla sin atender' : 'fallas sin atender'), href: 'equipos/incidentes' },
+      unattendedFaults: {
+        label: (n) => (n === 1 ? 'falla sin atender' : 'fallas sin atender'),
+        href: 'equipos/incidentes',
+        caseHref: ({ ref }) => `equipos/incidentes?falla=${ref}`,
+        when: (day) => `Reportada el ${day}`,
+      },
     },
+    quick: [{ label: 'Reportar incidente', href: 'equipos/incidentes', permission: 'equipment.fault.report', Icon: TriangleAlert }],
   },
   // Equipos activos de un área (su inventario) o de un departamento (el Informe filtrado) (ADR 0024).
   areas: {

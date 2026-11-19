@@ -1,6 +1,10 @@
 import type { AgendaItem } from '@platlab/contracts';
 import { describe, expect, it } from 'vitest';
-import { allDay, dayContents, heatLevel, hourMarks, placeTimed, statusSummary, timeLabel, timeRange, timed } from './agenda';
+import { allDay, areaRows, busyUntil, dayContents, heatLevel, hourMarks, placeTimed, statusSummary, timeLabel, timeRange, timed } from './agenda';
+
+const chemistry = { id: '00000000-0000-4000-8000-0000000000a1', name: 'Lab. de Química' };
+const physics = { id: '00000000-0000-4000-8000-0000000000a2', name: 'Lab. de Física' };
+const storage = { id: '00000000-0000-4000-8000-0000000000a3', name: 'Bodega' };
 
 const item = (overrides: Partial<AgendaItem> = {}): AgendaItem => ({
   moduleCode: 'labs',
@@ -11,6 +15,7 @@ const item = (overrides: Partial<AgendaItem> = {}): AgendaItem => ({
   startsAt: '08:00',
   endsAt: '10:00',
   status: 'upcoming',
+  area: chemistry,
   ...overrides,
 });
 
@@ -52,6 +57,31 @@ describe('franja de Actividad', () => {
   it('resume el día por estado, solo con lo que tiene', () => {
     expect(statusSummary([item({ status: 'in_progress' }), item(), item(), item({ status: 'done' })])).toBe('1 en proceso · 2 por iniciar · 1 finalizada');
     expect(statusSummary([item({ status: 'done' }), item({ status: 'done' })])).toBe('2 finalizadas');
+  });
+});
+
+describe('área × hora', () => {
+  it('una fila por área, también las libres; primero lo que no tiene área y al final las áreas que no estaban', () => {
+    const items = [
+      item({ title: 'Titulación' }),
+      item({ moduleCode: 'maintenance', type: 'maintenance', title: 'Balanza', startsAt: null, endsAt: null, area: storage }),
+      item({ moduleCode: 'materials', type: 'return', title: 'Docente', startsAt: null, endsAt: null, area: null }),
+    ];
+    const rows = areaRows([physics, chemistry], items);
+    expect(rows.map((row) => row.area?.name ?? null)).toEqual([null, 'Lab. de Física', 'Lab. de Química', 'Bodega']);
+    expect(rows[0]!.allDay.map((entry) => entry.title)).toEqual(['Docente']);
+    expect(rows[1]!.timed).toEqual([]);
+    expect(rows[2]!.timed.map((entry) => entry.title)).toEqual(['Titulación']);
+    expect(rows[3]!.allDay.map((entry) => entry.title)).toEqual(['Balanza']);
+    expect(areaRows([physics], [])).toEqual([{ area: physics, timed: [], allDay: [] }]);
+  });
+
+  it('dice si un área está en uso ahora y hasta cuándo; lo finalizado la deja libre', () => {
+    const [row] = areaRows([chemistry], [item({ startsAt: '08:00', endsAt: '10:00' }), item({ startsAt: '09:30', endsAt: '11:00' })]);
+    expect(busyUntil(row!, 9 * 60 + 45)).toBe(11 * 60);
+    expect(busyUntil(row!, 11 * 60)).toBeNull();
+    const [closed] = areaRows([chemistry], [item({ status: 'done' })]);
+    expect(busyUntil(closed!, 9 * 60)).toBeNull();
   });
 });
 

@@ -4,6 +4,7 @@ import { useShell } from '../../app/app-shell';
 import { upperFirst } from '../../app/format';
 import { useUserKey } from '../../app/queries';
 import { ModuleCards } from './module-cards';
+import { QuickActions } from './quick-actions';
 import { TasksView } from './tasks-view';
 
 /** Fecha de hoy en la zona del espacio, con mayúscula inicial: «Jueves, 2 de octubre». */
@@ -46,8 +47,9 @@ function rememberView(key: string, view: HomeView) {
 }
 
 /**
- * Inicio (ADR 0011 y 0026): «Tareas» muestra lo que toca (Por atender), lo de hoy (Actividad) y el mes (Calendario);
- * «Módulos», una tarjeta por módulo. Sin módulos para el rol, solo el aviso de las tarjetas.
+ * Inicio (ADR 0011 y 0026): bajo el saludo, los accesos rápidos; «Tareas» muestra lo de hoy (Actividad), lo que toca
+ * (Por atender) y el mes (Calendario); «Módulos», una tarjeta por módulo. Sin módulos para el rol, solo el aviso de las
+ * tarjetas.
  */
 export function HomePage() {
   const { me } = useShell();
@@ -85,7 +87,9 @@ export function HomePage() {
         </div>
       </div>
 
-      <div className="mt-8">{shown === 'tasks' ? <TasksView /> : <ModuleCards />}</div>
+      <QuickActions />
+
+      <div className="mt-6">{shown === 'tasks' ? <TasksView /> : <ModuleCards />}</div>
     </div>
   );
 }

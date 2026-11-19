@@ -1,4 +1,4 @@
-import type { AgendaItem, HomeTask } from '@platlab/contracts';
+import type { AgendaItem, HomeTask, TaskCase } from '@platlab/contracts';
 import { Boxes } from 'lucide-react';
 import { webModule } from '../../app/modules';
 
@@ -17,8 +17,22 @@ export function agendaPath(workspaceId: string, item: AgendaItem, date: string):
   return href ? `/e/${workspaceId}/${href}` : null;
 }
 
-/** El texto de una fila de «Por atender» («3 prácticas por cerrar») y la lista filtrada que abre; null si no se conoce. */
-export function taskLink(workspaceId: string, task: HomeTask): { text: string; path: string } | null {
+/** Una fila de «Por atender» lista para dibujar: su texto, la lista filtrada, dónde abre cada caso y qué es su fecha. */
+interface TaskLink {
+  text: string;
+  path: string;
+  caseHref: (taskCase: TaskCase) => string;
+  when: ((day: string) => string) | undefined;
+}
+
+/** El texto de una fila de «Por atender» («3 prácticas por cerrar») y sus enlaces; null si el módulo no la conoce. */
+export function taskLink(workspaceId: string, task: HomeTask): TaskLink | null {
   const entry = webModule(task.moduleCode)?.home.tasks?.[task.kind];
-  return entry ? { text: `${task.count} ${entry.label(task.count)}`, path: `/e/${workspaceId}/${entry.href}` } : null;
+  if (!entry) return null;
+  return {
+    text: `${task.count} ${entry.label(task.count)}`,
+    path: `/e/${workspaceId}/${entry.href}`,
+    caseHref: (taskCase) => `/e/${workspaceId}/${entry.caseHref(taskCase)}`,
+    when: entry.when,
+  };
 }

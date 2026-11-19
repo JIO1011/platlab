@@ -5,9 +5,10 @@ import { useShell } from '../../app/app-shell';
 import { monthWeeks, shiftMonth, weekDates } from '../../app/calendar';
 import { formatFullDate, formatWeekday, upperFirst } from '../../app/format';
 import { monthName } from '../../app/month-name';
-import { useHomeCalendar } from '../../app/queries';
+import { useHomeAgenda, useHomeCalendar } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
-import { dayContents, heatLevel, heatTiers, type HeatLevel } from './agenda';
+import { dayContents, heatLevel, heatTiers, statusSummary, type HeatLevel } from './agenda';
+import { AgendaList } from './agenda-list';
 import { agendaNoun, panel } from './shared';
 
 /** Las iniciales de los días, de lunes a domingo, tomadas de una semana cualquiera. */
@@ -26,8 +27,8 @@ const heatTone: Record<HeatLevel, string> = {
 };
 
 /**
- * Calendario (ADR 0026): el mes como mapa de calor de prácticas, mantenimientos y devoluciones, en tramos fijos. Tocar un
- * día lo muestra en Actividad; el día elegido dice en texto lo que tiene.
+ * Calendario (ADR 0026): el mes como mapa de calor de prácticas, mantenimientos y devoluciones, en tramos fijos. Al tocar
+ * un día, su lista aparece debajo del mes, cada actividad con su enlace (revisión de IN-02).
  */
 export function CalendarPanel({
   month,
@@ -46,7 +47,6 @@ export function CalendarPanel({
   const calendar = useHomeCalendar(workspaceId, month);
   const titleId = useId();
   const days = new Map(calendar.data?.days.map((day) => [day.date, day]));
-  const picked = days.get(selected);
   return (
     <section aria-labelledby={titleId} className={cn(panel, className)}>
       <div className="flex items-center gap-2">
@@ -126,13 +126,38 @@ export function CalendarPanel({
             </ul>
           </div>
 
-          <p className="mt-3 rounded-panel bg-surface-sunken px-3 py-2 text-sm text-ink">
-            <span className="font-semibold">{upperFirst(formatFullDate(selected))}</span>
-            {': '}
-            {picked ? dayContents(picked.counts, agendaNoun).toLowerCase() : 'elige un día de este mes para ver lo que tiene'}
-          </p>
         </div>
       )}
+      <DayList date={selected} today={calendar.data?.today ?? null} />
     </section>
+  );
+}
+
+/**
+ * Lo del día elegido, por hora. Hoy comparte la consulta con Actividad; un día pasado solo trae lo hecho (ADR 0026,
+ * «Diseño de IN-01»).
+ */
+function DayList({ date, today }: { date: string; today: string | null }) {
+  const { workspaceId } = useShell();
+  const agenda = useHomeAgenda(workspaceId, date === today ? null : date);
+  const items = agenda.data?.day.date === date ? agenda.data.day.items : null;
+  return (
+    <div className="mt-5 border-t border-line pt-4" aria-live="polite" aria-busy={items === null && agenda.isFetching}>
+      <h3 className="text-sm font-semibold text-ink">
+        {date === today ? 'Hoy' : upperFirst(formatFullDate(date))}
+        {items && items.length > 0 ? <span className="ml-2 font-normal tabular-nums text-ink-muted">{statusSummary(items)}</span> : null}
+      </h3>
+      <div className="mt-2">
+        {agenda.isError ? (
+          <QueryErrorState error={agenda.error} onRetry={() => void agenda.refetch()} />
+        ) : items === null ? (
+          <Skeleton className="h-16 rounded-panel" />
+        ) : items.length === 0 ? (
+          <p className="text-sm text-ink-muted">Sin prácticas, mantenimientos ni devoluciones este día.</p>
+        ) : (
+          <AgendaList items={items} date={date} />
+        )}
+      </div>
+    </div>
   );
 }

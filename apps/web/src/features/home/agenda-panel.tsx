@@ -1,214 +1,139 @@
-import { timeText, type AgendaItem, type AgendaStatus, type HomeAgendaResponse } from '@platlab/contracts';
+import { timeText, type AgendaItem, type HomeAgendaResponse } from '@platlab/contracts';
 import { Button, Skeleton, cn } from '@platlab/ui';
-import { CalendarCheck, CircleCheck, CircleDot, Clock, type LucideIcon } from 'lucide-react';
-import { useId, type CSSProperties, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { CalendarCheck, CircleDot } from 'lucide-react';
+import { useId } from 'react';
 import { useShell } from '../../app/app-shell';
 import { nowMinutes } from '../../app/calendar';
-import { formatFullDate, todayInZone, upperFirst } from '../../app/format';
+import { formatFullDate } from '../../app/format';
 import { useHomeAgenda } from '../../app/queries';
 import { QueryErrorState } from '../../app/states';
 import { useNow } from '../../app/use-now';
-import { allDay, hourMarks, offset, placeTimed, statusOrder, statusSummary, statusText, timeLabel, timeRange, timed, type TimeRange } from './agenda';
-import { agendaPath, moduleIcon, panel } from './shared';
+import { areaRows, busyUntil, hourMarks, offset, placeTimed, statusSummary, timeLabel, timeRange, type AreaRow, type TimeRange } from './agenda';
+import { AgendaList, ItemLink, statusIcon, statusTone } from './agenda-list';
+import { moduleIcon, panel } from './shared';
 
 type AgendaDay = HomeAgendaResponse['day'];
 
-/** Alto de cada carril de la franja, en píxeles. */
-const LANE = 60;
-
-const statusIcon: Record<AgendaStatus, LucideIcon> = { in_progress: CircleDot, upcoming: Clock, done: CircleCheck };
-
-/** En curso, relleno con la acción; por iniciar, contorno de la acción; finalizada, apagada. El icono y el texto lo dicen también. */
-const statusTone: Record<AgendaStatus, string> = {
-  in_progress: 'bg-action text-on-action',
-  upcoming: 'bg-surface text-ink ring-1 ring-inset ring-action/45',
-  done: 'bg-surface-sunken text-ink-muted',
-};
-
-/** «Laboratorios · Titulación ácido-base, 08:00–10:00, en proceso»: lo que lee un lector de pantalla. */
-function itemLabel(item: AgendaItem, moduleName: string | undefined): string {
-  return [moduleName, `${item.title}${item.detail ? ` (${item.detail})` : ''}`, timeLabel(item), statusText[item.status].one.toLowerCase()]
-    .filter(Boolean)
-    .join(', ');
-}
-
-/** Una actividad como enlace a su módulo, o como texto si el módulo no dice dónde se abre. */
-function ItemLink({ item, date, className, style, children }: { item: AgendaItem; date: string; className: string; style?: CSSProperties; children: ReactNode }) {
-  const { workspaceId, me } = useShell();
-  const path = agendaPath(workspaceId, item, date);
-  const label = itemLabel(item, me.modules.find((module) => module.code === item.moduleCode)?.name);
-  const focus = 'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-action';
-  return path ? (
-    <Link to={path} aria-label={label} title={label} className={cn(className, focus)} style={style}>
-      {children}
-    </Link>
-  ) : (
-    <div aria-label={label} title={label} role="group" className={className} style={style}>
-      {children}
-    </div>
-  );
-}
+/** Alto de cada carril de una fila, en píxeles. */
+const LANE = 52;
+/** Ancho de la columna de las áreas. */
+const AREA_COLUMN = 'grid-cols-[11rem_minmax(0,1fr)]';
 
 /**
- * Actividad (ADR 0026): un cronograma corto del día, no el Cronograma entero. Lo que tiene hora va en una franja con la
- * línea de «ahora»; lo que no, en «Todo el día»; en el móvil, la misma información en lista por estado. Si hoy no queda
- * nada por iniciar, también lo próximo.
+ * Actividad (ADR 0026, revisión de IN-02): lo de hoy como área × hora, igual que el Cronograma. Una fila por área de
+ * Laboratorios, también las libres, con la línea de «ahora»; lo que no tiene hora va junto al nombre del área. En el
+ * móvil, la misma información en lista por estado. Si hoy no queda nada por iniciar, también lo próximo.
  */
-export function AgendaPanel({ date, onPick, className }: { date: string | null; onPick: (date: string | null) => void; className?: string }) {
-  const { workspaceId, me } = useShell();
-  const agenda = useHomeAgenda(workspaceId, date);
+export function AgendaPanel({ onPickDay, className }: { onPickDay: (date: string) => void; className?: string }) {
+  const { workspaceId } = useShell();
+  const agenda = useHomeAgenda(workspaceId, null);
   const titleId = useId();
-  const today = agenda.data?.today ?? todayInZone(me.workspace.timeZone);
-  const shown = date ?? today;
-  const isToday = shown === today;
+  const title = (
+    <h2 id={titleId} className="text-lg font-bold text-ink">
+      Actividad
+    </h2>
+  );
   return (
     <section aria-labelledby={titleId} className={cn(panel, className)}>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 id={titleId} className="text-lg font-bold text-ink">
-          Actividad
-        </h2>
-        <p className="text-sm text-ink-muted">{isToday ? `Hoy · ${formatFullDate(shown)}` : upperFirst(formatFullDate(shown))}</p>
-        {isToday ? null : (
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => onPick(null)}>
-            Volver a hoy
-          </Button>
-        )}
-      </div>
       {agenda.isPending ? (
-        <Skeleton className="mt-5 h-44 rounded-panel" />
+        <>
+          {title}
+          <Skeleton className="mt-5 h-56 rounded-panel" />
+        </>
       ) : agenda.isError ? (
-        <div className="mt-5">
-          <QueryErrorState error={agenda.error} onRetry={() => void agenda.refetch()} />
-        </div>
+        <>
+          {title}
+          <div className="mt-5">
+            <QueryErrorState error={agenda.error} onRetry={() => void agenda.refetch()} />
+          </div>
+        </>
       ) : (
-        // Mientras llega otro día se ve el anterior, atenuado: sin saltos de alto.
-        <div aria-busy={agenda.isPlaceholderData} className={cn('transition-opacity duration-150', agenda.isPlaceholderData && 'opacity-60')}>
-          <DayBody day={agenda.data.day} isToday={agenda.data.day.date === agenda.data.today} timeZone={agenda.data.timeZone} />
-          {agenda.data.next ? <NextDay day={agenda.data.next} onPick={onPick} /> : null}
-        </div>
+        <>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            {title}
+            <p className="text-sm text-ink-muted">Hoy · {formatFullDate(agenda.data.today)}</p>
+            {agenda.data.day.items.length > 0 ? (
+              <p className="text-sm tabular-nums text-ink-muted md:ml-auto">{statusSummary(agenda.data.day.items)}</p>
+            ) : null}
+          </div>
+          <Today data={agenda.data} />
+          {agenda.data.next ? <NextDay day={agenda.data.next} onPick={onPickDay} /> : null}
+        </>
       )}
     </section>
   );
 }
 
-function DayBody({ day, isToday, timeZone }: { day: AgendaDay; isToday: boolean; timeZone: string }) {
-  if (day.items.length === 0) {
-    return (
-      <div className="mt-5 flex items-center gap-3 rounded-panel bg-surface-sunken p-4 text-sm text-ink-muted">
-        <CalendarCheck className="size-5 shrink-0 text-ink-subtle" aria-hidden />
-        {isToday ? 'Hoy no hay prácticas, mantenimientos ni devoluciones.' : 'Este día no tiene prácticas, mantenimientos ni devoluciones.'}
-      </div>
-    );
-  }
-  const withTime = timed(day.items);
+function Today({ data }: { data: HomeAgendaResponse }) {
+  const clock = useNow(30_000);
+  const { day, areas, timeZone } = data;
+  const rows = areaRows(areas, day.items);
+  const minutes = nowMinutes(clock, timeZone);
+  const empty = day.items.length === 0;
+  if (empty && rows.length === 0) return <EmptyNote />;
   return (
     <>
-      <p className="mt-1 text-sm tabular-nums text-ink-muted">{statusSummary(day.items)}</p>
-      <AllDay items={allDay(day.items)} date={day.date} />
-      {withTime.length > 0 ? <Timeline items={withTime} date={day.date} timeZone={isToday ? timeZone : null} /> : null}
-      <StatusList items={day.items} date={day.date} />
+      {empty ? <EmptyNote /> : null}
+      <Board rows={rows} items={day.items} date={day.date} minutes={minutes} />
+      <div className="mt-4 grid gap-3 md:hidden">
+        <FreeNow rows={rows} minutes={minutes} />
+        {empty ? null : <AgendaList items={day.items} date={day.date} grouped />}
+      </div>
     </>
   );
 }
 
-/** «Todo el día»: lo que no tiene hora (un mantenimiento que vence, una devolución prevista), en fichas. Desde `md`. */
-function AllDay({ items, date }: { items: AgendaItem[]; date: string }) {
-  if (items.length === 0) return null;
+function EmptyNote() {
   return (
-    <div className="mt-4 hidden items-start gap-3 md:flex">
-      <p className="w-24 shrink-0 pt-2 text-[13px] font-medium text-ink-muted">Todo el día</p>
-      <ul className="flex min-w-0 flex-1 flex-wrap gap-2">
-        {items.map((item, index) => {
-          const Icon = statusIcon[item.status];
-          const ModuleIcon = moduleIcon(item.moduleCode);
-          return (
-            <li key={`${item.moduleCode}:${item.ref}:${index}`} className="max-w-full">
-              <ItemLink
-                item={item}
-                date={date}
-                className={cn('flex max-w-full items-center gap-2 rounded-full py-1.5 pl-2.5 pr-3 text-sm transition-shadow duration-150 hover:shadow-raised', statusTone[item.status])}
-              >
-                <ModuleIcon className="size-4 shrink-0 opacity-80" aria-hidden />
-                <span className="truncate font-medium">{item.title}</span>
-                {item.detail ? <span className="hidden truncate opacity-75 lg:inline">{item.detail}</span> : null}
-                <Icon className="size-4 shrink-0" aria-hidden />
-              </ItemLink>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+    <p className="mt-4 flex items-center gap-3 rounded-panel bg-surface-sunken p-4 text-sm text-ink-muted">
+      <CalendarCheck className="size-5 shrink-0 text-ink-subtle" aria-hidden />
+      Hoy no hay prácticas, mantenimientos ni devoluciones.
+    </p>
+  );
+}
+
+/** En el móvil, lo que responde la franja en una frase: qué áreas están libres ahora. */
+function FreeNow({ rows, minutes }: { rows: AreaRow[]; minutes: number }) {
+  const free = rows.flatMap((row) => (row.area && busyUntil(row, minutes) === null ? [row.area.name] : []));
+  if (!rows.some((row) => row.area)) return null;
+  return (
+    <p className="rounded-panel bg-surface-sunken px-3 py-2 text-sm text-ink">
+      <span className="font-semibold">Libres ahora: </span>
+      {free.length === 0 ? 'ninguna área' : free.join(', ')}
+    </p>
   );
 }
 
 /**
- * La franja del día desde `md`: horas arriba, una línea por hora y cada actividad en su carril. Hoy, la línea de «ahora»
- * en tinta con la hora, como en el Cronograma; avanza sola cada 30 s.
+ * La franja desde `md`: horas arriba y una fila por área; cada actividad con hora en su carril y la línea de «ahora» en
+ * tinta con la hora, como en el Cronograma. Con muchas áreas, las filas se desplazan dentro de la tarjeta.
  */
-function Timeline({ items, date, timeZone }: { items: AgendaItem[]; date: string; timeZone: string | null }) {
-  const clock = useNow(30_000);
+function Board({ rows, items, date, minutes }: { rows: AreaRow[]; items: AgendaItem[]; date: string; minutes: number }) {
   const range = timeRange(items);
-  const { placed, lanes } = placeTimed(items, range);
   const marks = hourMarks(range);
-  const minutes = timeZone ? nowMinutes(clock, timeZone) : null;
-  const now = minutes !== null && minutes >= range.start && minutes <= range.end ? minutes : null;
+  const now = minutes >= range.start && minutes <= range.end ? minutes : null;
   return (
     <div className="mt-5 hidden md:block">
-      <HourLabels marks={marks} range={range} />
-      <div className="relative mt-1 rounded-panel bg-surface-sunken/70" style={{ height: lanes * LANE + 12 }}>
-        {marks.map((mark) => (
-          <span key={mark} aria-hidden className="absolute inset-y-0 w-px bg-line" style={{ left: `${offset(mark, range)}%` }} />
-        ))}
-        <ol aria-label="Actividades con hora">
-          {placed.map(({ item, lane, left, width }, index) => {
-            const Icon = statusIcon[item.status];
-            return (
-              <li key={`${item.moduleCode}:${item.ref}:${index}`}>
-                <ItemLink
-                  item={item}
-                  date={date}
-                  className={cn(
-                    'absolute flex min-w-0 flex-col justify-center overflow-hidden rounded-control px-2.5 transition-shadow duration-150 hover:shadow-float',
-                    statusTone[item.status],
-                  )}
-                  style={{ top: 6 + lane * LANE, height: LANE - 6, left: `calc(${left}% + 2px)`, width: `calc(${width}% - 4px)` }}
-                >
-                  <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
-                    <Icon className="size-3.5 shrink-0" aria-hidden />
-                    <span className="truncate">{item.title}</span>
-                  </span>
-                  <span className="truncate text-[12px] tabular-nums opacity-80">
-                    {timeLabel(item)}
-                    {item.detail ? ` · ${item.detail}` : ''}
-                  </span>
-                </ItemLink>
-              </li>
-            );
-          })}
-        </ol>
-        {now === null ? null : (
-          <>
-            <span aria-hidden className="pointer-events-none absolute inset-y-0 z-10 w-px bg-ink" style={{ left: `${offset(now, range)}%` }} />
-            <span
-              aria-hidden
-              className="pointer-events-none absolute -top-2.5 z-10 -translate-x-1/2 rounded-[5px] bg-ink px-1.5 py-px font-mono text-[11px] font-semibold leading-4 tabular-nums text-surface"
-              style={{ left: `${offset(now, range)}%` }}
-            >
-              {timeText(now)}
-            </span>
-            <p className="sr-only">Son las {timeText(now)}.</p>
-          </>
-        )}
+      <div className={cn('grid gap-x-3', AREA_COLUMN)}>
+        <span aria-hidden className="text-[11px] font-medium leading-5 text-ink-subtle">
+          Área
+        </span>
+        <HourLabels marks={marks} range={range} now={now} />
       </div>
+      <ol aria-label="Actividad por área" className="mt-1 max-h-[34rem] overflow-y-auto overscroll-contain">
+        {rows.map((row) => (
+          <AreaLine key={row.area?.id ?? 'sin-area'} row={row} range={range} marks={marks} now={now} minutes={minutes} date={date} />
+        ))}
+      </ol>
+      {now === null ? null : <p className="sr-only">Son las {timeText(now)}.</p>}
     </div>
   );
 }
 
-/** Las horas del eje: la primera alineada a la izquierda y la última a la derecha, para que no se salgan. */
-function HourLabels({ marks, range }: { marks: number[]; range: TimeRange }) {
+/** Las horas del eje y, hoy, la hora de «ahora» en su píldora; la primera alineada a la izquierda y la última a la derecha. */
+function HourLabels({ marks, range, now }: { marks: number[]; range: TimeRange; now: number | null }) {
   return (
-    <div aria-hidden className="relative h-4 font-mono text-[11px] leading-4 tabular-nums text-ink-subtle">
+    <div aria-hidden className="relative h-5 font-mono text-[11px] leading-5 tabular-nums text-ink-subtle">
       {marks.map((mark, index) => (
         <span
           key={mark}
@@ -218,49 +143,110 @@ function HourLabels({ marks, range }: { marks: number[]; range: TimeRange }) {
           {timeText(mark)}
         </span>
       ))}
+      {now === null ? null : (
+        <span className="absolute z-10 -translate-x-1/2 rounded-[5px] bg-ink px-1.5 font-semibold text-surface" style={{ left: `${offset(now, range)}%` }}>
+          {timeText(now)}
+        </span>
+      )}
     </div>
   );
 }
 
-/** En el móvil: la misma información en lista por estado (en proceso, por iniciar, finalizadas). */
-function StatusList({ items, date }: { items: AgendaItem[]; date: string }) {
+/**
+ * Una fila: a la izquierda el área, si está libre o en uso ahora y lo que no tiene hora; a la derecha su franja. La fila
+ * sin área se llama «Todo el día» si solo tiene eso, y «Sin área» si también tiene algo con hora.
+ */
+function AreaLine({ row, range, marks, now, minutes, date }: { row: AreaRow; range: TimeRange; marks: number[]; now: number | null; minutes: number; date: string }) {
+  const { placed, lanes } = placeTimed(row.timed, range);
+  const busy = row.area ? busyUntil(row, minutes) : null;
+  const loose = row.area === null;
+  const name = row.area?.name ?? (row.timed.length > 0 ? 'Sin área' : 'Todo el día');
   return (
-    <div className="mt-4 grid gap-4 md:hidden">
-      {statusOrder.map((status) => {
-        const group = items.filter((item) => item.status === status);
-        if (group.length === 0) return null;
+    <li className={cn('grid gap-x-3 border-t border-line py-1.5', AREA_COLUMN)}>
+      <div className="min-w-0 py-1">
+        <p className="truncate text-sm font-semibold text-ink" title={name}>
+          {name}
+        </p>
+        {loose ? null : busy === null ? (
+          <p className="text-[12px] text-ink-muted">Libre ahora</p>
+        ) : (
+          <p className="flex items-center gap-1 text-[12px] font-medium text-action">
+            <CircleDot className="size-3" aria-hidden />
+            En uso hasta las {timeText(busy)}
+          </p>
+        )}
+        {loose ? null : <AllDayChips items={row.allDay} date={date} className="mt-1.5" />}
+      </div>
+      {loose && row.timed.length === 0 ? (
+        <AllDayChips items={row.allDay} date={date} className="py-1" />
+      ) : (
+        <div className="relative min-h-14 rounded-control bg-surface-sunken/70" style={{ height: lanes * LANE + 8 }}>
+          {marks.map((mark) => (
+            <span key={mark} aria-hidden className="absolute inset-y-0 w-px bg-line" style={{ left: `${offset(mark, range)}%` }} />
+          ))}
+          <ul aria-label={placed.length === 0 ? 'Sin actividades con hora' : undefined}>
+            {placed.map(({ item, lane, left, width }, index) => {
+              const Icon = statusIcon[item.status];
+              return (
+                <li key={`${item.moduleCode}:${item.ref}:${index}`}>
+                  <ItemLink
+                    item={item}
+                    date={date}
+                    className={cn(
+                      'absolute flex min-w-0 flex-col justify-center overflow-hidden rounded-control px-2.5 transition-shadow duration-150 hover:shadow-float',
+                      statusTone[item.status],
+                    )}
+                    style={{ top: 4 + lane * LANE, height: LANE - 6, left: `calc(${left}% + 2px)`, width: `calc(${width}% - 4px)` }}
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+                      <Icon className="size-3.5 shrink-0" aria-hidden />
+                      <span className="truncate">{item.title}</span>
+                    </span>
+                    <span className="truncate text-[12px] tabular-nums opacity-80">
+                      {timeLabel(item)}
+                      {item.detail ? ` · ${item.detail}` : ''}
+                    </span>
+                  </ItemLink>
+                </li>
+              );
+            })}
+          </ul>
+          {now === null ? null : (
+            <span aria-hidden className="pointer-events-none absolute inset-y-0 z-10 w-px bg-ink" style={{ left: `${offset(now, range)}%` }} />
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** Lo que no tiene hora (un mantenimiento que vence, una devolución), en fichas con el icono de su módulo y su estado. */
+function AllDayChips({ items, date, className }: { items: AgendaItem[]; date: string; className?: string }) {
+  if (items.length === 0) return null;
+  return (
+    <ul className={cn('flex min-w-0 flex-wrap gap-1.5', className)}>
+      {items.map((item, index) => {
+        const Icon = statusIcon[item.status];
+        const ModuleIcon = moduleIcon(item.moduleCode);
         return (
-          <div key={status}>
-            <h3 className="text-[13px] font-semibold text-ink-muted">
-              {statusText[status].group} <span className="tabular-nums">({group.length})</span>
-            </h3>
-            <ul className="mt-1.5 grid gap-1.5">
-              {group.map((item, index) => {
-                const Icon = statusIcon[item.status];
-                return (
-                  <li key={`${item.moduleCode}:${item.ref}:${index}`}>
-                    <ItemLink item={item} date={date} className={cn('flex min-h-14 items-center gap-3 rounded-control px-3 py-2', statusTone[item.status])}>
-                      <Icon className="size-4 shrink-0" aria-hidden />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{item.title}</span>
-                        <span className="block truncate text-[12px] tabular-nums opacity-80">
-                          {timeLabel(item)}
-                          {item.detail ? ` · ${item.detail}` : ''}
-                        </span>
-                      </span>
-                    </ItemLink>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          <li key={`${item.moduleCode}:${item.ref}:${index}`} className="max-w-full">
+            <ItemLink
+              item={item}
+              date={date}
+              className={cn('flex max-w-full items-center gap-1.5 rounded-full py-1 pl-2 pr-2.5 text-[13px] transition-shadow duration-150 hover:shadow-raised', statusTone[item.status])}
+            >
+              <ModuleIcon className="size-3.5 shrink-0 opacity-80" aria-hidden />
+              <span className="truncate font-medium">{item.title}</span>
+              <Icon className="size-3.5 shrink-0" aria-hidden />
+            </ItemLink>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
 
-/** Hoy no queda nada por iniciar: lo próximo, con un vistazo y el paso a ese día. */
+/** Hoy no queda nada por iniciar: lo próximo, con un vistazo y el paso a ese día en el Calendario. */
 function NextDay({ day, onPick }: { day: AgendaDay; onPick: (date: string) => void }) {
   const preview = day.items.slice(0, 3);
   return (
@@ -269,8 +255,8 @@ function NextDay({ day, onPick }: { day: AgendaDay; onPick: (date: string) => vo
         <p className="text-sm text-ink-muted">
           Hoy no queda nada por iniciar. Lo próximo: <span className="font-semibold text-ink">{formatFullDate(day.date)}</span>
         </p>
-        <Button size="sm" className="ml-auto" onClick={() => onPick(day.date)}>
-          Ver ese día
+        <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onPick(day.date)}>
+          Ver en el calendario
         </Button>
       </div>
       <ul className="mt-3 grid gap-1.5">
@@ -281,6 +267,7 @@ function NextDay({ day, onPick }: { day: AgendaDay; onPick: (date: string) => vo
               <ModuleIcon className="size-4 shrink-0 text-action" aria-hidden />
               <span className="w-24 shrink-0 tabular-nums text-ink-muted">{timeLabel(item)}</span>
               <span className="truncate text-ink">{item.title}</span>
+              {item.area ? <span className="hidden truncate text-ink-muted sm:inline">· {item.area.name}</span> : null}
             </li>
           );
         })}

@@ -1,4 +1,4 @@
-import type { AgendaItem } from '@platlab/contracts';
+import type { AgendaItem, TaskCase } from '@platlab/contracts';
 import type { LucideIcon } from 'lucide-react';
 import type { ComponentType } from 'react';
 import type { RouteObject } from 'react-router';
@@ -51,8 +51,16 @@ export interface WebModule {
      * una, desde el espacio y sin barra inicial.
      */
     agenda?: Record<string, { noun: { one: string; many: string }; href: (item: AgendaItem, date: string) => string }>;
-    /** Por atender (ADR 0026): el texto de cada fila según su cifra y la lista ya filtrada que abre, como `agenda`. */
-    tasks?: Record<string, { label: (n: number) => string; href: string }>;
+    /**
+     * Por atender (ADR 0026): el texto de cada fila según su cifra, la lista ya filtrada que abre «Ver todos», dónde se
+     * abre cada caso y qué es su fecha («Venció el 10 nov»), como `agenda`. Sin `when`, el caso no muestra fecha.
+     */
+    tasks?: Record<
+      string,
+      { label: (n: number) => string; href: string; caseHref: (taskCase: TaskCase) => string; when?: (day: string) => string }
+    >;
+    /** Accesos rápidos del Inicio (ADR 0026): las operaciones frecuentes, cada una con su permiso; abren donde se hacen. */
+    quick?: Array<{ label: string; href: string; permission: string; Icon: LucideIcon }>;
   };
   /**
    * Cómo cuenta el módulo en los cuadros de Áreas y Departamentos (ADR 0024): la sección no conoce a los
