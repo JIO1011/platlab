@@ -42,7 +42,7 @@ async function signUp() {
     body: JSON.stringify({ email: `auth-${randomUUID()}@platlab.test`, password: randomUUID() }),
   });
   expect(response.status).toBe(200);
-  return (await response.json()) as { access_token: string; user: { id: string } };
+  return (await response.json()) as { access_token: string; user: { id: string; email: string } };
 }
 
 describe('Supabase Auth local', () => {

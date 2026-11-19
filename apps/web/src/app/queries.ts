@@ -5,6 +5,7 @@ import {
   homeCalendarResponse,
   homeResponse,
   homeTasksResponse,
+  myInvitations,
   myWorkspacesResponse,
   workspaceMeResponse,
 } from '@platlab/contracts';
@@ -30,6 +31,15 @@ export function useMyWorkspaces() {
   return useQuery({
     queryKey: ['user', user, 'workspaces'],
     queryFn: () => api('/me/workspaces', { schema: myWorkspacesResponse }),
+  });
+}
+
+/** Invitaciones pendientes para el correo de la sesión (ADR 0027): la persona se une con «Unirme». */
+export function useMyInvitations() {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: ['user', user, 'invitations'],
+    queryFn: () => api('/me/invitations', { schema: myInvitations }),
   });
 }
 

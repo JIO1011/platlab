@@ -11,6 +11,8 @@ interface SessionState {
   /** La sesión terminó porque la API rechazó la identidad, no porque la persona saliera. */
   expired: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
+  /** Crea la cuenta (ADR 0027). `confirm` si Auth pide confirmar el correo antes de entrar; si no, ya entró. */
+  signUp: (email: string, password: string) => Promise<{ error: string } | { confirm: boolean }>;
   signOut: () => Promise<void>;
 }
 
@@ -59,14 +61,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return error.status === 400 ? 'El correo o la contraseña no coinciden.' : 'No pudimos iniciar sesión. Vuelve a intentarlo.';
   }, []);
 
+  const signUp = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      if (error.code === 'weak_password') return { error: 'La contraseña es muy débil: usa una más larga.' };
+      if (error.code === 'user_already_exists') return { error: 'Ya hay una cuenta con este correo. Inicia sesión.' };
+      return { error: 'No pudimos crear la cuenta. Vuelve a intentarlo.' };
+    }
+    setExpired(false);
+    return { confirm: data.session === null };
+  }, []);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     queryClient.clear();
   }, [queryClient]);
 
   const value = useMemo(
-    () => ({ session, loading, expired, signIn, signOut }),
-    [session, loading, expired, signIn, signOut],
+    () => ({ session, loading, expired, signIn, signUp, signOut }),
+    [session, loading, expired, signIn, signUp, signOut],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
