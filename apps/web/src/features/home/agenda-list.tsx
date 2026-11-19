@@ -66,7 +66,7 @@ function Entry({ item, date }: { item: AgendaItem; date: string }) {
  */
 export function AgendaList({ items, date, grouped = false }: { items: AgendaItem[]; date: string; grouped?: boolean }) {
   const list = (entries: AgendaItem[]) => (
-    <ul className="grid gap-1.5">
+    <ul className="grid grid-cols-1 gap-1.5">
       {entries.map((item, index) => (
         <li key={`${item.moduleCode}:${item.ref}:${index}`}>
           <Entry item={item} date={date} />
@@ -76,7 +76,7 @@ export function AgendaList({ items, date, grouped = false }: { items: AgendaItem
   );
   if (!grouped) return list(items);
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       {statusOrder.map((status) => {
         const group = items.filter((item) => item.status === status);
         if (group.length === 0) return null;

@@ -24,12 +24,12 @@ export function TasksView() {
   };
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-12">
-      <div className="grid min-w-0 gap-4 lg:col-span-8">
+    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:col-span-8">
         <AgendaPanel onPickDay={pick} />
         <TasksPanel />
       </div>
-      <div className="grid min-w-0 gap-4 lg:col-span-4">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:col-span-4">
         <CalendarPanel month={month} onMonth={setMonth} selected={selected} onPick={pick} />
       </div>
     </div>

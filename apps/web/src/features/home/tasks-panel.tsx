@@ -68,7 +68,7 @@ export function TasksPanel({ className }: { className?: string }) {
           </div>
         ) : (
           // Cada tarjeta crece sola al desplegar sus filas: las de al lado no se estiran.
-          <ul className="grid items-start gap-4 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
             {byModule(rows).map((group) => (
               <li key={group.moduleCode}>
                 <ModuleTasks moduleCode={group.moduleCode} tasks={group.tasks} open={open} onToggle={toggle} />
@@ -94,7 +94,7 @@ function ModuleTasks({ moduleCode, tasks, open, onToggle }: { moduleCode: string
           {name}
         </h3>
       </div>
-      <ul className="mt-2 grid divide-y divide-line">
+      <ul className="mt-2 grid grid-cols-1 divide-y divide-line">
         {tasks.map((task) => (
           <TaskRow key={keyOf(task)} task={task} open={open.has(keyOf(task))} onToggle={() => onToggle(keyOf(task))} />
         ))}
@@ -142,7 +142,7 @@ function TaskRow({ task, open, onToggle }: { task: HomeTask; open: boolean; onTo
         className={cn('grid transition-[grid-template-rows] duration-300 ease-out-expo motion-reduce:transition-none', open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}
       >
         <div className="min-h-0 overflow-hidden">
-          <ul className="grid gap-0.5 pb-2 pl-10">
+          <ul className="grid grid-cols-1 gap-0.5 pb-2 pl-10">
             {task.cases.map((taskCase, index) => (
               <li key={`${taskCase.ref}:${index}`}>
                 <Link

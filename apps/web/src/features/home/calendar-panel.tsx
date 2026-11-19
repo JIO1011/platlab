@@ -56,13 +56,16 @@ export function CalendarPanel({
   const days = new Map(calendar.data?.days.map((day) => [day.date, day]));
   return (
     <section aria-labelledby={titleId} className={cn(panel, className)}>
+      {/* El mes va bajo el título: en la columna del Inicio, título, mes y flechas no caben en una línea. */}
       <div className="flex items-center gap-2">
-        <h2 id={titleId} className="text-lg font-bold text-ink">
-          Calendario
-        </h2>
-        <p aria-live="polite" className="ml-auto text-sm font-medium text-ink-muted">
-          {upperFirst(monthName(month, 'long'))}
-        </p>
+        <div className="min-w-0 flex-1">
+          <h2 id={titleId} className="text-lg font-bold text-ink">
+            Calendario
+          </h2>
+          <p aria-live="polite" className="text-sm font-medium text-ink-muted">
+            {upperFirst(monthName(month, 'long'))}
+          </p>
+        </div>
         <Tooltip label="Mes anterior">
           <Button variant="ghost" size="icon" aria-label="Mes anterior" onClick={() => onMonth(shiftMonth(month, -1))}>
             <ChevronLeft aria-hidden />

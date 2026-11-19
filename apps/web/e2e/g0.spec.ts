@@ -385,11 +385,12 @@ test('Resumen: cifras que abren su lista y salidas por día con puntero, teclado
   // Volver a entrar abre el último espacio usado, sin pantalla para elegir (ADR 0011).
   await admin.goto('/');
   await expect(admin.getByRole('button', { name: 'Facultad de Ciencias. Cambiar de espacio de trabajo' })).toBeVisible();
-  // La tarjeta del Inicio resume el módulo con datos reales del historial de la demo.
+  // La tarjeta del Inicio, en «Módulos», resume el módulo con datos reales del historial de la demo.
+  const reagentsCard = await moduleCard(admin, 'Reactivos');
   await expect(admin.getByText(/\d+ salidas? en los últimos 30 días/)).toBeVisible();
   await capture(admin, 'desktop-home');
 
-  await (await moduleCard(admin, 'Reactivos')).click();
+  await reagentsCard.click();
   await expect(admin.getByRole('heading', { name: 'Salidas por día' })).toBeVisible();
   const chart = admin.getByRole('group', { name: /Salidas por día, últimos 30 días: \d+ salidas en total/ });
   // Teclado: Fin lleva al día de hoy, que se anuncia y se muestra igual que con el puntero.

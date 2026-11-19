@@ -148,6 +148,8 @@ function Board({ columns, items, date, minutes }: { columns: AreaColumn[]; items
   const range = timeRange(items);
   const marks = hourMarks(range);
   const now = minutes >= range.start && minutes <= range.end ? minutes : null;
+  // La píldora de «ahora» ocupa unos 18 px: la hora en punto a menos de media hora queda debajo y no se rotula.
+  const labels = now === null ? marks : marks.filter((mark) => Math.abs(mark - now) >= 30);
   const height = ((range.end - range.start) / 60) * HOUR_HEIGHT;
   const style = { gridTemplateColumns: `${HOURS_WIDTH} repeat(${columns.length}, minmax(${COLUMN_MIN}, 1fr))` } as CSSProperties;
   return (
@@ -168,10 +170,10 @@ function Board({ columns, items, date, minutes }: { columns: AreaColumn[]; items
           );
         })}
         <div aria-hidden className="relative" style={{ height }}>
-          {marks.map((mark, index) => (
+          {labels.map((mark) => (
             <span
               key={mark}
-              className={cn('absolute inset-x-0 text-center font-mono text-[11px] leading-4 tabular-nums text-ink-subtle', index === 0 ? '' : index === marks.length - 1 ? '-translate-y-full' : '-translate-y-1/2')}
+              className={cn('absolute inset-x-0 text-center font-mono text-[11px] leading-4 tabular-nums text-ink-subtle', mark === range.start ? '' : mark === range.end ? '-translate-y-full' : '-translate-y-1/2')}
               style={{ top: `${offset(mark, range)}%` }}
             >
               {timeText(mark)}
@@ -209,15 +211,16 @@ function LabColumn({ column, range, marks, now, date, height }: { column: AreaCo
       <ul aria-label={placed.length === 0 ? `${name}: libre todo el día` : name}>
         {placed.map(({ item, lane, start, size }, index) => {
           const Icon = statusIcon[item.status];
-          // Lo que dura menos de una hora solo tiene alto para el título.
-          const short = (size / 100) * height < 34;
+          // Lo que dura menos de una hora solo tiene alto para el título; desde unas dos horas, el título usa dos líneas.
+          const tall = (size / 100) * height;
+          const short = tall < 34;
           return (
             <li key={`${item.moduleCode}:${item.ref}:${index}`}>
               <ItemLink
                 item={item}
                 date={date}
                 className={cn(
-                  'absolute flex min-w-0 flex-col overflow-hidden rounded-control px-2 transition-shadow duration-150 hover:shadow-float',
+                  'absolute flex min-w-0 flex-col overflow-hidden rounded-control px-1.5 transition-shadow duration-150 hover:shadow-float',
                   short ? 'justify-center' : 'justify-start py-1',
                   statusTone[item.status],
                 )}
@@ -228,11 +231,21 @@ function LabColumn({ column, range, marks, now, date, height }: { column: AreaCo
                   width: `calc(${100 / lanes}% - 6px)`,
                 }}
               >
-                <span className="flex min-w-0 items-center gap-1 text-[12px] font-semibold leading-4">
-                  <Icon className="size-3 shrink-0" aria-hidden />
-                  <span className="truncate">{item.title}</span>
-                </span>
-                {short ? null : <span className="truncate text-[11px] leading-4 tabular-nums opacity-80">{timeLabel(item)}</span>}
+                {short ? (
+                  <span className="flex min-w-0 items-center gap-1 text-[12px] font-semibold leading-4">
+                    <Icon className="size-3 shrink-0" aria-hidden />
+                    <span className="truncate">{item.title}</span>
+                  </span>
+                ) : (
+                  <>
+                    {/* Con alto, el título va solo en su línea (dos si caben) y el icono acompaña a la hora. */}
+                    <span className={cn('text-[12px] font-semibold leading-4', tall >= 56 ? 'line-clamp-2 break-words' : 'truncate')}>{item.title}</span>
+                    <span className="flex min-w-0 items-center gap-0.5 text-[11px] leading-4 tabular-nums opacity-80">
+                      <Icon className="size-3 shrink-0" aria-hidden />
+                      <span className="truncate">{timeLabel(item)}</span>
+                    </span>
+                  </>
+                )}
               </ItemLink>
             </li>
           );
