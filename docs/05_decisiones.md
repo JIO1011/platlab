@@ -640,8 +640,9 @@ Cambios: 20-10-2026; compactado el 16-11-2026.
 | Conexión a PostgreSQL | ¿Conexión directa con el complemento IPv4 o Supavisor en modo sesión? | S-01 |
 | Credencial local del rol de runtime | `supabase/seed.sql` fija una contraseña de desarrollo. Antes de usar ramas de Supabase o staging, pasarla a una variable de entorno local o desactivar el seed fuera de local y CI | S-01 |
 | Conectividad | Cortes reales y procedimiento de continuidad | F0 |
-| Modelo comercial | Recomendado: licencia anual por espacio y paquete + incorporación única + desarrollos a medida aparte ([01 §4](01_producto.md#4-paquetes)). Pendiente de confirmar por el usuario | Antes de cotizar |
-| Precio | Tarifa por espacio con costos medidos, soporte y margen | Antes de cotizar; S-01 aporta los costos |
+| Modelo comercial | Resuelta: [ADR 0031](#adr-0031) (19-11-2026) | — |
+| Precio | Tarifa por espacio y tramo con costos medidos, soporte y margen; las cifras del ADR 0031 son hipótesis | Antes de cotizar; S-01 aporta los costos |
+| Compra pública y SSO | ¿Procedimiento y umbrales de compras públicas para una licencia anual? ¿SSO institucional (Microsoft/Google) y política de datos que piden las universidades? | Antes de ofrecer el plan Institucional |
 | Código de ReactiLab | Titularidad y licencia: el README dice MIT y los términos dicen software propietario | Antes de copiar componentes |
 
 <a id="adr-0025"></a>
@@ -778,3 +779,30 @@ Aceptado el 19-11-2026. Adelanta la publicación que [02 §9](02_arquitectura.md
 - **Después:** Supabase, Render y un Worker según 02 §9, cuando la demo deba quedar siempre en línea o llegue G1.
 
 Motivo: tener la demo en internet hoy, sin cuentas nuevas ni costo, y sin exponer la base de desarrollo.
+
+<a id="adr-0031"></a>
+## ADR 0031 — Modelo comercial para universidades: licencia anual por espacio y plan
+
+Aceptado el 19-11-2026 (decisión del usuario). Cierra la recomendación de [01 §4](01_producto.md#4-paquetes). No cambia las puertas: un módulo solo se vende en etapa `general` ([ADR 0009](#adr-0009)).
+
+- **Comprador:** la universidad es el titular y cada facultad o campus, un espacio.
+- **Ingreso:** licencia anual por espacio y plan, pagada por adelantado y sin cobro por usuario; incorporación única según el trabajo real; desarrollos a medida aparte. La proforma (pago único por módulo + 1 200 USD/año por todo) deja casi sin ingreso recurrente el hosting, el soporte y las actualizaciones, y no se reutiliza.
+- **Planes y tramos:** Control, Operación e Institucional, por tramos de laboratorios (S, M, L, XL), como en 01 §4.
+- **Cifras de partida: hipótesis, no cotización.** Anual por espacio, en USD:
+
+| Plan | S | M (×1,6) | L (×2,5) |
+|---|---|---|---|
+| Control | 1 800 | 2 900 | 4 500 |
+| Operación | 3 600 | 5 800 | 9 000 |
+| Institucional | 6 000 | 9 600 | 15 000 |
+
+  - Incorporación entre 1 000 y 3 000 USD según la migración.
+  - Referencias sin verificar: ChemInventory por usuario y Clustermarket académico por asiento.
+  - Se fijan solo cuando se cumpla: `precio ≥ (infraestructura + horas de soporte × tarifa + contingencia) / n.º de clientes × (1 + margen)`, con los costos de S-01.
+- **Descuentos (reglas, no cifras):** espacios adicionales del mismo titular, cliente fundador como caso de referencia (sin ceder datos y con su permiso para citarlo) y contrato de varios años por adelantado.
+- **Venta:** piloto pagado de 90 días descontado de la licencia. Se empieza por Control (inventario, caducidad y fiscalizados) y se amplía a Operación. Cada propuesta lleva métricas con línea base (01 §1).
+- **Compra:** privada, directa con contrato anual y factura; pública, por compras públicas, con la licencia como servicio de suscripción anual (pendiente de verificar en [Pendientes](#pendientes)).
+- **Fuera por ahora:** pasarela de pago y comisión por compras a proveedores (S-01).
+- **Dependencias para el plan Institucional:** SSO, política de datos y SLA de soporte realista; no se prometen antes de existir.
+
+Motivo: pasar de un pago único con licencia simbólica a ingreso recurrente que sostenga el producto, sin penalizar a docentes y estudiantes con un precio por asiento.
