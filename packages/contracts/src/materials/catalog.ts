@@ -8,8 +8,11 @@ import { list, page, text } from '../common.js';
 
 /** Consumible (se gasta), reutilizable por cantidad (se presta y se devuelve) o reutilizable identificado (una unidad con código). */
 export const materialClass = z.enum(['consumable', 'reusable_counted', 'reusable_identified']);
-/** Un consumible se mide en pieza, masa o volumen; un reutilizable siempre se cuenta en piezas. */
-const materialUnit = z.enum(['u', 'g', 'kg', 'mL', 'L']);
+/**
+ * Un consumible se cuenta en la unidad con que se entrega (pieza, par, caja, rollo…), o se mide en masa, volumen o
+ * metros; un reutilizable siempre se cuenta en piezas. Sin conversión entre ellas (ADR 0025, MA-01g).
+ */
+export const materialUnit = z.enum(['u', 'par', 'caja', 'bolsa', 'paquete', 'rollo', 'frasco', 'tubo', 'sobre', 'kit', 'm', 'g', 'kg', 'mL', 'L']);
 
 /** Semáforo de insumos (02 §12, MA-01f): un lote vence pronto a 90 días o menos y se vigila a 180 o menos. */
 export const EXPIRY_SOON_DAYS = 90;
@@ -100,6 +103,7 @@ export const materialDetail = stockedMaterial.extend({ unitEditable: z.boolean()
 
 export type Material = z.infer<typeof material>;
 export type MaterialClass = z.infer<typeof materialClass>;
+export type MaterialUnit = z.infer<typeof materialUnit>;
 export type StockedMaterial = z.infer<typeof stockedMaterial>;
 export type MaterialList = z.infer<typeof materialList>;
 export type MaterialDetail = z.infer<typeof materialDetail>;

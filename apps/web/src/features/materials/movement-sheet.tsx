@@ -6,7 +6,7 @@ import {
   type IssuePurpose,
   type MaterialStockLine,
 } from '@platlab/contracts';
-import { Field, Input, Quantity, Segmented, Select, toast } from '@platlab/ui';
+import { Field, Input, Quantity, Segmented, Select, toast, unitText } from '@platlab/ui';
 import { ArrowDownToLine, ArrowUpFromLine, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -200,7 +200,7 @@ export function MovementSheet({
           />
         </Field>
       ) : null}
-      <Field label={`Cantidad (${unit})`} required error={errors.quantity?.message}>
+      <Field label={`Cantidad (${unitText(unit, '0')})`} required error={errors.quantity?.message}>
         <Input inputMode="decimal" autoComplete="off" className="h-11 sm:h-10" {...form.register('quantity')} />
       </Field>
       {movement.kind === 'receipt' && material.tracksExpiry ? (

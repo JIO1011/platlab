@@ -1,5 +1,5 @@
 import { setMaterialMinimumRequest } from '@platlab/contracts';
-import { Field, Input, toast } from '@platlab/ui';
+import { Field, Input, toast, unitText } from '@platlab/ui';
 import { BellRing } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -50,7 +50,7 @@ export function MinimumSheet({
       dirty={form.formState.isDirty}
       focusFirst
     >
-      <Field label={`Mínimo (${unit})`} optional hint="Déjalo vacío para quitar el aviso." error={form.formState.errors.minimum?.message}>
+      <Field label={`Mínimo (${unitText(unit, '0')})`} optional hint="Déjalo vacío para quitar el aviso." error={form.formState.errors.minimum?.message}>
         <Input inputMode="decimal" autoComplete="off" className="h-11 sm:h-10" {...form.register('minimum')} />
       </Field>
     </FormSheet>

@@ -1,13 +1,15 @@
 import {
   EXPIRY_SOON_DAYS,
   EXPIRY_WATCH_DAYS,
+  materialUnit,
   subtractDecimals,
   type IssuePurpose,
   type LoanSummary,
   type MaterialClass,
+  type MaterialUnit,
   type StockedMaterial,
 } from '@platlab/contracts';
-import { addDecimal, ratioPercent } from '@platlab/ui';
+import { addDecimal, ratioPercent, unitText } from '@platlab/ui';
 import { countText, daysBetween, formatDate } from '../../app/format';
 
 /** Los textos de Materiales (ADR 0025): cómo se llama cada clase y cómo se lee un vale. */
@@ -28,13 +30,25 @@ export const classHints: Record<MaterialClass, string> = {
 /** Las clases que hoy se registran desde la pantalla; la de unidades con código llega con su entrega (ADR 0025). */
 export const creatableClasses: MaterialClass[] = ['consumable', 'reusable_counted'];
 
-export const unitOptions = [
-  { value: 'u', label: 'Unidades (u)' },
-  { value: 'g', label: 'Gramos (g)' },
-  { value: 'kg', label: 'Kilogramos (kg)' },
-  { value: 'mL', label: 'Mililitros (mL)' },
-  { value: 'L', label: 'Litros (L)' },
-];
+/** Cómo se nombra cada unidad al elegirla (ADR 0025, MA-01g): primero las de conteo, luego longitud, masa y volumen. */
+const unitNames: Record<MaterialUnit, string> = {
+  u: 'Unidades (u)',
+  par: 'Pares',
+  caja: 'Cajas',
+  bolsa: 'Bolsas',
+  paquete: 'Paquetes',
+  rollo: 'Rollos',
+  frasco: 'Frascos',
+  tubo: 'Tubos',
+  sobre: 'Sobres',
+  kit: 'Kits',
+  m: 'Metros (m)',
+  g: 'Gramos (g)',
+  kg: 'Kilogramos (kg)',
+  mL: 'Mililitros (mL)',
+  L: 'Litros (L)',
+};
+export const unitOptions = materialUnit.options.map((value) => ({ value, label: unitNames[value] }));
 
 /** Para qué sale un insumo (MA-01f), con la pista del detalle que pide cada tipo. */
 export const purposeCopy: Record<IssuePurpose, { label: string; detail: string; hint: string }> = {
@@ -91,7 +105,7 @@ export function materialLevel(material: Pick<StockedMaterial, 'class' | 'balance
     return {
       percent: scale ? ratioPercent(material.balance, scale) : null,
       measure: 'Existencia frente al mínimo',
-      note: material.minimum ? `Mínimo ${material.minimum} ${material.baseUnit}` : 'Sin mínimo definido',
+      note: material.minimum ? `Mínimo ${material.minimum} ${unitText(material.baseUnit, material.minimum)}` : 'Sin mínimo definido',
     };
   }
   const lent = lentOut(material.balance, material.available);

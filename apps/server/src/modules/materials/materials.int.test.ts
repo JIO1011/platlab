@@ -61,6 +61,28 @@ describe('catálogo', () => {
     expect(cotton.baseUnit).toBe('g');
   });
 
+  it('un insumo se cuenta en la unidad con que se entrega (cajas, metros) y se mueve en ella (MA-01g)', async () => {
+    const gloves = await createMaterial(lab, { name: 'Guantes de nitrilo M (caja ×100)', baseUnit: 'caja' });
+    const receipt = await call(lab.operator.subject, `${lab.base}/receipts`, {
+      method: 'POST',
+      body: { productId: gloves.id, locationId: lab.shelf, quantity: '4', unit: 'caja' },
+    });
+    expect(receipt.status).toBe(201);
+    expect(materialMovementResponse.parse(receipt.body)).toMatchObject({ balance: '4', unit: 'caja' });
+    // Sin conversión: otra unidad de conteo no se acepta.
+    const inUnits = await call(lab.operator.subject, `${lab.base}/receipts`, {
+      method: 'POST',
+      body: { productId: gloves.id, locationId: lab.shelf, quantity: '100', unit: 'u' },
+    });
+    expect(inUnits.status).toBe(400);
+    expect((await createMaterial(lab, { name: 'Alambre de ortodoncia #7', baseUnit: 'm' })).baseUnit).toBe('m');
+    const box = await call(lab.adminMember.subject, `${lab.base}/products`, {
+      method: 'POST',
+      body: { name: 'Pinzas en caja', class: 'reusable_counted', baseUnit: 'caja' },
+    });
+    expect(box.status).toBe(400);
+  });
+
   it('edita nombre y unidad mientras no haya movimientos; la clase no se edita', async () => {
     const material = await createMaterial(lab, { name: 'Tubos de ensayo' });
     const renamed = await call(lab.adminMember.subject, `${lab.base}/products/${material.id}`, {
