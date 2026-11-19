@@ -45,7 +45,7 @@ export const materialMovementQuery = z
   .strict()
   .refine(inOrder, periodError);
 
-export const materialMovement = z.object({
+const materialMovement = z.object({
   id: z.string(),
   kind: materialMovementKind,
   at: z.iso.datetime({ offset: true }),

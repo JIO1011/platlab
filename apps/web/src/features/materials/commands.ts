@@ -1,7 +1,8 @@
-import { loan, material, materialMinimumResponse, materialMovementResponse } from '@platlab/contracts';
+import { loan, material, materialMinimumResponse, materialMovementResponse, type MaterialMovementFilters } from '@platlab/contracts';
 import { isApiError } from '../../app/api';
 import { commonErrorMessage, useModuleCommand } from '../../app/commands';
-import { useMaterialsKey } from './queries';
+import { useFileDownload } from '../../app/save-file';
+import { movementSearch, useMaterialsKey } from './queries';
 
 /**
  * Comandos de Materiales (ADR 0025): cada hoja abre el suyo, con su clave idempotente, y la pantalla cambia solo con
@@ -36,6 +37,10 @@ export const useReturn = (workspaceId: string, loanId: string) =>
   useModuleCommand(workspaceId, `/materials/loans/${loanId}/returns`, loan, useMaterialsKey(workspaceId));
 
 /** Mensaje para la persona según el código estable del error (02 §7). */
+/** El Excel del libro con los filtros de la pantalla (MA-01d): es una consulta, sin clave idempotente. */
+export const useExportMovements = (workspaceId: string) =>
+  useFileDownload((filters: MaterialMovementFilters) => `/workspaces/${workspaceId}/materials/movements/export?${movementSearch(filters)}`);
+
 export function materialsErrorMessage(error: unknown): string {
   if (isApiError(error, 'INSUFFICIENT_STOCK')) return 'No hay disponible suficiente. Revisa la cantidad: lo prestado no se puede sacar.';
   if (isApiError(error, 'VERSION_CONFLICT')) return 'Otra persona cambió este préstamo mientras lo llenabas. Ciérralo y ábrelo de nuevo.';

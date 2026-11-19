@@ -8,9 +8,12 @@ import {
   materialsDashboard,
   materialsSummary,
   materialStockList,
+  materialMovementList,
+  materialsReport,
   memberList,
   type DashboardPeriod,
   type MaterialClass,
+  type MaterialMovementFilters,
 } from '@platlab/contracts';
 import { queryOptions, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../app/api';
@@ -166,5 +169,39 @@ export function useBorrowers(workspaceId: string, enabled: boolean) {
     queryFn: () => api(`${base(workspaceId)}/borrowers`, { schema: memberList }),
     enabled,
     staleTime: 60_000,
+  });
+}
+
+/** El estado por clase de Informes (MA-01d). */
+export function useMaterialsReport(workspaceId: string) {
+  const user = useUserKey();
+  return useQuery({
+    queryKey: [...materialsKey(user, workspaceId), 'report'],
+    queryFn: () => api(`${base(workspaceId)}/report`, { schema: materialsReport }),
+    refetchInterval: jitteredPoll,
+  });
+}
+
+/** Los filtros del libro como parámetros: los mismos para la lista y para su Excel. */
+export function movementSearch(filters: MaterialMovementFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
+  return params;
+}
+
+/** El libro de Materiales (MA-01d), del más nuevo al más viejo, con sus filtros; sigue la página anterior mientras llega la nueva. */
+export function useMovementPage(workspaceId: string, filters: MaterialMovementFilters) {
+  const user = useUserKey();
+  return useInfiniteQuery({
+    queryKey: [...materialsKey(user, workspaceId), 'movements', filters],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => {
+      const params = movementSearch(filters);
+      if (pageParam) params.set('cursor', pageParam);
+      return api(`${base(workspaceId)}/movements?${params}`, { schema: materialMovementList });
+    },
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    placeholderData: (previous) => previous,
+    refetchInterval: jitteredPoll,
   });
 }

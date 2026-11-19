@@ -15,7 +15,7 @@ const dueTone: Record<DueStatus['tone'], string> = {
 };
 
 /** Columnas de la lista en escritorio: vale y prestatario, piezas, plazo, estado y el chevron. La cabecera usa la misma plantilla. */
-export const loanColumns = 'md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_7rem_1.25rem]';
+const loanColumns = 'md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_7rem_1.25rem]';
 
 /** Nombres de las columnas en escritorio; en el móvil cada fila los lleva en su texto. */
 export function LoanColumnHeads() {

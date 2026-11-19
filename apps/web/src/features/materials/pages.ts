@@ -3,3 +3,4 @@ export { MaterialsLayout } from './layout';
 export { MaterialsSummaryPage } from './summary';
 export { MaterialsInventoryPage } from './inventory';
 export { MaterialsLoansPage } from './loans';
+export { MaterialsReportPage } from './report';

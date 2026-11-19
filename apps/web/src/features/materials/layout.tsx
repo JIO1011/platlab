@@ -29,6 +29,7 @@ export function MaterialsLayout() {
           canLend: allowed('materials.loan.create'),
           // Devolver resuelve un pendiente: la admisión lo permite aun con el módulo en modo consulta (ADR 0009).
           canReturn: me.permissions.includes('materials.loan.return'),
+          canReport: me.permissions.includes('materials.report.export'),
         } satisfies MaterialsContext
       }
     />

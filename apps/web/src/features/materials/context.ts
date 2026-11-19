@@ -17,6 +17,8 @@ export interface MaterialsContext extends ModuleContext {
   canLend: boolean;
   /** «Registrar devolución» (`materials.loan.return`). */
   canReturn: boolean;
+  /** Bajar el Excel del libro (`materials.report.export`, Administrador): es una consulta, también en modo consulta. */
+  canReport: boolean;
 }
 
 export const useMaterials = () => useOutletContext<MaterialsContext>();
