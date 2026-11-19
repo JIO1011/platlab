@@ -11,6 +11,8 @@ import { expectAccessible, signIn } from './helpers';
 const workspace = '/e/da000000-0000-4000-8000-00000000000a';
 const users = `${workspace}/usuarios`;
 const suffix = Date.now().toString(36);
+/** `signIn` no espera la sesión: el saludo del Inicio dice que ya se entró (navegar antes la cortaría). */
+const greeting = /^(Buenos días|Buenas tardes|Buenas noches),/;
 
 test.describe.configure({ mode: 'serial' });
 
@@ -57,7 +59,9 @@ test('la Estudiante invitada se une y la Propietaria le quita el acceso', async 
   await expect(invited).toHaveURL(workspace);
 
   const owner = await signIn(browser, 'propietaria@demo.platlab.test');
-  await owner.goto(users);
+  await expect(owner.getByRole('heading', { level: 1, name: greeting })).toBeVisible();
+  await owner.getByRole('link', { name: 'Usuarios' }).first().click();
+  await expect(owner).toHaveURL(users);
   const active = owner.getByRole('region', { name: 'Activos' });
   await expect(active.getByText('Elena Estudiante')).toBeVisible();
   await owner.getByRole('button', { name: 'Acciones de Elena Estudiante' }).click();
@@ -77,7 +81,8 @@ test('la Estudiante invitada se une y la Propietaria le quita el acceso', async 
 
 test('solo la Propietaria ve la sección', async ({ browser }) => {
   const page = await signIn(browser, 'docente@demo.platlab.test');
-  await expect(page).toHaveURL(new RegExp(`${workspace}`));
+  await expect(page.getByRole('heading', { level: 1, name: greeting })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Inicio' }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Usuarios' })).toHaveCount(0);
   await page.context().close();
 });
