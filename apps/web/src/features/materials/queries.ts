@@ -128,14 +128,17 @@ export function useReceiptLocations(workspaceId: string, enabled: boolean) {
   });
 }
 
-/** Los vales del espacio, del más nuevo al más viejo, con el filtro de estado. */
-export function useLoanPage(workspaceId: string, filter: 'open' | 'overdue' | 'closed') {
+/** Los vales del espacio, del más nuevo al más viejo, con el filtro de estado (`all`, sin filtro) y la búsqueda (2+ letras). */
+export function useLoanPage(workspaceId: string, filter: 'open' | 'overdue' | 'closed' | 'all', search: string) {
   const user = useUserKey();
+  const q = search.trim().length >= 2 ? search.trim() : '';
   return useInfiniteQuery({
-    queryKey: [...materialsKey(user, workspaceId), 'loans', filter],
+    queryKey: [...materialsKey(user, workspaceId), 'loans', filter, q],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => {
-      const params = new URLSearchParams({ filter });
+      const params = new URLSearchParams();
+      if (filter !== 'all') params.set('filter', filter);
+      if (q) params.set('q', q);
       if (pageParam) params.set('cursor', pageParam);
       return api(`${base(workspaceId)}/loans?${params}`, { schema: loanList });
     },

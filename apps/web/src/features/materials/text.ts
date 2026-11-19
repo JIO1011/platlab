@@ -152,8 +152,30 @@ export function dueStatus(loan: Pick<LoanSummary, 'dueOn' | 'status' | 'closedAt
   return { tone: left <= dueSoonDays ? 'warning' : 'accent', headline, detail: dueText(loan) };
 }
 
-export type LoanFilter = 'open' | 'overdue' | 'closed';
-export const loanFilterLabels: Record<LoanFilter, string> = { open: 'Abiertos', overdue: 'Atrasados', closed: 'Cerrados' };
+export type LoanFilter = 'open' | 'overdue' | 'closed' | 'all';
+export const loanFilterLabels: Record<LoanFilter, string> = { open: 'Abiertos', overdue: 'Atrasados', closed: 'Cerrados', all: 'Todos' };
+
+export interface LoanState {
+  tone: 'info' | 'warning' | 'danger' | 'success';
+  label: 'Activo' | 'Parcial' | 'Atrasado' | 'Cerrado' | 'Con baja';
+}
+
+/**
+ * El estado del vale en una palabra: atrasado si venció abierto; parcial si ya volvió algo; activo si no; cerrado, o con
+ * baja si se cerró con material dañado o perdido (la deuda queda registrada, sin bloqueo: ADR 0025).
+ */
+export function loanState(loan: Pick<LoanSummary, 'status' | 'overdue' | 'hasDebt' | 'pieces'>): LoanState {
+  if (loan.status === 'closed') return loan.hasDebt ? { tone: 'warning', label: 'Con baja' } : { tone: 'success', label: 'Cerrado' };
+  if (loan.overdue) return { tone: 'danger', label: 'Atrasado' };
+  return loan.pieces.outstanding === loan.pieces.lent ? { tone: 'info', label: 'Activo' } : { tone: 'warning', label: 'Parcial' };
+}
+
+/** Cuánto falta por volver, en piezas: «Faltan 5 de 8 piezas»; cerrado, solo cuántas fueron: «8 piezas». */
+export function piecesText(loan: Pick<LoanSummary, 'pieces'>): string {
+  const { lent, outstanding } = loan.pieces;
+  if (outstanding === '0') return lent === '1' ? '1 pieza' : `${lent} piezas`;
+  return `${outstanding === '1' ? 'Falta 1' : `Faltan ${outstanding}`} de ${lent} ${lent === '1' ? 'pieza' : 'piezas'}`;
+}
 
 /** «Vence el 12 nov», «Sin fecha» o, cerrado, «Cerrado el 12 nov»; el atraso lo dice la pastilla, no este texto. */
 export function dueText(loan: Pick<LoanSummary, 'dueOn' | 'status' | 'closedAt'>): string {

@@ -1,7 +1,7 @@
 import type { MaterialStockLine, StockedMaterial } from '@platlab/contracts';
 import { Badge, Button, Quantity, Skeleton, ratioPercent } from '@platlab/ui';
 import { ChevronDown, MapPin } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { CodeTag } from '../../app/code-tag';
 import { todayInZone } from '../../app/format';
 import { QueryErrorState } from '../../app/states';
@@ -13,6 +13,23 @@ import { SegmentBar } from './segment-bar';
 import { byExpiry, classLabels, expiryStatus, lentOut, materialLevel, materialStatus } from './text';
 
 const dotTone = { danger: 'bg-danger', warning: 'bg-warning', success: 'bg-success' } as const;
+const figureTone = { danger: 'text-danger', warning: 'text-warning', success: 'text-ink' } as const;
+
+/**
+ * Columnas de la lista en escritorio: imagen, material, ubicación, barra, Disponible, En préstamo, Mínimo y el chevron. La
+ * cabecera de `MaterialsResults` usa la misma plantilla para quedar alineada.
+ */
+export const rowColumns = 'lg:grid-cols-[3rem_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,7rem)_6.5rem_6.5rem_6.5rem_2.25rem]';
+
+/** Una cifra de columna en escritorio: alineada a la derecha, con su nombre para quien usa lector de pantalla. */
+function Figure({ label, children, className = 'text-ink' }: { label: string; children: ReactNode; className?: string }) {
+  return (
+    <p className={`hidden text-right text-sm font-semibold tabular-nums lg:block ${className}`}>
+      <span className="sr-only">{label}: </span>
+      {children}
+    </p>
+  );
+}
 
 /** Dónde está el material: la ubicación principal y, si hay más, cuántas otras. */
 function Where({ names }: { names: readonly string[] }) {
@@ -92,7 +109,9 @@ export function MaterialRow({ material, onOpen }: { material: StockedMaterial; o
   const reusable = material.class !== 'consumable';
   return (
     <li>
-      <div className="group relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2.5 px-4 py-3.5 transition-colors hover:bg-surface-sunken/40 has-[button.open:focus-visible]:outline-2 has-[button.open:focus-visible]:-outline-offset-2 has-[button.open:focus-visible]:outline-action sm:px-5 lg:grid-cols-[auto_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto]">
+      <div
+        className={`group relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2.5 px-4 py-3.5 transition-colors hover:bg-surface-sunken/40 has-[button.open:focus-visible]:outline-2 has-[button.open:focus-visible]:-outline-offset-2 has-[button.open:focus-visible]:outline-action sm:px-5 ${rowColumns}`}
+      >
         <MaterialThumb name={material.name} materialClass={material.class} className="size-12 [&>svg]:size-5" />
         <div className="min-w-0">
           <p className="truncate font-semibold text-ink">
@@ -124,7 +143,7 @@ export function MaterialRow({ material, onOpen }: { material: StockedMaterial; o
         </div>
         <div className="col-span-3 grid gap-1.5 lg:col-span-1">
           {level.percent === null ? null : <SegmentBar percent={level.percent} hasStock={!empty} label={`${level.measure}: ${level.percent} %`} />}
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-muted">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-muted lg:hidden">
             {reusable ? (
               <span>
                 <b className="font-semibold tabular-nums text-ink">
@@ -143,6 +162,15 @@ export function MaterialRow({ material, onOpen }: { material: StockedMaterial; o
             {lent !== '0' ? <Badge tone="info" className="px-2 py-0.5 text-[11px]">Prestado {lent} {material.baseUnit}</Badge> : null}
           </p>
         </div>
+        <Figure label="Disponible" className={figureTone[status.tone]}>
+          <Quantity value={material.available} unit={material.baseUnit} />
+        </Figure>
+        <Figure label="En préstamo" className={lent === '0' ? 'text-ink-subtle' : 'text-info'}>
+          {lent === '0' ? '—' : <Quantity value={lent} unit={material.baseUnit} />}
+        </Figure>
+        <Figure label="Mínimo" className="font-normal text-ink-muted">
+          {material.minimum ? <Quantity value={material.minimum} unit={material.baseUnit} /> : '—'}
+        </Figure>
       </div>
       {expanded ? <Positions productId={material.id} unit={material.baseUnit} today={today} /> : null}
     </li>

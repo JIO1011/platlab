@@ -1,5 +1,5 @@
-import { Button, Skeleton, StatePanel } from '@platlab/ui';
-import { HandHelping, Plus } from 'lucide-react';
+import { Button, Input, Skeleton, StatePanel } from '@platlab/ui';
+import { HandHelping, Plus, Search, SearchX } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { FilterPill } from '../../app/filter-pill';
@@ -7,17 +7,26 @@ import { todayInZone } from '../../app/format';
 import { SectionHeader } from '../../app/section-header';
 import { QueryErrorState } from '../../app/states';
 import { useMaterials } from './context';
-import { LoanCard } from './loan-card';
 import { LoanDetailSheet } from './loan-detail';
+import { LoanColumnHeads, LoanRow } from './loan-row';
 import { LoanSheet } from './loan-sheet';
 import { useLoanPage, useMaterialsSummary } from './queries';
 import { loanFilterLabels, type LoanFilter } from './text';
 
-const parseFilter = (value: string | null): LoanFilter => (value === 'overdue' || value === 'closed' ? value : 'open');
+const filters = ['open', 'overdue', 'closed', 'all'] as const;
+const parseFilter = (value: string | null): LoanFilter => (value === 'overdue' || value === 'closed' || value === 'all' ? value : 'open');
+
+const emptyTitles: Record<LoanFilter, string> = {
+  open: 'No hay préstamos abiertos',
+  overdue: 'Ningún préstamo atrasado',
+  closed: 'Aún no hay préstamos cerrados',
+  all: 'Aún no hay préstamos',
+};
 
 /**
- * Préstamos (ADR 0025), el mostrador: los vales abiertos, atrasados o cerrados, del más nuevo al más viejo, y «Nuevo
- * préstamo». Tocar un vale abre su detalle, donde se registra la devolución. `?filtro=` elige la lista, `?vale=` abre un
+ * Préstamos (ADR 0025), el mostrador: los vales en una lista con columnas (vale y prestatario, piezas, plazo y estado), del
+ * más nuevo al más viejo, con pestañas por estado y su número, un buscador por vale, persona o material, y «Nuevo
+ * préstamo». Tocar un vale abre su detalle, donde se registra la devolución. `?filtro=` elige la pestaña, `?vale=` abre un
  * vale y `?nuevo=1` abre la hoja de préstamo (los enlaces del Resumen).
  */
 export function MaterialsLoansPage() {
@@ -25,10 +34,17 @@ export function MaterialsLoansPage() {
   const timeZone = me.workspace.timeZone;
   const today = todayInZone(timeZone);
   const summary = useMaterialsSummary(workspaceId).data;
-  const counts: Partial<Record<LoanFilter, number | undefined>> = { open: summary?.openLoans, overdue: summary?.overdueLoans };
+  const counts: Record<LoanFilter, number | undefined> = {
+    open: summary?.openLoans,
+    overdue: summary?.overdueLoans,
+    closed: summary?.closedLoans,
+    all: summary ? summary.openLoans + summary.closedLoans : undefined,
+  };
   const [params, setParams] = useSearchParams();
   const filter = parseFilter(params.get('filtro'));
-  const loans = useLoanPage(workspaceId, filter);
+  const [search, setSearch] = useState('');
+  const searching = search.trim().length >= 2;
+  const loans = useLoanPage(workspaceId, filter, search);
   const [form, setForm] = useState<{ n: number; open: boolean } | null>(() => (params.get('nuevo') === '1' && canLend ? { n: 1, open: true } : null));
   const [detail, setDetail] = useState<{ id: string; open: boolean } | null>(() => {
     const id = params.get('vale');
@@ -47,10 +63,24 @@ export function MaterialsLoansPage() {
   return (
     <>
       <SectionHeader title="Préstamos" updatedAt={loans.dataUpdatedAt} actions={lend} />
-      <div className="mt-6 flex flex-wrap items-center gap-2" role="group" aria-label="Estado del préstamo">
-        {(['open', 'overdue', 'closed'] as const).map((value) => (
-          <FilterPill key={value} label={loanFilterLabels[value]} count={counts[value]} active={filter === value} onToggle={() => setFilter(value)} />
-        ))}
+      <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Estado del préstamo">
+          {filters.map((value) => (
+            <FilterPill key={value} label={loanFilterLabels[value]} count={counts[value]} active={filter === value} onToggle={() => setFilter(value)} />
+          ))}
+        </div>
+        <div className="relative w-full md:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" aria-hidden />
+          <Input
+            type="search"
+            aria-label="Buscar vale, persona o material"
+            placeholder="Buscar vale, persona o material"
+            autoComplete="off"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="h-11 pl-9 sm:h-10"
+          />
+        </div>
       </div>
       <div className="mt-4">
         {loans.isPending ? (
@@ -63,24 +93,31 @@ export function MaterialsLoansPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-card bg-surface shadow-raised">
-            <StatePanel
-              icon={HandHelping}
-              title={filter === 'open' ? 'No hay préstamos abiertos' : filter === 'overdue' ? 'Ningún préstamo atrasado' : 'Aún no hay préstamos cerrados'}
-              description={
-                filter === 'open' && canLend
-                  ? 'Cuando prestes material a alguien, el vale aparece aquí hasta que lo devuelva.'
-                  : 'Los vales se muestran del más nuevo al más viejo.'
-              }
-              action={filter === 'open' ? (lend ?? undefined) : undefined}
-            />
+            {searching ? (
+              <StatePanel icon={SearchX} title="Ningún vale coincide" description="Busca por número (P-0043), por quien se lo llevó o por el material." />
+            ) : (
+              <StatePanel
+                icon={HandHelping}
+                title={emptyTitles[filter]}
+                description={
+                  filter === 'open' && canLend
+                    ? 'Cuando prestes material a alguien, el vale aparece aquí hasta que lo devuelva.'
+                    : 'Los vales se muestran del más nuevo al más viejo.'
+                }
+                action={filter === 'open' ? (lend ?? undefined) : undefined}
+              />
+            )}
           </div>
         ) : (
           <>
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {items.map((loan) => (
-                <LoanCard key={loan.id} loan={loan} today={today} timeZone={timeZone} onOpen={() => setDetail({ id: loan.id, open: true })} />
-              ))}
-            </ul>
+            <div className={`overflow-hidden rounded-card bg-surface shadow-raised transition-opacity duration-200 ${loans.isPlaceholderData ? 'opacity-60' : ''}`}>
+              <LoanColumnHeads />
+              <ul className="divide-y divide-line">
+                {items.map((loan) => (
+                  <LoanRow key={loan.id} loan={loan} today={today} timeZone={timeZone} onOpen={() => setDetail({ id: loan.id, open: true })} />
+                ))}
+              </ul>
+            </div>
             {loans.hasNextPage ? (
               <div className="mt-4 flex justify-center">
                 <Button className="h-11 sm:h-10" onClick={() => void loans.fetchNextPage()} disabled={loans.isFetchingNextPage}>

@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { byExpiry, dueStatus, dueText, expiryStatus, lentOut, locationLabels, materialLevel, materialStatus, normalizeQuantity } from './text';
+import {
+  byExpiry,
+  dueStatus,
+  dueText,
+  expiryStatus,
+  lentOut,
+  loanState,
+  locationLabels,
+  materialLevel,
+  materialStatus,
+  normalizeQuantity,
+  piecesText,
+} from './text';
 
 describe('expiryStatus', () => {
   it('pinta el semáforo con los cortes de 90 y 180 días', () => {
@@ -94,5 +106,28 @@ describe('materialLevel', () => {
   });
   it('mide el reutilizable por lo que hay en el estante', () => {
     expect(materialLevel({ class: 'reusable_counted', balance: '38', available: '26', minimum: null, baseUnit: 'u' })).toMatchObject({ percent: 68, note: '12 u en préstamo' });
+  });
+});
+
+describe('loanState y piecesText', () => {
+  const loan = (status: 'open' | 'closed', lent: string, outstanding: string, extra: { overdue?: boolean; hasDebt?: boolean } = {}) => ({
+    status,
+    overdue: extra.overdue ?? false,
+    hasDebt: extra.hasDebt ?? false,
+    pieces: { lent, outstanding },
+  });
+  it('dice el estado del vale en una palabra', () => {
+    expect(loanState(loan('open', '8', '8')).label).toBe('Activo');
+    expect(loanState(loan('open', '8', '5')).label).toBe('Parcial');
+    expect(loanState(loan('open', '8', '5', { overdue: true })).label).toBe('Atrasado');
+    expect(loanState(loan('closed', '8', '0')).label).toBe('Cerrado');
+    expect(loanState(loan('closed', '8', '0', { hasDebt: true })).label).toBe('Con baja');
+  });
+  it('cuenta las piezas que faltan, en singular y plural', () => {
+    expect(piecesText(loan('open', '8', '5'))).toBe('Faltan 5 de 8 piezas');
+    expect(piecesText(loan('open', '8', '1'))).toBe('Falta 1 de 8 piezas');
+    expect(piecesText(loan('open', '1', '1'))).toBe('Falta 1 de 1 pieza');
+    expect(piecesText(loan('closed', '8', '0'))).toBe('8 piezas');
+    expect(piecesText(loan('closed', '1', '0'))).toBe('1 pieza');
   });
 });
