@@ -1,0 +1,32 @@
+# Blueprint de Render para la API (ADR 0033). Los valores con `sync: false` se piden al crear el Blueprint y no
+# se guardan en Git; infra/README.md dice de dónde sale cada uno.
+services:
+  - type: web
+    name: platlab-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: virginia
+    plan: starter
+    healthCheckPath: /health
+    # El despliegue lo dispara el CI por su deploy hook, después de aplicar las migraciones (02 §9).
+    autoDeployTrigger: 'off'
+    envVars:
+      - key: DATABASE_URL_API
+        sync: false
+      - key: AUTH_JWKS_URL
+        sync: false
+      - key: AUTH_ISSUER
+        sync: false
+      - key: AUTH_AUDIENCE
+        value: authenticated
+      - key: STORAGE_S3_URL
+        sync: false
+      - key: STORAGE_S3_REGION
+        sync: false
+      - key: STORAGE_S3_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: STORAGE_PUBLIC_URL
+        sync: false

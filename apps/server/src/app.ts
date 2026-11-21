@@ -18,10 +18,12 @@ export interface AppDependencies {
   verifyToken: TokenVerifier;
   /** Bucket público de las fichas de seguridad (ADR 0017). */
   publicFiles: PublicFiles;
+  /** Registro de peticiones en JSON (producción). Apagado en las pruebas. */
+  logger?: boolean;
 }
 
-export function buildApp({ pool, verifyToken, publicFiles }: AppDependencies): FastifyInstance {
-  const app = Fastify({ logger: false });
+export function buildApp({ pool, verifyToken, publicFiles, logger = false }: AppDependencies): FastifyInstance {
+  const app = Fastify({ logger });
   registerErrorHandling(app);
 
   app.get('/health', async (): Promise<HealthResponse> => ({ status: 'ok', service: 'api' }));
