@@ -4,5 +4,8 @@
   "ignoreIssues": {
     "apps/server/src/**/*.queries.ts": ["types"],
     "apps/server/src/modules/*/index.ts": ["exports", "types"]
+  },
+  "workspaces": {
+    ".": { "entry": ["infra/cloudflare/worker.mjs"] }
   }
 }

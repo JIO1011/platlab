@@ -2,6 +2,8 @@ import type { StorageConfig } from './platform/storage/public-files.js';
 
 /** Configuración de la API desde el entorno. Los valores por defecto solo sirven en local. */
 export interface ApiConfig {
+  /** `NODE_ENV=production`: exige todas las variables y activa el registro de peticiones. */
+  production: boolean;
   port: number;
   host: string;
   databaseUrl: string;
@@ -34,6 +36,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     return localDefaults[name];
   };
   return {
+    production,
     port: Number(env['PORT'] ?? 3000),
     host: env['HOST'] ?? '127.0.0.1',
     databaseUrl: read('DATABASE_URL_API'),

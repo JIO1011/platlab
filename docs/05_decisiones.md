@@ -806,3 +806,21 @@ Aceptado el 19-11-2026 (decisión del usuario). Cierra la recomendación de [01 
 - **Dependencias para el plan Institucional:** SSO, política de datos y SLA de soporte realista; no se prometen antes de existir.
 
 Motivo: pasar de un pago único con licencia simbólica a ingreso recurrente que sostenga el producto, sin penalizar a docentes y estudiantes con un precio por asiento.
+
+
+<a id="adr-0033"></a>
+
+## ADR 0033 — Despliegue en la nube del primer entorno (`staging`)
+
+Estado: aceptada (21-11-2026; pedido del usuario: llevar la app a producción). Aplica 02 §9 sin cambiar su destino: es su primer tramo, con datos sintéticos (G0); los datos reales siguen detrás de G1.
+
+- **Piezas:** un Worker de Cloudflare sirve la web (activos estáticos, con `single-page-application`) y reenvía `/v1/*` a la API en Render. La API es un contenedor Node 24 en Render (región Virginia). Base, Auth y Storage están en un proyecto Supabase `platlab-staging` (`us-east-1`), separado de `Inventario_V1` (ReactiLab).
+- **Un solo origen:** el navegador solo habla con el dominio de PlatLab para la API; sin CORS y sin `api.<dominio>`. Auth y Storage públicos los sirve Supabase directamente. Hasta el corte, la demo del túnel ([ADR 0029](#adr-0029)) sigue en `platlab.ohmroyal.org`; el Worker se prueba antes en su `workers.dev`.
+- **Orden de entrega (02 §9):** CI verde → migraciones aditivas al proyecto Supabase (solo desde CI; nunca desde una máquina local) → API en Render por su deploy hook (el auto-deploy de Render queda apagado para que no adelante a las migraciones) → web y Worker. Un rollback de código no revierte la base.
+- **Credenciales:** el rol `platlab_api` recibe su contraseña fuera de Git (la local de `seed.sql` no llega al entorno remoto, S-01). Los secretos viven en Render, en GitHub Actions y en Cloudflare; ninguno en el repositorio ni en `VITE_*`. La API en producción falla si falta una variable ([02 §10](02_arquitectura.md#10-seguridad-y-operación)).
+- **Conexión a PostgreSQL:** Supavisor en modo sesión (IPv4), sin costo extra; Render no sale por IPv6. El modo transacción queda descartado (prepared statements). La latencia desde Ecuador se mide en S-01 y decide si se pasa a conexión directa o a otro host.
+- **API empaquetada:** `esbuild` genera un solo `api.mjs` (incluye los paquetes del monorepo, que se publican como TypeScript); la imagen no lleva `node_modules`. Registro de peticiones en JSON con Fastify y cierre ordenado por `SIGTERM`.
+- **Fuera de este tramo (F1b, antes de G1):** límites de tasa (02 §12), Resend, R2 y copias, observabilidad, consola y worker. «Crear cuenta» sigue oculta y la demo, abierta y sintética.
+- **Pendiente:** dominio definitivo y el corte de `platlab.ohmroyal.org` del túnel al Worker; el sitio público ([ADR 0030](#adr-0030)) entra al Worker cuando esté en `main`.
+
+Motivo: la demo en el túnel depende de la máquina del fundador; hace falta un entorno que no se apague, con la misma arquitectura que tendrá el piloto.

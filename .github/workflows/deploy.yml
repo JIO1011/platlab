@@ -1,0 +1,67 @@
+name: Deploy staging
+
+# Entrega de 02 §9 (ADR 0033): CI verde → migraciones → API en Render → web y Worker en Cloudflare.
+# Apagado hasta que existan los secretos: se enciende con la variable de repositorio DEPLOY_STAGING=true.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un despliegue a la vez; uno en curso no se corta a la mitad.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.DEPLOY_STAGING == 'true' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalación reproducible
+        run: pnpm install --frozen-lockfile
+
+      # Solo migraciones aditivas (02 §9). La contraseña de platlab_api no está en ellas: se fijó una vez a mano.
+      - name: Migraciones al proyecto de staging
+        env:
+          MIGRATIONS_DB_URL: ${{ secrets.STAGING_MIGRATIONS_DB_URL }}
+        run: pnpm supabase db push --db-url "$MIGRATIONS_DB_URL" --yes
+
+      - name: API en Render
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: curl --fail --silent --show-error --request POST "$RENDER_DEPLOY_HOOK_URL" > /dev/null
+
+      # Las claves de Supabase que lleva la web son las públicas (publishable); la sesión y las fotos las sirve
+      # Supabase directamente. «Crear cuenta» sigue oculta (ADR 0029).
+      - name: Compilar la web
+        env:
+          VITE_SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SIGNUP: 'off'
+        run: pnpm --filter @platlab/web build
+
+      - name: Worker y web en Cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm dlx wrangler@4.166.0 deploy --config infra/cloudflare/wrangler.jsonc
