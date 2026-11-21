@@ -6,7 +6,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    region: virginia
+    region: ohio
     plan: starter
     healthCheckPath: /health
     # El despliegue lo dispara el CI por su deploy hook, después de aplicar las migraciones (02 §9).

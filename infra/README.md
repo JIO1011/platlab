@@ -9,11 +9,11 @@ Navegador ─► Worker «platlab» (Cloudflare) ─┬─ activos de la web (SP
 Navegador ─► Supabase: sesión y archivos públicos
 ```
 
-`<ref>` es la referencia del proyecto Supabase. El orden importa: el rol de la API lo crean las migraciones.
+`<ref>` es la referencia del proyecto Supabase (`wlqbokexiuvhdwafhfoe`). El orden importa: el rol de la API lo crean las migraciones.
 
 ## Una sola vez, en este orden
 
-1. **Supabase.** Proyecto `platlab-staging`, región `us-east-1`, con una contraseña de base larga guardada en un gestor.
+1. **Supabase.** Proyecto `platlab` (`wlqbokexiuvhdwafhfoe`), región `us-east-2`, con una contraseña de base larga guardada en un gestor.
    En Authentication → Sign In / Providers, apagar «Allow new users to sign up».
 2. **Migraciones (desde tu terminal, la primera vez).** Con la conexión del rol `postgres` por Supavisor en modo
    sesión (Connect → Session pooler):
@@ -37,11 +37,11 @@ Navegador ─► Supabase: sesión y archivos públicos
 
 | Dónde | Nombre | Valor |
 |---|---|---|
-| Render | `DATABASE_URL_API` | `postgres://platlab_api.<ref>:<contraseña>@aws-0-us-east-1.pooler.supabase.com:5432/postgres` (Supavisor, modo sesión) |
+| Render | `DATABASE_URL_API` | `postgres://platlab_api.<ref>:<contraseña>@<host del Session pooler>:5432/postgres` (Connect → Session pooler; el usuario lleva el sufijo `.<ref>`) |
 | Render | `AUTH_JWKS_URL` | `https://<ref>.supabase.co/auth/v1/.well-known/jwks.json` |
 | Render | `AUTH_ISSUER` | `https://<ref>.supabase.co/auth/v1` |
 | Render | `STORAGE_S3_URL` | `https://<ref>.supabase.co/storage/v1/s3` |
-| Render | `STORAGE_S3_REGION` | `us-east-1` |
+| Render | `STORAGE_S3_REGION` | `us-east-2` |
 | Render | `STORAGE_S3_ACCESS_KEY_ID` / `STORAGE_S3_SECRET_ACCESS_KEY` | Las claves S3 del paso 4 |
 | Render | `STORAGE_PUBLIC_URL` | `https://<ref>.supabase.co/storage/v1/object/public` |
 | GitHub (secreto) | `STAGING_MIGRATIONS_DB_URL` | La conexión del paso 2 |
