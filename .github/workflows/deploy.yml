@@ -40,6 +40,11 @@ jobs:
       - name: Instalación reproducible
         run: pnpm install --frozen-lockfile
 
+      # config.toml apunta a supabase/signing_keys.json (la clave de Auth local) y la CLI exige que exista aunque el
+      # destino sea remoto. Se genera una efímera en el runner; no se envía a ningún proyecto.
+      - name: Clave de firma local (la lee la CLI)
+        run: pnpm db:keys
+
       # Solo migraciones aditivas (02 §9). La contraseña de platlab_api no está en ellas: se fijó una vez a mano.
       - name: Migraciones al proyecto de staging
         env:
