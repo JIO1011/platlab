@@ -24,3 +24,11 @@ apps/web/.impeccable/hook.cache.json
 
 # Estado local de `wrangler dev` (infra/cloudflare)
 .wrangler/
+
+# Sitio público: compilados y pruebas (se regeneran)
+apps/site/.next/
+apps/site/out/
+apps/site/next-env.d.ts
+apps/site/test-results/
+apps/site/playwright-report/
+apps/site/tsconfig.tsbuildinfo

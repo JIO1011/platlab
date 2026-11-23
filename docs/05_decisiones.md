@@ -32,6 +32,7 @@ Revisión: 16 de noviembre de 2026. Registro resumido de decisiones de arquitect
 | [0026](#adr-0026) | Inicio con Actividad, Calendario y Por atender | Aceptado el 19-11-2026 |
 | [0027](#adr-0027) | Usuarios: lista blanca, roles e inactividad | Aceptado el 19-11-2026 |
 | [0029](#adr-0029) | Demo publicada en internet | Reemplazado por el [0033](#adr-0033) el 22-11-2026 |
+| [0030](#adr-0030) | Sitio público de presentación | Aceptado el 19-11-2026; precios según el 0032 |
 | [0031](#adr-0031) | Modelo comercial para universidades | Aceptado el 19-11-2026; ingreso y cifras reemplazados por el 0032 |
 | [0032](#adr-0032) | Precios por módulo con mantenimiento anual | Aceptado el 19-11-2026 |
 | [0033](#adr-0033) | Despliegue en la nube del primer entorno (`staging`) | Aceptado el 21-11-2026 |
@@ -782,6 +783,22 @@ Reemplazado por el [ADR 0033](#adr-0033) el 22-11-2026: el túnel y su configura
 - **Después:** Supabase, Render y un Worker según 02 §9, cuando la demo deba quedar siempre en línea o llegue G1.
 
 Motivo: tener la demo en internet hoy, sin cuentas nuevas ni costo, y sin exponer la base de desarrollo.
+
+<a id="adr-0030"></a>
+
+## ADR 0030 — Sitio público de presentación (`platlab-site`)
+
+Estado: aceptada (19-11-2026; pedido del usuario). El sitio vive en el monorepo como `apps/site` (`@platlab/site`, Next 16 estático para Cloudflare), con su propio lint (Next exige ESLint 9) y aislado por `depcruise`: no importa la app ni el servidor.
+
+- **Rumbo:** formal e institucional, con más imagen que texto. El producto real (capturas de la demo) es el protagonista; sin velos, globos ni recorridos con números.
+- **Público:** universidades y clínicas. El de clínicas se apoya en el caso del Excel P68 (vencimientos por lote).
+- **Acceso:** «Iniciar sesión» en la cabecera lleva a `/acceso` de la app (`SITE.app`); «Solicitar demostración» lleva a `/demo/`. El único canal de contacto es el correo, con asunto y mensaje escritos; sin WhatsApp ni teléfono (pedido del usuario, 19-11-2026). Sin formulario ni servidor.
+- **Honestidad:** cada módulo muestra su etapa real (`pilot` → «Disponible para piloto»; `development` → «Próximamente»). Sin fechas, clientes, cifras de uso ni testimonios. Los precios los fija el [ADR 0032](#adr-0032), que reemplaza el «sin precios» original de este ADR. El informe de controlados se presenta como lo que es hoy: marca, filtro y exportación (ADR 0016).
+- **Imágenes:** solo capturas propias con datos sintéticos, rotuladas como demostración; sin fotos de stock. Las generan `pnpm capturar` desde la demo.
+- **Monorepo:** así las etapas, los docs y las capturas (`pnpm --filter @platlab/site capturar`, desde la demo local) tienen una sola fuente; el CI compila el sitio.
+- **Pendiente:** dominio definitivo del sitio, la app siempre en línea antes de abrirlo a buscadores (02 §9) y el modelo comercial (01 §4).
+
+Motivo: la versión anterior explicaba la interfaz en vez de vender el resultado y llevaba jerga interna, etapas desactualizadas y ningún acceso a la app.
 
 <a id="adr-0031"></a>
 ## ADR 0031 — Modelo comercial para universidades: licencia anual por espacio y plan

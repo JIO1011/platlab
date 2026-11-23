@@ -1,0 +1,63 @@
+/* Índice de módulos */
+.indice { display: grid; gap: 0.9rem; grid-template-columns: repeat(2, 1fr); }
+.indice li:last-child { grid-column: 1 / -1; }
+.indiceEnlace {
+  display: grid; justify-items: start; gap: 0.7rem; height: 100%;
+  padding: 1.25rem; border: 1px solid var(--line); border-radius: var(--r-panel);
+  background: var(--surface); text-decoration: none;
+  transition: border-color 0.2s, transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+.indiceEnlace:hover { border-color: var(--acento); transform: translateY(-3px); box-shadow: 0 16px 32px -20px rgba(11, 42, 74, 0.4); }
+.indiceIcono { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 12px; background: var(--acento); color: var(--acento-tinta); }
+.indiceNombre { font-family: var(--font-display); font-weight: 650; font-size: 1.2rem; letter-spacing: -0.01em; color: var(--navy); }
+
+@media (min-width: 48rem) {
+  .indice { grid-template-columns: repeat(5, 1fr); }
+  .indice li:last-child { grid-column: auto; }
+}
+
+/* Etapa: siempre con texto, el color solo refuerza */
+.etapa {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.2rem 0.7rem; border-radius: 999px;
+  background: var(--sunken); color: var(--ink-muted);
+  font-size: 0.8125rem; font-weight: 600;
+}
+.etapa::before { content: ""; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: currentColor; opacity: 0.55; }
+.piloto { background: var(--ok-soft); color: var(--ok); }
+.piloto::before { opacity: 1; }
+
+/* Panel de módulo */
+.panel { display: grid; gap: 2rem; align-items: center; }
+.panel + .panel { margin-top: clamp(3.5rem, 7vw, 6.5rem); }
+.campo {
+  position: relative; display: grid; align-items: center;
+  min-height: clamp(18rem, 42vw, 30rem);
+  padding: clamp(1rem, 2.5vw, 2.25rem);
+  background: var(--acento-suave); border-radius: var(--r-campo); overflow: hidden;
+}
+.conSecundaria { position: relative; padding-bottom: clamp(3rem, 9vw, 7rem); }
+.principal { width: 100%; }
+.secundaria {
+  position: absolute; right: 0; bottom: 0; width: 58%;
+  animation: deriva linear both;
+  animation-timeline: view();
+  animation-range: entry 10% cover 70%;
+}
+@keyframes deriva { from { transform: translateY(2.5rem); } to { transform: translateY(0); } }
+@supports not (animation-timeline: view()) { .secundaria { animation: none; } }
+
+.texto { display: grid; justify-items: start; gap: 0.9rem; }
+.icono { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 14px; background: var(--acento); color: var(--acento-tinta); }
+.nombre { font-size: clamp(2rem, 1.4rem + 2vw, 3rem); line-height: 1.05; letter-spacing: -0.025em; font-weight: 650; color: var(--navy); }
+.resuelve { font-size: 1.2rem; color: var(--ink-muted); max-width: 28rem; }
+.puntos { display: grid; gap: 0.7rem; margin-top: 0.5rem; }
+.puntos li { display: flex; align-items: flex-start; gap: 0.7rem; font-weight: 500; }
+.puntos svg { flex: none; margin-top: 0.2rem; color: var(--ok); }
+
+@media (min-width: 62rem) {
+  .panel { grid-template-columns: 1.65fr 1fr; gap: clamp(2.5rem, 5vw, 5rem); }
+  .invertido { grid-template-columns: 1fr 1.65fr; }
+  .invertido .campo { order: 2; }
+  .invertido .texto { order: 1; }
+}

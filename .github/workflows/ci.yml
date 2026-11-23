@@ -57,6 +57,9 @@ jobs:
       - name: Compilación de la web
         run: pnpm --filter @platlab/web build
 
+      - name: Compilación del sitio público
+        run: pnpm --filter @platlab/site build
+
       - name: Navegador para Playwright
         run: pnpm --filter @platlab/web exec playwright install --with-deps chromium
 

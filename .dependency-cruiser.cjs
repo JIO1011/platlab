@@ -12,6 +12,13 @@ module.exports = {
       to: { circular: true },
     },
     {
+      name: 'site-aislado',
+      severity: 'error',
+      comment: 'El sitio público no importa la app ni el servidor, y ellos no lo importan a él.',
+      from: { path: '^apps/site/' },
+      to: { path: '^(apps/(web|server|console)|packages)/' },
+    },
+    {
       name: 'frontends-no-server',
       severity: 'error',
       comment: 'Los frontends no importan código del servidor.',
@@ -100,9 +107,11 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
-    exclude: { path: '(\\.queries\\.ts$|/dist/)' },
+    exclude: { path: '(\\.queries\\.ts$|/dist/|^apps/site/(\\.next|out)/|^apps/site/next-env\\.d\\.ts$)' },
     tsPreCompilationDeps: true,
     tsConfig: { fileName: 'tsconfig.base.json' },
+    // El sitio usa el alias @/ → apps/site/src (web y servidor no lo usan).
+    webpackConfig: { fileName: '.dependency-cruiser.alias.cjs' },
     enhancedResolveOptions: {
       exportsFields: ['exports'],
       conditionNames: ['import', 'require', 'node', 'default', 'types'],

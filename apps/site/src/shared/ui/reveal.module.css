@@ -1,0 +1,2 @@
+.reveal { transition: opacity 0.7s var(--ease), transform 0.7s var(--ease); }
+.espera { opacity: 0; transform: translateY(26px); }
