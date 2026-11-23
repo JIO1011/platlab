@@ -173,9 +173,7 @@ export function LabsSchedulePage() {
     }
     const responsibleId = source.kind === 'move' ? source.activity.responsibleId : responsibleFor(responsibles.data?.items ?? [], me.member.principalId);
     if (!responsibleId) {
-      toast.error(responsibles.data ? 'No hay a quién asignar el bloque' : 'Aún no se cargaron los responsables', {
-        description: responsibles.data ? 'Programa con «Programar…» cuando haya un Operador o un Administrador.' : 'Vuelve a intentarlo en un momento.',
-      });
+      toast.error('No hay a quién asignar el bloque', { description: 'Programa con «Programar…» cuando haya un Operador o un Administrador.' });
       return;
     }
     const moving = source.kind === 'move';
@@ -200,7 +198,8 @@ export function LabsSchedulePage() {
     openPlacement({ kind: 'program', request, pending: pendingDates(request.dates, request.scheduledDates), date: day });
 
   const tray: TrayActions = {
-    canSchedule,
+    // Programar elige un responsable: hasta que llegan, las tarjetas no ofrecen «Programar…» ni se arrastran.
+    canSchedule: canSchedule && responsibles.data !== undefined,
     wide,
     today,
     visible: date,
