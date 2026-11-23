@@ -14,6 +14,8 @@
   "vars": {
     // La URL pública del servicio en Render (infra/README.md).
     "API_ORIGIN": "https://platlab-api.onrender.com"
-  }
-  // El corte del dominio se agrega al final (infra/README.md): "routes": [{ "pattern": "platlab.ohmroyal.org", "custom_domain": true }]
+  },
+  // El dominio de PlatLab: Cloudflare crea el registro DNS y el certificado. `workers_dev` deja además la URL de pruebas.
+  "routes": [{ "pattern": "platlab.ohmroyal.org", "custom_domain": true }],
+  "workers_dev": true
 }
