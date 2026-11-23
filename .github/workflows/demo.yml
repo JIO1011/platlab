@@ -1,0 +1,40 @@
+# Demo sintética en la nube, por ahora (ADR 0033, 23-11-2026, decisión del usuario hasta definir las cuentas): carga
+# supabase/seeds/demo.sql en el proyecto de staging una sola vez. Manual y con confirmación escrita.
+name: Cargar demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Escribe CARGAR DEMO: marca el ambiente como sintético y carga las cuentas demo (contraseña pública)'
+        required: true
+
+permissions:
+  contents: read
+
+# No se cruza con un despliegue que esté aplicando migraciones.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  demo:
+    if: inputs.confirmar == 'CARGAR DEMO'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v7
+
+      # Los contratos `demo` solo se admiten con datos sintéticos (ADR 0009). Si la demo ya está, no hace nada.
+      - name: Demo sintética
+        env:
+          DB_URL: ${{ secrets.STAGING_MIGRATIONS_DB_URL }}
+        run: |
+          loaded=$(psql "$DB_URL" -tAc "select count(*) from auth.users where email like '%@demo.platlab.test'")
+          if [ "$loaded" != "0" ]; then
+            echo "::notice::La demo ya estaba cargada; no se cambió nada."
+            exit 0
+          fi
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "update platform.environment set data_class = 'synthetic'"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/seeds/demo.sql
+          echo "::notice::Demo cargada. Cuentas en supabase/seeds/demo.sql; contraseña platlab-demo."
