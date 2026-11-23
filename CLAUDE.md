@@ -76,6 +76,6 @@ Entregas, etapas, puertas y economía de tokens están en `.claude/orquestacion.
 Las decisiones cerradas están en `docs/README.md` («Decisiones cerradas») y en `docs/05`; no volver a preguntarlas.
 
 - Las sustancias controladas se cubren en el piloto con el informe exportable (marca «Controlado», filtro y PDF/Excel); cupos, custodia y reporte oficial (REG-02) van al final, según lo que confirme REG-01 ([ADR 0016](docs/05_decisiones.md#adr-0016)).
-- El modelo comercial sigue pendiente: la recomendación está en 01 §4 y debe confirmarla el usuario.
+- Modelo comercial y precios: 01 §4 y los ADR 0031 y 0032. Las cifras viven solo en el ADR 0032 y en el sitio.
 - No fijar fechas, horas ni presupuestos contractuales inventados.
 - Parámetros, matrices de roles y fases viven solo en sus fuentes; enlazarlas, no copiarlas.

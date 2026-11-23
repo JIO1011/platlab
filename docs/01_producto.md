@@ -72,18 +72,16 @@ Un paquete es una combinación del registro de módulos; no crea versiones del c
 | Mantenimiento | M7 sobre M1 + M3 | F5 |
 | Analítica avanzada | M8 sobre un paquete operativo | F5 |
 
-Modelo comercial confirmado por el usuario el 19-11-2026 ([ADR 0031](05_decisiones.md#adr-0031)). Primer comprador: la universidad.
+Modelo comercial confirmado por el usuario el 19-11-2026: comprador y reglas en el [ADR 0031](05_decisiones.md#adr-0031); forma de cobro y precios en el [ADR 0032](05_decisiones.md#adr-0032). Primer comprador: la universidad.
 
-- **Licencia anual por espacio y plan, sin cobro por usuario.** Es una suscripción que para universidades se factura como licencia anual, por adelantado. Incluye hosting, copias, soporte acordado y actualizaciones, con límites de uso descritos. Docentes y estudiantes son ilimitados. Ampliar el servicio significa cambiar de plan.
-- **Planes** (combinaciones de los paquetes de arriba, que solo se venden en etapa general):
-  - **Control:** M1 + M2, o M1 + M3.
-  - **Operación:** Control + M4 + M6.
-  - **Institucional:** todos los módulos, soporte prioritario y SSO cuando exista.
-- **Tramos por tamaño**, según los laboratorios del espacio: S (hasta 5), M (6–15), L (16–40) y XL (a cotizar).
-- **Incorporación única**, presupuestada según el trabajo real: configuración, migración y limpieza de datos, capacitación.
-- **Desarrollos a medida**, cotizados aparte. Nunca se vuelve a cobrar un módulo que ya existe.
-- **Descuentos**, como reglas y sin cifras fijadas: más espacios del mismo titular, cliente fundador que acepta ser caso de referencia, y contrato de varios años pagado por adelantado. Un piloto pagado de 90 días se descuenta de la licencia si el cliente convierte.
-- **Precios:** los de la proforma no están validados. Se recalculan con infraestructura atribuible, soporte comprometido, mantenimiento, contingencia y margen; las cifras de partida están en el ADR 0031 como hipótesis.
+- **Compra por módulos, en un solo pago y por espacio, sin cobro por usuario.** El Núcleo es obligatorio y el cliente suma los módulos que necesita. Docentes y estudiantes son ilimitados. Ampliar el servicio es comprar otro módulo.
+- **Paquete Institucional:** el Núcleo con todos los módulos, con descuento; soporte prioritario y SSO cuando existan.
+- **Mantenimiento anual desde el segundo año:** el 20 % de lo comprado. Incluye hosting, copias, actualizaciones y un tope de horas de soporte; las horas extra se cobran aparte.
+- **El pago único incluye la puesta en marcha:** configuración, carga inicial con la plantilla y capacitación. Una migración de datos fuera de la plantilla se cotiza aparte.
+- **Tramos por tamaño**, según los laboratorios del espacio: S (hasta 5), M (6–15), L (16–40) y XL. Los precios publicados son los del tramo S; los demás se cotizan.
+- **Desarrollos a medida**, cotizados por hora. Nunca se vuelve a cobrar un módulo que ya existe.
+- **Descuentos**, como reglas y sin cifras fijadas: más espacios del mismo titular, cliente fundador que acepta ser caso de referencia, y mantenimiento de varios años pagado por adelantado. Un piloto pagado de 90 días se descuenta del precio si el cliente continúa.
+- **Precios:** las cifras viven solo en el ADR 0032 y en el sitio (`/precios/`); los de la proforma quedan sin efecto.
 - Sin pasarela de pago en el MVP.
 
 ## 5. Actores y roles
