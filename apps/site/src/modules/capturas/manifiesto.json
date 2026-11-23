@@ -1,0 +1,745 @@
+{
+  "inicio": {
+    "id": "inicio",
+    "archivo": "/capturas/inicio.webp",
+    "ancho": 1440,
+    "alto": 940,
+    "alt": "Inicio de PlatLab con las tarjetas de Equipos, Laboratorios, Mantenimiento, Materiales y Reactivos, cada una con sus cifras y avisos.",
+    "direccion": "platlab.app / Inicio",
+    "marco": "ventana",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Tu espacio y tu rol",
+        "texto": "Cada persona entra con su rol y solo ve lo que le corresponde.",
+        "tipo": "marco",
+        "lado": "derecha",
+        "caja": {
+          "x": 1.11,
+          "y": 10.85,
+          "w": 17.71,
+          "h": 10.64
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Un módulo, una tarjeta",
+        "texto": "Con un clic entras al módulo y ves sus cifras al instante.",
+        "tipo": "boton",
+        "lado": "derecha",
+        "caja": {
+          "x": 47.5,
+          "y": 59.89,
+          "w": 24.31,
+          "h": 36.17
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Lo urgente, primero",
+        "texto": "Lo que espera tu decisión aparece antes que todo lo demás.",
+        "tipo": "marco",
+        "lado": "arriba",
+        "caja": {
+          "x": 48.96,
+          "y": 68.3,
+          "w": 14.31,
+          "h": 3.62
+        }
+      }
+    ]
+  },
+  "reactivos-resumen": {
+    "id": "reactivos-resumen",
+    "archivo": "/capturas/reactivos-resumen.webp",
+    "ancho": 1120,
+    "alto": 560,
+    "alt": "Resumen de Reactivos: alertas de por aprobar, vencidos, por vencer y bajo mínimo, acciones rápidas y la lista de lo que necesita atención.",
+    "direccion": "platlab.app / Reactivos / Resumen",
+    "marco": "ventana",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Alertas con cifras",
+        "texto": "Vencidos, por vencer y bajo mínimo, a la vista desde el primer segundo.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 1.7,
+          "y": 18.75,
+          "w": 96.61,
+          "h": 18.93
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Atajos para lo diario",
+        "texto": "Escanear el QR de un frasco o dar de alta un reactivo nuevo.",
+        "tipo": "boton",
+        "lado": "abajo",
+        "caja": {
+          "x": 1.79,
+          "y": 41.43,
+          "w": 55.45,
+          "h": 31.96
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Lo que necesita atención",
+        "texto": "Cada reactivo dice por qué: vencido, bajo mínimo o por vencer.",
+        "tipo": "marco",
+        "lado": "izquierda",
+        "caja": {
+          "x": 59.2,
+          "y": 41.43,
+          "w": 39.11,
+          "h": 58.57
+        }
+      }
+    ]
+  },
+  "reactivos-inventario": {
+    "id": "reactivos-inventario",
+    "archivo": "/capturas/reactivos-inventario.webp",
+    "ancho": 1120,
+    "alto": 440,
+    "alt": "Inventario de reactivos con buscador, filtros, botón Registrar salida y tarjetas por reactivo con su saldo total y alertas.",
+    "direccion": "platlab.app / Reactivos / Inventario",
+    "marco": "ventana",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Encuentra todo en un clic",
+        "texto": "Busca por nombre, código o CAS y filtra por vencidos o bajo mínimo.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 1.79,
+          "y": 24.09,
+          "w": 91.96,
+          "h": 17.95
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Registrar una salida",
+        "texto": "Pocos pasos: eliges el reactivo, la cantidad, el motivo y el destino.",
+        "tipo": "boton",
+        "lado": "abajo",
+        "caja": {
+          "x": 84.51,
+          "y": 9.01,
+          "w": 14.24,
+          "h": 11.25
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Saldo y alertas por reactivo",
+        "texto": "El total exacto, los frascos y cualquier aviso, en una tarjeta.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 1.79,
+          "y": 51.14,
+          "w": 23.48,
+          "h": 43.86
+        }
+      }
+    ]
+  },
+  "reactivos-solicitudes": {
+    "id": "reactivos-solicitudes",
+    "archivo": "/capturas/reactivos-solicitudes.webp",
+    "ancho": 1120,
+    "alto": 330,
+    "alt": "Bandeja de solicitudes de salida con una petición pendiente y los botones Rechazar y Aprobar salida.",
+    "direccion": "platlab.app / Reactivos / Solicitudes",
+    "marco": "ventana",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Apartado mientras decides",
+        "texto": "Lo pedido queda reservado en el frasco hasta que apruebes o rechaces.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 1.79,
+          "y": 33.03,
+          "w": 46.43,
+          "h": 12.12
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Todo el contexto",
+        "texto": "Qué se pide, para qué práctica, a qué laboratorio y quién lo pidió.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 1.79,
+          "y": 49.09,
+          "w": 72.32,
+          "h": 41.52
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Tú decides",
+        "texto": "Aprueba o rechaza con un clic. Queda registrado quién y cuándo.",
+        "tipo": "boton",
+        "lado": "izquierda",
+        "caja": {
+          "x": 84.13,
+          "y": 66.55,
+          "w": 12.95,
+          "h": 12.73
+        }
+      }
+    ]
+  },
+  "reactivos-movimientos": {
+    "id": "reactivos-movimientos",
+    "archivo": "/capturas/reactivos-movimientos.webp",
+    "ancho": 1120,
+    "alto": 630,
+    "alt": "Historial de movimientos de reactivos con filtros, quién lo pidió, el motivo, el destino, la cantidad y el saldo resultante.",
+    "direccion": "platlab.app / Reactivos / Movimientos",
+    "marco": "ventana",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Filtra por lo que necesites",
+        "texto": "Periodo, tipo, reactivo, responsable, destino, motivo y ubicación.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 1.79,
+          "y": 16.83,
+          "w": 66.79,
+          "h": 5.4
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Quién, para qué y a dónde",
+        "texto": "Cada salida guarda el motivo, el destino y quién la pidió.",
+        "tipo": "marco",
+        "lado": "arriba",
+        "caja": {
+          "x": 42.86,
+          "y": 39.05,
+          "w": 33.93,
+          "h": 52.38
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Saldo exacto",
+        "texto": "Tras cada movimiento ves lo que queda, sin cálculos a mano.",
+        "tipo": "marco",
+        "lado": "izquierda",
+        "caja": {
+          "x": 82.59,
+          "y": 33.02,
+          "w": 16.07,
+          "h": 58.73
+        }
+      }
+    ]
+  },
+  "equipos-inventario": {
+    "id": "equipos-inventario",
+    "archivo": "/capturas/equipos-inventario.webp",
+    "ancho": 1120,
+    "alto": 420,
+    "alt": "Inventario de equipos por áreas: cuarto frío, laboratorio de Física y laboratorio de Química, con su encargado y el estado de sus equipos.",
+    "direccion": "platlab.app / Equipos / Inventario",
+    "marco": "ventana",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Un cuadro por área",
+        "texto": "Cuántos equipos hay y cómo están, en cada laboratorio.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 1.79,
+          "y": 38.57,
+          "w": 31.25,
+          "h": 55.95
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Estado a simple vista",
+        "texto": "Fuera de servicio o uso limitado: siempre con texto, no solo color.",
+        "tipo": "marco",
+        "lado": "izquierda",
+        "caja": {
+          "x": 68.93,
+          "y": 67.86,
+          "w": 20.18,
+          "h": 6.67
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Un responsable claro",
+        "texto": "Cada área tiene su encargado.",
+        "tipo": "marco",
+        "lado": "izquierda",
+        "caja": {
+          "x": 68.93,
+          "y": 81.43,
+          "w": 17.86,
+          "h": 8.1
+        }
+      }
+    ]
+  },
+  "equipos-incidentes": {
+    "id": "equipos-incidentes",
+    "archivo": "/capturas/equipos-incidentes.webp",
+    "ancho": 1120,
+    "alto": 470,
+    "alt": "Incidentes de equipos: fallas reportadas con el equipo, el área, quién las reportó y su estado.",
+    "direccion": "platlab.app / Equipos / Incidentes",
+    "marco": "ventana",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Cada falla sigue su camino",
+        "texto": "Reportado, en reparación y solucionado, separados.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 1.79,
+          "y": 22.13,
+          "w": 35.27,
+          "h": 8.09
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Reporta en segundos",
+        "texto": "Quien ve la falla la avisa; el equipo responsable la atiende.",
+        "tipo": "boton",
+        "lado": "abajo",
+        "caja": {
+          "x": 82.63,
+          "y": 8.43,
+          "w": 16.12,
+          "h": 10.53
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Impacto claro",
+        "texto": "Sabes si el equipo todavía se puede usar.",
+        "tipo": "marco",
+        "lado": "derecha",
+        "caja": {
+          "x": 13.04,
+          "y": 68.94,
+          "w": 10.18,
+          "h": 4.68
+        }
+      }
+    ]
+  },
+  "labs-cronograma": {
+    "id": "labs-cronograma",
+    "archivo": "/capturas/labs-cronograma.webp",
+    "ancho": 1120,
+    "alto": 800,
+    "alt": "Cronograma de laboratorios: una tabla de horas por áreas para el día, con la bandeja Por programar.",
+    "direccion": "platlab.app / Laboratorios / Cronograma",
+    "marco": "ventana",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Elige el día",
+        "texto": "Navega por la semana con un clic.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 47.5,
+          "y": 8.5,
+          "w": 51.07,
+          "h": 4.75
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Cada área, con su horario",
+        "texto": "Aforo y horas de atención por laboratorio, sin choques.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 6.79,
+          "y": 15,
+          "w": 91.43,
+          "h": 9
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Una práctica programada",
+        "texto": "Cada bloque dice qué es, de qué carrera y en qué área, sin choques.",
+        "tipo": "marco",
+        "lado": "izquierda",
+        "caja": {
+          "x": 52.68,
+          "y": 58.5,
+          "w": 14.82,
+          "h": 10.5
+        }
+      },
+      {
+        "n": 4,
+        "titulo": "Por programar",
+        "texto": "Las solicitudes aprobadas esperan aquí para ponerles hora y lugar.",
+        "tipo": "boton",
+        "lado": "arriba",
+        "caja": {
+          "x": 1.79,
+          "y": 83.75,
+          "w": 96.43,
+          "h": 15.63
+        }
+      }
+    ]
+  },
+  "labs-recibidas": {
+    "id": "labs-recibidas",
+    "archivo": "/capturas/labs-recibidas.webp",
+    "ancho": 1120,
+    "alto": 430,
+    "alt": "Bandeja de solicitudes recibidas en Laboratorios, con contadores de por revisar, fuera de plazo y cambios pedidos.",
+    "direccion": "platlab.app / Laboratorios / Recibidas",
+    "marco": "ventana",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Lo que espera tu respuesta",
+        "texto": "Un contador por tipo de pendiente.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 1.7,
+          "y": 26.05,
+          "w": 23.39,
+          "h": 23.26
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Filtra la bandeja",
+        "texto": "Con recursos, con cambios pedidos o fuera de plazo.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 3.84,
+          "y": 59.53,
+          "w": 55.18,
+          "h": 8.84
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Abre una solicitud",
+        "texto": "Revisa recursos, aprueba o pide cambios.",
+        "tipo": "boton",
+        "lado": "arriba",
+        "caja": {
+          "x": 1.79,
+          "y": 80.47,
+          "w": 96.43,
+          "h": 15.35
+        }
+      }
+    ]
+  },
+  "mantenimiento-por-hacer": {
+    "id": "mantenimiento-por-hacer",
+    "archivo": "/capturas/mantenimiento-por-hacer.webp",
+    "ancho": 1120,
+    "alto": 670,
+    "alt": "Lista Por hacer de Mantenimiento: trabajos atrasados y próximos 30 días, con su equipo, fecha y botón Registrar.",
+    "direccion": "platlab.app / Mantenimiento / Por hacer",
+    "marco": "ventana",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Lo atrasado, arriba",
+        "texto": "Los trabajos vencidos van primero, con los días de atraso.",
+        "tipo": "marco",
+        "lado": "izquierda",
+        "caja": {
+          "x": 1.79,
+          "y": 24.78,
+          "w": 96.43,
+          "h": 40.6
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Estado con texto",
+        "texto": "«No conforme», «atrasado» o «en 10 días», nunca solo un color.",
+        "tipo": "marco",
+        "lado": "arriba",
+        "caja": {
+          "x": 57.77,
+          "y": 34.93,
+          "w": 20.71,
+          "h": 3.58
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Registra en un clic",
+        "texto": "Anota el trabajo hecho y el próximo vencimiento se calcula solo.",
+        "tipo": "boton",
+        "lado": "izquierda",
+        "caja": {
+          "x": 68.62,
+          "y": 5.91,
+          "w": 19.42,
+          "h": 7.39
+        }
+      }
+    ]
+  },
+  "materiales-prestamos": {
+    "id": "materiales-prestamos",
+    "archivo": "/capturas/materiales-prestamos.webp",
+    "ancho": 1120,
+    "alto": 350,
+    "alt": "Préstamos de materiales con vale, persona, piezas pendientes, plazo y estado Activo o Atrasado.",
+    "direccion": "platlab.app / Materiales / Préstamos",
+    "marco": "ventana",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Un vale por préstamo",
+        "texto": "Quién se lleva qué y para cuándo.",
+        "tipo": "boton",
+        "lado": "abajo",
+        "caja": {
+          "x": 83.62,
+          "y": 11.32,
+          "w": 15.13,
+          "h": 14.14
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Abiertos y atrasados",
+        "texto": "Cambia de vista sin perder el contexto.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 1.79,
+          "y": 30.86,
+          "w": 39.02,
+          "h": 9.71
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Los atrasados se notan",
+        "texto": "Plazo, piezas por devolver y estado en la misma fila.",
+        "tipo": "marco",
+        "lado": "arriba",
+        "caja": {
+          "x": 1.79,
+          "y": 76.57,
+          "w": 96.43,
+          "h": 20
+        }
+      }
+    ]
+  },
+  "rol-admin": {
+    "id": "rol-admin",
+    "archivo": "/capturas/rol-admin.webp",
+    "ancho": 1440,
+    "alto": 940,
+    "alt": "Inicio visto por la Administradora: los cinco módulos del espacio.",
+    "direccion": "platlab.app / Inicio",
+    "marco": "ventana",
+    "marcas": []
+  },
+  "rol-operador": {
+    "id": "rol-operador",
+    "archivo": "/capturas/rol-operador.webp",
+    "ancho": 1440,
+    "alto": 940,
+    "alt": "Inicio visto por el Operador: los cinco módulos, con sus pendientes propios.",
+    "direccion": "platlab.app / Inicio",
+    "marco": "ventana",
+    "marcas": []
+  },
+  "rol-docente": {
+    "id": "rol-docente",
+    "archivo": "/capturas/rol-docente.webp",
+    "ancho": 1440,
+    "alto": 940,
+    "alt": "Inicio visto por el Docente: solo Equipos y Laboratorios.",
+    "direccion": "platlab.app / Inicio",
+    "marco": "ventana",
+    "marcas": []
+  },
+  "movil-inicio": {
+    "id": "movil-inicio",
+    "archivo": "/capturas/movil-inicio.webp",
+    "ancho": 390,
+    "alto": 844,
+    "alt": "Inicio de PlatLab en el celular: tarjetas de módulos con sus cifras y avisos.",
+    "direccion": "",
+    "marco": "telefono",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Tu cuenta",
+        "texto": "Tu rol decide qué módulos ves.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 83.59,
+          "y": 0.95,
+          "w": 13.33,
+          "h": 5.69
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Un toque abre el módulo",
+        "texto": "Tarjetas grandes, pensadas para el pulgar.",
+        "tipo": "boton",
+        "lado": "abajo",
+        "caja": {
+          "x": 3.59,
+          "y": 34.83,
+          "w": 92.82,
+          "h": 31.99
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Lo urgente, primero",
+        "texto": "Los avisos van arriba de las cifras.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 9.74,
+          "y": 44.31,
+          "w": 54.87,
+          "h": 4.03
+        }
+      }
+    ]
+  },
+  "movil-inventario": {
+    "id": "movil-inventario",
+    "archivo": "/capturas/movil-inventario.webp",
+    "ancho": 390,
+    "alto": 844,
+    "alt": "Inventario de reactivos en el celular, con los botones Escanear y Registrar salida, filtros y tarjetas por reactivo.",
+    "direccion": "",
+    "marco": "telefono",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Escanea el frasco",
+        "texto": "Apunta la cámara al código QR y abre su ficha.",
+        "tipo": "boton",
+        "lado": "abajo",
+        "caja": {
+          "x": 3.59,
+          "y": 23.93,
+          "w": 92.82,
+          "h": 5.69
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Registra una salida",
+        "texto": "Desde el mismo lugar donde sacas el reactivo.",
+        "tipo": "boton",
+        "lado": "abajo",
+        "caja": {
+          "x": 3.59,
+          "y": 30.09,
+          "w": 92.82,
+          "h": 4.74
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Filtros al alcance",
+        "texto": "Vencidos, bajo mínimo, sin ficha de seguridad…",
+        "tipo": "marco",
+        "lado": "arriba",
+        "caja": {
+          "x": 3.59,
+          "y": 48.82,
+          "w": 87.18,
+          "h": 19.43
+        }
+      }
+    ]
+  },
+  "movil-incidentes": {
+    "id": "movil-incidentes",
+    "archivo": "/capturas/movil-incidentes.webp",
+    "ancho": 390,
+    "alto": 844,
+    "alt": "Incidentes de equipos en el celular, con el botón Reportar incidente y las fallas reportadas.",
+    "direccion": "",
+    "marco": "telefono",
+    "marcas": [
+      {
+        "n": 1,
+        "titulo": "Reporta en segundos",
+        "texto": "Si algo falla, lo avisas ahí mismo, en el laboratorio.",
+        "tipo": "boton",
+        "lado": "abajo",
+        "caja": {
+          "x": 3.59,
+          "y": 23.93,
+          "w": 92.82,
+          "h": 5.69
+        }
+      },
+      {
+        "n": 2,
+        "titulo": "Cada falla sigue su camino",
+        "texto": "Reportado, en reparación y solucionado.",
+        "tipo": "marco",
+        "lado": "abajo",
+        "caja": {
+          "x": 3.59,
+          "y": 31.99,
+          "w": 92.82,
+          "h": 5.69
+        }
+      },
+      {
+        "n": 3,
+        "titulo": "Impacto claro",
+        "texto": "Sabes si el equipo todavía se puede usar.",
+        "tipo": "marco",
+        "lado": "arriba",
+        "caja": {
+          "x": 35.38,
+          "y": 77.01,
+          "w": 31.28,
+          "h": 3.79
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+/* Marca */
+.marca { display: inline-flex; align-items: center; gap: 0.6rem; font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; letter-spacing: -0.02em; color: var(--navy); }
+.marcaClara { color: #fff; }
+.marcaIcono { display: grid; place-items: center; width: 2.1rem; height: 2.1rem; border-radius: 9px; background: var(--brand); color: #fff; }
+.marcaClara .marcaIcono { background: rgba(255, 255, 255, 0.14); }
+
+/* Cabecera */
+.cabecera { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--line); }
+.fila { display: flex; align-items: center; gap: 1.5rem; height: 4.5rem; }
+.nav { display: none; margin-inline: auto; gap: 0.25rem; }
+.nav a { padding: 0.5rem 0.85rem; border-radius: 8px; font-weight: 550; font-size: 0.975rem; color: var(--ink-muted); text-decoration: none; transition: color 0.15s, background-color 0.15s; }
+.nav a:hover { color: var(--navy); background: var(--sunken); }
+.acciones { display: none; align-items: center; gap: 0.6rem; margin-left: auto; }
+.nav + .acciones { margin-left: 0; }
+
+.movil { margin-left: auto; position: relative; }
+.movil summary { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 10px; cursor: pointer; list-style: none; color: var(--navy); border: 1px solid var(--line-strong); }
+.movil summary::-webkit-details-marker { display: none; }
+.panel {
+  position: absolute; right: 0; top: calc(100% + 0.75rem); z-index: 60;
+  display: grid; gap: 0.25rem; width: min(20rem, 88vw); padding: 0.75rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel);
+  box-shadow: 0 24px 48px -16px rgba(11, 42, 74, 0.3);
+}
+.enlaceMovil { padding: 0.7rem 0.85rem; border-radius: 8px; font-weight: 550; text-decoration: none; }
+.enlaceMovil:hover { background: var(--sunken); }
+.panel > :global(.boton), .panel > :global(.botonSecundario) { margin-top: 0.4rem; }
+
+@media (min-width: 62rem) {
+  .nav { display: flex; }
+  .acciones { display: flex; }
+  .movil { display: none; }
+}
+
+/* Pie */
+.pie { background: var(--navy); color: #fff; padding-top: clamp(3rem, 6vw, 4.5rem); }
+.pieFila { display: grid; gap: 2rem; padding-bottom: 2.5rem; }
+.pieTexto { margin-top: 0.75rem; color: var(--on-navy); }
+.pieNav { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
+.pieNav a, .contacto a { color: #fff; text-decoration: none; font-weight: 500; }
+.pieNav a:hover, .contacto a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.contacto { display: grid; gap: 0.35rem; font-style: normal; }
+.legal { padding-block: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.14); font-size: 0.875rem; color: var(--on-navy); }
+
+@media (min-width: 62rem) {
+  .pieFila { grid-template-columns: 1.2fr 1.6fr 1fr; align-items: start; }
+}

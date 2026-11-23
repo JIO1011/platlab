@@ -1,0 +1,79 @@
+/* Cómo se paga */
+.pasos { display: grid; gap: 2rem; }
+.pasos li { padding-top: 1.25rem; border-top: 2px solid var(--navy); }
+.cuando { display: block; font-family: var(--font-display); font-weight: 650; font-size: clamp(1.6rem, 1.2rem + 1.2vw, 2.25rem); line-height: 1.05; letter-spacing: -0.03em; color: var(--brand); }
+.pasos h3 { margin-top: 0.9rem; font-size: 1.35rem; font-weight: 650; letter-spacing: -0.015em; color: var(--navy); }
+.pasos p { margin-top: 0.4rem; color: var(--ink-muted); max-width: 24rem; }
+@media (min-width: 48rem) { .pasos { grid-template-columns: repeat(3, 1fr); gap: 2.5rem; } }
+
+/* Arme su plan */
+.calculadora { display: grid; gap: clamp(1.5rem, 3vw, 2.5rem); align-items: start; }
+@media (min-width: 62rem) { .calculadora { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); } }
+
+.opciones { display: grid; gap: 0.65rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.leyenda { margin-bottom: 0.9rem; padding: 0; font-size: 1.1rem; font-weight: 650; color: var(--navy); }
+
+.opcion {
+  display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 0.9rem;
+  padding: 1rem 1.15rem; border-radius: var(--r-panel); background: var(--surface); border: 1px solid var(--line);
+  cursor: pointer; transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.opcion:hover { border-color: var(--line-strong); }
+.opcion:has(input:checked) { border-color: var(--acento); box-shadow: inset 0 0 0 1px var(--acento); }
+.opcion:has(input:disabled) { cursor: default; background: var(--sunken); border-color: var(--line); box-shadow: none; }
+.opcion input { width: 1.15rem; height: 1.15rem; margin: 0; accent-color: var(--acento); }
+
+.icono { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 12px; background: var(--acento-suave); color: var(--acento); }
+.opcionTexto { display: grid; gap: 0.15rem; min-width: 0; }
+.opcionTexto strong { font-weight: 650; color: var(--navy); }
+.opcionTexto span { font-size: 0.9rem; color: var(--ink-muted); }
+.opcionPrecio { font-weight: 650; color: var(--navy); font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 30rem) {
+  .opcion { grid-template-columns: auto 1fr auto; gap: 0.75rem; padding: 0.9rem 1rem; }
+  .icono { display: none; }
+}
+
+.resumen { display: grid; gap: 1.25rem; padding: clamp(1.5rem, 3vw, 2.25rem); border-radius: var(--r-campo); background: var(--navy); color: #fff; }
+@media (min-width: 62rem) { .resumen { position: sticky; top: 6rem; } }
+.resumen :global(.botonClaro) { justify-self: start; }
+.resumenCuerpo { display: grid; gap: 1.25rem; }
+.resumenVacio { color: var(--on-navy); }
+.eleccion { padding-bottom: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.16); font-weight: 600; color: var(--on-navy); }
+
+.monto { display: grid; gap: 0.2rem; }
+.monto > span { font-size: 0.95rem; color: var(--on-navy); }
+.monto > small { font-size: 0.875rem; color: var(--on-navy); }
+.monto strong { font-family: var(--font-display); font-size: clamp(2.4rem, 1.8rem + 2vw, 3.25rem); font-weight: 650; line-height: 1; letter-spacing: -0.035em; color: #fff; }
+.monto + .monto strong { font-size: clamp(1.75rem, 1.4rem + 1vw, 2.25rem); }
+.monto strong small { font-family: var(--font-sans); font-size: 1rem; font-weight: 550; letter-spacing: 0; color: var(--on-navy); }
+
+.conviene { padding: 0.85rem 1rem; border-radius: var(--r-control); background: rgba(255, 255, 255, 0.1); font-size: 0.95rem; }
+
+/* Descuento del paquete: insignia y precio por separado tachado */
+.descuento { justify-self: start; padding: 0.35rem 0.8rem; border-radius: 999px; background: var(--ok-soft); color: var(--ok); font-size: 0.9rem; font-weight: 650; }
+.tachado { font-family: var(--font-sans); font-size: 1.15rem; font-weight: 550; letter-spacing: 0; color: var(--on-navy); text-decoration-thickness: 2px; }
+.monto strong .tachado { margin-right: 0.5rem; font-size: 1rem; }
+.resumenNota { font-size: 0.85rem; color: var(--on-navy); }
+
+/* Paquete Institucional */
+.paquete { display: grid; gap: clamp(2rem, 5vw, 4rem); align-items: center; }
+@media (min-width: 62rem) { .paquete { grid-template-columns: 1.3fr 1fr; } }
+.paqueteTitulo { font-size: clamp(2.25rem, 1.4rem + 3.4vw, 4rem); line-height: 1.04; letter-spacing: -0.03em; font-weight: 650; }
+.paqueteTexto { margin-top: 1.1rem; font-size: 1.2rem; color: var(--on-navy); max-width: 34rem; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.75rem; }
+.chips li { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.45rem 0.85rem; border-radius: 999px; background: var(--acento-suave); color: var(--navy); font-size: 0.9rem; font-weight: 600; }
+.chips svg { color: var(--acento); }
+
+.paquetePrecio { display: grid; gap: 0.5rem; justify-items: start; padding: clamp(1.5rem, 3vw, 2.25rem); border-radius: var(--r-campo); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16); }
+.paquetePrecio strong { font-family: var(--font-display); font-size: clamp(3rem, 2rem + 3vw, 4.5rem); font-weight: 650; line-height: 1; letter-spacing: -0.04em; }
+.paqueteNota { color: var(--on-navy); }
+.sinCorte { white-space: nowrap; }
+.paquetePrecio .paqueteAnual { width: 100%; margin-block: 0.5rem 1rem; padding-top: 0.9rem; border-top: 1px solid rgba(255, 255, 255, 0.16); font-weight: 600; color: #fff; }
+
+/* Preguntas */
+.preguntas { display: grid; max-width: 52rem; }
+.preguntas div { padding-block: 1.1rem; border-top: 1px solid var(--line-strong); }
+.preguntas div:last-child { border-bottom: 1px solid var(--line-strong); }
+.preguntas dt { font-size: 1.15rem; font-weight: 650; letter-spacing: -0.01em; color: var(--navy); }
+.preguntas dd { margin-top: 0.3rem; color: var(--ink-muted); }

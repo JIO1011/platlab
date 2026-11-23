@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "pnpm -r --parallel typecheck",
-    "lint": "eslint .",
+    "lint": "eslint . && pnpm --filter @platlab/site lint",
     "deps": "depcruise apps packages --config .dependency-cruiser.cjs",
     "knip": "knip",
     "db:keys": "node scripts/ensure-signing-key.mjs",

@@ -1,11 +1,16 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignoreFiles": [".claude/**"],
+  "ignoreFiles": [".claude/**", ".dependency-cruiser.alias.cjs"],
   "ignoreIssues": {
     "apps/server/src/**/*.queries.ts": ["types"],
     "apps/server/src/modules/*/index.ts": ["exports", "types"]
   },
   "workspaces": {
-    ".": { "entry": ["infra/cloudflare/worker.mjs"] }
+    ".": { "entry": ["infra/cloudflare/worker.mjs"] },
+    "apps/site": {
+      "entry": ["src/app/**/{page,layout,not-found,robots,sitemap}.{ts,tsx}", "e2e/**/*.ts"],
+      "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts"],
+      "ignoreDependencies": ["@fontsource-variable/inter", "@fontsource-variable/schibsted-grotesk"]
+    }
   }
 }

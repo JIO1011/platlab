@@ -1,0 +1,12 @@
+.telefono {
+  position: relative;
+  padding: 0.55rem;
+  border-radius: 2.1rem;
+  background: #0d1b2b;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12) inset,
+    0 2px 4px rgba(11, 42, 74, 0.2),
+    0 28px 48px -18px rgba(11, 42, 74, 0.5);
+}
+.pantalla { overflow: hidden; border-radius: 1.6rem; background: #fff; line-height: 0; }
+.imagen { width: 100%; height: auto; }

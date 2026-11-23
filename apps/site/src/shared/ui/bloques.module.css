@@ -1,0 +1,16 @@
+.seccion { padding-block: clamp(4.5rem, 9vw, 8rem); }
+.claro { background: var(--surface); }
+.gris { background: var(--canvas); border-block: 1px solid var(--line); }
+.oscuro { background: var(--navy); color: #fff; }
+
+.encabezado { max-width: 44rem; margin-bottom: clamp(2.25rem, 5vw, 4rem); }
+.centrado { margin-inline: auto; text-align: center; }
+.titulo {
+  font-size: clamp(2rem, 1.35rem + 2.5vw, 3.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  font-weight: 650;
+}
+.intro { margin-top: 1.1rem; font-size: 1.15rem; color: var(--ink-muted); max-width: 40rem; }
+.centrado .intro { margin-inline: auto; }
+.oscuro .intro { color: var(--on-navy); }

@@ -12,6 +12,8 @@ export default tseslint.config(
       'supabase/**',
       '.claude/**',
       '.agents/**',
+      // El sitio público lleva su propia configuración (eslint-config-next exige ESLint 9).
+      'apps/site/**',
     ],
   },
   js.configs.recommended,

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado del proyecto
 
-PlatLab es un SaaS modular para laboratorios. Está hecho el primer incremento (monorepo pnpm con `apps/server`, `apps/web`, `packages/contracts`, `packages/modules` y `packages/ui`; Core, admisión de dos ejes, capacidad `inventory`, módulo `reagents`, web) y los módulos Reactivos y Laboratorios están en etapa `pilot`. El entorno de la nube (Cloudflare, Render y Supabase) se despliega desde `main` ([ADR 0033](docs/05_decisiones.md#adr-0033)). El estado, lo que sigue y las decisiones cerradas están en [docs/README.md](docs/README.md).
+PlatLab es un SaaS modular para laboratorios. Está hecho el primer incremento (monorepo pnpm con `apps/server`, `apps/web`, `apps/site` (sitio público, ADR 0030), `packages/contracts`, `packages/modules` y `packages/ui`; Core, admisión de dos ejes, capacidad `inventory`, módulo `reagents`, web) y los módulos Reactivos y Laboratorios están en etapa `pilot`. El entorno de la nube (Cloudflare, Render y Supabase) se despliega desde `main` ([ADR 0033](docs/05_decisiones.md#adr-0033)). El estado, lo que sigue y las decisiones cerradas están en [docs/README.md](docs/README.md).
 
 ## Comandos
 
@@ -22,6 +22,7 @@ Requisitos: Node 24 (`.nvmrc`), pnpm 11 y Docker en ejecución. La CLI de Supaba
 | Integración (rol de runtime y Auth local) | `pnpm test:int` (requiere `pnpm db:start`) |
 | API / web en desarrollo | `pnpm --filter @platlab/server dev` · `pnpm --filter @platlab/web dev` |
 | Flujo de G0 en el navegador | `pnpm e2e` (Playwright + axe; requiere `pnpm db:start`; levanta la API y la vista previa; la primera vez, `pnpm --filter @platlab/web exec playwright install chromium`). Con `E2E_CAPTURES=1`, guarda además las capturas para la revisión visual en `apps/web/.impeccable/review/` |
+| Sitio público | `pnpm --filter @platlab/site dev` (http://localhost:3005) · `pnpm --filter @platlab/site build` · `pnpm --filter @platlab/site capturar` (recaptura desde la demo local; solo lectura). Su lint corre con ESLint 9 propio dentro de `pnpm lint` |
 | Demo local | Tras `pnpm db:start`, la API y la web en desarrollo: http://localhost:5173 con las cuentas de `supabase/seeds/demo.sql` (contraseña `platlab-demo`) |
 
 Una sola prueba: `pnpm --filter @platlab/server exec vitest run src/app.test.ts` o filtrar por nombre con `-t "texto"`. Un solo archivo pgTAP: `pnpm supabase test db supabase/tests/database/runtime_role.test.sql`.

@@ -1,0 +1,108 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/schibsted-grotesk";
+
+/*
+ * PlatLab — tokens del sitio público. Misma base que la app (DESIGN.md): gris pizarra, azul de
+ * marca y un acento por módulo. Los títulos llevan Schibsted Grotesk; el texto, Inter como la app.
+ */
+:root {
+  color-scheme: light;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Schibsted Grotesk Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --canvas: #f6f8fb;
+  --surface: #ffffff;
+  --sunken: #eef2f7;
+  --ink: #14263b;
+  --ink-muted: #46586d;
+  --line: #dde4ec;
+  --line-strong: #c4cfdb;
+
+  --brand: #1f5f96;
+  --brand-hover: #174d7c;
+  --brand-soft: #e6eef7;
+  --navy: #0b2a4a;
+  --navy-2: #123a63;
+  --on-navy: #c4d6ea;
+
+  --ok: #17663b;
+  --ok-soft: #e3f3ea;
+
+  /* Acento por módulo: [data-modulo] lo redefine. */
+  --acento: var(--brand);
+  --acento-suave: var(--brand-soft);
+  --acento-tinta: #ffffff;
+
+  --r-control: 10px;
+  --r-panel: 20px;
+  --r-campo: 28px;
+  --container: 78rem;
+  --pad: clamp(1.25rem, 4vw, 2.5rem);
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+[data-modulo="reactivos"] { --acento: #4f46e5; --acento-suave: #eceefd; }
+[data-modulo="equipos"] { --acento: #1967d2; --acento-suave: #e6eefb; }
+[data-modulo="laboratorios"] { --acento: #f2b01e; --acento-suave: #fbf0d3; --acento-tinta: #3d2c00; }
+[data-modulo="mantenimiento"] { --acento: #0e7490; --acento-suave: #dff1f5; }
+[data-modulo="materiales"] { --acento: #a21caf; --acento-suave: #f6e8f8; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem;
+  scrollbar-color: var(--line-strong) var(--canvas);
+}
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+h1, h2, h3, p, ul, ol, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; }
+::selection { background: var(--brand); color: #fff; }
+
+:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; border-radius: 6px; }
+.oscuro :focus-visible { outline-color: #fff; }
+
+.contenedor { width: 100%; max-width: var(--container); margin-inline: auto; padding-inline: var(--pad); }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.salto {
+  position: absolute; left: 1rem; top: -4rem; z-index: 100; background: var(--surface);
+  padding: 0.6rem 1rem; border-radius: var(--r-control); font-weight: 600;
+}
+.salto:focus { top: 1rem; }
+
+/* Botones */
+.boton, .botonSecundario, .botonClaro, .botonFantasma {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  min-height: 3rem; padding: 0 1.35rem; border-radius: var(--r-control);
+  font: inherit; font-weight: 600; font-size: 1rem; text-decoration: none; cursor: pointer;
+  border: 1.5px solid transparent; white-space: nowrap;
+  transition: transform 0.2s var(--ease), background-color 0.2s, box-shadow 0.2s, border-color 0.2s, color 0.2s;
+}
+.boton { background: var(--brand); color: #fff; box-shadow: 0 1px 2px rgba(11, 42, 74, 0.25); }
+.boton:hover { background: var(--brand-hover); }
+.botonSecundario { background: transparent; color: var(--navy); border-color: var(--line-strong); }
+.botonSecundario:hover { border-color: var(--navy); background: var(--sunken); }
+.botonClaro { background: #fff; color: var(--navy); }
+.botonClaro:hover { background: #eaf1f9; }
+.botonFantasma { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.45); }
+.botonFantasma:hover { border-color: #fff; background: rgba(255, 255, 255, 0.08); }
+.boton:active, .botonSecundario:active, .botonClaro:active, .botonFantasma:active { transform: scale(0.98); }
+.chico { min-height: 2.5rem; padding: 0 1.05rem; font-size: 0.9375rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}

@@ -1,0 +1,31 @@
+.ventana {
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(11, 42, 74, 0.1),
+    0 2px 4px rgba(11, 42, 74, 0.06),
+    0 24px 48px -16px rgba(11, 42, 74, 0.28);
+}
+.barra {
+  display: flex; align-items: center; gap: 0.9rem;
+  height: 2.25rem; padding-inline: 0.9rem;
+  background: #eef2f7; border-bottom: 1px solid var(--line);
+}
+.puntos { display: inline-flex; gap: 0.4rem; }
+.puntos i { width: 0.65rem; height: 0.65rem; border-radius: 50%; background: #c4cfdb; }
+.direccion {
+  flex: 1; max-width: 22rem; margin-inline: auto;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+  height: 1.45rem; border-radius: 6px; background: #fff;
+  font-size: 0.72rem; color: var(--ink-muted); letter-spacing: 0.01em;
+}
+.pantalla { position: relative; overflow: hidden; background: #fff; }
+.imagen { width: 100%; height: auto; display: block; }
+.recortada { height: 100%; object-fit: cover; object-position: top left; }
+
+@media (max-width: 40rem) {
+  .barra { height: 1.75rem; }
+  .puntos i { width: 0.5rem; height: 0.5rem; }
+  .direccion { display: none; }
+}

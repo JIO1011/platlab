@@ -1,0 +1,26 @@
+# PlatLab
+
+> Plataforma SaaS modular para laboratorios universitarios, centros de investigación y laboratorios de control de calidad. Cada institución trabaja en su propio espacio aislado y habilita únicamente los módulos que contrata.
+
+PlatLab es la evolución modular de ReactiLab. Funciona desde el navegador (computadora, tableta o celular) sin instalar software ni requerir lectores QR dedicados.
+
+## Módulos
+
+- **Reactivos**: Catálogo químico, existencias por frasco, salidas con aprobación, caducidad, stock mínimo e historial exacto.
+- **Equipos**: Inventario de activos por áreas con responsable, condición operativa y reporte de incidentes.
+- **Laboratorios (en piloto)**: Solicitudes de prácticas con formato propio, bandeja de revisión y cronograma diario por áreas sin choques de horario.
+- **Mantenimiento**: Planes preventivos, calibraciones y bandeja de trabajos por hacer con alertas de atraso.
+- **Materiales**: Consumibles, reutilizables y préstamos con vale, plazo y devoluciones parciales.
+
+## Roles por espacio
+
+- **Propietario y Administrador**: Configuran el espacio, aprueban solicitudes y salidas, gestionan catálogos y reportes.
+- **Operador**: Ejecuta el día a día (ingresos, salidas, traslados, préstamos, mantenimientos).
+- **Docente y Estudiante (tesista)**: Solicitan actividades de laboratorio y reportan incidentes.
+
+## Garantías de dominio
+
+- Cantidades decimales exactas (`numeric`), sin redondeos de coma flotante.
+- Nadie borra registros de negocio: se archivan, cancelan o compensan con otro movimiento trazado.
+- Aislamiento estricto por espacio en servidor y base de datos.
+- Interfaz en español (Ecuador) con accesibilidad WCAG 2.2 AA.
