@@ -24,8 +24,9 @@ Navegador ─► Supabase: sesión y archivos públicos
    La de `supabase/seed.sql` es solo local y no se usa aquí.
 4. **Archivos.** Storage → bucket público `public-files` (20 MiB; PDF, JPEG, PNG y WebP, como en `supabase/config.toml`).
    Storage → S3 Connection → crear claves de acceso: solo alcanzan archivos.
-5. **Datos de demostración (opcional).** `psql "<conexión>" -f supabase/seeds/demo.sql`: cuentas y datos sintéticos
-   (contraseña `platlab-demo`, la de la demo abierta).
+5. **Datos de demostración, por ahora (ADR 0033).** Actions → «Cargar demo» → Run workflow → escribir `CARGAR DEMO`.
+   Marca el ambiente como sintético y carga `supabase/seeds/demo.sql` una sola vez (contraseña `platlab-demo`,
+   pública). Se retira antes de G1.
 6. **Render.** New → Blueprint, con este repositorio (`render.yaml`); pide los valores de la tabla. Al terminar, copiar la
    URL del servicio (si `platlab-api` estaba ocupado, Render agrega un sufijo: ajustar `API_ORIGIN` en
    `infra/cloudflare/wrangler.jsonc`) y el **Deploy Hook** (Settings).

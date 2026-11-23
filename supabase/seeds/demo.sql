@@ -1,4 +1,5 @@
--- Demo sintética de G0 (primer incremento, «Datos y reglas mínimas»). Solo desarrollo local y CI:
+-- Demo sintética de G0 (primer incremento, «Datos y reglas mínimas»). Desarrollo local, CI y, por ahora, la nube
+-- (flujo «Cargar demo», ADR 0033):
 -- nombres, correos y contraseñas son ficticios y no hay datos personales.
 --
 -- Cuentas (contraseña local: platlab-demo):
