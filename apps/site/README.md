@@ -15,6 +15,6 @@ pnpm --filter @platlab/site e2e        # Playwright + axe (usa la salida de buil
 
 ## Antes de abrirlo al público
 
-- Definir el dominio y cambiar `SITE.url` y `CONTENIDO_PROVISIONAL = false` en `src/shared/config/site-config.ts` (hoy el sitio está fuera de los buscadores).
-- «Iniciar sesión» apunta a `SITE.app` (la demo en `platlab.ohmroyal.org`); dejar la app siempre en línea antes de publicar (02 §9).
-- Cabeceras de seguridad en `public/_headers`; despliegue con `wrangler.jsonc` (manual, aún sin hacer).
+- Con el dominio definitivo, cambiar `SITE.url` y `CONTENIDO_PROVISIONAL = false` en `src/shared/config/site-config.ts` (hoy comparte `platlab.ohmroyal.org` con la app y está fuera de los buscadores).
+- «Iniciar sesión» apunta a `SITE.app` (`/acceso` de la app, en el mismo dominio).
+- Cabeceras de seguridad en `public/_headers`; lo despliega el Worker de la app (`infra/cloudflare`, ADR 0033).

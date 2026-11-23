@@ -9,8 +9,8 @@ export const SITE = {
   lema: "Gestión integral de laboratorios",
   descripcion:
     "Reactivos, equipos, laboratorios, mantenimiento y materiales en un solo espacio de trabajo, con aprobaciones, trazabilidad y roles.",
-  // Dominio provisional: se define al desplegar el sitio.
-  url: "https://platlab.example",
+  // El Worker sirve el sitio y la app en el mismo dominio (ADR 0033); provisional hasta el definitivo (ADR 0030).
+  url: "https://platlab.ohmroyal.org",
   /** La aplicación: a donde lleva «Iniciar sesión». */
   app: "https://platlab.ohmroyal.org",
   contacto: {

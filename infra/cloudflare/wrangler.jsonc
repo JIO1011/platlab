@@ -1,15 +1,17 @@
 {
-  // Web de PlatLab y su puerta a la API (ADR 0033). Los archivos de la web se sirven como activos; el Worker solo
-  // atiende /v1/* y lo reenvía a la API. Se despliega desde el CI (.github/workflows/deploy.yml).
+  // Sitio público, app y puerta a la API en un solo origen (ADR 0033). Los activos los junta assets.mjs: el sitio en la
+  // raíz y la app en sus rutas, que pasan por el Worker junto con /v1/*. Se despliega desde el CI
+  // (.github/workflows/deploy.yml).
   "$schema": "https://unpkg.com/wrangler@4/config-schema.json",
   "name": "platlab",
   "main": "worker.mjs",
   "compatibility_date": "2026-11-13",
   "assets": {
-    "directory": "../../apps/web/dist",
+    "directory": "./dist",
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
-    "run_worker_first": ["/v1/*"]
+    // Lo que no existe responde con el 404 del sitio; las rutas de la app las resuelve su enrutador.
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/v1/*", "/acceso", "/acceso/", "/espacios", "/espacios/", "/e/*", "/q/*"]
   },
   "vars": {
     // La URL pública del servicio en Render (infra/README.md).

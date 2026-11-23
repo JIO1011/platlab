@@ -6,7 +6,7 @@
     "apps/server/src/modules/*/index.ts": ["exports", "types"]
   },
   "workspaces": {
-    ".": { "entry": ["infra/cloudflare/worker.mjs"] },
+    ".": { "entry": ["infra/cloudflare/worker.mjs", "infra/cloudflare/assets.mjs"] },
     "apps/site": {
       "entry": ["src/app/**/{page,layout,not-found,robots,sitemap}.{ts,tsx}", "e2e/**/*.ts"],
       "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts"],

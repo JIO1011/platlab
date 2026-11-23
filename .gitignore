@@ -22,8 +22,9 @@ apps/web/playwright-report/
 **/.impeccable/review/
 apps/web/.impeccable/hook.cache.json
 
-# Estado local de `wrangler dev` (infra/cloudflare)
+# Estado local de `wrangler dev` y activos que junta assets.mjs (infra/cloudflare)
 .wrangler/
+infra/cloudflare/dist/
 
 # Sitio público: compilados y pruebas (se regeneran)
 apps/site/.next/

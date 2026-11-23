@@ -796,7 +796,7 @@ Estado: aceptada (19-11-2026; pedido del usuario). El sitio vive en el monorepo 
 - **Honestidad:** cada módulo muestra su etapa real (`pilot` → «Disponible para piloto»; `development` → «Próximamente»). Sin fechas, clientes, cifras de uso ni testimonios. Los precios los fija el [ADR 0032](#adr-0032), que reemplaza el «sin precios» original de este ADR. El informe de controlados se presenta como lo que es hoy: marca, filtro y exportación (ADR 0016).
 - **Imágenes:** solo capturas propias con datos sintéticos, rotuladas como demostración; sin fotos de stock. Las generan `pnpm capturar` desde la demo.
 - **Monorepo:** así las etapas, los docs y las capturas (`pnpm --filter @platlab/site capturar`, desde la demo local) tienen una sola fuente; el CI compila el sitio.
-- **Pendiente:** dominio definitivo del sitio, la app siempre en línea antes de abrirlo a buscadores (02 §9) y el modelo comercial (01 §4).
+- **Pendiente:** dominio definitivo. Hasta entonces comparte `platlab.ohmroyal.org` con la app ([ADR 0033](#adr-0033)) y sigue fuera de los buscadores (`CONTENIDO_PROVISIONAL`).
 
 Motivo: la versión anterior explicaba la interfaz en vez de vender el resultado y llevaba jerga interna, etapas desactualizadas y ningún acceso a la app.
 
@@ -865,6 +865,6 @@ Estado: aceptada (21-11-2026; pedido del usuario: llevar la app a producción). 
 - **API empaquetada:** `esbuild` genera un solo `api.mjs` (incluye los paquetes del monorepo, que se publican como TypeScript); la imagen no lleva `node_modules`. Registro de peticiones en JSON con Fastify y cierre ordenado por `SIGTERM`.
 - **Fuera de este tramo (F1b, antes de G1):** límites de tasa (02 §12), Resend, R2 y copias, observabilidad, consola y worker. «Crear cuenta» sigue oculta y la demo, abierta y sintética.
 - **Dominio:** `platlab.ohmroyal.org` es un dominio personalizado del Worker (22-11-2026). El túnel `platlab-demo`, su CNAME y sus scripts se retiraron; `workers.dev` queda para pruebas.
-- **Pendiente:** el sitio público ([ADR 0030](#adr-0030)) entra al Worker cuando esté en `main`.
+- **Sitio público (22-11-2026):** el mismo Worker sirve el sitio ([ADR 0030](#adr-0030)) en la raíz y en todo lo que no es de la app. La app atiende `/acceso`, `/espacios`, `/e/*` y `/q/*` con su `index.html` (el Worker lo toma de `/_app/`), y sus archivos en `/assets/` y `/ghs/`, como en el túnel del [ADR 0029](#adr-0029). `infra/cloudflare/assets.mjs` junta las dos compilaciones y falla si comparten un archivo. La CSP y la `Permissions-Policy` del sitio no alcanzan a la app (llama a Supabase y usa la cámara para las etiquetas); la app sigue sin CSP propia. Una ruta desconocida responde con el 404 del sitio.
 
 Motivo: la demo en el túnel depende de la máquina del fundador; hace falta un entorno que no se apague, con la misma arquitectura que tendrá el piloto.

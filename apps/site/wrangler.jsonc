@@ -1,7 +1,0 @@
-{
-  // Sitio estático de PlatLab. El despliegue es manual y todavía no se hace.
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "platlab-site",
-  "compatibility_date": "2026-09-04",
-  "assets": { "directory": "out" }
-}

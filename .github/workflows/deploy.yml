@@ -65,7 +65,14 @@ jobs:
           VITE_SIGNUP: 'off'
         run: pnpm --filter @platlab/web build
 
-      - name: Worker y web en Cloudflare
+      - name: Compilar el sitio público
+        run: pnpm --filter @platlab/site build
+
+      # El sitio en la raíz y la app en sus rutas (ADR 0033).
+      - name: Activos del Worker
+        run: node infra/cloudflare/assets.mjs
+
+      - name: Worker, sitio y web en Cloudflare
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
