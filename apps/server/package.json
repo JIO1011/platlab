@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/entrypoints/api.ts",
     "start": "tsx src/entrypoints/api.ts",
+    "build": "node build.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run --exclude '**/*.int.test.ts'",
     "test:int": "vitest run --dir src '.int.test.ts'",
@@ -26,6 +27,7 @@
     "@pgtyped/cli": "2.4.3",
     "@types/pg": "8.23.1",
     "@types/yazl": "3.3.1",
+    "esbuild": "0.28.2",
     "tsx": "4.23.15"
   }
 }

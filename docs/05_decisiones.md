@@ -31,9 +31,10 @@ Revisión: 16 de noviembre de 2026. Registro resumido de decisiones de arquitect
 | [0025](#adr-0025) | Materiales y Préstamos: consumibles, reutilizables y vale de préstamo | Aceptado el 18-11-2026 |
 | [0026](#adr-0026) | Inicio con Actividad, Calendario y Por atender | Aceptado el 19-11-2026 |
 | [0027](#adr-0027) | Usuarios: lista blanca, roles e inactividad | Aceptado el 19-11-2026 |
-| [0029](#adr-0029) | Demo publicada en internet | Aceptado el 19-11-2026 |
+| [0029](#adr-0029) | Demo publicada en internet | Reemplazado por el [0033](#adr-0033) el 22-11-2026 |
 | [0031](#adr-0031) | Modelo comercial para universidades | Aceptado el 19-11-2026; ingreso y cifras reemplazados por el 0032 |
 | [0032](#adr-0032) | Precios por módulo con mantenimiento anual | Aceptado el 19-11-2026 |
+| [0033](#adr-0033) | Despliegue en la nube del primer entorno (`staging`) | Aceptado el 21-11-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -761,7 +762,7 @@ Motivo: hoy los miembros solo se crean con datos de prueba. El laboratorio neces
 <a id="adr-0029"></a>
 ## ADR 0029 — Demo publicada en internet
 
-Aceptado el 19-11-2026. Adelanta la publicación que [02 §9](02_arquitectura.md#9-infraestructura-y-ambientes) deja para «G0 si la demo se publica». No es G1 ni admite datos reales ([ADR 0005](#adr-0005)).
+Reemplazado por el [ADR 0033](#adr-0033) el 22-11-2026: el túnel y su configuración se retiraron y el dominio pasó al Worker. Aceptado el 19-11-2026. Adelanta la publicación que [02 §9](02_arquitectura.md#9-infraestructura-y-ambientes) deja para «G0 si la demo se publica». No es G1 ni admite datos reales ([ADR 0005](#adr-0005)).
 
 - **Cómo.** Un Cloudflare Tunnel (`cloudflared`) desde el equipo del Equipo PlatLab publica `platlab.ohmroyal.org`, con el certificado de Cloudflare. Detrás siguen la base, Auth y la API locales de desarrollo; por ahora no hay proyecto de Supabase ni hosting.
 - **Un solo origen, repartido por ruta** (`infra/cloudflared/platlab.example.yml`):
@@ -833,3 +834,20 @@ Aceptado el 19-11-2026 (decisión del usuario). Reemplaza en el [ADR 0031](#adr-
 
 Motivo: un precio que el cliente entiende («paga una vez lo que usa»), un primer pago bajo para cerrar la primera venta, cada módulo nuevo como otra venta y un mantenimiento proporcional al tamaño de cada cliente. Es la regla habitual del software que se vende por licencia.
 
+<a id="adr-0033"></a>
+
+## ADR 0033 — Despliegue en la nube del primer entorno (`staging`)
+
+Estado: aceptada (21-11-2026; pedido del usuario: llevar la app a producción). Aplica 02 §9 sin cambiar su destino: es su primer tramo, con datos sintéticos (G0); los datos reales siguen detrás de G1.
+
+- **Piezas:** un Worker de Cloudflare sirve la web (activos estáticos, con `single-page-application`) y reenvía `/v1/*` a la API en Render. La API es un contenedor Node 24 en Render (región Ohio, la misma región de AWS que Supabase; plan gratuito mientras sea staging: se duerme tras 15 minutos sin tráfico y tarda cerca de un minuto en despertar, así que pasa a Starter antes de mostrarlo a clientes). Base, Auth y Storage están en un proyecto Supabase `platlab` (`us-east-2`), separado de `Inventario_V1` (ReactiLab).
+- **Un solo origen:** el navegador solo habla con el dominio de PlatLab para la API; sin CORS y sin `api.<dominio>`. Auth y Storage públicos los sirve Supabase directamente. Hasta el corte, la demo del túnel ([ADR 0029](#adr-0029)) sigue en `platlab.ohmroyal.org`; el Worker se prueba antes en su `workers.dev`.
+- **Orden de entrega (02 §9):** CI verde → migraciones aditivas al proyecto Supabase (solo desde CI; nunca desde una máquina local) → API en Render por su deploy hook (el auto-deploy de Render queda apagado para que no adelante a las migraciones) → web y Worker. Un rollback de código no revierte la base.
+- **Credenciales:** el rol `platlab_api` recibe su contraseña fuera de Git (la local de `seed.sql` no llega al entorno remoto, S-01). Los secretos viven en Render, en GitHub Actions y en Cloudflare; ninguno en el repositorio ni en `VITE_*`. La API en producción falla si falta una variable ([02 §10](02_arquitectura.md#10-seguridad-y-operación)).
+- **Conexión a PostgreSQL:** Supavisor en modo sesión (IPv4), sin costo extra; Render no sale por IPv6. El modo transacción queda descartado (prepared statements). La latencia desde Ecuador se mide en S-01 y decide si se pasa a conexión directa o a otro host.
+- **API empaquetada:** `esbuild` genera un solo `api.mjs` (incluye los paquetes del monorepo, que se publican como TypeScript); la imagen no lleva `node_modules`. Registro de peticiones en JSON con Fastify y cierre ordenado por `SIGTERM`.
+- **Fuera de este tramo (F1b, antes de G1):** límites de tasa (02 §12), Resend, R2 y copias, observabilidad, consola y worker. «Crear cuenta» sigue oculta y la demo, abierta y sintética.
+- **Dominio:** `platlab.ohmroyal.org` es un dominio personalizado del Worker (22-11-2026). El túnel `platlab-demo`, su CNAME y sus scripts se retiraron; `workers.dev` queda para pruebas.
+- **Pendiente:** el sitio público ([ADR 0030](#adr-0030)) entra al Worker cuando esté en `main`.
+
+Motivo: la demo en el túnel depende de la máquina del fundador; hace falta un entorno que no se apague, con la misma arquitectura que tendrá el piloto.

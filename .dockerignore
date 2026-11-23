@@ -1,0 +1,15 @@
+# La imagen de la API solo necesita el código; nada de secretos ni artefactos locales.
+**/node_modules
+**/dist
+**/out
+**/.env*
+.git
+.claude
+.agents
+docs
+apps/web/.impeccable
+apps/web/test-results
+apps/web/playwright-report
+supabase/signing_keys.json
+supabase/.temp
+supabase/.branches

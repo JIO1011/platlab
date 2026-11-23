@@ -16,10 +16,23 @@ const verifyToken = createTokenVerifier({
   audience: config.auth.audience,
 });
 
-const app = buildApp({ pool, verifyToken, publicFiles: publicFiles(config.storage) });
+const app = buildApp({ pool, verifyToken, publicFiles: publicFiles(config.storage), logger: config.production });
 app.addHook('onClose', async () => {
   await pool.end();
 });
+
+// Render avisa con SIGTERM antes de reemplazar el contenedor: se atienden las peticiones en curso y se cierra el pool.
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(signal, () => {
+    app.close().then(
+      () => process.exit(0),
+      (error: unknown) => {
+        console.error(error);
+        process.exit(1);
+      },
+    );
+  });
+}
 
 try {
   await app.listen({ port: config.port, host: config.host });
