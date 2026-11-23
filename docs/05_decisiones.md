@@ -31,7 +31,7 @@ Revisión: 16 de noviembre de 2026. Registro resumido de decisiones de arquitect
 | [0025](#adr-0025) | Materiales y Préstamos: consumibles, reutilizables y vale de préstamo | Aceptado el 18-11-2026 |
 | [0026](#adr-0026) | Inicio con Actividad, Calendario y Por atender | Aceptado el 19-11-2026 |
 | [0027](#adr-0027) | Usuarios: lista blanca, roles e inactividad | Aceptado el 19-11-2026 |
-| [0029](#adr-0029) | Demo publicada en internet | Aceptado el 19-11-2026 |
+| [0029](#adr-0029) | Demo publicada en internet | Reemplazado por el [0033](#adr-0033) el 22-11-2026 |
 
 <a id="adr-0001"></a>
 ## ADR 0001 — Espacios de trabajo y autorización
@@ -759,7 +759,7 @@ Motivo: hoy los miembros solo se crean con datos de prueba. El laboratorio neces
 <a id="adr-0029"></a>
 ## ADR 0029 — Demo publicada en internet
 
-Aceptado el 19-11-2026. Adelanta la publicación que [02 §9](02_arquitectura.md#9-infraestructura-y-ambientes) deja para «G0 si la demo se publica». No es G1 ni admite datos reales ([ADR 0005](#adr-0005)).
+Reemplazado por el [ADR 0033](#adr-0033) el 22-11-2026: el túnel y su configuración se retiraron y el dominio pasó al Worker. Aceptado el 19-11-2026. Adelanta la publicación que [02 §9](02_arquitectura.md#9-infraestructura-y-ambientes) deja para «G0 si la demo se publica». No es G1 ni admite datos reales ([ADR 0005](#adr-0005)).
 
 - **Cómo.** Un Cloudflare Tunnel (`cloudflared`) desde el equipo del Equipo PlatLab publica `platlab.ohmroyal.org`, con el certificado de Cloudflare. Detrás siguen la base, Auth y la API locales de desarrollo; por ahora no hay proyecto de Supabase ni hosting.
 - **Un solo origen, repartido por ruta** (`infra/cloudflared/platlab.example.yml`):
@@ -821,6 +821,7 @@ Estado: aceptada (21-11-2026; pedido del usuario: llevar la app a producción). 
 - **Conexión a PostgreSQL:** Supavisor en modo sesión (IPv4), sin costo extra; Render no sale por IPv6. El modo transacción queda descartado (prepared statements). La latencia desde Ecuador se mide en S-01 y decide si se pasa a conexión directa o a otro host.
 - **API empaquetada:** `esbuild` genera un solo `api.mjs` (incluye los paquetes del monorepo, que se publican como TypeScript); la imagen no lleva `node_modules`. Registro de peticiones en JSON con Fastify y cierre ordenado por `SIGTERM`.
 - **Fuera de este tramo (F1b, antes de G1):** límites de tasa (02 §12), Resend, R2 y copias, observabilidad, consola y worker. «Crear cuenta» sigue oculta y la demo, abierta y sintética.
-- **Pendiente:** dominio definitivo y el corte de `platlab.ohmroyal.org` del túnel al Worker; el sitio público ([ADR 0030](#adr-0030)) entra al Worker cuando esté en `main`.
+- **Dominio:** `platlab.ohmroyal.org` es un dominio personalizado del Worker (22-11-2026). El túnel `platlab-demo`, su CNAME y sus scripts se retiraron; `workers.dev` queda para pruebas.
+- **Pendiente:** el sitio público ([ADR 0030](#adr-0030)) entra al Worker cuando esté en `main`.
 
 Motivo: la demo en el túnel depende de la máquina del fundador; hace falta un entorno que no se apague, con la misma arquitectura que tendrá el piloto.

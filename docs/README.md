@@ -1,6 +1,6 @@
 # PlatLab — hilo del proyecto
 
-Revisión: 16 de noviembre de 2026. Estado: Reactivos y Laboratorios en etapa `pilot` (G0 superada); Equipos, Mantenimiento y Áreas hechos, sin su G0. Sin infraestructura desplegada ni datos reales.
+Revisión: 16 de noviembre de 2026. Estado: Reactivos y Laboratorios en etapa `pilot` (G0 superada); Equipos, Mantenimiento y Áreas hechos, sin su G0. Staging en la nube desplegado desde `main` ([ADR 0033](05_decisiones.md#adr-0033)); sin datos reales.
 
 ## Qué es
 

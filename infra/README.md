@@ -51,9 +51,6 @@ Navegador ─► Supabase: sesión y archivos públicos
 | GitHub (variable) | `STAGING_SUPABASE_URL` | `https://<ref>.supabase.co` |
 | GitHub (variable) | `STAGING_SUPABASE_PUBLISHABLE_KEY` | La clave publicable del proyecto (pública por diseño) |
 
-## Corte del dominio
+## Dominio
 
-Hasta aquí la web responde en el `workers.dev` del Worker y la demo del túnel sigue en `platlab.ohmroyal.org`. Para
-cortar: probar el flujo completo en el `workers.dev`; borrar el CNAME `platlab` del túnel en el panel de Cloudflare; agregar
-en `wrangler.jsonc` `"routes": [{ "pattern": "platlab.ohmroyal.org", "custom_domain": true }]` y desplegar.
-Para volver atrás, se quita la ruta y se restaura el CNAME del túnel.
+`platlab.ohmroyal.org` es un dominio personalizado del Worker (`routes` en `infra/cloudflare/wrangler.jsonc`): Cloudflare crea el registro DNS y el certificado al desplegar. No puede existir antes un CNAME con ese nombre (el del túnel antiguo se borró). `workers.dev` queda activo para pruebas; para apagarlo se quita `workers_dev`. Si el despliegue falla por permisos, el token necesita «Workers Routes: Edit» en la zona `ohmroyal.org`.
