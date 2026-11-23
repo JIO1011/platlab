@@ -32,6 +32,7 @@ Revisión: 16 de noviembre de 2026. Registro resumido de decisiones de arquitect
 | [0026](#adr-0026) | Inicio con Actividad, Calendario y Por atender | Aceptado el 19-11-2026 |
 | [0027](#adr-0027) | Usuarios: lista blanca, roles e inactividad | Aceptado el 19-11-2026 |
 | [0029](#adr-0029) | Demo publicada en internet | Reemplazado por el [0033](#adr-0033) el 22-11-2026 |
+| [0030](#adr-0030) | Sitio público de presentación | Aceptado el 19-11-2026; precios según el 0032 |
 | [0031](#adr-0031) | Modelo comercial para universidades | Aceptado el 19-11-2026; ingreso y cifras reemplazados por el 0032 |
 | [0032](#adr-0032) | Precios por módulo con mantenimiento anual | Aceptado el 19-11-2026 |
 | [0033](#adr-0033) | Despliegue en la nube del primer entorno (`staging`) | Aceptado el 21-11-2026 |
