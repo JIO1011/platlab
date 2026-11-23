@@ -4,7 +4,8 @@ Primer entorno en la nube, con datos sintéticos. Ningún secreto va al reposito
 [ADR 0033](../docs/05_decisiones.md#adr-0033); la arquitectura, en [02 §9](../docs/02_arquitectura.md#9-infraestructura-y-ambientes).
 
 ```
-Navegador ─► Worker «platlab» (Cloudflare) ─┬─ activos de la web (SPA)
+Navegador ─► Worker «platlab» (Cloudflare) ─┬─ sitio público: la raíz y todo lo que no es de la app
+                                           ├─ app: /acceso, /espacios, /e/*, /q/* (y /assets/, /ghs/)
                                            └─ /v1/* ─► API en Render ─► Supabase (PostgreSQL, Auth, Storage)
 Navegador ─► Supabase: sesión y archivos públicos
 ```
@@ -31,7 +32,10 @@ Navegador ─► Supabase: sesión y archivos públicos
 7. **Cloudflare** (cuenta de ohmroyal). Token de API con «Edit Cloudflare Workers» y la zona `ohmroyal.org`.
 8. **GitHub.** Settings → Environments → `staging`: los secretos y variables de la tabla. Al final, la variable de
    repositorio `DEPLOY_STAGING=true`, y Actions → Deploy staging → Run workflow.
-9. **Probar** en el `workers.dev` del Worker (`platlab`): entrar con una cuenta de la demo y recorrer Reactivos.
+9. **Probar** en el `workers.dev` del Worker (`platlab`): el sitio en la raíz, el acceso en `/acceso` y `/v1/me/workspaces` con 401 sin sesión.
+
+Para probar el Worker en local: compilar la web y el sitio, juntar los activos y levantarlo
+(`node infra/cloudflare/assets.mjs`, luego `pnpm dlx wrangler@4.166.0 dev --config infra/cloudflare/wrangler.jsonc`).
 
 ## Valores
 

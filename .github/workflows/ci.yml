@@ -60,6 +60,10 @@ jobs:
       - name: Compilación del sitio público
         run: pnpm --filter @platlab/site build
 
+      # Falla si la app y el sitio publican el mismo archivo (ADR 0033).
+      - name: Activos del Worker
+        run: node infra/cloudflare/assets.mjs
+
       - name: Navegador para Playwright
         run: pnpm --filter @platlab/web exec playwright install --with-deps chromium
 
